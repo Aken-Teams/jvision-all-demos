@@ -1,4 +1,4 @@
-import { CrmDemo } from "@/components/crm-demo";
+import { CrmDemo } from "../components/crm-demo";
 
 const features = [
   ["客戶名單管理", "集中管理公司、聯絡人、互動紀錄與下一步行動。"],

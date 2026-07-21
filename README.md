@@ -39,12 +39,17 @@ npm run dev
 
 Their root `index.html` files are compatibility snapshots for the single-domain Hub, not the project runtime. The canonical list is `docs/LEGACY_NEXT_PROJECTS.json`.
 
+## Professional light SaaS design
+
+The Hub and all 464 demos use a shared light, high-contrast AI SaaS design layer. Industry-specific accent colors and layouts remain independent, while typography, surface brightness, form clarity, focus states, and text contrast follow the same quality baseline.
+
 ## Quick checks
 
 ```bash
 npm run audit:structure
 npm run audit:next
 npm run audit:legacy-next
+npm run audit:bright-saas
 npm run list:demos
 ```
 

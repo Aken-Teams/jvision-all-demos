@@ -62,7 +62,8 @@ function convertProject(project) {
     "description",
     project.repoName,
   ).trim();
-  const bodyClass = matchRequired(indexHtml, /<body\s+class=["']([^"']+)["']/i, "body class", project.repoName).trim();
+  const extractedBodyClass = matchRequired(indexHtml, /<body\s+class=["']([^"']+)["']/i, "body class", project.repoName).trim();
+  const bodyClass = [...new Set([...extractedBodyClass.split(/\s+/), "jvision-bright-saas", "jvision-generated"])].join(" ");
   const mainMatch = indexHtml.match(/<main\s+class=["']([^"']+)["'][^>]*>([\s\S]*?)<\/main>/i);
   if (!mainMatch) {
     throw new Error(`Could not extract the main application shell from ${project.repoName}/index.html.`);
