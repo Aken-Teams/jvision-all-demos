@@ -1,0 +1,28 @@
+import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Jvision 房產租賃代管 Demo",
+  description: "Jvision 房源、租約、帳單、修繕、點交、AI 現況與租金對帳 demo。",
+  openGraph: {
+    title: "Jvision 房產租賃代管 Demo",
+    description: "立即體驗房源管理、線上簽約、租金帳單、修繕追蹤與點退續約流程。",
+    images: ["https://www.jvision-ai.com/public/logo.png"]
+  }
+};
+
+export default function RootLayout({
+  children
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="zh-Hant">
+      <body>
+        {children}
+        <Analytics />
+      </body>
+    </html>
+  );
+}

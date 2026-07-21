@@ -1,15 +1,20 @@
 # JVision Demo Project Index
 
-Generated at: 2026-07-21T09:13:06.385Z
+Generated at: 2026-07-21T09:45:48.646Z
 
-Total demo projects: 400
+Total demo projects: 464
 
 ## Categories
 
 - 交通車輛與物流: 10
+- 交通與車輛: 6
+- 企業營運: 6
 - 協作、企業營運與 AI 工作區: 10
+- 協作與管理: 11
 - 金融保險與專業服務: 10
+- 金融與保險: 3
 - 教育與培訓: 10
+- 教育與照護: 8
 - 智慧製造｜人資管理: 20
 - 智慧製造｜品質管理: 50
 - 智慧製造｜研發管理: 20
@@ -20,16 +25,80 @@ Total demo projects: 400
 - 智慧製造｜經營管理: 20
 - 智慧製造｜製造管理: 60
 - 智慧製造｜IT管理: 20
-- 零售與服務: 15
-- 製造與工程: 15
+- 零售與服務: 25
+- 製造與工程: 31
 - 營建與工程服務: 10
 - 醫療照護與健康: 10
+- ESG 與永續: 2
 - ESG、能源與永續: 10
+- JVision 舊專案: 2
 
 ## Projects
 
 | ID | Project | Demo | GitHub |
 |---:|---|---|---|
+| 2 | Production Order | [Demo](https://jvision-production-order.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-production-order) |
+| 6 | CRM | [Demo](https://jvision-crm.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-crm) |
+| 9 | Construction | [Demo](https://jvision-construction.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-construction) |
+| 11 | Bizbooks | [Demo](https://jvision-bizbooks.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-bizbooks) |
+| 12 | Attendance | [Demo](https://jvision-attendance.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-attendance) |
+| 13 | Course Tools | [Demo](https://jvision-course-tools.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-course-tools) |
+| 14 | Legalops | [Demo](https://jvision-legalops.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-legalops) |
+| 15 | Car Cloud | [Demo](https://jvision-car-cloud.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-car-cloud) |
+| 16 | Personal Finance | [Demo](https://jvision-personal-finance.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-personal-finance) |
+| 17 | TMS | [Demo](https://jvision-tms.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-tms) |
+| 18 | Construction ERP | [Demo](https://jvision-construction-erp.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-construction-erp) |
+| 19 | Hospitality | [Demo](https://jvision-hospitality.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-hospitality) |
+| 20 | Property Management | [Demo](https://jvision-property-management.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-property-management) |
+| 21 | Course Platform | [Demo](https://jvision-course-platform.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-course-platform) |
+| 22 | Ecare | [Demo](https://jvision-ecare.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-ecare) |
+| 23 | Clinic | [Demo](https://jvision-clinic.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-clinic) |
+| 24 | Store Design | [Demo](https://jvision-store-design.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-store-design) |
+| 25 | Smart POS | [Demo](https://jvision-smart-pos.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-smart-pos) |
+| 26 | POS | [Demo](https://jvision-pos.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-pos) |
+| 27 | Work Management | [Demo](https://jvision-work-management.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-work-management) |
+| 28 | AI Workspace | [Demo](https://jvision-ai-workspace.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-ai-workspace) |
+| 29 | Office Automation | [Demo](https://jvision-office-automation.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-office-automation) |
+| 30 | BI Analytics | [Demo](https://jvision-bi-analytics.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-bi-analytics) |
+| 31 | Carbon Inventory | [Demo](https://jvision-carbon-inventory.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-carbon-inventory) |
+| 32 | EMS | [Demo](https://jvision-ems.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-ems) |
+| 33 | SRM | [Demo](https://jvision-srm.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-srm) |
+| 34 | SQM | [Demo](https://jvision-sqm.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-sqm) |
+| 35 | Dental Assistant | [Demo](https://jvision-dental-assistant.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-dental-assistant) |
+| 36 | Pet Booking | [Demo](https://jvision-pet-booking.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-pet-booking) |
+| 37 | Education Care | [Demo](https://jvision-education-care.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-education-care) |
+| 38 | Pharmacy Claim | [Demo](https://jvision-pharmacy-claim.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-pharmacy-claim) |
+| 39 | Staff Dispatch | [Demo](https://jvision-staff-dispatch.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-staff-dispatch) |
+| 40 | Optical Saas | [Demo](https://jvision-optical-saas.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-optical-saas) |
+| 41 | Motorcycle Shop | [Demo](https://jvision-motorcycle-shop.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-motorcycle-shop) |
+| 42 | Estimate Pmis | [Demo](https://jvision-estimate-pmis.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-estimate-pmis) |
+| 43 | Laundry POS | [Demo](https://jvision-laundry-pos.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-laundry-pos) |
+| 44 | Smart Parking | [Demo](https://jvision-smart-parking.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-smart-parking) |
+| 45 | Bakery POS | [Demo](https://jvision-bakery-pos.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-bakery-pos) |
+| 46 | Printing ERP | [Demo](https://jvision-printing-erp.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-printing-erp) |
+| 47 | Trading ERP | [Demo](https://jvision-trading-erp.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-trading-erp) |
+| 48 | Inventory | [Demo](https://jvision-inventory.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-inventory) |
+| 49 | Maintenance | [Demo](https://jvision-maintenance.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-maintenance) |
+| 51 | Self Care Platform | [Demo](https://jvision-self-care-platform.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-self-care-platform) |
+| 52 | Event Wedding | [Demo](https://jvision-event-wedding.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-event-wedding) |
+| 53 | Customer Support Platform | [Demo](https://jvision-customer-support-platform.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-customer-support-platform) |
+| 54 | HRIS | [Demo](https://jvision-hris.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-hris) |
+| 55 | Work Project Suite | [Demo](https://jvision-work-project-suite.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-work-project-suite) |
+| 56 | Equipment Maintenance Suite | [Demo](https://jvision-equipment-maintenance-suite.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-equipment-maintenance-suite) |
+| 57 | Construction Management Suite | [Demo](https://jvision-construction-management-sui.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-construction-management-suite) |
+| 58 | Course Learning Suite | [Demo](https://jvision-course-learning-suite.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-course-learning-suite) |
+| 59 | ESG Energy Carbon | [Demo](https://jvision-esg-energy-carbon.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-esg-energy-carbon) |
+| 60 | Interior Design Studio | [Demo](https://jvision-interior-design-studio.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-interior-design-studio) |
+| 61 | Fashion Plm | [Demo](https://jvision-fashion-plm.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-fashion-plm) |
+| 62 | Sign Shop Management | [Demo](https://jvision-sign-shop-management.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-sign-shop-management) |
+| 63 | Towing Dispatch | [Demo](https://jvision-towing-dispatch.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-towing-dispatch) |
+| 64 | Auto Glass Ops | [Demo](https://jvision-auto-glass-ops.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-auto-glass-ops) |
+| 65 | Claims Management | [Demo](https://jvision-claims-management.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-claims-management) |
+| 66 | Order Inventory | [Demo](https://jvision-order-inventory-jtnrexlra-akens-projects-fce998a9.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-order-inventory) |
+| 67 | Lean Demo | [Demo](https://jvision-lean-demo.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-lean-demo) |
+| 69 | Work Order Demo | [Demo](https://jvision-work-order-demo.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-work-order-demo) |
+| 70 | Demo | [Demo](https://jvision-demo.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-demo) |
+| 71 | Task Demo | [Demo](https://jvision-task-demo.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-task-demo) |
 | 1001 | jvision-ai-case-001-production-scheduler | [Demo](https://jvision-ai-case-001-production-scheduler.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-ai-case-001-production-scheduler) |
 | 1002 | jvision-ai-case-002-work-order-dispatch | [Demo](https://jvision-ai-case-002-work-order-dispatch.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-ai-case-002-work-order-dispatch) |
 | 1003 | jvision-ai-case-003-predictive-maintenance | [Demo](https://jvision-ai-case-003-predictive-maintenance.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-ai-case-003-predictive-maintenance) |
@@ -430,3 +499,5 @@ Total demo projects: 400
 | 1398 | jvision-smart-mfg-298-system-298 | [Demo](https://jvision-smfg-298-system-298.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-smart-mfg-298-system-298) |
 | 1399 | jvision-smart-mfg-299-system-299 | [Demo](https://jvision-smfg-299-system-299.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-smart-mfg-299-system-299) |
 | 1400 | jvision-smart-mfg-300-system-300 | [Demo](https://jvision-smfg-300-system-300.vercel.app) | [Repo](https://github.com/JVision-pj/jvision-smart-mfg-300-system-300) |
+| 2001 | Showcase Vercel | — | [Repo](https://github.com/JVision-pj/jvision-showcase-vercel) |
+| 2002 | Temple Management | — | [Repo](https://github.com/JVision-pj/jvision-temple-management) |

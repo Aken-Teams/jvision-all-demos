@@ -1,0 +1,134 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import PDFDocument from "pdfkit";
+import QRCode from "qrcode";
+import sharp from "sharp";
+
+const args = new Map();
+for (let i = 2; i < process.argv.length; i += 2) args.set(process.argv[i], process.argv[i + 1]);
+
+const demoUrl = args.get("--url") || process.env.DEMO_URL || "https://jvision-trading-erp.vercel.app";
+const outDir = args.get("--out") || "D:/code/image/說明文件/jvision-trading-erp";
+const logoUrl = "https://www.jvision-ai.com/public/logo.png";
+const fontRegular = "C:/Windows/Fonts/kaiu.ttf";
+const fontBold = "C:/Windows/Fonts/simsunb.ttf";
+
+await mkdir(outDir, { recursive: true });
+
+const qrSvgRaw = await QRCode.toString(demoUrl, {
+  type: "svg",
+  margin: 1,
+  width: 250,
+  color: { dark: "#1F2A37", light: "#ffffff" },
+});
+const qrPng = Buffer.from((await QRCode.toDataURL(demoUrl, { margin: 1, width: 360 })).split(",")[1], "base64");
+const logoBuffer = Buffer.from(await (await fetch(logoUrl)).arrayBuffer());
+const qrInner = qrSvgRaw.replace(/<\?xml.*?\?>/, "").replace(/<svg[^>]*>/, "").replace("</svg>", "");
+
+const posterSvg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1240" height="1754" viewBox="0 0 1240 1754" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="1240" height="1754" fill="#F6F8FB"/>
+<rect x="70" y="70" width="1100" height="1614" rx="34" fill="#FFFFFF" stroke="#DDE7F0" stroke-width="2"/>
+<image href="${logoUrl}" x="108" y="112" width="214" height="60" preserveAspectRatio="xMinYMid meet"/>
+<text x="108" y="266" fill="#F97316" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="30" font-weight="700">Jvision Trading ERP</text>
+<text x="108" y="356" fill="#1F2A37" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="70" font-weight="800">貿易 ERP 管理 Demo</text>
+<text x="108" y="442" fill="#1F2A37" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="52" font-weight="800">報價、採購、出貨與帳款一套完成</text>
+<text x="108" y="526" fill="#667085" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="30">整合報價、銷售確認單、採購單、裝箱單與商業發票。</text>
+<text x="108" y="574" fill="#667085" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="30">掃描 QR Code 可直接進入線上互動 Demo。</text>
+<rect x="108" y="672" width="1024" height="420" rx="28" fill="#1F2A37"/>
+<rect x="158" y="728" width="292" height="280" rx="22" fill="#FFFFFF"/>
+<rect x="474" y="728" width="292" height="280" rx="22" fill="#FFF4EC"/>
+<rect x="790" y="728" width="292" height="280" rx="22" fill="#FFFFFF"/>
+<text x="190" y="806" fill="#F97316" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="32" font-weight="800">報價訂單</text>
+<text x="190" y="874" fill="#1F2A37" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="26">電子型錄</text>
+<text x="190" y="932" fill="#1F2A37" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="26">利潤試算</text>
+<text x="506" y="806" fill="#F97316" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="32" font-weight="800">採購出貨</text>
+<text x="506" y="874" fill="#1F2A37" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="26">PO 自動產生</text>
+<text x="506" y="932" fill="#1F2A37" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="26">裝箱單</text>
+<text x="822" y="806" fill="#F97316" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="32" font-weight="800">帳款分析</text>
+<text x="822" y="874" fill="#1F2A37" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="26">商業發票</text>
+<text x="822" y="932" fill="#1F2A37" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="26">應收應付</text>
+<text x="108" y="1192" fill="#1F2A37" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="38" font-weight="800">適用情境</text>
+<text x="108" y="1260" fill="#667085" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="30">一般貿易商、製造業貿易部、兩岸多地企業與出口型業務團隊。</text>
+<text x="108" y="1352" fill="#1F2A37" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="38" font-weight="800">掃描 QR Code 進入 Demo</text>
+<text x="108" y="1410" fill="#667085" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="26">${demoUrl}</text>
+<rect x="852" y="1238" width="280" height="280" rx="24" fill="#FFFFFF" stroke="#DDE7F0" stroke-width="2"/>
+<g transform="translate(867 1253)">${qrInner}</g>
+<rect x="108" y="1574" width="486" height="4" fill="#F97316"/>
+<text x="108" y="1632" fill="#667085" font-family="Arial, Microsoft JhengHei, sans-serif" font-size="24">Jvision AI | 貿易 ERP 互動展示</text>
+</svg>`;
+
+await writeFile(path.join(outDir, "jvision-trading-erp-poster.svg"), posterSvg, "utf8");
+await sharp(Buffer.from(posterSvg)).png().toFile(path.join(outDir, "jvision-trading-erp-poster.png"));
+
+function createPdf(fileName, render) {
+  return new Promise((resolve) => {
+    const doc = new PDFDocument({ size: "A4", margin: 48, bufferPages: true });
+    const chunks = [];
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", async () => {
+      await writeFile(path.join(outDir, fileName), Buffer.concat(chunks));
+      resolve();
+    });
+    doc.registerFont("regular", fontRegular);
+    doc.registerFont("bold", fontBold);
+    render(doc);
+    doc.end();
+  });
+}
+
+await createPdf("jvision-trading-erp-poster.pdf", (doc) => {
+  doc.image(logoBuffer, 48, 42, { width: 130 });
+  doc.font("bold").fontSize(30).fillColor("#1F2A37").text("Jvision 貿易 ERP 管理 Demo", 48, 132);
+  doc.font("bold").fontSize(21).text("報價、採購、出貨與帳款一套完成", 48, 174);
+  doc.font("regular").fontSize(13).fillColor("#667085").text(
+    "Jvision 協助貿易商整合報價、銷售確認單、採購單、裝箱單、商業發票、出貨嘜頭、應收應付與利潤分析。",
+    48,
+    226,
+    { width: 480, lineGap: 8 },
+  );
+  doc.roundedRect(48, 318, 498, 210, 14).fill("#1F2A37");
+  doc.fillColor("#FFFFFF").font("bold").fontSize(22).text("Demo 可測試功能", 78, 350);
+  doc.font("regular").fontSize(14).text("1. 新增報價並轉銷售確認單", 78, 404);
+  doc.text("2. 自動產生採購單、裝箱單與商業發票", 78, 436);
+  doc.text("3. 應收應付沖銷、出貨嘜頭與利潤分析", 78, 468);
+  doc.roundedRect(345, 570, 160, 160, 10).stroke("#DDE7F0");
+  doc.image(qrPng, 355, 580, { width: 140 });
+  doc.fillColor("#1F2A37").font("bold").fontSize(18).text("掃描進入 Demo", 48, 584);
+  doc.fillColor("#667085").font("regular").fontSize(10).text(demoUrl, 48, 620, { width: 260 });
+});
+
+await createPdf("jvision-trading-erp-product-introduction.pdf", (doc) => {
+  doc.image(logoBuffer, 48, 42, { width: 120 });
+  doc.font("bold").fontSize(24).fillColor("#1F2A37").text("Jvision 貿易 ERP 產品介紹", 48, 120);
+  doc.font("regular").fontSize(12).fillColor("#667085").text(
+    "Jvision 貿易 ERP 適合一般貿易商、製造業貿易部、兩岸多地企業與出口型業務團隊。系統將客戶產品、報價、訂單、採購、分批出貨、出口文件、應收應付與統計分析整合成完整工作流。",
+    48,
+    168,
+    { width: 500, lineGap: 7 },
+  );
+  const sections = [
+    ["核心模組", "客戶產品、電子型錄、報價追蹤、銷售確認單、採購單、裝箱單、商業發票、應收與應付。"],
+    ["互動 Demo", "可新增報價、轉訂單、產生採購單、建立裝箱單與商業發票、產生出貨嘜頭、沖銷帳款與查看利潤。"],
+    ["管理價值", "降低重複登打、表單不一致、分批出貨難追、應收應付對帳慢與利潤不清的風險。"],
+    ["適合對象", "雜貨、禮品、文具、家具、五金、戶外用品、電子配件、機械零件與跨地區貿易公司。"],
+  ];
+  let y = 245;
+  for (const [title, text] of sections) {
+    doc.roundedRect(48, y, 500, 84, 8).stroke("#DDE7F0");
+    doc.font("bold").fontSize(15).fillColor("#F97316").text(title, 68, y + 16);
+    doc.font("regular").fontSize(11).fillColor("#667085").text(text, 68, y + 42, { width: 455, lineGap: 5 });
+    y += 106;
+  }
+  doc.font("bold").fontSize(16).fillColor("#1F2A37").text("線上展示", 48, 708);
+  doc.font("regular").fontSize(10).fillColor("#667085").text(demoUrl, 48, 734, { width: 310 });
+  doc.image(qrPng, 445, 684, { width: 92 });
+});
+
+await writeFile(
+  path.join(outDir, "README.txt"),
+  `Jvision 貿易 ERP 素材\n\nDemo URL: ${demoUrl}\n\n檔案：\n- jvision-trading-erp-poster.svg\n- jvision-trading-erp-poster.png\n- jvision-trading-erp-poster.pdf\n- jvision-trading-erp-product-introduction.pdf\n`,
+  "utf8",
+);
+
+console.log(`Assets created in ${outDir}`);

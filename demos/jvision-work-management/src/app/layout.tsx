@@ -1,0 +1,24 @@
+import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Jvision 工作管理平台 Demo",
+  description: "Jvision 工作管理平台提供任務、專案看板、AI 摘要、目標追蹤、工作負荷與自動化規則的互動展示。",
+  openGraph: {
+    title: "Jvision 工作管理平台 Demo",
+    description: "立即體驗 Jvision 工作管理平台，測試任務新增、專案看板、AI 摘要、目標追蹤與工作量管理。",
+    images: ["https://www.jvision-ai.com/public/logo.png"]
+  }
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="zh-Hant">
+      <body>
+        {children}
+        <Analytics />
+      </body>
+    </html>
+  );
+}
