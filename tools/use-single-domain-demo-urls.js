@@ -18,7 +18,6 @@ function makeWrapper(project) {
   const title = escapeHtml(project.title || project.repoName);
   const category = escapeHtml(project.category || 'JVision AI CASE');
   const industry = escapeHtml(project.industry || '既有系統');
-  const external = project.externalDemoUrl || '';
   const github = project.githubUrl || '';
   return `<!doctype html>
 <html lang="zh-Hant">
@@ -59,7 +58,6 @@ function makeWrapper(project) {
       <div class="actions">
         <a class="primary" href="../../">回到 Demo Hub</a>
         ${github ? `<a href="${escapeHtml(github)}" target="_blank" rel="noreferrer">查看 GitHub</a>` : ''}
-        ${external ? `<a href="${escapeHtml(external)}" target="_blank" rel="noreferrer">原始 Demo 網址</a>` : ''}
       </div>
     </main>
   </body>
@@ -71,9 +69,7 @@ let generatedWrappers = 0;
 for (const project of index.projects) {
   const repoName = project.repoName;
   const internalUrl = `/demos/${repoName}/`;
-  if (project.demoUrl && /^https?:\/\//i.test(project.demoUrl) && !project.externalDemoUrl) {
-    project.externalDemoUrl = project.demoUrl;
-  }
+  delete project.externalDemoUrl;
   project.demoUrl = internalUrl;
   project.singleDomain = true;
 
