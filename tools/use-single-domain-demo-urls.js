@@ -19,6 +19,7 @@ function makeWrapper(project) {
   const category = escapeHtml(project.category || 'JVision AI CASE');
   const industry = escapeHtml(project.industry || '既有系統');
   const github = project.githubUrl || '';
+  const fullDemoUrl = `https://jvision-all-demos.vercel.app${project.demoUrl}`;
   return `<!doctype html>
 <html lang="zh-Hant">
   <head>
@@ -39,6 +40,8 @@ function makeWrapper(project) {
       .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:28px; }
       a { min-height:46px; display:inline-flex; align-items:center; justify-content:center; padding:0 20px; border-radius:999px; color:inherit; font-weight:900; text-decoration:none; border:1px solid var(--line); background:rgba(255,255,255,.08); }
       a.primary { border:0; color:#07101c; background:linear-gradient(135deg,var(--blue),var(--purple)); }
+      code { color:var(--blue); font-size:.95em; word-break:break-all; }
+      button { min-height:46px; border-radius:999px; padding:0 20px; border:1px solid var(--line); background:rgba(255,255,255,.08); color:var(--text); font:inherit; font-weight:900; cursor:pointer; }
     </style>
   </head>
   <body>
@@ -52,11 +55,12 @@ function makeWrapper(project) {
         <span class="pill">${industry}</span>
       </div>
       <section class="box">
-        <p><strong>統一網址：</strong>${escapeHtml(project.demoUrl)}</p>
+        <p><strong>DEMO 網址：</strong><code id="demoUrl">${escapeHtml(fullDemoUrl)}</code></p>
         <p><strong>本地目錄：</strong>${escapeHtml(project.localPath)}</p>
       </section>
       <div class="actions">
         <a class="primary" href="../../">回到 Demo Hub</a>
+        <button type="button" onclick="navigator.clipboard?.writeText(document.getElementById('demoUrl').textContent).then(()=>this.textContent='已複製網址')">複製 Demo 網址</button>
         ${github ? `<a href="${escapeHtml(github)}" target="_blank" rel="noreferrer">查看 GitHub</a>` : ''}
       </div>
     </main>
