@@ -1,6 +1,6 @@
 # JVision All Demos
 
-This monorepo integrates 464 JVision demo projects from the `JVision-pj` GitHub organization. The 400 generated AI industry and smart-manufacturing demos are independent Next.js App Router projects; 64 legacy projects are preserved alongside them.
+This monorepo integrates 464 JVision demo projects from the `JVision-pj` GitHub organization. The 400 generated AI industry and smart-manufacturing demos and 59 legacy applications are independent Next.js App Router projects; the remaining 5 legacy demos keep their interactive standalone implementation.
 
 ## Structure
 
@@ -27,11 +27,24 @@ npm run dev --workspace jvision-ai-case-001-production-scheduler
 
 The original static files remain in each project so the single-domain Demo Hub continues to serve `/demos/<repo>/` without requiring 400 separate servers.
 
+## Run one legacy Next.js app
+
+The 59 original Next.js applications use their preserved `src/app` source as the primary runtime:
+
+```bash
+cd demos/jvision-production-order
+npm install
+npm run dev
+```
+
+Their root `index.html` files are compatibility snapshots for the single-domain Hub, not the project runtime. The canonical list is `docs/LEGACY_NEXT_PROJECTS.json`.
+
 ## Quick checks
 
 ```bash
 npm run audit:structure
 npm run audit:next
+npm run audit:legacy-next
 npm run list:demos
 ```
 

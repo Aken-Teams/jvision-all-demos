@@ -5,6 +5,11 @@ import { spawnSync } from "node:child_process";
 const root = path.resolve(process.cwd());
 const repoName = process.argv[2];
 
+if (process.env.ALLOW_LEGACY_STATIC_EXPORT !== "1") {
+  console.error("Legacy demos are Next.js-first projects. Set ALLOW_LEGACY_STATIC_EXPORT=1 only when intentionally refreshing a Hub compatibility snapshot.");
+  process.exit(2);
+}
+
 if (!repoName) {
   console.error("Usage: node tools/export-next-demo.mjs <repoName>");
   process.exit(2);
@@ -94,8 +99,8 @@ try {
     fs.cpSync(source, target, { recursive: true });
   }
 
-  fs.writeFileSync(path.join(demoDir, ".jvision-exported"), new Date().toISOString(), "utf8");
-  console.log(JSON.stringify({ repoName, status: "exported", outDir }, null, 2));
+  fs.writeFileSync(path.join(demoDir, ".jvision-hub-snapshot"), new Date().toISOString(), "utf8");
+  console.log(JSON.stringify({ repoName, status: "hub-snapshot", outDir }, null, 2));
 } finally {
   const apiDir = path.join(demoDir, "src", "app", "api");
   const apiBackupDir = path.join(demoDir, ".jvision-api-backup");
