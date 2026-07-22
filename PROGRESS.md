@@ -9,6 +9,7 @@ Last updated: 2026-07-22
 - **Homepage:** Reworked into the JV Demo search interface with live suggestions, business-category filtering, sorting, chips and sharable URL state.
 - **Classification:** All projects use one primary business category; combined labels such as education/care were split into distinct education and healthcare categories. Public cards no longer show implementation frameworks.
 - **Public project summaries:** Every catalog project has a README-derived introduction; cards no longer expose repository names, GitHub actions or legacy-source labels.
+- **Functional module navigation:** All 400 generated AI and smart-manufacturing systems switch real workspace regions from their left module navigation.
 - **System illustrations:** Project cards use actual captured runtime screens instead of generic artwork.
 - **Visual baseline:** Light, clear, professional AI SaaS styling has been applied across the library, with responsive analytics support.
 - **Quality process:** Project Expert Agent, acceptance test, formal site audit and mobile analytics audit are available in `tools/` and `docs/`.
@@ -18,6 +19,7 @@ Last updated: 2026-07-22
 ## Latest verification
 
 - Full Chromium E2E coverage passed for all 464 projects: routes, desktop/mobile content, one safe interaction per project, browser errors and exposed horizontal overflow.
+- Dedicated module-navigation coverage passed 1,600/1,600 left-menu transitions across 400 generated systems with zero page errors.
 - The E2E run found and fixed mobile width defects in smart-manufacturing cases 140 and 150.
 - `node --check app.js` passed for the catalog implementation.
 - Browser checks verified suggestion rendering, source filtering (300 smart-manufacturing projects), URL state, a zero-result state and a 390px mobile viewport.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-22 — Functional module navigation
+
+- Added real workspace switching to all four left-navigation modules in 400 generated AI and smart-manufacturing systems.
+- Added accessible active state, module context, URL hash state and responsive focus behaviour.
+- Added a repeatable Playwright regression suite covering 1,600 module transitions; all 400 systems pass with zero page errors.
+- Re-ran the full 464-project E2E suite with all checks passing.
+
 ## 2026-07-22 — Complete project E2E coverage
 
 - Added a repeatable Playwright E2E runner for all 464 demos with route, content, interaction, browser-error and responsive-overflow checks.
