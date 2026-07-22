@@ -9,6 +9,10 @@ This monorepo integrates 464 JVision demo projects from the `JVision-pj` GitHub 
 - `docs/PROJECT_INDEX.md` — human-readable project index.
 - `tools/` — small utility scripts for listing and auditing the monorepo.
 
+## Context Engineering
+
+The project keeps durable working context at the repository root. Start with [AGENTS.md](AGENTS.md), then use [PROGRESS.md](PROGRESS.md), [TASKS.md](TASKS.md), [DECISIONS.md](DECISIONS.md), [MEMORY.md](MEMORY.md), and [ARCHITECTURE.md](ARCHITECTURE.md) to continue work without losing project history.
+
 ## Run one generated Next.js demo
 
 Every generated project (IDs 1001-1400) can run independently from its own directory:
@@ -50,8 +54,13 @@ npm run audit:structure
 npm run audit:next
 npm run audit:legacy-next
 npm run audit:bright-saas
+npm run audit:formal-sites
 npm run list:demos
 ```
+
+`audit:formal-sites` opens all 464 Hub URLs in Chromium, records HTTP and browser errors, checks first-fold layout and brightness, captures screenshots, and writes the review result to `docs/FORMAL_SITE_AUDIT.md`.
+
+For self-hosted environments, `npm run clean:vercel-analytics` removes the Vercel Analytics runtime from the 59 legacy Next.js sources and keeps compatibility stubs for their preserved Hub snapshots.
 
 ## Note
 
