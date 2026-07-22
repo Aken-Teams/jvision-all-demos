@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-22 — Public catalog descriptions
+
+- Added a concise, project-specific introduction to all 464 catalog records based on each project README.
+- Removed GitHub actions, repository metadata, source provenance and legacy-system wording from public project cards.
+- Added description editing to the catalog management workflow.
+- Reclassified all projects under one clear primary business domain and removed the Next.js/runtime badge from public cards.
+
 ## 2026-07-22 — Catalog management center
 
 - Added searchable project administration with metadata editing, status controls, featured flags and batch actions.

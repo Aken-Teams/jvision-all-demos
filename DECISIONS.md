@@ -9,6 +9,8 @@
 | 2026-07-22 | Use a light, high-contrast professional SaaS baseline. | The product represents JV's AI-enabled SaaS capability and must remain clear on desktop and mobile. | Individual project style may vary, but contrast, responsive behaviour, forms and statistics views must meet the shared baseline. |
 | 2026-07-22 | Keep Vercel production deployment out of the per-project workflow. | The target experience is one-domain hosting, not hundreds of separate deployments. | Validate locally/self-hosted and use the single-domain publishing path when release is required. |
 | 2026-07-22 | Route catalog administration through GitHub pull requests. | The public site must not expose repository credentials or permit direct production writes. | Admin edits remain local drafts until an authenticated server action creates a feature branch and PR. |
+| 2026-07-22 | Keep repository identity and migration provenance out of public catalog cards. | Visitors need to understand the product, not its source-control or legacy status. | Public cards show a project introduction and Demo action only; repository identifiers remain available inside administration and canonical data. |
+| 2026-07-22 | Give every project one primary business category. | Combined labels such as education and care make discovery ambiguous. | Public classification uses a single domain such as education, healthcare, manufacturing or information security; implementation frameworks are not card metadata. |
 
 Add a row whenever a decision changes public routes, architecture, data ownership, design policy or deployment policy.
 

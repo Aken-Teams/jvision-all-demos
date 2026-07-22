@@ -3,9 +3,6 @@ const state = {
   filtered: [],
   query: "",
   category: "",
-  source: "",
-  runtime: "",
-  github: "",
   sort: "relevance",
   visible: 24,
   suggestionIndex: -1,
@@ -16,9 +13,6 @@ const template = document.querySelector("#projectCardTemplate");
 const searchInput = document.querySelector("#searchInput");
 const suggestions = document.querySelector("#searchSuggestions");
 const categorySelect = document.querySelector("#categorySelect");
-const sourceSelect = document.querySelector("#sourceSelect");
-const runtimeSelect = document.querySelector("#runtimeSelect");
-const githubSelect = document.querySelector("#githubSelect");
 const sortSelect = document.querySelector("#sortSelect");
 const quickFilters = document.querySelector("#quickFilters");
 const clearFilters = document.querySelector("#clearFilters");
@@ -33,10 +27,6 @@ const sourceLabels = {
 
 function normalize(value) {
   return String(value || "").toLocaleLowerCase("zh-Hant").trim();
-}
-
-function runtimeLabel(project) {
-  return project.runtime === "nextjs" ? "Next.js" : project.runtime === "static" ? "Static" : project.runtime || "Web";
 }
 
 function sourceKey(project) {
@@ -61,12 +51,12 @@ function searchableText(project) {
     project.id,
     `#${project.id}`,
     project.title,
+    project.description,
     project.category,
     project.industry,
     project.repoName,
     project.localPath,
     sourceLabel(project),
-    runtimeLabel(project),
   ].join(" "));
 }
 
@@ -96,15 +86,9 @@ function hydrateFromUrl() {
   const params = new URLSearchParams(window.location.search);
   state.query = params.get("q") || "";
   state.category = params.get("category") || "";
-  state.source = params.get("source") || "";
-  state.runtime = params.get("runtime") || "";
-  state.github = params.get("github") || "";
   state.sort = params.get("sort") || "relevance";
   searchInput.value = state.query;
   categorySelect.value = state.category;
-  sourceSelect.value = state.source;
-  runtimeSelect.value = state.runtime;
-  githubSelect.value = state.github;
   sortSelect.value = state.sort;
 }
 
@@ -112,9 +96,6 @@ function syncUrl() {
   const params = new URLSearchParams();
   if (state.query) params.set("q", state.query);
   if (state.category) params.set("category", state.category);
-  if (state.source) params.set("source", state.source);
-  if (state.runtime) params.set("runtime", state.runtime);
-  if (state.github) params.set("github", state.github);
   if (state.sort !== "relevance") params.set("sort", state.sort);
   const query = params.toString();
   history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
@@ -151,9 +132,6 @@ function renderActiveFilters() {
   const entries = [
     ["關鍵字", state.query, () => { state.query = ""; searchInput.value = ""; }],
     ["產業", state.category, () => { state.category = ""; categorySelect.value = ""; }],
-    ["來源", state.source ? sourceLabels[state.source] || state.source : "", () => { state.source = ""; sourceSelect.value = ""; }],
-    ["技術", state.runtime, () => { state.runtime = ""; runtimeSelect.value = ""; }],
-    ["GitHub", state.github === "available" ? "有 GitHub" : state.github === "missing" ? "無 GitHub" : "", () => { state.github = ""; githubSelect.value = ""; }],
   ].filter(([, value]) => value);
   const container = document.querySelector("#activeFilters");
   container.innerHTML = "";
@@ -174,19 +152,16 @@ function renderProjects() {
   grid.innerHTML = "";
   const visibleProjects = state.filtered.slice(0, state.visible);
   if (!visibleProjects.length) {
-    grid.innerHTML = `<article class="empty-state"><h3>沒有符合條件的專案</h3><p>請改用產業名稱、功能名稱、Repo 或案例編號搜尋。</p><button type="button" id="emptyClear">清除所有篩選</button></article>`;
+    grid.innerHTML = `<article class="empty-state"><h3>沒有符合條件的專案</h3><p>請改用產業名稱、功能名稱或案例編號搜尋。</p><button type="button" id="emptyClear">清除所有篩選</button></article>`;
     document.querySelector("#emptyClear")?.addEventListener("click", resetFilters);
   }
   const fragment = document.createDocumentFragment();
   for (const [index, project] of visibleProjects.entries()) {
     const card = template.content.cloneNode(true);
     card.querySelector(".case-id").textContent = `#${project.id}`;
-    card.querySelector(".runtime-badge").textContent = runtimeLabel(project);
     card.querySelector("h3").textContent = project.title || project.repoName;
     card.querySelector(".project-category").textContent = project.category || "未分類";
-    card.querySelector(".project-industry").textContent = project.industry || "";
-    card.querySelector(".project-source").textContent = sourceLabel(project);
-    card.querySelector(".project-repo").textContent = project.repoName;
+    card.querySelector(".project-description").textContent = project.description || "提供清楚的工作流程、資料管理與互動操作展示。";
     const demo = card.querySelector(".demo-link");
     demo.href = project.demoUrl || "#";
     if (!project.demoUrl) demo.setAttribute("aria-disabled", "true");
@@ -200,9 +175,6 @@ function renderProjects() {
     previewImage.alt = `${title} 系統運行畫面`;
     previewImage.loading = index < 6 ? "eager" : "lazy";
     previewImage.fetchPriority = index < 3 ? "high" : "low";
-    const repo = card.querySelector(".repo-link");
-    if (project.githubUrl) repo.href = project.githubUrl;
-    else { repo.removeAttribute("href"); repo.setAttribute("aria-disabled", "true"); repo.textContent = "無 GitHub"; }
     fragment.append(card);
   }
   grid.append(fragment);
@@ -246,10 +218,7 @@ function applyFilters({ updateSuggestions = true } = {}) {
   state.filtered = state.projects.filter((project) => {
     const queryMatch = !query || relevance(project, query) > 0;
     const categoryMatch = !state.category || project.category === state.category;
-    const sourceMatch = !state.source || sourceKey(project) === state.source;
-    const runtimeMatch = !state.runtime || runtimeLabel(project) === state.runtime;
-    const githubMatch = !state.github || (state.github === "available" ? Boolean(project.githubUrl) : !project.githubUrl);
-    return queryMatch && categoryMatch && sourceMatch && runtimeMatch && githubMatch;
+    return queryMatch && categoryMatch;
   });
   state.filtered.sort((a, b) => {
     if (state.sort === "title") return String(a.title).localeCompare(String(b.title), "zh-Hant");
@@ -266,15 +235,9 @@ function applyFilters({ updateSuggestions = true } = {}) {
 function resetFilters() {
   state.query = "";
   state.category = "";
-  state.source = "";
-  state.runtime = "";
-  state.github = "";
   state.sort = "relevance";
   searchInput.value = "";
   categorySelect.value = "";
-  sourceSelect.value = "";
-  runtimeSelect.value = "";
-  githubSelect.value = "";
   sortSelect.value = "relevance";
   suggestions.hidden = true;
   applyFilters({ updateSuggestions: false });
@@ -304,11 +267,9 @@ async function boot() {
     .map((project, sequence) => ({ ...project, catalogSequence: sequence + 1 }))
     .filter((project) => !["draft", "archived"].includes(project.status));
   addOptions(categorySelect, [...new Set(state.projects.map((project) => project.category || "未分類"))].sort((a, b) => a.localeCompare(b, "zh-Hant")).map((value) => [value, value]));
-  addOptions(sourceSelect, [...new Set(state.projects.map(sourceKey))].map((value) => [value, sourceLabels[value] || value]));
-  addOptions(runtimeSelect, [...new Set(state.projects.map(runtimeLabel))].sort().map((value) => [value, value]));
   hydrateFromUrl();
   document.querySelector("#totalProjects").textContent = state.projects.length;
-  document.querySelector("#footerStats").textContent = `${state.projects.length} projects · ${state.projects.filter((project) => project.githubUrl).length} GitHub repos`;
+  document.querySelector("#footerStats").textContent = `${state.projects.length} 個展示專案`;
   renderQuickFilters();
   applyFilters({ updateSuggestions: false });
 }
@@ -318,9 +279,6 @@ searchInput.addEventListener("keydown", handleSearchKeys);
 searchInput.addEventListener("focus", renderSuggestions);
 searchInput.addEventListener("blur", () => setTimeout(() => { suggestions.hidden = true; searchInput.setAttribute("aria-expanded", "false"); }, 120));
 categorySelect.addEventListener("change", (event) => { state.category = event.target.value; applyFilters(); });
-sourceSelect.addEventListener("change", (event) => { state.source = event.target.value; applyFilters(); });
-runtimeSelect.addEventListener("change", (event) => { state.runtime = event.target.value; applyFilters(); });
-githubSelect.addEventListener("change", (event) => { state.github = event.target.value; applyFilters(); });
 sortSelect.addEventListener("change", (event) => { state.sort = event.target.value; applyFilters({ updateSuggestions: false }); });
 clearFilters.addEventListener("click", resetFilters);
 loadMore.addEventListener("click", () => { state.visible += 24; renderProjects(); });

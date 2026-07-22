@@ -30,9 +30,9 @@ Repository
 
 1. `app.js` fetches `projects-index.json` at Hub load time.
 2. The client derives source labels for legacy records when `sourceGroup` is absent.
-3. Search matches project ID, title, category, industry, repository name, local path, source and runtime.
+3. Search matches project ID, title, description, category, industry, repository name and local path.
 4. Filters and sorting change the visible result set and synchronise to the browser URL.
-5. Each card opens the single-domain Demo route and, when available, the original GitHub repository.
+5. Each public card presents a project-specific introduction and opens only the single-domain Demo route.
 
 ## Runtime model
 
