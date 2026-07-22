@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
+import "./jvision-analytics.css";
 export const metadata: Metadata = {
   title: "Jvision 客服支援平台 Demo",
   description: "Jvision 客服支援平台，展示共享收件箱、AI 摘要與回覆、知識庫、支援入口、工作流程、主動訊息與客服報表流程。",
@@ -17,7 +17,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="zh-Hant">
       <body>
         {children}
-        <Analytics />
+              <script src="/jvision-analytics.js" defer />
       </body>
     </html>
   );

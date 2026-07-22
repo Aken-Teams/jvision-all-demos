@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
+import "./jvision-analytics.css";
 export const metadata: Metadata = {
   title: "Jvision 估價與工程管理 Demo",
   description: "Jvision 估價與工程專案管理平台，展示報價估價、轉工程專案、進度品質、圖說送審、估驗請款與驗收維保流程。",
@@ -17,7 +17,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="zh-Hant">
       <body>
         {children}
-        <Analytics />
+              <script src="/jvision-analytics.js" defer />
       </body>
     </html>
   );

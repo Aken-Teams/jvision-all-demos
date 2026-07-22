@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import "./globals.css";
 
+import "./jvision-analytics.css";
 export const metadata: Metadata = {
   title: "JVision HR",
   description: "員工名冊、招募流程、薪資試算、請假核准與 AI 人資摘要 Demo",
@@ -19,7 +19,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <LanguageSwitcher />
         {children}
-        <Analytics />
+              <script src="/jvision-analytics.js" defer />
       </body>
     </html>
   );

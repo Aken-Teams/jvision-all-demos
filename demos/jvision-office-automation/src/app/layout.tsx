@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
+import "./jvision-analytics.css";
 export const metadata: Metadata = {
   title: "Jvision 企業協同辦公平台 Demo",
   description:
@@ -18,7 +18,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="zh-Hant">
       <body>
         {children}
-        <Analytics />
+              <script src="/jvision-analytics.js" defer />
       </body>
     </html>
   );

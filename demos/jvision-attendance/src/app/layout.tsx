@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import "./globals.css";
 
+import "./jvision-analytics.css";
 export const metadata: Metadata = {
   title: "JVision HR",
   description: "Jvision 雲端打卡、外勤回報、異常判斷、請假簽核、排班與工時計薪互動展示。",
@@ -23,7 +23,7 @@ export default function RootLayout({
       <body>
         <LanguageSwitcher />
         {children}
-        <Analytics />
+              <script src="/jvision-analytics.js" defer />
       </body>
     </html>
   );

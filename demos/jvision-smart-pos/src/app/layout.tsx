@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
+import "./jvision-analytics.css";
 export const metadata: Metadata = {
   title: "Jvision 智能 POS OMO Demo",
   description: "Jvision 智能 POS、OMO 會員整合、門市收銀、庫存、分潤、電子標籤與 AI 店務 demo。",
@@ -21,7 +21,7 @@ export default function RootLayout({
     <html lang="zh-Hant">
       <body>
         {children}
-        <Analytics />
+              <script src="/jvision-analytics.js" defer />
       </body>
     </html>
   );

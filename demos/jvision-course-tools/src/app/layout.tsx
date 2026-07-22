@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
+import "./jvision-analytics.css";
 export const metadata: Metadata = {
   title: "Jvision 課程工具 Demo",
   description: "Jvision 課程營運工具，提供排課同步、線上預約、購課劃位、電子合約與發票自動化的完整互動 Demo。",
@@ -21,7 +21,7 @@ export default function RootLayout({
     <html lang="zh-Hant">
       <body>
         {children}
-        <Analytics />
+              <script src="/jvision-analytics.js" defer />
       </body>
     </html>
   );

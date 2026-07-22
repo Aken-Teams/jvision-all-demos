@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
+import "./jvision-analytics.css";
 export const metadata: Metadata = {
   title: "Jvision 法律案件管理 Demo",
   description: "Jvision 法律案件、庭期、待辦、工時、提醒通知與請款管理互動展示。",
@@ -21,7 +21,7 @@ export default function RootLayout({
     <html lang="zh-Hant">
       <body>
         {children}
-        <Analytics />
+              <script src="/jvision-analytics.js" defer />
       </body>
     </html>
   );
