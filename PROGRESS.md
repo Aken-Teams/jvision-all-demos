@@ -7,6 +7,7 @@ Last updated: 2026-07-22
 - **Catalog:** 464 projects are represented in `projects-index.json` and the Hub.
 - **Single-domain access:** Demo links use `/demos/<repo>/`; the Hub does not direct visitors to the old per-project Vercel URLs.
 - **Homepage:** Reworked into the JV Demo search interface with live suggestions, category/source/runtime/GitHub filters, sorting, chips and sharable URL state.
+- **System illustrations:** Project cards use actual captured runtime screens instead of generic artwork.
 - **Visual baseline:** Light, clear, professional AI SaaS styling has been applied across the library, with responsive analytics support.
 - **Quality process:** Project Expert Agent, acceptance test, formal site audit and mobile analytics audit are available in `tools/` and `docs/`.
 - **GitHub:** The current feature branch is `feat/jv-demo-catalog-search`; PR #1 targets `main`.
@@ -21,4 +22,3 @@ Last updated: 2026-07-22
 ## Next action
 
 Use `TASKS.md` to choose the next scoped improvement. For a new demo or a broken audit, update its catalog metadata and run the relevant targeted validation before broad audits.
-

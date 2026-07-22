@@ -5,6 +5,7 @@
 ### Added
 
 - Context Engineering documentation: working agreement, roadmap, progress, decision log, task queue, durable context and architecture reference.
+- Real runtime screenshots for every Demo card, generated from the formal-site audit captures.
 
 ### Changed
 
@@ -21,4 +22,3 @@
 ### Changed
 
 - Standardised the public Demo entry pattern to the single-domain route `/demos/<repo>/`.
-

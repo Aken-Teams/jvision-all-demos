@@ -51,6 +51,11 @@ function sourceLabel(project) {
   return sourceLabels[key] || key;
 }
 
+function thumbnailUrl(project) {
+  const sequence = String(project.catalogSequence).padStart(3, "0");
+  return `./assets/demo-screenshots/${sequence}-${project.repoName}.jpg`;
+}
+
 function searchableText(project) {
   return normalize([
     project.id,
@@ -173,7 +178,7 @@ function renderProjects() {
     document.querySelector("#emptyClear")?.addEventListener("click", resetFilters);
   }
   const fragment = document.createDocumentFragment();
-  for (const project of visibleProjects) {
+  for (const [index, project] of visibleProjects.entries()) {
     const card = template.content.cloneNode(true);
     card.querySelector(".case-id").textContent = `#${project.id}`;
     card.querySelector(".runtime-badge").textContent = runtimeLabel(project);
@@ -185,6 +190,16 @@ function renderProjects() {
     const demo = card.querySelector(".demo-link");
     demo.href = project.demoUrl || "#";
     if (!project.demoUrl) demo.setAttribute("aria-disabled", "true");
+    const preview = card.querySelector(".system-preview");
+    const previewImage = card.querySelector(".system-preview-image");
+    const title = project.title || project.repoName;
+    preview.href = project.demoUrl || "#";
+    preview.setAttribute("aria-label", `開啟 ${title} Demo`);
+    if (!project.demoUrl) preview.setAttribute("aria-disabled", "true");
+    previewImage.src = thumbnailUrl(project);
+    previewImage.alt = `${title} 系統運行畫面`;
+    previewImage.loading = index < 6 ? "eager" : "lazy";
+    previewImage.fetchPriority = index < 3 ? "high" : "low";
     const repo = card.querySelector(".repo-link");
     if (project.githubUrl) repo.href = project.githubUrl;
     else { repo.removeAttribute("href"); repo.setAttribute("aria-disabled", "true"); repo.textContent = "無 GitHub"; }
@@ -285,7 +300,7 @@ async function boot() {
   const response = await fetch("./projects-index.json");
   if (!response.ok) throw new Error("專案索引無法讀取");
   const index = await response.json();
-  state.projects = [...index.projects];
+  state.projects = index.projects.map((project, sequence) => ({ ...project, catalogSequence: sequence + 1 }));
   addOptions(categorySelect, [...new Set(state.projects.map((project) => project.category || "未分類"))].sort((a, b) => a.localeCompare(b, "zh-Hant")).map((value) => [value, value]));
   addOptions(sourceSelect, [...new Set(state.projects.map(sourceKey))].map((value) => [value, sourceLabels[value] || value]));
   addOptions(runtimeSelect, [...new Set(state.projects.map(runtimeLabel))].sort().map((value) => [value, value]));
