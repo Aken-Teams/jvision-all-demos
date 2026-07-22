@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JV Demo 管理中心</title>
+    <meta name="description" content="管理 JV Demo 專案目錄、分類、展示狀態與 GitHub 變更提案。" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./admin.css" />
+    <style>[hidden]{display:none!important}</style>
+  </head>
+  <body>
+    <header class="admin-header">
+      <a class="brand" href="./index.html"><span>JV</span><b>CATALOG ADMIN</b></a>
+      <nav><a href="./index.html">返回展示站</a><button id="logoutButton" type="button">登出</button></nav>
+    </header>
+
+    <main class="admin-shell">
+      <aside class="admin-sidebar">
+        <p class="eyebrow">CATALOG CONTROL</p>
+        <h1>Demo 管理中心</h1>
+        <p>集中管理 464 個展示專案的目錄資料與上架狀態。</p>
+        <nav aria-label="管理功能">
+          <button class="active" type="button">專案目錄</button>
+          <button id="openChanges" type="button">變更草稿 <span id="draftCount">0</span></button>
+          <a href="./project-expert.html">品質檢查</a>
+        </nav>
+        <div class="sidebar-note">
+          <b>安全發布流程</b>
+          <span>管理端只會建立 GitHub 分支與 PR，不會直接覆寫正式資料。</span>
+        </div>
+      </aside>
+
+      <section class="admin-content">
+        <header class="page-heading">
+          <div><p class="eyebrow">PROJECT DIRECTORY</p><h2>專案目錄管理</h2><p>搜尋、編輯、批次調整與提出發布變更。</p></div>
+          <div class="heading-actions"><button id="discardDraft" type="button">清除草稿</button><button id="submitChanges" class="primary" type="button">建立變更 PR</button></div>
+        </header>
+
+        <section class="stats" aria-label="目錄統計">
+          <article><span>全部專案</span><strong id="totalStat">—</strong><small>目錄總數</small></article>
+          <article><span>公開展示</span><strong id="publishedStat">—</strong><small>可由前台檢索</small></article>
+          <article><span>精選專案</span><strong id="featuredStat">—</strong><small>首頁優先推薦</small></article>
+          <article><span>未送出變更</span><strong id="changedStat">0</strong><small>儲存在此瀏覽器</small></article>
+        </section>
+
+        <section class="catalog-panel">
+          <div class="toolbar">
+            <label class="search-field"><span>搜尋專案</span><input id="adminSearch" type="search" placeholder="名稱、Repo、編號或分類" /></label>
+            <label><span>展示狀態</span><select id="statusFilter"><option value="">全部狀態</option><option value="published">公開展示</option><option value="draft">草稿</option><option value="archived">封存</option></select></label>
+            <label><span>產業分類</span><select id="categoryFilter"><option value="">全部分類</option></select></label>
+          </div>
+
+          <div class="bulk-bar" id="bulkBar" hidden>
+            <b>已選取 <span id="selectedCount">0</span> 個專案</b>
+            <select id="bulkStatus" aria-label="批次展示狀態"><option value="">變更狀態…</option><option value="published">設為公開</option><option value="draft">設為草稿</option><option value="archived">設為封存</option></select>
+            <button id="bulkFeatured" type="button">切換精選</button>
+            <button id="clearSelection" type="button">取消選取</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th><input id="selectPage" type="checkbox" aria-label="選取本頁" /></th><th>專案</th><th>分類</th><th>來源</th><th>展示狀態</th><th>精選</th><th>最後修改</th><th>操作</th></tr></thead>
+              <tbody id="projectRows"></tbody>
+            </table>
+          </div>
+          <footer class="table-footer"><p id="tableSummary">載入專案中…</p><div><button id="prevPage" type="button">上一頁</button><span id="pageLabel">1 / 1</span><button id="nextPage" type="button">下一頁</button></div></footer>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="editorDialog">
+      <form method="dialog" class="editor-form" id="editorForm">
+        <header><div><p class="eyebrow">PROJECT METADATA</p><h2>編輯專案</h2></div><button value="cancel" class="icon-button" aria-label="關閉">×</button></header>
+        <input id="editRepo" type="hidden" />
+        <label><span>顯示名稱</span><input id="editTitle" required /></label>
+        <div class="field-grid"><label><span>產業分類</span><input id="editCategory" required /></label><label><span>展示狀態</span><select id="editStatus"><option value="published">公開展示</option><option value="draft">草稿</option><option value="archived">封存</option></select></label></div>
+        <label><span>系統說明</span><textarea id="editIndustry" rows="3"></textarea></label>
+        <label><span>搜尋標籤</span><input id="editTags" placeholder="以逗號分隔，例如：排程, 製造, AI" /></label>
+        <label><span>管理備註</span><textarea id="editNotes" rows="3" placeholder="只供管理流程參考"></textarea></label>
+        <label class="check-row"><input id="editFeatured" type="checkbox" /> 設為精選專案</label>
+        <footer><button value="cancel">取消</button><button id="saveProject" value="default" class="primary">儲存至草稿</button></footer>
+      </form>
+    </dialog>
+
+    <dialog id="loginDialog" class="login-dialog">
+      <form id="loginForm" class="login-card">
+        <span class="login-mark">JV</span><p class="eyebrow">SECURE ADMIN</p><h2>登入管理中心</h2><p>輸入管理密碼後才能建立 GitHub 變更提案。</p>
+        <label><span>管理密碼</span><input id="adminPassword" type="password" autocomplete="current-password" required /></label>
+        <p id="loginError" class="form-error" role="alert"></p><button class="primary" type="submit">登入</button>
+      </form>
+    </dialog>
+
+    <dialog id="changesDialog" class="changes-dialog"><section><header><div><p class="eyebrow">CHANGESET</p><h2>變更草稿</h2></div><button class="icon-button" data-close-dialog="changesDialog" aria-label="關閉">×</button></header><div id="changesList"></div><footer><button data-close-dialog="changesDialog">繼續編輯</button><button id="confirmSubmit" class="primary">建立 GitHub PR</button></footer></section></dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="./admin.js"></script>
+  </body>
+</html>

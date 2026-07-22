@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-22 — Catalog management center
+
+- Added searchable project administration with metadata editing, status controls, featured flags and batch actions.
+- Added browser-local change drafts and a reviewable change summary.
+- Added authenticated Vercel API endpoints that create GitHub feature branches and pull requests instead of writing to `main`.
+- Added public catalog handling for draft and archived projects.
+
 ## Unreleased
 
 ### Added

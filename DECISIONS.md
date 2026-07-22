@@ -8,6 +8,7 @@
 | 2026-07-22 | Use `projects-index.json` as Hub catalog source of truth. | Catalog data needs one auditable location. | Update it when a project's public route, repo or classification changes. |
 | 2026-07-22 | Use a light, high-contrast professional SaaS baseline. | The product represents JV's AI-enabled SaaS capability and must remain clear on desktop and mobile. | Individual project style may vary, but contrast, responsive behaviour, forms and statistics views must meet the shared baseline. |
 | 2026-07-22 | Keep Vercel production deployment out of the per-project workflow. | The target experience is one-domain hosting, not hundreds of separate deployments. | Validate locally/self-hosted and use the single-domain publishing path when release is required. |
+| 2026-07-22 | Route catalog administration through GitHub pull requests. | The public site must not expose repository credentials or permit direct production writes. | Admin edits remain local drafts until an authenticated server action creates a feature branch and PR. |
 
 Add a row whenever a decision changes public routes, architecture, data ownership, design policy or deployment policy.
 

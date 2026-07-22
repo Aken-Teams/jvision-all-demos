@@ -11,6 +11,9 @@ Browser
   ├─ /demos/<repo>/            → individual project snapshot / Hub route
   │
   ├─ /project-expert.html      → Project Expert Agent interface
+  ├─ /admin.html               → catalog management center
+  │                               └─ local drafts + authenticated PR workflow
+  ├─ /api/admin/*              → login, session and GitHub PR submission
   │
   └─ /docs/PROJECT_INDEX.md    → human-readable catalog reference
 
@@ -43,6 +46,8 @@ Repository
 | Data | Owner / source of truth | Consumer |
 | --- | --- | --- |
 | Project ID, title, category, demo route, GitHub URL | `projects-index.json` | Hub and maintenance scripts |
+| Catalog administration drafts | browser local storage | Admin center only |
+| Approved catalog administration changes | GitHub feature branch and pull request | Repository maintainers |
 | Human-readable project listing | `docs/PROJECT_INDEX.md` | Operators and reviewers |
 | Design rules | `design-system/jvision-464-ai-saas-demos/MASTER.md` | Hub and individual demo updates |
 | Quality findings | `docs/*AUDIT*`, `docs/PROJECT_EXPERT*` | Project Expert workflow and task queue |
@@ -50,6 +55,7 @@ Repository
 ## Change boundaries
 
 - A catalog-only change normally touches root Hub files and `projects-index.json`.
+- The Admin center never writes directly to `main`; authenticated submissions create a feature branch and pull request through the GitHub API.
 - A project behaviour change stays within that project's `demos/<repo>/` directory unless it needs a shared rule.
 - A shared visual or analytics change may touch `shared/`, design-system files and targeted demo assets; validate it broadly.
 

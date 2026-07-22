@@ -10,7 +10,8 @@ Last updated: 2026-07-22
 - **System illustrations:** Project cards use actual captured runtime screens instead of generic artwork.
 - **Visual baseline:** Light, clear, professional AI SaaS styling has been applied across the library, with responsive analytics support.
 - **Quality process:** Project Expert Agent, acceptance test, formal site audit and mobile analytics audit are available in `tools/` and `docs/`.
-- **GitHub:** The current feature branch is `feat/jv-demo-catalog-search`; PR #1 targets `main`.
+- **GitHub:** Catalog administration is being delivered on `feat/catalog-admin` through a pull request to `main`.
+- **Catalog administration:** A dedicated management center supports search, editing, bulk status changes, featured flags, local drafts and authenticated GitHub PR submission.
 
 ## Latest verification
 
@@ -21,4 +22,4 @@ Last updated: 2026-07-22
 
 ## Next action
 
-Use `TASKS.md` to choose the next scoped improvement. For a new demo or a broken audit, update its catalog metadata and run the relevant targeted validation before broad audits.
+Configure the Admin environment values in Vercel, review the catalog-admin PR and verify the authenticated PR submission flow in Preview before merging.

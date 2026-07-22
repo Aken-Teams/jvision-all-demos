@@ -300,7 +300,9 @@ async function boot() {
   const response = await fetch("./projects-index.json");
   if (!response.ok) throw new Error("專案索引無法讀取");
   const index = await response.json();
-  state.projects = index.projects.map((project, sequence) => ({ ...project, catalogSequence: sequence + 1 }));
+  state.projects = index.projects
+    .map((project, sequence) => ({ ...project, catalogSequence: sequence + 1 }))
+    .filter((project) => !["draft", "archived"].includes(project.status));
   addOptions(categorySelect, [...new Set(state.projects.map((project) => project.category || "未分類"))].sort((a, b) => a.localeCompare(b, "zh-Hant")).map((value) => [value, value]));
   addOptions(sourceSelect, [...new Set(state.projects.map(sourceKey))].map((value) => [value, sourceLabels[value] || value]));
   addOptions(runtimeSelect, [...new Set(state.projects.map(runtimeLabel))].sort().map((value) => [value, value]));
