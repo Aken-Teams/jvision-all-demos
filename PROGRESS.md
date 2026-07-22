@@ -17,6 +17,8 @@ Last updated: 2026-07-22
 
 ## Latest verification
 
+- Full Chromium E2E coverage passed for all 464 projects: routes, desktop/mobile content, one safe interaction per project, browser errors and exposed horizontal overflow.
+- The E2E run found and fixed mobile width defects in smart-manufacturing cases 140 and 150.
 - `node --check app.js` passed for the catalog implementation.
 - Browser checks verified suggestion rendering, source filtering (300 smart-manufacturing projects), URL state, a zero-result state and a 390px mobile viewport.
 - The catalog browser console had no errors during that check.

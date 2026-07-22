@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-22 — Complete project E2E coverage
+
+- Added a repeatable Playwright E2E runner for all 464 demos with route, content, interaction, browser-error and responsive-overflow checks.
+- Added machine-readable and human-readable full-run reports under `docs/`.
+- Fixed mobile workspace overflow in sales-enablement case 140 and sales-handover case 150.
+
 ## 2026-07-22 — Public catalog descriptions
 
 - Added a concise, project-specific introduction to all 464 catalog records based on each project README.

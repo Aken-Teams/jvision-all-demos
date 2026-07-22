@@ -4,6 +4,7 @@ Last updated: 2026-07-22
 
 ## Now
 
+- [x] Add and run repeatable desktop/mobile E2E coverage for all 464 project routes.
 - [ ] Configure `ADMIN_PASSWORD`, `SESSION_SECRET` and a fine-grained `GITHUB_TOKEN` in Vercel.
 - [ ] Verify login and PR creation in the catalog-admin Preview deployment.
 - [ ] Review and merge the catalog-admin PR after validation.
