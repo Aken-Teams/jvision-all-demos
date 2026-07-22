@@ -17,6 +17,9 @@ const sortSelect = document.querySelector("#sortSelect");
 const quickFilters = document.querySelector("#quickFilters");
 const clearFilters = document.querySelector("#clearFilters");
 const loadMore = document.querySelector("#loadMore");
+const catalogStatsBody = document.querySelector("#catalogStatsBody");
+const catalogStatsSummary = document.querySelector("#catalogStatsSummary");
+const searchResults = document.querySelector("#searchResults");
 
 const sourceLabels = {
   "legacy-jvision": "JV 整合專案",
@@ -101,6 +104,88 @@ function syncUrl() {
   history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
 }
 
+function selectCategory(category, { scrollToResults = false } = {}) {
+  state.query = "";
+  state.category = category;
+  searchInput.value = "";
+  categorySelect.value = category;
+  applyFilters({ updateSuggestions: false });
+  if (scrollToResults) searchResults.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function appendStatMetric(container, value, label) {
+  const metric = document.createElement("div");
+  const strong = document.createElement("strong");
+  const span = document.createElement("span");
+  strong.textContent = value;
+  span.textContent = label;
+  metric.append(strong, span);
+  container.append(metric);
+}
+
+function renderCatalogStats() {
+  const groups = new Map();
+  for (const project of state.projects) {
+    const category = project.category || "未分類";
+    const projects = groups.get(category) || [];
+    projects.push(project);
+    groups.set(category, projects);
+  }
+
+  const rows = [...groups.entries()]
+    .map(([category, projects]) => ({
+      category,
+      projects,
+      available: projects.filter((project) => Boolean(project.demoUrl)).length,
+      featured: projects.find((project) => project.demoUrl) || projects[0],
+    }))
+    .sort((a, b) => b.projects.length - a.projects.length || a.category.localeCompare(b.category, "zh-Hant"));
+
+  catalogStatsSummary.innerHTML = "";
+  appendStatMetric(catalogStatsSummary, String(rows.length), "個產業分類");
+  appendStatMetric(catalogStatsSummary, String(state.projects.length), "個展示專案");
+  appendStatMetric(catalogStatsSummary, String(state.projects.filter((project) => project.demoUrl).length), "個可開啟 Demo");
+
+  catalogStatsBody.innerHTML = "";
+  const fragment = document.createDocumentFragment();
+  for (const item of rows) {
+    const row = document.createElement("tr");
+    const categoryCell = document.createElement("th");
+    categoryCell.scope = "row";
+    categoryCell.textContent = item.category;
+
+    const projectCount = document.createElement("td");
+    projectCount.textContent = String(item.projects.length);
+    const availableCount = document.createElement("td");
+    availableCount.textContent = String(item.available);
+
+    const featuredCell = document.createElement("td");
+    if (item.featured?.demoUrl) {
+      const link = document.createElement("a");
+      link.href = item.featured.demoUrl;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      link.textContent = item.featured.title || item.featured.repoName;
+      link.setAttribute("aria-label", `開啟 ${item.featured.title || item.featured.repoName} Demo`);
+      featuredCell.append(link);
+    } else {
+      featuredCell.textContent = "尚無可開啟 Demo";
+    }
+
+    const actionCell = document.createElement("td");
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = "stats-project-link";
+    action.dataset.category = item.category;
+    action.textContent = `查看 ${item.projects.length} 個專案`;
+    action.setAttribute("aria-label", `查看 ${item.category} 的 ${item.projects.length} 個專案`);
+    actionCell.append(action);
+    row.append(categoryCell, projectCount, availableCount, featuredCell, actionCell);
+    fragment.append(row);
+  }
+  catalogStatsBody.append(fragment);
+}
+
 function renderQuickFilters() {
   quickFilters.innerHTML = "";
   const categories = [...new Set(state.projects.map((project) => project.category || "未分類"))]
@@ -122,9 +207,7 @@ function renderQuickFilters() {
   quickFilters.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-category]");
     if (!button) return;
-    state.category = button.dataset.category;
-    categorySelect.value = state.category;
-    applyFilters();
+    selectCategory(button.dataset.category);
   });
 }
 
@@ -271,6 +354,7 @@ async function boot() {
   document.querySelector("#totalProjects").textContent = state.projects.length;
   document.querySelector("#footerStats").textContent = `${state.projects.length} 個展示專案`;
   renderQuickFilters();
+  renderCatalogStats();
   applyFilters({ updateSuggestions: false });
 }
 
@@ -282,6 +366,11 @@ categorySelect.addEventListener("change", (event) => { state.category = event.ta
 sortSelect.addEventListener("change", (event) => { state.sort = event.target.value; applyFilters({ updateSuggestions: false }); });
 clearFilters.addEventListener("click", resetFilters);
 loadMore.addEventListener("click", () => { state.visible += 24; renderProjects(); });
+catalogStatsBody.addEventListener("click", (event) => {
+  const action = event.target.closest("button[data-category]");
+  if (!action) return;
+  selectCategory(action.dataset.category, { scrollToResults: true });
+});
 document.querySelector("#focusSearch").addEventListener("click", () => searchInput.focus());
 document.addEventListener("keydown", (event) => {
   if (event.key === "/" && !event.ctrlKey && !event.metaKey && !/input|textarea|select/i.test(document.activeElement?.tagName || "")) {
