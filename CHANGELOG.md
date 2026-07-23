@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-23 — Project Expert runtime previews
+
+- Added each project's captured runtime screen to its Project Expert review card as a clickable 16:9 evidence preview.
+- Added lazy image decoding, accessible labels, a visible unavailable-image fallback and a more spacious mobile card layout.
+- Added UI coverage for all 464 thumbnail assets, desktop cards, Demo links, browser errors and mobile overflow.
+
 ## 2026-07-23 — Self-hosted API runtime
 
 - Added a dependency-free Node server that serves the Hub and all Demo assets while executing the existing AI, administration and project-share API handlers.

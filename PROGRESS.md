@@ -16,6 +16,7 @@ Last updated: 2026-07-23
 - **System illustrations:** Project cards use actual captured runtime screens instead of generic artwork.
 - **Visual baseline:** Light, clear, professional AI SaaS styling has been applied across the library, with responsive analytics support.
 - **Quality process:** Project Expert Agent, acceptance test, formal site audit and mobile analytics audit are available in `tools/` and `docs/`.
+- **Project Expert previews:** Every review card now presents its project's captured 16:9 runtime screen as a lazy-loaded, clickable evidence preview with an unavailable-image fallback.
 - **GitHub:** Catalog administration is being delivered on `feat/catalog-admin` through a pull request to `main`.
 - **Catalog administration:** A dedicated management center supports search, editing, bulk status changes, featured flags, local drafts and authenticated GitHub PR submission.
 - **AI advice:** Every Demo has a provider-neutral AI advice experience. The 400 generated systems use their existing AI action; the other 64 receive an equivalent on-demand AI advice control, while provider details stay server-side.
@@ -47,6 +48,7 @@ Last updated: 2026-07-23
 - The scoped project-share layer was built and deployed successfully to the canonical Vercel production domain on 2026-07-23; the Vercel build compiled the routing middleware and both share API functions.
 - `npm run test:self-hosted-runtime` verifies static delivery, share-link creation and entry, LAN-compatible protected cookies, scoped-navigation blocking and the AI API route.
 - A normal-browser check on the LAN deployment confirmed that the share dialog produces a seven-day URL on desktop and at 390px, with the link field visible and no horizontal overflow.
+- `npm run test:project-expert-ui` verifies all 464 thumbnail assets, the first 24 rendered review cards, image loading, Demo links, zero browser errors and zero 390px horizontal overflow.
 
 ## Next action
 

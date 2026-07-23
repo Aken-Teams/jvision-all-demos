@@ -61,6 +61,7 @@ Repository
 | Human-readable project listing | `docs/PROJECT_INDEX.md` | Operators and reviewers |
 | Design rules | `design-system/jvision-464-ai-saas-demos/MASTER.md` | Hub and individual demo updates |
 | Quality findings | `docs/*AUDIT*`, `docs/PROJECT_EXPERT*` | Project Expert workflow and task queue |
+| Captured Demo thumbnails and manifest | `assets/demo-screenshots/` | Hub and Project Expert review cards |
 | Project-share signing secret | Vercel `SHARE_LINK_SECRET` environment variable | Share creation API and routing middleware only |
 
 ## Change boundaries
