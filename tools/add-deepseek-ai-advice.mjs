@@ -7,7 +7,7 @@ const repoRoot = path.resolve(toolDir, "..");
 const demosRoot = path.join(repoRoot, "demos");
 const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "projects-index.json"), "utf8"));
 const marker = "jvision-ai-advice.js";
-const version = "20260723-2";
+const version = "20260723-3";
 const css = `<link rel="stylesheet" href="../../shared/jvision-ai-advice.css?v=${version}" />`;
 const script = `<script src="../../shared/jvision-ai-advice.js?v=${version}" defer></script>`;
 

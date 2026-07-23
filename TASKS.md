@@ -18,7 +18,7 @@ Last updated: 2026-07-23
 - [ ] Verify one real project-share flow in a normal browser session.
 - [ ] Remove the pre-existing React hydration #418 warning from the 59 unchanged legacy Next.js snapshots without altering their behaviour.
 - [ ] Deploy the dynamic analytics layer and verify one real public interaction from the Vercel deployment.
-- [ ] Deploy the DeepSeek AI advice runtime and verify one real public response from the Vercel deployment.
+- [ ] Deploy the provider-neutral AI advice runtime and verify one real public response from the Vercel deployment.
 - [ ] Configure `ADMIN_PASSWORD`, `SESSION_SECRET` and a fine-grained `GITHUB_TOKEN` in Vercel.
 - [ ] Verify login and PR creation in the catalog-admin Preview deployment.
 - [ ] Review and merge the catalog-admin PR after validation.

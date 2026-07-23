@@ -51,7 +51,7 @@
     const heading = document.createElement("div");
     const eyebrow = document.createElement("p");
     eyebrow.className = "jv-ai-advice-panel__eyebrow";
-    eyebrow.textContent = "DEEPSEEK · 即時分析";
+    eyebrow.textContent = "AI · 即時分析";
     const title = document.createElement("h2");
     title.textContent = headline;
     heading.append(eyebrow, title);

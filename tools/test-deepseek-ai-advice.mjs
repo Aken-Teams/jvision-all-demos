@@ -10,6 +10,10 @@ const require = createRequire(import.meta.url);
 const handler = require(path.join(repoRoot, "api", "ai-advice.js"));
 const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "projects-index.json"), "utf8"));
 const marker = "jvision-ai-advice.js";
+const runtime = fs.readFileSync(path.join(repoRoot, "shared", marker), "utf8");
+
+assert.ok(runtime.includes('"AI · 即時分析"'), "AI advice panel must use provider-neutral branding");
+assert.ok(!runtime.includes('"DEEPSEEK ·'), "AI advice panel must not expose the provider name");
 
 function response() {
   return {
@@ -31,6 +35,7 @@ for (const project of catalog.projects) {
   const html = fs.readFileSync(indexPath, "utf8");
   assert.ok(html.includes(marker), `${project.repoName} is missing the AI advice runtime`);
   assert.ok(html.includes("jvision-ai-advice.css"), `${project.repoName} is missing the AI advice styles`);
+  assert.ok(html.includes("jvision-ai-advice.js?v=20260723-3"), `${project.repoName} has a stale AI advice runtime`);
   injected += 1;
 }
 

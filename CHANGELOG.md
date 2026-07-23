@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-23 — Provider-neutral AI branding
+
+- Replaced the user-visible provider name in the shared advice panel with `AI` across all 464 Demo routes.
+- Bumped the shared runtime cache version and added regression checks so stale assets or later generator runs cannot restore the old label.
+- Kept provider credentials, endpoint configuration and environment variables server-side and unchanged.
+
 ## 2026-07-23 — Practical Taiwan-SME scenarios
 
 - Replaced all 464 catalog summaries with concrete user, operating-event, daily-use and business-metric content, and added expandable practical details plus practical-problem search.
