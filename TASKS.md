@@ -1,11 +1,18 @@
 # JVision All Demos — Task Queue
 
-Last updated: 2026-07-22
+Last updated: 2026-07-23
 
 ## Now
 
 - [x] Add and run repeatable desktop/mobile E2E coverage for all 464 project routes.
 - [x] Make every generated system's left module navigation switch functional workspace content and verify every option.
+- [x] Connect all 464 Demo AI advice actions to the shared server-side DeepSeek endpoint without exposing the API key to browsers.
+- [x] Add dynamic, accessible operational charts to all 464 Demos with 7/30-day controls, refresh and tabular fallbacks.
+- [x] Add signed project-share links with browser-scoped navigation locks for all 464 Demos.
+- [x] Deploy the project-share layer to Vercel production.
+- [ ] Verify one real project-share flow in a normal browser session.
+- [ ] Deploy the dynamic analytics layer and verify one real public interaction from the Vercel deployment.
+- [ ] Deploy the DeepSeek AI advice runtime and verify one real public response from the Vercel deployment.
 - [ ] Configure `ADMIN_PASSWORD`, `SESSION_SECRET` and a fine-grained `GITHUB_TOKEN` in Vercel.
 - [ ] Verify login and PR creation in the catalog-admin Preview deployment.
 - [ ] Review and merge the catalog-admin PR after validation.

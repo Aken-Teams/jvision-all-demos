@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-07-23 — Scoped project sharing
+
+- Added a `分享專案` control to all 464 Demo routes, with copy and system-share actions for seven-day share links.
+- Added server-side HMAC signing, expiry validation, rate-limited share-link creation and HttpOnly share-scope cookies; the secret remains in Vercel environment configuration only.
+- Added Vercel routing middleware that contains a shared browser session to the selected Demo, required shared assets and the AI advice endpoint; the public catalog remains public by design.
+- Added repeatable coverage for token signing, tamper protection, cross-project rejection, redirect behaviour and all-464 runtime injection through `npm run test:project-share`.
+
+## 2026-07-23 — Dynamic operational charts for all Demos
+
+- Added a shared SVG AI-score trend chart to every Demo's analytics panel, derived from its current operational table and refreshed after data changes.
+- Added 7/30-day range synchronization, a visible 75-point target line, a manual refresh action and an expandable accessible trend-data table.
+- Applied responsive mobile card-table rendering and visible focus/touch states; retained each Demo's existing interactive system runtime.
+
+## 2026-07-23 — DeepSeek AI advice for all Demos
+
+- Added the server-only `/api/ai-advice` Vercel function with input limits, per-IP request throttling, a 15-second provider timeout and no-store responses.
+- Added a shared DeepSeek advice runtime and bright, accessible advice card to all 464 Demo routes; the original system interactions continue to work alongside the AI request.
+- Added a visible fallback `取得 AI 建議` action for the 64 standalone/legacy demos that do not expose a generated-system AI control.
+- Added repeatable API and 464-page injection coverage through `npm run test:deepseek-ai-advice`.
+
 ## 2026-07-22 — Functional module navigation
 
 - Added real workspace switching to all four left-navigation modules in 400 generated AI and smart-manufacturing systems.

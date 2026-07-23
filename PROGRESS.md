@@ -1,6 +1,6 @@
 # JVision All Demos — Progress
 
-Last updated: 2026-07-22
+Last updated: 2026-07-23
 
 ## Current state
 
@@ -15,6 +15,9 @@ Last updated: 2026-07-22
 - **Quality process:** Project Expert Agent, acceptance test, formal site audit and mobile analytics audit are available in `tools/` and `docs/`.
 - **GitHub:** Catalog administration is being delivered on `feat/catalog-admin` through a pull request to `main`.
 - **Catalog administration:** A dedicated management center supports search, editing, bulk status changes, featured flags, local drafts and authenticated GitHub PR submission.
+- **DeepSeek AI advice:** Every Demo has a server-side DeepSeek advice path. The 400 generated systems use their existing AI action; the other 64 receive an equivalent on-demand AI advice control.
+- **Dynamic analytics:** Every Demo now adds an AI score trend chart beside its operational statistics, with 7/30-day switching, data refresh, an accessible target line and an expandable data table.
+- **Project sharing:** Every Demo can generate a signed, seven-day project-share link. Opening it creates a browser-scoped navigation lock that permits only the shared Demo and its required runtime assets.
 
 ## Latest verification
 
@@ -25,7 +28,13 @@ Last updated: 2026-07-22
 - Browser checks verified suggestion rendering, source filtering (300 smart-manufacturing projects), URL state, a zero-result state and a 390px mobile viewport.
 - The catalog browser console had no errors during that check.
 - Earlier repository reports record the full Project Expert and mobile analytics checks; see `docs/PROJECT_EXPERT_ACCEPTANCE_REPORT.md` and `docs/MOBILE_ANALYTICS_AUDIT.md`.
+- `npm run test:deepseek-ai-advice` verifies all 464 pages load the common runtime and uses a mocked provider response to validate the protected serverless endpoint.
+- Desktop and 390px mobile browser checks confirmed that an existing system AI action and a legacy-system fallback action both render an accessible, actionable advice card.
+- npm run test:dynamic-charts confirms the dynamic-chart layer is present on all 464 static routes and all 459 retained Next.js layouts.
+- Browser checks confirmed the warehouse Demo updates the chart for the 7/30-day switch and expandable data table; the legacy care Demo shows the same chart at a 390px mobile viewport.
+- `npm run test:project-share` validates signed-link creation, tamper and cross-project rejection, protected scope cookies, the redirect target and share-runtime coverage on all 464 routes.
+- The scoped project-share layer was built and deployed successfully to the canonical Vercel production domain on 2026-07-23; the Vercel build compiled the routing middleware and both share API functions.
 
 ## Next action
 
-Configure the Admin environment values in Vercel, review the catalog-admin PR and verify the authenticated PR submission flow in Preview before merging.
+Open one generated share link in a normal browser session and confirm it returns to the designated Demo when attempting to visit the Hub or another Demo.

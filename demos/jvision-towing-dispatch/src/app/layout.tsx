@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+import "./jvision-dynamic-charts.css";
 import "./jvision-analytics.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://jvision-towing-dispatch.vercel.app"),
@@ -17,9 +18,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-Hant">
-      <body>
+      <body className="jvision-bright-saas jvision-next-legacy jv-galaxy-saas jv-galaxy-supply-flow">
         {children}
               <script src="/jvision-analytics.js" defer />
+              <script src="/jvision-dynamic-charts.js?v=20260723" defer />
       </body>
     </html>
   );

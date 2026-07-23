@@ -9,11 +9,14 @@ Browser
   │                               └─ reads projects-index.json
   │
   ├─ /demos/<repo>/            → individual project snapshot / Hub route
+  ├─ /share/<repo>/?token=…    → signed share-link entry, then redirects to its scoped Demo
   │
   ├─ /project-expert.html      → Project Expert Agent interface
   ├─ /admin.html               → catalog management center
   │                               └─ local drafts + authenticated PR workflow
   ├─ /api/admin/*              → login, session and GitHub PR submission
+  ├─ /api/share/*              → signed project-share link issuance and scope entry
+  ├─ middleware.js             → browser-share navigation containment on Vercel
   │
   └─ /docs/PROJECT_INDEX.md    → human-readable catalog reference
 
@@ -40,6 +43,7 @@ Repository
 - **Generated projects:** project-level Next.js App Router applications where applicable; their preserved static files support Hub routing.
 - **Legacy projects:** 59 original Next.js applications retain `src/app` as their primary runtime.
 - **Other legacy demos:** retain their standalone interactive implementation.
+- **Project-share mode:** `/api/share/create` signs a repo name and expiry using `SHARE_LINK_SECRET`; `/share/<repo>/` validates the token and sets an HttpOnly scope cookie. Vercel routing middleware validates that cookie before cache and limits that browser session to the designated Demo route, required shared assets and the AI advice endpoint.
 
 ## Data ownership
 
@@ -51,6 +55,7 @@ Repository
 | Human-readable project listing | `docs/PROJECT_INDEX.md` | Operators and reviewers |
 | Design rules | `design-system/jvision-464-ai-saas-demos/MASTER.md` | Hub and individual demo updates |
 | Quality findings | `docs/*AUDIT*`, `docs/PROJECT_EXPERT*` | Project Expert workflow and task queue |
+| Project-share signing secret | Vercel `SHARE_LINK_SECRET` environment variable | Share creation API and routing middleware only |
 
 ## Change boundaries
 

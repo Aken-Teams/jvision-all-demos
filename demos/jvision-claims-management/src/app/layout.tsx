@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+import "./jvision-dynamic-charts.css";
 import "./jvision-analytics.css";
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +29,8 @@ export default function RootLayout({
       lang="zh-Hant"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}        <script src="/jvision-analytics.js" defer />
+      <body className="min-h-full flex flex-col jvision-bright-saas jvision-next-legacy jv-galaxy-saas jv-galaxy-trust-ledger">{children}        <script src="/jvision-analytics.js" defer />
+              <script src="/jvision-dynamic-charts.js?v=20260723" defer />
       </body>
     </html>
   );

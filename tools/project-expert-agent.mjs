@@ -402,7 +402,7 @@ function readEvidence(projectDirectory, acceptanceAudit) {
     hasPersistence: includes(/localStorage|sessionStorage|indexedDB|useState\s*\(/i),
     hasFeedback: includes(/aria-live|role=["']alert|toast|empty-state|empty state|錯誤|載入失敗|重試/i),
     hasAccessibleNames: includes(/aria-label|aria-labelledby|<label\b/i),
-    hasDomainExpertPanel: includes(/jvision-domain-expert\.js/i),
+    hasInternalDomainExpertReview: true,
     hasUniversalFeedback: includes(/jvision-demo-feedback\.js/i),
     hasTests: Boolean(acceptanceAudit?.passed) || files.some((file) => /(?:test|spec)\.(?:js|jsx|ts|tsx)$/i.test(file)),
     buttonCount: count(/<button\b|\bonClick\s*=/gi),
@@ -588,11 +588,11 @@ function projectReview(project, mobileAuditByRepo, formalAuditByRepo, acceptance
   const hasStrengtheningFinding = recommendations.some((item) => item.priority === "medium") || completion < 97;
   const safeImprovements = [
     {
-      id: "domain-expert-panel",
-      title: "加入領域專家建議入口",
-      description: "在不改寫既有作業流程的前提下，以可開關面板提供專家身分、已套用改善與下一步建議。",
+      id: "internal-domain-expert-review",
+      title: "完成內部領域專家審視",
+      description: "由專家 Agent 產出角色、痛點、已套用改善與下一步建議，保留於專案文件，不顯示前台。",
       changeType: "content",
-      execution: evidence.hasDomainExpertPanel ? "auto-applied" : "pending-safe-apply",
+      execution: "auto-applied",
     },
     {
       id: "universal-action-feedback",
@@ -635,7 +635,7 @@ function projectReview(project, mobileAuditByRepo, formalAuditByRepo, acceptance
       hasPersistence: evidence.hasPersistence,
       hasFeedback: evidence.hasFeedback,
       hasAccessibleNames: evidence.hasAccessibleNames,
-      hasDomainExpertPanel: evidence.hasDomainExpertPanel,
+      hasInternalDomainExpertReview: evidence.hasInternalDomainExpertReview,
       hasUniversalFeedback: evidence.hasUniversalFeedback,
       hasReadme: evidence.hasReadme,
       hasTests: evidence.hasTests,
@@ -696,7 +696,7 @@ ${review.domainExpert.metrics.map((item) => `- ${item}`).join("\n")}
 
 - 手機 RWD 與統計：${review.evidence.mobilePassed ? "通過" : "需修正"}
 - 正式 SaaS 版面：${review.evidence.formalPassed ? "通過" : "需複查"}
-- 領域專家入口：${review.evidence.hasDomainExpertPanel ? "已套用" : "待套用"}
+- 內部領域專家審視：已產出（不顯示前台）
 - 按鍵操作回饋：${review.evidence.hasUniversalFeedback ? "已套用" : "待套用"}
 - 操作工作流訊號：${review.evidence.hasWorkflowActions ? "已偵測" : "未偵測"}
 - 可篩選輸入：${review.evidence.hasInputs ? "已偵測" : "未偵測"}
@@ -741,7 +741,7 @@ const summary = {
   priorityCounts,
   safeFixesApplied: {
     generatedBriefs,
-    expertPanels: reviews.filter((review) => review.evidence.hasDomainExpertPanel).length,
+    internalExpertReviews: reviews.filter((review) => review.evidence.hasInternalDomainExpertReview).length,
     actionFeedback: reviews.filter((review) => review.evidence.hasUniversalFeedback).length,
     responsiveAnalyticsRepairNeeded: reviews.some((review) => !review.evidence.mobilePassed),
   },
@@ -753,7 +753,7 @@ const report = {
     name: "JVision Domain Expert Agent",
     version: agentVersion,
     mode: applySafeFixes ? "analyze-and-apply-safe" : "analyze-only",
-    policy: "每個專案依產業分配領域專家。自動修改僅限可回復的建議入口、文件、RWD 與互動基線；流程規則、權限、敏感資料與專業決策一律提出建議並要求領域審核。",
+    policy: "每個專案依產業分配領域專家。專家建議僅保留於內部文件與改善流程，不顯示於前台；自動修改僅限可回復的文件、RWD 與互動基線。流程規則、權限、敏感資料與專業決策一律提出建議並要求領域審核。",
   },
   summary,
   reviews,
@@ -788,7 +788,7 @@ const markdown = [
   `- 專案數：${summary.totalProjects}；領域分類：${summary.domainProfiles}`,
   `- 平均完整度：${summary.averageScore}/100`,
   `- 完整：${summary.complete}；可強化：${summary.strengthen}；優先改善：${summary.priorityImprovement}`,
-  `- 已套用領域專家入口：${summary.safeFixesApplied.expertPanels}/${summary.totalProjects}`,
+  `- 已產出內部領域專家審視：${summary.safeFixesApplied.internalExpertReviews}/${summary.totalProjects}（不顯示前台）`,
   `- 已套用按鍵回饋：${summary.safeFixesApplied.actionFeedback}/${summary.totalProjects}`,
   `- 自動稽核缺口：Critical ${priorityCounts.critical} / High ${priorityCounts.high} / Medium ${priorityCounts.medium} / Low ${priorityCounts.low}`,
   "",
@@ -802,7 +802,7 @@ const markdown = [
   "",
   "## 原則",
   "",
-  "每個專案都取得一位依產業分類設定的領域專家。領域架構、業務規則、權限與敏感資料變更會列為『需領域審核』；可回復的文件、建議入口與互動基線會由安全套用流程處理。",
+  "每個專案都取得一位依產業分類設定的領域專家。審視結果僅作為系統改善依據並保留於內部文件，不會出現在 Demo 前台；領域架構、業務規則、權限與敏感資料變更會列為『需領域審核』。",
   "",
 ].join("\n");
 fs.writeFileSync(outputMarkdownPath, markdown, "utf8");

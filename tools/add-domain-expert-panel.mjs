@@ -6,13 +6,12 @@ const toolDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(toolDir, "..");
 const demosRoot = path.join(repoRoot, "demos");
 const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "projects-index.json"), "utf8"));
-const marker = "jvision-domain-expert.js";
-const version = "20260722";
-const panelCss = `<link rel="stylesheet" href="../../shared/jvision-domain-expert.css?v=${version}" />`;
-const panelScript = `<script src="../../shared/jvision-domain-expert.js?v=${version}" defer></script>`;
+const marker = "jvision-domain-expert";
+const runtimeCss = /\s*<link\b[^>]*\bhref=(['"])[^'"]*jvision-domain-expert\.css[^'"]*\1[^>]*>\s*/gi;
+const runtimeScript = /\s*<script\b[^>]*\bsrc=(['"])[^'"]*jvision-domain-expert\.js[^'"]*\1[^>]*>\s*<\/script>\s*/gi;
 
-let injected = 0;
-let existing = 0;
+let removed = 0;
+let alreadyInternal = 0;
 const missing = [];
 
 for (const project of catalog.projects) {
@@ -23,20 +22,21 @@ for (const project of catalog.projects) {
   }
 
   let html = fs.readFileSync(indexPath, "utf8");
-  if (html.includes(marker)) {
-    existing += 1;
+  if (!html.includes(marker)) {
+    alreadyInternal += 1;
     continue;
   }
 
-  html = /<\/head>/i.test(html)
-    ? html.replace(/<\/head>/i, `  ${panelCss}\n</head>`)
-    : `${panelCss}\n${html}`;
-  html = /<\/body>/i.test(html)
-    ? html.replace(/<\/body>/i, `  ${panelScript}\n</body>`)
-    : `${html}\n${panelScript}`;
+  html = html.replace(runtimeCss, "\n").replace(runtimeScript, "\n");
   fs.writeFileSync(indexPath, html.replaceAll("\r\n", "\n"), "utf8");
-  injected += 1;
+  removed += 1;
 }
 
-console.log(JSON.stringify({ total: catalog.projects.length, injected, existing, missing }, null, 2));
+console.log(JSON.stringify({
+  total: catalog.projects.length,
+  removed,
+  alreadyInternal,
+  missing,
+  policy: "Domain expert reviews remain in docs/project-expert and are not loaded in the Demo frontend.",
+}, null, 2));
 if (missing.length) process.exitCode = 1;
