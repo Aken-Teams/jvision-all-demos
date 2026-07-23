@@ -9,7 +9,7 @@ const catalog=JSON.parse(fs.readFileSync(path.join(root,"projects-index.json"),"
 const projects=catalog.projects.filter(project=>{
   const app=path.join(root,"demos",project.repoName,"app.js");
   const index=path.join(root,"demos",project.repoName,"index.html");
-  return fs.existsSync(app)&&fs.existsSync(index)&&fs.readFileSync(app,"utf8").includes("JVISION_DISTINCT_FUNCTIONAL_MODULES")&&fs.readFileSync(index,"utf8").includes("data-module=");
+  return fs.existsSync(app)&&fs.existsSync(index)&&fs.readFileSync(app,"utf8").includes("JVISION_PRACTICAL_WORKFLOW_V1")&&fs.readFileSync(index,"utf8").includes("data-module=");
 });
 const port=3234;
 const baseUrl=`http://127.0.0.1:${port}`;
@@ -36,7 +36,7 @@ async function testProject(page,project,index){
   let status=0;
   let navigationError="";
   try{
-    const response=await page.goto(`${baseUrl}${project.demoUrl}`,{waitUntil:"domcontentloaded",timeout:15000});
+    const response=await page.goto(`${baseUrl}${project.demoUrl}?mode=free`,{waitUntil:"domcontentloaded",timeout:15000});
     status=response?.status()||0;
     await page.waitForFunction(()=>document.body.dataset.activeModuleIndex!==undefined,{timeout:5000});
   }catch(error){navigationError=String(error.message||error).slice(0,400)}
@@ -50,8 +50,8 @@ async function testProject(page,project,index){
       await page.waitForTimeout(20);
       steps.push(await page.evaluate(expected=>{
         const visible=selector=>{const element=document.querySelector(selector);if(!element)return false;const rect=element.getBoundingClientRect();return getComputedStyle(element).display!=="none"&&rect.width>0&&rect.height>0};
-        const modes=[visible(".fm-stats")&&visible(".fm-stages"),visible("#fmCaseRows")&&visible("#fmDetail"),visible("#fmCreate")&&visible(".fm-schema"),visible("#fmRunAi")&&visible(".fm-recommendation")];
-        return {expected,activeIndex:Number(document.body.dataset.activeModuleIndex),activeButtons:document.querySelectorAll(".module-nav button.active").length,heading:document.querySelector(".fm-hero h2")?.textContent.trim()||"",signature:modes.map(Boolean).join(""),correctSurface:modes[expected]&&modes.filter(Boolean).length===1};
+        const modes=[visible(".pw-metrics")&&visible(".pw-flow"),visible(".pw-table")&&visible(".pw-detail"),visible(".pw-exception")&&visible(".pw-rules"),visible("#pwRecalculate")&&visible(".pw-log")];
+        return {expected,activeIndex:Number(document.body.dataset.activeModuleIndex),activeButtons:document.querySelectorAll(".module-nav button.active").length,heading:document.querySelector(".pw-hero h2")?.textContent.trim()||"",signature:modes.map(Boolean).join(""),correctSurface:modes[expected]&&modes.filter(Boolean).length===1};
       },buttonIndex));
     }
   }

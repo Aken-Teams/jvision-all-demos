@@ -8,6 +8,8 @@ Last updated: 2026-07-23
 - **Single-domain access:** Demo links use `/demos/<repo>/`; the Hub does not direct visitors to the old per-project Vercel URLs.
 - **Homepage:** Reworked into the JV Demo search interface with live suggestions, business-category filtering, sorting, chips and sharable URL state.
 - **Homepage impact:** Added an evidence-led hero with direct Demo-search CTA, animated 464-system network, industry signal stream, count-up and reduced-motion-aware reveal effects while keeping retrieval immediately below the hero.
+- **Practical catalog content:** All 464 cards now describe a concrete user, operating event, daily use and observable business metrics; practical problem terms are searchable.
+- **Practical generated Demos:** All 400 generated systems use deterministic Taiwan-SME scenarios, absolute dates, meaningful records, explainable decision rules, versioned browser state and guided/free entry modes.
 - **Classification:** All projects use one primary business category; combined labels such as education/care were split into distinct education and healthcare categories. Public cards no longer show implementation frameworks.
 - **Public project summaries:** Every catalog project has a README-derived introduction; cards no longer expose repository names, GitHub actions or legacy-source labels.
 - **Functional module navigation:** All 400 generated AI and smart-manufacturing systems switch real workspace regions from their left module navigation.
@@ -22,6 +24,11 @@ Last updated: 2026-07-23
 
 ## Latest verification
 
+- Practical-content audit passed: 464 complete catalog records, 29 category profiles, 400 valid full scenarios, 464 unique descriptions and zero placeholder-content failures.
+- Practical workflow coverage passed 400/400: four-step guided flow, at least two actionable exceptions, deterministic recalculation and data reset.
+- Updated module-navigation coverage passed 1,600/1,600 transitions with zero page errors.
+- Homepage desktop/mobile checks passed practical-detail expansion, `缺料` search, full-scenario/catalog-only entry rules, mobile overflow and browser-console checks.
+- The current all-Demo E2E run passed routes, content, interaction and mobile overflow for 464/464. The 400 changed generated Demos and five other static Demos had zero browser errors; 59 unchanged legacy Next.js snapshots emitted their existing React hydration #418 warning and remain outside this content-only internal-change scope.
 - Full Chromium E2E coverage passed for all 464 projects: routes, desktop/mobile content, one safe interaction per project, browser errors and exposed horizontal overflow.
 - Dedicated module-navigation coverage passed 1,600/1,600 left-menu transitions across 400 generated systems with zero page errors.
 - The E2E run found and fixed mobile width defects in smart-manufacturing cases 140 and 150.
@@ -39,4 +46,4 @@ Last updated: 2026-07-23
 
 ## Next action
 
-Open one generated share link in a normal browser session and confirm it returns to the designated Demo when attempting to visit the Hub or another Demo.
+Resolve the pre-existing React hydration #418 warning in the 59 legacy Next.js snapshots without changing their public behaviour, then restore the all-464 zero-browser-error baseline.

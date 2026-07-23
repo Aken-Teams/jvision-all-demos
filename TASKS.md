@@ -5,6 +5,9 @@ Last updated: 2026-07-23
 ## Now
 
 - [x] Refresh the homepage hero with stronger evidence-led copy, an animated industry-system network and an immediate path into project search.
+- [x] Replace all 464 generic catalog summaries with practical user, event, daily-use and operating-metric content.
+- [x] Add deterministic Taiwan-SME scenario data, guided/free entry, explainable rules and resettable workflows to all 400 generated Demos.
+- [x] Add repeatable practical-content, homepage and 400-workflow acceptance tests.
 - [x] Verify the refreshed homepage at desktop and narrow mobile widths, including console, reduced-motion fallback coverage and horizontal overflow.
 - [x] Add and run repeatable desktop/mobile E2E coverage for all 464 project routes.
 - [x] Make every generated system's left module navigation switch functional workspace content and verify every option.
@@ -13,6 +16,7 @@ Last updated: 2026-07-23
 - [x] Add signed project-share links with browser-scoped navigation locks for all 464 Demos.
 - [x] Deploy the project-share layer to Vercel production.
 - [ ] Verify one real project-share flow in a normal browser session.
+- [ ] Remove the pre-existing React hydration #418 warning from the 59 unchanged legacy Next.js snapshots without altering their behaviour.
 - [ ] Deploy the dynamic analytics layer and verify one real public interaction from the Vercel deployment.
 - [ ] Deploy the DeepSeek AI advice runtime and verify one real public response from the Vercel deployment.
 - [ ] Configure `ADMIN_PASSWORD`, `SESSION_SECRET` and a fine-grained `GITHUB_TOKEN` in Vercel.

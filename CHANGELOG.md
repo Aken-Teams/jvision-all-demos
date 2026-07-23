@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-23 — Practical Taiwan-SME scenarios
+
+- Replaced all 464 catalog summaries with concrete user, operating-event, daily-use and business-metric content, and added expandable practical details plus practical-problem search.
+- Added a versioned 29-category content model and 400 deterministic Taiwan-SME scenarios with meaningful records, absolute dates, exceptions, operational metrics and explainable rules.
+- Replaced the 400 generated systems' generic module surfaces with guided/free entry, four practical work areas, deterministic actions, auditable decisions and resettable browser state.
+- Added repeatable content, homepage, workflow and updated module-navigation acceptance suites.
+
 ## 2026-07-23 — Homepage impact refresh
 
 - Reframed the first screen around the direct, evidence-led promise「不是想像 AI，直接打開它」without moving project retrieval out of the primary flow.

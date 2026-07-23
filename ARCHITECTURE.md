@@ -22,6 +22,7 @@ Browser
 
 Repository
   ├─ demos/<repo>/             → independently runnable project source
+  ├─ content/                  → generated, auditable practical-scenario registry
   ├─ projects-index.json       → canonical catalog data
   ├─ tools/                    → conversion, audit and agent scripts
   ├─ design-system/            → shared design rules and page overrides
@@ -50,6 +51,8 @@ Repository
 | Data | Owner / source of truth | Consumer |
 | --- | --- | --- |
 | Project ID, title, category, demo route, GitHub URL | `projects-index.json` | Hub and maintenance scripts |
+| Practical category profiles and generation rules | `tools/practical-scenario-model.mjs` | Practical-content generator and audit |
+| Generated full scenarios for IDs 1001–1400 | `content/practical-scenarios.json` | Generated Demo configs and content review |
 | Catalog administration drafts | browser local storage | Admin center only |
 | Approved catalog administration changes | GitHub feature branch and pull request | Repository maintainers |
 | Human-readable project listing | `docs/PROJECT_INDEX.md` | Operators and reviewers |
@@ -63,4 +66,5 @@ Repository
 - The Admin center never writes directly to `main`; authenticated submissions create a feature branch and pull request through the GitHub API.
 - A project behaviour change stays within that project's `demos/<repo>/` directory unless it needs a shared rule.
 - A shared visual or analytics change may touch `shared/`, design-system files and targeted demo assets; validate it broadly.
+- Practical-content changes are made in the scenario model and regenerated with `npm run apply:practical-content`; do not hand-edit 400 generated scenario copies.
 

@@ -1,72 +1,72 @@
 # JVision 464 專案 E2E 測試報告
 
-- 測試時間：2026-07-22T08:07:04.348Z
-- 通過：464 / 464
-- 失敗：0 / 464
+- 測試時間：2026-07-23T04:36:11.449Z
+- 通過：405 / 464
+- 失敗：59 / 464
 - 路由正常：464 / 464
 - 互動操作正常：464 / 464
-- 無瀏覽器錯誤：464 / 464
+- 無瀏覽器錯誤：405 / 464
 - 手機版無明顯水平溢位：464 / 464
 
 | # | 專案 | 結果 | HTTP | 互動 | 手機溢位 | 原因 |
 |---:|---|---|---:|---|---:|---|
-| 1 | Production Order (jvision-production-order) | 通過 | 200 | 通過 | 0px |  |
-| 2 | CRM (jvision-crm) | 通過 | 200 | 通過 | 0px |  |
-| 3 | Construction (jvision-construction) | 通過 | 200 | 通過 | 0px |  |
-| 4 | Bizbooks (jvision-bizbooks) | 通過 | 200 | 通過 | 0px |  |
-| 5 | Attendance (jvision-attendance) | 通過 | 200 | 通過 | 0px |  |
-| 6 | Course Tools (jvision-course-tools) | 通過 | 200 | 通過 | 0px |  |
-| 7 | Legalops (jvision-legalops) | 通過 | 200 | 通過 | 0px |  |
-| 8 | Car Cloud (jvision-car-cloud) | 通過 | 200 | 通過 | 0px |  |
-| 9 | Personal Finance (jvision-personal-finance) | 通過 | 200 | 通過 | 0px |  |
-| 10 | TMS (jvision-tms) | 通過 | 200 | 通過 | 0px |  |
-| 11 | Construction ERP (jvision-construction-erp) | 通過 | 200 | 通過 | 0px |  |
-| 12 | Hospitality (jvision-hospitality) | 通過 | 200 | 通過 | 0px |  |
-| 13 | Property Management (jvision-property-management) | 通過 | 200 | 通過 | 0px |  |
-| 14 | Course Platform (jvision-course-platform) | 通過 | 200 | 通過 | 0px |  |
-| 15 | Ecare (jvision-ecare) | 通過 | 200 | 通過 | 0px |  |
-| 16 | Clinic (jvision-clinic) | 通過 | 200 | 通過 | 0px |  |
-| 17 | Store Design (jvision-store-design) | 通過 | 200 | 通過 | 0px |  |
-| 18 | Smart POS (jvision-smart-pos) | 通過 | 200 | 通過 | 0px |  |
-| 19 | POS (jvision-pos) | 通過 | 200 | 通過 | 0px |  |
-| 20 | Work Management (jvision-work-management) | 通過 | 200 | 通過 | 0px |  |
-| 21 | AI Workspace (jvision-ai-workspace) | 通過 | 200 | 通過 | 0px |  |
-| 22 | Office Automation (jvision-office-automation) | 通過 | 200 | 通過 | 0px |  |
-| 23 | BI Analytics (jvision-bi-analytics) | 通過 | 200 | 通過 | 0px |  |
-| 24 | Carbon Inventory (jvision-carbon-inventory) | 通過 | 200 | 通過 | 0px |  |
-| 25 | EMS (jvision-ems) | 通過 | 200 | 通過 | 0px |  |
-| 26 | SRM (jvision-srm) | 通過 | 200 | 通過 | 0px |  |
-| 27 | SQM (jvision-sqm) | 通過 | 200 | 通過 | 0px |  |
-| 28 | Dental Assistant (jvision-dental-assistant) | 通過 | 200 | 通過 | 0px |  |
-| 29 | Pet Booking (jvision-pet-booking) | 通過 | 200 | 通過 | 0px |  |
-| 30 | Education Care (jvision-education-care) | 通過 | 200 | 通過 | 0px |  |
-| 31 | Pharmacy Claim (jvision-pharmacy-claim) | 通過 | 200 | 通過 | 0px |  |
-| 32 | Staff Dispatch (jvision-staff-dispatch) | 通過 | 200 | 通過 | 0px |  |
-| 33 | Optical Saas (jvision-optical-saas) | 通過 | 200 | 通過 | 0px |  |
-| 34 | Motorcycle Shop (jvision-motorcycle-shop) | 通過 | 200 | 通過 | 0px |  |
-| 35 | Estimate Pmis (jvision-estimate-pmis) | 通過 | 200 | 通過 | 0px |  |
-| 36 | Laundry POS (jvision-laundry-pos) | 通過 | 200 | 通過 | 0px |  |
-| 37 | Smart Parking (jvision-smart-parking) | 通過 | 200 | 通過 | 0px |  |
-| 38 | Bakery POS (jvision-bakery-pos) | 通過 | 200 | 通過 | 0px |  |
-| 39 | Printing ERP (jvision-printing-erp) | 通過 | 200 | 通過 | 0px |  |
-| 40 | Trading ERP (jvision-trading-erp) | 通過 | 200 | 通過 | 0px |  |
-| 41 | Inventory (jvision-inventory) | 通過 | 200 | 通過 | 0px |  |
-| 42 | Maintenance (jvision-maintenance) | 通過 | 200 | 通過 | 0px |  |
-| 43 | Self Care Platform (jvision-self-care-platform) | 通過 | 200 | 通過 | 0px |  |
-| 44 | Event Wedding (jvision-event-wedding) | 通過 | 200 | 通過 | 0px |  |
-| 45 | Customer Support Platform (jvision-customer-support-platform) | 通過 | 200 | 通過 | 0px |  |
-| 46 | HRIS (jvision-hris) | 通過 | 200 | 通過 | 0px |  |
-| 47 | Work Project Suite (jvision-work-project-suite) | 通過 | 200 | 通過 | 0px |  |
-| 48 | Equipment Maintenance Suite (jvision-equipment-maintenance-suite) | 通過 | 200 | 通過 | 0px |  |
-| 49 | Construction Management Suite (jvision-construction-management-suite) | 通過 | 200 | 通過 | 0px |  |
-| 50 | Course Learning Suite (jvision-course-learning-suite) | 通過 | 200 | 通過 | 0px |  |
-| 51 | ESG Energy Carbon (jvision-esg-energy-carbon) | 通過 | 200 | 通過 | 0px |  |
-| 52 | Interior Design Studio (jvision-interior-design-studio) | 通過 | 200 | 通過 | 0px |  |
-| 53 | Fashion Plm (jvision-fashion-plm) | 通過 | 200 | 通過 | 0px |  |
-| 54 | Sign Shop Management (jvision-sign-shop-management) | 通過 | 200 | 通過 | 0px |  |
-| 55 | Towing Dispatch (jvision-towing-dispatch) | 通過 | 200 | 通過 | 0px |  |
-| 56 | Auto Glass Ops (jvision-auto-glass-ops) | 通過 | 200 | 通過 | 0px |  |
-| 57 | Claims Management (jvision-claims-management) | 通過 | 200 | 通過 | 0px |  |
+| 1 | Production Order (jvision-production-order) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 2 | CRM (jvision-crm) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 3 | Construction (jvision-construction) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 4 | Bizbooks (jvision-bizbooks) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 5 | Attendance (jvision-attendance) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 6 | Course Tools (jvision-course-tools) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 7 | Legalops (jvision-legalops) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 8 | Car Cloud (jvision-car-cloud) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 9 | Personal Finance (jvision-personal-finance) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 10 | TMS (jvision-tms) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 11 | Construction ERP (jvision-construction-erp) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 12 | Hospitality (jvision-hospitality) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 13 | Property Management (jvision-property-management) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 14 | Course Platform (jvision-course-platform) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 15 | Ecare (jvision-ecare) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 16 | Clinic (jvision-clinic) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 17 | Store Design (jvision-store-design) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 18 | Smart POS (jvision-smart-pos) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 19 | POS (jvision-pos) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 20 | Work Management (jvision-work-management) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 21 | AI Workspace (jvision-ai-workspace) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 22 | Office Automation (jvision-office-automation) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 23 | BI Analytics (jvision-bi-analytics) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 24 | Carbon Inventory (jvision-carbon-inventory) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 25 | EMS (jvision-ems) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 26 | SRM (jvision-srm) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 27 | SQM (jvision-sqm) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 28 | Dental Assistant (jvision-dental-assistant) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 29 | Pet Booking (jvision-pet-booking) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 30 | Education Care (jvision-education-care) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 31 | Pharmacy Claim (jvision-pharmacy-claim) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 32 | Staff Dispatch (jvision-staff-dispatch) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 33 | Optical Saas (jvision-optical-saas) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 34 | Motorcycle Shop (jvision-motorcycle-shop) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 35 | Estimate Pmis (jvision-estimate-pmis) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 36 | Laundry POS (jvision-laundry-pos) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 37 | Smart Parking (jvision-smart-parking) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 38 | Bakery POS (jvision-bakery-pos) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 39 | Printing ERP (jvision-printing-erp) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 40 | Trading ERP (jvision-trading-erp) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 41 | Inventory (jvision-inventory) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 42 | Maintenance (jvision-maintenance) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 43 | Self Care Platform (jvision-self-care-platform) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 44 | Event Wedding (jvision-event-wedding) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 45 | Customer Support Platform (jvision-customer-support-platform) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 46 | HRIS (jvision-hris) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 47 | Work Project Suite (jvision-work-project-suite) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 48 | Equipment Maintenance Suite (jvision-equipment-maintenance-suite) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 49 | Construction Management Suite (jvision-construction-management-suite) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 50 | Course Learning Suite (jvision-course-learning-suite) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 51 | ESG Energy Carbon (jvision-esg-energy-carbon) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 52 | Interior Design Studio (jvision-interior-design-studio) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 53 | Fashion Plm (jvision-fashion-plm) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 54 | Sign Shop Management (jvision-sign-shop-management) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 55 | Towing Dispatch (jvision-towing-dispatch) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 56 | Auto Glass Ops (jvision-auto-glass-ops) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 57 | Claims Management (jvision-claims-management) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
 | 58 | Order Inventory (jvision-order-inventory) | 通過 | 200 | 通過 | 0px |  |
 | 59 | Lean Demo (jvision-lean-demo) | 通過 | 200 | 通過 | 0px |  |
 | 60 | Work Order Demo (jvision-work-order-demo) | 通過 | 200 | 通過 | 0px |  |
@@ -472,5 +472,5 @@
 | 460 | 稽核管理系統 (jvision-smart-mfg-298-system-298) | 通過 | 200 | 通過 | 0px |  |
 | 461 | 集團關係企業管理系統 (jvision-smart-mfg-299-system-299) | 通過 | 200 | 通過 | 0px |  |
 | 462 | 經營情報與競爭分析系統 (jvision-smart-mfg-300-system-300) | 通過 | 200 | 通過 | 0px |  |
-| 463 | Showcase Vercel (jvision-showcase-vercel) | 通過 | 200 | 通過 | 0px |  |
-| 464 | Temple Management (jvision-temple-management) | 通過 | 200 | 通過 | 0px |  |
+| 463 | Showcase Vercel (jvision-showcase-vercel) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
+| 464 | Temple Management (jvision-temple-management) | 失敗 | 200 | 通過 | 0px | 1 page error(s) |
