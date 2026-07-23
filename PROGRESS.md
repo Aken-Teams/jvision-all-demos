@@ -21,6 +21,7 @@ Last updated: 2026-07-23
 - **AI advice:** Every Demo has a provider-neutral AI advice experience. The 400 generated systems use their existing AI action; the other 64 receive an equivalent on-demand AI advice control, while provider details stay server-side.
 - **Dynamic analytics:** Every Demo now adds an AI score trend chart beside its operational statistics, with 7/30-day switching, data refresh, an accessible target line and an expandable data table.
 - **Project sharing:** Every Demo can generate a signed, seven-day project-share link. Opening it creates a browser-scoped navigation lock that permits only the shared Demo and its required runtime assets.
+- **Self-hosted runtime:** The internal deployment now uses one Node entry point for static Demo files, AI advice, signed share links and browser-scoped share containment on the existing LAN address.
 
 ## Latest verification
 
@@ -44,6 +45,7 @@ Last updated: 2026-07-23
 - Browser checks confirmed the warehouse Demo updates the chart for the 7/30-day switch and expandable data table; the legacy care Demo shows the same chart at a 390px mobile viewport.
 - `npm run test:project-share` validates signed-link creation, tamper and cross-project rejection, protected scope cookies, the redirect target and share-runtime coverage on all 464 routes.
 - The scoped project-share layer was built and deployed successfully to the canonical Vercel production domain on 2026-07-23; the Vercel build compiled the routing middleware and both share API functions.
+- `npm run test:self-hosted-runtime` verifies static delivery, share-link creation and entry, LAN-compatible protected cookies, scoped-navigation blocking and the AI API route.
 
 ## Next action
 

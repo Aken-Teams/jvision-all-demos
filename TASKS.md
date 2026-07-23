@@ -15,6 +15,7 @@ Last updated: 2026-07-23
 - [x] Add dynamic, accessible operational charts to all 464 Demos with 7/30-day controls, refresh and tabular fallbacks.
 - [x] Add signed project-share links with browser-scoped navigation locks for all 464 Demos.
 - [x] Deploy the project-share layer to Vercel production.
+- [x] Add and verify a self-hosted Node runtime for static pages, AI advice and signed project sharing on the LAN deployment.
 - [ ] Verify one real project-share flow in a normal browser session.
 - [ ] Remove the pre-existing React hydration #418 warning from the 59 unchanged legacy Next.js snapshots without altering their behaviour.
 - [ ] Deploy the dynamic analytics layer and verify one real public interaction from the Vercel deployment.
@@ -27,7 +28,7 @@ Last updated: 2026-07-23
 
 - [ ] Add human-readable catalog titles and search aliases for repository-slug-only projects, prioritising the 400 smart-manufacturing projects.
 - [ ] Run targeted remediation for any project newly flagged by `audit:formal-sites`, `audit:mobile-analytics` or `test:project-expert`.
-- [ ] Define the self-hosted release runbook once the production host and process are confirmed.
+- [x] Define the self-hosted runtime entry point and repeatable acceptance check.
 
 ## Intake checklist for a new project
 

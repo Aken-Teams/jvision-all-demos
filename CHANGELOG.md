@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-23 — Self-hosted API runtime
+
+- Added a dependency-free Node server that serves the Hub and all Demo assets while executing the existing AI, administration and project-share API handlers.
+- Added signed share-link entry and browser-scoped navigation containment for self-hosted deployments, with LAN HTTP-compatible `HttpOnly` and `SameSite` cookies.
+- Changed `npm start` to use the application server and added an integration test covering static delivery, share creation, scope entry, route blocking and the AI endpoint.
+
 ## 2026-07-23 — Provider-neutral AI branding
 
 - Replaced the user-visible provider name in the shared advice panel with `AI` across all 464 Demo routes.

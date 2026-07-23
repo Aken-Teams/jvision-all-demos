@@ -17,6 +17,7 @@ Browser
   ├─ /api/admin/*              → login, session and GitHub PR submission
   ├─ /api/share/*              → signed project-share link issuance and scope entry
   ├─ middleware.js             → browser-share navigation containment on Vercel
+  ├─ server.mjs                → static + API + share containment for self-hosting
   │
   └─ /docs/PROJECT_INDEX.md    → human-readable catalog reference
 
@@ -41,10 +42,12 @@ Repository
 ## Runtime model
 
 - **Hub:** static files served from repository root (`index.html`, `app.js`, `styles.css`).
+- **Self-hosting:** `npm start` runs `server.mjs`, which serves the static repository surface and adapts the existing API handlers to Node HTTP while enforcing project-share scope before static delivery.
 - **Generated projects:** project-level Next.js App Router applications where applicable; their preserved static files support Hub routing.
 - **Legacy projects:** 59 original Next.js applications retain `src/app` as their primary runtime.
 - **Other legacy demos:** retain their standalone interactive implementation.
 - **Project-share mode:** `/api/share/create` signs a repo name and expiry using `SHARE_LINK_SECRET`; `/share/<repo>/` validates the token and sets an HttpOnly scope cookie. Vercel routing middleware validates that cookie before cache and limits that browser session to the designated Demo route, required shared assets and the AI advice endpoint.
+- **LAN cookies:** Self-hosted HTTP removes only the `Secure` attribute that browsers reject without HTTPS; `HttpOnly` and `SameSite=Lax` remain in force. HTTPS and Vercel responses retain `Secure`.
 
 ## Data ownership
 
