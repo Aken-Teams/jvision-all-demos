@@ -49,6 +49,7 @@ Last updated: 2026-07-23
 - The scoped project-share layer was built and deployed successfully to the canonical Vercel production domain on 2026-07-23; the Vercel build compiled the routing middleware and both share API functions.
 - `npm run test:self-hosted-runtime` verifies static delivery, share-link creation and entry, LAN-compatible protected cookies, scoped-navigation blocking and the AI API route.
 - `npm run test:self-host-sync` verifies the tracked deployment script retains its lock, clean-worktree, isolated-validation, release-health and rollback safeguards; the runtime test also validates `/api/health` release metadata.
+- The self-hosted lock lifecycle check confirmed that a completed release no longer leaves the long-running Node process holding the deployment lock.
 - A normal-browser check on the LAN deployment confirmed that the share dialog produces a seven-day URL on desktop and at 390px, with the link field visible and no horizontal overflow.
 - `npm run test:project-expert-ui` verifies all 464 thumbnail assets, the first 24 rendered review cards, image loading, Demo links, zero browser errors and zero 390px horizontal overflow.
 
