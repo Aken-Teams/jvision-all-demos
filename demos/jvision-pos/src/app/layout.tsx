@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-import "./jvision-dynamic-charts.css";
-import "./jvision-analytics.css";
 export const metadata: Metadata = {
   title: "Jvision 餐飲 POS 科技 Demo",
   description: "Jvision 餐廳 POS、線上接單、訂位、會員、成本控管與銷售分析一站式 demo。",
@@ -22,8 +20,6 @@ export default function RootLayout({
     <html lang="zh-Hant">
       <body className="jvision-bright-saas jvision-next-legacy jv-galaxy-saas jv-galaxy-revenue-lift">
         {children}
-              <script src="/jvision-analytics.js" defer />
-              <script src="/jvision-dynamic-charts.js?v=20260723" defer />
       </body>
     </html>
   );

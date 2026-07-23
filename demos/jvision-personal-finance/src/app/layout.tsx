@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-import "./jvision-dynamic-charts.css";
-import "./jvision-analytics.css";
 export const metadata: Metadata = {
   title: "Jvision 個人財務管理 Demo",
   description: "Jvision 個人財務管理、帳戶資產、交易記帳、預算控管、帳單提醒與財務分析互動展示。",
@@ -22,8 +20,6 @@ export default function RootLayout({
     <html lang="zh-Hant">
       <body className="jvision-bright-saas jvision-next-legacy jv-galaxy-saas jv-galaxy-trust-ledger">
         {children}
-              <script src="/jvision-analytics.js" defer />
-              <script src="/jvision-dynamic-charts.js?v=20260723" defer />
       </body>
     </html>
   );

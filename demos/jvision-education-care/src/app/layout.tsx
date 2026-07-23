@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-import "./jvision-dynamic-charts.css";
-import "./jvision-analytics.css";
 export const metadata: Metadata = {
   title: "Jvision 幼教園務與安親管理平台",
   description: "招生 CRM、學童名冊、排課出勤、接送確認、收費提醒、電子聯絡簿與 AI 園務摘要 Demo",
@@ -22,8 +20,6 @@ export default function RootLayout({
     <html lang="zh-Hant">
       <body className="jvision-bright-saas jvision-next-legacy jv-galaxy-saas jv-galaxy-learning-studio">
         {children}
-              <script src="/jvision-analytics.js" defer />
-              <script src="/jvision-dynamic-charts.js?v=20260723" defer />
       </body>
     </html>
   );

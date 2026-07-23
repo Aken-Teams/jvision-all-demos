@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-import "./jvision-dynamic-charts.css";
-import "./jvision-analytics.css";
 export const metadata: Metadata = {
   title: "Jvision 印刷業解決方案 Demo",
   description: "Jvision 印刷業解決方案，展示估價轉單、圖檔版模、排版整合、合版排程、託外加工、WIP、領料入庫與實際成本流程。",
@@ -18,8 +16,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="zh-Hant">
       <body className="jvision-bright-saas jvision-next-legacy jv-galaxy-saas jv-galaxy-factory-command">
         {children}
-              <script src="/jvision-analytics.js" defer />
-              <script src="/jvision-dynamic-charts.js?v=20260723" defer />
       </body>
     </html>
   );

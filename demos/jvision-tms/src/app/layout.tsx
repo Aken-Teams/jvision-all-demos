@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-import "./jvision-dynamic-charts.css";
-import "./jvision-analytics.css";
 export const metadata: Metadata = {
   title: "Jvision 物流派車 物流運輸管理 Demo",
   description: "Jvision 物流派車 訂單管理、智慧調度、路線優化、車隊追蹤、電子簽收與運費結算互動展示。",
@@ -22,8 +20,6 @@ export default function RootLayout({
     <html lang="zh-Hant">
       <body className="jvision-bright-saas jvision-next-legacy jv-galaxy-saas jv-galaxy-supply-flow">
         {children}
-              <script src="/jvision-analytics.js" defer />
-              <script src="/jvision-dynamic-charts.js?v=20260723" defer />
       </body>
     </html>
   );
