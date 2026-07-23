@@ -342,6 +342,54 @@ function handleSearchKeys(event) {
   }
 }
 
+function animateCount(element, target) {
+  if (!element) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    element.textContent = target;
+    return;
+  }
+  const duration = 1100;
+  const start = performance.now();
+  const tick = (now) => {
+    const progress = Math.min((now - start) / duration, 1);
+    const eased = 1 - (1 - progress) ** 4;
+    element.textContent = Math.round(target * eased);
+    if (progress < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+function setupHomepageMotion() {
+  const revealSections = document.querySelectorAll(".reveal-section");
+  if (!("IntersectionObserver" in window)) {
+    revealSections.forEach((section) => section.classList.add("is-inview"));
+  } else {
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        entry.target.classList.add("is-inview");
+        observer.unobserve(entry.target);
+      }
+    }, { threshold: 0.12, rootMargin: "0px 0px -40px" });
+    revealSections.forEach((section) => observer.observe(section));
+  }
+
+  const visual = document.querySelector("#heroVisual");
+  const motionAllowed = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!visual || !motionAllowed || !window.matchMedia("(min-width: 1121px)").matches) return;
+  visual.addEventListener("pointermove", (event) => {
+    const bounds = visual.getBoundingClientRect();
+    const x = (event.clientX - bounds.left) / bounds.width - 0.5;
+    const y = (event.clientY - bounds.top) / bounds.height - 0.5;
+    visual.style.setProperty("--rx", `${y * -5}deg`);
+    visual.style.setProperty("--ry", `${x * 7}deg`);
+  });
+  visual.addEventListener("pointerleave", () => {
+    visual.style.setProperty("--rx", "0deg");
+    visual.style.setProperty("--ry", "0deg");
+  });
+}
+
 async function boot() {
   const response = await fetch("./projects-index.json");
   if (!response.ok) throw new Error("專案索引無法讀取");
@@ -351,7 +399,7 @@ async function boot() {
     .filter((project) => !["draft", "archived"].includes(project.status));
   addOptions(categorySelect, [...new Set(state.projects.map((project) => project.category || "未分類"))].sort((a, b) => a.localeCompare(b, "zh-Hant")).map((value) => [value, value]));
   hydrateFromUrl();
-  document.querySelector("#totalProjects").textContent = state.projects.length;
+  animateCount(document.querySelector("#totalProjects"), state.projects.length);
   document.querySelector("#footerStats").textContent = `${state.projects.length} 個展示專案`;
   renderQuickFilters();
   renderCatalogStats();
@@ -372,6 +420,10 @@ catalogStatsBody.addEventListener("click", (event) => {
   selectCategory(action.dataset.category, { scrollToResults: true });
 });
 document.querySelector("#focusSearch").addEventListener("click", () => searchInput.focus());
+document.querySelector("#heroSearch").addEventListener("click", () => {
+  document.querySelector(".search-panel").scrollIntoView({ behavior: "smooth", block: "center" });
+  window.setTimeout(() => searchInput.focus(), 450);
+});
 document.addEventListener("keydown", (event) => {
   if (event.key === "/" && !event.ctrlKey && !event.metaKey && !/input|textarea|select/i.test(document.activeElement?.tagName || "")) {
     event.preventDefault();
@@ -379,6 +431,7 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+setupHomepageMotion();
 boot().catch((error) => {
   document.querySelector("#resultSummary").textContent = error.message;
   grid.innerHTML = "<article class='empty-state'><h3>無法載入專案索引</h3><p>請確認 projects-index.json 可由網站讀取。</p></article>";

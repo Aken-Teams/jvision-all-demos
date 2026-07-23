@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-23 — Homepage impact refresh
+
+- Reframed the first screen around the direct, evidence-led promise「不是想像 AI，直接打開它」without moving project retrieval out of the primary flow.
+- Added a responsive animated industry-system network, live 464-project count-up, industry signal stream, staged hero entrance and scroll reveals.
+- Added pointer-responsive depth on large screens and complete reduced-motion fallbacks for accessibility.
+
 ## 2026-07-23 — Scoped project sharing
 
 - Added a `分享專案` control to all 464 Demo routes, with copy and system-share actions for seven-day share links.

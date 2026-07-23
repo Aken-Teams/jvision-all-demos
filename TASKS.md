@@ -4,6 +4,8 @@ Last updated: 2026-07-23
 
 ## Now
 
+- [x] Refresh the homepage hero with stronger evidence-led copy, an animated industry-system network and an immediate path into project search.
+- [x] Verify the refreshed homepage at desktop and narrow mobile widths, including console, reduced-motion fallback coverage and horizontal overflow.
 - [x] Add and run repeatable desktop/mobile E2E coverage for all 464 project routes.
 - [x] Make every generated system's left module navigation switch functional workspace content and verify every option.
 - [x] Connect all 464 Demo AI advice actions to the shared server-side DeepSeek endpoint without exposing the API key to browsers.

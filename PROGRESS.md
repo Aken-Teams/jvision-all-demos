@@ -7,6 +7,7 @@ Last updated: 2026-07-23
 - **Catalog:** 464 projects are represented in `projects-index.json` and the Hub.
 - **Single-domain access:** Demo links use `/demos/<repo>/`; the Hub does not direct visitors to the old per-project Vercel URLs.
 - **Homepage:** Reworked into the JV Demo search interface with live suggestions, business-category filtering, sorting, chips and sharable URL state.
+- **Homepage impact:** Added an evidence-led hero with direct Demo-search CTA, animated 464-system network, industry signal stream, count-up and reduced-motion-aware reveal effects while keeping retrieval immediately below the hero.
 - **Classification:** All projects use one primary business category; combined labels such as education/care were split into distinct education and healthcare categories. Public cards no longer show implementation frameworks.
 - **Public project summaries:** Every catalog project has a README-derived introduction; cards no longer expose repository names, GitHub actions or legacy-source labels.
 - **Functional module navigation:** All 400 generated AI and smart-manufacturing systems switch real workspace regions from their left module navigation.
@@ -27,6 +28,7 @@ Last updated: 2026-07-23
 - `node --check app.js` passed for the catalog implementation.
 - Browser checks verified suggestion rendering, source filtering (300 smart-manufacturing projects), URL state, a zero-result state and a 390px mobile viewport.
 - The catalog browser console had no errors during that check.
+- The homepage impact refresh passed targeted Chromium checks at 1440px and 390px: the 464 count loaded, the primary CTA focused search, document width matched the mobile viewport and the console reported zero errors or warnings.
 - Earlier repository reports record the full Project Expert and mobile analytics checks; see `docs/PROJECT_EXPERT_ACCEPTANCE_REPORT.md` and `docs/MOBILE_ANALYTICS_AUDIT.md`.
 - `npm run test:deepseek-ai-advice` verifies all 464 pages load the common runtime and uses a mocked provider response to validate the protected serverless endpoint.
 - Desktop and 390px mobile browser checks confirmed that an existing system AI action and a legacy-system fallback action both render an accessible, actionable advice card.
