@@ -53,6 +53,14 @@ try {
     throw 'Could not resolve the GitHub release SHA.'
   }
 
+  $currentBranch = (& git branch --show-current).Trim()
+  $workingTreeState = (& git status --porcelain)
+  if ($currentBranch -eq $Branch -and [string]::IsNullOrWhiteSpace(($workingTreeState -join "`n"))) {
+    Invoke-Native git merge --quiet --ff-only "origin/$Branch"
+  } elseif ($currentBranch -eq $Branch) {
+    Write-Warning 'The local checkout has changes, so it was not updated; remote deployment can still continue safely.'
+  }
+
   try {
     $health = Invoke-RestMethod -Uri $HealthUrl -Method Get -TimeoutSec 10 -Headers @{ 'Cache-Control' = 'no-cache' }
     if ($health.ok -eq $true -and $health.release -eq $candidateSha) {

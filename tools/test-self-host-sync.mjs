@@ -25,6 +25,7 @@ for (const required of [
 assert.doesNotMatch(source, /\b(?:sk-[A-Za-z0-9_-]+|gh[pousr]_[A-Za-z0-9_]+)\b/, "deployment script must not contain credentials");
 for (const required of [
   "git fetch --quiet origin",
+  "git merge --quiet --ff-only",
   "git bundle create",
   "BatchMode=yes",
   "StrictHostKeyChecking=yes",
