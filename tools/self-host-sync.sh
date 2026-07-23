@@ -9,6 +9,8 @@ LOCK_FILE=${JVISION_SYNC_LOCK_FILE:-/tmp/jvision-github-sync.lock}
 FAILED_SHA_FILE=${JVISION_FAILED_SHA_FILE:-/tmp/jvision-github-sync.failed-sha}
 PID_FILE=${JVISION_PID_FILE:-/tmp/jvision-demo-4173.pid}
 APP_LOG=${JVISION_APP_LOG:-/tmp/jvision-demo-4173.log}
+BUNDLE_PATH=${JVISION_BUNDLE_PATH:-}
+BUNDLE_REF=${JVISION_BUNDLE_REF:-}
 
 log() {
   printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*"
@@ -89,7 +91,15 @@ restart_release() {
   wait_for_health "$release_sha"
 }
 
-git fetch --quiet origin "$DEPLOY_BRANCH"
+if [ -n "$BUNDLE_PATH" ]; then
+  if [ -z "$BUNDLE_REF" ] || [ ! -f "$BUNDLE_PATH" ]; then
+    log "Bundle deployment requires an existing bundle path and an explicit bundle ref."
+    exit 1
+  fi
+  git fetch --quiet "$BUNDLE_PATH" "$BUNDLE_REF"
+else
+  git fetch --quiet origin "$DEPLOY_BRANCH"
+fi
 current_sha=$(git rev-parse HEAD)
 candidate_sha=$(git rev-parse FETCH_HEAD)
 

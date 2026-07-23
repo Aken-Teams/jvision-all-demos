@@ -23,7 +23,7 @@ Last updated: 2026-07-23
 - **Dynamic analytics:** Every Demo now adds an AI score trend chart beside its operational statistics, with 7/30-day switching, data refresh, an accessible target line and an expandable data table.
 - **Project sharing:** Every Demo can generate a signed, seven-day project-share link. Opening it creates a browser-scoped navigation lock that permits only the shared Demo and its required runtime assets.
 - **Self-hosted runtime:** The internal deployment now uses one Node entry point for static Demo files, AI advice, signed share links and browser-scoped share containment on the existing LAN address.
-- **Continuous deployment:** The self-hosted checkout can poll `feat/homepage-impact` with a read-only GitHub Deploy Key, validate each candidate in an isolated worktree, publish it only after runtime checks and roll back automatically when the release health check fails.
+- **Continuous deployment:** A local authenticated relay can fetch `feat/homepage-impact`, transfer a Git bundle over a dedicated SSH key, validate each candidate in an isolated server worktree, publish it only after runtime checks and roll back automatically when the release health check fails.
 
 ## Latest verification
 
