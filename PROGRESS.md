@@ -46,6 +46,7 @@ Last updated: 2026-07-23
 - `npm run test:project-share` validates signed-link creation, tamper and cross-project rejection, protected scope cookies, the redirect target and share-runtime coverage on all 464 routes.
 - The scoped project-share layer was built and deployed successfully to the canonical Vercel production domain on 2026-07-23; the Vercel build compiled the routing middleware and both share API functions.
 - `npm run test:self-hosted-runtime` verifies static delivery, share-link creation and entry, LAN-compatible protected cookies, scoped-navigation blocking and the AI API route.
+- A normal-browser check on the LAN deployment confirmed that the share dialog produces a seven-day URL on desktop and at 390px, with the link field visible and no horizontal overflow.
 
 ## Next action
 
