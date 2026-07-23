@@ -77,7 +77,7 @@ try {
     )
     Invoke-Native scp @sshOptions $bundlePath "${DeployUser}@${DeployHost}:$remoteBundle"
 
-    $remoteCommand = "set -eu; trap 'rm -f -- $remoteBundle' EXIT; env JVISION_REPO_ROOT='$RemoteRepo' JVISION_DEPLOY_BRANCH='$Branch' JVISION_BUNDLE_PATH='$remoteBundle' JVISION_BUNDLE_REF='refs/remotes/origin/$Branch' '$RemoteRepo/tools/self-host-sync.sh'"
+    $remoteCommand = "set -eu; trap 'rm -f -- $remoteBundle' EXIT; env JVISION_REPO_ROOT='$RemoteRepo' JVISION_DEPLOY_BRANCH='$Branch' JVISION_BUNDLE_PATH='$remoteBundle' JVISION_BUNDLE_REF='refs/remotes/origin/$Branch' sh '$RemoteRepo/tools/self-host-sync.sh'"
     Invoke-Native ssh @sshOptions "${DeployUser}@${DeployHost}" $remoteCommand
   } finally {
     Remove-Item -LiteralPath $bundlePath -Force -ErrorAction SilentlyContinue
