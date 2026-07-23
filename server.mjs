@@ -43,6 +43,13 @@ function loadEnv() {
 
 loadEnv();
 
+const serverStartedAt = new Date().toISOString();
+const releaseMetadata = Object.freeze({
+  branch: process.env.JVISION_DEPLOY_BRANCH || "",
+  release: process.env.JVISION_RELEASE_SHA || "",
+  startedAt: serverStartedAt,
+});
+
 const apiRoutes = new Map([
   ["/api/ai-advice", require("./api/ai-advice.js")],
   ["/api/admin/login", require("./api/admin/login.js")],
@@ -226,6 +233,22 @@ export function createJvisionServer() {
     try {
       const url = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`);
       const pathname = url.pathname.replace(/\/{2,}/g, "/");
+      if (pathname.replace(/\/$/, "") === "/api/health") {
+        if (request.method !== "GET" && request.method !== "HEAD") {
+          response.writeHead(405, {
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": "no-store",
+          });
+          response.end(request.method === "HEAD" ? undefined : JSON.stringify({ error: "Method not allowed" }));
+          return;
+        }
+        response.writeHead(200, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "no-store",
+        });
+        response.end(request.method === "HEAD" ? undefined : JSON.stringify({ ok: true, ...releaseMetadata }));
+        return;
+      }
       const blockedRepo = scopedProject(request, pathname);
       if (blockedRepo) {
         response.writeHead(403, {

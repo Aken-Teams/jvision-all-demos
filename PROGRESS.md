@@ -23,6 +23,7 @@ Last updated: 2026-07-23
 - **Dynamic analytics:** Every Demo now adds an AI score trend chart beside its operational statistics, with 7/30-day switching, data refresh, an accessible target line and an expandable data table.
 - **Project sharing:** Every Demo can generate a signed, seven-day project-share link. Opening it creates a browser-scoped navigation lock that permits only the shared Demo and its required runtime assets.
 - **Self-hosted runtime:** The internal deployment now uses one Node entry point for static Demo files, AI advice, signed share links and browser-scoped share containment on the existing LAN address.
+- **Continuous deployment:** The self-hosted checkout can poll `feat/homepage-impact` with a read-only GitHub Deploy Key, validate each candidate in an isolated worktree, publish it only after runtime checks and roll back automatically when the release health check fails.
 
 ## Latest verification
 
@@ -47,6 +48,7 @@ Last updated: 2026-07-23
 - `npm run test:project-share` validates signed-link creation, tamper and cross-project rejection, protected scope cookies, the redirect target and share-runtime coverage on all 464 routes.
 - The scoped project-share layer was built and deployed successfully to the canonical Vercel production domain on 2026-07-23; the Vercel build compiled the routing middleware and both share API functions.
 - `npm run test:self-hosted-runtime` verifies static delivery, share-link creation and entry, LAN-compatible protected cookies, scoped-navigation blocking and the AI API route.
+- `npm run test:self-host-sync` verifies the tracked deployment script retains its lock, clean-worktree, isolated-validation, release-health and rollback safeguards; the runtime test also validates `/api/health` release metadata.
 - A normal-browser check on the LAN deployment confirmed that the share dialog produces a seven-day URL on desktop and at 390px, with the link field visible and no horizontal overflow.
 - `npm run test:project-expert-ui` verifies all 464 thumbnail assets, the first 24 rendered review cards, image loading, Demo links, zero browser errors and zero 390px horizontal overflow.
 

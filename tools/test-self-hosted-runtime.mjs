@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 
 const oldSecret = process.env.SHARE_LINK_SECRET;
+const oldRelease = process.env.JVISION_RELEASE_SHA;
+const oldBranch = process.env.JVISION_DEPLOY_BRANCH;
 process.env.SHARE_LINK_SECRET = "self-hosted-runtime-test-secret-with-32-characters";
+process.env.JVISION_RELEASE_SHA = "0123456789abcdef0123456789abcdef01234567";
+process.env.JVISION_DEPLOY_BRANCH = "feat/homepage-impact";
 const { createJvisionServer } = await import("../server.mjs");
 const server = createJvisionServer();
 await new Promise((resolve, reject) => {
@@ -18,6 +22,22 @@ try {
   assert.match(homepage.headers.get("content-type") || "", /^text\/html/);
   assert.equal((await fetch(`${origin}/.env`)).status, 404);
   assert.equal((await fetch(`${origin}/server.mjs`)).status, 404);
+
+  const healthResponse = await fetch(`${origin}/api/health`);
+  assert.equal(healthResponse.status, 200);
+  assert.equal(healthResponse.headers.get("cache-control"), "no-store");
+  const health = await healthResponse.json();
+  assert.deepEqual({
+    ok: health.ok,
+    branch: health.branch,
+    release: health.release,
+  }, {
+    ok: true,
+    branch: "feat/homepage-impact",
+    release: "0123456789abcdef0123456789abcdef01234567",
+  });
+  assert.match(health.startedAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal((await fetch(`${origin}/api/health`, { method: "POST" })).status, 405);
 
   const createResponse = await fetch(`${origin}/api/share/create`, {
     method: "POST",
@@ -50,9 +70,13 @@ try {
   const aiRoute = await fetch(`${origin}/api/ai-advice`);
   assert.equal(aiRoute.status, 405);
 
-  console.log(JSON.stringify({ static: "passed", share: "passed", scope: "passed", aiRoute: "passed" }, null, 2));
+  console.log(JSON.stringify({ static: "passed", health: "passed", share: "passed", scope: "passed", aiRoute: "passed" }, null, 2));
 } finally {
   await new Promise((resolve) => server.close(resolve));
   if (oldSecret === undefined) delete process.env.SHARE_LINK_SECRET;
   else process.env.SHARE_LINK_SECRET = oldSecret;
+  if (oldRelease === undefined) delete process.env.JVISION_RELEASE_SHA;
+  else process.env.JVISION_RELEASE_SHA = oldRelease;
+  if (oldBranch === undefined) delete process.env.JVISION_DEPLOY_BRANCH;
+  else process.env.JVISION_DEPLOY_BRANCH = oldBranch;
 }

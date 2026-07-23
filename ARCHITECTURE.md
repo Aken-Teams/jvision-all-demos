@@ -43,6 +43,7 @@ Repository
 
 - **Hub:** static files served from repository root (`index.html`, `app.js`, `styles.css`).
 - **Self-hosting:** `npm start` runs `server.mjs`, which serves the static repository surface and adapts the existing API handlers to Node HTTP while enforcing project-share scope before static delivery.
+- **Self-hosted delivery:** `tools/self-host-sync.sh` polls the configured GitHub branch under a non-overlapping lock. It rejects a dirty deployment checkout, validates candidate commits in a temporary Git worktree, restarts the Node runtime with the candidate SHA and rolls back if `/api/health` does not report that SHA. The Cloudflare tunnel is a separate process and is not restarted during an application release.
 - **Generated projects:** project-level Next.js App Router applications where applicable; their preserved static files support Hub routing.
 - **Legacy projects:** 59 original Next.js applications retain `src/app` as their primary runtime.
 - **Other legacy demos:** retain their standalone interactive implementation.
@@ -63,6 +64,7 @@ Repository
 | Quality findings | `docs/*AUDIT*`, `docs/PROJECT_EXPERT*` | Project Expert workflow and task queue |
 | Captured Demo thumbnails and manifest | `assets/demo-screenshots/` | Hub and Project Expert review cards |
 | Project-share signing secret | Vercel `SHARE_LINK_SECRET` environment variable | Share creation API and routing middleware only |
+| Self-hosted repository credential | Read-only GitHub Deploy Key stored only on the SSH host | `git fetch` for automatic deployment |
 
 ## Change boundaries
 

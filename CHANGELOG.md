@@ -84,6 +84,8 @@
 
 - Context Engineering documentation: working agreement, roadmap, progress, decision log, task queue, durable context and architecture reference.
 - Real runtime screenshots for every Demo card, generated from the formal-site audit captures.
+- Added a public no-cache runtime health endpoint carrying the active branch and commit SHA.
+- Added a guarded self-hosted GitHub synchroniser with isolated candidate checks, non-overlapping execution, release health verification and automatic rollback.
 
 ### Changed
 

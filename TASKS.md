@@ -16,6 +16,7 @@ Last updated: 2026-07-23
 - [x] Add signed project-share links with browser-scoped navigation locks for all 464 Demos.
 - [x] Deploy the project-share layer to Vercel production.
 - [x] Add and verify a self-hosted Node runtime for static pages, AI advice and signed project sharing on the LAN deployment.
+- [x] Add a guarded GitHub-to-self-hosted deployment flow with read-only repository access, candidate validation, health checks and automatic rollback.
 - [x] Verify one real project-share flow in a normal browser session.
 - [x] Add actual project runtime thumbnails to every Project Expert review card and verify desktop/mobile rendering.
 - [ ] Remove the pre-existing React hydration #418 warning from the 59 unchanged legacy Next.js snapshots without altering their behaviour.
