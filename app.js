@@ -163,8 +163,6 @@ function renderCatalogStats() {
     if (item.featured?.demoUrl) {
       const link = document.createElement("a");
       link.href = item.featured.demoUrl;
-      link.target = "_blank";
-      link.rel = "noreferrer";
       link.textContent = item.featured.title || item.featured.repoName;
       link.setAttribute("aria-label", `開啟 ${item.featured.title || item.featured.repoName} Demo`);
       featuredCell.append(link);
