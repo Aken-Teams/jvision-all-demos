@@ -86,6 +86,7 @@
 - Real runtime screenshots for every Demo card, generated from the formal-site audit captures.
 - Added a public no-cache runtime health endpoint carrying the active branch and commit SHA.
 - Added a guarded self-hosted GitHub synchroniser with isolated candidate checks, non-overlapping execution, release health verification and automatic rollback.
+- Closed the deployment lock descriptor before starting the long-lived Node process so completed releases cannot retain the synchronisation lock.
 
 ### Changed
 

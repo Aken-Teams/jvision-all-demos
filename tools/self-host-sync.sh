@@ -58,7 +58,7 @@ start_app() {
     PORT="$APP_PORT" \
     JVISION_RELEASE_SHA="$release_sha" \
     JVISION_DEPLOY_BRANCH="$DEPLOY_BRANCH" \
-    node server.mjs >>"$APP_LOG" 2>&1 &
+    node server.mjs 9>&- >>"$APP_LOG" 2>&1 &
   echo "$!" >"$PID_FILE"
 }
 

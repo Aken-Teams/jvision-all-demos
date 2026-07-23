@@ -9,6 +9,7 @@ const relaySource = fs.readFileSync(path.join(root, "tools", "sync-github-to-sel
 
 for (const required of [
   "flock -n",
+  "node server.mjs 9>&-",
   "git status --porcelain --untracked-files=no",
   "git worktree add",
   "node --check",
