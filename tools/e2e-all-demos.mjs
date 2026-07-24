@@ -55,7 +55,9 @@ async function inspect(page,project,index){
     const response=await page.goto(url,{waitUntil:"domcontentloaded",timeout:20000});
     status=response?.status()||0;
     await page.waitForLoadState("load",{timeout:6000}).catch(()=>{});
-    await page.waitForTimeout(120);
+    // Shared hands-on workspaces mount after the legacy page finishes loading.
+    // Wait for that runtime and its domain module before inspecting or navigating away.
+    await page.waitForTimeout(900);
   }catch(error){navigationError=String(error.message||error).slice(0,500)}
 
   const empty={textLength:0,title:"",heading:"",interactiveCount:0,errorOverlay:false,horizontalOverflow:0};
@@ -142,15 +144,17 @@ const rows=new Array(catalog.projects.length);
 let cursor=0;
 let completed=0;
 async function worker(){
-  const page=await context.newPage();
   while(cursor<catalog.projects.length){
     const index=cursor++;
-    await page.setViewportSize({width:1440,height:960});
-    rows[index]=await inspect(page,catalog.projects[index],index);
+    const page=await context.newPage();
+    try{
+      rows[index]=await inspect(page,catalog.projects[index],index);
+    }finally{
+      await page.close();
+    }
     completed++;
     if(completed%20===0||completed===catalog.projects.length)console.log(`E2E_PROGRESS ${completed}/${catalog.projects.length}`);
   }
-  await page.close();
 }
 try{await Promise.all(Array.from({length:concurrency},worker))}finally{await context.close();await browser.close();await new Promise(resolve=>server.close(resolve))}
 

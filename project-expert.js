@@ -2,6 +2,7 @@ const expertState = {
   reviews: [],
   filtered: [],
   visible: 24,
+  thumbnails: new Map(),
 };
 
 const expertGrid = document.querySelector("#agentReviewGrid");
@@ -73,6 +74,21 @@ function renderAgentReviews() {
     card.querySelector(".review-summary").textContent = recommendationSummary(review);
     const demo = card.querySelector(".review-demo");
     demo.href = review.demoUrl || "./index.html";
+    const preview = card.querySelector(".review-preview");
+    const previewImage = preview.querySelector("img");
+    const thumbnail = expertState.thumbnails.get(review.repoName);
+    preview.href = demo.href;
+    preview.setAttribute("aria-label", `開啟 ${review.title} Demo 運行畫面`);
+    if (thumbnail) {
+      previewImage.src = `./${thumbnail}`;
+      previewImage.alt = `${review.title} Demo 實際運行畫面`;
+      previewImage.addEventListener("error", () => {
+        preview.classList.add("is-unavailable");
+        previewImage.alt = "";
+      }, { once: true });
+    } else {
+      preview.classList.add("is-unavailable");
+    }
     const expand = card.querySelector(".review-expand");
     const detail = card.querySelector(".review-detail");
     detail.innerHTML = detailMarkup(review);
@@ -131,9 +147,14 @@ async function copyAgentCommand() {
 }
 
 async function bootProjectExpert() {
-  const response = await fetch("./docs/PROJECT_EXPERT_AGENT_REPORT.json", { cache: "no-store" });
+  const [response, thumbnailResponse] = await Promise.all([
+    fetch("./docs/PROJECT_EXPERT_AGENT_REPORT.json", { cache: "no-store" }),
+    fetch("./assets/demo-screenshots/manifest.json", { cache: "no-store" }),
+  ]);
   if (!response.ok) throw new Error("Agent 報告尚未產生");
   const report = await response.json();
+  const thumbnailManifest = thumbnailResponse.ok ? await thumbnailResponse.json() : { items: [] };
+  expertState.thumbnails = new Map(thumbnailManifest.items.map((item) => [item.repoName, item.thumbnail]));
   expertState.reviews = [...report.reviews].sort((a, b) => a.score - b.score || a.id - b.id);
   expertState.filtered = expertState.reviews;
   renderAgentSummary(report);
