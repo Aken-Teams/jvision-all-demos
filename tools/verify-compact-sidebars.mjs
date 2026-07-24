@@ -54,6 +54,7 @@ try {
       passed:
         before.position === "sticky" &&
         before.height < before.viewport - 20 &&
+        before.overflowY === "visible" &&
         before.summaryGap <= 24 &&
         before.horizontalOverflow <= 8 &&
         afterScrollTop >= 0,

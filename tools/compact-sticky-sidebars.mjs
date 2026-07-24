@@ -16,10 +16,8 @@ const override = `
     align-self: start;
     min-height: 0;
     height: fit-content;
-    max-height: calc(100vh - 36px);
-    overflow-y: auto;
-    scrollbar-gutter: stable;
-    overscroll-behavior: contain;
+    max-height: none;
+    overflow: visible;
   }
 
   .system-shell > .side-panel .ops-summary {
@@ -63,7 +61,7 @@ const summary = {
   generatedAt: new Date().toISOString(),
   projects: projects.length,
   files: rows.length,
-  rule: "desktop sticky + content-height sidebar; responsive layouts remain in normal flow"
+  rule: "desktop sticky sidebar without an independent scroll container; responsive layouts remain in normal flow"
 };
 fs.writeFileSync(
   path.join(root, "docs", "COMPACT_STICKY_SIDEBAR_REPORT.json"),

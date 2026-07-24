@@ -55,6 +55,10 @@ function searchableText(project) {
     `#${project.id}`,
     project.title,
     project.description,
+    project.businessSituation,
+    project.primaryUser,
+    project.dailyUse,
+    ...(project.operationalMetrics || []),
     project.category,
     project.industry,
     project.repoName,
@@ -163,6 +167,8 @@ function renderCatalogStats() {
     if (item.featured?.demoUrl) {
       const link = document.createElement("a");
       link.href = item.featured.demoUrl;
+      link.target = "_blank";
+      link.rel = "noreferrer";
       link.textContent = item.featured.title || item.featured.repoName;
       link.setAttribute("aria-label", `開啟 ${item.featured.title || item.featured.repoName} Demo`);
       featuredCell.append(link);
@@ -243,9 +249,24 @@ function renderProjects() {
     card.querySelector("h3").textContent = project.title || project.repoName;
     card.querySelector(".project-category").textContent = project.category || "未分類";
     card.querySelector(".project-description").textContent = project.description || "提供清楚的工作流程、資料管理與互動操作展示。";
+    card.querySelector(".project-primary-user").textContent = project.primaryUser || "部門使用者與主管";
+    card.querySelector(".project-business-situation").textContent = project.businessSituation || project.description;
+    card.querySelector(".project-daily-use").textContent = project.dailyUse || "用於日常資料確認、異常處理與進度追蹤。";
+    const metrics = card.querySelector(".project-metrics");
+    for (const metric of project.operationalMetrics || []) {
+      const chip = document.createElement("span");
+      chip.textContent = metric;
+      metrics.append(chip);
+    }
     const demo = card.querySelector(".demo-link");
-    demo.href = project.demoUrl || "#";
+    const fullScenario = project.contentDepth === "full-scenario";
+    demo.href = project.demoUrl ? `${project.demoUrl}${fullScenario ? "?mode=free" : ""}` : "#";
+    demo.textContent = fullScenario ? "自由操作" : "開啟 Demo";
     if (!project.demoUrl) demo.setAttribute("aria-disabled", "true");
+    const guided = card.querySelector(".guided-link");
+    guided.hidden = !fullScenario;
+    guided.href = project.demoUrl ? `${project.demoUrl}?mode=guided` : "#";
+    if (!project.demoUrl) guided.setAttribute("aria-disabled", "true");
     const preview = card.querySelector(".system-preview");
     const previewImage = card.querySelector(".system-preview-image");
     const title = project.title || project.repoName;
@@ -340,6 +361,54 @@ function handleSearchKeys(event) {
   }
 }
 
+function animateCount(element, target) {
+  if (!element) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    element.textContent = target;
+    return;
+  }
+  const duration = 1100;
+  const start = performance.now();
+  const tick = (now) => {
+    const progress = Math.min((now - start) / duration, 1);
+    const eased = 1 - (1 - progress) ** 4;
+    element.textContent = Math.round(target * eased);
+    if (progress < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+function setupHomepageMotion() {
+  const revealSections = document.querySelectorAll(".reveal-section");
+  if (!("IntersectionObserver" in window)) {
+    revealSections.forEach((section) => section.classList.add("is-inview"));
+  } else {
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        entry.target.classList.add("is-inview");
+        observer.unobserve(entry.target);
+      }
+    }, { threshold: 0.12, rootMargin: "0px 0px -40px" });
+    revealSections.forEach((section) => observer.observe(section));
+  }
+
+  const visual = document.querySelector("#heroVisual");
+  const motionAllowed = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!visual || !motionAllowed || !window.matchMedia("(min-width: 1121px)").matches) return;
+  visual.addEventListener("pointermove", (event) => {
+    const bounds = visual.getBoundingClientRect();
+    const x = (event.clientX - bounds.left) / bounds.width - 0.5;
+    const y = (event.clientY - bounds.top) / bounds.height - 0.5;
+    visual.style.setProperty("--rx", `${y * -5}deg`);
+    visual.style.setProperty("--ry", `${x * 7}deg`);
+  });
+  visual.addEventListener("pointerleave", () => {
+    visual.style.setProperty("--rx", "0deg");
+    visual.style.setProperty("--ry", "0deg");
+  });
+}
+
 async function boot() {
   const response = await fetch("./projects-index.json");
   if (!response.ok) throw new Error("專案索引無法讀取");
@@ -349,7 +418,7 @@ async function boot() {
     .filter((project) => !["draft", "archived"].includes(project.status));
   addOptions(categorySelect, [...new Set(state.projects.map((project) => project.category || "未分類"))].sort((a, b) => a.localeCompare(b, "zh-Hant")).map((value) => [value, value]));
   hydrateFromUrl();
-  document.querySelector("#totalProjects").textContent = state.projects.length;
+  animateCount(document.querySelector("#totalProjects"), state.projects.length);
   document.querySelector("#footerStats").textContent = `${state.projects.length} 個展示專案`;
   renderQuickFilters();
   renderCatalogStats();
@@ -370,6 +439,10 @@ catalogStatsBody.addEventListener("click", (event) => {
   selectCategory(action.dataset.category, { scrollToResults: true });
 });
 document.querySelector("#focusSearch").addEventListener("click", () => searchInput.focus());
+document.querySelector("#heroSearch").addEventListener("click", () => {
+  document.querySelector(".search-panel").scrollIntoView({ behavior: "smooth", block: "center" });
+  window.setTimeout(() => searchInput.focus(), 450);
+});
 document.addEventListener("keydown", (event) => {
   if (event.key === "/" && !event.ctrlKey && !event.metaKey && !/input|textarea|select/i.test(document.activeElement?.tagName || "")) {
     event.preventDefault();
@@ -377,6 +450,7 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+setupHomepageMotion();
 boot().catch((error) => {
   document.querySelector("#resultSummary").textContent = error.message;
   grid.innerHTML = "<article class='empty-state'><h3>無法載入專案索引</h3><p>請確認 projects-index.json 可由網站讀取。</p></article>";
