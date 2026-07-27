@@ -251,8 +251,22 @@ function setupDistinctFunctionalModules() {
   const statsFor = () => getStats();
   const moduleTitle = (index) => buttons[index]?.dataset.module || buttons[index]?.textContent.trim() || `功能 ${index + 1}`;
   const hero = (index, subtitle, action = "") => `<header class="fm-hero"><div><p class="fm-kicker">${esc(config.name)} · ${esc(moduleTitle(index))}</p><h2>${esc(subtitle)}</h2><p class="fm-description">${esc(config.description)}</p></div>${action}</header>`;
+  const peopleRoster = [
+    {id:"hr-01",name:"林志豪",department:"製造一課",shift:"早班 08:00–16:00",attendance:"準時",hours:"8.0 小時",training:"堆高機操作",expires:"2026/08/12",skill:"SMT 換線"},
+    {id:"hr-02",name:"陳怡君",department:"品保部",shift:"早班 08:00–16:00",attendance:"遲到 12 分",hours:"7.8 小時",training:"品質量測 MSA",expires:"2026/09/03",skill:"首件檢驗"},
+    {id:"hr-03",name:"王雅婷",department:"製造二課",shift:"中班 16:00–00:00",attendance:"請假待核",hours:"0 小時",training:"化學品安全",expires:"2026/07/30",skill:"半導體封裝"},
+    {id:"hr-04",name:"張家豪",department:"設備部",shift:"夜班 00:00–08:00",attendance:"缺下班卡",hours:"8.6 小時",training:"機台維修 L2",expires:"2026/10/18",skill:"設備保養"},
+    {id:"hr-05",name:"蔡佩珊",department:"倉儲課",shift:"早班 08:00–16:00",attendance:"加班 2 小時",hours:"10.0 小時",training:"堆高機操作",expires:"2026/07/28",skill:"物料盤點"}
+  ];
+  let selectedPersonId = peopleRoster[0].id;
+  const selectedPerson = () => peopleRoster.find(person => person.id === selectedPersonId) || peopleRoster[0];
+  const isPeopleWorkspace = /班表|出勤/.test(moduleTitle(1)) && /訓練|資格/.test(moduleTitle(2));
 
   function dashboard() {
+    if (isPeopleWorkspace) {
+      view.innerHTML = hero(0, "人力營運總覽") + `<div class="fm-stats"><article class="fm-stat"><span>在職人數</span><strong>286</strong></article><article class="fm-stat"><span>今日出勤率</span><strong>96.8%</strong></article><article class="fm-stat"><span>待核人事單</span><strong>4</strong></article><article class="fm-stat"><span>本月加班</span><strong>312h</strong></article></div><div class="fm-grid"><article class="fm-panel"><h3>部門人力與今日缺口</h3><div class="fm-stages"><article class="fm-stage"><b>製造一課</b><span>到班 62／需求 64 · 缺 2 人</span></article><article class="fm-stage"><b>製造二課</b><span>到班 58／需求 58 · 已滿足</span></article><article class="fm-stage"><b>品保部</b><span>到班 21／需求 22 · 缺 1 人</span></article><article class="fm-stage"><b>設備部</b><span>到班 18／需求 18 · 已滿足</span></article></div></article><article class="fm-panel"><h3>今日人事提醒</h3><div class="fm-list"><button class="fm-row" data-go-people-module="1"><strong>3 筆出勤異常待確認</strong><small>遲到、請假待核與缺卡</small></button><button class="fm-row" data-go-people-module="2"><strong>2 張資格即將到期</strong><small>堆高機操作、化學品安全</small></button><button class="fm-row" data-go-people-module="3"><strong>夜班仍缺 2 人</strong><small>AI 已產生符合技能與工時限制的調度方案</small></button></div></article></div>`;
+      return;
+    }
     const stats = statsFor();
     const stageCards = config.profile.stages.map((stage) => {
       const items = records.filter((record) => record.stage === stage);
@@ -263,9 +277,19 @@ function setupDistinctFunctionalModules() {
   }
 
   function cases() {
+    if (isPeopleWorkspace) {
+      const rows = peopleRoster.map(person => `<tr data-open-person="${person.id}"><td><strong>${person.name}</strong><small>${person.department}</small></td><td>${person.shift}</td><td>07/27</td><td><span class="fm-badge">${person.attendance}</span></td><td>${person.hours}</td></tr>`).join("");
+      const person = selectedPerson();
+      view.innerHTML = hero(1, "班表與出勤管理") + `<div class="fm-stats"><article class="fm-stat"><span>今日排班</span><strong>48</strong></article><article class="fm-stat"><span>出勤異常</span><strong>3</strong></article><article class="fm-stat"><span>待核假單</span><strong>1</strong></article><article class="fm-stat"><span>加班時數</span><strong>26h</strong></article></div><div class="fm-grid"><article class="fm-panel"><div class="fm-toolbar"><input id="fmPeopleSearch" placeholder="搜尋員工、部門、班別或出勤狀態"><button class="fm-action secondary" id="fmOnlyExceptions">只看異常</button></div><table class="fm-table"><thead><tr><th>員工／部門</th><th>班別</th><th>日期</th><th>出勤狀態</th><th>實際工時</th></tr></thead><tbody id="fmPeopleRows">${rows}</tbody></table></article><article class="fm-panel fm-detail" id="fmPeopleDetail">${peopleDetailMarkup(person)}</article></div>`;
+      return;
+    }
     const rows = records.map((item) => `<tr data-open-record="${esc(item.id)}"><td><strong>${esc(item.title)}</strong></td><td>${esc(item.stage)}</td><td>${esc(item.owner)}</td><td>${esc(item.due)}</td><td><span class="fm-badge">${esc(item.risk)}</span></td></tr>`).join("");
     const selected = records.find((item) => item.id === selectedRecordId) || records[0];
     view.innerHTML = hero(1, `${config.profile.object}清單`) + `<div class="fm-grid"><article class="fm-panel"><div class="fm-toolbar"><input id="fmCaseSearch" placeholder="搜尋${esc(config.profile.object)}、負責人或風險"><button class="fm-action secondary" id="fmOnlyOpen">只看未完成</button></div><table class="fm-table"><thead><tr><th>${esc(config.profile.object)}</th><th>階段</th><th>${esc(config.profile.fields[3] || "負責人")}</th><th>${esc(config.profile.fields[1] || "期限")}</th><th>${esc(config.profile.fields[2] || "風險")}</th></tr></thead><tbody id="fmCaseRows">${rows}</tbody></table></article><article class="fm-panel fm-detail" id="fmDetail">${detailMarkup(selected)}</article></div>`;
+  }
+
+  function peopleDetailMarkup(person) {
+    return `<h3>${esc(person.name)}</h3><p class="fm-description">${esc(person.department)} · ${esc(person.shift)}</p><dl><dt>出勤狀態</dt><dd>${esc(person.attendance)}</dd><dt>實際工時</dt><dd>${esc(person.hours)}</dd><dt>主要技能</dt><dd>${esc(person.skill)}</dd><dt>資格效期</dt><dd>${esc(person.expires)}</dd></dl><button class="fm-action" id="fmConfirmAttendance" data-id="${person.id}">${person.attendance === "已確認" ? "出勤已確認" : "確認出勤紀錄"}</button>`;
   }
 
   function detailMarkup(item) {
@@ -275,10 +299,19 @@ function setupDistinctFunctionalModules() {
   }
 
   function masterData() {
+    if (isPeopleWorkspace) {
+      const rows = peopleRoster.map(person => `<tr data-open-training="${person.id}"><td><strong>${person.name}</strong></td><td>${person.training}</td><td>${person.expires}</td><td><span class="fm-badge">${person.expires <= "2026/07/30" ? "即將到期" : "有效"}</span></td><td>${person.skill}</td></tr>`).join("");
+      view.innerHTML = hero(2, "員工訓練與資格管理", '<button class="fm-action" id="fmAssignTraining">安排複訓</button>') + `<div class="fm-stats"><article class="fm-stat"><span>有效證照</span><strong>42</strong></article><article class="fm-stat"><span>30 日內到期</span><strong>2</strong></article><article class="fm-stat"><span>待完成課程</span><strong>6</strong></article><article class="fm-stat"><span>資格覆蓋率</span><strong>94%</strong></article></div><div class="fm-grid"><article class="fm-panel"><h3>資格與效期清單</h3><table class="fm-table"><thead><tr><th>員工</th><th>訓練／證照</th><th>到期日</th><th>狀態</th><th>可執行技能</th></tr></thead><tbody>${rows}</tbody></table></article><article class="fm-panel"><h3>到期提醒</h3><div class="fm-recommendation"><strong>蔡佩珊｜堆高機操作</strong><p>資格將於 07/28 到期，建議立即安排複訓，避免影響早班出貨。</p></div><div class="fm-recommendation"><strong>王雅婷｜化學品安全</strong><p>資格將於 07/30 到期，複訓課程尚未報名。</p></div></article></div>`;
+      return;
+    }
     view.innerHTML = hero(2, `${config.name}資料主檔`, `<button class="fm-action secondary" id="fmReset">還原示範資料</button>`) + `<div class="fm-grid"><article class="fm-panel"><h3>新增${esc(config.profile.object)}</h3><form class="fm-form" id="fmCreate"><label class="wide">${esc(config.profile.object)}名稱<input name="title" required placeholder="輸入${esc(config.profile.object)}名稱"></label><label>${esc(config.profile.fields[0] || "對象")}<input name="target" required placeholder="輸入${esc(config.profile.fields[0] || "對象")}"></label><label>${esc(config.profile.fields[3] || "負責人")}<input name="owner" required value="${esc(config.profile.owner)}"></label><label>${esc(config.profile.fields[2] || "風險")}<select name="risk">${config.profile.risks.map(risk => `<option>${esc(risk)}</option>`).join("")}</select></label><label>初始階段<select name="stage">${config.profile.stages.map(stage => `<option>${esc(stage)}</option>`).join("")}</select></label><button class="fm-action wide" type="submit">建立${esc(config.profile.object)}</button></form></article><article class="fm-panel"><h3>系統欄位與規則</h3><div class="fm-schema">${config.profile.fields.map((field,index) => `<div><span>欄位 ${index+1}</span><strong>${esc(field)}</strong></div>`).join("")}<div><span>預設負責角色</span><strong>${esc(config.profile.owner)}</strong></div><div><span>目前資料筆數</span><strong>${records.length}</strong></div></div></article></div>`;
   }
 
   function aiDecision() {
+    if (isPeopleWorkspace) {
+      view.innerHTML = hero(3, "AI 人力配置建議", '<button class="fm-action" id="fmRunStaffing">重新計算配置</button>') + `<div class="fm-stats"><article class="fm-stat"><span>夜班缺口</span><strong>2 人</strong></article><article class="fm-stat"><span>技能衝突</span><strong>1</strong></article><article class="fm-stat"><span>可調度人員</span><strong>5</strong></article><article class="fm-stat"><span>預估覆蓋率</span><strong>98%</strong></article></div><div class="fm-grid"><article class="fm-panel"><h3>建議調度方案</h3><div class="fm-recommendation"><strong>1. 張家豪支援夜班設備巡檢</strong><p>具備機台維修 L2，且本週工時仍有 6 小時彈性。</p><button class="fm-action" data-apply-staffing="張家豪">套用配置</button></div><div class="fm-recommendation"><strong>2. 林志豪支援 SMT 換線</strong><p>技能符合且與早班工單銜接，預估可縮短換線 25 分鐘。</p><button class="fm-action" data-apply-staffing="林志豪">套用配置</button></div></article><article class="fm-panel"><h3>配置限制</h3><div class="fm-schema"><div><span>法定連續工時</span><strong>不超過 12 小時</strong></div><div><span>夜班技能需求</span><strong>設備維修 L2</strong></div><div><span>資格限制</span><strong>證照須在有效期內</strong></div><div><span>最低班別人數</span><strong>每線 6 人</strong></div></div></article></div>`;
+      return;
+    }
     const stats = statsFor();
     const top = records.filter(item => !item.done).sort((a,b) => b.score-a.score).slice(0,3);
     const risks = config.profile.risks.map(risk => [risk, records.filter(item => item.risk === risk && !item.done).length]).sort((a,b)=>b[1]-a[1]);
@@ -298,11 +331,50 @@ function setupDistinctFunctionalModules() {
     document.body.dataset.activeModuleIndex = String(selected);
     document.body.dataset.activeModule = moduleTitle(selected);
     history.replaceState(null, "", `#module-${selected + 1}`);
-    if (focus && matchMedia("(max-width:1120px)").matches) view.scrollIntoView({behavior:"smooth",block:"start"});
+    if (focus) view.scrollIntoView({behavior:"smooth",block:"start"});
   }
 
   buttons.forEach((button,index) => button.addEventListener("click", () => activate(index,true)));
   view.addEventListener("click", (event) => {
+    const moduleShortcut = event.target.closest("[data-go-people-module]");
+    if (moduleShortcut) {
+      activate(Number(moduleShortcut.dataset.goPeopleModule), true);
+      return;
+    }
+    const personRow = event.target.closest("[data-open-person]");
+    if (personRow) {
+      selectedPersonId = personRow.dataset.openPerson;
+      document.querySelector("#fmPeopleDetail").innerHTML = peopleDetailMarkup(selectedPerson());
+      return;
+    }
+    const attendance = event.target.closest("#fmConfirmAttendance");
+    if (attendance) {
+      const person = peopleRoster.find(item => item.id === attendance.dataset.id);
+      if (person) person.attendance = "已確認";
+      cases();
+      return;
+    }
+    if (event.target.closest("#fmOnlyExceptions")) {
+      document.querySelectorAll("#fmPeopleRows tr").forEach(row => {
+        const person = peopleRoster.find(item => item.id === row.dataset.openPerson);
+        row.style.display = person?.attendance === "準時" || person?.attendance === "已確認" ? "none" : "";
+      });
+      return;
+    }
+    if (event.target.closest("#fmAssignTraining")) {
+      alert("已建立 2 筆複訓安排，並通知員工與主管。");
+      return;
+    }
+    const staffing = event.target.closest("[data-apply-staffing]");
+    if (staffing) {
+      staffing.textContent = `已配置 ${staffing.dataset.applyStaffing}`;
+      staffing.disabled = true;
+      return;
+    }
+    if (event.target.closest("#fmRunStaffing")) {
+      aiDecision();
+      return;
+    }
     const open = event.target.closest("[data-open-record]");
     if (open) {
       selectedRecordId = open.dataset.openRecord;
@@ -329,6 +401,14 @@ function setupDistinctFunctionalModules() {
     }
   });
   view.addEventListener("input", (event) => {
+    if (event.target.id === "fmPeopleSearch") {
+      const keyword = event.target.value.trim().toLowerCase();
+      document.querySelectorAll("#fmPeopleRows tr").forEach(row => {
+        const person = peopleRoster.find(item => item.id === row.dataset.openPerson);
+        row.style.display = !keyword || JSON.stringify(person).toLowerCase().includes(keyword) ? "" : "none";
+      });
+      return;
+    }
     if (event.target.id !== "fmCaseSearch") return;
     const keyword = event.target.value.trim().toLowerCase();
     document.querySelectorAll("#fmCaseRows tr").forEach(row => { const item=records.find(record=>record.id===row.dataset.openRecord); row.style.display=!keyword || JSON.stringify(item).toLowerCase().includes(keyword)?"":"none"; });
@@ -346,5 +426,113 @@ function setupDistinctFunctionalModules() {
 }
 
 setupDistinctFunctionalModules();
+
+
+// JVISION_PROJECT_PEOPLE_MODULES_START
+function setupProjectPeopleModules(projectProfile) {
+    const buttons = [...document.querySelectorAll(".module-nav button[data-module]")];
+    const view = document.querySelector(".functional-module-view");
+    if (buttons.length !== 4 || !view) return;
+    const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+    const state = { selected: 0, completed: new Set(), activity: [] };
+    buttons.forEach((button, index) => {
+      button.dataset.module = projectProfile.modules[index];
+      button.innerHTML = `<span>${String(index + 1).padStart(2, "0")}</span>${esc(projectProfile.modules[index])}`;
+    });
+    const hero = (index, title, action = "") => `<header class="fm-hero"><div><p class="fm-kicker">${esc(projectProfile.name)} · ${esc(projectProfile.modules[index])}</p><h2>${esc(title)}</h2><p class="fm-description">${esc(projectProfile.description)}</p></div>${action}</header>`;
+    const statCards = () => `<div class="fm-stats">${projectProfile.metrics.map((metric, index) => `<article class="fm-stat"><span>${esc(metric)}</span><strong>${[projectProfile.functions.length, projectProfile.workflows.length, projectProfile.pains.length, "94%"][index]}</strong></article>`).join("")}</div>`;
+    const operationRows = () => projectProfile.functions.map((item, index) => `<tr class="${state.selected === index ? "active" : ""}" data-people-row="${index}"><td><strong>${esc(item)}</strong></td><td><span class="fm-badge">${state.completed.has(index) ? "已完成" : index ? "進行中" : "待處理"}</span></td><td>${esc(projectProfile.roles[index % projectProfile.roles.length])}</td><td>D+${index + 1}</td></tr>`).join("");
+    const detail = (index) => {
+      const item = projectProfile.functions[index] || projectProfile.functions[0];
+      const isCompleted = state.completed.has(index);
+      const latest = state.activity.find((entry) => entry.index === index);
+      return `<h3>${esc(item)}</h3><p class="fm-description">${esc(projectProfile.pains[index % projectProfile.pains.length])}</p><dl><dt>負責角色</dt><dd>${esc(projectProfile.roles[index % projectProfile.roles.length])}</dd><dt>目前狀態</dt><dd>${isCompleted ? "已完成" : "待處理"}</dd><dt>下一步</dt><dd>${isCompleted ? "已同步更新總覽與流程統計" : esc(projectProfile.workflows[index % projectProfile.workflows.length])}</dd></dl>${isCompleted ? `<div class="fm-recommendation" data-completion-result><strong>✓ 作業已完成</strong><p>${esc(latest?.time || "剛剛")} 完成處理，清單狀態與完成率已同步更新。</p></div><button class="fm-action secondary" data-reopen-people="${index}">重新開啟作業</button>` : `<button class="fm-action" data-complete-people="${index}">完成此項作業</button>`}`;
+    };
+    const renderers = [
+      () => {
+        view.innerHTML = hero(0, `${projectProfile.name}營運總覽`) + statCards() + `<div class="fm-grid"><article class="fm-panel"><h3>核心作業流程</h3><div class="fm-stages">${projectProfile.workflows.slice(0, 4).map((step, index) => `<article class="fm-stage"><b>0${index + 1} ${esc(step)}</b><span>${index ? "依序處理中" : "目前優先處理"}</span></article>`).join("")}</div></article><article class="fm-panel"><h3>今日提醒</h3><div class="fm-list">${projectProfile.pains.slice(0, 3).map((pain, index) => `<button class="fm-row" data-jump-people="1" data-select-people="${index}"><strong>${esc(projectProfile.functions[index % projectProfile.functions.length])}</strong><small>${esc(pain)}</small></button>`).join("")}</div></article></div>`;
+      },
+      () => {
+        view.innerHTML = hero(1, `${projectProfile.modules[1]}作業台`) + `<div class="fm-grid"><article class="fm-panel"><div class="fm-toolbar"><input id="peopleModuleSearch" placeholder="搜尋作業、角色或狀態"><button class="fm-action secondary" id="peopleOnlyOpen">只看未完成</button></div><table class="fm-table"><thead><tr><th>作業項目</th><th>狀態</th><th>負責角色</th><th>期限</th></tr></thead><tbody id="peopleModuleRows">${operationRows()}</tbody></table></article><article class="fm-panel fm-detail" id="peopleModuleDetail">${detail(state.selected)}</article></div>`;
+      },
+      () => {
+        view.innerHTML = hero(2, `${projectProfile.modules[2]}流程`) + `<div class="fm-grid"><article class="fm-panel"><h3>流程與檢核點</h3><div class="fm-list">${projectProfile.workflows.map((step, index) => `<button class="fm-row" data-workflow-step="${index}"><strong>${String(index + 1).padStart(2, "0")} ${esc(step)}</strong><small>${esc(projectProfile.functions[index % projectProfile.functions.length])}</small></button>`).join("")}</div></article><article class="fm-panel"><h3>必要資料與規則</h3><div class="fm-schema">${projectProfile.fields.map((field, index) => `<div><span>必要欄位 ${index + 1}</span><strong>${esc(field)}</strong></div>`).join("")}<div><span>流程完成率</span><strong>${Math.round(state.completed.size / projectProfile.functions.length * 100)}%</strong></div></div></article></div>`;
+      },
+      () => {
+        view.innerHTML = hero(3, projectProfile.modules[3], '<button class="fm-action" id="peopleReanalyze">重新分析</button>') + `<div class="fm-grid"><article class="fm-panel"><h3>專案 AI 建議</h3><div class="fm-ai-score">${Math.min(98, 72 + state.completed.size * 4)}</div>${projectProfile.ai.map((advice, index) => `<div class="fm-recommendation"><strong>${index + 1}. ${esc(advice)}</strong><p>${esc(projectProfile.pains[index % projectProfile.pains.length])}</p><button class="fm-action" data-apply-people="${index}">套用建議</button></div>`).join("")}</article><article class="fm-panel"><h3>判讀依據</h3>${projectProfile.metrics.map((metric, index) => `<div class="fm-risk"><span>${esc(metric)}</span><strong>${[86, 72, 64, 91][index]} 分</strong></div>`).join("")}</article></div>`;
+      }
+    ];
+    function activate(index, focus = false) {
+      buttons.forEach((button, buttonIndex) => {
+        button.classList.toggle("active", buttonIndex === index);
+        button.setAttribute("aria-pressed", String(buttonIndex === index));
+        button.setAttribute("aria-current", buttonIndex === index ? "page" : "false");
+      });
+      renderers[index]();
+      document.body.dataset.activeModuleIndex = String(index);
+      document.body.dataset.activeModule = projectProfile.modules[index];
+      history.replaceState(null, "", `#module-${index + 1}`);
+      if (focus) view.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    buttons.forEach((button, index) => button.addEventListener("click", (event) => {
+      event.stopImmediatePropagation();
+      activate(index, true);
+    }, true));
+    view.addEventListener("click", (event) => {
+      const row = event.target.closest("[data-people-row]");
+      if (row) {
+        state.selected = Number(row.dataset.peopleRow);
+        document.querySelector("#peopleModuleDetail").innerHTML = detail(state.selected);
+        return;
+      }
+      const complete = event.target.closest("[data-complete-people]");
+      if (complete) {
+        const index = Number(complete.dataset.completePeople);
+        state.completed.add(index);
+        state.activity.unshift({ index, time: new Date().toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }) });
+        renderers[1]();
+        return;
+      }
+      const reopen = event.target.closest("[data-reopen-people]");
+      if (reopen) {
+        const index = Number(reopen.dataset.reopenPeople);
+        state.completed.delete(index);
+        state.activity = state.activity.filter((entry) => entry.index !== index);
+        renderers[1]();
+        return;
+      }
+      const jump = event.target.closest("[data-jump-people]");
+      if (jump) {
+        state.selected = Number(jump.dataset.selectPeople || 0);
+        activate(Number(jump.dataset.jumpPeople), true);
+        return;
+      }
+      if (event.target.closest("#peopleOnlyOpen")) {
+        document.querySelectorAll("#peopleModuleRows tr").forEach((row) => {
+          row.style.display = state.completed.has(Number(row.dataset.peopleRow)) ? "none" : "";
+        });
+        return;
+      }
+      const apply = event.target.closest("[data-apply-people]");
+      if (apply) {
+        apply.textContent = "已套用建議";
+        apply.disabled = true;
+        return;
+      }
+      if (event.target.closest("#peopleReanalyze")) renderers[3]();
+    });
+    view.addEventListener("input", (event) => {
+      if (event.target.id !== "peopleModuleSearch") return;
+      const keyword = event.target.value.trim().toLowerCase();
+      document.querySelectorAll("#peopleModuleRows tr").forEach((row) => {
+        const item = projectProfile.functions[Number(row.dataset.peopleRow)] || "";
+        row.style.display = !keyword || item.toLowerCase().includes(keyword) || row.textContent.toLowerCase().includes(keyword) ? "" : "none";
+      });
+    });
+    const initial = Math.max(0, Math.min(3, Number(location.hash.match(/^#module-(\d+)$/)?.[1] || 1) - 1));
+    activate(initial);
+  }
+setupProjectPeopleModules({"id":1302,"name":"薪資管理系統（Payroll）","description":"處理員工薪資核算、加班費、獎金與扣繳申報，確保產線大量人力薪資計算準確且合規。","modules":["薪資總覽","考勤與計薪","薪資覆核","AI 薪資檢核"],"functions":["底薪/加班費/夜班津貼自動核算","三班制加班費規則引擎","勞健保、勞退提撥計算","個人所得稅扣繳與年度申報","銀行轉帳檔製作","薪資單電子化發放"],"workflows":["考勤資料匯入","薪資計算","主管覆核","扣繳計算","轉帳檔產出","薪資單發放"],"pains":["三班輪班加班費計算規則複雜易錯","大量人力薪資核算耗時","法規異動（基本工資調整）人工調整慢","薪資保密與稽核困難"],"ai":["薪資異常值自動偵測與預警","法規異動影響自動試算"],"roles":["人資部","財務部","稽核部","各廠區行政"],"metrics":["薪資核算正確率","發放準時率","申訴案件數","人均處理成本"],"fields":["對象","期限","風險","負責人"]});
+// JVISION_PROJECT_PEOPLE_MODULES_END
 render();
 })();

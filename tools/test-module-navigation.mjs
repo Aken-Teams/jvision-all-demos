@@ -50,7 +50,12 @@ async function testProject(page,project,index){
       await page.waitForTimeout(20);
       steps.push(await page.evaluate(expected=>{
         const visible=selector=>{const element=document.querySelector(selector);if(!element)return false;const rect=element.getBoundingClientRect();return getComputedStyle(element).display!=="none"&&rect.width>0&&rect.height>0};
-        const modes=[visible(".fm-stats")&&visible(".fm-stages"),visible("#fmCaseRows")&&visible("#fmDetail"),visible("#fmCreate")&&visible(".fm-schema"),visible("#fmRunAi")&&visible(".fm-recommendation")];
+        const modes=[
+          visible(".fm-stats")&&visible(".fm-stages"),
+          (visible("#fmCaseRows")&&visible("#fmDetail"))||(visible("#fmPeopleRows")&&visible("#fmPeopleDetail"))||(visible("#peopleModuleRows")&&visible("#peopleModuleDetail")),
+          (visible("#fmCreate")&&visible(".fm-schema"))||(visible("#fmAssignTraining")&&visible(".fm-table"))||(visible("[data-workflow-step]")&&visible(".fm-schema")),
+          (visible("#fmRunAi")&&visible(".fm-recommendation"))||(visible("#fmRunStaffing")&&visible("[data-apply-staffing]"))||(visible("#peopleReanalyze")&&visible("[data-apply-people]"))
+        ];
         return {expected,activeIndex:Number(document.body.dataset.activeModuleIndex),activeButtons:document.querySelectorAll(".module-nav button.active").length,heading:document.querySelector(".fm-hero h2")?.textContent.trim()||"",signature:modes.map(Boolean).join(""),correctSurface:modes[expected]&&modes.filter(Boolean).length===1};
       },buttonIndex));
     }

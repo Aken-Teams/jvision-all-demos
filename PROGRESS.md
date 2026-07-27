@@ -1,6 +1,6 @@
 # JVision All Demos — Progress
 
-Last updated: 2026-07-23
+Last updated: 2026-07-27
 
 ## Current state
 
@@ -21,6 +21,7 @@ Last updated: 2026-07-23
 
 ## Latest verification
 
+- All 464 shared customer-workflow surfaces passed the stage/action coverage check; all 64 preserved original interfaces were then audited separately, covering 321 visible enabled buttons with zero confirmed no-response actions.
 - Full Chromium E2E coverage passed for all 464 projects: routes, desktop/mobile content, one safe interaction per project, browser errors and exposed horizontal overflow.
 - Dedicated module-navigation coverage passed 1,600/1,600 left-menu transitions across 400 generated systems with zero page errors.
 - The E2E run found and fixed mobile width defects in smart-manufacturing cases 140 and 150.

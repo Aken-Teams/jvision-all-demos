@@ -1,10 +1,11 @@
 # JVision All Demos — Task Queue
 
-Last updated: 2026-07-23
+Last updated: 2026-07-27
 
 ## Now
 
 - [x] Add and run repeatable desktop/mobile E2E coverage for all 464 project routes.
+- [x] Add a repeatable original-interface button-response audit and verify all 64 preserved interfaces.
 - [x] Make every generated system's left module navigation switch functional workspace content and verify every option.
 - [x] Connect all 464 Demo AI advice actions to the shared server-side DeepSeek endpoint without exposing the API key to browsers.
 - [x] Add dynamic, accessible operational charts to all 464 Demos with 7/30-day controls, refresh and tabular fallbacks.

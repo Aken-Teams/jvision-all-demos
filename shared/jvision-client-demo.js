@@ -80,6 +80,8 @@
       logs: ["已載入早班 OEE 基準資料"]
     });
     let state;
+    let oeeGuideStarted = false;
+    let oeeGuideStep = -1;
     try { state = JSON.parse(localStorage.getItem(storageKey)) || initial(); } catch { state = initial(); }
     const save = () => localStorage.setItem(storageKey, JSON.stringify(state));
     const host = document.querySelector(".workspace") || document.querySelector("#demo") || document.querySelector("main") || document.body;
@@ -118,7 +120,7 @@
       const baseResult = calculate(baseline);
       const lossMinutes = state.events.reduce((sum,event) => sum + Number(event.minutes), 0);
       root.innerHTML = `
-        <div class="jv-demo-head"><div><p class="jv-demo-eyebrow">OEE SHIFT PERFORMANCE LAB</p><h2>OEE 稼動洞察與改善實戰</h2><p>輸入班別生產數據、登記六大損失事件，系統會即時計算稼動率、性能率、良率與 OEE。</p></div><button class="jv-demo-btn" data-oee-reset>重設早班資料</button></div>
+        <div class="jv-demo-head"><div><p class="jv-demo-eyebrow">OEE SHIFT PERFORMANCE LAB</p><h2>OEE 稼動洞察與改善實戰</h2><p>輸入班別生產數據、登記六大損失事件，系統會即時計算稼動率、性能率、良率與 OEE。</p></div><div><button class="jv-demo-btn" data-oee-guide data-jv-feedback="off">啟動操作導覽</button> <button class="jv-demo-btn" data-oee-reset>重設早班資料</button></div></div>
         <div class="jv-demo-kpis">
           <article class="jv-demo-kpi"><span>稼動率 Availability</span><strong>${percent(result.availability)}</strong><small>運轉 ${result.operating} / 計畫 ${state.values.planned} 分鐘</small></article>
           <article class="jv-demo-kpi"><span>性能率 Performance</span><strong>${percent(result.performance)}</strong><small>理想週期 ${state.values.ideal} 分／件</small></article>
@@ -142,7 +144,8 @@
           </form><div class="jv-oee-events">${state.events.map(event => `<article><div><strong>${event.type}</strong><small>${event.note}</small></div><b>${event.minutes} 分</b><button class="jv-demo-btn" data-remove-event="${event.id}">排除</button></article>`).join("")}</div><p class="jv-oee-total">已登記損失：<b>${lossMinutes} 分鐘</b></p></section>
           <section class="jv-demo-panel"><h3>3. 指派改善措施</h3><form class="jv-oee-action-form"><input name="action" required placeholder="例如：調整換模治具預熱流程"><input name="owner" required placeholder="改善負責人"><button class="jv-demo-btn primary" type="submit">建立改善措施</button></form><div class="jv-oee-actions">${state.actions.length ? state.actions.map(action => `<p><b>${action.action}</b><span>${action.owner} · 預估減少 ${action.saving} 分鐘</span></p>`).join("") : "<p>尚未建立改善措施</p>"}</div></section>
           <section class="jv-demo-panel"><h3>4. 改善前後比較</h3><div class="jv-oee-compare"><div><span>改善前 OEE</span><strong>${percent(baseResult.oee)}</strong></div><div><span>目前 OEE</span><strong>${percent(result.oee)}</strong></div><div><span>提升幅度</span><strong>${((result.oee-baseResult.oee)*100).toFixed(1)} pt</strong></div></div><div class="jv-demo-log">${state.logs.map(item => `<p>${item}</p>`).join("")}</div></section>
-        </div>`;
+        </div>
+        <aside class="jv-demo-guide" hidden><b>操作導覽 1 / 4</b><p></p><div class="jv-demo-guide-actions"><button class="jv-demo-btn" data-oee-guide-close data-jv-feedback="off">結束</button><button class="jv-demo-btn primary" data-oee-guide-next data-jv-feedback="off">下一步</button></div></aside>`;
       bind();
     };
     const bind = () => {
@@ -151,6 +154,7 @@
         const form = new FormData(event.currentTarget);
         for (const key of ["planned","downtime","total","good","ideal"]) state.values[key] = Number(form.get(key));
         state.values.good = Math.min(state.values.good, state.values.total);
+        if (oeeGuideStep === 0) oeeGuideStep = 1;
         log(`重新計算 OEE：${percent(calculate(state.values).oee)}`);
         save(); render();
       });
@@ -160,6 +164,7 @@
         const minutes = Number(form.get("minutes"));
         state.events.unshift({ id: Date.now(), type: form.get("type"), minutes, note: form.get("note") });
         shiftDowntime(minutes);
+        if (oeeGuideStep === 1) oeeGuideStep = 2;
         log(`新增${form.get("type")}事件：${minutes} 分鐘`);
         save(); render();
       });
@@ -177,10 +182,58 @@
         const saving = Math.min(12,Math.max(3,Math.round(state.values.downtime*.12)));
         state.actions.unshift({ action: form.get("action"), owner: form.get("owner"), saving });
         shiftDowntime(-saving);
+        if (oeeGuideStep === 2) oeeGuideStep = 3;
         log(`建立改善措施並預估減少 ${saving} 分鐘停機`);
         save(); render();
       });
       root.querySelector("[data-oee-reset]").addEventListener("click", () => { state = initial(); save(); render(); });
+      const guide = root.querySelector(".jv-demo-guide");
+      const guideSteps = [
+        { selector: ".jv-oee-inputs", text: "先輸入本班生產時間、停機時間與良品數，建立 OEE 計算基準。", hint: "步驟 1｜輸入班別生產數據" },
+        { selector: ".jv-oee-event-form", text: "登記設備故障、換線或待料等損失事件，觀察停機時間變化。", hint: "步驟 2｜登記六大損失" },
+        { selector: ".jv-oee-action-form", text: "建立改善措施並指定負責人，系統會試算可降低的停機分鐘。", hint: "步驟 3｜指派改善措施" },
+        { selector: ".jv-oee-compare", text: "最後比較改善前後 OEE，確認措施是否帶來實際提升。", hint: "步驟 4｜檢視改善成效" }
+      ];
+      let guideIndex = Math.max(0, oeeGuideStep);
+      const clearGuide = () => {
+        root.querySelector(".jv-guide-focus")?.classList.remove("jv-guide-focus");
+        root.querySelector("[data-guide-hint]")?.removeAttribute("data-guide-hint");
+        root.querySelector(".jv-guide-overlay")?.remove();
+      };
+      const showGuideStep = () => {
+        clearGuide();
+        const step = guideSteps[guideIndex];
+        const target = root.querySelector(step.selector);
+        const overlay = document.createElement("div");
+        overlay.className = "jv-guide-overlay";
+        root.append(overlay);
+        if (target) {
+          target.classList.add("jv-guide-focus");
+          target.dataset.guideHint = step.hint;
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        guide.querySelector("b").textContent = `操作導覽 ${guideIndex + 1} / ${guideSteps.length}`;
+        guide.querySelector("p").textContent = step.text;
+        const next = guide.querySelector("[data-oee-guide-next]");
+        next.disabled = guideIndex < guideSteps.length - 1;
+        next.textContent = guideIndex === guideSteps.length - 1 ? "完成" : "請完成畫面操作";
+      };
+      root.querySelector("[data-oee-guide]").addEventListener("click", () => { oeeGuideStep = 0; guideIndex = 0; guide.hidden = false; showGuideStep(); });
+      root.querySelector("[data-oee-guide-close]").addEventListener("click", () => { oeeGuideStep = -1; guide.hidden = true; clearGuide(); });
+      root.querySelector("[data-oee-guide-next]").addEventListener("click", () => {
+        if (guideIndex < guideSteps.length - 1) return;
+        oeeGuideStep = -1; guide.hidden = true; clearGuide();
+      });
+      if (oeeGuideStep >= 0) setTimeout(() => { guideIndex = oeeGuideStep; guide.hidden = false; showGuideStep(); }, 0);
+      if (!oeeGuideStarted && new URLSearchParams(location.search).get("mode") === "guided") {
+        oeeGuideStarted = true;
+        const launch = (attempt = 0) => {
+          const button = root.querySelector("[data-oee-guide]");
+          if (button) button.click();
+          else if (attempt < 12) setTimeout(() => launch(attempt + 1), 250);
+        };
+        setTimeout(launch, 180);
+      }
     };
     render();
   };
@@ -245,7 +298,7 @@
     "業務銷售","生產製造","品質管理","採購供應鏈","人力資源","財務會計"
   ]);
   if (projectMeta && dedicatedCategories.has(projectMeta.category)) {
-    const { mountDomainOperations } = await import("../../shared/jvision-domain-operations.js");
+    const { mountDomainOperations } = await import("../../shared/jvision-domain-operations.js?v=20260727-8");
     mountDomainOperations({ project: projectMeta, slug });
     return;
   }
@@ -260,6 +313,7 @@
   root.className = "jv-client-demo";
   root.style.setProperty("--demo-accent",config.accent);
   if (host.classList.contains("workspace")) host.append(root); else host.append(root);
+  let activeGuideStep = -1;
   const log = text => { state.logs.unshift(`${new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})}　${text}`); state.logs=state.logs.slice(0,6); };
   const completed = () => state.records.filter(r=>r.stage===config.stages.length-1).length;
   const render = () => {
@@ -269,7 +323,7 @@
     const activeStage=Number.isInteger(state.filterStage)?state.filterStage:null;
     const visibleRecords=state.records.map((record,index)=>({record,index})).filter(entry=>activeStage===null||entry.record.stage===activeStage);
     root.innerHTML=`
-      <div class="jv-demo-head"><div><p class="jv-demo-eyebrow">CUSTOMER HANDS-ON DEMO</p><h2>${esc(config.title)}</h2><p>${esc(config.task)}</p></div><button class="jv-demo-btn" data-guide>啟動操作導覽</button></div>
+      <div class="jv-demo-head"><div><p class="jv-demo-eyebrow">CUSTOMER HANDS-ON DEMO</p><h2>${esc(config.title)}</h2><p>${esc(config.task)}</p></div><button class="jv-demo-btn" data-guide data-jv-feedback="off">啟動操作導覽</button></div>
       <div class="jv-demo-toolbar"><div class="jv-demo-progress"><span style="width:${progress}%"></span></div><b>${progress}% 流程完成</b><button class="jv-demo-btn" data-reset>重設資料</button></div>
       <div class="jv-demo-kpis">${config.metrics.map((m,i)=>`<article class="jv-demo-kpi"><span>${esc(m)}</span><strong>${i===0?state.records.length:i===1?state.records.filter(r=>r.stage<2).length:i===2?state.records.filter(r=>r.stage===2).length:`${Math.max(72,88+completed()*3)}%`}</strong><small>依目前操作即時更新</small></article>`).join("")}</div>
       <div class="jv-demo-flow" style="--stage-count:${config.stages.length}">${config.stages.map((s,i)=>`<button class="jv-demo-stage ${activeStage===i?"active":""}" data-generic-stage="${i}" aria-pressed="${activeStage===i}"><b>${i+1}. ${esc(s)}</b><span>${stageCounts[i]} 筆${esc(config.entity)}</span></button>`).join("")}</div>
@@ -277,24 +331,49 @@
         <div class="jv-demo-panel"><div class="jv-demo-list-head"><h3>${activeStage===null?esc(config.entity)+"工作清單":esc(config.stages[activeStage])+"清單"}</h3>${activeStage===null?"":'<button class="jv-demo-btn" data-generic-clear-stage>顯示全部</button>'}</div><form class="jv-demo-create"><input name="name" required placeholder="輸入${esc(config.entity)}名稱"><input name="owner" required placeholder="${esc(config.ownerLabel)}"><button class="jv-demo-btn primary" type="submit">新增${esc(config.entity)}</button></form><div class="jv-demo-records">${visibleRecords.length?visibleRecords.map(({record:r,index:i})=>`<article class="jv-demo-record ${i===state.selected?"selected":""}"><div><strong>${esc(r.name)}</strong><small>${esc(r.note)} · ${esc(r.owner)}</small></div><div class="jv-demo-record-actions"><span class="jv-demo-status">${esc(config.stages[r.stage])}</span><button class="jv-demo-btn" data-select="${i}">查看詳情</button><button class="jv-demo-btn primary" data-advance="${i}" ${r.stage===config.stages.length-1?"disabled":""}>${r.stage===config.stages.length-1?"已完成":`推進至 ${esc(config.stages[r.stage+1])}`}</button></div></article>`).join(""):`<div class="jv-demo-empty"><b>${esc(config.stages[activeStage])}目前沒有資料</b><p>可新增${esc(config.entity)}，或切換其他流程階段查看。</p><button class="jv-demo-btn" data-generic-clear-stage>顯示全部資料</button></div>`}</div></div>
         <aside class="jv-demo-panel jv-demo-detail"><div class="jv-demo-detail-head"><h3>詳細資訊</h3><span class="jv-demo-status">${selected?esc(config.stages[selected.stage]):"尚無資料"}</span></div>${selected?`<dl><dt>名稱</dt><dd>${esc(selected.name)}</dd><dt>${esc(config.ownerLabel)}</dt><dd>${esc(selected.owner)}</dd><dt>目前狀態</dt><dd>${esc(config.stages[selected.stage])}</dd><dt>處理重點</dt><dd>${esc(selected.note)}</dd></dl><button class="jv-demo-btn" data-edit-note>更新處理紀錄</button>`:""}<div class="jv-demo-log"><h3>操作紀錄</h3>${state.logs.map(x=>`<p>${esc(x)}</p>`).join("")}</div>${progress===100?`<div class="jv-demo-complete"><b>展示任務完成</b><br>所有${esc(config.entity)}已完成流程，可向客戶說明處理時間與管理成果。</div>`:""}</aside>
       </div>
-      <aside class="jv-demo-guide" hidden><b>操作導覽 1 / 4</b><p>先新增一筆${esc(config.entity)}，模擬客戶每天建立工作資料的動作。</p><div class="jv-demo-guide-actions"><button class="jv-demo-btn" data-guide-close>結束</button><button class="jv-demo-btn primary" data-guide-next>下一步</button></div></aside>`;
+      <aside class="jv-demo-guide" hidden><b>操作導覽 1 / 4</b><p>先新增一筆${esc(config.entity)}，模擬客戶每天建立工作資料的動作。</p><div class="jv-demo-guide-actions"><button class="jv-demo-btn" data-guide-close data-jv-feedback="off">結束</button><button class="jv-demo-btn primary" data-guide-next data-jv-feedback="off">下一步</button></div></aside>`;
     bind();
   };
   const bind = () => {
     root.querySelectorAll("[data-generic-stage]").forEach(b=>b.addEventListener("click",()=>{const stage=Number(b.dataset.genericStage);state.filterStage=state.filterStage===stage?null:stage;if(state.filterStage!==null){const first=state.records.findIndex(r=>r.stage===state.filterStage);if(first>=0)state.selected=first;}save();render();}));
     root.querySelectorAll("[data-generic-clear-stage]").forEach(b=>b.addEventListener("click",()=>{state.filterStage=null;save();render();}));
-    root.querySelector(".jv-demo-create").addEventListener("submit",e=>{e.preventDefault();const f=new FormData(e.currentTarget);state.records.unshift({id:crypto.randomUUID(),name:f.get("name"),owner:f.get("owner"),stage:0,note:"剛建立，等待初步處理"});state.selected=0;state.filterStage=null;log(`新增${config.entity}：${f.get("name")}`);save();render();});
-    root.querySelectorAll("[data-select]").forEach(b=>b.addEventListener("click",()=>{state.selected=Number(b.dataset.select);render();}));
-    root.querySelectorAll("[data-advance]").forEach(b=>b.addEventListener("click",()=>{const i=Number(b.dataset.advance);state.records[i].stage++;state.selected=i;log(`${state.records[i].name} 推進至「${config.stages[state.records[i].stage]}」`);save();render();}));
+    root.querySelector(".jv-demo-create").addEventListener("submit",e=>{e.preventDefault();const f=new FormData(e.currentTarget);state.records.unshift({id:crypto.randomUUID(),name:f.get("name"),owner:f.get("owner"),stage:0,note:"剛建立，等待初步處理"});state.selected=0;state.filterStage=null;if(activeGuideStep===0)activeGuideStep=1;log(`新增${config.entity}：${f.get("name")}`);save();render();});
+    root.querySelectorAll("[data-select]").forEach(b=>b.addEventListener("click",()=>{state.selected=Number(b.dataset.select);if(activeGuideStep===1)activeGuideStep=2;render();}));
+    root.querySelectorAll("[data-advance]").forEach(b=>b.addEventListener("click",()=>{const i=Number(b.dataset.advance);state.records[i].stage++;state.selected=i;if(activeGuideStep===2)activeGuideStep=3;log(`${state.records[i].name} 推進至「${config.stages[state.records[i].stage]}」`);save();render();}));
     root.querySelector("[data-reset]").addEventListener("click",()=>{state=fresh();save();render();});
     root.querySelector("[data-edit-note]")?.addEventListener("click",()=>{const r=state.records[state.selected];r.note=`${config.stages[r.stage]}已補充客戶展示紀錄`;log(`更新${r.name}的處理紀錄`);save();render();});
-    let guideIndex=0; const guide=root.querySelector(".jv-demo-guide"); const guideText=["先新增一筆工作資料，展示建立案件的操作。","點選「查看詳情」，確認負責人、狀態與處理重點。","使用推進按鈕，讓資料依業務流程往下一階段移動。","觀察 KPI、進度與操作紀錄如何即時更新。"];
-    root.querySelector("[data-guide]").addEventListener("click",()=>{guideIndex=0;guide.hidden=false;guide.querySelector("b").textContent="操作導覽 1 / 4";guide.querySelector("p").textContent=guideText[0];});
-    root.querySelector("[data-guide-close]").addEventListener("click",()=>guide.hidden=true);
-    root.querySelector("[data-guide-next]").addEventListener("click",e=>{guideIndex++;if(guideIndex>=guideText.length){guide.hidden=true;return;}guide.querySelector("b").textContent=`操作導覽 ${guideIndex+1} / 4`;guide.querySelector("p").textContent=guideText[guideIndex];e.currentTarget.textContent=guideIndex===guideText.length-1?"完成":"下一步";});
+    let guideIndex=Math.max(0,activeGuideStep); const guide=root.querySelector(".jv-demo-guide");
+    const guideSteps=[
+      {text:"在這裡輸入名稱與負責人，再按新增，建立一筆新的工作資料。",selector:".jv-demo-create",hint:"步驟 1｜在這裡新增資料"},
+      {text:"點選一筆資料的「查看詳情」，右側會顯示負責人、狀態與處理重點。",selector:"[data-select]",hint:"步驟 2｜點這裡查看詳情"},
+      {text:"按下推進按鈕，資料會依專案流程移動到下一個階段。",selector:"[data-advance]:not(:disabled)",hint:"步驟 3｜點這裡推進流程"},
+      {text:"最後觀察 KPI、完成進度與操作紀錄如何隨操作即時更新。",selector:".jv-demo-kpis",hint:"步驟 4｜確認數字已更新"}
+    ];
+    const clearGuideFocus=()=>{root.querySelector(".jv-guide-focus")?.classList.remove("jv-guide-focus");root.querySelector("[data-guide-hint]")?.removeAttribute("data-guide-hint");root.querySelector(".jv-guide-overlay")?.remove();};
+    const focusGuideStep=()=>{
+      clearGuideFocus();
+      const step=guideSteps[guideIndex];
+      const overlay=document.createElement("div");overlay.className="jv-guide-overlay";root.append(overlay);
+      const target=root.querySelector(step.selector);
+      if(target){target.classList.add("jv-guide-focus");target.dataset.guideHint=step.hint;target.scrollIntoView({behavior:"smooth",block:"center"});}
+      guide.querySelector("b").textContent=`操作導覽 ${guideIndex+1} / ${guideSteps.length}`;
+      guide.querySelector("p").textContent=step.text;
+      const next=guide.querySelector("[data-guide-next]");
+      next.disabled=guideIndex<guideSteps.length-1;
+      next.textContent=guideIndex===guideSteps.length-1?"完成":"請完成畫面操作";
+    };
+    root.querySelector("[data-guide]").addEventListener("click",()=>{activeGuideStep=0;guideIndex=0;guide.hidden=false;focusGuideStep();});
+    root.querySelector("[data-guide-close]").addEventListener("click",()=>{activeGuideStep=-1;guide.hidden=true;clearGuideFocus();});
+    root.querySelector("[data-guide-next]").addEventListener("click",()=>{if(guideIndex<guideSteps.length-1)return;activeGuideStep=-1;guide.hidden=true;clearGuideFocus();});
+    if(activeGuideStep>=0)setTimeout(()=>{guideIndex=activeGuideStep;guide.hidden=false;focusGuideStep();},0);
   };
   render();
   if (new URLSearchParams(location.search).get("mode") === "guided") {
-    setTimeout(() => root.querySelector("[data-guide]")?.click(), 120);
+    const launchGuide = (attempt = 0) => {
+      const button = root.querySelector("[data-guide]");
+      if (button) button.click();
+      else if (attempt < 12) setTimeout(() => launchGuide(attempt + 1), 250);
+    };
+    setTimeout(launchGuide, 180);
   }
 })();

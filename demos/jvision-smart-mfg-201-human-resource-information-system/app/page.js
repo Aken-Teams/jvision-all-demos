@@ -10,7 +10,7 @@ export default function DemoPage() {
     <>
       <script dangerouslySetInnerHTML={{ __html: bootstrapCode }} />
       <main className={mainClass} dangerouslySetInnerHTML={{ __html: mainContent }} />
-      <Script src="./demo-app.js?v=distinct-functional-modules-20260722" strategy="afterInteractive" />
+      <Script src="./demo-app.js?v=project-people-modules-20260727-2" strategy="afterInteractive" />
     </>
   );
 }
