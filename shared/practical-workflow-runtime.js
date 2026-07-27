@@ -196,7 +196,7 @@ function setupPracticalWorkflow() {
     renderers[activeModule]();
     document.body.dataset.activeModuleIndex = String(activeModule);
     document.body.dataset.activeModule = scenario.modules[activeModule];
-    if (focus && matchMedia("(max-width:1120px)").matches) view.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (focus) view.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function renderGuide() {
