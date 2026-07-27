@@ -1,7 +1,7 @@
 (function jvisionMobileAnalytics() {
   "use strict";
 
-  const embeddedProfile = {"id":1314,"repoName":"jvision-smart-mfg-214-ai-attrition-prediction","name":"員工關懷與離職預警決策室","category":"智慧製造｜人資管理","description":"運用出勤、績效、薪酬等資料以AI模型分析離職風險，提前介入關懷高流動風險族群，降低產線缺工衝擊。"};
+  const embeddedProfile = {"id":1314,"repoName":"jvision-smart-mfg-214-ai-attrition-prediction","name":"員工留任與離職預警決策室","category":"智慧製造｜人資管理","description":"運用出勤、績效、薪酬等資料以AI模型分析離職風險，提前協助高流動風險員工改善工作安排，降低產線缺工衝擊。"};
   const runtimeConfig = window.DEMO_CONFIG && typeof window.DEMO_CONFIG === "object"
     ? window.DEMO_CONFIG
     : {};

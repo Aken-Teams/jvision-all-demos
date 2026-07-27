@@ -153,10 +153,10 @@ const domainDefinitions = {
     code: "hr",
     eyebrow: "人才與人事服務中心",
     primary: "人事案件",
-    createTitle: "建立人事作業",
+    createTitle: "建立人事需求",
     fields: [["name","員工／職缺名稱"],["contact","人資承辦人"],["request","部門、日期與作業需求"]],
     stages: ["需求建立","資料確認","主管核准","人資執行","完成歸檔"],
-    actions: ["建立人事需求","確認員工資料","送交主管核准","執行人事作業","完成文件歸檔"],
+    actions: ["建立人事需求","確認員工資料","送交主管核准","核准並交由人資辦理","完成文件歸檔"],
     metrics: ["待辦人事","待主管核准","本月到職","資料完整率"],
     seeds: [
       ["製程工程師招募","陳怡君","製造部｜需求 2 人｜8 月到職","需求建立"],
@@ -186,8 +186,25 @@ const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => (
 ));
 
 export function mountDomainOperations({ project, slug }) {
-  const definition = domainDefinitions[project.category];
+  let definition = domainDefinitions[project.category];
   if (!definition || document.querySelector(".jv-client-demo")) return;
+  if (slug === "jvision-smart-mfg-214-ai-attrition-prediction") {
+    definition = {
+      ...definition,
+      eyebrow: "員工溝通與留任管理",
+      primary: "留任追蹤",
+      createTitle: "建立員工留任追蹤",
+      fields: [["name","員工姓名"],["contact","HRBP／溝通負責人"],["request","近期狀況與需協助事項"]],
+      stages: ["狀況提醒","主管確認","一對一溝通","改善安排","後續追蹤"],
+      actions: ["建立留任追蹤","確認近期狀況","安排一對一面談","落實改善方案","完成後續追蹤"],
+      metrics: ["需優先聯繫","待主管確認","面談安排中","後續追蹤率"],
+      seeds: [
+        ["陳冠宇","HRBP 林怡君","連續加班 4 週｜希望調整工作負荷與排班","狀況提醒"],
+        ["王佳穎","人才發展組","有內部轉調想法｜等待主管安排討論","主管確認"],
+        ["林志豪","HRBP 陳雅雯","已完成首次面談｜需確認職涯與工作調整方案","一對一溝通"]
+      ]
+    };
+  }
   const storageKey = `jvision-domain-operations:${slug}:v1`;
   const initial = () => ({
     items: definition.seeds.map((seed, index) => ({
@@ -207,22 +224,37 @@ export function mountDomainOperations({ project, slug }) {
   const root = document.createElement("section");
   root.className = `jv-client-demo jv-domain-demo jv-domain-${definition.code}`;
   host.append(root);
+  let activeGuideStep = -1;
   const log = message => {
     state.logs.unshift(`${new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})}　${message}`);
     state.logs = state.logs.slice(0, 8);
   };
   const render = () => {
-    const selected = state.items[state.selected] || state.items[0];
     const completed = state.items.filter(item => item.stage === definition.stages.length - 1).length;
     const attention = state.items.filter(item => item.stage > 0 && item.stage < definition.stages.length - 1).length;
     const activeStage = Number.isInteger(state.filterStage) ? state.filterStage : null;
     const visibleItems = state.items
       .map((item, index) => ({ item, index }))
       .filter(entry => activeStage === null || entry.item.stage === activeStage);
+    const selectedEntry = activeStage === null
+      ? { item: state.items[state.selected] || state.items[0], index: state.selected }
+      : visibleItems.find(entry => entry.index === state.selected) || visibleItems[0];
+    const selected = selectedEntry?.item;
+    const stageActionLabel = activeStage === null || activeStage === 0
+      ? `＋ ${definition.createTitle}`
+      : activeStage === definition.stages.length - 1
+        ? `檢視${definition.stages[activeStage]}`
+        : definition.actions[activeStage + 1] || `處理${definition.stages[activeStage]}`;
+    const stageActionAttribute = activeStage === null || activeStage === 0
+      ? "data-toggle-create"
+      : activeStage === definition.stages.length - 1
+        ? "data-stage-review"
+        : "data-stage-primary";
+    const stageActionDisabled = activeStage !== null && activeStage > 0 && visibleItems.length === 0;
     root.innerHTML = `
       <header class="jv-domain-head">
         <div><p>${escapeHtml(definition.eyebrow)}</p><h2>${escapeHtml(project.title)}｜客戶操作情境</h2><span>${escapeHtml(project.description || project.businessSituation || "")}</span></div>
-        <div><button class="jv-demo-btn primary" data-domain-guide>啟動情境導覽</button> <button class="jv-demo-btn" data-domain-reset>還原展示資料</button></div>
+        <div><button class="jv-demo-btn primary" data-domain-guide data-jv-feedback="off">啟動情境導覽</button> <button class="jv-demo-btn" data-domain-reset>還原展示資料</button></div>
       </header>
       <div class="jv-domain-metrics">
         ${definition.metrics.map((metric,index)=>`<article><span>${escapeHtml(metric)}</span><strong>${index===0?state.items.length:index===1?attention:index===2?completed:`${Math.min(99,84+completed*3)}%`}</strong></article>`).join("")}
@@ -232,8 +264,8 @@ export function mountDomainOperations({ project, slug }) {
       </nav>
       <div class="jv-domain-layout">
         <section class="jv-domain-board">
-          <div class="jv-domain-section-title"><div><p>現場工作區</p><h3>${activeStage===null?escapeHtml(definition.primary)+"處理清單":escapeHtml(definition.stages[activeStage])+"清單"}</h3></div><div>${activeStage===null?"":'<button class="jv-demo-btn" data-clear-stage>顯示全部</button> '}<button class="jv-demo-btn primary" data-toggle-create>＋ ${escapeHtml(definition.createTitle)}</button></div></div>
-          <form class="jv-domain-create" hidden>
+          <div class="jv-domain-section-title"><div><p>現場工作區</p><h3>${activeStage===null?escapeHtml(definition.primary)+"處理清單":escapeHtml(definition.stages[activeStage])+"清單"}</h3></div><div>${activeStage===null?"":'<button class="jv-demo-btn" data-clear-stage>顯示全部</button> '}<button class="jv-demo-btn primary" ${stageActionAttribute} ${stageActionDisabled?"disabled":""}>${escapeHtml(stageActionLabel)}</button></div></div>
+          <form class="jv-domain-create" hidden ${activeStage !== null && activeStage > 0 ? 'aria-hidden="true"' : ""}>
             ${definition.fields.map(field=>`<label>${escapeHtml(field[1])}<input name="${field[0]}" required placeholder="輸入${escapeHtml(field[1])}"></label>`).join("")}
             <button class="jv-demo-btn primary" type="submit">確認建立</button>
           </form>
@@ -251,7 +283,7 @@ export function mountDomainOperations({ project, slug }) {
         </section>
         <aside class="jv-domain-detail">
           <p>目前選取</p>
-          <h3>${selected ? escapeHtml(selected.name) : "尚無資料"}</h3>
+          <h3>${selected ? escapeHtml(selected.name) : `${activeStage === null ? "" : escapeHtml(definition.stages[activeStage])}尚無資料`}</h3>
           ${selected ? `<dl>
             <dt>${escapeHtml(definition.fields[1][1])}</dt><dd>${escapeHtml(selected.contact)}</dd>
             <dt>${escapeHtml(definition.fields[2][1])}</dt><dd>${escapeHtml(selected.request)}</dd>
@@ -264,7 +296,7 @@ export function mountDomainOperations({ project, slug }) {
       <aside class="jv-demo-guide jv-domain-guide" hidden>
         <b>情境導覽 1 / 4</b>
         <p>先建立一筆${escapeHtml(definition.primary)}，帶入客戶現場會使用的資料。</p>
-        <div class="jv-demo-guide-actions"><button class="jv-demo-btn" data-domain-guide-close>結束</button><button class="jv-demo-btn primary" data-domain-guide-next>下一步</button></div>
+        <div class="jv-demo-guide-actions"><button class="jv-demo-btn" data-domain-guide-close data-jv-feedback="off">結束</button><button class="jv-demo-btn primary" data-domain-guide-next data-jv-feedback="off">下一步</button></div>
       </aside>`;
     bind();
   };
@@ -282,22 +314,45 @@ export function mountDomainOperations({ project, slug }) {
       state.filterStage = null;
       save(); render();
     }));
-    root.querySelector("[data-toggle-create]").addEventListener("click", () => {
+    root.querySelector("[data-toggle-create]")?.addEventListener("click", () => {
       const form = root.querySelector(".jv-domain-create");
       form.hidden = !form.hidden;
       if (!form.hidden) form.querySelector("input")?.focus();
     });
-    root.querySelector(".jv-domain-create").addEventListener("submit", event => {
+    root.querySelector(".jv-domain-create")?.addEventListener("submit", event => {
       event.preventDefault();
       const data = new FormData(event.currentTarget);
       state.items.unshift({id: crypto.randomUUID(), name:data.get("name"), contact:data.get("contact"), request:data.get("request"), stage:0});
       state.selected = 0;
       state.filterStage = null;
+      if (activeGuideStep === 0) activeGuideStep = 1;
       log(`建立${definition.primary}：${data.get("name")}`);
+      save(); render();
+    });
+    root.querySelector("[data-stage-primary]")?.addEventListener("click", () => {
+      const stage = Number(state.filterStage);
+      const index = state.items.findIndex((item, itemIndex) =>
+        item.stage === stage && (itemIndex === state.selected || !state.items[state.selected] || state.items[state.selected].stage !== stage)
+      );
+      const fallbackIndex = state.items.findIndex(item => item.stage === stage);
+      const targetIndex = index >= 0 ? index : fallbackIndex;
+      const item = state.items[targetIndex];
+      if (!item || item.stage >= definition.stages.length - 1) return;
+      item.stage += 1;
+      state.selected = targetIndex;
+      log(`${item.name}｜${definition.actions[item.stage]}`);
+      save(); render();
+    });
+    root.querySelector("[data-stage-review]")?.addEventListener("click", () => {
+      const index = state.items.findIndex(item => item.stage === state.filterStage);
+      if (index < 0) return;
+      state.selected = index;
+      log(`${state.items[index].name}｜已檢視${definition.stages[state.filterStage]}紀錄`);
       save(); render();
     });
     root.querySelectorAll("[data-domain-select]").forEach(button => button.addEventListener("click", () => {
       state.selected = Number(button.dataset.domainSelect);
+      if (activeGuideStep === 1) activeGuideStep = 2;
       render();
     }));
     root.querySelectorAll("[data-domain-advance]").forEach(button => button.addEventListener("click", () => {
@@ -306,6 +361,7 @@ export function mountDomainOperations({ project, slug }) {
       if (!item || item.stage >= definition.stages.length - 1) return;
       item.stage += 1;
       state.selected = index;
+      if (activeGuideStep === 2) activeGuideStep = 3;
       log(`${item.name}｜${definition.actions[item.stage]}`);
       save(); render();
     }));
@@ -319,28 +375,65 @@ export function mountDomainOperations({ project, slug }) {
     });
     const guide = root.querySelector(".jv-domain-guide");
     const guideSteps = [
-      `先建立一筆${definition.primary}，帶入客戶現場會使用的資料。`,
-      `從${definition.stages[0]}開始，確認負責資料與服務需求。`,
-      `執行「${definition.actions[1] || definition.actions[0]}」，觀察案件推進到下一階段。`,
-      `最後查看指標與操作軌跡，說明「${project.title}」如何留下管理依據。`
+      { text:`請在下方三個欄位輸入「${definition.fields.map(field=>field[1]).join("、")}」，再按「確認建立」。`, selector:".jv-domain-create", hint:`步驟 1｜填寫資料後按「確認建立」` },
+      { text:`從${definition.stages[0]}開始，點選資料確認負責角色、需求與下一步。`, selector:"[data-domain-select]", hint:"步驟 2｜點這筆資料查看明細" },
+      { text:`執行「${definition.actions[1] || definition.actions[0]}」，觀察案件推進到下一階段。`, selector:"[data-domain-advance]:not(:disabled)", hint:"步驟 3｜點這裡推進流程" },
+      { text:`最後查看指標與操作軌跡，說明「${project.title}」如何留下管理依據。`, selector:".jv-domain-metrics", hint:"步驟 4｜確認指標與紀錄更新" }
     ];
-    let guideIndex = 0;
+    let guideIndex = Math.max(0, activeGuideStep);
+    const clearGuideFocus = () => {
+      root.querySelector(".jv-guide-focus")?.classList.remove("jv-guide-focus");
+      root.querySelector("[data-guide-hint]")?.removeAttribute("data-guide-hint");
+      root.querySelector(".jv-guide-overlay")?.remove();
+    };
+    const focusGuideStep = () => {
+      clearGuideFocus();
+      const step = guideSteps[guideIndex];
+      if (guideIndex === 0) {
+        const createForm = root.querySelector(".jv-domain-create");
+        if (createForm) {
+          createForm.hidden = false;
+          createForm.removeAttribute("aria-hidden");
+        }
+      }
+      const overlay = document.createElement("div");
+      overlay.className = "jv-guide-overlay";
+      root.append(overlay);
+      const target = root.querySelector(step.selector);
+      if (target) {
+        target.classList.add("jv-guide-focus");
+        target.dataset.guideHint = step.hint;
+        target.scrollIntoView({ behavior:"smooth", block:"center" });
+        if (guideIndex === 0) setTimeout(() => target.querySelector("input")?.focus(), 260);
+      }
+      guide.querySelector("b").textContent = `情境導覽 ${guideIndex + 1} / ${guideSteps.length}`;
+      guide.querySelector("p").textContent = step.text;
+      const next = guide.querySelector("[data-domain-guide-next]");
+      next.disabled = guideIndex < guideSteps.length - 1;
+      next.textContent = guideIndex === guideSteps.length - 1 ? "完成" : "請完成畫面操作";
+    };
     root.querySelector("[data-domain-guide]").addEventListener("click", () => {
-      guideIndex = 0; guide.hidden = false;
-      guide.querySelector("b").textContent = "情境導覽 1 / 4";
-      guide.querySelector("p").textContent = guideSteps[0];
+      if (state.filterStage !== null && state.filterStage !== undefined) {
+        state.filterStage = null; save(); render();
+        setTimeout(() => root.querySelector("[data-domain-guide]")?.click(), 0);
+        return;
+      }
+      activeGuideStep = 0; guideIndex = 0; guide.hidden = false; focusGuideStep();
     });
-    root.querySelector("[data-domain-guide-close]").addEventListener("click", () => { guide.hidden = true; });
+    root.querySelector("[data-domain-guide-close]").addEventListener("click", () => { activeGuideStep = -1; guide.hidden = true; clearGuideFocus(); });
     root.querySelector("[data-domain-guide-next]").addEventListener("click", event => {
-      guideIndex += 1;
-      if (guideIndex >= guideSteps.length) { guide.hidden = true; return; }
-      guide.querySelector("b").textContent = `情境導覽 ${guideIndex + 1} / 4`;
-      guide.querySelector("p").textContent = guideSteps[guideIndex];
-      event.currentTarget.textContent = guideIndex === guideSteps.length - 1 ? "完成" : "下一步";
+      if (guideIndex < guideSteps.length - 1) return;
+      activeGuideStep = -1; guide.hidden = true; clearGuideFocus();
     });
+    if (activeGuideStep >= 0) setTimeout(() => { guideIndex = activeGuideStep; guide.hidden = false; focusGuideStep(); }, 0);
   };
   render();
   if (new URLSearchParams(location.search).get("mode") === "guided") {
-    setTimeout(() => root.querySelector("[data-domain-guide]")?.click(), 120);
+    const launchGuide = (attempt = 0) => {
+      const button = root.querySelector("[data-domain-guide]");
+      if (button) button.click();
+      else if (attempt < 12) setTimeout(() => launchGuide(attempt + 1), 250);
+    };
+    setTimeout(launchGuide, 180);
   }
 }

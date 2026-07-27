@@ -7,13 +7,13 @@ const baseUrl = process.env.DEMO_BASE_URL || "http://127.0.0.1:4191";
 const projects = JSON.parse(fs.readFileSync(path.join(root, "projects-index.json"), "utf8")).projects || [];
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1365, height: 900 }, locale: "zh-TW" });
-const workerCount = 6;
+const workerCount = Math.max(1, Math.min(8, Number(process.env.JVISION_WORKFLOW_WORKERS || 4)));
 const results = new Array(projects.length);
 
 async function verifyProject(project, index, page) {
   try {
     await page.goto(`${baseUrl}${project.demoUrl}?workflow-button-audit=1`, {
-      waitUntil: "load",
+      waitUntil: "domcontentloaded",
       timeout: 20000
     });
     await page.waitForSelector(".jv-client-demo", { timeout: 6000 });
@@ -45,7 +45,11 @@ async function verifyProject(project, index, page) {
         const visible = root.querySelectorAll(recordSelector).length;
         const active = activeButton.getAttribute("aria-pressed") === "true";
         const empty = Boolean(root.querySelector(isDomain ? ".jv-domain-empty" : ".jv-demo-empty"));
-        const passed = active && visible === expected && (expected > 0 || empty);
+        const contextualAction = !isDomain || index === 0
+          ? true
+          : !root.querySelector("[data-toggle-create]") &&
+            Boolean(root.querySelector("[data-stage-primary], [data-stage-review]"));
+        const passed = active && visible === expected && (expected > 0 || empty) && contextualAction;
         stageChecks.push(passed);
         activeButton.click();
       }

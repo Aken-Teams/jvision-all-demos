@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-27 — Original interface action verification
+
+- Added a repeatable browser audit for visible enabled buttons in all 64 preserved original project interfaces.
+- Verified 321 original-interface buttons with zero confirmed no-response actions after independent retry.
+- Verified all 464 shared customer-workflow surfaces through the full workflow button suite.
+
 ## 2026-07-23 — Scoped project sharing
 
 - Added a `分享專案` control to all 464 Demo routes, with copy and system-share actions for seven-day share links.
