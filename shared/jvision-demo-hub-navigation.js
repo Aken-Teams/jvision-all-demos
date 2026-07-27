@@ -35,11 +35,15 @@
     window.addEventListener("resize", placeLink, { passive: true });
   }
 
-  // Wait until the page's own React hydration and scripts complete. This keeps
-  // the link independent of each preserved Next.js render tree.
-  if (document.readyState === "complete") {
-    window.requestAnimationFrame(mount);
+  // Mount as soon as the document is ready. Some preserved pages reference
+  // remote images or scripts whose load event may be slow or never arrive;
+  // waiting for the full load event would leave the return control missing.
+  const scheduleMount = () => window.requestAnimationFrame(mount);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", scheduleMount, { once: true });
   } else {
-    window.addEventListener("load", () => window.requestAnimationFrame(mount), { once: true });
+    scheduleMount();
   }
+  // Idempotent fallback for unusual legacy documents that replace body content.
+  window.setTimeout(mount, 1200);
 })();

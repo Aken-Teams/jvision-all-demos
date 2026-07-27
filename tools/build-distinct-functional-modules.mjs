@@ -80,7 +80,7 @@ function setupDistinctFunctionalModules() {
     document.body.dataset.activeModuleIndex = String(selected);
     document.body.dataset.activeModule = moduleTitle(selected);
     history.replaceState(null, "", `#module-${selected + 1}`);
-    if (focus && matchMedia("(max-width:1120px)").matches) view.scrollIntoView({behavior:"smooth",block:"start"});
+    if (focus) view.scrollIntoView({behavior:"smooth",block:"start"});
   }
 
   buttons.forEach((button,index) => button.addEventListener("click", () => activate(index,true)));
