@@ -1,7 +1,7 @@
 (function jvisionMobileAnalytics() {
   "use strict";
 
-  const embeddedProfile = {"id":1359,"repoName":"jvision-smart-mfg-259-system-259","name":"治具/夾具設計管理洞察站","category":"智慧製造｜研發管理","description":"治具/夾具設計管理系統 以 AI 協助智慧製造場景提升流程效率與決策品質。"};
+  const embeddedProfile = {"id":1359,"repoName":"jvision-smart-mfg-259-system-259","name":"生產輔助工具設計管理系統","category":"智慧製造｜研發管理","description":"生產輔助工具設計管理系統（治具／夾具） 以 AI 協助智慧製造場景提升流程效率與決策品質。"};
   const runtimeConfig = window.DEMO_CONFIG && typeof window.DEMO_CONFIG === "object"
     ? window.DEMO_CONFIG
     : {};

@@ -223,131 +223,6 @@ $("#searchInput").addEventListener("input", render);
 
 
 
-// JVISION_DISTINCT_FUNCTIONAL_MODULES
-function setupDistinctFunctionalModules() {
-  const buttons = [...document.querySelectorAll(".module-nav button[data-module]")];
-  const workspace = document.querySelector(".workspace");
-  const topbar = workspace?.querySelector(":scope > .topbar");
-  if (buttons.length < 4 || !workspace || !topbar) return;
-
-  workspace.querySelectorAll(":scope > section:not(.functional-module-view)").forEach((section) => {
-    section.hidden = true;
-    section.style.display = "none";
-  });
-
-  const view = document.createElement("section");
-  view.className = "functional-module-view";
-  view.setAttribute("aria-live", "polite");
-  topbar.insertAdjacentElement("afterend", view);
-
-  const style = document.createElement("style");
-  style.textContent = `
-    .functional-module-view{display:grid;gap:18px;min-width:0}.fm-hero,.fm-panel,.fm-stat{border:1px solid var(--line,#d8e2ee);background:var(--panel,#fff);border-radius:18px}.fm-hero{padding:24px;display:flex;align-items:flex-start;justify-content:space-between;gap:20px}.fm-kicker{margin:0 0 7px;color:var(--accent,#2563eb);font-size:13px;font-weight:800;letter-spacing:.08em}.fm-hero h2{margin:0;font-size:clamp(24px,3vw,34px)}.fm-description{margin:8px 0 0;color:var(--muted,#64748b);font-size:15px;line-height:1.7}.fm-action{border:0;border-radius:12px;padding:11px 16px;background:var(--accent,#2563eb);color:#fff;font-weight:800;cursor:pointer;white-space:nowrap}.fm-action.secondary{background:transparent;color:var(--accent,#2563eb);border:1px solid currentColor}.fm-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.fm-stat{padding:18px}.fm-stat span{display:block;color:var(--muted,#64748b);font-size:13px}.fm-stat strong{display:block;margin-top:7px;font-size:27px}.fm-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.6fr);gap:18px}.fm-panel{padding:20px;min-width:0}.fm-panel h3{margin:0 0 15px;font-size:18px}.fm-stages{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.fm-stage{padding:15px;border-radius:14px;background:color-mix(in srgb,var(--accent,#2563eb) 7%,transparent);border:1px solid var(--line,#d8e2ee)}.fm-stage b,.fm-stage span{display:block}.fm-stage span{margin-top:6px;color:var(--muted,#64748b);font-size:13px}.fm-list{display:grid;gap:10px}.fm-row{width:100%;text-align:left;padding:14px;border:1px solid var(--line,#d8e2ee);border-radius:13px;background:transparent;color:inherit;cursor:pointer}.fm-row:hover,.fm-row.active{border-color:var(--accent,#2563eb);background:color-mix(in srgb,var(--accent,#2563eb) 7%,transparent)}.fm-row strong,.fm-row small{display:block}.fm-row small{margin-top:5px;color:var(--muted,#64748b)}.fm-toolbar{display:flex;gap:10px;margin-bottom:14px}.fm-toolbar input,.fm-form input,.fm-form select{width:100%;border:1px solid var(--line,#d8e2ee);background:var(--background,#fff);color:inherit;border-radius:11px;padding:11px 12px;font:inherit}.fm-table{width:100%;border-collapse:collapse}.fm-table th,.fm-table td{padding:12px 9px;border-bottom:1px solid var(--line,#d8e2ee);text-align:left;font-size:14px}.fm-table tbody tr{cursor:pointer}.fm-table tbody tr:hover{background:color-mix(in srgb,var(--accent,#2563eb) 6%,transparent)}.fm-badge{display:inline-flex;padding:4px 9px;border-radius:999px;background:color-mix(in srgb,var(--accent,#2563eb) 12%,transparent);font-size:12px;font-weight:800}.fm-detail dl{display:grid;grid-template-columns:auto 1fr;gap:10px 14px}.fm-detail dt{color:var(--muted,#64748b)}.fm-detail dd{margin:0;font-weight:700}.fm-empty{padding:28px;text-align:center;color:var(--muted,#64748b)}.fm-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.fm-form label{display:grid;gap:6px;font-size:13px;font-weight:700}.fm-form .wide{grid-column:1/-1}.fm-schema{display:grid;gap:10px}.fm-schema div{display:flex;justify-content:space-between;padding:13px;border:1px solid var(--line,#d8e2ee);border-radius:12px}.fm-ai-score{font-size:54px;font-weight:900;color:var(--accent,#2563eb)}.fm-recommendation{padding:15px;border-left:4px solid var(--accent,#2563eb);background:color-mix(in srgb,var(--accent,#2563eb) 7%,transparent);border-radius:0 12px 12px 0}.fm-recommendation+ .fm-recommendation{margin-top:10px}.fm-risk{display:grid;grid-template-columns:1fr auto;gap:10px;padding:12px 0;border-bottom:1px solid var(--line,#d8e2ee)}@media(max-width:900px){.fm-stats,.fm-stages{grid-template-columns:repeat(2,minmax(0,1fr))}.fm-grid{grid-template-columns:1fr}.fm-hero{display:grid}.fm-form{grid-template-columns:1fr}.fm-form .wide{grid-column:auto}.fm-table{display:block;overflow:auto}}@media(max-width:560px){.fm-stats,.fm-stages{grid-template-columns:1fr}.functional-module-view{gap:12px}.fm-hero,.fm-panel{padding:16px}}
-  `;
-  document.head.append(style);
-
-  let selectedRecordId = records.find((item) => !item.done)?.id || records[0]?.id;
-  const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
-  const statsFor = () => getStats();
-  const moduleTitle = (index) => buttons[index]?.dataset.module || buttons[index]?.textContent.trim() || `功能 ${index + 1}`;
-  const hero = (index, subtitle, action = "") => `<header class="fm-hero"><div><p class="fm-kicker">${esc(config.name)} · ${esc(moduleTitle(index))}</p><h2>${esc(subtitle)}</h2><p class="fm-description">${esc(config.description)}</p></div>${action}</header>`;
-
-  function dashboard() {
-    const stats = statsFor();
-    const stageCards = config.profile.stages.map((stage) => {
-      const items = records.filter((record) => record.stage === stage);
-      return `<article class="fm-stage"><b>${esc(stage)}</b><span>${items.length} 筆${esc(config.profile.object)}</span></article>`;
-    }).join("");
-    const urgent = records.filter((record) => !record.done).sort((a,b) => b.score-a.score).slice(0,4);
-    view.innerHTML = hero(0, `${config.name}營運總覽`) + `<div class="fm-stats"><article class="fm-stat"><span>進行中${esc(config.profile.object)}</span><strong>${stats.open}</strong></article><article class="fm-stat"><span>高風險項目</span><strong>${stats.highRisk}</strong></article><article class="fm-stat"><span>完成率</span><strong>${stats.doneRate}%</strong></article><article class="fm-stat"><span>平均 AI 分數</span><strong>${stats.avgScore}</strong></article></div><div class="fm-grid"><article class="fm-panel"><h3>${esc(config.profile.object)}流程</h3><div class="fm-stages">${stageCards}</div></article><article class="fm-panel"><h3>優先處理</h3><div class="fm-list">${urgent.map(item => `<button class="fm-row" data-open-record="${esc(item.id)}"><strong>${esc(item.title)}</strong><small>${esc(item.risk)} · ${esc(item.owner)} · ${esc(item.due)}</small></button>`).join("") || '<p class="fm-empty">目前沒有待處理項目</p>'}</div></article></div>`;
-  }
-
-  function cases() {
-    const rows = records.map((item) => `<tr data-open-record="${esc(item.id)}"><td><strong>${esc(item.title)}</strong></td><td>${esc(item.stage)}</td><td>${esc(item.owner)}</td><td>${esc(item.due)}</td><td><span class="fm-badge">${esc(item.risk)}</span></td></tr>`).join("");
-    const selected = records.find((item) => item.id === selectedRecordId) || records[0];
-    view.innerHTML = hero(1, `${config.profile.object}清單`) + `<div class="fm-grid"><article class="fm-panel"><div class="fm-toolbar"><input id="fmCaseSearch" placeholder="搜尋${esc(config.profile.object)}、負責人或風險"><button class="fm-action secondary" id="fmOnlyOpen">只看未完成</button></div><table class="fm-table"><thead><tr><th>${esc(config.profile.object)}</th><th>階段</th><th>${esc(config.profile.fields[3] || "負責人")}</th><th>${esc(config.profile.fields[1] || "期限")}</th><th>${esc(config.profile.fields[2] || "風險")}</th></tr></thead><tbody id="fmCaseRows">${rows}</tbody></table></article><article class="fm-panel fm-detail" id="fmDetail">${detailMarkup(selected)}</article></div>`;
-  }
-
-  function detailMarkup(item) {
-    if (!item) return '<p class="fm-empty">選擇一筆資料查看詳細資訊</p>';
-    const nextIndex = Math.min(config.profile.stages.indexOf(item.stage) + 1, config.profile.stages.length - 1);
-    return `<h3>${esc(item.title)}</h3><p class="fm-description">${esc(item.target)}</p><dl><dt>目前階段</dt><dd>${esc(item.stage)}</dd><dt>${esc(config.profile.fields[3] || "負責人")}</dt><dd>${esc(item.owner)}</dd><dt>${esc(config.profile.fields[2] || "風險")}</dt><dd>${esc(item.risk)}</dd><dt>AI 分數</dt><dd>${esc(item.score)}</dd></dl><button class="fm-action" id="fmAdvance" data-id="${esc(item.id)}" data-stage="${esc(config.profile.stages[nextIndex])}">推進至「${esc(config.profile.stages[nextIndex])}」</button>`;
-  }
-
-  function masterData() {
-    view.innerHTML = hero(2, `${config.name}資料主檔`, `<button class="fm-action secondary" id="fmReset">還原示範資料</button>`) + `<div class="fm-grid"><article class="fm-panel"><h3>新增${esc(config.profile.object)}</h3><form class="fm-form" id="fmCreate"><label class="wide">${esc(config.profile.object)}名稱<input name="title" required placeholder="輸入${esc(config.profile.object)}名稱"></label><label>${esc(config.profile.fields[0] || "對象")}<input name="target" required placeholder="輸入${esc(config.profile.fields[0] || "對象")}"></label><label>${esc(config.profile.fields[3] || "負責人")}<input name="owner" required value="${esc(config.profile.owner)}"></label><label>${esc(config.profile.fields[2] || "風險")}<select name="risk">${config.profile.risks.map(risk => `<option>${esc(risk)}</option>`).join("")}</select></label><label>初始階段<select name="stage">${config.profile.stages.map(stage => `<option>${esc(stage)}</option>`).join("")}</select></label><button class="fm-action wide" type="submit">建立${esc(config.profile.object)}</button></form></article><article class="fm-panel"><h3>系統欄位與規則</h3><div class="fm-schema">${config.profile.fields.map((field,index) => `<div><span>欄位 ${index+1}</span><strong>${esc(field)}</strong></div>`).join("")}<div><span>預設負責角色</span><strong>${esc(config.profile.owner)}</strong></div><div><span>目前資料筆數</span><strong>${records.length}</strong></div></div></article></div>`;
-  }
-
-  function aiDecision() {
-    const stats = statsFor();
-    const top = records.filter(item => !item.done).sort((a,b) => b.score-a.score).slice(0,3);
-    const risks = config.profile.risks.map(risk => [risk, records.filter(item => item.risk === risk && !item.done).length]).sort((a,b)=>b[1]-a[1]);
-    view.innerHTML = hero(3, `${config.name} AI 決策中心`, '<button class="fm-action" id="fmRunAi">重新分析</button>') + `<div class="fm-grid"><article class="fm-panel"><h3>決策建議</h3><div class="fm-ai-score">${stats.avgScore}</div><p class="fm-description">綜合 ${records.length} 筆${esc(config.profile.object)}的階段、期限與風險後產生。</p><div id="fmRecommendations">${top.map((item,index) => `<div class="fm-recommendation"><strong>${index+1}. 優先處理 ${esc(item.title)}</strong><p>${esc(item.risk)}，目前由 ${esc(item.owner)} 負責；建議在 ${esc(item.due)} 前完成「${esc(item.stage)}」階段確認。</p></div>`).join("") || '<p class="fm-empty">目前沒有需要分析的未完成資料</p>'}</div></article><article class="fm-panel"><h3>風險分布</h3>${risks.map(([risk,count]) => `<div class="fm-risk"><span>${esc(risk)}</span><strong>${count} 筆</strong></div>`).join("")}<h3 style="margin-top:22px">AI 判讀依據</h3><p class="fm-description">依據${esc(config.profile.fields.join("、"))}與${esc(config.profile.stages.join("、"))}等專案資料進行排序。</p></article></div>`;
-  }
-
-  const renderers = [dashboard, cases, masterData, aiDecision];
-  function activate(index, focus = false) {
-    const selected = Math.max(0, Math.min(3, index));
-    buttons.forEach((button, buttonIndex) => {
-      const active = buttonIndex === selected;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-current", active ? "page" : "false");
-      button.setAttribute("aria-pressed", String(active));
-    });
-    renderers[selected]();
-    document.body.dataset.activeModuleIndex = String(selected);
-    document.body.dataset.activeModule = moduleTitle(selected);
-    history.replaceState(null, "", `#module-${selected + 1}`);
-    if (focus) view.scrollIntoView({behavior:"smooth",block:"start"});
-  }
-
-  buttons.forEach((button,index) => button.addEventListener("click", () => activate(index,true)));
-  view.addEventListener("click", (event) => {
-    const open = event.target.closest("[data-open-record]");
-    if (open) {
-      selectedRecordId = open.dataset.openRecord;
-      if (document.body.dataset.activeModuleIndex !== "1") activate(1);
-      else document.querySelector("#fmDetail").innerHTML = detailMarkup(records.find(item => item.id === selectedRecordId));
-      return;
-    }
-    const advance = event.target.closest("#fmAdvance");
-    if (advance) {
-      records = records.map(item => item.id === advance.dataset.id ? {...item,stage:advance.dataset.stage,done:advance.dataset.stage === config.profile.stages.at(-1)} : item);
-      saveRecords();
-      addLog(`${records.find(item=>item.id===advance.dataset.id)?.title} 已推進至 ${advance.dataset.stage}`);
-      cases();
-      return;
-    }
-    if (event.target.closest("#fmOnlyOpen")) {
-      document.querySelectorAll("#fmCaseRows tr").forEach(row => { const item=records.find(record=>record.id===row.dataset.openRecord); row.style.display=item?.done?"none":""; });
-    }
-    if (event.target.closest("#fmReset")) {
-      records = cloneRecords(); saveRecords(); masterData();
-    }
-    if (event.target.closest("#fmRunAi")) {
-      runAi(); aiDecision();
-    }
-  });
-  view.addEventListener("input", (event) => {
-    if (event.target.id !== "fmCaseSearch") return;
-    const keyword = event.target.value.trim().toLowerCase();
-    document.querySelectorAll("#fmCaseRows tr").forEach(row => { const item=records.find(record=>record.id===row.dataset.openRecord); row.style.display=!keyword || JSON.stringify(item).toLowerCase().includes(keyword)?"":"none"; });
-  });
-  view.addEventListener("submit", (event) => {
-    if (event.target.id !== "fmCreate") return;
-    event.preventDefault();
-    const form = new FormData(event.target);
-    const item={id:`${config.id}-${Date.now()}`,title:String(form.get("title")),target:`${config.name} · ${form.get("target")}`,owner:String(form.get("owner")),due:"D+7",risk:String(form.get("risk")),stage:String(form.get("stage")),score:60,priority:"medium",done:false};
-    records.unshift(item); saveRecords(); selectedRecordId=item.id; addLog(`已建立 ${item.title}`); cases();
-  });
-
-  const initial = Number(location.hash.match(/^#module-(\d+)$/)?.[1] || 1) - 1;
-  activate(initial);
-}
-
-setupDistinctFunctionalModules();
-
-
 // JVISION_PROJECT_PEOPLE_MODULES_START
 function setupProjectPeopleModules(projectProfile) {
     const buttons = [...document.querySelectorAll(".module-nav button[data-module]")];
@@ -454,5 +329,151 @@ function setupProjectPeopleModules(projectProfile) {
   }
 setupProjectPeopleModules({"id":1312,"name":"勞動法規合規管理系統（Labor Compliance Management）","description":"彙整勞基法、工時工資、外籍移工法規等規範，協助企業即時掌握法規異動並落實合規稽核。","modules":["合規總覽","法規條款","工時稽核","AI 合規檢查"],"functions":["法規異動資料庫與通知","工時/加班上限自動檢核","合規稽核清單與紀錄","勞檢應對文件管理","跨廠區合規落差比對","法規教育訓練提醒"],"workflows":["法規異動蒐集","內部影響評估","制度調整","稽核執行","缺失改善追蹤","稽核報告存檔"],"pains":["各地勞動法規異動掌握不即時","跨廠合規標準不一致","勞檢應對文件準備倉促","違規罰款與商譽風險"],"ai":["法規異動自動摘要與影響分析","合規風險熱點智慧預警"],"roles":["人資部","法務部","稽核部","各廠區行政主管"],"metrics":["法規遵循率","勞檢缺失件數","逾期改善案件數","合規訓練完成率"],"fields":["對象","期限","風險","負責人"]});
 // JVISION_PROJECT_PEOPLE_MODULES_END
+
+
+// JVISION_DISTINCT_FUNCTIONAL_MODULES
+function setupDistinctFunctionalModules() {
+  const buttons = [...document.querySelectorAll(".module-nav button[data-module]")];
+  const workspace = document.querySelector(".workspace");
+  const topbar = workspace?.querySelector(":scope > .topbar");
+  if (buttons.length < 4 || !workspace || !topbar) return;
+
+  workspace.querySelectorAll(":scope > section:not(.functional-module-view)").forEach((section) => {
+    section.hidden = true;
+    section.style.display = "none";
+  });
+
+  const view = document.createElement("section");
+  view.className = "functional-module-view";
+  view.setAttribute("aria-live", "polite");
+  topbar.insertAdjacentElement("afterend", view);
+
+  const style = document.createElement("style");
+  style.textContent = `
+    .functional-module-view{display:grid;gap:18px;min-width:0}.fm-hero,.fm-panel,.fm-stat{border:1px solid var(--line,#d8e2ee);background:var(--panel,#fff);border-radius:18px}.fm-hero{padding:24px;display:flex;align-items:flex-start;justify-content:space-between;gap:20px}.fm-kicker{margin:0 0 7px;color:var(--accent,#2563eb);font-size:13px;font-weight:800;letter-spacing:.08em}.fm-hero h2{margin:0;font-size:clamp(24px,3vw,34px)}.fm-description{margin:8px 0 0;color:var(--muted,#64748b);font-size:15px;line-height:1.7}.fm-action{border:0;border-radius:12px;padding:11px 16px;background:var(--accent,#2563eb);color:#fff;font-weight:800;cursor:pointer;white-space:nowrap}.fm-action.secondary{background:transparent;color:var(--accent,#2563eb);border:1px solid currentColor}.fm-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.fm-stat{padding:18px}.fm-stat span{display:block;color:var(--muted,#64748b);font-size:13px}.fm-stat strong{display:block;margin-top:7px;font-size:27px}.fm-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.6fr);gap:18px}.fm-panel{padding:20px;min-width:0}.fm-panel h3{margin:0 0 15px;font-size:18px}.fm-stages{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.fm-stage{padding:15px;border-radius:14px;background:color-mix(in srgb,var(--accent,#2563eb) 7%,transparent);border:1px solid var(--line,#d8e2ee)}.fm-stage b,.fm-stage span{display:block}.fm-stage span{margin-top:6px;color:var(--muted,#64748b);font-size:13px}.fm-list{display:grid;gap:10px}.fm-row{width:100%;text-align:left;padding:14px;border:1px solid var(--line,#d8e2ee);border-radius:13px;background:transparent;color:inherit;cursor:pointer}.fm-row:hover,.fm-row.active{border-color:var(--accent,#2563eb);background:color-mix(in srgb,var(--accent,#2563eb) 7%,transparent)}.fm-row strong,.fm-row small{display:block}.fm-row small{margin-top:5px;color:var(--muted,#64748b)}.fm-toolbar{display:flex;gap:10px;margin-bottom:14px}.fm-toolbar input,.fm-form input,.fm-form select{width:100%;border:1px solid var(--line,#d8e2ee);background:var(--background,#fff);color:inherit;border-radius:11px;padding:11px 12px;font:inherit}.fm-table{width:100%;border-collapse:collapse}.fm-table th,.fm-table td{padding:12px 9px;border-bottom:1px solid var(--line,#d8e2ee);text-align:left;font-size:14px}.fm-table tbody tr{cursor:pointer}.fm-table tbody tr:hover{background:color-mix(in srgb,var(--accent,#2563eb) 6%,transparent)}.fm-badge{display:inline-flex;padding:4px 9px;border-radius:999px;background:color-mix(in srgb,var(--accent,#2563eb) 12%,transparent);font-size:12px;font-weight:800}.fm-detail dl{display:grid;grid-template-columns:auto 1fr;gap:10px 14px}.fm-detail dt{color:var(--muted,#64748b)}.fm-detail dd{margin:0;font-weight:700}.fm-empty{padding:28px;text-align:center;color:var(--muted,#64748b)}.fm-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.fm-form label{display:grid;gap:6px;font-size:13px;font-weight:700}.fm-form .wide{grid-column:1/-1}.fm-schema{display:grid;gap:10px}.fm-schema div{display:flex;justify-content:space-between;padding:13px;border:1px solid var(--line,#d8e2ee);border-radius:12px}.fm-ai-score{font-size:54px;font-weight:900;color:var(--accent,#2563eb)}.fm-recommendation{padding:15px;border-left:4px solid var(--accent,#2563eb);background:color-mix(in srgb,var(--accent,#2563eb) 7%,transparent);border-radius:0 12px 12px 0}.fm-recommendation+ .fm-recommendation{margin-top:10px}.fm-risk{display:grid;grid-template-columns:1fr auto;gap:10px;padding:12px 0;border-bottom:1px solid var(--line,#d8e2ee)}@media(max-width:900px){.fm-stats,.fm-stages{grid-template-columns:repeat(2,minmax(0,1fr))}.fm-grid{grid-template-columns:1fr}.fm-hero{display:grid}.fm-form{grid-template-columns:1fr}.fm-form .wide{grid-column:auto}.fm-table{display:block;overflow:auto}}@media(max-width:560px){.fm-stats,.fm-stages{grid-template-columns:1fr}.functional-module-view{gap:12px}.fm-hero,.fm-panel{padding:16px}}
+  `;
+  style.textContent += `.fm-stage-action{display:grid;gap:11px;margin-top:18px;padding-top:18px;border-top:1px solid var(--line,#d8e2ee)}.fm-stage-action h4{margin:0}.fm-stage-action label{display:grid;gap:6px;color:var(--muted,#64748b);font-size:13px;font-weight:700}.fm-stage-action :is(input,select,textarea){width:100%;border:1px solid var(--line,#d8e2ee);background:var(--background,#fff);color:inherit;border-radius:11px;padding:11px 12px;font:inherit}.fm-stage-action textarea{min-height:82px;resize:vertical}.fm-stage-result,.fm-save-notice{margin:10px 0 0;padding:11px;border-radius:10px;background:color-mix(in srgb,var(--accent,#2563eb) 8%,transparent);font-size:13px}.fm-save-notice{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 14px;border:1px solid color-mix(in srgb,var(--accent,#2563eb) 35%,transparent)}.fm-save-notice strong,.fm-save-notice span{display:block}.fm-save-notice span{margin-top:4px;color:var(--muted,#64748b)}.fm-table tr.fm-just-updated{background:color-mix(in srgb,var(--accent,#2563eb) 12%,transparent);box-shadow:inset 4px 0 var(--accent,#2563eb)}.fm-action-history{margin-top:18px;padding-top:16px;border-top:1px solid var(--line,#d8e2ee)}.fm-action-history h4{margin:0 0 10px}.fm-action-history dl{margin:0}.fm-action-history dd{overflow-wrap:anywhere}`;
+  document.head.append(style);
+
+  let selectedRecordId = records.find((item) => !item.done)?.id || records[0]?.id;
+  let lastSubmittedId = "";
+  const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+  const statsFor = () => getStats();
+  const moduleTitle = (index) => buttons[index]?.dataset.module || buttons[index]?.textContent.trim() || `功能 ${index + 1}`;
+  const hero = (index, subtitle, action = "") => `<header class="fm-hero"><div><p class="fm-kicker">${esc(config.name)} · ${esc(moduleTitle(index))}</p><h2>${esc(subtitle)}</h2><p class="fm-description">${esc(config.description)}</p></div>${action}</header>`;
+
+  function dashboard() {
+    const stats = statsFor();
+    const stageCards = config.profile.stages.map((stage) => {
+      const items = records.filter((record) => record.stage === stage);
+      return `<article class="fm-stage"><b>${esc(stage)}</b><span>${items.length} 筆${esc(config.profile.object)}</span></article>`;
+    }).join("");
+    const urgent = records.filter((record) => !record.done).sort((a,b) => b.score-a.score).slice(0,4);
+    view.innerHTML = hero(0, `${config.name}營運總覽`) + `<div class="fm-stats"><article class="fm-stat"><span>進行中${esc(config.profile.object)}</span><strong>${stats.open}</strong></article><article class="fm-stat"><span>高風險項目</span><strong>${stats.highRisk}</strong></article><article class="fm-stat"><span>完成率</span><strong>${stats.doneRate}%</strong></article><article class="fm-stat"><span>平均 AI 分數</span><strong>${stats.avgScore}</strong></article></div><div class="fm-grid"><article class="fm-panel"><h3>${esc(config.profile.object)}流程</h3><div class="fm-stages">${stageCards}</div></article><article class="fm-panel"><h3>優先處理</h3><div class="fm-list">${urgent.map(item => `<button class="fm-row" data-open-record="${esc(item.id)}"><strong>${esc(item.title)}</strong><small>${esc(item.risk)} · ${esc(item.owner)} · ${esc(item.due)}</small></button>`).join("") || '<p class="fm-empty">目前沒有待處理項目</p>'}</div></article></div>`;
+  }
+
+  function cases() {
+    const rows = records.map((item) => `<tr data-open-record="${esc(item.id)}" class="${item.id === lastSubmittedId ? "fm-just-updated" : ""}"><td><strong>${esc(item.title)}</strong></td><td>${esc(item.stage)}</td><td>${esc(item.owner)}</td><td>${esc(item.due)}</td><td><span class="fm-badge">${esc(item.risk)}</span></td></tr>`).join("");
+    const selected = records.find((item) => item.id === selectedRecordId) || records[0];
+    const saved = records.find((item) => item.id === lastSubmittedId);
+    const notice = saved ? `<div class="fm-save-notice" role="status"><div><strong>已儲存「${esc(saved.title)}」的處理紀錄</strong><span>這筆資料現在位於「${esc(saved.stage)}」，左側列已醒目標示；完整內容顯示在右側處理紀錄。</span></div><button class="fm-action secondary" data-open-record="${esc(saved.id)}">查看這筆資料</button></div>` : "";
+    view.innerHTML = hero(1, `${config.profile.object}清單`) + `${notice}<div class="fm-grid"><article class="fm-panel"><div class="fm-toolbar"><input id="fmCaseSearch" placeholder="搜尋${esc(config.profile.object)}、負責人或風險"><button class="fm-action secondary" id="fmOnlyOpen">只看未完成</button></div><table class="fm-table"><thead><tr><th>${esc(config.profile.object)}</th><th>階段</th><th>${esc(config.profile.fields[3] || "負責人")}</th><th>${esc(config.profile.fields[1] || "期限")}</th><th>${esc(config.profile.fields[2] || "風險")}</th></tr></thead><tbody id="fmCaseRows">${rows}</tbody></table></article><article class="fm-panel fm-detail" id="fmDetail">${detailMarkup(selected)}</article></div>`;
+  }
+
+  function detailMarkup(item) {
+    if (!item) return '<p class="fm-empty">選擇一筆資料查看詳細資訊</p>';
+    const nextIndex = Math.min(config.profile.stages.indexOf(item.stage) + 1, config.profile.stages.length - 1);
+    const nextStage = config.profile.stages[nextIndex];
+    const completed = item.done || item.stage === config.profile.stages.at(-1);
+    const isFollowUp = /回訪|追蹤|複核|驗收|確認/.test(nextStage);
+    const isClosure = /結案|歸檔|關閉|完成|結算/.test(nextStage);
+    const actionFields = isFollowUp
+      ? `<label>回訪方式<select name="method" required><option value="">請選擇</option><option>電話</option><option>簡訊／通訊軟體</option><option>電子郵件</option><option>現場訪談</option></select></label><label>回訪結果<select name="result" required><option value="">請選擇</option><option>問題已解決</option><option>需要再次處理</option><option>客戶未聯繫上</option></select></label><label>下次聯繫日期<input name="nextDate" type="date" required></label>`
+      : isClosure
+        ? `<label>結案結果<select name="result" required><option value="">請選擇</option><option>完成並由客戶確認</option><option>完成但需持續觀察</option><option>取消／不再處理</option></select></label><label>確認人<input name="confirmedBy" required placeholder="輸入客戶或主管姓名"></label><label>完成日期<input name="completedAt" type="date" required></label>`
+        : `<label>執行結果<select name="result" required><option value="">請選擇</option><option>檢核完成</option><option>需要補充資料</option><option>發現異常待處理</option></select></label><label>執行人<input name="operator" required value="${esc(item.owner)}"></label><label>完成日期<input name="completedAt" type="date" required></label>`;
+    const actionForm = completed
+      ? `<p class="fm-stage-result">本案已完成「${esc(item.stage)}」，相關處理結果已存入案件紀錄。</p>`
+      : `<form class="fm-stage-action" data-stage-action data-id="${esc(item.id)}" data-stage="${esc(nextStage)}"><h4>執行「${esc(nextStage)}」</h4>${actionFields}<label>處理說明<textarea name="note" required placeholder="輸入本次處理內容與判斷依據"></textarea></label><button class="fm-action" type="submit">儲存紀錄並推進至「${esc(nextStage)}」</button></form>`;
+    const history = item.lastAction ? `<section class="fm-action-history"><h4>最新處理紀錄</h4><dl><dt>完成階段</dt><dd>${esc(item.lastAction.stage)}</dd><dt>處理結果</dt><dd>${esc(item.lastAction.result || "已完成")}</dd><dt>處理說明</dt><dd>${esc(item.lastAction.note)}</dd><dt>紀錄時間</dt><dd>${esc(new Date(item.lastAction.at).toLocaleString("zh-TW"))}</dd></dl></section>` : "";
+    return `<h3>${esc(item.title)}</h3><p class="fm-description">${esc(item.target)}</p><dl><dt>目前階段</dt><dd>${esc(item.stage)}</dd><dt>${esc(config.profile.fields[3] || "負責人")}</dt><dd>${esc(item.owner)}</dd><dt>${esc(config.profile.fields[2] || "風險")}</dt><dd>${esc(item.risk)}</dd><dt>AI 分數</dt><dd>${esc(item.score)}</dd></dl>${actionForm}${history}`;
+  }
+
+  function masterData() {
+    view.innerHTML = hero(2, `${config.name}資料主檔`, `<button class="fm-action secondary" id="fmReset">還原示範資料</button>`) + `<div class="fm-grid"><article class="fm-panel"><h3>新增${esc(config.profile.object)}</h3><form class="fm-form" id="fmCreate"><label class="wide">${esc(config.profile.object)}名稱<input name="title" required placeholder="輸入${esc(config.profile.object)}名稱"></label><label>${esc(config.profile.fields[0] || "對象")}<input name="target" required placeholder="輸入${esc(config.profile.fields[0] || "對象")}"></label><label>${esc(config.profile.fields[3] || "負責人")}<input name="owner" required value="${esc(config.profile.owner)}"></label><label>${esc(config.profile.fields[2] || "風險")}<select name="risk">${config.profile.risks.map(risk => `<option>${esc(risk)}</option>`).join("")}</select></label><label>初始階段<select name="stage">${config.profile.stages.map(stage => `<option>${esc(stage)}</option>`).join("")}</select></label><button class="fm-action wide" type="submit">建立${esc(config.profile.object)}</button></form></article><article class="fm-panel"><h3>系統欄位與規則</h3><div class="fm-schema">${config.profile.fields.map((field,index) => `<div><span>欄位 ${index+1}</span><strong>${esc(field)}</strong></div>`).join("")}<div><span>預設負責角色</span><strong>${esc(config.profile.owner)}</strong></div><div><span>目前資料筆數</span><strong>${records.length}</strong></div></div></article></div>`;
+  }
+
+  function aiDecision() {
+    const stats = statsFor();
+    const top = records.filter(item => !item.done).sort((a,b) => b.score-a.score).slice(0,3);
+    const risks = config.profile.risks.map(risk => [risk, records.filter(item => item.risk === risk && !item.done).length]).sort((a,b)=>b[1]-a[1]);
+    view.innerHTML = hero(3, `${config.name} AI 決策中心`, '<button class="fm-action" id="fmRunAi">重新分析</button>') + `<div class="fm-grid"><article class="fm-panel"><h3>決策建議</h3><div class="fm-ai-score">${stats.avgScore}</div><p class="fm-description">綜合 ${records.length} 筆${esc(config.profile.object)}的階段、期限與風險後產生。</p><div id="fmRecommendations">${top.map((item,index) => `<div class="fm-recommendation"><strong>${index+1}. 優先處理 ${esc(item.title)}</strong><p>${esc(item.risk)}，目前由 ${esc(item.owner)} 負責；建議在 ${esc(item.due)} 前完成「${esc(item.stage)}」階段確認。</p></div>`).join("") || '<p class="fm-empty">目前沒有需要分析的未完成資料</p>'}</div></article><article class="fm-panel"><h3>風險分布</h3>${risks.map(([risk,count]) => `<div class="fm-risk"><span>${esc(risk)}</span><strong>${count} 筆</strong></div>`).join("")}<h3 style="margin-top:22px">AI 判讀依據</h3><p class="fm-description">依據${esc(config.profile.fields.join("、"))}與${esc(config.profile.stages.join("、"))}等專案資料進行排序。</p></article></div>`;
+  }
+
+  const renderers = [dashboard, cases, masterData, aiDecision];
+  function activate(index, focus = false) {
+    const selected = Math.max(0, Math.min(3, index));
+    buttons.forEach((button, buttonIndex) => {
+      const active = buttonIndex === selected;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-current", active ? "page" : "false");
+      button.setAttribute("aria-pressed", String(active));
+    });
+    renderers[selected]();
+    document.body.dataset.activeModuleIndex = String(selected);
+    document.body.dataset.activeModule = moduleTitle(selected);
+    history.replaceState(null, "", `#module-${selected + 1}`);
+    if (focus) view.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+
+  buttons.forEach((button,index) => button.addEventListener("click", () => activate(index,true)));
+  view.addEventListener("click", (event) => {
+    const open = event.target.closest("[data-open-record]");
+    if (open) {
+      selectedRecordId = open.dataset.openRecord;
+      if (document.body.dataset.activeModuleIndex !== "1") activate(1);
+      else document.querySelector("#fmDetail").innerHTML = detailMarkup(records.find(item => item.id === selectedRecordId));
+      return;
+    }
+    if (event.target.closest("#fmOnlyOpen")) {
+      document.querySelectorAll("#fmCaseRows tr").forEach(row => { const item=records.find(record=>record.id===row.dataset.openRecord); row.style.display=item?.done?"none":""; });
+    }
+    if (event.target.closest("#fmReset")) {
+      records = cloneRecords(); saveRecords(); masterData();
+    }
+    if (event.target.closest("#fmRunAi")) {
+      runAi(); aiDecision();
+    }
+  });
+  view.addEventListener("input", (event) => {
+    if (event.target.id !== "fmCaseSearch") return;
+    const keyword = event.target.value.trim().toLowerCase();
+    document.querySelectorAll("#fmCaseRows tr").forEach(row => { const item=records.find(record=>record.id===row.dataset.openRecord); row.style.display=!keyword || JSON.stringify(item).toLowerCase().includes(keyword)?"":"none"; });
+  });
+  view.addEventListener("submit", (event) => {
+    if (event.target.matches("[data-stage-action]")) {
+      event.preventDefault();
+      const stageForm = event.target;
+      const values = Object.fromEntries(new FormData(stageForm));
+      records = records.map(item => item.id === stageForm.dataset.id ? {...item,stage:stageForm.dataset.stage,done:stageForm.dataset.stage === config.profile.stages.at(-1),lastAction:{...values,stage:stageForm.dataset.stage,at:new Date().toISOString()}} : item);
+      selectedRecordId = stageForm.dataset.id;
+      lastSubmittedId = stageForm.dataset.id;
+      saveRecords();
+      addLog(`${records.find(item=>item.id===stageForm.dataset.id)?.title} 已完成「${stageForm.dataset.stage}」並儲存處理紀錄`);
+      cases();
+      return;
+    }
+    if (event.target.id !== "fmCreate") return;
+    event.preventDefault();
+    const form = new FormData(event.target);
+    const item={id:`${config.id}-${Date.now()}`,title:String(form.get("title")),target:`${config.name} · ${form.get("target")}`,owner:String(form.get("owner")),due:"D+7",risk:String(form.get("risk")),stage:String(form.get("stage")),score:60,priority:"medium",done:false};
+    records.unshift(item); saveRecords(); selectedRecordId=item.id; addLog(`已建立 ${item.title}`); cases();
+  });
+
+  const initial = Number(location.hash.match(/^#module-(\d+)$/)?.[1] || 1) - 1;
+  activate(initial);
+}
+
+setupDistinctFunctionalModules();
 render();
 })();

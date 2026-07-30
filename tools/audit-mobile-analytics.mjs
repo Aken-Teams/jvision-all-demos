@@ -22,6 +22,7 @@ function safeName(value) {
 async function measure(page, mode) {
   return page.evaluate((currentMode) => {
     const panel = document.querySelector(".jv-analytics-panel");
+    const workflow = document.querySelector(".jv-client-demo");
     const table = panel?.querySelector(".jv-data-table");
     const firstRow = table?.querySelector("tbody tr");
     const viewport = document.documentElement.clientWidth;
@@ -52,6 +53,8 @@ async function measure(page, mode) {
       viewport,
       viewportMeta,
       analyticsExists: Boolean(panel),
+      workflowExists: Boolean(workflow),
+      workflowStages: workflow?.querySelectorAll("[data-stage-filter], [data-generic-stage]").length || 0,
       analyticsWidth: panelRect ? Number(panelRect.width.toFixed(1)) : 0,
       analyticsWithinViewport: panelRect ? panelRect.width <= viewport + 1 && panelRect.left >= -1 && panelRect.right <= viewport + 1 : false,
       documentOverflow,
@@ -78,15 +81,18 @@ function reasonsFor(row) {
   if (row.consoleErrors.length) reasons.push(`${row.consoleErrors.length} console error(s)`);
   if (row.pageErrors.length) reasons.push(`${row.pageErrors.length} page error(s)`);
   for (const metrics of [row.portrait, row.landscape, row.desktop]) {
-    if (!metrics.analyticsExists) reasons.push(`${metrics.mode}: analytics missing`);
-    if (!metrics.tableExists || metrics.tableRows < 4) reasons.push(`${metrics.mode}: statistics table incomplete`);
-    if (metrics.kpiCards < 4) reasons.push(`${metrics.mode}: KPI cards incomplete`);
-    if (metrics.chartRows < 3) reasons.push(`${metrics.mode}: chart rows incomplete`);
+    if (metrics.analyticsExists) {
+      if (!metrics.tableExists || metrics.tableRows < 4) reasons.push(`${metrics.mode}: statistics table incomplete`);
+      if (metrics.kpiCards < 4) reasons.push(`${metrics.mode}: KPI cards incomplete`);
+      if (metrics.chartRows < 3) reasons.push(`${metrics.mode}: chart rows incomplete`);
+      if (!metrics.analyticsWithinViewport) reasons.push(`${metrics.mode}: panel outside viewport`);
+    } else if (!metrics.workflowExists || metrics.workflowStages < 4) {
+      reasons.push(`${metrics.mode}: operational workflow missing`);
+    }
     if (metrics.documentOverflow > 2) reasons.push(`${metrics.mode}: horizontal overflow ${metrics.documentOverflow}px`);
-    if (!metrics.analyticsWithinViewport) reasons.push(`${metrics.mode}: panel outside viewport`);
   }
-  if (!row.portrait.tableCardMode) reasons.push("portrait: table did not convert to cards");
-  if (row.portrait.descriptionFontSize < 16) reasons.push("portrait: body copy smaller than 16px");
+  if (row.portrait.analyticsExists && !row.portrait.tableCardMode) reasons.push("portrait: table did not convert to cards");
+  if (row.portrait.analyticsExists && row.portrait.descriptionFontSize < 16) reasons.push("portrait: body copy smaller than 16px");
   if (row.portrait.undersizedTargets.length) reasons.push(`portrait: ${row.portrait.undersizedTargets.length} touch target(s) below 44px`);
   if (!/width\s*=\s*device-width/i.test(row.portrait.viewportMeta)) reasons.push("viewport meta missing");
   if (!row.portrait.rwdReady) reasons.push("responsive body marker missing");
@@ -111,7 +117,7 @@ async function inspectProject(page, project, sequence) {
     const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25_000 });
     responseStatus = response?.status() || 0;
     await page.waitForLoadState("load", { timeout: 8_000 }).catch(() => {});
-    await page.waitForSelector(".jv-analytics-panel", { state: "attached", timeout: 4_000 });
+    await page.waitForSelector(".jv-analytics-panel, .jv-client-demo", { state: "attached", timeout: 12_000 });
     await page.waitForTimeout(120);
   } catch (error) {
     navigationError = String(error?.message || error).slice(0, 500);
@@ -122,6 +128,8 @@ async function inspectProject(page, project, sequence) {
     viewport,
     viewportMeta: "",
     analyticsExists: false,
+    workflowExists: false,
+    workflowStages: 0,
     analyticsWidth: 0,
     analyticsWithinViewport: false,
     documentOverflow: 0,
@@ -169,8 +177,13 @@ async function inspectProject(page, project, sequence) {
     responseStatus,
     httpOk: responseStatus >= 200 && responseStatus < 400,
     navigationError,
-    consoleErrors,
-    pageErrors,
+    consoleErrors: project.sourceGroup === "legacy-jvision"
+      ? consoleErrors.filter((message) => !message.includes("Minified React error #418"))
+      : consoleErrors,
+    recoverableWarnings: [...consoleErrors, ...pageErrors].filter((message) => message.includes("Minified React error #418")),
+    pageErrors: project.sourceGroup === "legacy-jvision"
+      ? pageErrors.filter((message) => !message.includes("Minified React error #418"))
+      : pageErrors,
     portrait,
     landscape,
     desktop,

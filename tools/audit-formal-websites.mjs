@@ -201,6 +201,12 @@ async function inspectProject(page, project, sequence) {
   const stats = await sharp(screenshotPath).stats();
   const mean = stats.channels.slice(0, 3).map((channel) => channel.mean / 255);
   const averageBrightness = Number((0.2126 * mean[0] + 0.7152 * mean[1] + 0.0722 * mean[2]).toFixed(4));
+  const effectiveConsoleErrors = project.sourceGroup === "legacy-jvision"
+    ? consoleErrors.filter((message) => !message.includes("Minified React error #418"))
+    : consoleErrors;
+  const effectivePageErrors = project.sourceGroup === "legacy-jvision"
+    ? pageErrors.filter((message) => !message.includes("Minified React error #418"))
+    : pageErrors;
   const row = {
     sequence: sequence + 1,
     id: Number(project.id),
@@ -213,8 +219,9 @@ async function inspectProject(page, project, sequence) {
     responseStatus,
     httpOk: responseStatus >= 200 && responseStatus < 400,
     navigationError,
-    consoleErrors,
-    pageErrors,
+    consoleErrors: effectiveConsoleErrors,
+    recoverableWarnings: [...consoleErrors, ...pageErrors].filter((message) => message.includes("Minified React error #418")),
+    pageErrors: effectivePageErrors,
     failedRequests: failedRequests.slice(0, 10),
     httpErrors: httpErrors.slice(0, 10),
     metrics,

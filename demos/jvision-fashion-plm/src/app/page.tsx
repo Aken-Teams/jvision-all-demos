@@ -60,13 +60,13 @@ export default function Home() {
           <div className="preview-board">
             <article className="main-preview">
               <span>SS26 Collection</span>
-              <strong>32 款式開發中</strong>
-              <p>打樣完成率 68%，物料風險 5 筆，預估上市時間縮短 30%。</p>
+              <strong>32 款商品進行打樣與量產準備</strong>
+              <p>本季商品準備度 68%，物料風險 5 筆，預估上市時間縮短 30%。</p>
             </article>
-            <article><span>款式資料</span><strong>32</strong></article>
+            <article><span>本季商品款式</span><strong>32</strong></article>
             <article><span>物料風險</span><strong>5</strong></article>
             <article><span>雲端檔案</span><strong>128</strong></article>
-            <article><span>開發完成率</span><strong>68%</strong></article>
+            <article><span>上市準備度</span><strong>68%</strong></article>
           </div>
         </div>
       </section>

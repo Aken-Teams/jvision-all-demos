@@ -49,7 +49,7 @@
 | 39 | 會員分眾推播所 (jvision-ai-case-039-member-segmentation) | 通過 |  |
 | 40 | 門市營收異常儀 (jvision-ai-case-040-daily-store-revenue) | 通過 |  |
 | 41 | 診所營運照護艙 (jvision-ai-case-041-clinic-emr-billing) | 通過 |  |
-| 42 | 牙科術後關懷站 (jvision-ai-case-042-dental-followup) | 通過 |  |
+| 42 | 牙科術後主動聯繫站 (jvision-ai-case-042-dental-followup) | 通過 |  |
 | 43 | 藥局調劑申報台 (jvision-ai-case-043-pharmacy-claim) | 通過 |  |
 | 44 | 長照個案守護所 (jvision-ai-case-044-long-term-care) | 通過 |  |
 | 45 | 居家照護派工站 (jvision-ai-case-045-home-care-dispatch) | 通過 |  |
@@ -321,7 +321,7 @@
 | 311 | 產線人力需求預測系統（Workforce Demand Forecasting） (jvision-smart-mfg-211-workforce-demand-forecasting) | 通過 |  |
 | 312 | 勞動法規合規管理系統（Labor Compliance Management） (jvision-smart-mfg-212-labor-compliance-management) | 通過 |  |
 | 313 | 職業安全衛生管理系統（EHS, Environment, Health & Safety） (jvision-smart-mfg-213-ehs-environment-health-safety) | 通過 |  |
-| 314 | 員工關懷與離職預警系統（AI Attrition Prediction） (jvision-smart-mfg-214-ai-attrition-prediction) | 通過 |  |
+| 314 | 員工留任與離職預警系統（AI Attrition Prediction） (jvision-smart-mfg-214-ai-attrition-prediction) | 通過 |  |
 | 315 | 員工宿舍管理系統（Dormitory Management） (jvision-smart-mfg-215-dormitory-management) | 通過 |  |
 | 316 | 獎懲考核管理系統（Rewards & Disciplinary Management） (jvision-smart-mfg-216-rewards-disciplinary-management) | 通過 |  |
 | 317 | 組織圖與職位管理系統（Org Chart & Position Management） (jvision-smart-mfg-217-org-chart-position-management) | 通過 |  |

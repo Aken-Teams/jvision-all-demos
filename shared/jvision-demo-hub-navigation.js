@@ -30,15 +30,28 @@
     document.body.prepend(bar);
   }
 
-  // Mount as soon as the document is ready. Some preserved pages reference
-  // remote images or scripts whose load event may be slow or never arrive;
-  // waiting for the full load event would leave the return control missing.
   const scheduleMount = () => window.requestAnimationFrame(mount);
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", scheduleMount, { once: true });
-  } else {
+  const scheduleAfterHydration = () => {
+    // Preserved Next.js exports hydrate their server-rendered body after
+    // DOMContentLoaded. Prepending the Hub bar before hydration changes the
+    // expected root HTML and triggers React error #418, so wait until the
+    // page load boundary and one paint before mounting the external control.
+    if (document.body?.classList.contains("jvision-next-legacy")) {
+      if (document.readyState === "complete") {
+        window.setTimeout(scheduleMount, 120);
+      } else {
+        window.addEventListener("load", () => window.setTimeout(scheduleMount, 120), { once: true });
+      }
+      // Remote assets can keep `load` pending; this delayed, idempotent fallback
+      // keeps the navigation available without racing normal hydration.
+      window.setTimeout(scheduleMount, 2400);
+      return;
+    }
     scheduleMount();
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", scheduleAfterHydration, { once: true });
+  } else {
+    scheduleAfterHydration();
   }
-  // Idempotent fallback for unusual legacy documents that replace body content.
-  window.setTimeout(mount, 1200);
 })();

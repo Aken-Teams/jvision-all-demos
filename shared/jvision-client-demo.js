@@ -249,7 +249,7 @@
       const embedded = document.querySelector("#jvision-client-demo-project");
       let project = projectMeta || (embedded ? JSON.parse(embedded.textContent) : null);
       if (!project) {
-        const response = await fetch("../../projects-index.json");
+        const response = await fetch("../../projects-index.json?v=20260730-2");
         const catalog = await response.json();
         project = catalog.projects?.find(item => item.repoName === slug);
       }
@@ -284,6 +284,7 @@
     } catch {}
   }
   if (!config || document.querySelector(".jv-client-demo")) return;
+  if (slug === "jvision-property-management" && document.querySelector(".property-demo")) return;
   if (document.readyState !== "complete") {
     await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
   }
@@ -293,12 +294,10 @@
     mountOee();
     return;
   }
-  const dedicatedCategories = new Set([
-    "宗教服務","醫療照護","教育","餐飲旅宿","倉儲物流","營建工程",
-    "業務銷售","生產製造","品質管理","採購供應鏈","人力資源","財務會計"
-  ]);
-  if (projectMeta && dedicatedCategories.has(projectMeta.category)) {
-    const { mountDomainOperations } = await import("../../shared/jvision-domain-operations.js?v=20260727-8");
+  if (projectMeta) {
+    const { mountCustomerShowcase } = await import("../../shared/jvision-customer-showcase.js?v=20260730-13");
+    if (mountCustomerShowcase({ project: projectMeta, slug })) return;
+    const { mountDomainOperations } = await import("../../shared/jvision-domain-operations.js?v=20260730-11");
     mountDomainOperations({ project: projectMeta, slug });
     return;
   }

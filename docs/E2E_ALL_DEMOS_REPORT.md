@@ -1,80 +1,80 @@
 # JVision 464 專案 E2E 測試報告
 
-- 測試時間：2026-07-27T04:32:25.000Z
-- 通過：464 / 464
-- 失敗：0 / 464
-- 路由正常：464 / 464
-- 互動操作正常：464 / 464
-- 完全無瀏覽器錯誤：406 / 464
-- 舊版靜態輸出 hydration 警告：58 / 464
-- 手機版無明顯水平溢位：464 / 464
+- 測試時間：2026-07-29T08:24:23.341Z
+- 通過：463 / 463
+- 失敗：0 / 463
+- 路由正常：463 / 463
+- 互動操作正常：463 / 463
+- 完全無瀏覽器錯誤：407 / 463
+- 舊版靜態輸出 hydration 警告：56 / 463
+- 手機版無明顯水平溢位：463 / 463
 
 React #418 僅在內容、互動、HTTP 與版面均通過時列為舊版靜態輸出警告，原始訊息仍保留於 JSON 報告。
 
 | # | 專案 | 結果 | HTTP | 互動 | 手機溢位 | 原因 |
 |---:|---|---|---:|---|---:|---|
-| 1 | Production Order (jvision-production-order) | 通過 | 200 | 通過 | 0px |  |
-| 2 | CRM (jvision-crm) | 通過 | 200 | 通過 | 0px |  |
-| 3 | Construction (jvision-construction) | 通過 | 200 | 通過 | 0px |  |
-| 4 | Bizbooks (jvision-bizbooks) | 通過 | 200 | 通過 | 0px |  |
-| 5 | Attendance (jvision-attendance) | 通過 | 200 | 通過 | 0px |  |
-| 6 | Course Tools (jvision-course-tools) | 通過 | 200 | 通過 | 0px |  |
-| 7 | Legalops (jvision-legalops) | 通過 | 200 | 通過 | 0px |  |
-| 8 | Car Cloud (jvision-car-cloud) | 通過 | 200 | 通過 | 0px |  |
-| 9 | Personal Finance (jvision-personal-finance) | 通過 | 200 | 通過 | 0px |  |
-| 10 | TMS (jvision-tms) | 通過 | 200 | 通過 | 0px |  |
-| 11 | Construction ERP (jvision-construction-erp) | 通過 | 200 | 通過 | 0px |  |
-| 12 | Hospitality (jvision-hospitality) | 通過 | 200 | 通過 | 0px |  |
-| 13 | Property Management (jvision-property-management) | 通過 | 200 | 通過 | 0px |  |
-| 14 | Course Platform (jvision-course-platform) | 通過 | 200 | 通過 | 0px |  |
-| 15 | Ecare (jvision-ecare) | 通過 | 200 | 通過 | 0px |  |
-| 16 | Clinic (jvision-clinic) | 通過 | 200 | 通過 | 0px |  |
-| 17 | Store Design (jvision-store-design) | 通過 | 200 | 通過 | 0px |  |
-| 18 | Smart POS (jvision-smart-pos) | 通過 | 200 | 通過 | 0px |  |
-| 19 | POS (jvision-pos) | 通過 | 200 | 通過 | 0px |  |
-| 20 | Work Management (jvision-work-management) | 通過 | 200 | 通過 | 0px |  |
-| 21 | AI Workspace (jvision-ai-workspace) | 通過 | 200 | 通過 | 0px |  |
-| 22 | Office Automation (jvision-office-automation) | 通過 | 200 | 通過 | 0px |  |
-| 23 | BI Analytics (jvision-bi-analytics) | 通過 | 200 | 通過 | 0px |  |
-| 24 | Carbon Inventory (jvision-carbon-inventory) | 通過 | 200 | 通過 | 0px |  |
-| 25 | EMS (jvision-ems) | 通過 | 200 | 通過 | 0px |  |
-| 26 | SRM (jvision-srm) | 通過 | 200 | 通過 | 0px |  |
-| 27 | SQM (jvision-sqm) | 通過 | 200 | 通過 | 0px |  |
-| 28 | Dental Assistant (jvision-dental-assistant) | 通過 | 200 | 通過 | 0px |  |
-| 29 | Pet Booking (jvision-pet-booking) | 通過 | 200 | 通過 | 0px |  |
-| 30 | Education Care (jvision-education-care) | 通過 | 200 | 通過 | 0px |  |
-| 31 | Pharmacy Claim (jvision-pharmacy-claim) | 通過 | 200 | 通過 | 0px |  |
-| 32 | Staff Dispatch (jvision-staff-dispatch) | 通過 | 200 | 通過 | 0px |  |
-| 33 | Optical Saas (jvision-optical-saas) | 通過 | 200 | 通過 | 0px |  |
-| 34 | Motorcycle Shop (jvision-motorcycle-shop) | 通過 | 200 | 通過 | 0px |  |
-| 35 | Estimate Pmis (jvision-estimate-pmis) | 通過 | 200 | 通過 | 0px |  |
-| 36 | Laundry POS (jvision-laundry-pos) | 通過 | 200 | 通過 | 0px |  |
-| 37 | Smart Parking (jvision-smart-parking) | 通過 | 200 | 通過 | 0px |  |
-| 38 | Bakery POS (jvision-bakery-pos) | 通過 | 200 | 通過 | 0px |  |
-| 39 | Printing ERP (jvision-printing-erp) | 通過 | 200 | 通過 | 0px |  |
-| 40 | Trading ERP (jvision-trading-erp) | 通過 | 200 | 通過 | 0px |  |
-| 41 | Inventory (jvision-inventory) | 通過 | 200 | 通過 | 0px |  |
-| 42 | Maintenance (jvision-maintenance) | 通過 | 200 | 通過 | 0px |  |
-| 43 | Self Care Platform (jvision-self-care-platform) | 通過 | 200 | 通過 | 0px |  |
-| 44 | Event Wedding (jvision-event-wedding) | 通過 | 200 | 通過 | 0px |  |
-| 45 | Customer Support Platform (jvision-customer-support-platform) | 通過 | 200 | 通過 | 0px |  |
-| 46 | HRIS (jvision-hris) | 通過 | 200 | 通過 | 0px |  |
-| 47 | Work Project Suite (jvision-work-project-suite) | 通過 | 200 | 通過 | 0px |  |
-| 48 | Equipment Maintenance Suite (jvision-equipment-maintenance-suite) | 通過 | 200 | 通過 | 0px |  |
-| 49 | Construction Management Suite (jvision-construction-management-suite) | 通過 | 200 | 通過 | 0px |  |
-| 50 | Course Learning Suite (jvision-course-learning-suite) | 通過 | 200 | 通過 | 0px |  |
-| 51 | ESG Energy Carbon (jvision-esg-energy-carbon) | 通過 | 200 | 通過 | 0px |  |
-| 52 | Interior Design Studio (jvision-interior-design-studio) | 通過 | 200 | 通過 | 0px |  |
-| 53 | Fashion Plm (jvision-fashion-plm) | 通過 | 200 | 通過 | 0px |  |
-| 54 | Sign Shop Management (jvision-sign-shop-management) | 通過 | 200 | 通過 | 0px |  |
-| 55 | Towing Dispatch (jvision-towing-dispatch) | 通過 | 200 | 通過 | 0px |  |
-| 56 | Auto Glass Ops (jvision-auto-glass-ops) | 通過 | 200 | 通過 | 0px |  |
-| 57 | Claims Management (jvision-claims-management) | 通過 | 200 | 通過 | 0px |  |
-| 58 | Order Inventory (jvision-order-inventory) | 通過 | 200 | 通過 | 0px |  |
-| 59 | Lean Demo (jvision-lean-demo) | 通過 | 200 | 通過 | 0px |  |
-| 60 | Work Order Demo (jvision-work-order-demo) | 通過 | 200 | 通過 | 0px |  |
-| 61 | Demo (jvision-demo) | 通過 | 200 | 通過 | 0px |  |
-| 62 | Task Demo (jvision-task-demo) | 通過 | 200 | 通過 | 0px |  |
+| 1 | 生產工單管理 (jvision-production-order) | 通過 | 200 | 通過 | 0px |  |
+| 2 | 客戶關係管理 CRM (jvision-crm) | 通過 | 200 | 通過 | 0px |  |
+| 3 | 營建專案管理 (jvision-construction) | 通過 | 200 | 通過 | 0px |  |
+| 4 | 企業財務記帳 (jvision-bizbooks) | 通過 | 200 | 通過 | 0px |  |
+| 5 | 出勤差勤管理 (jvision-attendance) | 通過 | 200 | 通過 | 0px |  |
+| 6 | 課程教學工具 (jvision-course-tools) | 通過 | 200 | 通過 | 0px |  |
+| 7 | 法務案件管理 (jvision-legalops) | 通過 | 200 | 通過 | 0px |  |
+| 8 | 車聯網營運平台 (jvision-car-cloud) | 通過 | 200 | 通過 | 0px |  |
+| 9 | 個人財務管理 (jvision-personal-finance) | 通過 | 200 | 通過 | 0px |  |
+| 10 | 運輸管理 TMS (jvision-tms) | 通過 | 200 | 通過 | 0px |  |
+| 11 | 營建工程 ERP (jvision-construction-erp) | 通過 | 200 | 通過 | 0px |  |
+| 12 | 旅宿營運管理 (jvision-hospitality) | 通過 | 200 | 通過 | 0px |  |
+| 13 | 物業管理 (jvision-property-management) | 通過 | 200 | 通過 | 0px |  |
+| 14 | 線上課程平台 (jvision-course-platform) | 通過 | 200 | 通過 | 0px |  |
+| 15 | 照護服務管理 (jvision-ecare) | 通過 | 200 | 通過 | 0px |  |
+| 16 | 診所營運管理 (jvision-clinic) | 通過 | 200 | 通過 | 0px |  |
+| 17 | 門市空間設計管理 (jvision-store-design) | 通過 | 200 | 通過 | 0px |  |
+| 18 | 智慧門市 POS (jvision-smart-pos) | 通過 | 200 | 通過 | 0px |  |
+| 19 | 門市銷售 POS (jvision-pos) | 通過 | 200 | 通過 | 0px |  |
+| 20 | 工作協作管理 (jvision-work-management) | 通過 | 200 | 通過 | 0px |  |
+| 21 | AI 協作工作台 (jvision-ai-workspace) | 通過 | 200 | 通過 | 0px |  |
+| 22 | 辦公流程自動化 (jvision-office-automation) | 通過 | 200 | 通過 | 0px |  |
+| 23 | 商業智慧分析 BI (jvision-bi-analytics) | 通過 | 200 | 通過 | 0px |  |
+| 24 | 組織碳盤查 (jvision-carbon-inventory) | 通過 | 200 | 通過 | 0px |  |
+| 25 | 能源管理 EMS (jvision-ems) | 通過 | 200 | 通過 | 0px |  |
+| 26 | 供應商關係管理 SRM (jvision-srm) | 通過 | 200 | 通過 | 0px |  |
+| 27 | 供應商品質管理 SQM (jvision-sqm) | 通過 | 200 | 通過 | 0px |  |
+| 28 | 牙科診療助理 (jvision-dental-assistant) | 通過 | 200 | 通過 | 0px |  |
+| 29 | 寵物服務預約 (jvision-pet-booking) | 通過 | 200 | 通過 | 0px |  |
+| 30 | 學生學習支持平台 (jvision-education-care) | 通過 | 200 | 通過 | 0px |  |
+| 31 | 藥局申報管理 (jvision-pharmacy-claim) | 通過 | 200 | 通過 | 0px |  |
+| 32 | 人力派遣管理 (jvision-staff-dispatch) | 通過 | 200 | 通過 | 0px |  |
+| 33 | 眼鏡門市管理 (jvision-optical-saas) | 通過 | 200 | 通過 | 0px |  |
+| 34 | 機車行營運管理 (jvision-motorcycle-shop) | 通過 | 200 | 通過 | 0px |  |
+| 35 | 工程估價與專案管理 (jvision-estimate-pmis) | 通過 | 200 | 通過 | 0px |  |
+| 36 | 洗衣門市 POS (jvision-laundry-pos) | 通過 | 200 | 通過 | 0px |  |
+| 37 | 智慧停車管理 (jvision-smart-parking) | 通過 | 200 | 通過 | 0px |  |
+| 38 | 烘焙門市 POS (jvision-bakery-pos) | 通過 | 200 | 通過 | 0px |  |
+| 39 | 印刷產業 ERP (jvision-printing-erp) | 通過 | 200 | 通過 | 0px |  |
+| 40 | 貿易營運 ERP (jvision-trading-erp) | 通過 | 200 | 通過 | 0px |  |
+| 41 | 商品庫存管理 (jvision-inventory) | 通過 | 200 | 通過 | 0px |  |
+| 42 | 設備維護管理 (jvision-maintenance) | 通過 | 200 | 通過 | 0px |  |
+| 43 | 健康自主管理平台 (jvision-self-care-platform) | 通過 | 200 | 通過 | 0px |  |
+| 44 | 活動婚禮專案管理 (jvision-event-wedding) | 通過 | 200 | 通過 | 0px |  |
+| 45 | 客戶服務平台 (jvision-customer-support-platform) | 通過 | 200 | 通過 | 0px |  |
+| 46 | 人力資源資訊系統 HRIS (jvision-hris) | 通過 | 200 | 通過 | 0px |  |
+| 47 | 工作與專案協作套件 (jvision-work-project-suite) | 通過 | 200 | 通過 | 0px |  |
+| 48 | 設備維護管理套件 (jvision-equipment-maintenance-suite) | 通過 | 200 | 通過 | 0px |  |
+| 49 | 營建專案管理套件 (jvision-construction-management-suite) | 通過 | 200 | 通過 | 0px |  |
+| 50 | 課程與學習管理套件 (jvision-course-learning-suite) | 通過 | 200 | 通過 | 0px |  |
+| 51 | 能源與碳排管理 (jvision-esg-energy-carbon) | 通過 | 200 | 通過 | 0px |  |
+| 52 | 室內設計專案管理 (jvision-interior-design-studio) | 通過 | 200 | 通過 | 0px |  |
+| 53 | 服飾產品生命週期管理 PLM (jvision-fashion-plm) | 通過 | 200 | 通過 | 0px |  |
+| 54 | 廣告招牌業務管理 (jvision-sign-shop-management) | 通過 | 200 | 通過 | 0px |  |
+| 55 | 道路救援調度 (jvision-towing-dispatch) | 通過 | 200 | 通過 | 0px |  |
+| 56 | 汽車玻璃服務管理 (jvision-auto-glass-ops) | 通過 | 200 | 通過 | 0px |  |
+| 57 | 保險理賠管理 (jvision-claims-management) | 通過 | 200 | 通過 | 0px |  |
+| 58 | 訂單與庫存管理 (jvision-order-inventory) | 通過 | 200 | 通過 | 0px |  |
+| 59 | 精實生產改善 (jvision-lean-demo) | 通過 | 200 | 通過 | 0px |  |
+| 60 | 維修工單管理 (jvision-work-order-demo) | 通過 | 200 | 通過 | 0px |  |
+| 61 | 企業協作示範系統 (jvision-demo) | 通過 | 200 | 通過 | 0px |  |
+| 62 | 團隊任務管理 (jvision-task-demo) | 通過 | 200 | 通過 | 0px |  |
 | 63 | 產線智排中心 (jvision-ai-case-001-production-scheduler) | 通過 | 200 | 通過 | 0px |  |
 | 64 | 工單派工雷達 (jvision-ai-case-002-work-order-dispatch) | 通過 | 200 | 通過 | 0px |  |
 | 65 | 設備預兆管家 (jvision-ai-case-003-predictive-maintenance) | 通過 | 200 | 通過 | 0px |  |
@@ -116,7 +116,7 @@ React #418 僅在內容、互動、HTTP 與版面均通過時列為舊版靜態�
 | 101 | 會員分眾推播所 (jvision-ai-case-039-member-segmentation) | 通過 | 200 | 通過 | 0px |  |
 | 102 | 門市營收異常儀 (jvision-ai-case-040-daily-store-revenue) | 通過 | 200 | 通過 | 0px |  |
 | 103 | 診所營運照護艙 (jvision-ai-case-041-clinic-emr-billing) | 通過 | 200 | 通過 | 0px |  |
-| 104 | 牙科術後關懷站 (jvision-ai-case-042-dental-followup) | 通過 | 200 | 通過 | 0px |  |
+| 104 | 牙科術後主動聯繫站 (jvision-ai-case-042-dental-followup) | 通過 | 200 | 通過 | 0px |  |
 | 105 | 藥局調劑申報台 (jvision-ai-case-043-pharmacy-claim) | 通過 | 200 | 通過 | 0px |  |
 | 106 | 長照個案守護所 (jvision-ai-case-044-long-term-care) | 通過 | 200 | 通過 | 0px |  |
 | 107 | 居家照護派工站 (jvision-ai-case-045-home-care-dispatch) | 通過 | 200 | 通過 | 0px |  |
@@ -388,7 +388,7 @@ React #418 僅在內容、互動、HTTP 與版面均通過時列為舊版靜態�
 | 373 | 產線人力需求預測系統（Workforce Demand Forecasting） (jvision-smart-mfg-211-workforce-demand-forecasting) | 通過 | 200 | 通過 | 0px |  |
 | 374 | 勞動法規合規管理系統（Labor Compliance Management） (jvision-smart-mfg-212-labor-compliance-management) | 通過 | 200 | 通過 | 0px |  |
 | 375 | 職業安全衛生管理系統（EHS, Environment, Health & Safety） (jvision-smart-mfg-213-ehs-environment-health-safety) | 通過 | 200 | 通過 | 0px |  |
-| 376 | 員工關懷與離職預警系統（AI Attrition Prediction） (jvision-smart-mfg-214-ai-attrition-prediction) | 通過 | 200 | 通過 | 0px |  |
+| 376 | 員工留任與離職預警系統（AI Attrition Prediction） (jvision-smart-mfg-214-ai-attrition-prediction) | 通過 | 200 | 通過 | 0px |  |
 | 377 | 員工宿舍管理系統（Dormitory Management） (jvision-smart-mfg-215-dormitory-management) | 通過 | 200 | 通過 | 0px |  |
 | 378 | 獎懲考核管理系統（Rewards & Disciplinary Management） (jvision-smart-mfg-216-rewards-disciplinary-management) | 通過 | 200 | 通過 | 0px |  |
 | 379 | 組織圖與職位管理系統（Org Chart & Position Management） (jvision-smart-mfg-217-org-chart-position-management) | 通過 | 200 | 通過 | 0px |  |
@@ -475,5 +475,4 @@ React #418 僅在內容、互動、HTTP 與版面均通過時列為舊版靜態�
 | 460 | 稽核管理系統 (jvision-smart-mfg-298-system-298) | 通過 | 200 | 通過 | 0px |  |
 | 461 | 集團關係企業管理系統 (jvision-smart-mfg-299-system-299) | 通過 | 200 | 通過 | 0px |  |
 | 462 | 經營情報與競爭分析系統 (jvision-smart-mfg-300-system-300) | 通過 | 200 | 通過 | 0px |  |
-| 463 | Showcase Vercel (jvision-showcase-vercel) | 通過 | 200 | 通過 | 0px |  |
-| 464 | Temple Management (jvision-temple-management) | 通過 | 200 | 通過 | 0px |  |
+| 463 | 宮廟信眾與服務管理 (jvision-temple-management) | 通過 | 200 | 通過 | 0px |  |

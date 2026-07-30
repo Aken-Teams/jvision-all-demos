@@ -7,7 +7,7 @@ const repoRoot = path.resolve(toolDir, "..");
 const demosRoot = path.join(repoRoot, "demos");
 const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, "projects-index.json"), "utf8"));
 const marker = "jv-demo-hub-link";
-const version = "20260724";
+const version = "20260729-1";
 const runtimeMarker = "jvision-demo-hub-navigation.js";
 const runtimeScript = `<script src="../../shared/jvision-demo-hub-navigation.js?v=${version}" defer></script>`;
 const legacyStyle = /\s*<style\s+id=(['"])jv-demo-hub-navigation-[^'"]*\1[^>]*>[\s\S]*?<\/style>\s*/gi;

@@ -1,8 +1,22 @@
 # JVision All Demos — Task Queue
 
-Last updated: 2026-07-27
+Last updated: 2026-07-30
 
 ## Now
+
+- [x] Differentiate every industry's project introductions, situations, daily use and customer workflow by the project's actual operating subject.
+- [x] Add project-level customer workflow metadata to the canonical catalog and propagate it into all static Demo routes.
+- [x] Revalidate all 463 project stories, outputs, semantic workflows, process blueprints, business realism and responsive layouts.
+- [x] Define responsible roles, required inputs, stage actions, approval conditions and outputs for every project workflow.
+- [x] Surface process-governance rules in the operational UI and generated result documents.
+- [x] Add a repeatable 463-project process-blueprint completeness audit.
+
+- [x] Replace all generic customer workflow fallbacks with category-specific operational flows.
+- [x] Differentiate same-category projects with project-specific scenarios, records and operational metrics.
+- [x] Add validated create/edit interactions and explicit workflow completion feedback.
+- [x] Localise all preserved legacy project titles for the public catalog.
+- [x] Revalidate all 464 projects for routes, desktop/mobile content, one safe interaction and responsive overflow.
+- [x] Update acceptance rules so projects without generic analytics are judged by their functional operational workflow.
 
 - [x] Add and run repeatable desktop/mobile E2E coverage for all 464 project routes.
 - [x] Add a repeatable original-interface button-response audit and verify all 64 preserved interfaces.
@@ -20,7 +34,11 @@ Last updated: 2026-07-27
 
 ## Next
 
-- [ ] Add human-readable catalog titles and search aliases for repository-slug-only projects, prioritising the 400 smart-manufacturing projects.
+- [x] Replace category-template copy with purpose-specific content across all 463 projects.
+- [x] Add automated same-industry description-similarity regression coverage.
+- [x] Differentiate all 39 sales project descriptions and customer workflows by actual business purpose.
+
+- [x] Add human-readable catalog titles for preserved repository-slug-only projects.
 - [ ] Run targeted remediation for any project newly flagged by `audit:formal-sites`, `audit:mobile-analytics` or `test:project-expert`.
 - [ ] Define the self-hosted release runbook once the production host and process are confirmed.
 

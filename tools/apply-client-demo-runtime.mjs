@@ -3,8 +3,8 @@ import path from "node:path";
 
 const root = process.cwd();
 const catalog = JSON.parse(fs.readFileSync(path.join(root, "projects-index.json"), "utf8"));
-const cssTag = '<link rel="stylesheet" href="../../shared/jvision-client-demo.css?v=20260724-3" />';
-const scriptTag = '<script src="../../shared/jvision-client-demo.js?v=20260724-3" defer></script>';
+const cssTag = '<link rel="stylesheet" href="../../shared/jvision-client-demo.css?v=20260730-16" />';
+const scriptTag = '<script src="../../shared/jvision-client-demo.js?v=20260730-24" defer></script>';
 const rows = [];
 
 for (const project of catalog.projects || []) {
@@ -36,7 +36,8 @@ for (const project of catalog.projects || []) {
     description: project.description,
     businessSituation: project.businessSituation,
     dailyUse: project.dailyUse,
-    operationalMetrics: project.operationalMetrics
+    operationalMetrics: project.operationalMetrics,
+    customerWorkflow: project.customerWorkflow
   }).replaceAll("<", "\\u003c");
   const metadataTag = `<script type="application/json" id="jvision-client-demo-project">${embeddedProject}</script>`;
   html = `${html.slice(0, updatedBodyClose)}  ${metadataTag}\n  ${scriptTag}\n${html.slice(updatedBodyClose)}`;

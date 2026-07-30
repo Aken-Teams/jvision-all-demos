@@ -1,4 +1,4 @@
-import { PropertyDemo } from "@/components/property-demo";
+import { PropertyDemo } from "../components/property-demo";
 
 const features = [
   ["房源集中管理", "整合物件、房型、房號、租金、狀態與出租率，快速掌握整體資產。"],

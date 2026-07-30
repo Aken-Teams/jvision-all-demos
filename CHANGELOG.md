@@ -1,5 +1,77 @@
 # Changelog
 
+## 2026-07-30 — Temple thumbnail and property classification
+
+- Corrected the Temple Management thumbnail sequence after the catalog changed from 464 to 463 projects.
+- Verified all 463 expected catalog thumbnails exist and load successfully.
+- Reclassified Property Management from `企業營運` to `房地產與物業`.
+- Replaced stale `既有系統 / 舊專案` industry metadata with each project's actual category.
+
+## 2026-07-30 — Consistent catalog card heights
+
+- Reserved two lines for desktop project titles and four lines for descriptions so longer copy no longer changes card height.
+- Kept natural text height on mobile where cards are displayed in a single column.
+- Browser verification confirmed equal heights within catalog rows, no console errors and no horizontal overflow.
+- Full RWD verification passed 463/463 Demo routes and all three Hub viewports.
+
+## 2026-07-30 — Portfolio-wide purpose-specific content
+
+- Replaced category-template descriptions across all 463 projects with project-purpose content.
+- Restored 299 generated systems from their original functions, departments, pain points, workflows, integrations and KPIs.
+- Restored 157 projects from their own product descriptions and rebuilt matching actions, inputs and outputs.
+- Added manually authored operational definitions for seven projects whose source pages lacked usable metadata or needed a semantic workflow correction.
+- Added a same-industry description-similarity audit; high-similarity pairs dropped from 1,553 to 0.
+- Passed 463/463 showcase, semantic-workflow, process-blueprint, business-realism and responsive-layout verification.
+
+## 2026-07-30 — Sales project differentiation
+
+- Rewrote all 39 sales project introductions, customer situations and daily-use descriptions around their actual business purpose.
+- Added distinct customer workflows for CRM, RFQ, pipeline, quotation, CPQ, credit, commissions, collections, renewal, handover and the remaining sales systems.
+- Verified 39/39 unique sales descriptions, situations, daily-use narratives and workflow definitions.
+- Passed 463/463 customer-showcase, semantic-workflow, process-blueprint, business-realism and responsive-layout checks.
+
+## 2026-07-30 — Industry-specific catalog and Demo workflows
+
+- Aligned catalog card heights per grid row so cards with longer names or descriptions no longer leave shorter neighboring cards and misaligned actions.
+- Reworked 451 non-transport projects so introductions, operating situations and daily-use descriptions are derived from each project's subject instead of a shared industry paragraph.
+- Added project-level customer workflow metadata covering the operating role, required inputs, three customer actions, decision choices and resulting business record.
+- Preserved the 10 dedicated transport workflows and differentiated two previously identical WMS catalog entries by their actual operating focus.
+- Passed 463/463 customer-showcase uniqueness, semantic workflow, process-blueprint, business-realism and responsive-layout verification.
+
+## 2026-07-30 — Workflow coverage for every project
+
+- Standardized actionable workflow coverage across all 463 projects.
+- Added explicit saved-record destinations, updated-row highlighting and latest-operation details to governed workflows.
+- Kept OEE and property management on their purpose-built multi-step operational interfaces.
+- Full workflow browser verification passed 463/463 projects.
+
+## 2026-07-30 — Actionable follow-up and closure stages
+
+- Replaced one-click stage advancement in all 400 functional-module systems with required on-screen action forms.
+- Added dedicated follow-up fields for contact method, outcome, next-contact date and handling notes.
+- Added dedicated closure fields for closure outcome, confirmer, completion date and closure notes.
+- Added repeatable browser coverage for stage-form submission and state persistence.
+
+## 2026-07-30 — Project-specific process governance
+
+- Added a process blueprint for every catalog project, covering stage ownership, required inputs, executable actions, approval and rejection rules, and expected outputs.
+- Added visible process rules to project details and operation dialogs.
+- Limited approval permissions to the actual approval stage and recorded the responsible and approving roles in generated workflow documents.
+- Added `audit:project-process-blueprints` and extended operation-dialog E2E checks to cover governance and output metadata.
+
+## 2026-07-29 — Domain-specific operations and full acceptance
+
+- Removed the Showcase Vercel entry and its single-item content-management category from the public catalog while preserving its local source for recovery.
+- Replaced 174 generic workflow fallbacks with category-specific operational workflows, leaving 463 domain workflows and one dedicated OEE workflow.
+- Added project-level differentiation inside each category using the project's scenario, daily use, metrics and customer-facing title.
+- Added validated create/edit forms, persistent detail updates, operation feedback and a clear completed-flow summary.
+- Fixed hidden forms being displayed before their related action was selected.
+- Added a narrow-screen table safeguard for preserved interfaces.
+- Localised all 64 preserved legacy catalog titles.
+- Updated mobile and Project Expert acceptance to validate an operational workflow when generic analytics are intentionally absent.
+- Refreshed all shared runtime cache keys and verified 463/463 catalog routes, desktop/mobile layouts and interactions.
+- Audited 309 original-interface buttons across 63 cataloged preserved projects with zero no-response findings.
+
 ## 2026-07-27 — Original interface action verification
 
 - Added a repeatable browser audit for visible enabled buttons in all 64 preserved original project interfaces.

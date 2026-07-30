@@ -49,7 +49,7 @@ Repository
 
 | Data | Owner / source of truth | Consumer |
 | --- | --- | --- |
-| Project ID, title, category, demo route, GitHub URL | `projects-index.json` | Hub and maintenance scripts |
+| Project ID, title, category, demo route, GitHub URL, customer workflow | `projects-index.json` | Hub, shared Demo runtime and maintenance scripts |
 | Catalog administration drafts | browser local storage | Admin center only |
 | Approved catalog administration changes | GitHub feature branch and pull request | Repository maintainers |
 | Human-readable project listing | `docs/PROJECT_INDEX.md` | Operators and reviewers |

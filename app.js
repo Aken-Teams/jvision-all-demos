@@ -20,6 +20,14 @@ const loadMore = document.querySelector("#loadMore");
 const catalogStatsBody = document.querySelector("#catalogStatsBody");
 const catalogStatsSummary = document.querySelector("#catalogStatsSummary");
 const searchResults = document.querySelector("#searchResults");
+const projectUseDialog = document.querySelector("#projectUseDialog");
+const projectUseDialogTitle = document.querySelector("#projectUseDialogTitle");
+const projectUseDialogContent = document.querySelector(".project-use-dialog-content");
+
+projectUseDialog.querySelector(".project-use-dialog-close").addEventListener("click", () => projectUseDialog.close());
+projectUseDialog.addEventListener("click", event => {
+  if (event.target === projectUseDialog) projectUseDialog.close();
+});
 
 const sourceLabels = {
   "legacy-jvision": "JV 整合專案",
@@ -280,6 +288,14 @@ function renderProjects() {
     fragment.append(card);
   }
   grid.append(fragment);
+  grid.querySelectorAll(".project-practical-detail").forEach(detail => {
+    detail.querySelector(".project-use-trigger")?.addEventListener("click", () => {
+      const card = detail.closest(".project-card");
+      projectUseDialogTitle.textContent = card.querySelector("h3")?.textContent || "專案實際用途";
+      projectUseDialogContent.replaceChildren(detail.querySelector(".practical-detail-body").cloneNode(true));
+      projectUseDialog.showModal();
+    });
+  });
   document.querySelector("#resultSummary").textContent = `找到 ${state.filtered.length} 個專案，目前顯示 ${visibleProjects.length} 個。`;
   loadMore.hidden = state.visible >= state.filtered.length || !state.filtered.length;
 }
@@ -410,7 +426,7 @@ function setupHomepageMotion() {
 }
 
 async function boot() {
-  const response = await fetch("./projects-index.json");
+  const response = await fetch("./projects-index.json?v=20260730-2");
   if (!response.ok) throw new Error("專案索引無法讀取");
   const index = await response.json();
   state.projects = index.projects

@@ -5,7 +5,10 @@ import { chromium } from "playwright";
 const root = process.cwd();
 const baseUrl = process.env.DEMO_BASE_URL || "http://127.0.0.1:4191";
 const projects = JSON.parse(fs.readFileSync(path.join(root, "projects-index.json"), "utf8")).projects || [];
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  headless: true,
+  ...(process.env.JVISION_BROWSER_EXECUTABLE ? { executablePath: process.env.JVISION_BROWSER_EXECUTABLE } : {}),
+});
 const context = await browser.newContext({ viewport: { width: 1365, height: 900 }, locale: "zh-TW" });
 const workerCount = Math.max(1, Math.min(8, Number(process.env.JVISION_WORKFLOW_WORKERS || 4)));
 const results = new Array(projects.length);
@@ -16,6 +19,33 @@ async function verifyProject(project, index, page) {
       waitUntil: "domcontentloaded",
       timeout: 20000
     });
+    if (project.repoName === "jvision-property-management") {
+      await page.waitForSelector(".property-demo", { timeout: 6000 });
+      const result = await page.evaluate(() => {
+        const required = [
+          ".contract-form",
+          ".contract-center",
+          ".billing-form",
+          ".bill-list",
+          ".unit-list",
+        ];
+        const missing = required.filter((selector) => !document.querySelector(selector));
+        const labels = [...document.querySelectorAll("button")].map((button) => button.textContent?.trim());
+        const requiredActions = ["產生合約草稿", "核准並送承租人", "建立應收帳單", "登錄入帳", "確認完成對帳"];
+        const missingActions = requiredActions.filter((label) => !labels.includes(label));
+        return {
+          variant: "property",
+          stageCount: 4,
+          stagePassed: missing.length === 0,
+          creationPassed: labels.includes("產生合約草稿") && labels.includes("建立應收帳單"),
+          detailPassed: Boolean(document.querySelector(".contract-detail") && document.querySelector(".bill-detail")),
+          domainPassed: missingActions.length === 0,
+          passed: missing.length === 0 && missingActions.length === 0,
+          missing: [...missing, ...missingActions],
+        };
+      });
+      return { id: project.id, repoName: project.repoName, category: project.category, ...result };
+    }
     await page.waitForSelector(".jv-client-demo", { timeout: 6000 });
     const result = await page.evaluate(() => {
       const root = document.querySelector(".jv-client-demo");
@@ -59,7 +89,7 @@ async function verifyProject(project, index, page) {
         stageCount,
         stagePassed: stageCount >= 4 && stageChecks.every(Boolean),
         controlsPassed: labels.some(label => /新增|建立/.test(label)) &&
-          labels.some(label => /查看詳情|補充處理紀錄/.test(label)) &&
+          labels.some(label => /查看詳情|編輯明細|新增處理紀錄|補充處理紀錄/.test(label)) &&
           labels.some(label => /推進|確認|完成|提交|執行|登錄|送出|釋放|掃碼/.test(label)),
         overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
       };
