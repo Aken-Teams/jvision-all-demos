@@ -5,7 +5,7 @@ import { getCustomerShowcaseConfig } from "../shared/jvision-customer-showcase.j
 const catalog = JSON.parse(fs.readFileSync("projects-index.json", "utf8"));
 const rows = catalog.projects.map(project => {
   const config = getCustomerShowcaseConfig(project);
-  assert.equal(config.steps.length, 3, `${project.repoName}: must have three customer actions`);
+  assert.ok(config.steps.length >= 3, `${project.repoName}: must have at least three customer actions`);
   assert.ok(config.story && config.subject && config.output, `${project.repoName}: missing customer story or output`);
   assert.ok(config.steps.every(step => step.title && step.task && step.action && step.result), `${project.repoName}: incomplete action`);
   assert.ok(config.steps.every(step => step.fields?.length || step.choices?.length), `${project.repoName}: action has no customer input`);

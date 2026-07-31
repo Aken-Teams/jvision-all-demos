@@ -295,7 +295,7 @@
     return;
   }
   if (projectMeta) {
-    const { mountCustomerShowcase } = await import("../../shared/jvision-customer-showcase.js?v=20260731-1");
+    const { mountCustomerShowcase } = await import("../../shared/jvision-customer-showcase.js?v=20260731-3");
     if (mountCustomerShowcase({ project: projectMeta, slug })) return;
     const { mountDomainOperations } = await import("../../shared/jvision-domain-operations.js?v=20260730-11");
     mountDomainOperations({ project: projectMeta, slug });

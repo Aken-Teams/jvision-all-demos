@@ -5,8 +5,9 @@ import { FormEvent, useMemo, useState } from "react";
 type ProjectStatus = "規劃中" | "施工中" | "驗收中" | "已結案";
 type Project = { id: number; name: string; owner: string; budget: number; status: ProjectStatus };
 type Purchase = { id: number; item: string; project: string; amount: number };
-type Labor = { id: number; crew: string; project: string; workers: number };
+type Labor = { id: number; crew: string; project: string; workers: number; workItem: string };
 type Quote = { id: number; title: string; project: string; amount: number; status: "草稿" | "已送出" | "已簽約" };
+type Settlement = { id: number; title: string; amount: number; status: "草稿" | "待簽核" | "已核准" | "已入帳" };
 
 const projectStatuses: ProjectStatus[] = ["規劃中", "施工中", "驗收中", "已結案"];
 
@@ -22,12 +23,14 @@ export function ConstructionErpDemo() {
     { id: 1, item: "鋼筋 SD420 12 噸", project: "青埔集合住宅 A 棟", amount: 620000 },
   ]);
   const [labors, setLabors] = useState<Labor[]>([
-    { id: 1, crew: "模板班", project: "青埔集合住宅 A 棟", workers: 18 },
+    { id: 1, crew: "模板班", project: "青埔集合住宅 A 棟", workers: 18, workItem: "8F 梁柱模板" },
   ]);
   const [quotes, setQuotes] = useState<Quote[]>([
     { id: 1, title: "南港辦公室追加隔間", project: "南港辦公室裝修", amount: 380000, status: "已送出" },
   ]);
-  const [settlements, setSettlements] = useState(["青埔集合住宅 A 棟 第 2 期請款 NT$ 1,200,000"]);
+  const [settlements, setSettlements] = useState<Settlement[]>([
+    { id: 1, title: "青埔集合住宅 A 棟第 2 期請款", amount: 1200000, status: "待簽核" },
+  ]);
 
   const kpis = useMemo(() => {
     const budget = projects.reduce((sum, project) => sum + project.budget, 0);
@@ -63,15 +66,28 @@ export function ConstructionErpDemo() {
     event.currentTarget.reset();
   }
 
-  function addLabor() {
-    setLabors((rows) => [{ id: Date.now(), crew: "泥作班", project: "南港辦公室裝修", workers: 9 }, ...rows]);
+  function addLabor(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setLabors((rows) => [{ id: Date.now(), crew: String(form.get("crew")), project: String(form.get("project")), workers: Number(form.get("workers")), workItem: String(form.get("workItem")) }, ...rows]);
+    event.currentTarget.reset();
   }
 
-  function addQuote() {
+  function addQuote(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
     setQuotes((rows) => [
-      { id: Date.now(), title: "地下室防水追加工程", project: "台中機電統包", amount: 460000, status: "草稿" },
+      { id: Date.now(), title: String(form.get("title")), project: String(form.get("project")), amount: Number(form.get("amount")), status: "草稿" },
       ...rows,
     ]);
+    event.currentTarget.reset();
+  }
+
+  function addSettlement(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setSettlements((rows) => [{ id: Date.now(), title: String(form.get("title")), amount: Number(form.get("amount")), status: "草稿" }, ...rows]);
+    event.currentTarget.reset();
   }
 
   return (
@@ -84,9 +100,7 @@ export function ConstructionErpDemo() {
           <p>
             進行中 {kpis.active} 案，已掛帳成本 NT$ {kpis.cost.toLocaleString("zh-TW")}，報價中 NT$ {kpis.quoteTotal.toLocaleString("zh-TW")}
           </p>
-          <button type="button" onClick={() => setSettlements((rows) => [`${new Date().toLocaleTimeString("zh-TW")} 新增請款結算 NT$ 880,000`, ...rows])}>
-            新增結算
-          </button>
+          <a href="#finance-workspace">前往請款工作區</a>
         </div>
       </aside>
 
@@ -152,13 +166,17 @@ export function ConstructionErpDemo() {
             <h3>出工紀錄</h3>
             <span>Labor</span>
           </div>
-          <button className="primary-action" type="button" onClick={addLabor}>
-            新增出工
-          </button>
+          <form className="property-form" onSubmit={addLabor}>
+            <input name="crew" required placeholder="工班名稱" />
+            <input name="project" required placeholder="歸屬工程" />
+            <input name="workers" required type="number" min="1" placeholder="出工人數" />
+            <input name="workItem" required placeholder="施工項目" />
+            <button type="submit">新增出工</button>
+          </form>
           <div className="tag-list">
             {labors.map((row) => (
               <span key={row.id}>
-                {row.crew} · {row.project} · {row.workers} 人
+                {row.crew} · {row.project} · {row.workers} 人 · {row.workItem}
               </span>
             ))}
           </div>
@@ -169,9 +187,12 @@ export function ConstructionErpDemo() {
             <h3>報價與合約</h3>
             <span>Quotes</span>
           </div>
-          <button className="primary-action" type="button" onClick={addQuote}>
-            新增報價單
-          </button>
+          <form className="property-form" onSubmit={addQuote}>
+            <input name="title" required placeholder="報價／追加項目" />
+            <input name="project" required placeholder="歸屬工程" />
+            <input name="amount" required type="number" min="1" placeholder="報價金額" />
+            <button type="submit">新增報價單</button>
+          </form>
           <div className="tag-list">
             {quotes.map((quote) => (
               <span key={quote.id}>
@@ -181,7 +202,7 @@ export function ConstructionErpDemo() {
           </div>
         </section>
 
-        <section className="demo-panel analytics-panel">
+        <section className="demo-panel analytics-panel" id="finance-workspace">
           <div className="panel-heading">
             <h3>成本與請款</h3>
             <span>Finance</span>
@@ -204,9 +225,20 @@ export function ConstructionErpDemo() {
               <strong>{kpis.active}</strong>
             </div>
           </div>
-          <div className="tag-list">
+          <form className="property-form" onSubmit={addSettlement}>
+            <input name="title" required placeholder="請款期別／計價主旨" />
+            <input name="amount" required type="number" min="1" placeholder="申請金額" />
+            <button type="submit">建立請款單</button>
+          </form>
+          <div className="settlement-list">
             {settlements.map((row) => (
-              <span key={row}>{row}</span>
+              <article key={row.id}>
+                <div><strong>{row.title}</strong><span>NT$ {row.amount.toLocaleString("zh-TW")}</span></div>
+                <b>{row.status}</b>
+                <button type="button" onClick={() => setSettlements((rows) => rows.map((item) => item.id === row.id ? { ...item, status: item.status === "草稿" ? "待簽核" : item.status === "待簽核" ? "已核准" : "已入帳" } : item))}>
+                  {row.status === "草稿" ? "送出簽核" : row.status === "待簽核" ? "主管核准" : row.status === "已核准" ? "確認入帳" : "已完成"}
+                </button>
+              </article>
             ))}
           </div>
         </section>

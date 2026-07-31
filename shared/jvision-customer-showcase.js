@@ -35,6 +35,19 @@ const showcases = {
     ],
     output:"出勤補登核准紀錄 AT-0729-203"
   },
+  "jvision-smart-mfg-223-accounts-receivable-ar-system": {
+    eyebrow:"應收帳款催收與核銷情境",
+    title:"完成一筆逾期應收款的催收、收款與沖帳",
+    story:"客戶「東岳零售」的發票已逾期 18 天，尚有 NT$ 286,000 未收。會計人員需先確認應收與爭議原因，留下催收及承諾付款紀錄，再登錄銀行入款並完成核銷；帳齡報表會由系統隨結果自動更新。",
+    subject:"AR-2026-0724・東岳零售逾期應收",
+    steps:[
+      { title:"確認逾期應收", task:"核對發票、到期日、未收金額與客戶爭議", fields:[["發票／到期日","INV-202606-184／2026-07-12"],["未收金額／付款條件","NT$ 286,000／月結 30 天"]], action:"確認應收與逾期原因", result:"發票與出貨驗收相符；客戶因折讓單尚未收到而暫緩付款，已標記逾期 18 天。" },
+      { title:"記錄催收與付款承諾", task:"選擇聯繫方式、處理爭議並留下承諾付款日", choices:["補寄折讓單並取得 8/05 全額付款承諾","要求先付無爭議款，折讓差額後續沖銷","暫停信用額度並交由財務主管處理"], action:"保存催收紀錄", result:"已補寄折讓單，客戶承諾 8/05 全額付款；系統建立追蹤提醒並保留聯繫紀錄。" },
+      { title:"登錄銀行收款", task:"比對入款人、金額、日期與銀行交易序號", fields:[["實收金額／入款日","NT$ 286,000／2026-08-05"],["銀行交易序號","CTBC-0805-932781"]], action:"登錄收款並自動配對", result:"銀行入款已與東岳零售及發票 INV-202606-184 配對，等待會計核銷。" },
+      { title:"完成核銷與信用更新", task:"確認核銷方式、差異及客戶信用額度影響", choices:["全額核銷並恢復信用額度","部分核銷，餘額續列逾期","入款資訊不明，轉暫收款待查"], action:"確認核銷並完成入帳", result:"應收款已全額沖銷，帳齡與客戶對帳單同步更新，信用額度恢復可用。" }
+    ],
+    output:"收款核銷傳票、催收歷程與客戶對帳更新紀錄 AR-2026-0724"
+  },
   "jvision-ai-case-001-production-scheduler": {
     eyebrow:"生產排程情境",
     title:"處理缺料造成的排程衝突",
@@ -327,10 +340,10 @@ function getManufacturingProfile(project) {
   return manufacturingProfiles[key];
 }
 
-function buildGenericProjectShowcase(project) {
-  const profile = project.category === "生產製造"
+function buildGenericProjectShowcase(project, forcedProfile) {
+  const profile = forcedProfile || (project.category === "生產製造"
     ? getManufacturingProfile(project)
-    : categoryProfiles[project.category] || ["業務操作情境",["確認案件資料","選擇處理方案","完成交付與紀錄"],["依標準流程執行","調整條件後執行","退回補充資料"],["案件／負責人","需求／完成期限"],"業務處理與交付紀錄"];
+    : categoryProfiles[project.category] || ["業務操作情境",["確認案件資料","選擇處理方案","完成交付與紀錄"],["依標準流程執行","調整條件後執行","退回補充資料"],["案件／負責人","需求／完成期限"],"業務處理與交付紀錄"]);
   const [eyebrow, stepTitles, choices, fieldLabels, outputLabel] = profile;
   const metrics = Array.isArray(project.operationalMetrics) && project.operationalMetrics.length ? project.operationalMetrics : ["待處理","異常項目","完成率","待核准"];
   const quoted = [...String(project.description || "").matchAll(/「([^」]+)」/g)].map(match => match[1]);
@@ -362,7 +375,44 @@ function buildGenericProjectShowcase(project) {
   };
 }
 
+function getFinanceProfile(project) {
+  const text = `${project.repoName} ${project.title}`.toLowerCase();
+  const profiles = {
+    payable:["應付帳款付款情境",["核對請款與驗收","處理差異並排入付款","執行付款與供應商沖帳"],["三方核對一致，排入正常付款","數量或價格有差異，退回採購確認","付款條件例外，送財務主管核准"],["供應商／發票號碼","未稅金額／付款條件"],"應付核准、付款批次與供應商沖帳紀錄"],
+    receivable:["應收帳款催收情境",["確認逾期與爭議","記錄催收與付款承諾","登錄收款並完成核銷"],["取得全額付款承諾","先收無爭議款項","暫停信用額度並升級處理"],["客戶／發票號碼","未收金額／到期日"],"催收歷程、收款核銷與客戶對帳更新"],
+    ledger:["總帳過帳與關帳情境",["彙整來源單據與會計期間","編製並覆核傳票","過帳、調節並鎖定期間"],["正常過帳","退回補齊憑證或科目","建立調整分錄後過帳"],["來源單據／公司別","會計期間／借貸金額"],"核准傳票、總帳過帳與期間調節紀錄"],
+    costing:["製造成本結算情境",["確認工單實績與成本來源","計算分攤並分析差異","核准成本並完成結轉"],["接受差異並結轉","修正工時或用料後重算","重大差異轉主管覆核"],["工單／產品","料工費／結算期間"],"產品實際成本、差異說明與成本結轉傳票"],
+    planning:["預算與投資決策情境",["建立假設、額度與申請資料","比較情境及財務效益","核准額度並追蹤執行"],["核准原方案","調整範圍或分期執行","退回補充效益與風險資料"],["部門／投資專案","申請金額／效益假設"],"預算核定、決策依據與執行追蹤紀錄"],
+    treasury:["資金與避險執行情境",["彙總帳戶餘額與曝險","選擇調撥或避險方案","執行交易並完成銀行確認"],["內部資金調撥","承作遠期外匯或避險交易","保留部位並設定預警"],["公司／幣別部位","金額／到期日"],"資金調撥或避險成交確認與部位更新"],
+    asset:["資產與存貨評價情境",["建立資產或存貨評價基礎","執行盤點、折舊或減損試算","覆核差異並完成入帳"],["依原帳面資料入帳","調整耐用年限或備抵率","差異重大，轉主管覆核"],["資產／存貨編號","成本／評價日期"],"盤點差異、評價結果與會計調整傳票"],
+    close:["財務關帳與合併情境",["確認關帳清單與子公司回報","完成調節、換算與內部沖銷","覆核報表並核准發布"],["完成正常關帳","退回補正未平衡項目","以調整分錄處理後關帳"],["公司／報表期間","調節項目／差異金額"],"關帳核准、合併調整與正式財務報表"],
+    tax:["稅務申報與法遵情境",["彙整交易與申報憑證","計算稅額並檢查適用規則","覆核申報並保存查核底稿"],["依計算結果申報","補正憑證或稅則分類","重大差異送稅務主管判斷"],["申報類型／期間","課稅基礎／稅額"],"稅務申報檔、繳款資料與查核底稿"],
+    audit:["財務稽核改善情境",["設定查核範圍與抽樣","執行測試並記錄例外","確認改善責任並追蹤結案"],["控制有效，完成查核","發現缺失，建立改善計畫","重大異常，升級稽核主管"],["查核流程／樣本","控制目標／責任單位"],"稽核工作底稿、缺失改善與結案紀錄"],
+    invoice:["電子發票開立情境",["核對交易、買受人與字軌","開立上傳並處理平台回應","處理作廢折讓並完成歸檔"],["正常開立並上傳","資料錯誤，退回修正","開立折讓或作廢重開"],["訂單／買受人統編","發票金額／課稅別"],"電子發票、平台回應與作廢折讓履歷"],
+    expense:["差旅費用報銷情境",["核對申請、預算與單據","檢查政策並完成主管核准","付款報銷並過帳結案"],["符合政策，核准報銷","超標但具事由，送例外核准","單據不足，退回補件"],["員工／出差單號","費用金額／成本中心"],"費用核准、付款與會計過帳紀錄"],
+    reconciliation:["銀行對帳與金流核銷情境",["匯入銀行交易並自動配對","調查未明款與差異","覆核核銷並完成入帳"],["自動配對成功，直接核銷","轉暫收款並追查來源","手續費或匯差建立調整分錄"],["銀行帳戶／交易序號","入款金額／交易日期"],"銀行調節表、未明款追蹤與核銷傳票"]
+  };
+  if (/accounts-payable|ap-system|應付帳款/.test(text)) return profiles.payable;
+  if (/accounts-receivable|collections|應收帳款|催收/.test(text)) return profiles.receivable;
+  if (/manufacturing-cost|成本會計/.test(text)) return profiles.costing;
+  if (/budget|fp-a|capex|預算|資本支出|財務分析/.test(text)) return profiles.planning;
+  if (/treasury|cash-flow|fx-hedging|資金|現金流|避險/.test(text)) return profiles.treasury;
+  if (/fixed-asset|inventory-costing|固定資產|存貨成本/.test(text)) return profiles.asset;
+  if (/consolidation|financial-reporting|close-system|合併報表|關帳/.test(text)) return profiles.close;
+  if (/customs|tax|transfer-pricing|關稅|稅務|移轉訂價/.test(text)) return profiles.tax;
+  if (/audit|稽核/.test(text)) return profiles.audit;
+  if (/e-invoice|電子發票/.test(text)) return profiles.invoice;
+  if (/travel-expense|差旅|費用報銷/.test(text)) return profiles.expense;
+  if (/bank-reconciliation|cash-application|銀行對帳|金流核銷/.test(text)) return profiles.reconciliation;
+  return profiles.ledger;
+}
+
 function buildProjectShowcase(project) {
+  const isFinanceWorkflow = project.category === "財務會計"
+    || /^jvision-smart-mfg-2(?:2[1-9]|3\d|40)-/.test(project.repoName);
+  if (isFinanceWorkflow) {
+    return buildGenericProjectShowcase(project, getFinanceProfile(project));
+  }
   if (project.customerWorkflow) {
     const originalProfile = categoryProfiles[project.category];
     const workflow = project.customerWorkflow;

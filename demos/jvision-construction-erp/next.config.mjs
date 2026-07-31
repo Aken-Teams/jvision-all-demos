@@ -4,6 +4,9 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const nextConfig = {
+  output: "export",
+  basePath: "/demos/jvision-construction-erp",
+  assetPrefix: "/demos/jvision-construction-erp",
   turbopack: {
     root: __dirname
   },

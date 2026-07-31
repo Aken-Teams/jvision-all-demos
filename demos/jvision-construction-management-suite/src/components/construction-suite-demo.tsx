@@ -8,7 +8,7 @@ type IssueType = "日報" | "品質" | "安衛" | "請款";
 
 type Quote = { id: number; name: string; customer: string; amount: number; status: QuoteStatus };
 type Project = { id: number; name: string; progress: number; budget: number; status: ProjectStatus; cost: number };
-type Issue = { id: number; title: string; owner: string; due: string; type: IssueType };
+type Issue = { id: number; title: string; owner: string; due: string; type: IssueType; status: string; detail: string };
 
 const quoteStatuses: QuoteStatus[] = ["估價中", "送簽中", "已核准", "轉工程"];
 const projectStatuses: ProjectStatus[] = ["規劃中", "施工中", "查驗中", "驗收中"];
@@ -23,10 +23,13 @@ export function ConstructionSuiteDemo() {
     { id: 2, name: "桃園物流中心增建", progress: 38, budget: 5400000, cost: 3120000, status: "查驗中" },
   ]);
   const [issues, setIssues] = useState<Issue[]>([
-    { id: 1, title: "B2 防水自主檢查", owner: "監造", due: "7/12", type: "品質" },
-    { id: 2, title: "西側鷹架踢腳板補強", owner: "安衛", due: "7/10", type: "安衛" },
-    { id: 3, title: "六月估驗請款送簽", owner: "工務", due: "7/15", type: "請款" },
+    { id: 1, title: "8F 梁柱鋼筋綁紮日報", owner: "現場工程師", due: "7/18", type: "日報", status: "已送出", detail: "出工 26 人｜晴｜完成 8F 梁柱鋼筋綁紮與查驗照片 6 張" },
+    { id: 2, title: "B2 防水試水高度不足", owner: "防水分包", due: "7/20", type: "品質", status: "待改善", detail: "查驗點 B2-WP-08｜要求補測 24 小時並上傳前後照片" },
+    { id: 3, title: "西側鷹架踢腳板缺漏", owner: "安衛工程師", due: "7/19", type: "安衛", status: "改善中", detail: "巡檢區域：西側 3–5 軸｜風險等級：高｜已通知架設班" },
+    { id: 4, title: "第 6 期估驗請款", owner: "工務經理", due: "7/25", type: "請款", status: "待簽核", detail: "本期完成 18.6%｜申請 NT$ 1,860,000｜監造計價待確認" },
   ]);
+  const [activeIssueType, setActiveIssueType] = useState<IssueType>("日報");
+  const [selectedIssueId, setSelectedIssueId] = useState(1);
   const [logs, setLogs] = useState<string[]>(["已同步估價、工程、日報、品質與請款資料。"]);
 
   const metrics = useMemo(() => {
@@ -69,15 +72,37 @@ export function ConstructionSuiteDemo() {
     );
   }
 
-  function addIssue(type: IssueType) {
-    const titleMap: Record<IssueType, string> = {
-      日報: "新增工地日報與照片",
-      品質: "新增品質缺失改善",
-      安衛: "新增安衛巡檢缺失",
-      請款: "新增估驗請款簽核",
+  function addIssue(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const id = Date.now();
+    const statusMap: Record<IssueType, string> = { 日報: "草稿", 品質: "待改善", 安衛: "待處置", 請款: "草稿" };
+    const issue: Issue = {
+      id,
+      type: activeIssueType,
+      title: String(form.get("title")),
+      owner: String(form.get("owner")),
+      due: String(form.get("due")),
+      detail: String(form.get("detail")),
+      status: statusMap[activeIssueType],
     };
-    setIssues((rows) => [{ id: Date.now(), title: titleMap[type], owner: "Ariel", due: "7/18", type }, ...rows]);
-    setLogs((rows) => [`${titleMap[type]} 已加入工程待辦。`, ...rows]);
+    setIssues((rows) => [issue, ...rows]);
+    setSelectedIssueId(id);
+    setLogs((rows) => [`${activeIssueType}「${issue.title}」已建立並進入${activeIssueType}工作區。`, ...rows]);
+    event.currentTarget.reset();
+  }
+
+  function advanceIssue(issue: Issue) {
+    const flows: Record<IssueType, string[]> = {
+      日報: ["草稿", "已送出", "主管確認"],
+      品質: ["待改善", "改善中", "待複驗", "已結案"],
+      安衛: ["待處置", "改善中", "待複查", "已結案"],
+      請款: ["草稿", "待簽核", "監造審查", "業主核定", "已入帳"],
+    };
+    const flow = flows[issue.type];
+    const next = flow[Math.min(flow.indexOf(issue.status) + 1, flow.length - 1)];
+    setIssues((rows) => rows.map((row) => row.id === issue.id ? { ...row, status: next } : row));
+    setLogs((rows) => [`${issue.type}「${issue.title}」已推進至「${next}」。`, ...rows]);
   }
 
   function updateProgress() {
@@ -162,17 +187,38 @@ export function ConstructionSuiteDemo() {
           </div>
           <div className="quick-actions">
             {(["日報", "品質", "安衛", "請款"] as IssueType[]).map((type) => (
-              <button type="button" key={type} onClick={() => addIssue(type)}>{type}</button>
+              <button className={activeIssueType === type ? "active" : ""} type="button" key={type} onClick={() => {
+                setActiveIssueType(type);
+                const first = issues.find((issue) => issue.type === type);
+                if (first) setSelectedIssueId(first.id);
+              }}>{type}</button>
             ))}
           </div>
-          <div className="issue-list">
-            {issues.map((issue) => (
-              <article key={issue.id}>
-                <b>{issue.type}</b>
-                <strong>{issue.title}</strong>
-                <span>{issue.owner} · {issue.due}</span>
-              </article>
-            ))}
+          <div className="field-workspace">
+            <form className="field-form" onSubmit={addIssue}>
+              <h4>{activeIssueType === "日報" ? "填寫工地日報" : activeIssueType === "品質" ? "建立品質缺失單" : activeIssueType === "安衛" ? "建立安衛巡檢紀錄" : "建立估驗請款單"}</h4>
+              <input name="title" required placeholder={activeIssueType === "日報" ? "施工項目／樓層" : activeIssueType === "請款" ? "請款期別／計價主旨" : "缺失描述"} />
+              <input name="owner" required placeholder={activeIssueType === "請款" ? "請款承辦人" : "負責人／責任廠商"} />
+              <input name="due" required placeholder={activeIssueType === "日報" ? "回報日期" : activeIssueType === "請款" ? "送審日期" : "改善期限"} />
+              <textarea name="detail" required placeholder={activeIssueType === "日報" ? "天候、出工人數、完成數量、照片說明" : activeIssueType === "品質" ? "查驗位置、規範依據、改善要求" : activeIssueType === "安衛" ? "巡檢區域、風險等級、立即處置" : "本期完成比例、申請金額、計價依據"} />
+              <button type="submit">建立{activeIssueType}資料</button>
+            </form>
+            <div className="issue-list">
+              {issues.filter((issue) => issue.type === activeIssueType).map((issue) => (
+                <article className={selectedIssueId === issue.id ? "selected" : ""} key={issue.id} onClick={() => setSelectedIssueId(issue.id)}>
+                  <div><b>{issue.status}</b><strong>{issue.title}</strong><span>{issue.owner} · {issue.due}</span></div>
+                  <button type="button" onClick={(event) => { event.stopPropagation(); advanceIssue(issue); }}>推進流程</button>
+                </article>
+              ))}
+            </div>
+            {issues.find((issue) => issue.id === selectedIssueId && issue.type === activeIssueType) && (() => {
+              const selected = issues.find((issue) => issue.id === selectedIssueId)!;
+              return <aside className="field-detail">
+                <span>{selected.type}明細</span><h4>{selected.title}</h4><p>{selected.detail}</p>
+                <dl><div><dt>負責人</dt><dd>{selected.owner}</dd></div><div><dt>期限／日期</dt><dd>{selected.due}</dd></div><div><dt>目前狀態</dt><dd>{selected.status}</dd></div></dl>
+                <button type="button" onClick={() => advanceIssue(selected)}>執行下一步</button>
+              </aside>;
+            })()}
           </div>
         </section>
 
