@@ -395,6 +395,39 @@ const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&
 
 export function mountCustomerShowcase({ project, slug }) {
   const config = getCustomerShowcaseConfig(project, slug);
+  const traceStorageKey = `jvision-showcase-trace:${slug}`;
+  const tracePrefixByCategory = {
+    "\u751f\u7522\u88fd\u9020":"MO",
+    "\u63a1\u8cfc\u4f9b\u61c9\u93c8":"PO",
+    "\u54c1\u8cea\u7ba1\u7406":"QA",
+    "\u4eba\u529b\u8cc7\u6e90":"HR",
+    "\u696d\u52d9\u92b7\u552e":"CRM",
+    "\u8ca1\u52d9\u6703\u8a08":"FIN",
+    "\u91ab\u7642\u7167\u8b77":"MED",
+    "\u4ea4\u901a\u904b\u8f38":"TRN",
+    "\u8cc7\u8a0a\u5b89\u5168":"SEC",
+    "\u6559\u80b2":"EDU",
+    "\u4f01\u696d\u71df\u904b":"OPS"
+  };
+  const tracePrefix = tracePrefixByCategory[project.category] || "JV";
+  const defaultTrace = {
+    id: `${tracePrefix}-${String(project.id || "000").padStart(3, "0")}-001`,
+    status: config.steps[0]?.title || "\u5f85\u8655\u7406",
+    location: `${project.title}\uff0f${config.eyebrow}`,
+    updatedAt: "",
+    activities: []
+  };
+  let traceState = defaultTrace;
+  try {
+    const savedTrace = JSON.parse(localStorage.getItem(traceStorageKey) || "null");
+    if (savedTrace && savedTrace.id) traceState = { ...defaultTrace, ...savedTrace };
+  } catch {}
+  const saveTrace = () => {
+    try { localStorage.setItem(traceStorageKey, JSON.stringify(traceState)); } catch {}
+  };
+  const timeLabel = () => new Intl.DateTimeFormat("zh-TW", {
+    month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit"
+  }).format(new Date());
   const host = document.querySelector(".workspace") || document.querySelector("#demo") || document.querySelector("main") || document.body;
   const previous = host.querySelector(".jv-domain-demo");
   if (previous) previous.remove();
@@ -528,6 +561,14 @@ export function mountCustomerShowcase({ project, slug }) {
         </section>
         <aside class="jv-showcase-result">
           <p>操作後會發生什麼</p>
+          <section class="jv-showcase-trace" aria-label="資料去向與處理軌跡">
+            <header><div><small>案件編號</small><strong>${escapeHtml(traceState.id)}</strong></div><b>${escapeHtml(traceState.status)}</b></header>
+            <dl>
+              <div><dt>資料位置</dt><dd>${escapeHtml(traceState.location)}</dd></div>
+              <div><dt>最後異動</dt><dd>${escapeHtml(traceState.updatedAt || "尚未送出")}</dd></div>
+            </dl>
+            ${traceState.activities.length ? `<ol>${traceState.activities.slice(0, 4).map(item => `<li><time>${escapeHtml(item.time)}</time><span>${escapeHtml(item.text)}</span></li>`).join("")}</ol>` : `<div class="jv-showcase-trace-empty">完成左側操作後，這裡會顯示資料去向與處理紀錄。</div>`}
+          </section>
           ${completed.length ? completed.map((result,index)=>`<article><b>步驟 ${index+1} 已完成</b><span>${escapeHtml(result)}</span></article>`).join("") : `<div class="jv-showcase-empty">完成左側操作後，這裡會立即顯示系統結果與跨部門影響。</div>`}
           ${completed.length===config.steps.length?`<section class="jv-showcase-output"><small>已產生業務成果</small><strong>${escapeHtml(config.output)}</strong><button data-showcase-reset>重新展示</button></section>`:""}
         </aside>
@@ -587,6 +628,15 @@ export function mountCustomerShowcase({ project, slug }) {
     }));
     root.querySelector("[data-showcase-submit]")?.addEventListener("click", () => {
       completed[current] = config.steps[current].result;
+      const finishedStep = config.steps[current];
+      const nextStep = config.steps[current + 1];
+      traceState.status = nextStep?.title || "已完成";
+      traceState.updatedAt = timeLabel();
+      traceState.activities.unshift({
+        time: traceState.updatedAt,
+        text: `${finishedStep.title}：${finishedStep.result}`
+      });
+      saveTrace();
       if (current < config.steps.length - 1) {
         current += 1;
         selectedChoice = 0;
@@ -602,6 +652,8 @@ export function mountCustomerShowcase({ project, slug }) {
       current = 0;
       completed.length = 0;
       selectedChoice = 0;
+      traceState = { ...defaultTrace, activities: [] };
+      try { localStorage.removeItem(traceStorageKey); } catch {}
       render();
     });
   };
