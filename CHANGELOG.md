@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-06
+
+- Fixed the WCS and ICT Test Data Management Hub snapshots so their stylesheet links load normally instead of rendering as plain text.
+- Completed a 463-route Chromium audit covering desktop/mobile content, stylesheet loading, safe interactions, browser errors and horizontal overflow; all routes pass.
+- Added shared responsive containment plus targeted table fixes for Event Wedding and HRIS, and accepted Bakery's harmless subpixel-width variance.
+- Localized TMS and Fashion PLM logo assets and added the Hub root favicon to remove avoidable external/missing-resource failures.
+- Expanded the full-Demo E2E report with stylesheet/resource diagnostics, system-Chrome and targeted-run support, stylesheet readiness waits and safe non-submit interactions.
+
 ## 2026-07-30 — Temple thumbnail and property classification
 
 - Corrected the Temple Management thumbnail sequence after the catalog changed from 464 to 463 projects.

@@ -4,6 +4,8 @@ Last updated: 2026-07-30
 
 ## Now
 
+- [x] Repair the WCS and ICT Test Data Management snapshots whose malformed description metadata prevented Demo stylesheets from loading.
+
 - [x] Differentiate every industry's project introductions, situations, daily use and customer workflow by the project's actual operating subject.
 - [x] Add project-level customer workflow metadata to the canonical catalog and propagate it into all static Demo routes.
 - [x] Revalidate all 463 project stories, outputs, semantic workflows, process blueprints, business realism and responsive layouts.
@@ -34,6 +36,7 @@ Last updated: 2026-07-30
 
 ## Next
 
+- [x] Run a full desktop/mobile browser audit of all 463 Demo routes and remediate plain-text, missing-resource and overflow defects.
 - [x] Replace category-template copy with purpose-specific content across all 463 projects.
 - [x] Add automated same-industry description-similarity regression coverage.
 - [x] Differentiate all 39 sales project descriptions and customer workflows by actual business purpose.

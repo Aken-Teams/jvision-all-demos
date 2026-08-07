@@ -21,6 +21,8 @@ Last updated: 2026-07-30
 
 ## Latest verification
 
+- Repaired malformed description metadata in the WCS and ICT Test Data Management Hub snapshots. The missing closing quote had swallowed their stylesheet links, leaving both routes visually unstyled; all 463 public Demo routes were browser-scanned and only these two were affected.
+
 - Catalog cards now stretch to the tallest item in each grid row, keeping practical-use and Demo actions aligned even when project titles or introductions wrap to different line counts. Browser verification of the eight information-security cards confirmed equal heights within every desktop row and no horizontal overflow.
 - All 28 industries now use project-specific catalog copy and customer workflows. A reusable differentiation pass rewrote 451 non-transport projects from each project's actual subject, responsible role, required inputs, review point and output; the 10 transport projects retain their dedicated vehicle, parking, cold-chain, rental and driver-roster flows.
 - Customer-showcase uniqueness passed 463/463 for both stories and outputs. Semantic workflows, process blueprints and business-realism audits passed 463/463.
@@ -69,5 +71,15 @@ Last updated: 2026-07-30
 - Full verification passed: 463/463 customer showcases, semantic workflows, process blueprints, business realism and RWD.
 
 ## Next action
+
+## 2026-08-06 — Full Demo Hub browser audit
+
+- Completed a fresh Chromium audit of all 463 catalog routes at desktop and 390px mobile sizes.
+- All 463 routes passed HTTP, content, stylesheet, safe-interaction and exposed-overflow checks.
+- Fixed malformed metadata that caused the WCS and ICT Test Data Management snapshots to render as plain text.
+- Added shared mobile containment and targeted responsive table fixes for Bakery, Event Wedding and HRIS pages.
+- Replaced external TMS and Fashion PLM logo references with local assets and added a root favicon.
+- Hardened the E2E audit to wait for stylesheets, report missing styles/resources and avoid submitting forms during safe interaction checks.
+- Final report: `docs/E2E_ALL_DEMOS_REPORT.md` (463 passed, 0 failed). The 52 known recoverable React #418 hydration warnings remain compatibility warnings.
 
 Review the refreshed catalog and representative domain workflows in a normal browser session before opening a delivery PR.
