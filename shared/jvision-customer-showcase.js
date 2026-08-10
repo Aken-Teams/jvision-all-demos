@@ -1,4 +1,41 @@
 const showcases = {
+  "jvision-ai-case-068-tax-filing-organizer": {
+    eyebrow:"營業稅申報與憑證整理情境",
+    title:"完成一期營業稅申報前的資料檢核與歸檔",
+    story:"記帳人員收到客戶本期銷項、進項發票與費用憑證後，發現部分憑證缺少統編、重複入帳，另有不可扣抵項目。本次示範從匯入分類、異常補件、稅額試算到主管覆核與申報歸檔的完整流程。",
+    subject:"2026 年 7–8 月營業稅申報案件",
+    steps:[
+      {
+        title:"匯入並分類本期憑證",
+        task:"確認申報期別、公司資料及本期憑證來源",
+        fields:[["公司統編／申報期別","24568031／2026 年 7–8 月"],["資料來源／憑證數","電子發票平台、銀行與紙本掃描／186 筆"]],
+        action:"完成憑證匯入與分類",
+        result:"系統已匯入 186 筆憑證，依銷項、進項、費用及固定資產完成分類，並建立申報工作底稿。"
+      },
+      {
+        title:"檢查異常並建立補件清單",
+        task:"逐筆處理缺漏、重複及不可扣抵的憑證",
+        choices:["缺少統編或品名，通知客戶補件","疑似重複入帳，暫停列入申報","交際費或自用乘人小客車，改列不可扣抵"],
+        action:"確認異常處理方式",
+        result:"已建立 5 筆補件、2 筆重複憑證待確認及 3 筆不可扣抵調整，異常項目均有負責人與期限。"
+      },
+      {
+        title:"試算稅額並完成覆核",
+        task:"核對銷售額、銷項稅額、可扣抵進項稅額與留抵資料",
+        fields:[["銷售額／銷項稅額","NT$ 3,820,000／NT$ 191,000"],["可扣抵進項／上期留抵","NT$ 142,600／NT$ 18,000"]],
+        action:"送交主管覆核試算結果",
+        result:"本期應納稅額試算為 NT$ 30,400，差異檢核通過，已送交稅務主管覆核。"
+      },
+      {
+        title:"完成申報與憑證歸檔",
+        task:"確認繳款狀態、申報回執與電子工作底稿保存位置",
+        choices:["完成線上申報並建立繳款單","保留留抵稅額至下期","退回補件後重新產生申報檔"],
+        action:"確認申報完成並歸檔",
+        result:"申報回執、繳款資料、異常處理紀錄與憑證索引已歸檔，可依統編、期別與憑證號碼追溯。"
+      }
+    ],
+    output:"營業稅申報回執、稅額試算表、補件清單與憑證歸檔索引 TAX-2026-0805"
+  },
   "jvision-smart-mfg-154-e-auction": {
     eyebrow:"採購現場情境",
     title:"完成一場供應商線上競價",
@@ -502,8 +539,32 @@ export function mountCustomerShowcase({ project, slug }) {
     host.append(root);
   }
   let current = 0;
-  let selectedChoice = 0;
+  let selectedChoice = -1;
   const completed = [];
+  const workStorageKey = `jvision-showcase-work:${slug}`;
+  const defaultWorkState = {
+    fields: config.steps.map(step => Object.fromEntries((step.fields || []).map(([label, value]) => [label, value]))),
+    choices: config.steps.map(() => -1),
+    notes: config.steps.map(() => ""),
+    attachments: config.steps.map(() => []),
+    records: [],
+    message: ""
+  };
+  let workState = defaultWorkState;
+  try {
+    const savedWork = JSON.parse(localStorage.getItem(workStorageKey) || "null");
+    if (savedWork) workState = {
+      ...defaultWorkState,
+      ...savedWork,
+      fields: defaultWorkState.fields.map((fields, index) => ({ ...fields, ...(savedWork.fields?.[index] || {}) })),
+      choices: defaultWorkState.choices.map((choice, index) => savedWork.choices?.[index] ?? choice),
+      notes: defaultWorkState.notes.map((note, index) => savedWork.notes?.[index] ?? note),
+      attachments: defaultWorkState.attachments.map((items, index) => savedWork.attachments?.[index] || items)
+    };
+  } catch {}
+  const saveWork = () => {
+    try { localStorage.setItem(workStorageKey, JSON.stringify(workState)); } catch {}
+  };
   const fashionState = {
     stage: "試穿修正",
     materials: [
@@ -591,6 +652,9 @@ export function mountCustomerShowcase({ project, slug }) {
 
   const render = () => {
     const step = config.steps[current];
+    selectedChoice = workState.choices[current] ?? -1;
+    const stepFields = workState.fields[current] || {};
+    const stepAttachments = workState.attachments[current] || [];
     root.innerHTML = `
       <header class="jv-showcase-hero">
         <div><p>${escapeHtml(config.eyebrow)}</p><h2>${escapeHtml(config.title)}</h2><span>${escapeHtml(config.story)}</span></div>
@@ -604,7 +668,17 @@ export function mountCustomerShowcase({ project, slug }) {
         <section class="jv-showcase-task">
           <p>現在請客戶操作</p><h3>${escapeHtml(step.title)}</h3><span>${escapeHtml(step.task)}</span>
           ${step.choices ? `<div class="jv-showcase-choices">${step.choices.map((choice,index)=>`<button class="${selectedChoice===index?"selected":""}" data-showcase-choice="${index}"><span>${escapeHtml(choice)}</span><b>${selectedChoice===index?"已選擇":"選擇"}</b></button>`).join("")}</div>` : `
-          <div class="jv-showcase-fields">${step.fields.map(([label,value])=>`<label>${escapeHtml(label)}<input value="${escapeHtml(value)}"></label>`).join("")}</div>`}
+          <div class="jv-showcase-fields">${step.fields.map(([label])=>`<label>${escapeHtml(label)}<input data-showcase-field="${escapeHtml(label)}" value="${escapeHtml(stepFields[label] || "")}"></label>`).join("")}</div>`}
+          <section class="jv-showcase-evidence">
+            <header><div><small>本階段工作資料</small><strong>補充說明與佐證</strong></div><span>${stepAttachments.length} 份附件</span></header>
+            <label>處理說明<textarea data-showcase-note placeholder="輸入判斷依據、異常原因或交接事項">${escapeHtml(workState.notes[current] || "")}</textarea></label>
+            <div class="jv-showcase-evidence-actions">
+              <button type="button" data-showcase-attach>＋ 加入示範附件</button>
+              <button type="button" data-showcase-save>儲存草稿</button>
+            </div>
+            ${stepAttachments.length ? `<div class="jv-showcase-attachment-list">${stepAttachments.map(file => `<span>✓ ${escapeHtml(file)}</span>`).join("")}</div>` : `<p>尚未加入附件；可模擬加入報表、照片、憑證或簽核文件。</p>`}
+            ${workState.message ? `<div class="jv-showcase-work-message">${escapeHtml(workState.message)}</div>` : ""}
+          </section>
           ${renderFashionTools()}
           ${renderIntegratedTools()}
           <button class="jv-showcase-primary" data-showcase-submit>${escapeHtml(step.action)}</button>
@@ -618,6 +692,21 @@ export function mountCustomerShowcase({ project, slug }) {
               <div><dt>最後異動</dt><dd>${escapeHtml(traceState.updatedAt || "尚未送出")}</dd></div>
             </dl>
             ${traceState.activities.length ? `<ol>${traceState.activities.slice(0, 4).map(item => `<li><time>${escapeHtml(item.time)}</time><span>${escapeHtml(item.text)}</span></li>`).join("")}</ol>` : `<div class="jv-showcase-trace-empty">完成左側操作後，這裡會顯示資料去向與處理紀錄。</div>`}
+          </section>
+          <section class="jv-showcase-record-preview">
+            <header><small>目前工作資料</small><b>${workState.records.length} 筆階段紀錄</b></header>
+            <dl>
+              ${Object.entries(stepFields).map(([label,value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || "尚未填寫")}</dd></div>`).join("")}
+              ${step.choices ? `<div><dt>處理方案</dt><dd>${selectedChoice >= 0 ? escapeHtml(step.choices[selectedChoice]) : "尚未選擇"}</dd></div>` : ""}
+              <div><dt>處理說明</dt><dd>${escapeHtml(workState.notes[current] || "尚未填寫")}</dd></div>
+            </dl>
+            ${workState.records.length ? `<ol class="jv-showcase-record-list">${workState.records.slice(0, 4).map(record => `
+              <li>
+                <header><strong>${escapeHtml(record.step)}</strong><time>${escapeHtml(record.time)}</time></header>
+                <p>${escapeHtml(record.data || "已完成階段處理")}</p>
+                ${record.note ? `<span>說明：${escapeHtml(record.note)}</span>` : ""}
+                ${record.attachments?.length ? `<span>附件：${record.attachments.map(escapeHtml).join("、")}</span>` : ""}
+              </li>`).join("")}</ol>` : ""}
           </section>
           ${completed.length ? completed.map((result,index)=>`<article><b>步驟 ${index+1} 已完成</b><span>${escapeHtml(result)}</span></article>`).join("") : `<div class="jv-showcase-empty">完成左側操作後，這裡會立即顯示系統結果與跨部門影響。</div>`}
           ${completed.length===config.steps.length?`<section class="jv-showcase-output"><small>已產生業務成果</small><strong>${escapeHtml(config.output)}</strong><button data-showcase-reset>重新展示</button></section>`:""}
@@ -674,36 +763,107 @@ export function mountCustomerShowcase({ project, slug }) {
     });
     root.querySelectorAll("[data-showcase-choice]").forEach(button => button.addEventListener("click", () => {
       selectedChoice = Number(button.dataset.showcaseChoice);
+      workState.choices[current] = selectedChoice;
+      workState.message = "";
+      saveWork();
       render();
     }));
+    root.querySelectorAll("[data-showcase-field]").forEach(input => input.addEventListener("input", event => {
+      workState.fields[current][input.dataset.showcaseField] = event.target.value;
+      workState.message = "";
+      saveWork();
+    }));
+    root.querySelector("[data-showcase-note]")?.addEventListener("input", event => {
+      workState.notes[current] = event.target.value;
+      saveWork();
+    });
+    root.querySelector("[data-showcase-attach]")?.addEventListener("click", () => {
+      const step = config.steps[current];
+      const extension = /照片|巡檢|現場|品質|安衛/.test(`${config.title}${step.title}`) ? "jpg" : "pdf";
+      const fileName = `${step.title}-${String(workState.attachments[current].length + 1).padStart(2, "0")}.${extension}`;
+      workState.attachments[current].push(fileName);
+      workState.message = `已加入佐證附件：${fileName}`;
+      saveWork();
+      render();
+    });
+    root.querySelector("[data-showcase-save]")?.addEventListener("click", () => {
+      workState.message = `草稿已儲存；資料仍保留在「${config.steps[current].title}」階段。`;
+      traceState.updatedAt = timeLabel();
+      traceState.activities.unshift({
+        time: traceState.updatedAt,
+        text: `儲存草稿：${config.steps[current].title}`
+      });
+      saveWork();
+      saveTrace();
+      render();
+    });
     root.querySelector("[data-showcase-submit]")?.addEventListener("click", () => {
-      completed[current] = config.steps[current].result;
       const finishedStep = config.steps[current];
+      const missingFields = (finishedStep.fields || [])
+        .map(([label]) => label)
+        .filter(label => !String(workState.fields[current]?.[label] || "").trim());
+      if (missingFields.length) {
+        workState.message = `請先填寫：${missingFields.join("、")}。`;
+        saveWork();
+        render();
+        return;
+      }
+      if (finishedStep.choices && selectedChoice < 0) {
+        workState.message = "請先選擇一個處理方案，再推進流程。";
+        saveWork();
+        render();
+        return;
+      }
+      completed[current] = finishedStep.result;
+      const fieldSummary = Object.entries(workState.fields[current] || {})
+        .map(([label, value]) => `${label}：${value}`)
+        .join("；");
+      const choiceSummary = finishedStep.choices ? finishedStep.choices[selectedChoice] : "";
+      workState.records = [
+        {
+          step: finishedStep.title,
+          data: choiceSummary || fieldSummary,
+          note: workState.notes[current] || "",
+          attachments: [...(workState.attachments[current] || [])],
+          time: timeLabel()
+        },
+        ...workState.records.filter(record => record.step !== finishedStep.title)
+      ];
+      workState.message = "";
+      saveWork();
       const nextStep = config.steps[current + 1];
       traceState.status = nextStep?.title || "已完成";
       traceState.updatedAt = timeLabel();
       traceState.activities.unshift({
         time: traceState.updatedAt,
-        text: `${finishedStep.title}：${finishedStep.result}`
+        text: `${finishedStep.title}：${choiceSummary || fieldSummary || finishedStep.result}`
       });
       saveTrace();
       if (current < config.steps.length - 1) {
         current += 1;
-        selectedChoice = 0;
       }
       render();
     });
     root.querySelectorAll("[data-showcase-step]").forEach(button => button.addEventListener("click", () => {
       current = Number(button.dataset.showcaseStep);
-      selectedChoice = 0;
       render();
     }));
     root.querySelector("[data-showcase-reset]")?.addEventListener("click", () => {
       current = 0;
       completed.length = 0;
-      selectedChoice = 0;
+      selectedChoice = -1;
+      workState = {
+        ...defaultWorkState,
+        fields: defaultWorkState.fields.map(fields => ({ ...fields })),
+        choices: [...defaultWorkState.choices],
+        notes: [...defaultWorkState.notes],
+        attachments: defaultWorkState.attachments.map(() => []),
+        records: [],
+        message: ""
+      };
       traceState = { ...defaultTrace, activities: [] };
       try { localStorage.removeItem(traceStorageKey); } catch {}
+      try { localStorage.removeItem(workStorageKey); } catch {}
       render();
     });
   };

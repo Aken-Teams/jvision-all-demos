@@ -283,19 +283,70 @@
       }
     } catch {}
   }
-  if (!config || document.querySelector(".jv-client-demo")) return;
-  if (slug === "jvision-property-management" && document.querySelector(".property-demo")) return;
+  const mountGuidedEntry = () => {
+    if (!projectMeta || ["jvision-ai-case-001-production-scheduler", "jvision-staff-dispatch"].includes(slug) || document.querySelector(".jv-guided-entry")) return;
+    const workflow = projectMeta.customerWorkflow || {};
+    const steps = Array.isArray(workflow.steps) && workflow.steps.length
+      ? workflow.steps.slice(0, 3)
+      : ["確認目前資料與問題", "執行主要處理動作", "確認結果並完成留存"];
+    while (steps.length < 3) steps.push(["補充必要資料", "執行處理動作", "確認完成結果"][steps.length]);
+    const fields = Array.isArray(workflow.fields) ? workflow.fields.filter(Boolean).slice(0, 2) : [];
+    const outcome = workflow.output || `${projectMeta.title}處理結果與操作紀錄`;
+    const situation = projectMeta.businessSituation || projectMeta.description || `使用${projectMeta.title}完成一筆實際工作。`;
+    const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+    const entry = document.createElement("section");
+    entry.className = "jv-guided-entry";
+    entry.setAttribute("aria-labelledby", "jvGuidedEntryTitle");
+    entry.innerHTML = `
+      <div class="jv-guided-entry__top"><div><p class="jv-guided-entry__eyebrow">三步情境示範 · ${escape(projectMeta.category || "實際作業")}</p><h2 id="jvGuidedEntryTitle">先完成一筆「${escape(projectMeta.title)}」現場任務</h2><p class="jv-guided-entry__lead">${escape(situation)}</p></div><button class="jv-guided-entry__button" type="button" data-jv-guided-start>開始三步示範</button></div>
+      <ol class="jv-guided-entry__steps">${steps.map((step, index) => `<li><b>${index + 1}</b><span><strong>${escape(step)}</strong><small>${index === 0 ? escape(fields.join("、") || "確認必要資料") : index === 1 ? "依畫面引導完成主要操作" : "檢查結果、負責人與資料去向"}</small></span></li>`).join("")}</ol>
+      <div class="jv-guided-entry__result"><span>完成後會得到</span><strong>${escape(outcome)}</strong></div>
+      <p class="jv-guided-entry__hint">每次只需完成目前標示的操作；系統會自動帶你前往下一步。</p>`;
+    const host = document.querySelector(".workspace") || document.querySelector("main") || document.body;
+    const topbar = host.querySelector?.(":scope > .topbar");
+    if (topbar) topbar.insertAdjacentElement("afterend", entry);
+    else host.prepend(entry);
+    entry.querySelector("[data-jv-guided-start]").addEventListener("click", () => {
+      entry.dataset.guideState = "launching";
+      const launch = (attempt = 0) => {
+        const demo = document.querySelector(".jv-client-demo,.jv-customer-showcase,.property-demo") || document.querySelector("#demo");
+        const trigger = document.querySelector("[data-domain-guide],[data-oee-guide],[data-guide]");
+        if (trigger) {
+          entry.dataset.guideState = "active";
+          demo?.scrollIntoView({ behavior: "smooth", block: "start" });
+          setTimeout(() => trigger.click(), 240);
+          return;
+        }
+        if (document.querySelector(".jv-customer-showcase,.property-demo")) {
+          entry.dataset.guideState = "active";
+          demo?.scrollIntoView({ behavior: "smooth", block: "start" });
+          const firstAction = demo?.querySelector("button:not([disabled]),input:not([disabled]),select:not([disabled])");
+          setTimeout(() => firstAction?.focus(), 240);
+          return;
+        }
+        if (attempt < 16) setTimeout(() => launch(attempt + 1), 250);
+        else {
+          entry.dataset.guideState = "ready";
+          demo?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      };
+      launch();
+    });
+  };
+  if (!config) return;
   if (document.readyState !== "complete") {
     await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
   }
   await new Promise(resolve => setTimeout(resolve, 650));
+  mountGuidedEntry();
+  if (slug === "jvision-property-management" && document.querySelector(".property-demo")) return;
   if (document.querySelector(".jv-client-demo")) return;
   if (config.variant === "oee") {
     mountOee();
     return;
   }
   if (projectMeta) {
-    const { mountCustomerShowcase } = await import("../../shared/jvision-customer-showcase.js?v=20260731-3");
+    const { mountCustomerShowcase } = await import("../../shared/jvision-customer-showcase.js?v=20260731-5");
     if (mountCustomerShowcase({ project: projectMeta, slug })) return;
     const { mountDomainOperations } = await import("../../shared/jvision-domain-operations.js?v=20260730-11");
     mountDomainOperations({ project: projectMeta, slug });

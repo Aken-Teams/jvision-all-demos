@@ -249,6 +249,20 @@ function setupDistinctFunctionalModules() {
   style.textContent += `.fm-stage-action{display:grid;gap:11px;margin-top:18px;padding-top:18px;border-top:1px solid var(--line,#d8e2ee)}.fm-stage-action h4{margin:0}.fm-stage-action label{display:grid;gap:6px;color:var(--muted,#64748b);font-size:13px;font-weight:700}.fm-stage-action :is(input,select,textarea){width:100%;border:1px solid var(--line,#d8e2ee);background:var(--background,#fff);color:inherit;border-radius:11px;padding:11px 12px;font:inherit}.fm-stage-action textarea{min-height:82px;resize:vertical}.fm-stage-result,.fm-save-notice{margin:10px 0 0;padding:11px;border-radius:10px;background:color-mix(in srgb,var(--accent,#2563eb) 8%,transparent);font-size:13px}.fm-save-notice{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 14px;border:1px solid color-mix(in srgb,var(--accent,#2563eb) 35%,transparent)}.fm-save-notice strong,.fm-save-notice span{display:block}.fm-save-notice span{margin-top:4px;color:var(--muted,#64748b)}.fm-table tr.fm-just-updated{background:color-mix(in srgb,var(--accent,#2563eb) 12%,transparent);box-shadow:inset 4px 0 var(--accent,#2563eb)}.fm-action-history{margin-top:18px;padding-top:16px;border-top:1px solid var(--line,#d8e2ee)}.fm-action-history h4{margin:0 0 10px}.fm-action-history dl{margin:0}.fm-action-history dd{overflow-wrap:anywhere}`;
   document.head.append(style);
 
+  const guideStyle = document.createElement("style");
+  guideStyle.textContent = `
+    .guide-shell{display:grid;gap:18px}.guide-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;padding:28px;border:1px solid #bfdbfe;border-radius:22px;background:linear-gradient(135deg,#eff6ff,#fff 58%,#ecfdf5);box-shadow:0 14px 34px rgba(30,64,175,.1)}
+    .guide-kicker{margin:0 0 8px;color:#1d4ed8;font-size:13px;font-weight:900;letter-spacing:.08em}.guide-hero h2{margin:0;color:#172554;font-size:clamp(28px,4vw,44px);line-height:1.14}.guide-lead{max-width:720px;margin:12px 0 0;color:#475569;font-size:16px;line-height:1.75}.guide-status{align-self:start;display:grid;gap:6px;min-width:150px;padding:14px 16px;border:1px solid #93c5fd;border-radius:15px;background:#fff}.guide-status span{color:#64748b;font-size:12px;font-weight:800}.guide-status strong{color:#1d4ed8;font-size:18px}
+    .guide-impact{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.guide-impact article{padding:17px;border:1px solid #dbeafe;border-radius:16px;background:#fff}.guide-impact span{display:block;color:#64748b;font-size:13px}.guide-impact div{display:flex;align-items:baseline;gap:9px;margin-top:7px}.guide-impact s{color:#94a3b8;font-size:19px}.guide-impact strong{color:#047857;font-size:27px}.guide-impact small{color:#047857;font-weight:800}
+    .guide-progress{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0;padding:0;list-style:none}.guide-progress li{display:grid;grid-template-columns:34px 1fr;align-items:center;gap:10px;padding:13px;border:1px solid #dbeafe;border-radius:14px;background:#fff;color:#64748b}.guide-progress b{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#e2e8f0;color:#475569}.guide-progress strong{display:block;color:#334155}.guide-progress small{display:block;margin-top:2px}.guide-progress li.current{border-color:#2563eb;background:#eff6ff}.guide-progress li.current b{background:#2563eb;color:#fff}.guide-progress li.complete{border-color:#86efac;background:#f0fdf4}.guide-progress li.complete b{background:#16a34a;color:#fff}
+    .guide-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:18px}.guide-card{padding:24px;border:1px solid #dbeafe;border-radius:20px;background:#fff}.guide-card h3{margin:0;color:#172554;font-size:22px}.guide-card>p{margin:9px 0 0;color:#475569;line-height:1.7}.guide-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:20px}.guide-fact{padding:14px;border-radius:13px;background:#f8fafc;border:1px solid #e2e8f0}.guide-fact span,.guide-fact strong{display:block}.guide-fact span{color:#64748b;font-size:12px}.guide-fact strong{margin-top:5px;color:#172554;font-size:18px}.guide-fact.alert{border-color:#fecaca;background:#fef2f2}.guide-fact.alert strong{color:#b91c1c}
+    .guide-primary,.guide-secondary{min-height:48px;margin-top:20px;padding:12px 18px;border-radius:12px;font:inherit;font-weight:900;cursor:pointer}.guide-primary{border:1px solid #1d4ed8;background:#1d4ed8;color:#fff;box-shadow:0 8px 18px rgba(29,78,216,.2)}.guide-primary:hover{background:#1e40af}.guide-secondary{border:1px solid #93c5fd;background:#fff;color:#1d4ed8}.guide-primary:focus-visible,.guide-secondary:focus-visible{outline:3px solid rgba(37,99,235,.32);outline-offset:3px}.guide-help{display:grid;gap:14px}.guide-help section{padding:16px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0}.guide-help h4{margin:0;color:#172554}.guide-help p{margin:6px 0 0;color:#64748b;font-size:14px;line-height:1.6}.guide-order{margin:10px 0 0;padding-left:20px;color:#334155}.guide-order li+li{margin-top:7px}.guide-complete{padding:20px;border:1px solid #86efac;border-radius:16px;background:#f0fdf4}.guide-complete strong{display:block;color:#166534;font-size:20px}.guide-complete p{margin:7px 0 0;color:#166534}.guide-actions{display:flex;flex-wrap:wrap;gap:10px}
+    @media(max-width:900px){.guide-hero,.guide-layout{grid-template-columns:1fr}.guide-status{min-width:0}.guide-impact{grid-template-columns:1fr}.guide-facts{grid-template-columns:1fr}}
+    @media(max-width:560px){.guide-hero,.guide-card{padding:18px}.guide-progress{grid-template-columns:1fr}.guide-hero h2{font-size:28px}.guide-actions{display:grid}.guide-actions button{width:100%}}
+    @media(prefers-reduced-motion:reduce){.guide-shell *{scroll-behavior:auto!important;transition-duration:1ms!important}}
+  `;
+  document.head.append(guideStyle);
+
   let selectedRecordId = records.find((item) => !item.done)?.id || records[0]?.id;
   let lastSubmittedId = "";
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
@@ -304,7 +318,34 @@ function setupDistinctFunctionalModules() {
     view.innerHTML = hero(3, `${config.name} AI 決策中心`, '<button class="fm-action" id="fmRunAi">重新分析</button>') + `<div class="fm-grid"><article class="fm-panel"><h3>決策建議</h3><div class="fm-ai-score">${stats.avgScore}</div><p class="fm-description">綜合 ${records.length} 筆${esc(config.profile.object)}的階段、期限與風險後產生。</p><div id="fmRecommendations">${top.map((item,index) => `<div class="fm-recommendation"><strong>${index+1}. 優先處理 ${esc(item.title)}</strong><p>${esc(item.risk)}，目前由 ${esc(item.owner)} 負責；建議在 ${esc(item.due)} 前完成「${esc(item.stage)}」階段確認。</p></div>`).join("") || '<p class="fm-empty">目前沒有需要分析的未完成資料</p>'}</div></article><article class="fm-panel"><h3>風險分布</h3>${risks.map(([risk,count]) => `<div class="fm-risk"><span>${esc(risk)}</span><strong>${count} 筆</strong></div>`).join("")}<h3 style="margin-top:22px">AI 判讀依據</h3><p class="fm-description">依據${esc(config.profile.fields.join("、"))}與${esc(config.profile.stages.join("、"))}等專案資料進行排序。</p></article></div>`;
   }
 
-  const renderers = [dashboard, cases, masterData, aiDecision];
+  let guideStep = Number(sessionStorage.getItem("jvision-production-guide-step") || 0);
+
+  function guidedDashboard() {
+    const steps = [
+      { title: "確認物料缺口", detail: "確認需求量與可用量", heading: "先確認缺料是否真的影響交期", description: "醫療支架工單 MO-5801 需求 680 件，但目前只有 420 件可用。確認 260 件缺口後，系統才能安全地重排工單。", action: "確認缺口（260 件）" },
+      { title: "重排生產順序", detail: "把急單移到可執行位置", heading: "套用建議的生產順序", description: "先安排材料足夠且交期最近的工單，再保留 MO-5801 的設備時段，等補料到位後立即接續生產。", action: "套用建議順序" },
+      { title: "發布新排程", detail: "通知生管、採購與現場", heading: "確認影響並發布新排程", description: "發布後，延誤工單預估降為 0，設備負載回到 81%，準時交付率提升至 92%。", action: "發布新排程" },
+    ];
+    const active = Math.min(guideStep, 2);
+    const progress = steps.map((step,index) => `<li class="${guideStep > index ? "complete" : guideStep === index ? "current" : ""}"><b>${guideStep > index ? "✓" : index + 1}</b><span><strong>${step.title}</strong><small>${step.detail}</small></span></li>`).join("");
+    const facts = active === 0
+      ? '<div class="guide-facts"><div class="guide-fact"><span>工單</span><strong>MO-5801</strong></div><div class="guide-fact"><span>需求／可用</span><strong>680／420 件</strong></div><div class="guide-fact alert"><span>物料缺口</span><strong>260 件</strong></div></div>'
+      : active === 1
+        ? '<div class="guide-facts"><div class="guide-fact"><span>優先 1</span><strong>MO-5734</strong></div><div class="guide-fact"><span>優先 2</span><strong>MO-5801</strong></div><div class="guide-fact"><span>等待補料</span><strong>4 小時</strong></div></div>'
+        : '<div class="guide-facts"><div class="guide-fact"><span>影響部門</span><strong>3 個</strong></div><div class="guide-fact"><span>異動工單</span><strong>2 張</strong></div><div class="guide-fact"><span>生效時間</span><strong>今日 14:00</strong></div></div>';
+    const work = guideStep >= 3
+      ? '<div class="guide-complete" role="status"><strong>新排程已發布</strong><p>MO-5734 先行生產，MO-5801 等補料到位後接續；生管、採購與產線主管已收到異動摘要。</p></div><div class="guide-actions"><button class="guide-secondary" type="button" data-guide-reset>重新示範</button><button class="guide-primary" type="button" data-open-record="1001-1">查看異動工單</button></div>'
+      : `<h3>${steps[active].heading}</h3><p>${steps[active].description}</p>${facts}<button class="guide-primary" type="button" data-guide-next>${steps[active].action}</button>`;
+    view.innerHTML = `
+      <section class="guide-shell" aria-labelledby="guideTitle">
+        <header class="guide-hero"><div><p class="guide-kicker">現場情境 · 缺料排程衝突</p><h2 id="guideTitle">2 張工單可能延誤，請在 3 步內完成重排</h2><p class="guide-lead">關鍵鋁料不足，醫療支架工單無法依原定順序生產。跟著引導確認缺口、調整順序並發布新排程。</p></div><div class="guide-status"><span>目前進度</span><strong>${guideStep >= 3 ? "已完成" : `第 ${guideStep + 1} 步／共 3 步`}</strong></div></header>
+        <div class="guide-impact" aria-label="預期改善"><article><span>延誤工單</span><div><s>2 張</s><strong>0 張</strong><small>↓ 100%</small></div></article><article><span>設備尖峰負載</span><div><s>94%</s><strong>81%</strong><small>↓ 13%</small></div></article><article><span>準時交付率</span><div><s>76%</s><strong>92%</strong><small>↑ 16%</small></div></article></div>
+        <ol class="guide-progress" aria-label="示範步驟">${progress}</ol>
+        <div class="guide-layout"><article class="guide-card">${work}</article><aside class="guide-card guide-help"><section><h4>為什麼現在要處理？</h4><p>MO-5801 距離承諾交期只剩 2 天；若不調整，兩張工單會同時卡在同一設備與缺料時段。</p></section><section><h4>系統建議順序</h4><ol class="guide-order"><li>MO-5734 · 材料齊全</li><li>MO-5801 · 補料後接續</li><li>MO-5812 · 維持原排程</li></ol></section></aside></div>
+      </section>`;
+  }
+
+  const renderers = [guidedDashboard, cases, masterData, aiDecision];
   function activate(index, focus = false) {
     const selected = Math.max(0, Math.min(3, index));
     buttons.forEach((button, buttonIndex) => {
@@ -322,6 +363,20 @@ function setupDistinctFunctionalModules() {
 
   buttons.forEach((button,index) => button.addEventListener("click", () => activate(index,true)));
   view.addEventListener("click", (event) => {
+    if (event.target.closest("[data-guide-next]")) {
+      guideStep = Math.min(3, guideStep + 1);
+      sessionStorage.setItem("jvision-production-guide-step", String(guideStep));
+      if (guideStep === 3) addLog("新排程已發布：延誤工單降為 0，設備負載調整為 81%，準時交付率提升至 92%。");
+      guidedDashboard();
+      view.querySelector(".guide-card")?.focus?.();
+      return;
+    }
+    if (event.target.closest("[data-guide-reset]")) {
+      guideStep = 0;
+      sessionStorage.setItem("jvision-production-guide-step", "0");
+      guidedDashboard();
+      return;
+    }
     const open = event.target.closest("[data-open-record]");
     if (open) {
       selectedRecordId = open.dataset.openRecord;

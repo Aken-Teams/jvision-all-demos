@@ -1,20 +1,8 @@
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
 const nextConfig = {
-  turbopack: {
-    root: __dirname
-  },
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "www.jvision-ai.com"
-      }
-    ]
-  }
+  output: "export",
+  basePath: "/demos/jvision-staff-dispatch",
+  trailingSlash: true,
+  images: { unoptimized: true },
 };
 
 export default nextConfig;

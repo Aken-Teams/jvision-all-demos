@@ -1,24 +1,15 @@
 import type { Metadata } from "next";
-import { LanguageSwitcher } from "@/components/language-switcher";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "JVision HR",
-  description: "Jvision 人力派遣管理平台，展示派遣員工建檔、客戶案場、派工出勤、工時登錄、薪資結算與請款報表流程。",
+  title: "JVision 人力派遣管理 Demo",
+  description: "從缺工、資格媒合、派工確認，到出勤、薪資與請款的一站式人力派遣情境。",
   openGraph: {
-    title: "JVision HR",
-    description: "可互動測試的人力派遣營運管理平台。",
-    images: ["https://www.jvision-ai.com/public/logo.png"],
+    title: "JVision 人力派遣管理 Demo",
+    description: "互動體驗明日缺工的資格媒合與派工確認流程。",
   },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <html lang="zh-Hant">
-      <body className="jvision-bright-saas jvision-next-legacy jv-galaxy-saas jv-galaxy-supply-flow">
-        <LanguageSwitcher />
-        {children}
-      </body>
-    </html>
-  );
+  return <html lang="zh-Hant"><body>{children}</body></html>;
 }

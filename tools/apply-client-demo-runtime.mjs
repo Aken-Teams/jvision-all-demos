@@ -3,8 +3,10 @@ import path from "node:path";
 
 const root = process.cwd();
 const catalog = JSON.parse(fs.readFileSync(path.join(root, "projects-index.json"), "utf8"));
-const cssTag = '<link rel="stylesheet" href="../../shared/jvision-client-demo.css?v=20260731-3" />';
-const scriptTag = '<script src="../../shared/jvision-client-demo.js?v=20260731-3" defer></script>';
+const cssTag = '<link rel="stylesheet" href="../../shared/jvision-client-demo.css?v=20260810-guided-4" />';
+const operationalCssTag = '<link rel="stylesheet" href="../../shared/jvision-operational-mode.css?v=20260810-ops-5" />';
+const scriptTag = '<script src="../../shared/jvision-client-demo.js?v=20260810-guided-4" defer></script>';
+const operationalScriptTag = '<script src="../../shared/jvision-operational-mode.js?v=20260810-ops-5" defer></script>';
 const rows = [];
 
 for (const project of catalog.projects || []) {
@@ -16,7 +18,9 @@ for (const project of catalog.projects || []) {
   const before = fs.readFileSync(file, "utf8");
   let html = before
     .replace(/\s*<link[^>]+jvision-client-demo\.css[^>]*>\s*/gi, "\n")
+    .replace(/\s*<link[^>]+jvision-operational-mode\.css[^>]*>\s*/gi, "\n")
     .replace(/\s*<script[^>]+jvision-client-demo\.js[^>]*><\/script>\s*/gi, "\n")
+    .replace(/\s*<script[^>]+jvision-operational-mode\.js[^>]*><\/script>\s*/gi, "\n")
     .replace(/\s*<script[^>]+id=["']jvision-client-demo-project["'][^>]*>[\s\S]*?<\/script>\s*/gi, "\n")
     .replace(/\s*<script>window\.addEventListener\("load",\(\)=>setTimeout\(\(\)=>\{const script=document\.createElement\("script"\);script\.src="\.\.\/\.\.\/shared\/jvision-client-demo\.js[^<]+<\/script>\s*/gi, "\n");
 
@@ -26,7 +30,7 @@ for (const project of catalog.projects || []) {
     rows.push({ repoName: project.repoName, status: "invalid-html" });
     continue;
   }
-  html = `${html.slice(0, headClose)}  ${cssTag}\n${html.slice(headClose)}`;
+  html = `${html.slice(0, headClose)}  ${cssTag}\n  ${operationalCssTag}\n${html.slice(headClose)}`;
   const updatedBodyClose = html.toLowerCase().lastIndexOf("</body>");
   const embeddedProject = JSON.stringify({
     id: project.id,
@@ -40,7 +44,7 @@ for (const project of catalog.projects || []) {
     customerWorkflow: project.customerWorkflow
   }).replaceAll("<", "\\u003c");
   const metadataTag = `<script type="application/json" id="jvision-client-demo-project">${embeddedProject}</script>`;
-  html = `${html.slice(0, updatedBodyClose)}  ${metadataTag}\n  ${scriptTag}\n${html.slice(updatedBodyClose)}`;
+  html = `${html.slice(0, updatedBodyClose)}  ${metadataTag}\n  ${scriptTag}\n  ${operationalScriptTag}\n${html.slice(updatedBodyClose)}`;
   fs.writeFileSync(file, html);
   rows.push({
     repoName: project.repoName,
