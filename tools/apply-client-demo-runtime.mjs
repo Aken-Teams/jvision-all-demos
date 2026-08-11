@@ -3,7 +3,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const catalog = JSON.parse(fs.readFileSync(path.join(root, "projects-index.json"), "utf8"));
-const cssTag = '<link rel="stylesheet" href="../../shared/jvision-client-demo.css?v=20260810-guided-4" />';
+const cssTag = '<link rel="stylesheet" href="../../shared/jvision-client-demo.css?v=20260811-showcase-grid-1" />';
 const operationalCssTag = '<link rel="stylesheet" href="../../shared/jvision-operational-mode.css?v=20260810-ops-5" />';
 const scriptTag = '<script src="../../shared/jvision-client-demo.js?v=20260810-guided-4" defer></script>';
 const operationalScriptTag = '<script src="../../shared/jvision-operational-mode.js?v=20260810-ops-5" defer></script>';
