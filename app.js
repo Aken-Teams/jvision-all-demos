@@ -210,6 +210,12 @@ const categoryIcons = {
 };
 function categoryIcon(category) { return categoryIcons[category] || "category"; }
 
+// Display title = text before any「（英文全名）」parenthetical (fallback to original if empty).
+function shortTitle(title) {
+  const raw = String(title || "");
+  return raw.replace(/[（(].*?[)）]/g, "").trim() || raw;
+}
+
 function renderQuickFilters() {
   quickFilters.innerHTML = "";
   const categories = [...new Set(state.projects.map((project) => project.category || "未分類"))]
@@ -264,7 +270,7 @@ function renderProjects() {
   for (const [index, project] of visibleProjects.entries()) {
     const card = template.content.cloneNode(true);
     card.querySelector(".case-id").textContent = `#${project.id}`;
-    card.querySelector("h3").textContent = project.title || project.repoName;
+    card.querySelector("h3").textContent = shortTitle(project.title) || project.repoName;
     card.querySelector(".project-category").textContent = project.category || "未分類";
     card.querySelector(".project-description").textContent = project.description || "提供清楚的工作流程、資料管理與互動操作展示。";
     const primaryUserDd = card.querySelector(".project-primary-user");
@@ -332,7 +338,7 @@ function renderSuggestions() {
     option.type = "button";
     option.id = `suggestion-${index}`;
     option.setAttribute("role", "option");
-    option.innerHTML = `<span class="sug-title">${project.title || project.repoName}</span><span class="sug-cat">${project.category || "未分類"}</span>`;
+    option.innerHTML = `<span class="sug-title">${shortTitle(project.title || project.repoName)}</span>`;
     option.addEventListener("mousedown", (event) => event.preventDefault());
     option.addEventListener("click", () => {
       state.query = project.title || project.repoName;
