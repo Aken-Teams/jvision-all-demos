@@ -1,0 +1,38 @@
+<!-- 1342 · jvision-smart-mfg-242-product-data-management · type=maintenance-cmms -->
+# Stitch Prompt — 「PDM（Product Data Management，產品資料管理）」
+> 系統定位：CMMS 設備維護　｜　產業：研發管理　｜　Case 1342
+> 用法：把下面【STYLE SYSTEM】貼進 Stitch 的 style/theme，再分別用 SCREEN 1、SCREEN 2 各生成一個畫面。
+
+```
+STYLE SYSTEM (apply to every screen):
+- Product family: a professional, trustworthy B2B enterprise SaaS console. Clean, bright, high-contrast, data-dense but calm. Think Linear × modern ERP.
+- Primary color #1E40AF (deep blue) and #3B82F6 (bright blue) for actions, active nav, chart series and key numbers. Background is white #FFFFFF and light blue-grey #F5F8FC. Text is slate #1E293B on white; muted #64748B for secondary. Borders are hairline #E2E8F0. Use one warm amber #D97706 ONLY for "needs attention / CTA highlight". Success green #16A34A, danger red #DC2626 used sparingly for status.
+- Rounded 12px cards with a soft, low shadow; 8px controls. Generous whitespace, 8-pt spacing rhythm.
+- Typography: clean geometric sans (Inter / Noto Sans TC). Big bold numbers for KPIs. Traditional-Chinese UI copy, ALL-CAPS latin section labels (e.g. "SEARCH RESULTS") as tiny eyebrows.
+- Every screen: fixed top bar (left: JVision wordmark; center: global search; right: notifications + avatar). No dark mode. Desktop-first, but the layout must reflow gracefully to tablet/mobile.
+- Tone: enterprise, credible, "a real system a customer would buy" — not a toy demo.
+```
+
+## SCREEN 1 — 專案介紹頁 (Project Overview / "before the demo")
+Generate a professional, single-scroll PRODUCT OVERVIEW page a salesperson would show a customer BEFORE opening the live demo. Use the STYLE SYSTEM. Sections top-to-bottom:
+
+1. HERO: eyebrow "CMMS 設備維護 · Case 1342"; H1 「PDM（Product Data Management，產品資料管理）」; one-line subtitle 「PDM（Product Data Management，產品資料管理）提供CAD檔案版本控制、零件庫與標準件管理、設計簽核與存取權限控制。研發專案管理師、研發經理、技術長依「CAD檔案版本控制、零件庫與標準件管理、設計簽核與存取權限控制」推進作業，優先解決「CAD檔案版本覆蓋、遺失」，部門主管則以PDM管理艙處理結果確認成果。」; two buttons 「開啟互動 Demo」(primary blue) and 「觀看 3 分鐘導覽」(ghost). A soft blue abstract system illustration on the right.
+2. 要解決的問題 (The problem): a 2–3 card row describing the pain. Seed copy: 「當「CAD檔案版本覆蓋、遺失」發生時，研發專案管理師、研發經理、技術長可在PDM（Product Data Management，產品資料管理）依序完成CAD檔案版本控制、零件庫與標準件管理、設計簽核與存取權限控制；部門主管再依處理結果判斷是否需要介入。」 Frame the old way (試算表往返、人工追蹤、異常太晚發現) vs. why it hurts.
+3. 這套系統做什麼 (What the system does): a short paragraph + a 「適合誰」chip row → 「研發專案管理師、研發經理、技術長」. Include 「日常怎麼用」: 「研發專案管理師、研發經理、技術長日常使用CAD檔案版本控制、零件庫與標準件管理、設計簽核與存取權限控制；案件依「CAD檔案版本控制、零件庫與標準件管理、設計簽核與存取權限控制」流轉，並與既有作業系統同步。」
+4. 核心功能 (Key features): a 3×2 grid of 6 feature tiles with a small blue line-icon each, derived from a CMMS 設備維護 system (e.g. equipment maintenance: PM schedule, predictive alerts and downtime).
+5. 運作流程 (How it works): a horizontal numbered STEP FLOW with these stages 「CAD檔案版本控制」→「零件庫與標準件管理」→「設計簽核與存取權限控…」 — each step a node with icon, title and one line of helper text.
+6. 帶來的效益 (Benefits): a KPI strip of 4 outcome stats built around 「CAD檔案版本覆蓋、遺失」, 「零件重複開發浪費資源」, 「跨團隊圖檔存取權限不清」, 「舊圖檔難以追溯歷史修改」 (show as before→after or ▲/▼ deltas), then 2–3 bullet benefits.
+7. CTA band: 「準備好看它實際運作了嗎？」 with a big 「進入 Demo」 button.
+Footer: JVision wordmark + 「擬真示範資料」 note.
+
+## SCREEN 2 — Demo 操作畫面 (the live CMMS 設備維護 workspace)
+Generate the actual working application screen for 「PDM（Product Data Management，產品資料管理）」, a CMMS 設備維護 system (equipment maintenance: PM schedule, predictive alerts and downtime). Use the STYLE SYSTEM. Layout:
+
+- LEFT SIDEBAR (~12%, deep-blue-tinted): brand block 「JVision」/「PDM（Product Data Management，產品資料管理）」; a vertical module nav of 4 items 「設備總覽」「保養排程」「維修工單」「預兆診斷」 with the first active; and a bottom "今日摘要" mini-card with a big number and a 「派工維修」 button.
+- TOP BAR of the workspace: eyebrow 「CMMS 設備維護 · Case 1342」, H1 「PDM（Product Data Management，產品資料管理）」, subtitle 「研發管理｜PDM（Product Data Management，產品資料管理）提供CAD檔案版本控制、零件庫與標準件管理、設計簽核與存取權限控制。研發專案管理師、研發經理、技術長依「CAD檔案版本控制、零件庫與標準件管理、設計簽核與存取權限控制」推進作業，優先解決「CAD檔案版本覆蓋、遺失」，部門主管則以PDM管理艙處理結果確認成果。」, and a global search 「搜尋維護工單、負責人或編號」.
+- KPI ROW: 4 stat cards → 「CAD檔案版本覆蓋、遺失」, 「零件重複開發浪費資源」, 「跨團隊圖檔存取權限不清」, 「舊圖檔難以追溯歷史修改」. Big blue numbers, tiny caption, a ▲/▼ delta on each.
+- PRIMARY (center, ~62% width): a status KANBAN board with columns 「CAD檔案版本控制 → 零件庫與標準件管理 → 設計簽核與存取權限控…」. Each column header shows a count badge; each card shows an ID (擬真編號), a short title, an owner chip, a due tag (D+n), and a small colored risk/priority dot. Cards are draggable between columns.
+- RIGHT RAIL (~26%): equipment GAUGES — availability/performance/quality (OEE) rings and a predictive-alert list.
+- LOWER-LEFT: a 「新增維護工單」 form panel with fields 「CAD檔案版本控制／零件庫與標準件管理」「設計簽核與存取權限控制／檔案關聯性管理（父子件）」 and a primary submit button 「派工維修」, plus quick actions 「AI 重新分析」「模擬主管審核」「還原範例資料」.
+- LOWER-RIGHT / BOTTOM: an "操作紀錄 (Audit Trail)" log list with time-stamped entries.
+All names, companies, order numbers and figures are realistic Traditional-Chinese SAMPLE data. Make it look like a system a customer already paid for.

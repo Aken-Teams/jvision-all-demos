@@ -434,8 +434,10 @@ async function boot() {
     .filter((project) => !["draft", "archived"].includes(project.status));
   addOptions(categorySelect, [...new Set(state.projects.map((project) => project.category || "未分類"))].sort((a, b) => a.localeCompare(b, "zh-Hant")).map((value) => [value, value]));
   hydrateFromUrl();
-  animateCount(document.querySelector("#totalProjects"), state.projects.length);
-  document.querySelector("#footerStats").textContent = `${state.projects.length} 個展示專案`;
+  const totalEl = document.querySelector("#totalProjects");
+  if (totalEl) animateCount(totalEl, state.projects.length);
+  const footerEl = document.querySelector("#footerStats");
+  if (footerEl) footerEl.textContent = `${state.projects.length} 個展示專案`;
   renderQuickFilters();
   renderCatalogStats();
   applyFilters({ updateSuggestions: false });
@@ -454,8 +456,8 @@ catalogStatsBody.addEventListener("click", (event) => {
   if (!action) return;
   selectCategory(action.dataset.category, { scrollToResults: true });
 });
-document.querySelector("#focusSearch").addEventListener("click", () => searchInput.focus());
-document.querySelector("#heroSearch").addEventListener("click", () => {
+document.querySelector("#focusSearch")?.addEventListener("click", () => searchInput.focus());
+document.querySelector("#heroSearch")?.addEventListener("click", () => {
   document.querySelector(".search-panel").scrollIntoView({ behavior: "smooth", block: "center" });
   window.setTimeout(() => searchInput.focus(), 450);
 });
