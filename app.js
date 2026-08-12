@@ -288,21 +288,23 @@ function renderProjects() {
       chip.textContent = metric;
       metrics.append(chip);
     }
-    const demo = card.querySelector(".demo-link");
+    const detailUrl = `project?repo=${encodeURIComponent(project.repoName)}`;
     const fullScenario = project.contentDepth === "full-scenario";
+    // 自由操作 → 直接進實際 demo
+    const demo = card.querySelector(".demo-link");
     demo.href = project.demoUrl ? `${project.demoUrl}${fullScenario ? "?mode=free" : ""}` : "#";
-    demo.textContent = fullScenario ? "自由操作" : "開啟 Demo";
+    demo.textContent = "開啟 Demo";
     if (!project.demoUrl) demo.setAttribute("aria-disabled", "true");
+    // 3 分鐘總覽 → 專案介紹頁（Tab 版），全部專案都有
     const guided = card.querySelector(".guided-link");
-    guided.hidden = !fullScenario;
-    guided.href = project.demoUrl ? `${project.demoUrl}?mode=guided` : "#";
-    if (!project.demoUrl) guided.setAttribute("aria-disabled", "true");
+    guided.hidden = false;
+    guided.href = detailUrl;
+    // 卡片縮圖 → 專案介紹頁
     const preview = card.querySelector(".system-preview");
     const previewImage = card.querySelector(".system-preview-image");
     const title = project.title || project.repoName;
-    preview.href = project.demoUrl || "#";
-    preview.setAttribute("aria-label", `開啟 ${title} Demo`);
-    if (!project.demoUrl) preview.setAttribute("aria-disabled", "true");
+    preview.href = detailUrl;
+    preview.setAttribute("aria-label", `${shortTitle(title)} 專案總覽`);
     previewImage.src = thumbnailUrl(project);
     previewImage.alt = `${title} 系統運行畫面`;
     previewImage.loading = index < 6 ? "eager" : "lazy";
