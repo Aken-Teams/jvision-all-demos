@@ -198,23 +198,33 @@ function renderCatalogStats() {
   catalogStatsBody.append(fragment);
 }
 
+const categoryIcons = {
+  "生產製造": "precision_manufacturing", "品質管理": "verified", "業務銷售": "trending_up",
+  "採購供應鏈": "handshake", "人力資源": "badge", "倉儲物流": "inventory_2", "研發管理": "science",
+  "經營管理": "insights", "ESG 永續": "eco", "零售電商": "storefront", "教育": "school",
+  "企業協作": "groups", "營建工程": "engineering", "醫療照護": "medical_services", "財務會計": "account_balance",
+  "金融保險": "savings", "資訊科技": "dns", "交通運輸": "commute", "設備維護": "build",
+  "資訊安全": "security", "專業服務": "gavel", "物流運輸": "local_shipping", "餐飲旅宿": "restaurant",
+  "生活服務": "checkroom", "數據分析": "analytics", "客服管理": "support_agent",
+  "房地產與物業": "apartment", "宗教服務": "temple_buddhist",
+};
+function categoryIcon(category) { return categoryIcons[category] || "category"; }
+
 function renderQuickFilters() {
   quickFilters.innerHTML = "";
   const categories = [...new Set(state.projects.map((project) => project.category || "未分類"))]
     .map((category) => ({ category, count: state.projects.filter((project) => (project.category || "未分類") === category).length }))
-    .sort((a, b) => b.count - a.count || a.category.localeCompare(b.category, "zh-Hant"))
-    .slice(0, 10);
-  const all = document.createElement("button");
-  all.type = "button";
-  all.textContent = "全部專案";
-  all.dataset.category = "";
-  quickFilters.append(all);
-  for (const item of categories) {
+    .sort((a, b) => b.count - a.count || a.category.localeCompare(b.category, "zh-Hant"));
+  const makeButton = (category, name, count, icon) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = `${item.category} · ${item.count}`;
-    button.dataset.category = item.category;
-    quickFilters.append(button);
+    button.dataset.category = category;
+    button.innerHTML = `<span class="qf-main"><span class="material-symbols-outlined qf-icon">${icon}</span><span class="qf-name">${name}</span></span><span class="qf-count">${count}</span>`;
+    return button;
+  };
+  quickFilters.append(makeButton("", "全部專案", state.projects.length, "apps"));
+  for (const item of categories) {
+    quickFilters.append(makeButton(item.category, item.category, item.count, categoryIcon(item.category)));
   }
   quickFilters.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-category]");
@@ -257,7 +267,13 @@ function renderProjects() {
     card.querySelector("h3").textContent = project.title || project.repoName;
     card.querySelector(".project-category").textContent = project.category || "未分類";
     card.querySelector(".project-description").textContent = project.description || "提供清楚的工作流程、資料管理與互動操作展示。";
-    card.querySelector(".project-primary-user").textContent = project.primaryUser || "部門使用者與主管";
+    const primaryUserDd = card.querySelector(".project-primary-user");
+    primaryUserDd.textContent = "";
+    for (const role of String(project.primaryUser || "部門使用者與主管").split(/[、,，/／·]/).map((s) => s.trim()).filter(Boolean)) {
+      const chip = document.createElement("span");
+      chip.textContent = role;
+      primaryUserDd.append(chip);
+    }
     card.querySelector(".project-business-situation").textContent = project.businessSituation || project.description;
     card.querySelector(".project-daily-use").textContent = project.dailyUse || "用於日常資料確認、異常處理與進度追蹤。";
     const metrics = card.querySelector(".project-metrics");
@@ -316,7 +332,7 @@ function renderSuggestions() {
     option.type = "button";
     option.id = `suggestion-${index}`;
     option.setAttribute("role", "option");
-    option.innerHTML = `<strong>${project.title || project.repoName}</strong><span>#${project.id} · ${project.category || "未分類"} · ${project.repoName}</span>`;
+    option.innerHTML = `<span class="sug-title">${project.title || project.repoName}</span><span class="sug-cat">${project.category || "未分類"}</span>`;
     option.addEventListener("mousedown", (event) => event.preventDefault());
     option.addEventListener("click", () => {
       state.query = project.title || project.repoName;
