@@ -210,6 +210,64 @@ const categoryIcons = {
 };
 function categoryIcon(category) { return categoryIcons[category] || "category"; }
 
+/* 分類色（給卡片 hero 的色調） */
+const categoryColors = {
+  "生產製造": "#1e40af", "品質管理": "#0891b2", "業務銷售": "#2563eb", "採購供應鏈": "#7c3aed",
+  "人力資源": "#db2777", "倉儲物流": "#0d9488", "研發管理": "#4338ca", "經營管理": "#4f46e5",
+  "ESG 永續": "#16a34a", "零售電商": "#ea580c", "教育": "#ca8a04", "企業協作": "#6366f1",
+  "營建工程": "#b45309", "醫療照護": "#dc2626", "財務會計": "#059669", "金融保險": "#0284c7",
+  "資訊科技": "#0ea5e9", "交通運輸": "#0369a1", "設備維護": "#0369a1", "資訊安全": "#475569",
+  "專業服務": "#7c3aed", "物流運輸": "#0d9488", "餐飲旅宿": "#ea580c", "生活服務": "#db2777",
+  "數據分析": "#4f46e5", "客服管理": "#0ea5e9", "房地產與物業": "#b45309", "宗教服務": "#b45309",
+};
+function categoryColor(category) { return categoryColors[category] || "#1e40af"; }
+
+/* 卡片預覽：嵌入該專案的 live demo（縮放成「活的預覽」，捲到才載入） */
+function cardHeroHTML(project) {
+  const cat = project.category || "";
+  const hue = categoryColor(cat);
+  const soft = `${hue}14`;
+  const icon = categoryIcon(cat);
+  const title = project.title || project.repoName || "";
+  const badge = `<span class="absolute top-2 left-2 z-10 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm bg-white" style="color:${hue}"><span class="material-symbols-outlined" style="font-size:12px">${icon}</span>${cat}</span>`;
+  if (!project.demoUrl) {
+    return `<div class="absolute inset-0 flex flex-col items-center justify-center gap-1" style="background:${soft}">${badge}<span class="material-symbols-outlined" style="font-size:40px;color:${hue};opacity:.45">${icon}</span><b class="text-[11px] font-bold" style="color:${hue}">${title}</b><span class="case-id hidden">#${project.id}</span></div>`;
+  }
+  return `
+    <div class="jv-card-embed absolute inset-0 overflow-hidden" data-src="${project.demoUrl}" style="background:${soft}">
+      ${badge}
+      <div class="jv-card-ph absolute inset-0 flex items-center justify-center" style="background:${soft}"><span class="material-symbols-outlined" style="font-size:38px;color:${hue};opacity:.4">${icon}</span></div>
+      <iframe class="jv-card-frame" title="${title} 系統畫面" loading="lazy" scrolling="no" style="border:0;width:1440px;height:900px;transform-origin:top left;pointer-events:none;opacity:0;transition:opacity .35s"></iframe>
+      <span class="case-id hidden">#${project.id}</span>
+    </div>`;
+}
+
+/* 卡片 live demo：捲到才載入 + 縮放；resize 重算（只綁一次） */
+function scaleCardEmbed(wrap) {
+  const f = wrap.querySelector(".jv-card-frame"); if (!f) return;
+  const w = wrap.clientWidth; if (!w) return;
+  f.style.transform = "scale(" + (w / 1440) + ")";
+}
+let _cardIO = null, _cardResizeBound = false;
+function setupCardEmbeds() {
+  if (!_cardIO) {
+    _cardIO = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (!en.isIntersecting) return;
+        const wrap = en.target, f = wrap.querySelector(".jv-card-frame");
+        if (f && !f.src && wrap.dataset.src) {
+          f.addEventListener("load", () => { scaleCardEmbed(wrap); f.style.opacity = "1"; const ph = wrap.querySelector(".jv-card-ph"); if (ph) ph.style.display = "none"; }, { once: true });
+          f.src = wrap.dataset.src;
+          scaleCardEmbed(wrap);
+        }
+        _cardIO.unobserve(wrap);
+      });
+    }, { rootMargin: "300px" });
+  }
+  document.querySelectorAll(".jv-card-embed").forEach((w) => { if (w.querySelector(".jv-card-frame:not([src])")) _cardIO.observe(w); });
+  if (!_cardResizeBound) { _cardResizeBound = true; window.addEventListener("resize", () => document.querySelectorAll(".jv-card-embed").forEach(scaleCardEmbed)); }
+}
+
 // Display title = text before any「（英文全名）」parenthetical (fallback to original if empty).
 function shortTitle(title) {
   const raw = String(title || "");
@@ -301,14 +359,10 @@ function renderProjects() {
     guided.href = detailUrl;
     // 卡片縮圖 → 專案介紹頁
     const preview = card.querySelector(".system-preview");
-    const previewImage = card.querySelector(".system-preview-image");
     const title = project.title || project.repoName;
     preview.href = detailUrl;
     preview.setAttribute("aria-label", `${shortTitle(title)} 專案總覽`);
-    previewImage.src = thumbnailUrl(project);
-    previewImage.alt = `${title} 系統運行畫面`;
-    previewImage.loading = index < 6 ? "eager" : "lazy";
-    previewImage.fetchPriority = index < 3 ? "high" : "low";
+    preview.innerHTML = cardHeroHTML(project);
     fragment.append(card);
   }
   grid.append(fragment);
@@ -320,6 +374,7 @@ function renderProjects() {
       projectUseDialog.showModal();
     });
   });
+  setupCardEmbeds();
   document.querySelector("#resultSummary").textContent = `找到 ${state.filtered.length} 個專案，目前顯示 ${visibleProjects.length} 個。`;
   loadMore.hidden = state.visible >= state.filtered.length || !state.filtered.length;
 }

@@ -1,18 +1,118 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>運輸管理 TMS｜Jvision 系統 Demo</title>
-  <meta name="description" content="派車、追蹤、簽收到成本油耗的車隊管理" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>運輸管理 TMS｜Jvision 系統 Demo</title>
+<meta name="description" content="派車、追蹤、簽收到成本油耗的車隊管理（純 UI 展示）。" />
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{ --sky:#0284c7; --sky-d:#075985; --cyan:#0891b2; --ink:#0c1e33; --body:#3a4a5c; --muted:#7488a0; --line:#dbe6f0; --bg:#eef4fa; --green:#16a34a; --amber:#f59e0b; --red:#dc2626; }
+  *{ box-sizing:border-box; } html,body{ margin:0; }
+  body{ font-family:Inter,"Noto Sans TC","Microsoft JhengHei",sans-serif; background:var(--bg); color:var(--body); -webkit-font-smoothing:antialiased; }
+  .material-symbols-outlined{ font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+  .top{ background:linear-gradient(90deg,#075985,#0284c7); color:#e0f2fe; position:sticky; top:0; z-index:30; }
+  .top .bar{ display:flex; align-items:center; gap:20px; padding:0 26px; height:58px; }
+  .brand{ display:flex; align-items:center; gap:11px; } .brand .lg{ width:38px; height:38px; border-radius:11px; background:#fff; color:var(--sky); display:grid; place-content:center; }
+  .brand b{ color:#fff; font-size:15px; display:block; } .brand small{ color:#bae6fd; font-size:11px; letter-spacing:.1em; }
+  .live{ display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:800; color:#7dd3fc; background:rgba(255,255,255,.1); border-radius:999px; padding:4px 11px; }
+  .live .dot{ width:7px; height:7px; border-radius:50%; background:#22d3ee; animation:pulse 2s infinite; } @keyframes pulse{50%{opacity:.3;}}
+  .top .r{ margin-left:auto; display:flex; align-items:center; gap:14px; color:#bae6fd; font-size:13px; } .ava{ width:34px; height:34px; border-radius:50%; background:#fff; color:var(--sky); font-weight:800; display:grid; place-content:center; }
+  .tabs{ display:flex; gap:2px; padding:0 20px; overflow-x:auto; border-top:1px solid rgba(255,255,255,.1); }
+  .tabs button{ display:inline-flex; align-items:center; gap:8px; white-space:nowrap; background:none; border:0; border-bottom:3px solid transparent; color:#bae6fd; font:inherit; font-size:13px; font-weight:700; padding:12px 15px; cursor:pointer; } .tabs button .material-symbols-outlined{ font-size:19px; }
+  .tabs button:hover{ color:#fff; } .tabs button.on{ color:#fff; border-bottom-color:#38bdf8; }
+  .body{ max-width:1360px; margin:0 auto; padding:20px 26px 44px; }
+  .vh{ display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:16px; flex-wrap:wrap; } .vh h2{ margin:0; font-size:21px; font-weight:900; color:var(--ink); } .vh p{ margin:3px 0 0; font-size:13px; color:var(--muted); }
+  .btn{ display:inline-flex; align-items:center; gap:6px; height:38px; padding:0 15px; border-radius:10px; border:0; background:var(--sky); color:#fff; font:inherit; font-weight:800; font-size:13px; cursor:pointer; } .btn.ghost{ background:#fff; color:var(--sky); border:1px solid var(--line); } .btn .material-symbols-outlined{ font-size:18px; }
+  .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:18px; }
+  .kpi{ background:#fff; border:1px solid var(--line); border-radius:15px; padding:15px 17px; } .kpi .l{ font-size:12px; font-weight:700; color:var(--muted); display:flex; gap:6px; } .kpi .l .material-symbols-outlined{ font-size:18px; color:var(--sky); } .kpi .v{ font-size:26px; font-weight:900; color:var(--ink); margin-top:6px; } .kpi .v small{ font-size:13px; color:var(--muted); } .kpi .d{ font-size:12px; font-weight:800; color:var(--green); margin-top:4px; }
+  .grid{ display:grid; gap:18px; } .grid>*{ min-width:0; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:18px 20px; min-width:0; } .card>h3{ margin:0 0 14px; font-size:15px; font-weight:800; color:var(--ink); display:flex; align-items:center; gap:8px; } .card>h3 .material-symbols-outlined{ color:var(--sky); font-size:20px; } .card>h3 .grow{ margin-left:auto; font-size:12px; font-weight:700; color:var(--sky); cursor:pointer; }
+  /* MAP */
+  .map{ position:relative; height:420px; border-radius:16px; overflow:hidden; background:#dbeafe;
+    background-image:linear-gradient(#c7dbf0 1px,transparent 1px),linear-gradient(90deg,#c7dbf0 1px,transparent 1px); background-size:44px 44px; border:1px solid var(--line); }
+  .road{ position:absolute; background:#f0f6fc; box-shadow:0 0 0 1px #d5e3f0; }
+  .map svg{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  .pin{ position:absolute; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:3px; z-index:2; }
+  .pin .mk{ width:34px; height:34px; border-radius:11px 11px 11px 3px; display:grid; place-content:center; color:#fff; box-shadow:0 4px 10px rgba(0,0,0,.25); } .pin .lb{ font-size:10px; font-weight:800; background:#fff; border:1px solid var(--line); border-radius:6px; padding:1px 6px; color:var(--ink); white-space:nowrap; }
+  .m-run{ background:var(--sky); } .m-load{ background:var(--amber); } .m-idle{ background:#94a3b8; } .m-late{ background:var(--red); }
+  .lmap{ height:420px; border-radius:16px; overflow:hidden; z-index:0; }
+  .map-legend{ position:absolute; left:12px; bottom:12px; z-index:1000; background:rgba(255,255,255,.94); border:1px solid var(--line); border-radius:10px; padding:8px 12px; display:flex; gap:14px; font-size:11px; font-weight:700; } .map-legend span{ display:inline-flex; align-items:center; gap:5px; } .map-legend i{ width:9px; height:9px; border-radius:3px; display:inline-block; }
+  /* vehicle list */
+  .veh{ display:flex; align-items:center; gap:12px; padding:11px 0; border-top:1px solid var(--line); } .veh:first-of-type{ border-top:0; }
+  .veh .ic{ width:38px; height:38px; border-radius:11px; display:grid; place-content:center; color:#fff; flex:none; }
+  .veh .info{ flex:1; } .veh .info b{ color:var(--ink); font-size:14px; } .veh .info small{ display:block; color:var(--muted); font-size:12px; }
+  .vst{ font-size:11px; font-weight:800; border-radius:999px; padding:3px 10px; } .v-run{ background:#e0f2fe; color:#075985; } .v-load{ background:#fef3c7; color:#92400e; } .v-idle{ background:#f1f5f9; color:#64748b; } .v-late{ background:#fee2e2; color:#991b1b; }
+  /* order/dispatch */
+  .ord{ display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--line); } .ord:first-of-type{ border-top:0; }
+  .ord .no{ font-weight:800; color:var(--sky); width:70px; flex:none; } .ord .rt{ flex:1; } .ord .rt b{ color:var(--ink); font-size:13px; } .ord .rt small{ display:block; color:var(--muted); font-size:12px; }
+  /* table */
+  .tbl{ width:100%; border-collapse:collapse; font-size:13px; } .tbl th{ text-align:left; font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:800; padding:11px 12px; border-bottom:2px solid var(--line); background:var(--bg); white-space:nowrap; } .tbl td{ padding:11px 12px; border-bottom:1px solid var(--line); white-space:nowrap; } .tbl tr:hover td{ background:var(--bg); }
+  .tag{ font-size:11px; font-weight:800; border-radius:999px; padding:2px 9px; } .g-ok{ background:#dcfce7; color:#166534; } .g-run{ background:#e0f2fe; color:#075985; }
+  .chart{ width:100%; height:270px; }
+  @media (max-width:820px){ .body{ padding:16px 14px 30px; } .grid{ grid-template-columns:1fr !important; } .top .r .clk{ display:none; } .map{ height:300px; } }
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<header class="top">
+  <div class="bar"><div class="brand"><span class="lg"><span class="material-symbols-outlined">local_shipping</span></span><div><b>運輸管理 TMS</b><small>FLEET DISPATCH CONTROL</small></div></div>
+    <span class="live"><span class="dot"></span>18 車在途</span>
+    <div class="r"><span class="clk"><span class="material-symbols-outlined" style="font-size:18px;vertical-align:-4px;">schedule</span> 2026-07-23 09:20</span><span class="ava">調</span></div></div>
+  <nav class="tabs" id="tabs"></nav>
+</header>
+<main class="body" id="view"></main>
+<script>
+const MODS=[["route","路線調度"],["local_shipping","任務派車"],["my_location","即時追蹤"],["assignment_turned_in","簽收回單"],["local_gas_station","成本油耗"],["ac_unit","冷鏈溫控"]];
+const NAMES=["路線調度","任務派車","即時追蹤","簽收回單","成本油耗","冷鏈溫控"];
+const DESC=["訂單排程與路線規劃","車輛駕駛指派與路線優化","車隊 GPS 即時位置與狀態","電子簽收與回單管理","油耗與配送成本分析","冷藏車廂溫度監控"];
+const KPI=[["派車規劃工時","1","小時/日","−更快"],["準時配送率","99","%","+16%"],["空車率","9.4","%","−更低"],["簽收時效","2","小時","−更即時"]];
+const VEH=[["TC-01","王大明","北區 · 12 件","run",25.05,121.55],["TC-02","陳建國","中區 · 8 件","run",24.15,120.68],["TC-03","林志豪","南區 · 冷鏈","load",23.00,120.20],["TC-04","黃俊傑","北區 · 15 件","late",25.01,121.46],["TC-05","張家維","桃園 · 6 件","run",24.99,121.31],["TC-06","李文彬","新竹 · 待命","idle",24.80,120.97],["TC-07","吳志明","台中 · 冷鏈","run",24.14,120.70],["TC-08","劉建宏","高雄 · 10 件","load",22.63,120.30]];
+const ORDERS=[["#SO-8801","台北→桃園","一般 · 12 件 · 08:30 前","已派 TC-01"],["#SO-8802","台中→彰化","冷鏈 · 6 件 · 10:00 前","已派 TC-07"],["#SO-8803","台北→新竹","一般 · 20 件 · 12:00 前","待派車"],["#SO-8804","高雄→台南","一般 · 8 件 · 09:00 前","已派 TC-08"],["#SO-8805","桃園→中壢","急件 · 3 件 · 08:00 前","待派車"],["#SO-8806","新竹→竹北","一般 · 15 件 · 14:00 前","待派車"]];
+const POD=[["#SO-8790","王大明","台北 內湖","已簽收","08:42"],["#SO-8791","陳建國","台中 西屯","已簽收","09:05"],["#SO-8792","林志豪","台南 東區","異常 · 缺件","09:18"],["#SO-8793","黃俊傑","新北 板橋","已簽收","09:30"],["#SO-8794","張家維","桃園 龜山","已簽收","09:44"],["#SO-8795","吳志明","台中 南屯","配送中","—"]];
+const COLD=[["TC-03","南區冷鏈","2.4","−18~5","run"],["TC-07","台中冷鏈","4.1","−18~5","run"],["TC-11","北區冷鏈","6.8","−18~5","warn"]];
+const vic=s=>s==="run"?"m-run":s==="load"?"m-load":s==="late"?"m-late":"m-idle";
+const vsc=s=>s==="run"?"v-run":s==="load"?"v-load":s==="late"?"v-late":"v-idle";
+const vtx=s=>s==="run"?"在途":s==="load"?"裝卸貨":s==="late"?"延遲":"待命";
+const kpiRow=()=>`<div class="kpis">${KPI.map(k=>`<div class="kpi"><div class="l"><span class="material-symbols-outlined">monitoring</span>${k[0]}</div><div class="v">${k[1]}<small>${k[2]}</small></div><div class="d">${k[3]}</div></div>`).join("")}</div>`;
+function mapHtml(){ return `<div style="position:relative;"><div id="lmap" class="lmap"></div><div class="map-legend"><span><i style="background:#0284c7;"></i>在途</span><span><i style="background:#f59e0b;"></i>裝卸</span><span><i style="background:#94a3b8;"></i>待命</span><span><i style="background:#dc2626;"></i>延遲</span></div></div>`; }
+let lmap=null;
+function initMap(){
+  if(!window.L){const el=document.getElementById("lmap");if(el)el.innerHTML='<div style="padding:40px;text-align:center;color:#7488a0;">地圖載入中…</div>';return;}
+  if(lmap){lmap.remove();lmap=null;}
+  lmap=L.map("lmap",{zoomControl:true,attributionControl:false,scrollWheelZoom:false}).setView([23.9,120.85],7);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{maxZoom:18,subdomains:"abcd"}).addTo(lmap);
+  const col=s=>s==="run"?"#0284c7":s==="load"?"#f59e0b":s==="late"?"#dc2626":"#94a3b8";
+  VEH.forEach(v=>{ const icon=L.divIcon({className:"",iconSize:[30,30],iconAnchor:[15,15],html:`<div style="background:${col(v[3])};width:30px;height:30px;border-radius:10px 10px 10px 3px;display:grid;place-content:center;color:#fff;box-shadow:0 3px 8px rgba(0,0,0,.35);"><span class="material-symbols-outlined" style="font-size:18px;">local_shipping</span></div>`}); L.marker([v[4],v[5]],{icon}).addTo(lmap).bindPopup(`<b>${v[0]}</b> · ${v[1]}<br/>${v[2]} · ${vtx(v[3])}`); });
+  L.polyline([[25.05,121.55],[24.99,121.31],[24.80,120.97],[24.15,120.68]],{color:"#0284c7",weight:3,dashArray:"7 7",opacity:.7}).addTo(lmap);
+  L.polyline([[22.63,120.30],[23.00,120.20],[24.14,120.70]],{color:"#f59e0b",weight:3,dashArray:"7 7",opacity:.7}).addTo(lmap);
+  requestAnimationFrame(()=>{try{lmap.invalidateSize();}catch(e){}});
+}
+const vehList=(n)=>VEH.slice(0,n||8).map(v=>`<div class="veh"><span class="ic ${vic(v[3])}"><span class="material-symbols-outlined">local_shipping</span></span><div class="info"><b>${v[0]} · ${v[1]}</b><small>${v[2]}</small></div><span class="vst ${vsc(v[3])}">${vtx(v[3])}</span></div>`).join("");
+const SCREENS={
+ 0:()=>kpiRow()+`<div class="grid" style="grid-template-columns:1.6fr 1fr;"><div class="card"><h3><span class="material-symbols-outlined">route</span>今日路線地圖<span class="grow">全螢幕 ›</span></h3>${mapHtml()}</div><div class="card"><h3><span class="material-symbols-outlined">list_alt</span>路線與車輛</h3>${vehList(8)}</div></div>`,
+ 1:()=>`<div class="grid" style="grid-template-columns:1fr 1.4fr;"><div class="card"><h3><span class="material-symbols-outlined">inbox</span>待派訂單</h3>${ORDERS.map(o=>`<div class="ord"><span class="no">${o[0]}</span><div class="rt"><b>${o[1]}</b><small>${o[2]}</small></div><button class="btn ghost" style="height:30px;padding:0 10px;">${o[3].startsWith("待")?"派車":o[3]}</button></div>`).join("")}</div><div class="card"><h3><span class="material-symbols-outlined">local_shipping</span>車隊可用狀態</h3>${vehList(8)}</div></div>`,
+ 2:()=>`<div class="card"><h3><span class="material-symbols-outlined">my_location</span>車隊即時位置</h3>${mapHtml()}</div><div class="card" style="margin-top:18px;"><h3><span class="material-symbols-outlined">list</span>即時車況</h3><div style="overflow-x:auto;"><table class="tbl"><thead><tr><th>車號</th><th>駕駛</th><th>路線</th><th>狀態</th><th>ETA</th></tr></thead><tbody>${VEH.map(v=>`<tr><td style="font-weight:800;color:var(--ink);">${v[0]}</td><td>${v[1]}</td><td>${v[2]}</td><td><span class="vst ${vsc(v[3])}">${vtx(v[3])}</span></td><td>${v[3]==="idle"?"—":"+"+(15+v[4]%40)+" 分"}</td></tr>`).join("")}</tbody></table></div></div>`,
+ 3:()=>`<div class="card" style="padding:0;"><div style="padding:16px 20px 0;"><h3><span class="material-symbols-outlined">assignment_turned_in</span>電子簽收回單</h3></div><div style="overflow-x:auto;"><table class="tbl"><thead><tr><th>單號</th><th>駕駛</th><th>送達地</th><th>狀態</th><th>時間</th></tr></thead><tbody>${POD.map(p=>`<tr><td style="font-weight:800;color:var(--ink);">${p[0]}</td><td>${p[1]}</td><td>${p[2]}</td><td><span class="tag ${p[3].includes("異常")?"":"g-ok"}" style="${p[3].includes("異常")?"background:#fee2e2;color:#991b1b;":""}">${p[3]}</span></td><td>${p[4]}</td></tr>`).join("")}</tbody></table></div></div>`,
+ 4:()=>kpiRow()+`<div class="grid" style="grid-template-columns:1.5fr 1fr;"><div class="card"><h3><span class="material-symbols-outlined">local_gas_station</span>近 6 週油耗趨勢 (L/100km)</h3><div id="cF" class="chart"></div></div><div class="card"><h3><span class="material-symbols-outlined">pie_chart</span>配送成本結構</h3><div id="cC" class="chart"></div></div></div>`,
+ 5:()=>`<div class="grid" style="grid-template-columns:1fr 1fr;">${COLD.map((c,i)=>`<div class="card"><h3><span class="material-symbols-outlined" style="color:${c[4]==="warn"?"#dc2626":"var(--sky)"}">ac_unit</span>${c[0]} ${c[1]} · 現溫 ${c[2]}°C ${c[4]==="warn"?'<span class="tag" style="background:#fee2e2;color:#991b1b;margin-left:auto;">超溫</span>':'<span class="tag g-ok" style="margin-left:auto;">正常</span>'}</h3><div id="cT${i}" class="chart" style="height:200px;"></div><small style="color:var(--muted);">設定範圍 ${c[3]}°C</small></div>`).join("")}</div>`
+};
+let charts=[];
+function draw(i){charts.forEach(c=>{try{c.dispose();}catch(e){}});charts=[];if(!window.echarts)return;
+ const line=(id,data,color,band)=>{const el=document.getElementById(id);if(!el)return;const c=echarts.init(el);const o={grid:{left:8,right:16,top:18,bottom:8,containLabel:true},tooltip:{trigger:"axis"},xAxis:{type:"category",boundaryGap:false,data:band?["06","08","10","12","14","16"]:["W1","W2","W3","W4","W5","W6"],axisLabel:{color:"#7488a0"}},yAxis:{type:"value",splitLine:{lineStyle:{color:"#e6eef6"}},axisLabel:{color:"#7488a0"}},series:[{type:"line",smooth:true,data,symbolSize:6,itemStyle:{color},lineStyle:{color,width:3},areaStyle:{color:color+"22"}}]};c.setOption(o);charts.push(c);};
+ if(i===4){line("cF",[34,33,31,30,29,28],"#0284c7");const el=document.getElementById("cC");if(el){const c=echarts.init(el);c.setOption({tooltip:{trigger:"item"},legend:{bottom:0,textStyle:{fontSize:11}},series:[{type:"pie",radius:["46%","72%"],center:["50%","44%"],itemStyle:{borderColor:"#fff",borderWidth:2},label:{show:false},data:[{name:"油料",value:42,itemStyle:{color:"#0284c7"}},{name:"人力",value:33,itemStyle:{color:"#f59e0b"}},{name:"維修",value:15,itemStyle:{color:"#0891b2"}},{name:"過路費",value:10,itemStyle:{color:"#94a3b8"}}]}]});charts.push(c);}}
+ if(i===5){[[2.4,"#0284c7"],[4.1,"#0284c7"],[6.8,"#dc2626"]].forEach((v,idx)=>line("cT"+idx,[v[0]-1.5,v[0]-0.8,v[0],v[0]+0.6,v[0]+0.2,v[0]],v[1],true));}
+}
+const view=document.getElementById("view"),tabs=document.getElementById("tabs");
+tabs.innerHTML=MODS.map((m,i)=>`<button data-i="${i}" class="${i===0?"on":""}"><span class="material-symbols-outlined">${m[0]}</span>${m[1]}</button>`).join("");
+function show(i){tabs.querySelectorAll("button").forEach(b=>b.classList.toggle("on",+b.dataset.i===i));view.innerHTML=`<div class="vh"><div><h2>${NAMES[i]}</h2><p>${DESC[i]}</p></div>${i===1?'<button class="btn"><span class="material-symbols-outlined">bolt</span>智慧排程</button>':''}</div>`+SCREENS[i]();draw(i);if(i===0||i===2){initMap();}else if(lmap){lmap.remove();lmap=null;}}
+tabs.addEventListener("click",e=>{const b=e.target.closest("button[data-i]");if(b)show(+b.dataset.i);});
+window.addEventListener("resize",()=>charts.forEach(c=>c.resize()));
+show(0);
+</script>
 </body>
 </html>
