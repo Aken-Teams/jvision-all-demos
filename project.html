@@ -12,6 +12,8 @@
   <script src="./shared/system-content.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.18.10/dist/browser/index.js"></script>
   <script>
     tailwind.config = { theme: { extend: {
       colors: { ink:"#0f1e46", body:"#334155", muted:"#64748b", line:"#e2e8f0", soft:"#f5f8fc", brand:"#1e40af", brand2:"#3b82f6" },
@@ -127,8 +129,12 @@
     .dg-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; }
     .dg-cell { background:var(--accent-soft); border:1px solid var(--accent-line); border-radius:10px; padding:11px 10px; font-weight:700; font-size:13px; color:var(--accent); display:flex; align-items:center; gap:7px; justify-content:center; }
     .dg-cell .material-symbols-outlined { font-size:18px; }
+    /* framed block wrapper (makes a diagram read as one clear block) */
+    .dg-frame { border:1.5px solid var(--accent-line); background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, #fff), #fff); border-radius:18px; padding:22px 20px; max-width:880px; margin:0 auto; }
+    .dg-frame.dg-layers { display:flex; flex-direction:column; align-items:center; gap:6px; }
     /* radial rings */
     .dg-rings { position:relative; width:100%; height:400px; max-width:520px; margin:0 auto; }
+    .dg-ring-bg { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); border:2px dashed var(--accent-line); border-radius:50%; background:color-mix(in srgb, var(--accent) 4%, #fff); z-index:0; }
     .dg-core-c { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:150px; height:150px; border-radius:50%; display:grid; place-content:center; text-align:center; color:#fff; font-weight:800; font-size:14px; line-height:1.3; padding:12px; background:radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--accent) 78%, #fff), var(--accent)); box-shadow:0 14px 34px rgba(15,30,70,.22); z-index:2; }
     .dg-orbit { position:absolute; transform:translate(-50%,-50%); box-shadow:0 6px 16px rgba(15,30,70,.10); z-index:1; }
     .dg-spoke { position:absolute; left:50%; top:50%; height:2px; background:var(--accent-line); transform-origin:0 50%; z-index:0; }
@@ -144,6 +150,33 @@
     .dg-jstep { background:#fff; border:1px solid var(--accent-line); border-radius:12px; padding:12px 14px; min-width:120px; max-width:180px; text-align:center; }
     .dg-jnum { display:inline-grid; place-content:center; width:26px; height:26px; border-radius:50%; background:var(--accent); color:#fff; font-weight:900; font-size:12px; margin-bottom:6px; }
     .dg-jconn { color:var(--accent); font-size:20px; font-weight:900; padding:0 6px; }
+    /* 3-column pillars architecture */
+    .dg-pillars { display:flex; align-items:stretch; justify-content:center; gap:0; flex-wrap:wrap; max-width:900px; margin:0 auto; }
+    .dg-pillar { flex:1; min-width:150px; max-width:300px; background:var(--accent-soft); border:1px solid var(--accent-line); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:8px; }
+    .dg-pillar-core { background:#fff; }
+    .dg-pillar-h { font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--accent); text-align:center; margin-bottom:2px; }
+    .dg-pcell { background:#fff; border:1px solid var(--accent-line); border-radius:9px; padding:9px 10px; font-weight:700; font-size:13px; color:var(--accent); text-align:center; }
+    .dg-pillar-core .dg-pcell { background:var(--accent-soft); }
+    .dg-pconn { display:flex; align-items:center; color:var(--accent); font-size:24px; font-weight:900; padding:0 8px; }
+    @media (max-width:640px){ .dg-pconn { transform:rotate(90deg); padding:6px 0; } .dg-pillars { flex-direction:column; align-items:stretch; } }
+
+    /* interactive flow (left steps + right detail) */
+    .flow-in { display:flex; align-items:center; gap:8px; background:var(--accent-soft); border:1px dashed var(--accent-line); border-radius:12px; padding:10px 14px; font-size:13px; font-weight:600; color:var(--accent); }
+    .flow-in-x { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .flow-step .fs-body b { overflow-wrap:anywhere; }
+    .flow-in-t { font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; background:#fff; border:1px solid var(--accent-line); border-radius:6px; padding:2px 7px; }
+    .flow-step { display:flex; gap:12px; align-items:center; width:100%; text-align:left; background:#fff; border:1px solid var(--line,#e2e8f0); border-radius:12px; padding:12px 14px; transition:border-color .15s, background .15s, box-shadow .15s; cursor:pointer; }
+    .flow-step:hover { border-color:var(--accent-line); }
+    .flow-step.active { border-color:var(--accent); background:var(--accent-soft); box-shadow:0 6px 18px rgba(15,30,70,.08); }
+    .flow-step .fs-n { width:30px; height:30px; border-radius:50%; background:var(--accent-line); color:var(--accent); font-weight:900; font-size:13px; display:grid; place-content:center; flex:none; }
+    .flow-step.active .fs-n { background:var(--accent); color:#fff; }
+    .flow-step .fs-body { display:flex; flex-direction:column; min-width:0; }
+    .flow-step .fs-body b { font-size:14px; color:#0f1e46; line-height:1.3; }
+    .flow-step .fs-body small { font-size:11px; color:#64748b; }
+    .flow-step .fs-flag { margin-left:auto; color:var(--accent); font-size:18px; }
+    .flow-step-out { cursor:default; background:var(--accent-soft); border-color:var(--accent-line); }
+    .flow-step-out .fs-n { background:var(--accent); color:#fff; }
+    .flow-detail { background:#fff; border:1px solid var(--line,#e2e8f0); border-radius:16px; padding:22px; min-height:380px; }
   </style>
 </head>
 <body class="text-body antialiased min-h-screen flex flex-col">
@@ -318,21 +351,23 @@
       const hx = (hex, wr) => { hex = String(hex).replace("#", ""); if (hex.length < 6) hex = "1e40af"; const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16); const m = (c) => Math.round(c + (255 - c) * wr).toString(16).padStart(2, "0"); return "#" + m(r) + m(g) + m(b); };
       const cSoft = hx(accent, 0.9), cLine = hx(accent, 0.5);
       const _a = D.architecture || {}, _f = D.flow || {};
-      const dMods = modules.slice(0, 8);
-      const dEntry = (_a.entry && _a.entry.length ? _a.entry : users).slice(0, 5);
-      const dData = (_a.data || []).slice(0, 5);
-      const dCore = mm(_a.core || D.systemType) || "系統核心";
+      // clip diagram labels so long text never breaks the layout (fallback steps can be very long)
+      const clipD = (s, n) => { s = String(s == null ? "" : s); return s.length > n ? s.slice(0, n) + "…" : s; };
+      const dMods = modules.slice(0, 8).map((m) => ({ icon: m.icon, name: clipD(m.name, 10) }));
+      const dEntry = (_a.entry && _a.entry.length ? _a.entry : users).slice(0, 5).map((x) => clipD(x, 8));
+      const dData = (_a.data || []).slice(0, 5).map((x) => clipD(x, 10));
+      const dCore = clipD(mm(_a.core || D.systemType) || "系統核心", 18);
       const dLanes = (_f.lanes && _f.lanes.length) ? _f.lanes : [{ role: "流程", steps: _f.steps || [] }];
-      const dInputs = (_f.inputs || []);
-      const dOutput = _f.output || "處理結果";
-      const dSteps = dLanes.flatMap((l) => (l.steps && l.steps.length ? l.steps : [])).slice(0, 7);
+      const dInputs = (_f.inputs || []).map((x) => clipD(x, 12));
+      const dOutput = clipD(_f.output || "處理結果", 22);
+      const dSteps = dLanes.flatMap((l) => (l.steps && l.steps.length ? l.steps : [])).slice(0, 7).map((s) => clipD(s, 14));
       const inTxt = dInputs.map((x) => esc(x)).join("、") || "資料輸入";
 
       // --- MODULE diagrams ---
       function tLayers() {
         const chips = (arr) => arr.map((x) => `<span class="dg-chip">${esc(x)}</span>`).join("");
         const cells = dMods.map((m) => `<div class="dg-cell"><span class="material-symbols-outlined">${esc(m.icon || "widgets")}</span>${esc(m.name)}</div>`).join("");
-        return { engine: "html", html: `<div class="dg dg-layers"><div class="dg-band dg-entry"><span class="dg-t">使用者入口</span><div class="dg-chips">${chips(dEntry)}</div></div><div class="dg-arrow">▾</div><div class="dg-core">${esc(dCore)}</div><div class="dg-arrow">▾</div><div class="dg-band dg-mods"><span class="dg-t">功能模組</span><div class="dg-grid">${cells}</div></div><div class="dg-arrow">▾</div><div class="dg-band dg-data"><span class="dg-t">資料與整合</span><div class="dg-chips">${chips(dData)}</div></div></div>` };
+        return { engine: "html", html: `<div class="dg"><div class="dg-frame dg-layers"><div class="dg-band dg-entry"><span class="dg-t">使用者入口</span><div class="dg-chips">${chips(dEntry)}</div></div><div class="dg-arrow">▾</div><div class="dg-core">${esc(dCore)}</div><div class="dg-arrow">▾</div><div class="dg-band dg-mods"><span class="dg-t">功能模組</span><div class="dg-grid">${cells}</div></div><div class="dg-arrow">▾</div><div class="dg-band dg-data"><span class="dg-t">資料與整合</span><div class="dg-chips">${chips(dData)}</div></div></div></div>` };
       }
       function tGrid() {
         const cells = dMods.map((m) => `<div class="dg-cell" style="flex-direction:column;gap:5px;padding:15px 10px;"><span class="material-symbols-outlined" style="font-size:24px;">${esc(m.icon || "widgets")}</span><span>${esc(m.name)}</span></div>`).join("");
@@ -341,21 +376,30 @@
       function tRings() {
         const n = Math.max(dMods.length, 1), R = 158;
         const orbits = dMods.map((m, i) => { const ang = (360 / n) * i - 90, rad = ang * Math.PI / 180, x = Math.cos(rad) * R, y = Math.sin(rad) * R; return `<div class="dg-spoke" style="width:${(R - 82).toFixed(0)}px; transform:rotate(${ang}deg);"></div><span class="dg-chip dg-orbit" style="left:calc(50% + ${x.toFixed(0)}px); top:calc(50% + ${y.toFixed(0)}px);"><span class="material-symbols-outlined" style="font-size:15px;vertical-align:-2px;">${esc(m.icon || "widgets")}</span> ${esc(m.name)}</span>`; }).join("");
-        return { engine: "html", html: `<div class="dg"><div class="dg-rings"><div class="dg-core-c">${esc(dCore)}</div>${orbits}</div></div>` };
+        const entryRow = dEntry.length ? `<div class="dg-t">使用者入口</div><div class="dg-chips" style="margin-bottom:6px;">${dEntry.map((x) => `<span class="dg-chip" style="background:var(--accent-soft);">${esc(x)}</span>`).join("")}</div>` : "";
+        const dataRow = dData.length ? `<div class="dg-t" style="margin-top:6px;">資料與整合</div><div class="dg-chips">${dData.map((x) => `<span class="dg-chip"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px;">database</span> ${esc(x)}</span>`).join("")}</div>` : "";
+        return { engine: "html", html: `<div class="dg"><div class="dg-frame" style="max-width:600px;">${entryRow}<div class="dg-rings"><div class="dg-ring-bg" style="width:${2 * R - 26}px;height:${2 * R - 26}px;"></div><div class="dg-core-c">${esc(dCore)}</div>${orbits}</div>${dataRow}</div></div>` };
       }
-      function tHub() {
-        let s = "flowchart LR\n";
-        s += ` CORE(["${dCore}"]):::core\n`;
-        (dMods.length ? dMods : [{ name: "核心模組" }]).forEach((m, i) => { s += ` M${i}["${mm(m.name)}"]:::mod\n CORE --> M${i}\n`; });
-        s += `classDef core fill:${accent},stroke:${accent},color:#fff;\nclassDef mod fill:${cSoft},stroke:${cLine},color:${accent};\n`;
-        return { engine: "mermaid", def: s };
+      function tPillars() {
+        const cell = (x) => `<div class="dg-pcell">${esc(x)}</div>`;
+        const entryItems = dEntry.map(cell).join("");
+        const modItems = `<div class="dg-core" style="font-size:14px;padding:10px;margin-bottom:2px;">${esc(dCore)}</div>` + dMods.map((m) => `<div class="dg-pcell" style="display:flex;align-items:center;gap:6px;justify-content:center;"><span class="material-symbols-outlined" style="font-size:16px;">${esc(m.icon || "widgets")}</span>${esc(m.name)}</div>`).join("");
+        const dataItems = dData.map(cell).join("");
+        return { engine: "html", html: `<div class="dg dg-pillars"><div class="dg-pillar"><div class="dg-pillar-h">使用者入口</div>${entryItems}</div><div class="dg-pconn">→</div><div class="dg-pillar dg-pillar-core"><div class="dg-pillar-h">核心與模組</div>${modItems}</div><div class="dg-pconn">→</div><div class="dg-pillar"><div class="dg-pillar-h">資料與整合</div>${dataItems}</div></div>` };
       }
       function tMindmap() {
+        // mermaid fallback definition
         let s = `%%{init: {"theme":"default"}}%%\nmindmap\n  root((${dCore}))\n`;
         if (dEntry.length) { s += "    使用者入口\n"; dEntry.forEach((e) => s += `      ${mm(e)}\n`); }
         s += "    功能模組\n"; (dMods.length ? dMods : [{ name: "核心模組" }]).forEach((m) => s += `      ${mm(m.name)}\n`);
         if (dData.length) { s += "    資料與整合\n"; dData.forEach((d) => s += `      ${mm(d)}\n`); }
-        return { engine: "mermaid", def: s };
+        // markmap tree (nicer radial mind map)
+        const node = (content, children) => ({ content, children: children || [] });
+        const kids = [];
+        if (dEntry.length) kids.push(node("使用者入口", dEntry.map((e) => node(esc(e)))));
+        kids.push(node("功能模組", (dMods.length ? dMods : [{ name: "核心模組" }]).map((m) => node(esc(m.name)))));
+        if (dData.length) kids.push(node("資料與整合", dData.map((d) => node(esc(d)))));
+        return { engine: "markmap", data: node(esc(dCore), kids), def: s };
       }
 
       // --- PROCESS diagrams ---
@@ -364,8 +408,8 @@
         s += ` IN(["輸入<br/>${dInputs.map(mm).join(" · ") || "資料輸入"}"]):::cap\n`;
         const first = [], last = [];
         dLanes.forEach((ln, li) => { const st = (ln.steps && ln.steps.length) ? ln.steps : ["處理"];
-          s += ` subgraph L${li}["${mm(ln.role || ("關卡" + (li + 1)))}"]\n  direction LR\n`;
-          st.forEach((step, si) => s += `  L${li}S${si}["${mm(step)}"]:::st\n`);
+          s += ` subgraph L${li}["${mm(clipD(ln.role || ("關卡" + (li + 1)), 8))}"]\n  direction LR\n`;
+          st.forEach((step, si) => s += `  L${li}S${si}["${mm(clipD(step, 12))}"]:::st\n`);
           s += " end\n";
           for (let si = 0; si < st.length - 1; si++) s += ` L${li}S${si} --> L${li}S${si + 1}\n`;
           first[li] = `L${li}S0`; last[li] = `L${li}S${st.length - 1}`;
@@ -408,7 +452,7 @@
       }
 
       // --- selector: category biases the style, project id keeps same-type systems distinct ---
-      const MODULE_TPLS = [tLayers, tHub, tMindmap, tGrid, tRings];
+      const MODULE_TPLS = [tLayers, tPillars, tMindmap, tGrid, tRings];
       const PROCESS_TPLS = [tSwimlane, tPipeline, tCycle, tStepper, tJourney];
       const hcat = String(cat).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
       const moduleSpec = MODULE_TPLS[(project.id + hcat) % MODULE_TPLS.length]();
@@ -430,8 +474,40 @@
         return `<div class="flex items-center gap-3 rounded-lg px-3 py-2.5" style="background:var(--accent-soft);"><span class="w-6 h-6 rounded-md grid place-content-center text-white shrink-0" style="background:var(--accent);"><span class="material-symbols-outlined text-[16px]">chevron_right</span></span><span class="text-sm font-semibold text-body">${esc(d.label)}</span></div>`;
       }).join("");
       const rulesHtml = (D.decisionRules || []).map((r) => `<div class="rule-item"><span class="rule-id">${esc(r.id || "RULE")}</span><div><p class="text-sm font-semibold text-ink leading-relaxed">${esc(r.rule)}</p>${r.evidence ? `<p class="text-xs text-muted mt-1">依據：${esc(r.evidence)}</p>` : ""}</div></div>`).join("");
-      const kpiCardsHtml = kpis.map((k) => { const up = isImproved(k), d = deltaPct(k); return `<div class="kpi-card"><div class="k-label">${esc(k.label)}</div><div class="k-nums"><span class="k-before">${esc(k.before)}${esc(k.unit)}</span><span class="material-symbols-outlined text-[18px] text-muted">arrow_forward</span><span class="k-after" style="color:var(--accent);">${esc(k.after)}<span class="text-sm font-bold ml-0.5">${esc(k.unit)}</span></span></div><div class="mt-2"><span class="k-delta ${up ? "k-up" : "k-down"}"><span class="material-symbols-outlined text-[13px] align-middle">${d < 0 ? "trending_down" : "trending_up"}</span> ${d > 0 ? "+" : ""}${d}%</span></div></div>`; }).join("");
+      const kpiCardsHtml = kpis.map((k) => { const up = isImproved(k), d = deltaPct(k); return `<div class="kpi-card"><div class="k-label">${esc(k.label)}</div><div class="k-after" style="color:var(--accent);">${esc(k.after)}<span class="text-sm font-bold ml-0.5 text-muted">${esc(k.unit)}</span></div><div class="mt-1.5 flex items-center gap-2 text-xs"><span class="k-delta ${up ? "k-up" : "k-down"}">${d > 0 ? "+" : ""}${d}%</span><span class="text-muted">較導入前 ${esc(k.before)}${esc(k.unit)}</span></div></div>`; }).join("");
       const pointsHtml = points.map((b) => `<li class="bg-white rounded-2xl border border-line p-6"><div class="flex items-center gap-2 mb-1.5"><span class="material-symbols-outlined txt-accent">check_circle</span><span class="font-bold text-ink">${esc(b.title)}</span></div><p class="text-sm text-muted leading-relaxed">${esc(b.desc)}</p></li>`).join("");
+      // 功能說明 (system tab) — describe what each function does, not KPI
+      const featuresHtml = modules.map((m) => `<div class="flex gap-3 bg-white rounded-xl border border-line p-4"><span class="w-9 h-9 rounded-lg grid place-content-center shrink-0" style="background:var(--accent-soft); color:var(--accent);"><span class="material-symbols-outlined text-[20px]">${esc(m.icon || "check_circle")}</span></span><div><h4 class="font-bold text-ink text-sm">${esc(m.name)}</h4><p class="text-xs text-muted leading-relaxed mt-0.5">${esc(m.desc || "")}</p></div></div>`).join("");
+      // flow tab — pair each decision with its governing rule so the relationship is explicit
+      const rulesArr = D.decisionRules || [];
+      const combinedHtml = decisions.map((d, i) => {
+        const r = rulesArr[i];
+        const branches = (d.yes || d.no) ? `<div class="dec-branch"><span class="dec-tag dec-yes">是</span><span class="text-body">${esc(d.yes || "")}</span></div><div class="dec-branch"><span class="dec-tag dec-no">否</span><span class="text-body">${esc(d.no || "")}</span></div>` : "";
+        const rule = r ? `<div class="rule-item" style="margin-top:12px;"><span class="rule-id">${esc(r.id || "RULE")}</span><div><p class="text-sm font-semibold text-ink leading-relaxed">${esc(r.rule)}</p>${r.evidence ? `<p class="text-xs text-muted mt-1">依據：${esc(r.evidence)}</p>` : ""}</div></div>` : "";
+        return `<div class="dec-card"><div class="dec-q"><span class="material-symbols-outlined txt-accent text-[20px]">help</span>${esc(d.label)}</div>${branches}${rule}</div>`;
+      }).join("");
+      const extraRules = rulesArr.slice(decisions.length);
+      const extraRulesHtml = extraRules.map((r) => `<div class="rule-item"><span class="rule-id">${esc(r.id || "RULE")}</span><div><p class="text-sm font-semibold text-ink leading-relaxed">${esc(r.rule)}</p>${r.evidence ? `<p class="text-xs text-muted mt-1">依據：${esc(r.evidence)}</p>` : ""}</div></div>`).join("");
+
+      // ---- interactive flow: left = clickable stages, right = per-stage detail ----
+      const ruleById = {}; (D.decisionRules || []).forEach((r) => { ruleById[r.id] = r; });
+      let stages;
+      if (D.flow.stages && D.flow.stages.length) {
+        stages = D.flow.stages.map((s) => ({ title: s.title, role: s.role || "", desc: s.desc || "", decision: s.decision || null, rule: s.rule ? ruleById[s.rule] : null }));
+      } else {
+        stages = [];
+        (D.flow.lanes || []).forEach((ln) => (ln.steps || []).forEach((st) => stages.push({ title: st, role: ln.role || "", desc: "", decision: null, rule: null })));
+        if (!stages.length) stages = [{ title: "系統處理", role: "", desc: "", decision: null, rule: null }];
+        (D.flow.decisions || []).forEach((dc, i) => { const idx = Math.min(stages.length - 1, i + 1); if (!stages[idx].decision) stages[idx].decision = (dc.yes || dc.no) ? dc : { label: dc.label, yes: "", no: "" }; });
+      }
+      const flowStepsHtml = stages.map((s, i) => `<button class="flow-step${i === 0 ? " active" : ""}" data-step="${i}"><span class="fs-n">${i + 1}</span><span class="fs-body"><b>${esc(clip(s.title, 24))}</b>${s.role ? `<small>${esc(clip(s.role, 12))}</small>` : ""}</span>${s.decision ? '<span class="material-symbols-outlined fs-flag">alt_route</span>' : ""}</button>`).join("");
+      function flowDetailHtml(i) {
+        const s = stages[i]; if (!s) return "";
+        const dec = s.decision, rule = s.rule;
+        const ruleBlock = rule ? `<div class="rule-item" style="margin-top:12px;"><span class="rule-id">${esc(rule.id || "RULE")}</span><div><p class="text-sm font-semibold text-ink leading-relaxed">${esc(rule.rule)}</p>${rule.evidence ? `<p class="text-xs text-muted mt-1">依據：${esc(rule.evidence)}</p>` : ""}</div></div>` : "";
+        const decBlock = dec ? `<div class="dec-card" style="margin-top:4px;"><div class="dec-q"><span class="material-symbols-outlined txt-accent text-[20px]">alt_route</span>${esc(dec.label)}</div>${(dec.yes || dec.no) ? `<div class="dec-branch"><span class="dec-tag dec-yes">是</span><span class="text-body">${esc(dec.yes || "")}</span></div><div class="dec-branch"><span class="dec-tag dec-no">否</span><span class="text-body">${esc(dec.no || "")}</span></div>` : ""}${ruleBlock}</div>` : ruleBlock;
+        return `<div class="flex items-center gap-3 mb-3"><span class="w-9 h-9 rounded-lg grid place-content-center text-white font-black text-lg shrink-0" style="background:var(--accent);">${i + 1}</span><div><h3 class="font-bold text-ink text-lg leading-tight">${esc(clip(s.title, 46))}</h3>${s.role ? `<span class="text-xs font-semibold text-muted">負責角色：${esc(s.role)}</span>` : ""}</div></div>${s.desc ? `<p class="text-body leading-relaxed mb-4">${esc(s.desc)}</p>` : ""}${imgSlot("desktop_windows", "此步驟的系統畫面", "可放：這一步的操作畫面截圖或 Demo 片段", "min-h-[200px] mb-4")}${decBlock}`;
+      }
       let recordsHtml = "";
       if (D.records && D.records.rows && D.records.rows.length) {
         const cols = D.records.columns || Object.keys(D.records.rows[0]).map((k) => ({ key: k, label: k }));
@@ -527,8 +603,9 @@
               ${imgSlot("dashboard", "系統實際畫面", "可放：系統主畫面截圖或產品 mockup", "min-h-[360px] h-full")}
             </div>
             <div class="mt-10">
-              <h3 class="font-bold text-ink mb-4 flex items-center gap-2"><span class="material-symbols-outlined txt-accent">insights</span>導入後關鍵改善</h3>
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">${kpiCardsHtml || '<p class="text-sm text-muted">—</p>'}</div>
+              <h3 class="font-bold text-ink mb-1 flex items-center gap-2"><span class="material-symbols-outlined txt-accent">description</span>功能說明</h3>
+              <p class="text-sm text-muted mb-4">系統提供的主要功能，以及每項功能實際負責的工作。</p>
+              <div class="grid md:grid-cols-2 gap-3">${featuresHtml || '<p class="text-sm text-muted">—</p>'}</div>
             </div>
           </section>
 
@@ -546,14 +623,14 @@
           <section class="tab-panel" data-panel="flow">
             <p class="eyebrow text-[11px] font-bold uppercase mb-2" style="color:var(--accent);">HOW IT WORKS</p>
             <h2 class="sec-title mb-4">運作流程</h2>
-            <p class="sec-lead mb-6">從資料輸入、跨角色協作到完成留存的實際流程 —— 每一步、每個決策點都清楚、可追蹤。</p>
-            <div class="mermaid-wrap mb-8" id="flowDiagram"><div class="text-sm text-muted py-8 text-center">流程圖載入中…</div></div>
-            <div class="grid lg:grid-cols-2 gap-6">
-              <div class="bg-white rounded-2xl border border-line p-6">
-                <h3 class="font-bold text-ink mb-3 flex items-center gap-2"><span class="material-symbols-outlined txt-accent">alt_route</span>流程中的決策點</h3>
-                <div class="space-y-2.5">${decisionsHtml}</div>
+            <p class="sec-lead mb-6">這是實際導入後，使用者每天操作的流程。<b class="text-body">點選左側每一步</b>，右側會顯示這一步在系統裡實際做什麼、以及該階段的判斷規則。</p>
+            <div class="grid lg:grid-cols-[minmax(240px,320px)_1fr] gap-6 items-start">
+              <div id="flowSteps" class="space-y-2">
+                <div class="flow-in"><span class="flow-in-t">輸入</span><span class="flow-in-x">${esc(clip(dInputs.join("、") || "資料輸入", 28))}</span></div>
+                ${flowStepsHtml}
+                <div class="flow-step flow-step-out"><span class="fs-n">✓</span><span class="fs-body"><b>產出</b><small>${esc(clip(D.flow.output || "處理結果與操作紀錄", 22))}</small></span></div>
               </div>
-              ${rulesHtml ? `<div class="bg-white rounded-2xl border border-line p-6"><h3 class="font-bold text-ink mb-3 flex items-center gap-2"><span class="material-symbols-outlined txt-accent">rule</span>判斷依據（系統規則）</h3><div class="space-y-2.5">${rulesHtml}</div></div>` : `<div class="rounded-2xl p-6 flex flex-col justify-center" style="background:var(--accent-soft); border:1px solid var(--accent-line);"><h3 class="font-bold text-ink mb-2 flex items-center gap-2"><span class="material-symbols-outlined txt-accent">output</span>最終產出</h3><p class="text-sm text-body leading-relaxed">${esc(D.flow.output || "")}</p></div>`}
+              <div id="flowDetail" class="flow-detail"></div>
             </div>
           </section>
 
@@ -593,6 +670,19 @@
       async function drawDiagram(elId, spec) {
         const el = document.getElementById(elId); if (!el || el.dataset.done || !spec) return;
         if (spec.engine === "html") { el.innerHTML = spec.html; el.dataset.done = "1"; return; }
+        if (spec.engine === "markmap") {
+          if (window.markmap && window.markmap.Markmap && window.d3) {
+            try {
+              el.innerHTML = '<svg class="mm-svg" style="width:100%;height:440px;display:block;"></svg>';
+              const mmp = window.markmap.Markmap.create(el.querySelector("svg"), { autoFit: true, duration: 0, spacingVertical: 12, spacingHorizontal: 96, paddingX: 14, initialExpandLevel: -1, nodeMinHeight: 18 }, spec.data);
+              el.dataset.done = "1";
+              requestAnimationFrame(() => { try { mmp.fit(); } catch (e) {} });
+              return;
+            } catch (e) { console.warn("markmap", e); }
+          }
+          if (mermaidReady && spec.def) { try { const r = await mermaid.render(elId + "Svg", spec.def); el.innerHTML = r.svg; el.dataset.done = "1"; return; } catch (e) { console.warn("mermaid fallback", e); } }
+          el.innerHTML = '<p class="text-sm text-muted text-center py-6">心智圖載入失敗</p>'; return;
+        }
         if (!mermaidReady) { el.innerHTML = '<p class="text-sm text-muted text-center py-6">圖表元件未載入</p>'; return; }
         try { const { svg } = await mermaid.render(elId + "Svg", spec.def); el.innerHTML = svg; el.dataset.done = "1"; }
         catch (e) { el.innerHTML = '<p class="text-sm text-muted text-center py-6">圖表載入失敗</p>'; console.warn("mermaid", elId, e, spec.def); }
@@ -639,11 +729,23 @@
         buttons.forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
         panels.forEach((p) => p.classList.toggle("active", p.dataset.panel === name));
         if (name === "features") drawDiagram("archDiagram", moduleSpec);
-        if (name === "flow") drawDiagram("flowDiagram", processSpec);
         if (name === "benefits") { renderBenefitCharts(); requestAnimationFrame(() => charts.forEach((c) => c.resize())); }
         if (name === "demo") { const f = document.getElementById("demoFrame"); if (f && !f.src && f.dataset.src) f.src = f.dataset.src; }
       }
       tabBar.addEventListener("click", (e) => { const b = e.target.closest(".tab-btn"); if (b) activate(b.dataset.tab); });
+
+      // interactive flow: render first stage, swap detail on click
+      const flowStepsEl = document.getElementById("flowSteps");
+      const flowDetailEl = document.getElementById("flowDetail");
+      function showStage(i) {
+        if (!flowDetailEl) return;
+        flowDetailEl.innerHTML = flowDetailHtml(i);
+        [...flowStepsEl.querySelectorAll(".flow-step[data-step]")].forEach((b) => b.classList.toggle("active", b.dataset.step === String(i)));
+      }
+      if (flowStepsEl && flowDetailEl) {
+        showStage(0);
+        flowStepsEl.addEventListener("click", (e) => { const b = e.target.closest(".flow-step[data-step]"); if (b) showStage(Number(b.dataset.step)); });
+      }
     })();
   </script>
 </body>

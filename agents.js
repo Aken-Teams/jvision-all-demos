@@ -167,7 +167,7 @@ const AGENTS = [
 ];
 
 /* 常用 / 必備 Agents（精選呈現於市集頂部） */
-const FEATURED_IDS = ["orchestrator", "matchmaker", "expert", "auditor", "abacus"];
+const FEATURED_IDS = ["orchestrator", "matchmaker", "expert"];
 
 /* 為每位 agent 補上差異化的示範數據（deterministic，不用亂數） */
 AGENTS.forEach((a, i) => {
@@ -196,7 +196,7 @@ function agentCardHTML(a) {
   const accent = ACCENT_BG[a.accent] || ACCENT_BG.brand;
   const chips = a.caps.map((c) => `<span class="text-[11px] font-semibold text-body bg-soft border border-line rounded-full px-2 py-0.5">${c}</span>`).join("");
   return `
-  <a href="./agents-profile.html?id=${a.id}" class="group bg-white border border-line rounded-xl p-4 flex flex-col gap-3 hover:border-brand2 hover:shadow-[0_10px_30px_rgba(15,30,70,.08)] hover:-translate-y-0.5 transition-all">
+  <a href="./agents-profile?id=${a.id}" class="group bg-white border border-line rounded-xl p-4 flex flex-col gap-3 hover:border-brand2 hover:shadow-[0_10px_30px_rgba(15,30,70,.08)] hover:-translate-y-0.5 transition-all">
     <div class="flex items-start gap-3">
       <div class="relative shrink-0">
         <div class="w-12 h-12 rounded-full ${accent} grid place-content-center ring-2 ${st.ring} ring-offset-2 ring-offset-white">
@@ -239,6 +239,84 @@ function renderTeam(mountId) {
   }).join("");
 }
 
+/* ---------- marketplace: searchable / filterable agent directory ---------- */
+function featuredCardHTML(a) {
+  const st = STATUS_META[a.status];
+  const accent = ACCENT_BG[a.accent] || ACCENT_BG.brand;
+  return `
+  <a href="./agents-profile?id=${a.id}" class="group relative bg-white border border-line rounded-xl p-4 flex flex-col gap-3 hover:border-brand2 hover:shadow-[0_10px_28px_rgba(15,30,70,.1)] transition-all">
+    <span class="absolute top-3 right-3 text-[10px] font-bold text-amber bg-amber/10 border border-amber/20 rounded-full px-2 py-0.5">常用</span>
+    <div class="flex items-center gap-3">
+      <div class="relative shrink-0">
+        <div class="w-12 h-12 rounded-full ${accent} grid place-content-center ring-2 ${st.ring} ring-offset-2 ring-offset-white"><span class="material-symbols-outlined text-[24px]">${a.icon}</span></div>
+        <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ${st.dot} border-2 border-white"></span>
+      </div>
+      <div class="min-w-0"><h4 class="text-[15px] font-black text-ink truncate">${a.name}</h4><p class="text-xs text-muted font-semibold truncate">${a.role}</p></div>
+    </div>
+    <p class="text-[13px] text-body leading-snug line-clamp-2">${a.tagline}</p>
+    <div class="flex items-center gap-3 text-[11px] text-muted font-semibold pt-1 border-t border-line">
+      <span>協助 <b class="text-ink">${a.stats.tasks}</b></span>
+      <span>命中 <b class="text-success">${a.stats.hit}%</b></span>
+      <span class="ml-auto text-brand2 group-hover:translate-x-0.5 transition-transform inline-flex items-center gap-0.5">查看 <span class="material-symbols-outlined text-[15px]">arrow_forward</span></span>
+    </div>
+  </a>`;
+}
+
+function renderAgentMarketplace() {
+  const $ = (s) => document.querySelector(s);
+  const grid = $("#agGrid"), featWrap = $("#agFeaturedWrap"), feat = $("#agFeatured"), count = $("#agCount");
+  const searchEl = $("#agSearch"), squadsEl = $("#agSquads"), statusEl = $("#agStatus"), clearEl = $("#agClear");
+  if (!grid) return;
+  const initSquad = new URLSearchParams(location.search).get("squad") || "";
+  const state = { q: "", squad: AGENT_SQUADS.some((s) => s.key === initSquad) ? initSquad : "", status: "" };
+
+  // featured strip
+  if (feat) feat.innerHTML = FEATURED_IDS.map(agentById).filter(Boolean).map(featuredCardHTML).join("");
+
+  // squad filter buttons (with counts)
+  const squadBtn = (key, name, n, active) =>
+    `<button data-squad="${key}" class="ag-filter w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${active ? "bg-[#e8f0ff] text-brand border border-[#bfdbfe]" : "text-body hover:bg-[#eef4ff] hover:text-brand border border-transparent"}"><span>${name}</span><span class="text-xs font-bold ${active ? "text-brand" : "text-muted"}">${n}</span></button>`;
+  function paintSquads() {
+    squadsEl.innerHTML = squadBtn("", "全部 Agents", AGENTS.length, state.squad === "")
+      + AGENT_SQUADS.map((s) => squadBtn(s.key, s.name, AGENTS.filter((a) => a.squad === s.key).length, state.squad === s.key)).join("");
+    squadsEl.querySelectorAll(".ag-filter").forEach((b) => b.addEventListener("click", () => { state.squad = b.dataset.squad; apply(); }));
+  }
+  // status filter
+  const STATUSES = [["", "全部狀態"], ["active", "執行中"], ["idle", "待命"], ["pending", "待審核"]];
+  function paintStatus() {
+    statusEl.innerHTML = STATUSES.map(([v, label]) => {
+      const active = state.status === v;
+      const dot = v ? `<span class="w-2 h-2 rounded-full ${STATUS_META[v].dot}"></span>` : "";
+      return `<button data-status="${v}" class="ag-status inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${active ? "bg-brand text-white border-brand" : "bg-white text-body border-line hover:border-brand2"}">${dot}${label}</button>`;
+    }).join("");
+    statusEl.querySelectorAll(".ag-status").forEach((b) => b.addEventListener("click", () => { state.status = b.dataset.status; apply(); }));
+  }
+
+  function apply() {
+    const q = state.q.trim().toLocaleLowerCase("zh-Hant");
+    const list = AGENTS.filter((a) => {
+      if (state.squad && a.squad !== state.squad) return false;
+      if (state.status && a.status !== state.status) return false;
+      if (q) {
+        const hay = [a.name, a.en, a.role, a.tagline, (a.caps || []).join(" "), (a.projects || []).join(" ")].join(" ").toLocaleLowerCase("zh-Hant");
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    const filtering = !!(state.q || state.squad || state.status);
+    if (featWrap) featWrap.style.display = filtering ? "none" : "";
+    grid.innerHTML = list.length ? list.map(agentCardHTML).join("")
+      : `<div class="col-span-full text-center py-14 border border-dashed border-line rounded-2xl bg-white text-muted"><span class="material-symbols-outlined text-[36px]">search_off</span><p class="font-bold text-ink mt-2">找不到符合的 Agent</p><p class="text-sm mt-1">換個關鍵字或清除篩選再試一次。</p></div>`;
+    if (count) count.textContent = filtering ? `顯示 ${list.length} / ${AGENTS.length} 位 Agent` : `全部 ${AGENTS.length} 位 Agent`;
+    if (clearEl) clearEl.disabled = !filtering;
+    paintSquads(); paintStatus();
+  }
+
+  if (searchEl) searchEl.addEventListener("input", (e) => { state.q = e.target.value; apply(); });
+  if (clearEl) clearEl.addEventListener("click", () => { state.q = ""; state.squad = ""; state.status = ""; if (searchEl) searchEl.value = ""; apply(); });
+  paintSquads(); paintStatus(); apply();
+}
+
 /* ---------- profile: render one agent from ?id= ---------- */
 function renderProfile() {
   const id = new URLSearchParams(location.search).get("id") || "matchmaker";
@@ -257,6 +335,13 @@ function renderProfile() {
   setText("#pfName", `${a.name} · ${a.role}`);
   setText("#pfTagline", a.detail);
   set("#pfStatus", `<span class="material-symbols-outlined text-[16px] ${st.text}">fiber_manual_record</span><span>${st.label}</span>`);
+
+  // KPI row (per-agent stats)
+  setText("#pfKpiTasks", a.stats.tasks);
+  setText("#pfKpiHit", a.stats.hit + "%");
+  set("#pfKpiResp", `${a.stats.resp}<span class="text-base font-bold text-muted ml-1">秒</span>`);
+  setText("#pfKpiCollab", a.stats.collab);
+  setText("#pfGraphSelf", a.name);
 
   // capabilities
   set("#pfCaps", a.caps.concat(["自動彙整", "可追溯輸出"]).slice(0, 6).map((c) => `
@@ -293,7 +378,7 @@ function renderProfile() {
   set("#pfMates", (mates.length ? mates : AGENTS.filter((m) => m.id !== a.id).slice(0, 4)).map((m) => {
     const mst = STATUS_META[m.status], macc = ACCENT_BG[m.accent] || ACCENT_BG.brand;
     return `
-    <a href="./agents-profile.html?id=${m.id}" class="bg-white border border-line rounded-xl p-4 flex items-center gap-3 hover:border-brand2 hover:shadow-sm transition-all">
+    <a href="./agents-profile?id=${m.id}" class="bg-white border border-line rounded-xl p-4 flex items-center gap-3 hover:border-brand2 hover:shadow-sm transition-all">
       <div class="relative shrink-0">
         <div class="w-11 h-11 rounded-full ${macc} grid place-content-center"><span class="material-symbols-outlined text-[22px]">${m.icon}</span></div>
         <span class="absolute bottom-0 right-0 w-3 h-3 rounded-full ${mst.dot} border border-white"></span>
