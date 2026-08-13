@@ -1,0 +1,16 @@
+import { chromium } from 'playwright';
+const b=await chromium.launch({channel:'chrome'});
+const p=await b.newPage();
+const errs=[];p.on('console',m=>{if(m.type()==='error')errs.push(m.text());});p.on('pageerror',e=>errs.push('PE:'+e.message));
+await p.goto('http://localhost:4599/project.html?repo=jvision-ai-case-002-work-order-dispatch',{waitUntil:'networkidle'});
+await p.waitForTimeout(800);
+const title=await p.title();
+const h1=await p.locator('h1').first().textContent().catch(()=>null);
+const tabs=await p.evaluate(()=>[...document.querySelectorAll('#tabBar button,[data-tab],.tab,nav button')].map(b=>b.textContent.trim()).filter(Boolean).slice(0,12));
+const flowAll=await p.evaluate(()=>document.querySelectorAll('.flow-step').length);
+const hasDetail=await p.evaluate(()=>!!window.__D||document.body.innerHTML.includes('派工'));
+console.log('title:',title,'| h1:',h1);
+console.log('tabs:',JSON.stringify(tabs));
+console.log('flow-step total in DOM:',flowAll,'| mentions 派工:',hasDetail);
+console.log('errs:',JSON.stringify(errs.slice(0,5)));
+await b.close();

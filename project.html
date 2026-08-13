@@ -326,7 +326,7 @@
       document.documentElement.style.setProperty("--accent-line", `color-mix(in srgb, ${accent} 28%, white)`);
       const icon = ICONS[cat] || "category";
       const title = D.title;
-      const caseNo = String(project.id).padStart(3, "0");
+      const caseNo = String(index.projects.indexOf(project) + 1).padStart(3, "0");
       document.title = `${title}｜JVision DEMO`;
 
       const users = (D.system.users && D.system.users.length) ? D.system.users : ["部門使用者", "主管"];
@@ -477,7 +477,7 @@
       const ruleById = {}; (D.decisionRules || []).forEach((r) => { ruleById[r.id] = r; });
       let stages;
       if (D.flow.stages && D.flow.stages.length) {
-        stages = D.flow.stages.map((s) => ({ title: s.title, role: s.role || "", desc: s.desc || "", decision: s.decision || null, rule: s.rule ? ruleById[s.rule] : null }));
+        stages = D.flow.stages.map((s) => ({ title: s.title, role: s.role || "", desc: s.desc || "", decision: s.decision || null, rule: s.rule ? ruleById[s.rule] : null, demo: s.demo || null }));
       } else {
         stages = [];
         (D.flow.lanes || []).forEach((ln) => (ln.steps || []).forEach((st) => stages.push({ title: st, role: ln.role || "", desc: "", decision: null, rule: null })));
@@ -501,7 +501,10 @@
         const dec = s.decision, rule = s.rule;
         const ruleBlock = rule ? `<div class="rule-item" style="margin-top:12px;"><span class="rule-id">${esc(rule.id || "RULE")}</span><div><p class="text-sm font-semibold text-ink leading-relaxed">${esc(rule.rule)}</p>${rule.evidence ? `<p class="text-xs text-muted mt-1">依據：${esc(rule.evidence)}</p>` : ""}</div></div>` : "";
         const decBlock = dec ? `<div class="dec-card" style="margin-top:4px;"><div class="dec-q"><span class="material-symbols-outlined txt-accent text-[20px]">alt_route</span>${esc(dec.label)}</div>${(dec.yes || dec.no) ? `<div class="dec-branch"><span class="dec-tag dec-yes">是</span><span class="text-body">${esc(dec.yes || "")}</span></div><div class="dec-branch"><span class="dec-tag dec-no">否</span><span class="text-body">${esc(dec.no || "")}</span></div>` : ""}${ruleBlock}</div>` : ruleBlock;
-        return `<div class="flex items-center gap-3 mb-3"><span class="w-9 h-9 rounded-lg grid place-content-center text-white font-black text-lg shrink-0" style="background:var(--accent);">${i + 1}</span><div><h3 class="font-bold text-ink text-lg leading-tight">${esc(clip(s.title, 46))}</h3>${s.role ? `<span class="text-xs font-semibold text-muted">負責角色：${esc(s.role)}</span>` : ""}</div></div>${s.desc ? `<p class="text-body leading-relaxed mb-4">${esc(s.desc)}</p>` : ""}${imgSlot("desktop_windows", "此步驟的系統畫面", "可放：這一步的操作畫面截圖或 Demo 片段", "min-h-[200px] mb-4")}${decBlock}`;
+        const demoSlot = (D.demoUrl && s.demo)
+          ? `<div class="rounded-xl border border-line overflow-hidden mb-4 shadow-sm"><div class="h-8 flex items-center gap-1.5 px-3 border-b border-line" style="background:var(--accent-soft);"><span class="w-2.5 h-2.5 rounded-full" style="background:#ff5f57;"></span><span class="w-2.5 h-2.5 rounded-full" style="background:#febc2e;"></span><span class="w-2.5 h-2.5 rounded-full" style="background:#28c840;"></span><span class="ml-1.5 text-[11px] font-bold" style="color:var(--accent);">STEP ${i + 1}｜${esc(clip(s.title, 18))} · 實際畫面</span><span class="ml-auto text-[10px] font-semibold text-muted">實機畫面</span></div><div class="jv-flow-embed" style="position:relative;overflow:hidden;background:#fff;"><iframe class="jv-flow-frame" data-src="${esc(D.demoUrl)}#go=${String(s.demo).replace(/\D/g, "")}" title="${esc(s.title)} 系統畫面" loading="lazy" scrolling="no" style="border:0;width:1280px;height:840px;transform-origin:top left;"></iframe></div></div>`
+          : imgSlot("desktop_windows", "此步驟的系統畫面", "可放：這一步的操作畫面截圖或 Demo 片段", "min-h-[200px] mb-4");
+        return `<div class="flex items-center gap-3 mb-3"><span class="w-9 h-9 rounded-lg grid place-content-center text-white font-black text-lg shrink-0" style="background:var(--accent);">${i + 1}</span><div><h3 class="font-bold text-ink text-lg leading-tight">${esc(clip(s.title, 46))}</h3>${s.role ? `<span class="text-xs font-semibold text-muted">負責角色：${esc(s.role)}</span>` : ""}</div></div>${s.desc ? `<p class="text-body leading-relaxed mb-4">${esc(s.desc)}</p>` : ""}${demoSlot}${decBlock}`;
       }
       let recordsHtml = "";
       if (D.records && D.records.rows && D.records.rows.length) {
@@ -670,6 +673,17 @@
       scaleHeroEmbed();
       requestAnimationFrame(scaleHeroEmbed);
       window.addEventListener("resize", scaleHeroEmbed);
+      function scaleFlowEmbed() {
+        document.querySelectorAll(".jv-flow-embed").forEach((wrap) => {
+          const f = wrap.querySelector(".jv-flow-frame"); if (!f) return;
+          const w = wrap.clientWidth; if (!w) return; // tab 未開時 clientWidth=0，先跳過
+          if (!f.src && f.dataset.src) f.src = f.dataset.src;
+          const s = w / 1280;
+          f.style.transform = "scale(" + s + ")";
+          wrap.style.height = Math.round(840 * s) + "px";
+        });
+      }
+      window.addEventListener("resize", scaleFlowEmbed);
 
       // ---- chart / diagram rendering (lazy, per tab) ----
       const charts = [];
@@ -755,6 +769,7 @@
         if (name === "features") drawDiagram("archDiagram", moduleSpec);
         if (name === "benefits") { renderBenefitCharts(); requestAnimationFrame(() => charts.forEach((c) => c.resize())); }
         if (name === "demo") { const f = document.getElementById("demoFrame"); if (f && !f.src && f.dataset.src) f.src = f.dataset.src; }
+        if (name === "flow") { requestAnimationFrame(scaleFlowEmbed); }
         requestAnimationFrame(scaleHeroEmbed);
       }
       tabBar.addEventListener("click", (e) => { const b = e.target.closest(".tab-btn"); if (b) activate(b.dataset.tab); });
@@ -766,6 +781,7 @@
         if (!flowDetailEl) return;
         flowDetailEl.innerHTML = flowDetailHtml(i);
         [...flowStepsEl.querySelectorAll(".flow-step[data-step]")].forEach((b) => b.classList.toggle("active", b.dataset.step === String(i)));
+        requestAnimationFrame(scaleFlowEmbed);
       }
       if (flowStepsEl && flowDetailEl) {
         showStage(0);

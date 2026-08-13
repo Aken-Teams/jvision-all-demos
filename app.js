@@ -229,7 +229,8 @@ function cardHeroHTML(project) {
   const soft = `${hue}14`;
   const icon = categoryIcon(cat);
   const title = project.title || project.repoName || "";
-  const badge = `<span class="absolute top-2 left-2 z-10 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm bg-white" style="color:${hue}"><span class="material-symbols-outlined" style="font-size:12px">${icon}</span>${cat}</span>`;
+  const caseNo = String(project.catalogSequence).padStart(3, "0");
+  const badge = `<span class="absolute top-2 left-2 z-10 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm bg-white" style="color:${hue}"><span class="material-symbols-outlined" style="font-size:12px">${icon}</span>${cat} · #${caseNo}</span>`;
   if (!project.demoUrl) {
     return `<div class="absolute inset-0 flex flex-col items-center justify-center gap-1" style="background:${soft}">${badge}<span class="material-symbols-outlined" style="font-size:40px;color:${hue};opacity:.45">${icon}</span><b class="text-[11px] font-bold" style="color:${hue}">${title}</b><span class="case-id hidden">#${project.id}</span></div>`;
   }
@@ -419,7 +420,7 @@ function applyFilters({ updateSuggestions = true } = {}) {
   });
   state.filtered.sort((a, b) => {
     if (state.sort === "title") return String(a.title).localeCompare(String(b.title), "zh-Hant");
-    if (state.sort === "id") return Number(a.id) - Number(b.id);
+    if (state.sort === "id") return (a.catalogSequence || 0) - (b.catalogSequence || 0);
     return relevance(b, query) - relevance(a, query) || Number(a.id) - Number(b.id);
   });
   state.visible = 24;
