@@ -285,7 +285,7 @@ function agentCardHTML(a) {
     </div>
     <p class="text-[13px] text-body leading-snug line-clamp-2">${a.tagline}</p>
     <div class="flex flex-wrap gap-1.5">${chips}</div>
-    <span class="mt-auto text-xs font-bold text-brand2 inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">查看 Agent <span class="material-symbols-outlined text-[16px]">arrow_forward</span></span>
+    <span class="mt-auto self-end text-xs font-bold text-brand2 inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">查看 Agent <span class="material-symbols-outlined text-[16px]">arrow_forward</span></span>
   </a>`;
 }
 function featuredCardHTML(a) {
