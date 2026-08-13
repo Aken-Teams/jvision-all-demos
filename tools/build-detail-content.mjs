@@ -99,6 +99,40 @@ const POINTS = [
   { title: "決策更快更準", desc: "營運數據即時彙整，主管一眼掌握該關注的重點。" },
 ];
 
+// per-category "traditional pain points" so legacy projects are not all identical
+const P = (icon, title, desc) => ({ icon, title, desc });
+const CAT_PAINS = {
+  "生產製造": [P("inventory", "缺料開工才發現", "料況與工單分開看，常在開工前才發現缺料只能停線。"), P("schedule", "排程靠試算表", "交期、產能、治具分散在多份表單，改一處要手動對齊全部。"), P("sync_problem", "現場進度看不到", "報工靠紙本回傳，生管無法即時知道哪張工單卡住。"), P("bolt", "插單反應太慢", "臨時插單要人工重算，往往到下午才排定，錯過當班產能。")],
+  "品質管理": [P("manage_search", "追溯要翻好幾套", "檢驗結果、批號、出貨紀錄各在一處，追一個批號要跨系統。"), P("block", "隔離不及時", "規格超差沒有第一時間隔離，風險品可能繼續往下流。"), P("repeat", "問題重複發生", "缺乏根因與 8D 累積，同類不良換個批次又再犯。"), P("rule", "改善難閉環", "對策有沒有驗證、能不能關案全靠人記，稽核常補不齊。")],
+  "業務銷售": [P("table_view", "客戶資料散落", "客戶與聯絡人分散在各業務的表單與筆記，交接就斷。"), P("visibility_off", "商機黑箱", "商機到哪一階段、卡在誰身上只存在業務腦中。"), P("schedule", "報價時效流失", "報價快到期沒人提醒，等想到時客戶已找了競品。"), P("person_off", "決策者沒到位", "推進到後段才發現真正拍板的人從沒參與。")],
+  "採購供應鏈": [P("handshake", "供應商績效難掌握", "交期、品質、價格分散，供應商好壞沒有一致依據。"), P("warning", "缺料太晚預警", "到貨延遲往往開工前才發現，來不及調整。"), P("request_quote", "詢比價靠來回", "詢價、比價靠郵件往返，版本混亂、難以稽核。"), P("inventory", "庫存與採購脫節", "安全庫存與在途量看不到，重複下單或缺料。")],
+  "人力資源": [P("fingerprint", "差勤資料分散", "打卡、請假、加班散在多處，月結對不齊。"), P("payments", "薪資計算易錯", "勞健保、加班費靠人工套公式，一改就要重算。"), P("schedule", "排班靠經驗", "人力與工時靠人排，容易超時或人力不足。"), P("description", "表單簽核卡關", "紙本簽核跑流程，進度看不到、常卡在某一關。")],
+  "倉儲物流": [P("qr_code_scanner", "作業靠紙本", "入出庫、揀貨靠紙本與記憶，錯揀漏揀難追。"), P("inventory_2", "庫存不準", "帳面與實際對不上，盤點費時又常有落差。"), P("grid_view", "儲位混亂", "儲位沒有規劃，找貨、補貨耗時。"), P("output", "出貨延遲", "波次與覆核靠人協調，尖峰時容易延遲。")],
+  "研發管理": [P("account_tree", "專案進度不透明", "任務與里程碑散在各處，落後難提前發現。"), P("description", "文件版本混亂", "BOM、圖面版本多，用錯版本造成損失。"), P("rule", "變更難追蹤", "ECN/ECR 靠郵件，影響範圍與核准狀態看不清。"), P("manage_search", "知識難沉澱", "經驗與資料散落，新人查找費時。")],
+  "經營管理": [P("description", "報表要人工彙整", "跨部門數據靠人整合，一份報表做好幾天。"), P("visibility_off", "異常太晚發現", "問題等到月報才看到，錯過處理時機。"), P("scoreboard", "目標與執行脫節", "策略目標與現場 KPI 對不上，難落地。"), P("sync_problem", "資料各說各話", "各部門口徑不一，決策缺乏一致依據。")],
+  "ESG 永續": [P("co2", "碳盤查耗時", "排放資料散在各廠各表，盤查一次要好幾週。"), P("bolt", "用能看不到", "用電用能沒有即時監控，異常反應慢。"), P("description", "報告難產出", "GRI/ISO 報告靠人拼湊，格式與數據難一致。"), P("flag", "減碳進度失焦", "目標與實際落差看不清，難即時調整。")],
+  "零售電商": [P("inventory_2", "補貨反應慢", "熱銷缺貨、滯銷積壓，補貨靠經驗。"), P("point_of_sale", "前台結帳卡", "尖峰結帳等待，會員與優惠處理慢。"), P("loyalty", "會員經營薄弱", "會員與消費紀錄未整合，難做行銷。"), P("summarize", "營運看不清", "各門市營收與熱銷靠人彙整。")],
+  "教育": [P("menu_book", "課務排課耗時", "課程、師資、教室靠人排，衝堂難避免。"), P("quiz", "批改與成績分散", "作業測驗與成績散在多處，回饋慢。"), P("trending_up", "學習進度看不到", "誰落後、誰缺席難即時掌握。"), P("groups", "親師溝通斷點", "通知與紀錄靠訊息，容易遺漏。")],
+  "企業協作": [P("view_kanban", "任務散在各處", "任務散在訊息與郵件，進度看不清、常漏接。"), P("description", "知識難查找", "文件與知識散落，找資料耗時。"), P("bolt", "流程靠人推", "表單簽核與流程靠人催，卡關難發現。"), P("forum", "資訊落差", "跨部門資訊不對齊，重工與誤解多。")],
+  "營建工程": [P("description", "日報靠紙本", "人機料回報靠紙本，彙整慢又易漏。"), P("account_tree", "進度落後太晚知", "WBS 與實際進度對不上，延誤難提前發現。"), P("fact_check", "缺失改善追不到", "巡檢缺失靠拍照傳訊，改善狀態難追。"), P("payments", "成本超支難控", "估驗計價與實支對不齊，超支難即時發現。")],
+  "醫療照護": [P("event", "預約與報到混亂", "預約、報到、候診靠人叫號，等待久。"), P("folder_shared", "病歷紀錄分散", "就診與照護紀錄散落，交班易漏。"), P("receipt_long", "申報退件多", "健保申報靠人核對，退件率高。"), P("notifications_active", "回診追蹤漏接", "主動回診與提醒靠人記，容易遺漏。")],
+  "財務會計": [P("calculate", "對帳靠人工", "應收付與銀行對帳靠人比對，易錯又慢。"), P("history_toggle_off", "月結趕加班", "跨系統抓數、調整，月結總在趕。"), P("request_quote", "帳款逾期難掌握", "帳齡與催收靠人追，呆帳風險高。"), P("savings", "現金流看不清", "資金調度靠經驗，缺乏即時預測。")],
+  "金融保險": [P("assignment", "案件受理分散", "文件與資格核對靠人，受理慢。"), P("shield", "風險判斷靠經驗", "風險評分沒有一致依據，品質不一。"), P("gavel", "覆核流程冗長", "多層覆核靠紙本，進度看不清。"), P("history", "稽核追溯困難", "全程紀錄散落，稽核補件費時。")],
+  "資訊科技": [P("confirmation_number", "工單淹沒", "事件與請求散在多渠道，容易漏處理。"), P("dns", "資產看不清", "IT 資產與授權靠試算表，盤點難。"), P("monitor_heart", "故障太晚知", "缺乏即時監控，使用者先發現才通報。"), P("timer", "SLA 難達成", "缺乏時效追蹤，容易超時。")],
+  "交通運輸": [P("map", "派車靠經驗", "路線與派車靠人排，空車率高。"), P("location_on", "車輛看不到", "缺乏即時定位，到貨時間難掌握。"), P("assignment_turned_in", "回單追不到", "簽收回單靠紙本，對帳費時。"), P("local_gas_station", "成本油耗難控", "油耗與成本靠人記，異常反應慢。")],
+  "物流運輸": [P("map", "派車靠經驗", "路線與派車靠人排，空車率高。"), P("location_on", "車輛看不到", "缺乏即時定位，到貨時間難掌握。"), P("assignment_turned_in", "回單追不到", "簽收回單靠紙本，對帳費時。"), P("ac_unit", "溫控難監控", "冷鏈溫度靠人巡查，異常反應慢。")],
+  "設備維護": [P("calendar_month", "保養靠人記", "預防保養靠人排，容易漏保養。"), P("sensors", "故障無預兆", "缺乏設備數據，故障才停機處理。"), P("inventory_2", "備品缺料", "備品庫存看不到，維修等料。"), P("history", "維護履歷散落", "設備履歷難追，難分析故障。")],
+  "資訊安全": [P("gpp_maybe", "告警淹沒", "資安告警量大，分流靠人容易漏。"), P("bug_report", "弱點修補追不到", "弱點掃描與修補進度散落，難追。"), P("vpn_key", "權限難盤點", "帳號與特權權限散落，稽核困難。"), P("policy", "合規靠人整理", "政策與稽核資料靠人拼湊。")],
+  "專業服務": [P("folder", "案件散落難追", "案件與文件散在各處，進度看不清。"), P("gavel", "期限容易漏", "庭期與期限靠人記，漏接風險高。"), P("schedule", "工時計費遺漏", "工時記錄靠人填，計費常遺漏。"), P("fact_check", "文件版本混亂", "合約與文件版本多，用錯版本有風險。")],
+  "餐飲旅宿": [P("point_of_sale", "前台出單慢", "點餐、結帳尖峰卡頓，客人久等。"), P("table_restaurant", "桌位訂位混亂", "桌況與訂位靠人記，容易衝突。"), P("inventory_2", "備料浪費", "叫貨與備料靠經驗，浪費或缺料。"), P("loyalty", "會員經營薄弱", "會員與消費未整合，難回流。")],
+  "生活服務": [P("event", "預約排程混亂", "預約與派工靠人排，容易衝突。"), P("local_shipping", "到府時效難掌握", "服務進度看不到，客戶常詢問。"), P("report_problem", "重工與客訴", "作業紀錄散落，重工與客訴難追。"), P("summarize", "營運看不清", "各據點狀況靠人彙整。")],
+  "數據分析": [P("description", "報表要人工彙整", "跨源數據靠人整合，一份報表做好幾天。"), P("zoom_in", "看不到明細", "指標無法下鑽，異常難定位。"), P("sync_problem", "資料口徑不一", "各部門數據對不齊，決策缺依據。"), P("visibility_off", "洞察太晚", "問題等報表才看到，錯過時機。")],
+  "客服管理": [P("confirmation_number", "客訴散在多渠道", "電話、郵件、社群分散，容易漏回。"), P("timer", "回應太慢", "缺乏時效追蹤，首次回應慢。"), P("redeem", "補償流程混亂", "退換與補償靠人處理，標準不一。"), P("sentiment_satisfied", "滿意度看不到", "缺乏回饋彙整，難改善。")],
+  "房地產與物業": [P("build", "報修處理慢", "住戶報修靠電話，派工與進度難追。"), P("payments", "繳費對帳費時", "管理費與繳費靠人對帳。"), P("fact_check", "巡檢覆蓋不足", "公設巡檢靠紙本，缺失難追。"), P("groups", "住戶溝通斷點", "公告與通知靠張貼，容易漏。")],
+  "宗教服務": [P("event", "活動籌備繁瑣", "報名、志工、物資靠人協調。"), P("groups", "信眾名冊分散", "名冊與聯絡散落，通知困難。"), P("inventory_2", "物資盤點費時", "供品與物資靠人清點。"), P("payments", "香油捐款難管", "捐款與收據靠人記，對帳費時。")],
+};
+const DEFAULT_PAINS = [P("table_view", "試算表往返", "資料散在各處試算表與訊息，版本混亂、難以對齊。"), P("person_search", "人工追蹤", "靠人一件件盯進度、追負責人，耗時又容易遺漏。"), P("warning", "異常太晚發現", "問題往往等到出事才被看到，錯過最佳處理時機。"), P("sync_problem", "資訊各自為政", "各環節資料不互通，重工與誤解多。")];
+
 function baseParts(p) {
   const sc = JV.get(p);
   const users = splitList(p.primaryUser || "部門使用者與主管");
@@ -150,19 +184,16 @@ function fromLegacy(p) {
   const cw = p.customerWorkflow || {};
   const steps = (cw.steps && cw.steps.length) ? cw.steps : ["建立資料", "系統處理", "確認並留存"];
   const owner = b._users[0] || "承辦", supervisor = b._users[1] || "主管";
+  // project-specific pains: rotate the category set by id and take 3-5
+  const pool = CAT_PAINS[p.category] || DEFAULT_PAINS;
+  const shift = p.id % pool.length;
+  const rotated = pool.slice(shift).concat(pool.slice(0, shift));
+  const pains = rotated.slice(0, Math.min(3 + (p.id % 3), pool.length)).map((x) => ({ ...x }));
   b.hero.highlights[1].value = steps.length + " 階段";
-  b.problem = {
-    situation: p.businessSituation || "",
-    pains: [
-      { icon: "table_view", title: "試算表往返", desc: "資料散在各處試算表與訊息，版本混亂、難以對齊。" },
-      { icon: "person_search", title: "人工追蹤", desc: "靠人一件件盯進度、追負責人，耗時又容易遺漏。" },
-      { icon: "warning", title: "異常太晚發現", desc: "問題往往等到出事才被看到，錯過最佳處理時機。" },
-    ],
-    impact: "重複人工與資訊分散，讓交期、品質與決策都慢半拍。",
-  };
+  b.problem = { situation: p.businessSituation || "", pains, impact: "重複人工與資訊分散，讓交期、品質與決策都慢半拍。" };
   b.flow = {
-    inputs: (cw.fields && cw.fields.length) ? cw.fields : ["名稱／編號", "負責人／期限"],
-    stages: steps.map((st, i, arr) => ({ title: st, role: i >= arr.length - 1 ? supervisor : owner, desc: `於「${st}」階段完成對應作業並更新狀態。` })),
+    inputs: ["作業對象／編號", "負責人", "期限"],
+    stages: steps.map((st, i, arr) => ({ title: st, role: i >= arr.length - 1 ? supervisor : owner, desc: `於「${st}」階段完成對應作業並更新狀態，讓後段能接手。` })),
     output: cw.output || "處理結果與操作紀錄",
   };
   b.generated = "needs-review";
