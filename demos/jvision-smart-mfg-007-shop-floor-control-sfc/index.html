@@ -1,18 +1,514 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>現場控制系統（Shop Floor Control, SFC）｜Jvision 系統 Demo</title>
-  <meta name="description" content="訂單到入庫的製造現場全流程數位化" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>現場控制系統 SFC · 製造現場控制終端</title>
+<link rel="icon" href="../../favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0e0b1a; --panel:#171331; --panel2:#1f1a3d; --line:#2c2554;
+  --ink:#ece9fb; --mut:#9d95c9; --acc:#7c3aed; --acc2:#a78bfa;
+  --ok:#34d399; --warn:#fbbf24; --bad:#f87171; --info:#60a5fa;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:"Inter","Noto Sans TC",sans-serif;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+.material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;
+  line-height:1;vertical-align:middle;font-size:20px}
+.top{position:sticky;top:0;z-index:20;background:linear-gradient(90deg,#140f2b,#1c1440);
+  border-bottom:1px solid var(--line);padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--acc),var(--acc2));
+  display:flex;align-items:center;justify-content:center;color:#fff;flex:none;box-shadow:0 0 16px rgba(124,58,237,.5)}
+.brand b{font-size:15px;font-weight:800;letter-spacing:.5px;white-space:nowrap}
+.brand span{display:block;font-size:11px;color:var(--mut);font-weight:500}
+.live{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--mut);
+  background:var(--panel);border:1px solid var(--line);padding:6px 11px;border-radius:20px;flex:none}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(52,211,153,.6);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.6)}70%{box-shadow:0 0 0 8px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+.nav{display:flex;flex-wrap:wrap;gap:8px;width:100%}
+.nav button{flex:none;white-space:nowrap;display:flex;align-items:center;gap:7px;
+  background:var(--panel);color:var(--mut);border:1px solid var(--line);border-radius:10px;
+  padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s}
+.nav button:hover{color:var(--ink);border-color:var(--acc)}
+.nav button.on{background:linear-gradient(135deg,var(--acc),#6d28d9);color:#fff;border-color:var(--acc);
+  box-shadow:0 4px 14px rgba(124,58,237,.35)}
+.nav button .num{font-size:11px;opacity:.7}
+.wrap{padding:18px 16px 48px;max-width:1360px;margin:0 auto}
+.head{margin-bottom:16px}
+.head h1{margin:0 0 4px;font-size:21px;font-weight:800}
+.head p{margin:0;color:var(--mut);font-size:13px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g23{grid-template-columns:2fr 1fr}
+.g32{grid-template-columns:1.4fr 1fr}
+.grid>*{min-width:0}
+@media(max-width:820px){.g4,.g3,.g2,.g23,.g32{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.card.pad0{padding:0;overflow:hidden}
+.ctit{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;margin:0 0 12px;color:var(--ink)}
+.ctit .material-symbols-outlined{color:var(--acc2);font-size:19px}
+.ctit small{margin-left:auto;color:var(--mut);font-weight:500;font-size:11px}
+.kpi{background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);
+  border-radius:14px;padding:15px;position:relative;overflow:hidden;min-width:0}
+.kpi::after{content:"";position:absolute;right:-18px;top:-18px;width:70px;height:70px;border-radius:50%;
+  background:radial-gradient(circle,rgba(124,58,237,.35),transparent 70%)}
+.kpi .kl{font-size:12px;color:var(--mut);display:flex;align-items:center;gap:6px}
+.kpi .kv{font-size:27px;font-weight:800;margin:8px 0 2px;letter-spacing:.5px}
+.kpi .kd{font-size:11px;font-weight:600}
+.up{color:var(--ok)}.down{color:var(--bad)}.flat{color:var(--warn)}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
+.c-ok{background:rgba(52,211,153,.15);color:var(--ok)}
+.c-warn{background:rgba(251,191,36,.15);color:var(--warn)}
+.c-bad{background:rgba(248,113,113,.15);color:var(--bad)}
+.c-info{background:rgba(96,165,250,.15);color:var(--info)}
+.c-acc{background:rgba(167,139,250,.18);color:var(--acc2)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px}
+th{text-align:left;color:var(--mut);font-weight:600;padding:9px 10px;border-bottom:1px solid var(--line);
+  font-size:11px;letter-spacing:.4px;white-space:nowrap}
+td{padding:10px;border-bottom:1px solid rgba(44,37,84,.6);white-space:nowrap}
+tr:hover td{background:rgba(124,58,237,.06)}
+.mono{font-family:"Inter",monospace;font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:6px;background:var(--line);overflow:hidden;min-width:70px}
+.bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.board{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+@media(max-width:820px){.board{grid-template-columns:1fr}}
+.board>*{min-width:0}
+.col{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px}
+.colh{font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.colh .cnt{font-size:11px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:1px 8px;color:var(--mut)}
+.tk{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:9px;padding:9px 10px;margin-bottom:8px}
+.tk b{font-size:12.5px;display:block}
+.tk .meta{font-size:11px;color:var(--mut);margin-top:5px;display:flex;justify-content:space-between;gap:6px}
+.pipe{display:flex;gap:8px;overflow-x:auto;padding:6px 2px 10px}
+.node{flex:none;width:132px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px;text-align:center;position:relative}
+.node .st{font-size:24px}
+.node b{display:block;font-size:12.5px;margin:4px 0 2px}
+.node small{font-size:11px;color:var(--mut)}
+.node .lk{position:absolute;right:-13px;top:50%;transform:translateY(-50%);color:var(--acc2);z-index:2}
+.node.done{border-color:var(--ok)}
+.tl{position:relative;padding-left:22px}
+.tl::before{content:"";position:absolute;left:7px;top:4px;bottom:4px;width:2px;background:var(--line)}
+.tl .ev{position:relative;margin-bottom:14px}
+.tl .ev::before{content:"";position:absolute;left:-19px;top:3px;width:11px;height:11px;border-radius:50%;background:var(--acc);border:2px solid var(--panel)}
+.tl .ev.b::before{background:var(--bad)}.tl .ev.g::before{background:var(--ok)}.tl .ev.w::before{background:var(--warn)}
+.tl .t{font-size:11px;color:var(--mut)}
+.tl .ev b{font-size:13px}
+.tl .ev p{margin:2px 0 0;font-size:12px;color:var(--mut)}
+.row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(44,37,84,.6)}
+.row:last-child{border-bottom:0}
+.row .ic{width:34px;height:34px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex:none}
+.row .tx{min-width:0;flex:1}
+.row .tx b{font-size:12.5px;display:block}
+.row .tx small{font-size:11px;color:var(--mut)}
+.mx{display:grid;gap:6px;min-width:420px}
+.mx .r{display:grid;grid-template-columns:90px repeat(6,1fr);gap:6px;align-items:center}
+.mx .r>*{min-width:0}
+.mx .hd{font-size:10px;color:var(--mut);text-align:center;padding:2px}
+.mx .lb{font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell{height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#0e0b1a}
+.canwrap{position:relative;width:100%}
+.canwrap.h220{height:220px}.canwrap.h240{height:240px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-size:11px;color:var(--mut)}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:middle}
+.foot{margin-top:26px;text-align:center;color:var(--mut);font-size:11px}
+@media(max-width:560px){.nav button .lbl{display:none}.nav button{padding:9px 11px}}
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<div class="top">
+  <div class="brand">
+    <div class="logo"><span class="material-symbols-outlined">account_tree</span></div>
+    <div><b>SFC 現場控制終端</b><span>Shop Floor Control · 工序卡控 · 過站放行</span></div>
+  </div>
+  <div class="live"><span class="dot"></span>製造現場即時連線 · Line-A / Line-B</div>
+  <div class="nav" id="nav"></div>
+</div>
+<div class="wrap"><div id="app"></div>
+  <div class="foot">現場控制系統（Shop Floor Control, SFC）· 純前端展示 · 資料為模擬示意</div>
+</div>
+
+<script>
+var C={ink:"#ece9fb",mut:"#9d95c9",line:"#2c2554",acc:"#7c3aed",acc2:"#a78bfa",
+  ok:"#34d399",warn:"#fbbf24",bad:"#f87171",info:"#60a5fa"};
+var charts=[];
+function killCharts(){for(var i=0;i<charts.length;i++){try{charts[i].destroy();}catch(e){}}charts=[];}
+function gopt(extra){
+  var o={responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:C.mut,font:{size:11},boxWidth:12}}},
+    scales:{x:{ticks:{color:C.mut,font:{size:10}},grid:{color:"rgba(44,37,84,.6)"}},
+            y:{ticks:{color:C.mut,font:{size:10}},grid:{color:"rgba(44,37,84,.6)"}}}};
+  if(extra&&extra.noleg)o.plugins.legend.display=false;
+  return o;
+}
+function esc(s){return String(s).replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+function kpi(label,val,icon,unit,dir,note){
+  var cls=dir==="up"?"up":dir==="down"?"down":"flat";
+  var arrow=dir==="up"?"trending_up":dir==="down"?"trending_down":"trending_flat";
+  return '<div class="kpi"><div class="kl"><span class="material-symbols-outlined" style="font-size:16px;color:var(--acc2)">'+icon+'</span>'+esc(label)+'</div>'+
+    '<div class="kv">'+esc(val)+' <span style="font-size:12px;color:var(--mut);font-weight:600">'+esc(unit)+'</span></div>'+
+    '<div class="kd '+cls+'"><span class="material-symbols-outlined" style="font-size:15px">'+arrow+'</span> '+esc(note)+'</div></div>';
+}
+
+var MODS=[
+  {ic:"account_tree",t:"工序流程卡控",s:"Router 工藝路線"},
+  {ic:"playlist_add_check",t:"作業許可放行",s:"過站資格判定"},
+  {ic:"sensors",t:"現場資料採集",s:"掃碼與設備參數"},
+  {ic:"block",t:"異常攔截管理",s:"暫扣與覆核"},
+  {ic:"route",t:"在製追溯履歷",s:"批次過站軌跡"},
+  {ic:"insights",t:"現場管制指標",s:"攔截率與週期時間"}
+];
+
+/* ===== SCREEN 0 : 工序流程卡控 Router ===== */
+function ruleRow(id,t,tag,cc){
+  return '<div class="row"><div class="ic"><span class="material-symbols-outlined" style="color:var(--acc2)">gavel</span></div>'+
+    '<div class="tx"><b>'+esc(t)+'</b><small class="mono">'+esc(id)+'</small></div>'+
+    '<span class="chip '+cc+'">'+esc(tag)+'</span></div>';
+}
+function v0(el){
+  var steps=[
+    {n:"OP10 上料",st:"done",m:"上料/清洗"},
+    {n:"OP20 CNC粗銑",st:"done",m:"CNC-01"},
+    {n:"OP30 CNC精銑",st:"cur",m:"CNC-04"},
+    {n:"OP40 去毛邊",st:"wait",m:"手動站"},
+    {n:"OP50 CMM量測",st:"wait",m:"三次元"},
+    {n:"OP60 入庫過站",st:"wait",m:"WIP庫"}
+  ];
+  var pipe=steps.map(function(s,i){
+    var cls=s.st==="done"?"done":"";
+    var icon=s.st==="done"?'<span class="material-symbols-outlined" style="color:var(--ok)">check_circle</span>':
+             s.st==="cur"?'<span class="material-symbols-outlined" style="color:var(--acc2)">radio_button_checked</span>':
+             '<span class="material-symbols-outlined" style="color:var(--mut)">circle</span>';
+    var lk=i<steps.length-1?'<span class="material-symbols-outlined lk">chevron_right</span>':'';
+    return '<div class="node '+cls+'"><div class="st">'+icon+'</div><b>'+esc(s.n)+'</b><small>'+esc(s.m)+'</small>'+lk+'</div>';
+  }).join("");
+  var routers=[
+    {id:"RT-A320",p:"精密齒輪座",v:"v4.2",op:"8 工序",st:"啟用",cc:"c-ok",lc:98},
+    {id:"RT-B117",p:"鋁製散熱鰭片",v:"v2.7",op:"6 工序",st:"啟用",cc:"c-ok",lc:96},
+    {id:"RT-C085",p:"不鏽鋼法蘭",v:"v1.9",op:"9 工序",st:"試作",cc:"c-warn",lc:71},
+    {id:"RT-D204",p:"醫療植入件",v:"v3.1",op:"11 工序",st:"啟用",cc:"c-ok",lc:99},
+    {id:"RT-E060",p:"連接器外殼",v:"v0.8",op:"5 工序",st:"停用",cc:"c-bad",lc:42}
+  ];
+  var rrows=routers.map(function(r){
+    return '<tr><td class="mono">'+esc(r.id)+'</td><td>'+esc(r.p)+'</td><td class="mono">'+esc(r.v)+'</td>'+
+      '<td>'+esc(r.op)+'</td><td><span class="chip '+r.cc+'">'+esc(r.st)+'</span></td>'+
+      '<td><div style="display:flex;align-items:center;gap:8px"><div class="bar" style="flex:1"><i style="width:'+r.lc+'%"></i></div><span class="mono" style="font-size:11px">'+r.lc+'%</span></div></td></tr>';
+  }).join("");
+  el.innerHTML=
+  '<div class="head"><h1>工序流程卡控（Router 管理）</h1><p>定義產品工藝路線、工序前後順序與版本控管，作為過站資格比對的唯一依據。</p></div>'+
+  '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("已啟用 Router","32","account_tree","組工藝路線","up","+3 本月")+
+    kpi("平均工序數","7.4","layers","工序/路線","flat","持平")+
+    kpi("版本鎖定率","96%","lock","禁止越版投產","up","+4pt")+
+    kpi("待審路線","3","pending_actions","試作待放行","flat","2 已過期")+
+  '</div>'+
+  '<div class="card" style="margin-bottom:14px"><div class="ctit"><span class="material-symbols-outlined">route</span>工單 WO-2026-0813-07 · Router RT-A320 v4.2 · 精密齒輪座<small>目前工序 OP30</small></div>'+
+    '<div class="tw"><div class="pipe">'+pipe+'</div></div></div>'+
+  '<div class="grid g23">'+
+    '<div class="card pad0"><div class="ctit" style="padding:16px 16px 0">'+
+      '<span class="material-symbols-outlined">account_tree</span>工藝路線版本清單</div>'+
+      '<div class="tw"><table><thead><tr><th>路線編號</th><th>產品</th><th>版本</th><th>工序</th><th>狀態</th><th>過站合規率</th></tr></thead><tbody>'+rrows+'</tbody></table></div></div>'+
+    '<div class="card"><div class="ctit"><span class="material-symbols-outlined">rule</span>卡控規則（現行）</div>'+
+      ruleRow("RULE-01","前置工序未完成禁止過站","攔截跳站","c-bad")+
+      ruleRow("RULE-02","缺料批次禁止投產放行","到料前暫扣","c-warn")+
+      ruleRow("RULE-03","越版投產強制攔截","版本鎖定","c-info")+
+      ruleRow("RULE-04","設備負載>85%改排產線","負載保護","c-acc")+
+    '</div>'+
+  '</div>';
+}
+
+/* ===== SCREEN 1 : 作業執行 ===== */
+function v1(el){
+  var jobs=[
+    {b:"批次 LOT-77120",op:"OP30 精銑",m:"CNC-04",qty:"120/150",pct:80,st:"作業中",cc:"c-info"},
+    {b:"批次 LOT-77133",op:"OP20 粗銑",m:"CNC-01",qty:"48/200",pct:24,st:"作業中",cc:"c-info"},
+    {b:"批次 LOT-77098",op:"OP50 量測",m:"CMM-02",qty:"30/30",pct:100,st:"待過站",cc:"c-ok"},
+    {b:"批次 LOT-77145",op:"OP10 上料",m:"LOAD-1",qty:"0/300",pct:2,st:"待投入",cc:"c-warn"}
+  ];
+  var jrows=jobs.map(function(j){
+    return '<div class="card" style="padding:13px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'+
+      '<div style="min-width:0"><b style="font-size:13px">'+esc(j.b)+'</b><div style="font-size:11px;color:var(--mut);margin-top:2px">'+esc(j.op)+' · '+esc(j.m)+'</div></div>'+
+      '<span class="chip '+j.cc+'">'+esc(j.st)+'</span></div>'+
+      '<div style="display:flex;align-items:center;gap:10px;margin-top:10px"><div class="bar" style="flex:1"><i style="width:'+j.pct+'%"></i></div>'+
+      '<span class="mono" style="font-size:12px">'+esc(j.qty)+'</span></div></div>';
+  }).join("");
+  el.innerHTML=
+  '<div class="head"><h1>作業執行 · 現場工站看板</h1><p>放行後執行本工序作業，同步採集設備參數與工時，即時回寫過站履歷與進度。</p></div>'+
+  '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("在製批次","28","inventory_2","LOT 在線","up","+2")+
+    kpi("本班報工數","1,842","done_all","件","up","+6.1%")+
+    kpi("平均工序耗時","14.6","timer","分/站","down","-1.2 分")+
+    kpi("直通良率","98.2%","verified","FPY","up","+0.7pt")+
+  '</div>'+
+  '<div class="grid g32">'+
+    '<div><div class="ctit"><span class="material-symbols-outlined">precision_manufacturing</span>進行中批次作業</div>'+jrows+'</div>'+
+    '<div class="card"><div class="ctit"><span class="material-symbols-outlined">show_chart</span>近 8 小時報工趨勢<small>件/時</small></div>'+
+      '<div class="canwrap h240"><canvas id="c-v1a"></canvas></div>'+
+      '<div class="legend"><span><i style="background:'+C.acc2+'"></i>實際報工</span><span><i style="background:'+C.info+'"></i>目標節拍</span></div></div>'+
+  '</div>';
+  void el.offsetHeight;
+  charts.push(new Chart(document.getElementById("c-v1a"),{type:"line",
+    data:{labels:["08","09","10","11","12","13","14","15"],
+      datasets:[
+        {label:"實際報工",data:[210,238,255,190,120,244,261,258],borderColor:C.acc2,backgroundColor:"rgba(167,139,250,.15)",fill:true,tension:.35,borderWidth:2,pointRadius:2},
+        {label:"目標節拍",data:[240,240,240,240,140,240,240,240],borderColor:C.info,borderDash:[5,4],fill:false,tension:0,borderWidth:2,pointRadius:0}
+      ]},options:gopt()}));
+}
+
+/* ===== SCREEN 2 : 批次投入 / 現場資料採集 ===== */
+function v2(el){
+  var scans=[
+    {t:"14:38:20",lot:"LOT-77145",op:"OP10 上料",who:"陳志明",r:"放行",cc:"c-ok"},
+    {t:"14:37:02",lot:"LOT-77133",op:"OP20 粗銑",who:"林淑芬",r:"放行",cc:"c-ok"},
+    {t:"14:35:41",lot:"LOT-77140",op:"OP40 去毛邊",who:"王大同",r:"攔截·漏OP30",cc:"c-bad"},
+    {t:"14:34:10",lot:"LOT-77120",op:"OP30 精銑",who:"陳志明",r:"放行",cc:"c-ok"},
+    {t:"14:31:55",lot:"LOT-77118",op:"OP50 量測",who:"李美玲",r:"放行",cc:"c-ok"},
+    {t:"14:29:12",lot:"LOT-77102",op:"OP30 精銑",who:"張家豪",r:"暫扣·缺料",cc:"c-warn"}
+  ];
+  var srows=scans.map(function(s){
+    return '<tr><td class="mono">'+esc(s.t)+'</td><td class="mono">'+esc(s.lot)+'</td><td>'+esc(s.op)+'</td><td>'+esc(s.who)+'</td><td><span class="chip '+s.cc+'">'+esc(s.r)+'</span></td></tr>';
+  }).join("");
+  var params=[
+    {n:"主軸轉速",v:"11,850",u:"rpm",lc:78},
+    {n:"進給速率",v:"320",u:"mm/min",lc:64},
+    {n:"主軸負載",v:"87",u:"%",lc:87},
+    {n:"切削液溫度",v:"29.4",u:"°C",lc:52},
+    {n:"振動 RMS",v:"2.1",u:"mm/s",lc:41},
+    {n:"刀具壽命",v:"63",u:"%",lc:63}
+  ];
+  var prows=params.map(function(p){
+    return '<div class="row"><div class="ic"><span class="material-symbols-outlined" style="color:var(--acc2)">sensors</span></div>'+
+      '<div class="tx"><b>'+esc(p.n)+'</b><div class="bar" style="margin-top:5px"><i style="width:'+p.lc+'%"></i></div></div>'+
+      '<div style="text-align:right;flex:none"><b class="mono">'+esc(p.v)+'</b><div style="font-size:10px;color:var(--mut)">'+esc(p.u)+'</div></div></div>';
+  }).join("");
+  el.innerHTML=
+  '<div class="head"><h1>批次投入 · 現場資料採集</h1><p>掃碼過站與 SECS/GEM 設備參數即時採集，每一次過站請求都留下可稽核紀錄。</p></div>'+
+  '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("今日過站掃碼","3,415","qr_code_scanner","次","up","+9.3%")+
+    kpi("採集資料點","218K","dataset","筆/日","up","即時")+
+    kpi("SECS/GEM 連機","24/25","cable","台設備","flat","1 台維護")+
+    kpi("採集延遲","0.8","bolt","秒 P95","down","-0.3 秒")+
+  '</div>'+
+  '<div class="grid g23">'+
+    '<div class="card pad0"><div class="ctit" style="padding:16px 16px 0"><span class="material-symbols-outlined">qr_code_scanner</span>即時過站掃碼流水<small>最新於上方</small></div>'+
+      '<div class="tw"><table style="min-width:560px"><thead><tr><th>時間</th><th>批次</th><th>工序</th><th>作業員</th><th>判定</th></tr></thead><tbody>'+srows+'</tbody></table></div></div>'+
+    '<div class="card"><div class="ctit"><span class="material-symbols-outlined">memory</span>CNC-04 即時參數採集</div>'+prows+'</div>'+
+  '</div>'+
+  '<div class="card" style="margin-top:14px"><div class="ctit"><span class="material-symbols-outlined">stacked_line_chart</span>各工站近一小時採集吞吐<small>掃碼筆數</small></div>'+
+    '<div class="canwrap h220"><canvas id="c-v2a"></canvas></div></div>';
+  void el.offsetHeight;
+  charts.push(new Chart(document.getElementById("c-v2a"),{type:"bar",
+    data:{labels:["OP10 上料","OP20 粗銑","OP30 精銑","OP40 去毛邊","OP50 量測","OP60 入庫"],
+      datasets:[{label:"採集筆數",data:[340,512,488,306,214,180],
+        backgroundColor:["#7c3aed","#8b5cf6","#a78bfa","#c4b5fd","#8b5cf6","#7c3aed"],borderRadius:6}]},
+    options:gopt({noleg:true})}));
+}
+
+/* ===== SCREEN 3 : 放行/攔截判定 ===== */
+function tlEv(cls,t,tt,d){
+  return '<div class="ev '+cls+'"><div class="t">'+esc(t)+'</div><b>'+esc(tt)+'</b><p>'+esc(d)+'</p></div>';
+}
+function v3(el){
+  var cols=[
+    {t:"待判定",cc:"var(--warn)",items:[
+      {b:"LOT-77140 · OP40",r:"漏做 OP30 精銑",who:"系統攔截",lv:"高"},
+      {b:"LOT-77102 · OP30",r:"物料短缺待到料",who:"生管排除",lv:"中"}
+    ]},
+    {t:"暫扣中",cc:"var(--bad)",items:[
+      {b:"LOT-76988 · OP50",r:"CMM 量測超差",who:"品保覆核",lv:"高"},
+      {b:"LOT-77055 · OP20",r:"越版投產 v2→v3",who:"工程確認",lv:"高"}
+    ]},
+    {t:"覆核中",cc:"var(--info)",items:[
+      {b:"LOT-77011 · OP30",r:"設備負載 89%",who:"改排 CNC-06",lv:"中"}
+    ]},
+    {t:"已放行",cc:"var(--ok)",items:[
+      {b:"LOT-76970 · OP40",r:"補做工序完成",who:"王大同",lv:"—"},
+      {b:"LOT-76944 · OP30",r:"到料確認放行",who:"生管",lv:"—"}
+    ]},
+    {t:"退件重工",cc:"var(--acc2)",items:[
+      {b:"LOT-76901 · OP30",r:"尺寸不合格",who:"重工站",lv:"—"}
+    ]}
+  ];
+  var board=cols.map(function(c){
+    var cards=c.items.map(function(it){
+      return '<div class="tk" style="border-left-color:'+c.cc+'"><b>'+esc(it.b)+'</b>'+
+        '<div style="font-size:11px;color:var(--mut);margin-top:4px">'+esc(it.r)+'</div>'+
+        '<div class="meta"><span>'+esc(it.who)+'</span><span>風險 '+esc(it.lv)+'</span></div></div>';
+    }).join("");
+    return '<div class="col"><div class="colh"><span style="color:'+c.cc+'">'+esc(c.t)+'</span><span class="cnt">'+c.items.length+'</span></div>'+cards+'</div>';
+  }).join("");
+  el.innerHTML=
+  '<div class="head"><h1>放行／攔截判定 · 異常攔截管理</h1><p>依卡控規則判定放行或攔截，攔截批次暫扣並進入覆核簽核流程，優先擋下跳站與漏工序。</p></div>'+
+  '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("今日攔截事件","17","block","件","down","-4 較昨")+
+    kpi("跳站/漏工序","6","report","件","down","攔截率 100%")+
+    kpi("平均放行時效","4.2","hourglass_top","分/件","down","-1.1 分")+
+    kpi("暫扣中批次","4","pause_circle","LOT","flat","2 待到料")+
+  '</div>'+
+  '<div class="card" style="margin-bottom:14px"><div class="ctit"><span class="material-symbols-outlined">dashboard</span>放行／攔截簽核看板<small>拖卡示意 · 純展示</small></div>'+
+    '<div class="tw"><div class="board">'+board+'</div></div></div>'+
+  '<div class="grid g2">'+
+    '<div class="card"><div class="ctit"><span class="material-symbols-outlined">donut_large</span>攔截原因分布</div>'+
+      '<div class="canwrap h220"><canvas id="c-v3a"></canvas></div></div>'+
+    '<div class="card"><div class="ctit"><span class="material-symbols-outlined">history</span>攔截處置時間軸</div>'+
+      '<div class="tl">'+
+        tlEv("b","14:35","LOT-77140 攔截","偵測漏做 OP30 精銑，系統即時攔截於 OP40 過站")+
+        tlEv("w","14:12","LOT-77102 暫扣","物料短缺，暫扣待到料確認")+
+        tlEv("","13:48","LOT-77011 覆核","設備負載 89%，工程改排 CNC-06")+
+        tlEv("g","13:20","LOT-76970 放行","補做工序完成，覆核通過放行")+
+      '</div></div>'+
+  '</div>';
+  void el.offsetHeight;
+  charts.push(new Chart(document.getElementById("c-v3a"),{type:"doughnut",
+    data:{labels:["跳站/漏工序","物料短缺","量測超差","越版投產","設備負載"],
+      datasets:[{data:[35,24,18,13,10],backgroundColor:[C.bad,C.warn,C.acc2,C.info,C.acc],borderColor:"#171331",borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:"58%",
+      plugins:{legend:{position:"right",labels:{color:C.mut,font:{size:11},boxWidth:12,padding:9}}}}}));
+}
+
+/* ===== SCREEN 4 : 在製追溯履歷 ===== */
+function matRow(t,s,cc,tag){
+  return '<div class="row"><div class="ic"><span class="material-symbols-outlined" style="color:var(--acc2)">widgets</span></div>'+
+    '<div class="tx"><b>'+esc(t)+'</b><small>'+esc(s)+'</small></div><span class="chip '+cc+'">'+esc(tag)+'</span></div>';
+}
+function v4(el){
+  var trace=[
+    {op:"OP10 上料",m:"LOAD-1",who:"陳志明",in:"08:12",out:"08:20",dur:"8m",st:"g"},
+    {op:"OP20 粗銑",m:"CNC-01",who:"林淑芬",in:"08:22",out:"09:05",dur:"43m",st:"g"},
+    {op:"OP30 精銑",m:"CNC-04",who:"陳志明",in:"09:10",out:"—",dur:"進行中",st:"cur"},
+    {op:"OP40 去毛邊",m:"手動站",who:"—",in:"—",out:"—",dur:"待過站",st:"w"},
+    {op:"OP50 CMM量測",m:"CMM-02",who:"—",in:"—",out:"—",dur:"待過站",st:"w"}
+  ];
+  var trows=trace.map(function(t){
+    var dot=t.st==="g"?'<span class="chip c-ok">已過站</span>':t.st==="cur"?'<span class="chip c-info">進行中</span>':'<span class="chip c-warn">待過站</span>';
+    return '<tr><td>'+esc(t.op)+'</td><td class="mono">'+esc(t.m)+'</td><td>'+esc(t.who)+'</td><td class="mono">'+esc(t.in)+'</td><td class="mono">'+esc(t.out)+'</td><td class="mono">'+esc(t.dur)+'</td><td>'+dot+'</td></tr>';
+  }).join("");
+  el.innerHTML=
+  '<div class="head"><h1>在製追溯履歷</h1><p>批次過站軌跡、工序耗時與人機料綁定，完整還原每一片料件的製造歷程供稽核。</p></div>'+
+  '<div class="grid g3" style="margin-bottom:14px">'+
+    '<div class="card" style="background:linear-gradient(160deg,#241a4d,#171331)"><div class="ctit"><span class="material-symbols-outlined">qr_code_2</span>追溯查詢批次</div>'+
+      '<div style="font-size:22px;font-weight:800;letter-spacing:1px" class="mono">LOT-77120</div>'+
+      '<div style="font-size:12px;color:var(--mut);margin-top:6px">產品：精密齒輪座 · Router RT-A320 v4.2</div>'+
+      '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'+
+        '<span class="chip c-acc">工單 WO-2026-0813-07</span><span class="chip c-info">數量 150</span><span class="chip c-ok">合規</span></div></div>'+
+    kpi("已完成工序","2 / 8","checklist","站","flat","25%")+
+    kpi("累計過站週期","1.2","schedule","小時","flat","目標 3.5h")+
+  '</div>'+
+  '<div class="card pad0" style="margin-bottom:14px"><div class="ctit" style="padding:16px 16px 0"><span class="material-symbols-outlined">route</span>過站履歷明細（人 / 機 / 時）</div>'+
+    '<div class="tw"><table style="min-width:640px"><thead><tr><th>工序</th><th>設備</th><th>作業員</th><th>進站</th><th>出站</th><th>耗時</th><th>狀態</th></tr></thead><tbody>'+trows+'</tbody></table></div></div>'+
+  '<div class="grid g2">'+
+    '<div class="card"><div class="ctit"><span class="material-symbols-outlined">bar_chart</span>各工序過站耗時對比<small>分鐘</small></div>'+
+      '<div class="canwrap h220"><canvas id="c-v4a"></canvas></div></div>'+
+    '<div class="card"><div class="ctit"><span class="material-symbols-outlined">inventory</span>用料批次綁定</div>'+
+      matRow("鋼材 SCM440","MB-3391 · 爐號 H2087","c-ok","已確認")+
+      matRow("刀具 T-042","壽命 63% · 已校驗","c-warn","監控中")+
+      matRow("量規 G-118","CMM 校驗 2026-08-01","c-ok","有效")+
+      matRow("切削液","批號 CF-2208","c-ok","正常")+
+    '</div>'+
+  '</div>';
+  void el.offsetHeight;
+  charts.push(new Chart(document.getElementById("c-v4a"),{type:"bar",
+    data:{labels:["OP10","OP20","OP30","OP40","OP50","OP60"],
+      datasets:[
+        {label:"實際耗時",data:[8,43,52,14,22,6],backgroundColor:C.acc2,borderRadius:5},
+        {label:"標準工時",data:[10,45,50,15,25,8],backgroundColor:"rgba(96,165,250,.5)",borderRadius:5}
+      ]},options:gopt()}));
+}
+
+/* ===== SCREEN 5 : 完工過站 · 現場管制指標 ===== */
+function v5(el){
+  var lines=["OP10","OP20","OP30","OP40","OP50","OP60"];
+  var mxdata=[
+    {ln:"Line-A",v:[12,88,64,22,15,9]},
+    {ln:"Line-B",v:[8,72,91,30,18,6]},
+    {ln:"Line-C",v:[20,45,55,12,40,14]}
+  ];
+  function heat(x){var t=Math.min(x/95,1);
+    var r=Math.round(52+(248-52)*t),g=Math.round(211-(211-113)*t),b=Math.round(153-(153-113)*t);
+    return "rgb("+r+","+g+","+b+")";}
+  var mxHead='<div class="r"><div class="lb"></div>'+lines.map(function(l){return '<div class="hd">'+l+'</div>';}).join("")+'</div>';
+  var mxBody=mxdata.map(function(row){
+    return '<div class="r"><div class="lb">'+esc(row.ln)+'</div>'+
+      row.v.map(function(x){return '<div class="cell" style="background:'+heat(x)+'">'+x+'</div>';}).join("")+'</div>';
+  }).join("");
+  el.innerHTML=
+  '<div class="head"><h1>完工過站 · 現場管制指標</h1><p>完工過站並累計過站週期時間，即時監控流程異常攔截率、WIP 分布與各產線效率。</p></div>'+
+  '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("流程異常攔截率","100%","gpp_good","跳站零漏網","up","目標達成")+
+    kpi("過站週期時間","3.1","timelapse","小時/批","down","-0.9h vs 目標")+
+    kpi("今日完工過站","342","task_alt","批","up","+7.2%")+
+    kpi("線上 WIP","1,268","inventory_2","件","flat","水位正常")+
+  '</div>'+
+  '<div class="grid g23">'+
+    '<div class="card"><div class="ctit"><span class="material-symbols-outlined">insights</span>攔截率 vs 過站週期趨勢（6 週）</div>'+
+      '<div class="canwrap h240"><canvas id="c-v5a"></canvas></div>'+
+      '<div class="legend"><span><i style="background:'+C.acc2+'"></i>異常攔截率 %</span><span><i style="background:'+C.warn+'"></i>過站週期 小時</span></div></div>'+
+    '<div class="card"><div class="ctit"><span class="material-symbols-outlined">radar</span>產線綜合效能</div>'+
+      '<div class="canwrap h240"><canvas id="c-v5b"></canvas></div></div>'+
+  '</div>'+
+  '<div class="card" style="margin-top:14px"><div class="ctit"><span class="material-symbols-outlined">grid_on</span>各產線工序 WIP 熱力矩陣<small>件 · 綠低 / 紅高</small></div>'+
+    '<div class="tw"><div class="mx">'+mxHead+mxBody+'</div></div></div>';
+  void el.offsetHeight;
+  charts.push(new Chart(document.getElementById("c-v5a"),{type:"line",
+    data:{labels:["第1週","第2週","第3週","第4週","第5週","第6週"],
+      datasets:[
+        {label:"異常攔截率 %",data:[88,91,94,96,98,100],borderColor:C.acc2,backgroundColor:"rgba(167,139,250,.15)",fill:true,tension:.35,borderWidth:2,pointRadius:3,yAxisID:"y"},
+        {label:"過站週期 小時",data:[5.2,4.8,4.3,3.8,3.4,3.1],borderColor:C.warn,fill:false,tension:.35,borderWidth:2,pointRadius:3,yAxisID:"y1"}
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:C.mut,font:{size:10}},grid:{color:"rgba(44,37,84,.6)"}},
+        y:{position:"left",ticks:{color:C.mut,font:{size:10}},grid:{color:"rgba(44,37,84,.6)"},min:80,max:100},
+        y1:{position:"right",ticks:{color:C.mut,font:{size:10}},grid:{drawOnChartArea:false},min:0,max:6}}}}));
+  charts.push(new Chart(document.getElementById("c-v5b"),{type:"radar",
+    data:{labels:["稼動率","直通良率","準交率","過站效率","攔截合規","WIP控制"],
+      datasets:[
+        {label:"Line-A",data:[84,98,99,88,100,82],borderColor:C.acc2,backgroundColor:"rgba(167,139,250,.2)",borderWidth:2,pointRadius:2},
+        {label:"Line-B",data:[79,96,94,82,100,74],borderColor:C.info,backgroundColor:"rgba(96,165,250,.15)",borderWidth:2,pointRadius:2}
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:C.mut,font:{size:11},boxWidth:12}}},
+      scales:{r:{angleLines:{color:"rgba(44,37,84,.8)"},grid:{color:"rgba(44,37,84,.8)"},
+        pointLabels:{color:C.mut,font:{size:10}},ticks:{display:false,backdropColor:"transparent"},min:50,max:100}}}}));
+}
+
+var SCREENS=[v0,v1,v2,v3,v4,v5];
+function buildNav(){
+  var h="";
+  for(var i=0;i<MODS.length;i++){
+    h+='<button data-i="'+i+'"><span class="material-symbols-outlined">'+MODS[i].ic+'</span><span class="lbl">'+esc(MODS[i].t)+'</span><span class="num">'+i+'</span></button>';
+  }
+  document.getElementById("nav").innerHTML=h;
+  var btns=document.querySelectorAll("[data-i]");
+  for(var j=0;j<btns.length;j++){
+    btns[j].addEventListener("click",function(){show(+this.getAttribute("data-i"));});
+  }
+}
+function show(i){
+  killCharts();
+  var app=document.getElementById("app");
+  app.innerHTML="";
+  var el=document.createElement("div");
+  app.appendChild(el);
+  SCREENS[i](el);
+  void app.offsetHeight;
+  var btns=document.querySelectorAll("[data-i]");
+  for(var k=0;k<btns.length;k++){
+    btns[k].className=(+btns[k].getAttribute("data-i")===i)?"on":"";
+  }
+}
+buildNav();
+show(0);
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>

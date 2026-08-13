@@ -1,18 +1,491 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>電子看板系統（Electronic Kanban System）｜Jvision 系統 Demo</title>
-  <meta name="description" content="訂單到入庫的製造現場全流程數位化" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>電子看板系統（Electronic Kanban System）｜Jvision 系統 Demo</title>
+<meta name="description" content="電子看板訊號觸發、生產/補料看板視覺化與看板循環週期監控" />
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+:root{
+  --accent:#b45309;--accent2:#f59e0b;--accent-soft:#fef3c7;
+  --bg:#f5f4f1;--panel:#ffffff;--ink:#1c1917;--muted:#78716c;--line:#e7e3dc;
+  --ok:#15803d;--okbg:#dcfce7;--warn:#b45309;--warnbg:#fef3c7;--bad:#b91c1c;--badbg:#fee2e2;
+  --blue:#1d4ed8;--bluebg:#dbeafe;--radius:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:"Inter","Noto Sans TC",system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5}
+.mi{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;-webkit-font-feature-settings:'liga';font-feature-settings:'liga'}
+button{font-family:inherit;cursor:pointer}
+.topbar{position:sticky;top:0;z-index:30;background:linear-gradient(90deg,#78350f,#b45309);color:#fff;border-bottom:3px solid var(--accent2)}
+.topbar-in{max-width:1360px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand .logo{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
+.brand .tt{min-width:0}
+.brand .t1{font-weight:800;font-size:15px;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand .t2{font-size:11px;opacity:.85;white-space:nowrap}
+.brand-spacer{flex:1 1 auto;min-width:8px}
+.env{display:flex;gap:8px;align-items:center;flex:none}
+.env .pill{background:rgba(255,255,255,.14);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.env .dot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 0 rgba(74,222,128,.7);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(74,222,128,.6)}70%{box-shadow:0 0 0 7px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
+nav.tabs{background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:60px;z-index:20}
+.tabs-in{max-width:1360px;margin:0 auto;padding:8px 12px;display:flex;gap:8px;flex-wrap:wrap}
+.tab{flex:none;white-space:nowrap;border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;transition:.15s;min-width:0}
+.tab .mi{font-size:19px}
+.tab:hover{border-color:var(--accent2);color:var(--accent)}
+.tab.on{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 12px rgba(180,83,9,.28)}
+main{max-width:1360px;margin:0 auto;padding:18px 16px 60px}
+.screen-head{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.screen-head .h1{font-size:21px;font-weight:800;margin:0}
+.screen-head .sub{font-size:13px;color:var(--muted)}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+.tag.on{background:var(--okbg);color:var(--ok)}
+.tag.wa{background:var(--warnbg);color:var(--warn)}
+.tag.ba{background:var(--badbg);color:var(--bad)}
+.tag.bl{background:var(--bluebg);color:var(--blue)}
+.tag.gy{background:#f1efe9;color:var(--muted)}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g23{grid-template-columns:1.6fr 1fr}
+.g32{grid-template-columns:1fr 1.5fr}
+.min0>*{min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;min-width:0}
+.card h3{margin:0 0 3px;font-size:14px;font-weight:800}
+.card .ch{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.card .ch .mi{color:var(--accent)}
+.muted{color:var(--muted)}
+.kpi .kl{font-size:12.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+.kpi .kv{font-size:29px;font-weight:900;letter-spacing:-.5px;margin-top:6px}
+.kpi .kv small{font-size:14px;font-weight:700;color:var(--muted)}
+.kpi .kd{font-size:12px;font-weight:700;margin-top:6px;display:inline-flex;align-items:center;gap:4px}
+.kpi .kd .mi{font-size:16px}
+.up{color:var(--ok)}.down{color:var(--bad)}
+.chart{width:100%;height:300px}
+.chart.sm{height:230px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#faf9f6}
+tbody tr:hover{background:#faf8f4}
+.bar{height:7px;border-radius:99px;background:#eee;overflow:hidden;min-width:70px}
+.bar>i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent2),var(--accent))}
+.mono{font-variant-numeric:tabular-nums;font-weight:700}
+.scroll{overflow-x:auto}
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.col{background:#faf8f4;border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0}
+.col-h{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:800;margin-bottom:10px;padding:0 2px}
+.col-h .cnt{background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;color:var(--muted)}
+.kcard{background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:10px;padding:10px;margin-bottom:9px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.kcard.urgent{border-left-color:var(--bad)}
+.kcard.done{border-left-color:var(--ok);opacity:.86}
+.kcard .kt{font-weight:800;font-size:13px;display:flex;justify-content:space-between;gap:6px}
+.kcard .km{font-size:11.5px;color:var(--muted);margin-top:4px;display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.kcard .kf{margin-top:8px;display:flex;align-items:center;justify-content:space-between}
+.chip{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.ava{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.tl{position:relative;padding-left:26px}
+.tl:before{content:"";position:absolute;left:9px;top:4px;bottom:4px;width:2px;background:var(--line)}
+.tl-i{position:relative;padding:0 0 16px 6px}
+.tl-i:before{content:"";position:absolute;left:-21px;top:3px;width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--accent2)}
+.tl-i.ok:before{border-color:var(--ok)}
+.tl-i.bad:before{border-color:var(--bad)}
+.tl-t{font-size:11.5px;color:var(--muted);font-weight:700}
+.tl-b{font-size:13.5px;font-weight:700;margin-top:2px}
+.tl-d{font-size:12.5px;color:var(--muted);margin-top:2px}
+.srow{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;margin-bottom:9px;min-width:0}
+.srow .icn{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;font-size:22px}
+.srow .body{flex:1;min-width:0}
+.srow .ttl{font-weight:800;font-size:13.5px}
+.srow .sub2{font-size:12px;color:var(--muted);margin-top:2px}
+.stock .track{height:12px;border-radius:99px;background:#eee;overflow:hidden;position:relative}
+.stock .track>i{display:block;height:100%;border-radius:99px}
+.stock .mk{position:absolute;top:-3px;width:2px;height:18px;background:var(--bad)}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.stat-line{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.stat-line:last-child{border-bottom:0}
+@media(max-width:1024px){
+  .g4{grid-template-columns:repeat(2,1fr)}
+  .board{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:820px){
+  .g3,.g2,.g23,.g32{grid-template-columns:1fr}
+  .g4{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:860px){ nav.tabs{top:58px} }
+@media(max-width:640px){ .board{grid-template-columns:1fr} }
+@media(max-width:560px){
+  .g4{grid-template-columns:1fr}
+  .tab .lbl{display:none}
+  .tab{padding:9px 11px}
+  .brand .t2{display:none}
+}
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <div class="logo mi">view_kanban</div>
+      <div class="tt">
+        <div class="t1">電子看板系統 e-Kanban</div>
+        <div class="t2">Electronic Kanban System · MES 製造執行</div>
+      </div>
+    </div>
+    <div class="brand-spacer"></div>
+    <div class="env">
+      <span class="pill"><span class="dot"></span>即時同步</span>
+      <span class="pill"><span class="mi" style="font-size:16px">factory</span>台中一廠</span>
+    </div>
+  </div>
+</header>
+<nav class="tabs"><div class="tabs-in" id="tabs"></div></nav>
+<main><div id="view"></div></main>
+
+<script>
+"use strict";
+var TABS=[
+  {i:0,ic:"sensors",lbl:"消耗訊號觸發"},
+  {i:1,ic:"view_kanban",lbl:"電子看板牆"},
+  {i:2,ic:"local_shipping",lbl:"補料指令派送"},
+  {i:3,ic:"cached",lbl:"看板循環監控"},
+  {i:4,ic:"tune",lbl:"看板數量最佳化"},
+  {i:5,ic:"fact_check",lbl:"循環稽核歸零"}
+];
+var view=document.getElementById("view");
+var tabsEl=document.getElementById("tabs");
+tabsEl.innerHTML=TABS.map(function(t){
+  return '<button class="tab" data-i="'+t.i+'"><span class="mi">'+t.ic+'</span><span class="lbl">'+t.lbl+'</span></button>';
+}).join("");
+var charts=[];
+function disposeCharts(){ for(var k=0;k<charts.length;k++){try{charts[k].dispose();}catch(e){}} charts=[]; }
+function mkChart(id,opt){ var el=document.getElementById(id); if(!el)return; var c=echarts.init(el); c.setOption(opt); charts.push(c); }
+function bgOf(c){return {on:"okbg",wa:"warnbg",ba:"badbg",bl:"bluebg",gy:"line"}[c]||"line";}
+function fgOf(c){return {on:"ok",wa:"warn",ba:"bad",bl:"blue",gy:"muted"}[c]||"muted";}
+function kpi(label,ic,val,unit,dir,dic,note){
+  var d;
+  if(dir==="up"||dir==="down"){ d='<div class="kd '+dir+'"><span class="mi">'+dic+'</span>'+note+'</div>'; }
+  else{ d='<div class="kd muted"><span class="mi" style="font-size:15px">info</span>'+note+'</div>'; }
+  return '<div class="card kpi"><div class="kl"><span class="mi" style="font-size:17px;color:var(--accent)">'+ic+'</span>'+label+'</div>'
+    +'<div class="kv">'+val+' <small>'+unit+'</small></div>'+d+'</div>';
+}
+
+/* ---------- SCREEN 0 : 消耗訊號觸發 ---------- */
+function s0(){
+  var signals=[
+    {mi:"bolt",cl:"ba",title:"料架 A-12 觸發補料",p:"BOLT-M6×30 螺栓",loc:"組裝線1 · 工位3",t:"09:41",pct:8,rop:20,st:"待補料"},
+    {mi:"bolt",cl:"wa",title:"料架 C-04 觸發補料",p:"連接端子 CT-220",loc:"焊接區 · 工位7",t:"09:38",pct:22,rop:25,st:"已派工"},
+    {mi:"bolt",cl:"bl",title:"料架 B-07 觸發補料",p:"外殼 SUS304-L",loc:"組裝線2 · 工位1",t:"09:30",pct:15,rop:18,st:"配送中"},
+    {mi:"check",cl:"on",title:"料架 D-19 到料歸零",p:"墊圈 W-M6",loc:"組裝線1 · 工位5",t:"09:12",pct:96,rop:20,st:"已歸零"}
+  ];
+  var stocks=[
+    {n:"BOLT-M6×30",cur:8,rop:20,max:120,u:"pcs"},
+    {n:"CT-220 端子",cur:110,rop:100,max:400,u:"pcs"},
+    {n:"SUS304-L 外殼",cur:34,rop:40,max:200,u:"pcs"},
+    {n:"墊圈 W-M6",cur:290,rop:150,max:500,u:"pcs"},
+    {n:"矽膠密封條",cur:62,rop:80,max:300,u:"m"}
+  ];
+  view.innerHTML=''
+  +'<div class="screen-head"><h2 class="h1">消耗訊號觸發</h2><span class="sub">料架看板量觸底自動辨識，產生待補料電子看板訊號</span><span class="tag on"><span class="mi" style="font-size:15px">sensors</span>觸發引擎在線</span></div>'
+  +'<div class="grid g4 min0" style="margin-bottom:14px">'
+    +kpi("今日觸發訊號","sensors","38","張","up","arrow_upward","較昨日 +6")
+    +kpi("待補料訊號","pending_actions","6","張","down","priority_high","即時待處理")
+    +kpi("平均觸發反應","timer","3.2","分","up","arrow_downward","紙本時代 22 分")
+    +kpi("觸底防呆攔截","shield","12","次","up","arrow_upward","本月避免停線")
+  +'</div>'
+  +'<div class="grid g23 min0">'
+    +'<div class="card"><div class="ch"><h3><span class="mi" style="font-size:18px">notifications_active</span> 即時觸發訊號流</h3><span class="tag gy">依時間排序</span></div>'
+      +signals.map(function(s){
+        return '<div class="srow"><div class="icn" style="background:var(--'+bgOf(s.cl)+');color:var(--'+fgOf(s.cl)+')"><span class="mi">'+s.mi+'</span></div>'
+        +'<div class="body"><div class="ttl">'+s.title+'</div><div class="sub2">'+s.p+'　·　'+s.loc+'　·　看板量 '+s.pct+'% / ROP '+s.rop+'%</div></div>'
+        +'<div style="text-align:right;flex:none"><span class="tag '+s.cl+'">'+s.st+'</span><div class="sub2" style="margin-top:5px">'+s.t+'</div></div></div>';
+      }).join("")
+    +'</div>'
+    +'<div class="card"><div class="ch"><h3><span class="mi" style="font-size:18px">inventory_2</span> 料架看板量水位</h3></div>'
+      +stocks.map(function(k){
+        var pct=Math.round(k.cur/k.max*100), rp=Math.round(k.rop/k.max*100);
+        var col=k.cur<=k.rop?'#b91c1c':(k.cur<k.rop*1.4?'#f59e0b':'#15803d');
+        return '<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><b>'+k.n+'</b><span class="mono">'+k.cur+' '+k.u+'</span></div>'
+        +'<div class="stock"><div class="track"><i style="width:'+pct+'%;background:'+col+'"></i><span class="mk" style="left:'+rp+'%"></span></div></div>'
+        +'<div class="sub2" style="font-size:12px;color:var(--muted);margin-top:4px">再訂購點 '+k.rop+' '+k.u+(k.cur<=k.rop?' · <b style="color:var(--bad)">已觸發</b>':'')+'</div></div>';
+      }).join("")
+    +'<div class="sub2" style="font-size:12px;color:var(--muted)"><span class="mk" style="position:relative;display:inline-block;width:2px;height:12px;background:var(--bad);vertical-align:middle;margin-right:6px"></span>紅色刻度為再訂購點 (ROP)</div>'
+    +'</div>'
+  +'</div>';
+}
+
+/* ---------- SCREEN 1 : 電子看板牆 ---------- */
+function s1(){
+  var cols=[
+    {title:"待補料",tag:"ba",cards:[
+      {t:"KB-2041",p:"BOLT-M6×30",qty:"100 pcs",line:"組裝線1",who:"陳",cls:"urgent",chip:"ba",chipT:"缺料 8%"},
+      {t:"KB-2039",p:"矽膠密封條",qty:"120 m",line:"組裝線2",who:"李",cls:"urgent",chip:"ba",chipT:"缺料 20%"}
+    ]},
+    {title:"備料中",tag:"wa",cards:[
+      {t:"KB-2036",p:"CT-220 端子",qty:"300 pcs",line:"焊接區",who:"王",cls:"",chip:"wa",chipT:"揀料中"},
+      {t:"KB-2033",p:"墊圈 W-M6",qty:"500 pcs",line:"組裝線1",who:"張",cls:"",chip:"wa",chipT:"揀料中"}
+    ]},
+    {title:"配送中",tag:"bl",cards:[
+      {t:"KB-2028",p:"SUS304-L 外殼",qty:"80 pcs",line:"組裝線2",who:"林",cls:"",chip:"bl",chipT:"AGV 配送"},
+      {t:"KB-2025",p:"導線束 WH-5",qty:"60 set",line:"測試站",who:"周",cls:"",chip:"bl",chipT:"人工配送"}
+    ]},
+    {title:"已歸零",tag:"on",cards:[
+      {t:"KB-2019",p:"墊圈 W-M6",qty:"500 pcs",line:"組裝線1",who:"張",cls:"done",chip:"on",chipT:"上線完成"},
+      {t:"KB-2014",p:"標籤紙 L-A",qty:"2 卷",line:"包裝線",who:"吳",cls:"done",chip:"on",chipT:"上線完成"},
+      {t:"KB-2011",p:"CT-220 端子",qty:"300 pcs",line:"焊接區",who:"王",cls:"done",chip:"on",chipT:"上線完成"}
+    ]}
+  ];
+  view.innerHTML=''
+  +'<div class="screen-head"><h2 class="h1">電子看板牆</h2><span class="sub">生產／補料看板卡即時視覺化流轉，可拖動追蹤各欄狀態</span><span class="tag bl"><span class="mi" style="font-size:15px">view_kanban</span>在牆 10 張</span></div>'
+  +'<div class="grid g4 min0" style="margin-bottom:14px">'
+    +kpi("在牆看板卡","style","10","張","","","四欄流轉中")
+    +kpi("待補料","hourglass_top","2","張","down","priority_high","含 2 張急件")
+    +kpi("配送在途","local_shipping","2","張","","","AGV 1 · 人工 1")
+    +kpi("今日已歸零","task_alt","24","張","up","arrow_upward","循環達成率 94%")
+  +'</div>'
+  +'<div class="card"><div class="ch"><h3><span class="mi" style="font-size:18px">dashboard</span> 補料看板牆</h3><div class="pills"><span class="tag ba">急件</span><span class="tag wa">備料</span><span class="tag bl">配送</span><span class="tag on">歸零</span></div></div>'
+    +'<div class="scroll"><div class="board">'
+    +cols.map(function(c){
+      return '<div class="col"><div class="col-h"><span><span class="tag '+c.tag+'">'+c.title+'</span></span><span class="cnt">'+c.cards.length+'</span></div>'
+      +c.cards.map(function(k){
+        return '<div class="kcard '+k.cls+'"><div class="kt"><span>'+k.t+'</span><span class="chip" style="background:var(--'+bgOf(k.chip)+');color:var(--'+fgOf(k.chip)+')">'+k.chipT+'</span></div>'
+        +'<div class="km"><span>'+k.p+'</span><span>·</span><span class="mono">'+k.qty+'</span></div>'
+        +'<div class="kf"><span style="font-size:11.5px;color:var(--muted)"><span class="mi" style="font-size:14px;vertical-align:-2px">precision_manufacturing</span> '+k.line+'</span><span class="ava">'+k.who+'</span></div></div>';
+      }).join("")
+      +'</div>';
+    }).join("")
+    +'</div></div>'
+  +'</div>';
+}
+
+/* ---------- SCREEN 2 : 補料指令派送 ---------- */
+function s2(){
+  var tasks=[
+    {id:"RP-8841",p:"BOLT-M6×30",qty:"100 pcs",from:"倉庫 A 區-3",to:"組裝線1/工位3",picker:"陳建宏",eta:"09:52",st:"揀料中",tag:"wa",prog:40},
+    {id:"RP-8840",p:"矽膠密封條",qty:"120 m",from:"倉庫 B 區-1",to:"組裝線2/工位4",picker:"李昀珊",eta:"10:05",st:"待揀料",tag:"gy",prog:0},
+    {id:"RP-8838",p:"SUS304-L 外殼",qty:"80 pcs",from:"外購暫存區",to:"組裝線2/工位1",picker:"AGV-02",eta:"09:47",st:"配送中",tag:"bl",prog:72},
+    {id:"RP-8835",p:"CT-220 端子",qty:"300 pcs",from:"倉庫 C 區-5",to:"焊接區/工位7",picker:"林志偉",eta:"—",st:"待簽收",tag:"wa",prog:92},
+    {id:"RP-8831",p:"墊圈 W-M6",qty:"500 pcs",from:"倉庫 A 區-1",to:"組裝線1/工位5",picker:"張美玲",eta:"完成",st:"已簽收",tag:"on",prog:100}
+  ];
+  view.innerHTML=''
+  +'<div class="screen-head"><h2 class="h1">補料指令派送</h2><span class="sub">看板轉為揀料配送任務下達，揀料、配送並完成到料簽收</span><span class="tag wa"><span class="mi" style="font-size:15px">assignment</span>進行中 4</span></div>'
+  +'<div class="grid g4 min0" style="margin-bottom:14px">'
+    +kpi("今日補料任務","list_alt","42","筆","","","AGV 佔 46%")
+    +kpi("平均配送時間","schedule","11.4","分","up","arrow_downward","目標 ≤ 12 分")
+    +kpi("待簽收","how_to_reg","1","筆","down","priority_high","超過 5 分需追蹤")
+    +kpi("準時到料率","verified","96.8","%","up","arrow_upward","本週 +2.1%")
+  +'</div>'
+  +'<div class="grid g32 min0">'
+    +'<div class="card"><div class="ch"><h3><span class="mi" style="font-size:18px">pie_chart</span> 補料任務狀態</h3></div><div id="c2a" class="chart sm"></div></div>'
+    +'<div class="card"><div class="ch"><h3><span class="mi" style="font-size:18px">route</span> 補料任務單</h3><span class="tag gy">依 ETA 排序</span></div>'
+      +'<div class="scroll"><table><thead><tr><th>任務單號</th><th>料件 / 數量</th><th>路徑</th><th>揀配</th><th>ETA</th><th>進度</th><th>狀態</th></tr></thead><tbody>'
+      +tasks.map(function(t){
+        return '<tr><td class="mono">'+t.id+'</td><td>'+t.p+'<div class="sub2" style="font-size:12px;color:var(--muted)">'+t.qty+'</div></td>'
+        +'<td>'+t.from+' <span class="mi" style="font-size:14px;color:var(--muted)">arrow_forward</span> '+t.to+'</td>'
+        +'<td>'+t.picker+'</td><td class="mono">'+t.eta+'</td>'
+        +'<td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:80px"><i style="width:'+t.prog+'%"></i></div><span class="mono" style="font-size:12px;color:var(--muted)">'+t.prog+'%</span></div></td>'
+        +'<td><span class="tag '+t.tag+'">'+t.st+'</span></td></tr>';
+      }).join("")
+      +'</tbody></table></div>'
+    +'</div>'
+  +'</div>';
+  void view.offsetHeight;
+  mkChart("c2a",{
+    tooltip:{trigger:"item"},
+    legend:{bottom:0,textStyle:{fontSize:11}},
+    series:[{type:"pie",radius:["48%","72%"],center:["50%","44%"],avoidLabelOverlap:true,itemStyle:{borderColor:"#fff",borderWidth:2},
+      label:{show:true,formatter:"{b}\n{c}",fontSize:11,fontWeight:700},
+      data:[
+        {value:8,name:"待揀料",itemStyle:{color:"#a8a29e"}},
+        {value:11,name:"揀料中",itemStyle:{color:"#f59e0b"}},
+        {value:9,name:"配送中",itemStyle:{color:"#1d4ed8"}},
+        {value:14,name:"已簽收",itemStyle:{color:"#15803d"}}
+      ]}]
+  });
+}
+
+/* ---------- SCREEN 3 : 看板循環監控 ---------- */
+function s3(){
+  var cyc=[
+    {kb:"BOLT-M6×30",cyc:38,tgt:45,miss:1,turn:6.2,st:"良好",tag:"on"},
+    {kb:"CT-220 端子",cyc:52,tgt:50,miss:2,turn:4.8,st:"偏長",tag:"wa"},
+    {kb:"SUS304-L 外殼",cyc:74,tgt:60,miss:3,turn:3.1,st:"超標",tag:"ba"},
+    {kb:"墊圈 W-M6",cyc:41,tgt:45,miss:0,turn:7.0,st:"良好",tag:"on"},
+    {kb:"矽膠密封條",cyc:58,tgt:55,miss:1,turn:4.2,st:"偏長",tag:"wa"}
+  ];
+  view.innerHTML=''
+  +'<div class="screen-head"><h2 class="h1">看板循環監控</h2><span class="sub">看板循環週期、在途卡數與缺料次數追蹤</span><span class="tag on"><span class="mi" style="font-size:15px">cached</span>循環達成 94%</span></div>'
+  +'<div class="grid g4 min0" style="margin-bottom:14px">'
+    +kpi("平均循環週期","cached","52.6","分","up","arrow_downward","目標 ≤ 55 分")
+    +kpi("在途看板卡","swap_horiz","18","張","","","四線總計")
+    +kpi("本月缺料次數","report","2.8","次","up","arrow_downward","去年 12 次")
+    +kpi("看板週轉","autorenew","5.1","次/日","up","arrow_upward","+0.6")
+  +'</div>'
+  +'<div class="grid g2 min0" style="margin-bottom:14px">'
+    +'<div class="card"><div class="ch"><h3><span class="mi" style="font-size:18px">show_chart</span> 各料號循環週期趨勢（分）</h3></div><div id="c3a" class="chart"></div></div>'
+    +'<div class="card"><div class="ch"><h3><span class="mi" style="font-size:18px">bar_chart</span> 每週缺料次數</h3></div><div id="c3b" class="chart"></div></div>'
+  +'</div>'
+  +'<div class="card"><div class="ch"><h3><span class="mi" style="font-size:18px">table_rows</span> 看板循環明細</h3></div>'
+    +'<div class="scroll"><table><thead><tr><th>看板料號</th><th>實際循環(分)</th><th>目標(分)</th><th>缺料次數</th><th>日週轉</th><th>達成</th><th>狀態</th></tr></thead><tbody>'
+    +cyc.map(function(c){
+      var pct=Math.min(100,Math.round(c.tgt/c.cyc*100));
+      return '<tr><td><b>'+c.kb+'</b></td><td class="mono">'+c.cyc+'</td><td class="mono">'+c.tgt+'</td>'
+      +'<td class="mono">'+c.miss+'</td><td class="mono">'+c.turn.toFixed(1)+'</td>'
+      +'<td><div style="display:flex;align-items:center;gap:7px"><div class="bar" style="width:90px"><i style="width:'+pct+'%"></i></div><span class="mono" style="font-size:12px;color:var(--muted)">'+pct+'%</span></div></td>'
+      +'<td><span class="tag '+c.tag+'">'+c.st+'</span></td></tr>';
+    }).join("")
+    +'</tbody></table></div>'
+  +'</div>';
+  void view.offsetHeight;
+  mkChart("c3a",{
+    tooltip:{trigger:"axis"},
+    grid:{left:38,right:16,top:34,bottom:26},
+    legend:{top:0,textStyle:{fontSize:11}},
+    xAxis:{type:"category",data:["W1","W2","W3","W4","W5","W6"],axisLine:{lineStyle:{color:"#d6d3d1"}}},
+    yAxis:{type:"value",splitLine:{lineStyle:{color:"#f0ede6"}}},
+    series:[
+      {name:"螺栓 M6",type:"line",smooth:true,data:[46,44,41,40,39,38],itemStyle:{color:"#b45309"},lineStyle:{width:3}},
+      {name:"外殼 SUS",type:"line",smooth:true,data:[82,80,79,77,75,74],itemStyle:{color:"#dc2626"},lineStyle:{width:3}},
+      {name:"端子 CT",type:"line",smooth:true,data:[60,58,56,54,53,52],itemStyle:{color:"#f59e0b"},lineStyle:{width:3}}
+    ]
+  });
+  mkChart("c3b",{
+    tooltip:{trigger:"axis"},
+    grid:{left:32,right:16,top:20,bottom:26},
+    xAxis:{type:"category",data:["W1","W2","W3","W4","W5","W6"],axisLine:{lineStyle:{color:"#d6d3d1"}}},
+    yAxis:{type:"value",splitLine:{lineStyle:{color:"#f0ede6"}}},
+    series:[{type:"bar",data:[5,4,3,2,1,1],barWidth:"52%",itemStyle:{color:"#f59e0b",borderRadius:[6,6,0,0]}}]
+  });
+}
+
+/* ---------- SCREEN 4 : 看板數量最佳化 ---------- */
+function s4(){
+  var rows=[
+    {p:"BOLT-M6×30",cur:6,rec:5,dem:120,lt:0.8,rop:20,delta:-1,dtag:"on"},
+    {p:"CT-220 端子",cur:4,rec:6,dem:300,lt:1.2,rop:100,delta:2,dtag:"ba"},
+    {p:"SUS304-L 外殼",cur:5,rec:5,dem:80,lt:2.5,rop:40,delta:0,dtag:"gy"},
+    {p:"墊圈 W-M6",cur:8,rec:6,dem:500,lt:0.5,rop:150,delta:-2,dtag:"on"},
+    {p:"矽膠密封條",cur:4,rec:5,dem:120,lt:1.0,rop:80,delta:1,dtag:"wa"}
+  ];
+  view.innerHTML=''
+  +'<div class="screen-head"><h2 class="h1">看板數量最佳化</h2><span class="sub">依需求波動試算看板卡數與再訂購點</span><span class="tag bl"><span class="mi" style="font-size:15px">tune</span>建議調整 3 項</span></div>'
+  +'<div class="grid g4 min0" style="margin-bottom:14px">'
+    +kpi("看板卡總數","style","27","張","","","5 料號")
+    +kpi("建議增卡","add_circle","3","張","up","arrow_upward","降低缺料風險")
+    +kpi("建議減卡","remove_circle","3","張","down","arrow_downward","降在製庫存")
+    +kpi("預估庫存下降","savings","8.4","%","up","arrow_downward","釋放線邊空間")
+  +'</div>'
+  +'<div class="grid g2 min0" style="margin-bottom:14px">'
+    +'<div class="card"><div class="ch"><h3><span class="mi" style="font-size:18px">scatter_plot</span> 需求波動 vs 前置期</h3></div><div id="c4a" class="chart"></div></div>'
+    +'<div class="card"><div class="ch"><h3><span class="mi" style="font-size:18px">stacked_bar_chart</span> 現況卡數 vs 建議卡數</h3></div><div id="c4b" class="chart"></div></div>'
+  +'</div>'
+  +'<div class="card"><div class="ch"><h3><span class="mi" style="font-size:18px">calculate</span> 看板卡數試算（D×LT×(1+安全係數)/容器量）</h3></div>'
+    +'<div class="scroll"><table><thead><tr><th>料號</th><th>現況卡數</th><th>建議卡數</th><th>日需求</th><th>前置期(日)</th><th>再訂購點</th><th>調整</th></tr></thead><tbody>'
+    +rows.map(function(r){
+      var d=r.delta>0?("+"+r.delta):(""+r.delta);
+      return '<tr><td><b>'+r.p+'</b></td><td class="mono">'+r.cur+'</td><td class="mono" style="color:var(--accent)">'+r.rec+'</td>'
+      +'<td class="mono">'+r.dem+'</td><td class="mono">'+r.lt.toFixed(1)+'</td><td class="mono">'+r.rop+'</td>'
+      +'<td><span class="tag '+r.dtag+'">'+(r.delta===0?"維持":d+" 卡")+'</span></td></tr>';
+    }).join("")
+    +'</tbody></table></div>'
+  +'</div>';
+  void view.offsetHeight;
+  mkChart("c4a",{
+    tooltip:{formatter:function(p){return p.data[2]+"<br/>需求波動 "+p.data[0]+"% · 前置期 "+p.data[1]+"日";}},
+    grid:{left:44,right:18,top:22,bottom:40},
+    xAxis:{name:"需求波動 %",nameLocation:"middle",nameGap:26,type:"value",splitLine:{lineStyle:{color:"#f0ede6"}}},
+    yAxis:{name:"前置期(日)",type:"value",splitLine:{lineStyle:{color:"#f0ede6"}}},
+    series:[{type:"scatter",symbolSize:function(d){return Math.max(14,d[3]/12);},
+      data:[[12,0.8,"BOLT-M6",120],[38,1.2,"CT-220",300],[22,2.5,"SUS304-L",80],[9,0.5,"墊圈",500],[28,1.0,"密封條",120]],
+      itemStyle:{color:"#b45309",opacity:.78},label:{show:true,formatter:function(p){return p.data[2];},position:"top",fontSize:10}}]
+  });
+  mkChart("c4b",{
+    tooltip:{trigger:"axis"},legend:{top:0,textStyle:{fontSize:11}},
+    grid:{left:34,right:16,top:30,bottom:30},
+    xAxis:{type:"category",data:["螺栓","端子","外殼","墊圈","密封條"],axisLabel:{fontSize:11,interval:0},axisLine:{lineStyle:{color:"#d6d3d1"}}},
+    yAxis:{type:"value",splitLine:{lineStyle:{color:"#f0ede6"}}},
+    series:[
+      {name:"現況卡數",type:"bar",data:[6,4,5,8,4],barGap:0,barWidth:"32%",itemStyle:{color:"#d6d3d1",borderRadius:[5,5,0,0]}},
+      {name:"建議卡數",type:"bar",data:[5,6,5,6,5],barWidth:"32%",itemStyle:{color:"#b45309",borderRadius:[5,5,0,0]}}
+    ]
+  });
+}
+
+/* ---------- SCREEN 5 : 循環稽核歸零 ---------- */
+function s5(){
+  var audit=[
+    {kb:"KB-2019",p:"墊圈 W-M6",st:"歸零達標",cyc:"41 分",who:"張美玲",ap:"製造課長 · 通過",tag:"on"},
+    {kb:"KB-2011",p:"CT-220 端子",st:"歸零達標",cyc:"49 分",who:"王俊傑",ap:"製造課長 · 通過",tag:"on"},
+    {kb:"KB-2008",p:"SUS304-L 外殼",st:"超時歸零",cyc:"71 分",who:"林志偉",ap:"待覆核",tag:"wa"},
+    {kb:"KB-2003",p:"矽膠密封條",st:"歸零達標",cyc:"55 分",who:"李昀珊",ap:"製造課長 · 通過",tag:"on"},
+    {kb:"KB-1998",p:"BOLT-M6×30",st:"缺料延遲",cyc:"—",who:"陳建宏",ap:"異常結案",tag:"ba"}
+  ];
+  view.innerHTML=''
+  +'<div class="screen-head"><h2 class="h1">循環稽核歸零</h2><span class="sub">到料上線後看板歸零，記錄循環達成率並進行循環稽核</span><span class="tag on"><span class="mi" style="font-size:15px">fact_check</span>本月達成 94%</span></div>'
+  +'<div class="grid g4 min0" style="margin-bottom:14px">'
+    +kpi("今日歸零看板","task_alt","24","張","up","arrow_upward","循環閉環")
+    +kpi("循環達成率","donut_large","94.2","%","up","arrow_upward","目標 90%")
+    +kpi("超時歸零","running_with_errors","1","張","down","priority_high","待覆核")
+    +kpi("異常結案","gavel","1","件","","","缺料延遲")
+  +'</div>'
+  +'<div class="grid g23 min0">'
+    +'<div class="card"><div class="ch"><h3><span class="mi" style="font-size:18px">history</span> 看板歸零稽核紀錄</h3><span class="tag gy">近 5 筆</span></div>'
+      +'<div class="scroll"><table><thead><tr><th>看板卡</th><th>料件</th><th>循環時間</th><th>作業員</th><th>核決</th><th>狀態</th></tr></thead><tbody>'
+      +audit.map(function(a){
+        return '<tr><td class="mono">'+a.kb+'</td><td>'+a.p+'</td><td class="mono">'+a.cyc+'</td><td>'+a.who+'</td><td style="font-size:12px;color:var(--muted)">'+a.ap+'</td><td><span class="tag '+a.tag+'">'+a.st+'</span></td></tr>';
+      }).join("")
+      +'</tbody></table></div>'
+      +'<div class="card" style="margin-top:14px;padding:14px;background:#faf8f4"><div class="ch"><h3><span class="mi" style="font-size:18px">rule</span> 稽核決策規則</h3></div>'
+      +'<div class="stat-line"><span>RULE-01　交期 07-25 前且未生產者優先</span><span class="tag on">生效</span></div>'
+      +'<div class="stat-line"><span>RULE-02　缺料工單於到料確認前不得排入生產</span><span class="tag on">生效</span></div>'
+      +'<div class="stat-line"><span>RULE-03　設備負載 &gt; 85% 時建議改排／委外</span><span class="tag wa">觀察</span></div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="card"><div class="ch"><h3><span class="mi" style="font-size:18px">donut_large</span> 循環達成組成</h3></div><div id="c5a" class="chart sm"></div>'
+      +'<div class="tl" style="margin-top:6px">'
+      +'<div class="tl-i ok"><div class="tl-t">08:12</div><div class="tl-b">KB-2019 墊圈到料上線</div><div class="tl-d">循環 41 分 · 看板歸零達標</div></div>'
+      +'<div class="tl-i ok"><div class="tl-t">08:47</div><div class="tl-b">KB-2011 端子歸零</div><div class="tl-d">循環 49 分 · 課長通過</div></div>'
+      +'<div class="tl-i"><div class="tl-t">09:20</div><div class="tl-b">KB-2008 外殼超時</div><div class="tl-d">循環 71 分 · 送覆核</div></div>'
+      +'<div class="tl-i bad"><div class="tl-t">09:41</div><div class="tl-b">KB-1998 螺栓缺料延遲</div><div class="tl-d">異常結案 · 供應商追料</div></div>'
+      +'</div>'
+    +'</div>'
+  +'</div>';
+  void view.offsetHeight;
+  mkChart("c5a",{
+    tooltip:{trigger:"item"},
+    legend:{bottom:0,textStyle:{fontSize:11}},
+    series:[{type:"pie",radius:["50%","74%"],center:["50%","44%"],itemStyle:{borderColor:"#fff",borderWidth:2},
+      label:{show:true,formatter:"{d}%",fontSize:11,fontWeight:700},
+      data:[
+        {value:88,name:"準時歸零",itemStyle:{color:"#15803d"}},
+        {value:8,name:"超時歸零",itemStyle:{color:"#f59e0b"}},
+        {value:4,name:"缺料延遲",itemStyle:{color:"#dc2626"}}
+      ]}]
+  });
+}
+
+var RENDER=[s0,s1,s2,s3,s4,s5];
+function show(i){
+  i=Math.max(0,Math.min(RENDER.length-1,i));
+  disposeCharts();
+  var btns=document.querySelectorAll("[data-i]");
+  for(var b=0;b<btns.length;b++){ btns[b].classList.toggle("on", +btns[b].getAttribute("data-i")===i); }
+  RENDER[i]();
+}
+tabsEl.addEventListener("click",function(e){
+  var t=e.target.closest("[data-i]"); if(!t)return;
+  var i=+t.getAttribute("data-i");
+  show(i);
+  if(location.hash!=="#v"+i){ try{history.replaceState(null,"","#v"+i);}catch(err){} }
+});
+show(0);
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>

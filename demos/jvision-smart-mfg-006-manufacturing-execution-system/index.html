@@ -1,18 +1,683 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MES（Manufacturing Execution System）｜Jvision 系統 Demo</title>
-  <meta name="description" content="訂單到入庫的製造現場全流程數位化" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MES 製造執行系統｜生產現場全流程數位化</title>
+<link rel="icon" href="../../favicon.svg"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+  :root{
+    --accent:#16a34a; --accent2:#4ade80; --accent-soft:#dcfce7;
+    --ink:#0f2417; --ink2:#4b5f52; --muted:#7c8b81;
+    --line:#e3ebe5; --bg:#f2f6f3; --card:#ffffff;
+    --shadow:0 1px 2px rgba(16,40,25,.05),0 8px 24px rgba(16,40,25,.06);
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Inter","Noto Sans TC",sans-serif;
+    background:var(--bg); color:var(--ink);
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'opsz' 24;vertical-align:middle;line-height:1}
+  .app{display:flex;flex-direction:column;min-height:100vh}
+  .topbar{
+    display:flex;align-items:center;gap:14px;
+    padding:14px 22px;background:#fff;border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:40;
+  }
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}
+  .logo{
+    width:42px;height:42px;border-radius:12px;flex:none;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:grid;place-items:center;color:#fff;box-shadow:0 6px 16px rgba(22,163,74,.35);
+  }
+  .logo .material-symbols-outlined{font-size:24px}
+  .brand h1{font-size:16px;margin:0;font-weight:800;letter-spacing:.2px}
+  .brand p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+  .topbar .spacer{flex:1}
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+    padding:6px 12px;border-radius:999px;background:var(--accent-soft);color:#15803d;
+  }
+  .live-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:blink 1.6s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+
+  .shell{display:flex;flex:1;min-height:0}
+  nav.side{
+    width:236px;flex:none;background:#fff;border-right:1px solid var(--line);
+    padding:16px 12px;display:flex;flex-direction:column;gap:4px;
+  }
+  nav.side .nlabel{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1px;padding:8px 12px 4px}
+  .navbtn{
+    display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;
+    border:none;background:transparent;color:var(--ink2);cursor:pointer;
+    font-family:inherit;font-size:14px;font-weight:600;text-align:left;width:100%;
+    transition:background .15s,color .15s;min-width:0;
+  }
+  .navbtn .material-symbols-outlined{font-size:22px;flex:none}
+  .navbtn .nt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .navbtn:hover{background:var(--bg)}
+  .navbtn.on{background:linear-gradient(135deg,var(--accent),#15803d);color:#fff;box-shadow:0 6px 16px rgba(22,163,74,.3)}
+  .navbtn .idx{margin-left:auto;font-size:11px;font-weight:700;opacity:.5;flex:none}
+  .navbtn.on .idx{opacity:.85}
+
+  main{flex:1;min-width:0;padding:22px;max-width:100%}
+  .screen{animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .schead{display:flex;align-items:flex-end;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+  .schead .st{min-width:0}
+  .schead h2{margin:0;font-size:20px;font-weight:800}
+  .schead p{margin:4px 0 0;font-size:13px;color:var(--muted)}
+  .schead .tag{margin-left:auto;font-size:12px;color:var(--ink2);background:#fff;border:1px solid var(--line);padding:7px 12px;border-radius:10px;font-weight:600}
+
+  .split{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);min-width:0}
+  .panel .ph{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+  .panel .ph h3{margin:0;font-size:14px;font-weight:700}
+  .panel .ph .cnt{margin-left:auto;font-size:12px;color:var(--muted);font-weight:600}
+  .pb{padding:14px 16px}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px;box-shadow:var(--shadow);min-width:0}
+  .kpi .kt{font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+  .kpi .kt .material-symbols-outlined{font-size:16px;color:var(--accent)}
+  .kpi .kv{font-size:26px;font-weight:800;margin-top:6px;letter-spacing:-.5px}
+  .kpi .kd{font-size:12px;margin-top:4px;font-weight:600}
+  .up{color:#16a34a}.down{color:#dc2626}.warn{color:#d97706}
+
+  .wo-row{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .12s}
+  .wo-row:last-child{border-bottom:none}
+  .wo-row:hover{background:var(--bg)}
+  .wo-row.sel{background:var(--accent-soft)}
+  .wo-row .wid{font-weight:700;font-size:13px}
+  .wo-row .wsub{font-size:12px;color:var(--muted);margin-top:2px}
+  .wo-row .rt{margin-left:auto;text-align:right;flex:none}
+  .prio{width:6px;align-self:stretch;border-radius:3px;flex:none;min-height:32px}
+  .p-high{background:#dc2626}.p-mid{background:#d97706}.p-low{background:#16a34a}
+
+  .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .b-green{background:#dcfce7;color:#15803d}
+  .b-blue{background:#dbeafe;color:#1d4ed8}
+  .b-amber{background:#fef3c7;color:#b45309}
+  .b-red{background:#fee2e2;color:#b91c1c}
+  .b-gray{background:#eef2ef;color:#556}
+  .b-purple{background:#ede9fe;color:#6d28d9}
+
+  .metagrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .meta{background:var(--bg);border-radius:10px;padding:11px 13px;min-width:0}
+  .meta .ml{font-size:11px;color:var(--muted);font-weight:600}
+  .meta .mv{font-size:15px;font-weight:700;margin-top:3px}
+  .progress{height:8px;border-radius:6px;background:#eef2ef;overflow:hidden;margin-top:8px}
+  .progress > i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:11px;color:var(--muted);font-weight:700;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  .mono{font-variant-numeric:tabular-nums;font-family:"Inter",monospace}
+
+  .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;min-width:640px}
+  .col{background:var(--bg);border-radius:12px;padding:10px;min-width:0}
+  .col > .ch{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:4px 6px 10px;color:var(--ink2)}
+  .col > .ch .dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .col .cc{margin-left:auto;font-size:11px;color:var(--muted)}
+  .kcard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;box-shadow:0 1px 2px rgba(16,40,25,.04)}
+  .kcard:last-child{margin-bottom:0}
+  .kcard .kk{font-weight:700;font-size:12px}
+  .kcard .kmeta{font-size:11px;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between;gap:6px}
+  .kcard .kbar{height:5px;border-radius:4px;background:#eef2ef;margin-top:8px;overflow:hidden}
+  .kcard .kbar>i{display:block;height:100%;background:var(--accent)}
+
+  .stations{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .station{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow);min-width:0}
+  .station .snm{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
+
+  .chartbox{width:100%;height:280px}
+  .chartbox.sm{height:220px}
+
+  .trace{position:relative;padding-left:26px}
+  .trace::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:var(--line)}
+  .tnode{position:relative;padding:0 0 18px}
+  .tnode:last-child{padding-bottom:0}
+  .tnode .tdot{position:absolute;left:-24px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 0 0 3px #fff}
+  .tnode.done .tdot{background:var(--accent)}
+  .tnode .tt{font-weight:700;font-size:13px}
+  .tnode .td{font-size:12px;color:var(--muted);margin-top:2px}
+  .tnode .ttime{font-size:11px;color:var(--accent);font-weight:600;margin-top:3px}
+
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px}
+  .lg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2)}
+  .lg .sq{width:12px;height:12px;border-radius:3px;flex:none}
+
+  .stat-strip{display:flex;flex-wrap:wrap;gap:18px;padding:14px 16px;background:var(--bg);border-radius:12px}
+  .ss{min-width:0}
+  .ss .sl{font-size:11px;color:var(--muted);font-weight:600}
+  .ss .sv{font-size:18px;font-weight:800;margin-top:2px}
+
+  .alert{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:10px;background:#fef2f2;border:1px solid #fecaca;margin-bottom:8px}
+  .alert:last-child{margin-bottom:0}
+  .alert.ok{background:#f0fdf4;border-color:#bbf7d0}
+  .alert .material-symbols-outlined{font-size:20px;flex:none}
+  .alert .at{font-size:13px;font-weight:700}
+  .alert .ad{font-size:12px;color:var(--ink2);margin-top:2px}
+
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .btn{font-family:inherit;font-size:13px;font-weight:600;padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink2);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn .material-symbols-outlined{font-size:18px}
+
+  .subgrid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .subgrid3{display:grid;grid-template-columns:2fr 1fr;gap:18px}
+
+  @media(max-width:860px){
+    nav.side{width:100%;flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--line);position:sticky;top:71px;z-index:30;padding:10px}
+    nav.side .nlabel{display:none}
+    .shell{flex-direction:column}
+    .navbtn{width:auto;flex:none;white-space:nowrap;padding:9px 12px}
+    .navbtn .idx{display:none}
+  }
+  @media(max-width:820px){
+    .split{grid-template-columns:1fr}
+    .kpis{grid-template-columns:1fr 1fr}
+    .stations{grid-template-columns:1fr 1fr}
+    .subgrid2,.subgrid3{grid-template-columns:1fr}
+    .metagrid{grid-template-columns:1fr 1fr}
+  }
+  @media(max-width:560px){
+    .navbtn .nt{display:none}
+    .navbtn{padding:9px 11px}
+    .kpis{grid-template-columns:1fr 1fr}
+    .stations{grid-template-columns:1fr}
+    main{padding:16px}
+  }
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo"><span class="material-symbols-outlined">precision_manufacturing</span></div>
+      <div>
+        <h1>MES 製造執行系統</h1>
+        <p>訂單到入庫的製造現場全流程數位化</p>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <span class="pill"><span class="live-dot"></span>現場即時連線</span>
+  </header>
+  <div class="shell">
+    <nav class="side" id="nav">
+      <div class="nlabel">功能模組</div>
+      <button class="navbtn on" data-i="0"><span class="material-symbols-outlined">assignment</span><span class="nt">工單派發</span><span class="idx">01</span></button>
+      <button class="navbtn" data-i="1"><span class="material-symbols-outlined">view_kanban</span><span class="nt">現場執行看板</span><span class="idx">02</span></button>
+      <button class="navbtn" data-i="2"><span class="material-symbols-outlined">precision_manufacturing</span><span class="nt">製程數據採集</span><span class="idx">03</span></button>
+      <button class="navbtn" data-i="3"><span class="material-symbols-outlined">fact_check</span><span class="nt">品質判定</span><span class="idx">04</span></button>
+      <button class="navbtn" data-i="4"><span class="material-symbols-outlined">speed</span><span class="nt">設備稼動 OEE</span><span class="idx">05</span></button>
+      <button class="navbtn" data-i="5"><span class="material-symbols-outlined">genetics</span><span class="nt">批次序號追溯</span><span class="idx">06</span></button>
+    </nav>
+    <main id="view"></main>
+  </div>
+</div>
+<script>
+(function(){
+  "use strict";
+  var view = document.getElementById("view");
+  var navbtns = document.querySelectorAll("[data-i]");
+  var charts = [];
+
+  function disposeCharts(){
+    charts.forEach(function(c){ try{ c.dispose(); }catch(e){} });
+    charts = [];
+  }
+  function mk(dom){ var c = echarts.init(dom); charts.push(c); return c; }
+
+  var workOrders = [
+    {id:"WO-2607-118", part:"AL-6061 散熱鰭片", cust:"泓昇科技", qty:1800, done:1240, due:"07-24", prio:"high", line:"CNC-A 線", status:"生產中", pct:69, proc:"CNC 銑削"},
+    {id:"WO-2607-121", part:"SUS304 支架組", cust:"日月光", qty:900, done:0, due:"07-25", prio:"high", line:"沖壓 B 線", status:"待排程", pct:0, proc:"沖壓成型"},
+    {id:"WO-2607-124", part:"PA66 齒輪箱蓋", cust:"和大工業", qty:2400, done:2400, due:"07-22", prio:"mid", line:"射出 C 線", status:"待品檢", pct:100, proc:"射出成型"},
+    {id:"WO-2607-127", part:"Cu 導電端子", cust:"台達電子", qty:5200, done:3120, due:"07-26", prio:"mid", line:"沖壓 A 線", status:"生產中", pct:60, proc:"沖壓成型"},
+    {id:"WO-2607-130", part:"AL-7075 結構件", cust:"漢翔航太", qty:600, done:600, due:"07-23", prio:"high", line:"CNC-B 線", status:"已入庫", pct:100, proc:"五軸加工"},
+    {id:"WO-2607-133", part:"ABS 外殼上蓋", cust:"廣達電腦", qty:3000, done:450, due:"07-28", prio:"low", line:"射出 A 線", status:"生產中", pct:15, proc:"射出成型"},
+    {id:"WO-2607-136", part:"鋅合金 壓鑄件", cust:"友達光電", qty:1500, done:0, due:"07-27", prio:"mid", line:"壓鑄 A 線", status:"待排程", pct:0, proc:"壓鑄成型"}
+  ];
+  var statusBadge = {"生產中":"b-blue","待排程":"b-gray","待品檢":"b-amber","已入庫":"b-green"};
+
+  /* ===== SCREEN 0 — 工單派發 ===== */
+  function s0(){
+    var rows = workOrders.map(function(w,i){
+      return '<div class="wo-row'+(i===0?' sel':'')+'" data-wo="'+i+'">'+
+        '<div class="prio p-'+w.prio+'"></div>'+
+        '<div style="min-width:0"><div class="wid">'+w.id+'</div><div class="wsub">'+w.part+'</div></div>'+
+        '<div class="rt"><span class="badge '+statusBadge[w.status]+'">'+w.status+'</span>'+
+        '<div class="wsub" style="margin-top:4px">交期 '+w.due+'</div></div></div>';
+    }).join("");
+
+    view.innerHTML =
+    '<div class="screen">'+
+      '<div class="schead"><div class="st"><h2>工單派發</h2><p>由 ERP 匯入訂單，依產能與交期拆併單後派發至產線工站</p></div>'+
+        '<span class="tag">本週工單 7 張 · 待派發 2 張</span></div>'+
+      '<div class="kpis">'+
+        '<div class="kpi"><div class="kt"><span class="material-symbols-outlined">assignment</span>進行中工單</div><div class="kv">7</div><div class="kd up">＋2 較昨日</div></div>'+
+        '<div class="kpi"><div class="kt"><span class="material-symbols-outlined">schedule</span>準時交付率</div><div class="kv">89%</div><div class="kd up">▲ 6% MoM</div></div>'+
+        '<div class="kpi"><div class="kt"><span class="material-symbols-outlined">inventory</span>缺料工單</div><div class="kv warn">1</div><div class="kd warn">SUS304 待到料</div></div>'+
+        '<div class="kpi"><div class="kt"><span class="material-symbols-outlined">factory</span>產線負載</div><div class="kv">82%</div><div class="kd down">CNC-A 逼近上限</div></div>'+
+      '</div>'+
+      '<div class="split">'+
+        '<div class="panel"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">list_alt</span><h3>工單佇列</h3><span class="cnt">7 張</span></div>'+
+          '<div id="woList">'+rows+'</div></div>'+
+        '<div class="panel"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">description</span><h3>派發明細</h3><span class="cnt" id="woHint">WO-2607-118</span></div>'+
+          '<div class="pb" id="woDetail"></div></div>'+
+      '</div>'+
+    '</div>';
+    void view.offsetHeight;
+
+    function renderDetail(idx){
+      var w = workOrders[idx];
+      document.getElementById("woDetail").innerHTML =
+        '<div class="metagrid">'+
+          '<div class="meta"><div class="ml">工單號</div><div class="mv mono">'+w.id+'</div></div>'+
+          '<div class="meta"><div class="ml">客戶</div><div class="mv">'+w.cust+'</div></div>'+
+          '<div class="meta"><div class="ml">料號品名</div><div class="mv" style="font-size:13px">'+w.part+'</div></div>'+
+          '<div class="meta"><div class="ml">主製程</div><div class="mv" style="font-size:13px">'+w.proc+'</div></div>'+
+          '<div class="meta"><div class="ml">派發產線</div><div class="mv" style="font-size:14px">'+w.line+'</div></div>'+
+          '<div class="meta"><div class="ml">承諾交期</div><div class="mv">2026-'+w.due+'</div></div>'+
+        '</div>'+
+        '<div style="margin-top:14px;font-size:12px;color:var(--muted);font-weight:600">生產進度 '+w.done.toLocaleString()+' / '+w.qty.toLocaleString()+' 件（'+w.pct+'%）</div>'+
+        '<div class="progress"><i style="width:'+w.pct+'%"></i></div>'+
+        '<div class="stat-strip" style="margin-top:14px">'+
+          '<div class="ss"><div class="sl">目前狀態</div><div class="sv"><span class="badge '+statusBadge[w.status]+'">'+w.status+'</span></div></div>'+
+          '<div class="ss"><div class="sl">優先序</div><div class="sv" style="font-size:15px">'+(w.prio==="high"?"高":w.prio==="mid"?"中":"低")+'</div></div>'+
+          '<div class="ss"><div class="sl">預估工時</div><div class="sv">'+(Math.round(w.qty/120))+' h</div></div>'+
+        '</div>'+
+        (w.status==="待排程" && w.id.indexOf("121")>-1 ?
+          '<div class="alert" style="margin-top:14px"><span class="material-symbols-outlined" style="color:#b91c1c">inventory_2</span><div><div class="at">缺料攔阻（RULE-02）</div><div class="ad">SUS304 板材尚未到料，依規則不得排入正式生產，已通知採購。</div></div></div>'
+          :'<div class="alert ok" style="margin-top:14px"><span class="material-symbols-outlined" style="color:#15803d">task_alt</span><div><div class="at">物料備妥</div><div class="ad">BOM 料件齊套，可下達現場派工。</div></div></div>')+
+        '<div class="btnrow"><button class="btn pri"><span class="material-symbols-outlined">send</span>下達派工</button>'+
+          '<button class="btn"><span class="material-symbols-outlined">call_split</span>拆併單</button>'+
+          '<button class="btn"><span class="material-symbols-outlined">event</span>調整交期</button></div>';
+      document.getElementById("woHint").textContent = w.id;
+    }
+    renderDetail(0);
+    document.getElementById("woList").addEventListener("click", function(e){
+      var r = e.target.closest("[data-wo]"); if(!r) return;
+      document.querySelectorAll("#woList .wo-row").forEach(function(x){x.classList.remove("sel");});
+      r.classList.add("sel");
+      renderDetail(+r.getAttribute("data-wo"));
+    });
+  }
+
+  /* ===== SCREEN 1 — 現場執行看板 ===== */
+  function s1(){
+    var cols = [
+      {name:"待領工", dot:"#94a3b8", cards:[
+        {k:"WO-2607-121 · 沖壓成型", m:"沖壓 B 線 · 900 件", p:0},
+        {k:"WO-2607-136 · 壓鑄成型", m:"壓鑄 A 線 · 1,500 件", p:0}
+      ]},
+      {name:"生產中", dot:"#2563eb", cards:[
+        {k:"WO-2607-118 · CNC 銑削", m:"李建成 · CNC-A", p:69},
+        {k:"WO-2607-127 · 沖壓成型", m:"陳美惠 · 沖壓 A", p:60},
+        {k:"WO-2607-133 · 射出成型", m:"王志明 · 射出 A", p:15}
+      ]},
+      {name:"待品檢", dot:"#d97706", cards:[
+        {k:"WO-2607-124 · 射出成型", m:"待抽驗 · 2,400 件", p:100}
+      ]},
+      {name:"已完工", dot:"#16a34a", cards:[
+        {k:"WO-2607-130 · 五軸加工", m:"已入庫 · 600 件", p:100}
+      ]}
+    ];
+    var board = cols.map(function(c){
+      var cc = c.cards.map(function(k){
+        return '<div class="kcard"><div class="kk">'+k.k+'</div>'+
+          '<div class="kmeta"><span>'+k.m+'</span><span>'+k.p+'%</span></div>'+
+          '<div class="kbar"><i style="width:'+k.p+'%"></i></div></div>';
+      }).join("");
+      return '<div class="col"><div class="ch"><span class="dot" style="background:'+c.dot+'"></span>'+c.name+
+        '<span class="cc">'+c.cards.length+'</span></div>'+cc+'</div>';
+    }).join("");
+
+    var reports = [
+      {t:"08:12", u:"李建成", a:"WO-2607-118 報工 +180 件", ok:true},
+      {t:"08:47", u:"王志明", a:"WO-2607-133 開工（射出 A 線）", ok:true},
+      {t:"09:05", u:"陳美惠", a:"WO-2607-127 模具異音，暫停報修", ok:false},
+      {t:"09:33", u:"設備", a:"沖壓 A 線恢復運轉", ok:true},
+      {t:"10:10", u:"李建成", a:"WO-2607-118 報工 +140 件", ok:true}
+    ];
+    var feed = reports.map(function(r){
+      return '<div class="tnode '+(r.ok?"done":"")+'"><div class="tdot" '+(r.ok?"":'style="border-color:#dc2626"')+'></div>'+
+        '<div class="tt">'+r.a+'</div><div class="td">'+r.u+' 回報</div><div class="ttime">'+r.t+'</div></div>';
+    }).join("");
+
+    view.innerHTML =
+    '<div class="screen">'+
+      '<div class="schead"><div class="st"><h2>現場執行看板</h2><p>作業員工站領工、報工與在製進度即時上鏈</p></div>'+
+        '<span class="tag">在製工單 4 張 · 稼動作業員 8 位</span></div>'+
+      '<div class="split" style="grid-template-columns:1fr 320px">'+
+        '<div class="panel"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">view_kanban</span><h3>工單流轉看板</h3></div>'+
+          '<div class="pb"><div style="overflow-x:auto"><div class="board">'+board+'</div></div></div></div>'+
+        '<div class="panel"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">bolt</span><h3>即時報工動態</h3></div>'+
+          '<div class="pb"><div class="trace">'+feed+'</div></div></div>'+
+      '</div>'+
+    '</div>';
+    void view.offsetHeight;
+  }
+
+  /* ===== SCREEN 2 — 製程數據採集 ===== */
+  function s2(){
+    var params = [
+      {n:"射出壓力", v:"128.4", u:"MPa", s:"正常", b:"b-green", tgt:"125±6"},
+      {n:"料筒溫度", v:"238.6", u:"℃", s:"正常", b:"b-green", tgt:"240±5"},
+      {n:"保壓時間", v:"3.2", u:"s", s:"注意", b:"b-amber", tgt:"3.0±0.2"},
+      {n:"冷卻時間", v:"18.0", u:"s", s:"正常", b:"b-green", tgt:"18±1"},
+      {n:"鎖模力", v:"860", u:"kN", s:"正常", b:"b-green", tgt:"850±30"},
+      {n:"螺桿轉速", v:"142", u:"rpm", s:"超標", b:"b-red", tgt:"120±15"}
+    ];
+    var cards = params.map(function(p){
+      return '<div class="station"><div class="snm">'+p.n+'<span class="badge '+p.b+'" style="margin-left:auto">'+p.s+'</span></div>'+
+        '<div style="font-size:28px;font-weight:800;margin-top:8px">'+p.v+'<span style="font-size:13px;color:var(--muted);font-weight:600"> '+p.u+'</span></div>'+
+        '<div style="font-size:12px;color:var(--muted);margin-top:4px">管制範圍 '+p.tgt+' '+p.u+'</div></div>';
+    }).join("");
+
+    view.innerHTML =
+    '<div class="screen">'+
+      '<div class="schead"><div class="st"><h2>製程數據採集</h2><p>設備參數與製程 SPC 數據即時擷取，超出管制界限自動觸發告警</p></div>'+
+        '<span class="tag">監控設備 射出 C 線 · 週期 2.4 s</span></div>'+
+      '<div class="subgrid3">'+
+        '<div class="panel"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">show_chart</span><h3>射出壓力 SPC 管制圖（最近 24 模）</h3></div>'+
+          '<div class="pb"><div id="spcChart" class="chartbox"></div></div></div>'+
+        '<div class="panel"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">warning</span><h3>製程告警</h3></div>'+
+          '<div class="pb">'+
+            '<div class="alert"><span class="material-symbols-outlined" style="color:#b91c1c">error</span><div><div class="at">螺桿轉速超上限</div><div class="ad">142 rpm ＞ 135 rpm，建議降速並複檢流道。</div></div></div>'+
+            '<div class="alert" style="background:#fffbeb;border-color:#fde68a"><span class="material-symbols-outlined" style="color:#b45309">timelapse</span><div><div class="at">保壓時間漂移</div><div class="ad">連續 3 模逼近 CL 上緣，注意毛邊風險。</div></div></div>'+
+            '<div class="alert ok"><span class="material-symbols-outlined" style="color:#15803d">verified</span><div><div class="at">Cpk = 1.42</div><div class="ad">壓力製程能力達標（≥1.33）。</div></div></div>'+
+          '</div></div>'+
+      '</div>'+
+      '<div class="panel" style="margin-top:18px"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">tune</span><h3>即時製程參數</h3><span class="cnt">6 項</span></div>'+
+        '<div class="pb"><div class="stations">'+cards+'</div></div></div>'+
+    '</div>';
+    void view.offsetHeight;
+
+    var c = mk(document.getElementById("spcChart"));
+    var data = [124,126,128,127,131,129,126,130,128,127,129,132,128,126,130,133,129,127,131,128,130,129,132,128];
+    var x = data.map(function(_,i){return "#"+(i+1);});
+    c.setOption({
+      grid:{left:44,right:16,top:18,bottom:30},
+      tooltip:{trigger:"axis"},
+      xAxis:{type:"category",data:x,axisLine:{lineStyle:{color:"#cbd5cf"}},axisLabel:{color:"#7c8b81",fontSize:10,interval:2}},
+      yAxis:{type:"value",min:118,max:136,axisLine:{show:false},splitLine:{lineStyle:{color:"#eef2ef"}},axisLabel:{color:"#7c8b81"}},
+      series:[
+        {name:"壓力",type:"line",data:data,smooth:true,symbolSize:5,lineStyle:{width:2.5,color:"#16a34a"},itemStyle:{color:"#16a34a"},
+         areaStyle:{color:"rgba(22,163,74,.12)"},
+         markLine:{silent:true,symbol:"none",data:[
+           {yAxis:131,lineStyle:{color:"#dc2626",type:"dashed"},label:{formatter:"UCL 131",color:"#dc2626",fontSize:10}},
+           {yAxis:125,lineStyle:{color:"#94a3b8",type:"solid"},label:{formatter:"CL 125",color:"#64748b",fontSize:10}},
+           {yAxis:119,lineStyle:{color:"#dc2626",type:"dashed"},label:{formatter:"LCL 119",color:"#dc2626",fontSize:10}}
+         ]}}
+      ]
+    });
+  }
+
+  /* ===== SCREEN 3 — 品質判定 ===== */
+  function s3(){
+    var lots = [
+      {id:"LOT-124-01", wo:"WO-2607-124", n:600, ng:7, res:"合格", b:"b-green"},
+      {id:"LOT-124-02", wo:"WO-2607-124", n:600, ng:22, res:"待判", b:"b-amber"},
+      {id:"LOT-130-01", wo:"WO-2607-130", n:600, ng:2, res:"合格", b:"b-green"},
+      {id:"LOT-118-01", wo:"WO-2607-118", n:600, ng:41, res:"重工", b:"b-red"},
+      {id:"LOT-127-01", wo:"WO-2607-127", n:800, ng:9, res:"合格", b:"b-green"}
+    ];
+    var rows = lots.map(function(l,i){
+      var y = (100 - l.ng/l.n*100).toFixed(1);
+      return '<div class="wo-row'+(i===1?' sel':'')+'" data-lot="'+i+'">'+
+        '<div class="prio '+(l.res==="重工"?"p-high":l.res==="待判"?"p-mid":"p-low")+'"></div>'+
+        '<div style="min-width:0"><div class="wid">'+l.id+'</div><div class="wsub">'+l.wo+' · 良率 '+y+'%</div></div>'+
+        '<div class="rt"><span class="badge '+l.b+'">'+l.res+'</span></div></div>';
+    }).join("");
+
+    view.innerHTML =
+    '<div class="screen">'+
+      '<div class="schead"><div class="st"><h2>品質判定</h2><p>依檢驗計畫抽驗判定合格、不良分類與重工放行</p></div>'+
+        '<span class="tag">今日抽驗 5 批 · 待判 1 批</span></div>'+
+      '<div class="kpis">'+
+        '<div class="kpi"><div class="kt"><span class="material-symbols-outlined">verified</span>今日平均良率</div><div class="kv">97.2%</div><div class="kd up">▲ 0.8%</div></div>'+
+        '<div class="kpi"><div class="kt"><span class="material-symbols-outlined">block</span>不良件數</div><div class="kv warn">81</div><div class="kd">佔 2.8%</div></div>'+
+        '<div class="kpi"><div class="kt"><span class="material-symbols-outlined">build</span>待重工批次</div><div class="kv down">1</div><div class="kd down">LOT-118-01</div></div>'+
+        '<div class="kpi"><div class="kt"><span class="material-symbols-outlined">pending</span>待判批次</div><div class="kv">1</div><div class="kd warn">需 QE 判定</div></div>'+
+      '</div>'+
+      '<div class="split">'+
+        '<div class="panel"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">inventory_2</span><h3>抽驗批次</h3><span class="cnt">5 批</span></div>'+
+          '<div id="lotList">'+rows+'</div></div>'+
+        '<div class="panel"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">fact_check</span><h3>檢驗判定</h3><span class="cnt" id="lotHint">LOT-124-02</span></div>'+
+          '<div class="pb" id="lotDetail"></div></div>'+
+      '</div>'+
+      '<div class="panel" style="margin-top:18px"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">bar_chart</span><h3>不良項目柏拉圖（近 7 日）</h3></div>'+
+        '<div class="pb"><div id="paretoChart" class="chartbox sm"></div></div></div>'+
+    '</div>';
+    void view.offsetHeight;
+
+    function renderLot(idx){
+      var l = lots[idx];
+      var y = (100 - l.ng/l.n*100).toFixed(1);
+      var items = [
+        {n:"尺寸公差", ok: l.res!=="重工"},
+        {n:"外觀刮傷", ok: l.ng<20},
+        {n:"毛邊/披鋒", ok: l.res==="合格"},
+        {n:"表面粗糙度", ok: true},
+        {n:"功能測試", ok: l.res!=="重工"}
+      ];
+      var chk = items.map(function(it){
+        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)">'+
+          '<span class="material-symbols-outlined" style="font-size:20px;color:'+(it.ok?"#16a34a":"#dc2626")+'">'+(it.ok?"check_circle":"cancel")+'</span>'+
+          '<span style="font-size:13px;font-weight:600">'+it.n+'</span>'+
+          '<span class="badge '+(it.ok?"b-green":"b-red")+'" style="margin-left:auto">'+(it.ok?"通過":"NG")+'</span></div>';
+      }).join("");
+      document.getElementById("lotDetail").innerHTML =
+        '<div class="metagrid">'+
+          '<div class="meta"><div class="ml">批次號</div><div class="mv mono">'+l.id+'</div></div>'+
+          '<div class="meta"><div class="ml">來源工單</div><div class="mv mono">'+l.wo+'</div></div>'+
+          '<div class="meta"><div class="ml">抽驗 / 不良</div><div class="mv">'+l.n+' / '+l.ng+'</div></div>'+
+          '<div class="meta"><div class="ml">批次良率</div><div class="mv">'+y+'%</div></div>'+
+        '</div>'+
+        '<div style="margin-top:12px">'+chk+'</div>'+
+        '<div class="btnrow"><button class="btn pri"><span class="material-symbols-outlined">check</span>判定合格入庫</button>'+
+          '<button class="btn"><span class="material-symbols-outlined">handyman</span>轉重工</button>'+
+          '<button class="btn"><span class="material-symbols-outlined">delete_forever</span>報廢</button></div>';
+      document.getElementById("lotHint").textContent = l.id;
+    }
+    renderLot(1);
+    document.getElementById("lotList").addEventListener("click",function(e){
+      var r = e.target.closest("[data-lot]"); if(!r) return;
+      document.querySelectorAll("#lotList .wo-row").forEach(function(x){x.classList.remove("sel");});
+      r.classList.add("sel");
+      renderLot(+r.getAttribute("data-lot"));
+    });
+
+    var c = mk(document.getElementById("paretoChart"));
+    var cat = ["尺寸超差","外觀刮傷","毛邊披鋒","縮水凹陷","色差","其他"];
+    var val = [34,22,15,12,8,5];
+    var cum=[],s=0,tot=val.reduce(function(a,b){return a+b;},0);
+    val.forEach(function(v){s+=v;cum.push(+(s/tot*100).toFixed(1));});
+    c.setOption({
+      grid:{left:40,right:48,top:20,bottom:30},
+      tooltip:{trigger:"axis"},
+      legend:{data:["不良件數","累積%"],right:8,top:0,textStyle:{fontSize:11}},
+      xAxis:{type:"category",data:cat,axisLabel:{color:"#7c8b81",fontSize:11},axisLine:{lineStyle:{color:"#cbd5cf"}}},
+      yAxis:[
+        {type:"value",axisLabel:{color:"#7c8b81"},splitLine:{lineStyle:{color:"#eef2ef"}}},
+        {type:"value",max:100,axisLabel:{formatter:"{value}%",color:"#7c8b81"},splitLine:{show:false}}
+      ],
+      series:[
+        {name:"不良件數",type:"bar",data:val,barWidth:"46%",itemStyle:{color:"#16a34a",borderRadius:[6,6,0,0]}},
+        {name:"累積%",type:"line",yAxisIndex:1,data:cum,smooth:true,symbolSize:6,lineStyle:{color:"#d97706",width:2.5},itemStyle:{color:"#d97706"}}
+      ]
+    });
+  }
+
+  /* ===== SCREEN 4 — 設備稼動 OEE ===== */
+  function s4(){
+    var lines = [
+      {n:"CNC-A 線", a:88, p:92, q:98},
+      {n:"CNC-B 線", a:81, p:88, q:99},
+      {n:"沖壓 A 線", a:76, p:85, q:97},
+      {n:"射出 C 線", a:84, p:90, q:95},
+      {n:"壓鑄 A 線", a:69, p:82, q:96}
+    ];
+    var bars = lines.map(function(l){
+      var oee = Math.round(l.a*l.p*l.q/10000);
+      return '<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600"><span>'+l.n+'</span><span class="mono">OEE '+oee+'%</span></div>'+
+        '<div class="progress" style="height:10px"><i style="width:'+oee+'%;background:'+(oee>=80?"linear-gradient(90deg,#16a34a,#4ade80)":oee>=70?"#d97706":"#dc2626")+'"></i></div>'+
+        '<div style="display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:5px"><span>稼動 '+l.a+'%</span><span>效率 '+l.p+'%</span><span>良率 '+l.q+'%</span></div></div>';
+    }).join("");
+
+    view.innerHTML =
+    '<div class="screen">'+
+      '<div class="schead"><div class="st"><h2>設備稼動 OEE</h2><p>稼動率、效率、良率三率合一即時監控與趨勢分析</p></div>'+
+        '<span class="tag">全廠綜合 OEE 79.6%</span></div>'+
+      '<div class="subgrid2">'+
+        '<div class="panel"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">speed</span><h3>全廠綜合 OEE</h3></div>'+
+          '<div class="pb"><div id="oeeGauge" class="chartbox sm"></div>'+
+            '<div class="stat-strip"><div class="ss"><div class="sl">稼動率 A</div><div class="sv" style="color:#16a34a">83%</div></div>'+
+            '<div class="ss"><div class="sl">效率 P</div><div class="sv" style="color:#16a34a">88%</div></div>'+
+            '<div class="ss"><div class="sl">良率 Q</div><div class="sv" style="color:#16a34a">97%</div></div>'+
+            '<div class="ss"><div class="sl">停機損失</div><div class="sv warn">3.4 h</div></div></div></div></div>'+
+        '<div class="panel"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">stacked_bar_chart</span><h3>各產線 OEE</h3><span class="cnt">5 線</span></div>'+
+          '<div class="pb">'+bars+'</div></div>'+
+      '</div>'+
+      '<div class="panel" style="margin-top:18px"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">timeline</span><h3>近 6 週 OEE 三率趨勢</h3></div>'+
+        '<div class="pb"><div id="oeeTrend" class="chartbox"></div></div></div>'+
+    '</div>';
+    void view.offsetHeight;
+
+    var g = mk(document.getElementById("oeeGauge"));
+    g.setOption({
+      series:[{type:"gauge",startAngle:210,endAngle:-30,min:0,max:100,radius:"92%",center:["50%","62%"],
+        progress:{show:true,width:16,itemStyle:{color:"#16a34a"}},
+        axisLine:{lineStyle:{width:16,color:[[0.7,"#fecaca"],[0.8,"#fde68a"],[1,"#bbf7d0"]]}},
+        pointer:{width:5,itemStyle:{color:"#0f2417"}},
+        axisTick:{show:false},splitLine:{length:12,lineStyle:{color:"#fff",width:2}},
+        axisLabel:{color:"#7c8b81",fontSize:10,distance:-24},
+        anchor:{show:true,size:10,itemStyle:{color:"#16a34a"}},
+        detail:{valueAnimation:false,formatter:"{value}%",fontSize:30,fontWeight:800,color:"#0f2417",offsetCenter:[0,"38%"]},
+        title:{offsetCenter:[0,"66%"],color:"#7c8b81",fontSize:12},
+        data:[{value:79.6,name:"綜合 OEE"}]}]
+    });
+
+    var t = mk(document.getElementById("oeeTrend"));
+    var wk = ["第1週","第2週","第3週","第4週","第5週","第6週"];
+    t.setOption({
+      grid:{left:40,right:16,top:30,bottom:30},
+      tooltip:{trigger:"axis"},
+      legend:{data:["稼動率","效率","良率"],right:8,top:0,textStyle:{fontSize:11}},
+      xAxis:{type:"category",data:wk,axisLabel:{color:"#7c8b81"},axisLine:{lineStyle:{color:"#cbd5cf"}}},
+      yAxis:{type:"value",min:60,max:100,axisLabel:{formatter:"{value}%",color:"#7c8b81"},splitLine:{lineStyle:{color:"#eef2ef"}}},
+      series:[
+        {name:"稼動率",type:"line",smooth:true,data:[70,73,76,79,81,83],lineStyle:{width:2.5,color:"#16a34a"},itemStyle:{color:"#16a34a"},areaStyle:{color:"rgba(22,163,74,.10)"}},
+        {name:"效率",type:"line",smooth:true,data:[80,82,84,85,87,88],lineStyle:{width:2.5,color:"#4ade80"},itemStyle:{color:"#4ade80"}},
+        {name:"良率",type:"line",smooth:true,data:[93,94,95,96,96,97],lineStyle:{width:2.5,color:"#d97706"},itemStyle:{color:"#d97706"}}
+      ]
+    });
+  }
+
+  /* ===== SCREEN 5 — 批次序號追溯 ===== */
+  function s5(){
+    var sns = [
+      {sn:"SN-AL6061-118-00427", part:"AL-6061 散熱鰭片", wo:"WO-2607-118", st:"已入庫", b:"b-green"},
+      {sn:"SN-SUS304-121-00088", part:"SUS304 支架組", wo:"WO-2607-121", st:"生產中", b:"b-blue"},
+      {sn:"SN-PA66-124-01203", part:"PA66 齒輪箱蓋", wo:"WO-2607-124", st:"待品檢", b:"b-amber"},
+      {sn:"SN-AL7075-130-00311", part:"AL-7075 結構件", wo:"WO-2607-130", st:"已出貨", b:"b-purple"}
+    ];
+    var rows = sns.map(function(s,i){
+      return '<div class="wo-row'+(i===0?' sel':'')+'" data-sn="'+i+'">'+
+        '<div class="prio p-low"></div>'+
+        '<div style="min-width:0"><div class="wid mono" style="font-size:12px">'+s.sn+'</div><div class="wsub">'+s.part+'</div></div>'+
+        '<div class="rt"><span class="badge '+s.b+'">'+s.st+'</span></div></div>';
+    }).join("");
+
+    view.innerHTML =
+    '<div class="screen">'+
+      '<div class="schead"><div class="st"><h2>批次序號追溯</h2><p>料號批次與單品序號的正逆向履歷追溯與稽核回饋</p></div>'+
+        '<span class="tag">可追溯序號 12,480 筆</span></div>'+
+      '<div class="split">'+
+        '<div class="panel"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">qr_code_2</span><h3>序號查詢</h3><span class="cnt">4 筆</span></div>'+
+          '<div class="pb" style="padding-bottom:6px"><div class="btn" style="width:100%;justify-content:flex-start;cursor:default"><span class="material-symbols-outlined">search</span><span style="color:var(--muted)">輸入序號 / 批次號 / 掃碼</span></div></div>'+
+          '<div id="snList">'+rows+'</div></div>'+
+        '<div class="panel"><div class="ph"><span class="material-symbols-outlined" style="color:var(--accent)">account_tree</span><h3>正逆向履歷</h3><span class="cnt" id="snHint">SN-AL6061-118-00427</span></div>'+
+          '<div class="pb" id="snDetail"></div></div>'+
+      '</div>'+
+    '</div>';
+    void view.offsetHeight;
+
+    var histories = [
+      [
+        {t:"07-20 08:12", tt:"原料入庫", d:"AL-6061 鋁材 · 批次 RM-A0714 · 供應商 中鋁", done:true},
+        {t:"07-21 09:40", tt:"CNC 銑削", d:"CNC-A 線 · 作業員 李建成 · 刀具 T-Φ8", done:true},
+        {t:"07-21 14:05", tt:"去毛邊", d:"精修工站 · 王志明", done:true},
+        {t:"07-22 10:18", tt:"品質檢驗", d:"LOT-118 · 尺寸/外觀合格 · QE 張凱鈞", done:true},
+        {t:"07-22 16:30", tt:"完工入庫", d:"成品倉 R-03-12 · 儲位鎖定", done:true}
+      ],
+      [
+        {t:"07-22 07:50", tt:"原料入庫", d:"SUS304 板材 · 批次 RM-S0722（待到料）", done:true},
+        {t:"07-25 —", tt:"沖壓成型", d:"沖壓 B 線 · 排程中", done:false},
+        {t:"—", tt:"品質檢驗", d:"尚未進行", done:false}
+      ],
+      [
+        {t:"07-19 06:30", tt:"原料入庫", d:"PA66 塑粒 · 批次 RM-P0719", done:true},
+        {t:"07-20 13:20", tt:"射出成型", d:"射出 C 線 · 模具 M-224", done:true},
+        {t:"07-22 09:00", tt:"待品檢", d:"LOT-124-02 · QE 判定中", done:false}
+      ],
+      [
+        {t:"07-18 08:00", tt:"原料入庫", d:"AL-7075 棒材 · 批次 RM-A0718", done:true},
+        {t:"07-20 11:15", tt:"五軸加工", d:"CNC-B 線 · 作業員 陳美惠", done:true},
+        {t:"07-22 15:40", tt:"品質檢驗", d:"LOT-130-01 · 合格", done:true},
+        {t:"07-23 09:10", tt:"完工入庫", d:"成品倉 R-01-08", done:true},
+        {t:"07-24 14:00", tt:"出貨交付", d:"出貨單 DO-2607-055 · 漢翔航太", done:true}
+      ]
+    ];
+    function renderSn(idx){
+      var s = sns[idx], h = histories[idx];
+      var tl = h.map(function(n){
+        return '<div class="tnode '+(n.done?"done":"")+'"><div class="tdot" '+(n.done?"":'style="border-color:#cbd5cf"')+'></div>'+
+          '<div class="tt">'+n.tt+'</div><div class="td">'+n.d+'</div><div class="ttime">'+n.t+'</div></div>';
+      }).join("");
+      document.getElementById("snDetail").innerHTML =
+        '<div class="metagrid">'+
+          '<div class="meta"><div class="ml">序號</div><div class="mv mono" style="font-size:12px">'+s.sn+'</div></div>'+
+          '<div class="meta"><div class="ml">來源工單</div><div class="mv mono">'+s.wo+'</div></div>'+
+          '<div class="meta"><div class="ml">品名</div><div class="mv" style="font-size:13px">'+s.part+'</div></div>'+
+          '<div class="meta"><div class="ml">目前狀態</div><div class="mv"><span class="badge '+s.b+'">'+s.st+'</span></div></div>'+
+        '</div>'+
+        '<div style="font-size:12px;color:var(--muted);font-weight:700;margin:16px 0 12px">製造履歷（原料 → 加工 → 檢驗 → 入庫 → 出貨）</div>'+
+        '<div class="trace">'+tl+'</div>';
+      document.getElementById("snHint").textContent = s.sn;
+    }
+    renderSn(0);
+    document.getElementById("snList").addEventListener("click",function(e){
+      var r = e.target.closest("[data-sn]"); if(!r) return;
+      document.querySelectorAll("#snList .wo-row").forEach(function(x){x.classList.remove("sel");});
+      r.classList.add("sel");
+      renderSn(+r.getAttribute("data-sn"));
+    });
+  }
+
+  var screens = [s0,s1,s2,s3,s4,s5];
+
+  function show(i){
+    disposeCharts();
+    navbtns.forEach(function(b){ b.classList.toggle("on", +b.getAttribute("data-i")===i); });
+    screens[i]();
+  }
+  navbtns.forEach(function(b){
+    b.addEventListener("click", function(){ show(+b.getAttribute("data-i")); try{window.scrollTo(0,0);}catch(e){} });
+  });
+  show(0);
+
+  function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+})();
+</script>
 </body>
 </html>

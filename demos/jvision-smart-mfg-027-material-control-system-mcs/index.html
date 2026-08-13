@@ -1,18 +1,493 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>物料控制系統（Material Control System, MCS）｜Jvision 系統 Demo</title>
-  <meta name="description" content="訂單到入庫的製造現場全流程數位化" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>物料控制系統 MCS｜製造現場物料流轉平台</title>
+<meta name="description" content="製造現場物料流轉追蹤、投料序列控管與在製庫存管理"/>
+<link rel="icon" href="../../favicon.svg"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+:root{
+  --accent:#7c3aed; --accent2:#a78bfa; --accent-soft:#f2ecfe;
+  --ink:#1e1b2e; --sub:#6b6580; --line:#e8e3f3; --bg:#f6f4fb; --card:#ffffff;
+  --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --info:#2563eb;
+}
+*{box-sizing:border-box;margin:0;padding:0;min-width:0}
+html,body{width:100%;overflow-x:hidden}
+body{font-family:"Inter","Noto Sans TC",sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
+.ms{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;vertical-align:middle;line-height:1;-webkit-font-feature-settings:'liga'}
+.app{display:flex;min-height:100vh}
+
+.side{width:236px;flex:none;background:linear-gradient(180deg,#2a1d54,#1c1436);color:#fff;display:flex;flex-direction:column;padding:18px 14px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 16px}
+.brand .logo{width:38px;height:38px;flex:none;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;color:#fff;font-size:22px;box-shadow:0 6px 16px rgba(124,58,237,.5)}
+.brand b{font-size:15px;font-weight:800;letter-spacing:.3px;display:block}
+.brand span{font-size:11px;color:#c8bff0;font-weight:500}
+.nav{display:flex;flex-direction:column;gap:5px;margin-top:4px}
+.nav button{display:flex;align-items:center;gap:11px;background:transparent;border:0;color:#d8d1f0;padding:11px 12px;border-radius:11px;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;text-align:left;transition:.16s;flex:none;white-space:nowrap}
+.nav button .ms{font-size:21px;flex:none}
+.nav button .idx{margin-left:auto;font-size:11px;opacity:.5;font-weight:700}
+.nav button:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav button.on{background:linear-gradient(135deg,var(--accent),#6d28d9);color:#fff;box-shadow:0 8px 18px rgba(124,58,237,.4)}
+.side .foot{margin-top:auto;padding:12px 8px 2px;font-size:11px;color:#9c93c4;border-top:1px solid rgba(255,255,255,.09)}
+.side .foot b{color:#fff;font-weight:700}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{background:#fff;border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.top .tt{font-size:17px;font-weight:800}
+.top .ts{font-size:12.5px;color:var(--sub);font-weight:500}
+.top .chip{margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:6px 13px;font-size:12px;font-weight:700}
+.top .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(22,163,74,.16);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.wrap{padding:22px 24px 40px}
+
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(4,1fr)}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:15px 16px;position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent)}
+.kpi .k-ic{width:34px;height:34px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-size:20px;margin-bottom:9px}
+.kpi .k-l{font-size:12px;color:var(--sub);font-weight:600}
+.kpi .k-v{font-size:25px;font-weight:800;letter-spacing:-.5px;margin-top:2px}
+.kpi .k-v small{font-size:13px;font-weight:600;color:var(--sub)}
+.kpi .k-d{font-size:11.5px;font-weight:700;margin-top:5px;display:inline-flex;align-items:center;gap:3px}
+.kpi .k-d.up{color:var(--ok)} .kpi .k-d.dn{color:var(--bad)} .kpi .k-d.fl{color:var(--sub)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:16px 18px}
+.card h3{font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:2px}
+.card h3 .ms{color:var(--accent);font-size:20px}
+.card .cap{font-size:12px;color:var(--sub);margin-bottom:12px;font-weight:500}
+.two{grid-template-columns:1fr 1fr}
+.three{grid-template-columns:2fr 1fr}
+.split{grid-template-columns:340px 1fr}
+
+table{width:100%;border-collapse:collapse;font-size:12.8px}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;color:var(--sub);font-weight:700;text-transform:uppercase;letter-spacing:.4px;background:#faf8ff}
+tbody tr:hover{background:#faf9ff}
+td b{font-weight:700}
+.mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+.tag{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;line-height:1.7}
+.t-ok{background:#e7f6ec;color:var(--ok)} .t-warn{background:#fef3e2;color:var(--warn)}
+.t-bad{background:#fdeaea;color:var(--bad)} .t-info{background:#e8f0fe;color:var(--info)}
+.t-mut{background:#eeecf5;color:var(--sub)} .t-acc{background:var(--accent-soft);color:var(--accent)}
+
+.bar{height:8px;border-radius:5px;background:#ece8f6;overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.chart{width:100%;height:270px}
+.scroll{overflow-x:auto}
+
+.wk-list{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:10px;display:flex;flex-direction:column;gap:8px;max-height:560px;overflow:auto}
+.wk-item{border:1px solid var(--line);border-radius:11px;padding:11px 12px;cursor:pointer;transition:.15s;background:#fff}
+.wk-item.sel{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 4px 12px rgba(124,58,237,.12)}
+.wk-item .r1{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.wk-item .no{font-weight:800;font-size:13px}
+.wk-item .r2{font-size:11.5px;color:var(--sub);margin-top:3px;display:flex;justify-content:space-between;gap:8px}
+.wk-detail{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:18px 20px}
+.dl{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0 6px}
+.dl .c{background:#faf8ff;border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+.dl .c .l{font-size:11px;color:var(--sub);font-weight:600}
+.dl .c .v{font-size:16px;font-weight:800;margin-top:2px}
+
+.seq{display:flex;gap:10px;align-items:stretch;overflow-x:auto;padding-bottom:6px}
+.seq .st{flex:none;width:150px;border:1px solid var(--line);border-radius:13px;background:#fff;padding:12px}
+.seq .st .step{font-size:11px;font-weight:800;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:2px 9px;display:inline-block}
+.seq .st .mat{font-weight:800;font-size:14px;margin:8px 0 2px}
+.seq .st .sub{font-size:11.5px;color:var(--sub)}
+.seq .arw{flex:none;display:grid;place-items:center;color:var(--accent2);font-size:22px}
+.poka{display:flex;flex-direction:column;gap:9px}
+.poka .p{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:11px;padding:10px 12px;background:#fff}
+.poka .p .pic{width:34px;height:34px;flex:none;border-radius:9px;display:grid;place-items:center;font-size:20px}
+.poka .p.g .pic{background:#e7f6ec;color:var(--ok)} .poka .p.r .pic{background:#fdeaea;color:var(--bad)}
+.poka .p.y .pic{background:#fef3e2;color:var(--warn)}
+.poka .p .txt{flex:1;min-width:0} .poka .p .txt b{font-size:13px} .poka .p .txt div{font-size:11.5px;color:var(--sub)}
+
+.tl{position:relative;padding-left:22px}
+.tl::before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--line)}
+.tl .ev{position:relative;padding:0 0 16px 8px}
+.tl .ev::before{content:"";position:absolute;left:-20px;top:4px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 0 0 2px var(--accent2)}
+.tl .ev .h{font-weight:800;font-size:13px}
+.tl .ev .m{font-size:11.5px;color:var(--sub)}
+.tl .ev .tm{font-size:11px;color:var(--accent);font-weight:700}
+
+.mtx{display:grid;grid-template-columns:repeat(6,1fr);gap:9px}
+.mtx .cell{border-radius:11px;padding:10px;color:#fff;min-height:76px;display:flex;flex-direction:column;justify-content:space-between}
+.mtx .cell .n{font-size:11.5px;font-weight:700;opacity:.95}
+.mtx .cell .v{font-size:19px;font-weight:800}
+.mtx .cell .u{font-size:10.5px;opacity:.85}
+
+.alerts{display:flex;flex-direction:column;gap:11px}
+.alert{display:flex;gap:13px;border:1px solid var(--line);border-left-width:4px;border-radius:12px;padding:13px 15px;background:#fff}
+.alert.hi{border-left-color:var(--bad)} .alert.md{border-left-color:var(--warn)} .alert.lo{border-left-color:var(--info)}
+.alert .aic{width:40px;height:40px;flex:none;border-radius:11px;display:grid;place-items:center;font-size:23px}
+.alert.hi .aic{background:#fdeaea;color:var(--bad)} .alert.md .aic{background:#fef3e2;color:var(--warn)} .alert.lo .aic{background:#e8f0fe;color:var(--info)}
+.alert .ab{flex:1;min-width:0}
+.alert .ab .at{font-weight:800;font-size:13.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.alert .ab .ad{font-size:12px;color:var(--sub);margin-top:3px}
+.alert .ameta{font-size:11px;color:var(--sub);text-align:right;flex:none}
+.alert .ameta b{font-size:16px;color:var(--ink);display:block}
+
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--sub);margin-top:10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:middle}
+
+@media(max-width:860px){
+  .app{flex-direction:column}
+  .side{width:100%;height:auto;position:static;flex-direction:column;padding:12px}
+  .brand{padding:2px 4px 12px}
+  .nav{flex-direction:row;flex-wrap:wrap;gap:7px}
+  .nav button{flex:none}
+  .nav button .idx{display:none}
+  .side .foot{display:none}
+}
+@media(max-width:820px){
+  .kpis{grid-template-columns:1fr 1fr}
+  .two,.three,.split{grid-template-columns:1fr}
+  .mtx{grid-template-columns:repeat(3,1fr)}
+  .dl{grid-template-columns:1fr 1fr}
+}
+@media(max-width:560px){
+  .nav button .lbl{display:none}
+  .nav button{padding:10px}
+  .nav button .ms{font-size:22px}
+  .wrap{padding:16px 14px 34px}
+  .top{padding:12px 14px}
+}
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo"><span class="ms">conveyor_belt</span></div>
+      <div><b>MCS 物料控制</b><span>Material Control System</span></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="foot">廠區：<b>竹科 F12 廠</b><br/>同步：MES · WMS · AMHS<br/>資料為展示用途</div>
+  </aside>
+  <main class="main">
+    <div class="top">
+      <div>
+        <div class="tt" id="ptt">—</div>
+        <div class="ts" id="pts">—</div>
+      </div>
+      <div class="chip"><span class="dot"></span>現場連線中</div>
+    </div>
+    <div class="wrap"><div id="screen"></div></div>
+  </main>
+</div>
+<script>
+var MODS=[
+  {ic:"request_quote",lbl:"物料領用申請",tt:"物料領用申請",ts:"工單 BOM 展開、領料單建立與核發"},
+  {ic:"conveyor_belt",lbl:"投料序列控管",tt:"投料序列控管",ts:"料號投入順序、批號綁定與防呆確認"},
+  {ic:"swap_horiz",lbl:"現場流轉追蹤",tt:"現場流轉追蹤",ts:"AMHS 搬運路徑與載具即時定位"},
+  {ic:"inventory_2",lbl:"在製庫存管理",tt:"在製庫存管理",ts:"WIP 各站庫存、批號效期與呆滯監控"},
+  {ic:"notification_important",lbl:"短缺預警",tt:"短缺預警",ts:"安全水位比對與缺料停線風險提醒"},
+  {ic:"fact_check",lbl:"投料稽核追溯",tt:"投料稽核追溯",ts:"投料錯誤攔截、履歷追溯與異常結案"}
+];
+
+function n(v){return (v==null?0:v).toLocaleString();}
+function bar(p){return '<div class="bar"><i style="width:'+Math.max(0,Math.min(100,p))+'%"></i></div>';}
+
+var REQS=[
+  {no:"MR-2408-0912",wo:"WO-58841",part:"半導體晶圓載盤",qty:120,line:"SMT-A1",due:"08/13 14:00",owner:"陳品睿",st:"配料中",stc:"t-warn",prog:62,
+    bom:[["WFR-3006","矽晶圓 12吋",120,"pcs","BAT-7781","足","t-ok"],["TAP-0210","防靜電膠帶",8,"卷","BAT-7654","足","t-ok"],["LBL-0033","批號標籤",120,"張","BAT-7910","不足","t-warn"],["BOX-0501","載運周轉箱",10,"個","BAT-7420","足","t-ok"]]},
+  {no:"MR-2408-0911",wo:"WO-58840",part:"功率模組基板",qty:480,line:"DIP-B2",due:"08/13 10:30",owner:"林詠晴",st:"已核發",stc:"t-ok",prog:100,
+    bom:[["PCB-2201","四層基板",480,"pcs","BAT-6620","足","t-ok"],["SLD-0090","無鉛錫膏",6,"罐","BAT-6631","足","t-ok"],["FLX-0012","助焊劑",4,"瓶","BAT-6640","足","t-ok"],["PIN-0303","連接針",1920,"pcs","BAT-6655","足","t-ok"]]},
+  {no:"MR-2408-0910",wo:"WO-58839",part:"感測器封裝件",qty:260,line:"PKG-C1",due:"08/13 16:45",owner:"黃柏諺",st:"待核發",stc:"t-info",prog:28,
+    bom:[["SEN-4400","MEMS 感測晶粒",260,"pcs","BAT-5510","足","t-ok"],["EPX-0120","封裝環氧樹脂",3,"組","BAT-5522","不足","t-bad"],["WIR-0071","金線",2,"軸","BAT-5533","足","t-ok"],["FRM-0208","導線框",260,"pcs","BAT-5544","足","t-ok"]]},
+  {no:"MR-2408-0909",wo:"WO-58838",part:"車用控制器外殼",qty:95,line:"ASM-D3",due:"08/14 09:00",owner:"吳承恩",st:"配料中",stc:"t-warn",prog:74,
+    bom:[["CAS-1102","鋁合金外殼",95,"pcs","BAT-4410","足","t-ok"],["SCR-0044","M3 螺絲",760,"pcs","BAT-4421","足","t-ok"],["GSK-0067","防水墊圈",95,"pcs","BAT-4432","足","t-ok"],["THM-0019","導熱膠",2,"支","BAT-4443","足","t-ok"]]},
+  {no:"MR-2408-0908",wo:"WO-58837",part:"光學鏡頭模組",qty:340,line:"OPT-E1",due:"08/14 11:20",owner:"蔡宜芳",st:"已核發",stc:"t-ok",prog:100,
+    bom:[["LEN-7700","非球面鏡片",340,"pcs","BAT-3310","足","t-ok"],["BAR-0055","鏡筒",340,"pcs","BAT-3321","足","t-ok"],["ADH-0088","光學膠",5,"支","BAT-3332","足","t-ok"],["IR-0102","紅外濾光片",340,"pcs","BAT-3343","足","t-ok"]]}
+];
+
+var SEQ=[
+  {step:"S1",mat:"矽晶圓 12吋",part:"WFR-3006",batch:"BAT-7781"},
+  {step:"S2",mat:"導線框",part:"FRM-0208",batch:"BAT-5544"},
+  {step:"S3",mat:"金線",part:"WIR-0071",batch:"BAT-5533"},
+  {step:"S4",mat:"封裝樹脂",part:"EPX-0120",batch:"BAT-5522"},
+  {step:"S5",mat:"批號標籤",part:"LBL-0033",batch:"BAT-7910"}
+];
+var POKA=[
+  {c:"g",ic:"check_circle",t:"料號核對通過",d:"WFR-3006 掃碼比對 BOM 一致"},
+  {c:"g",ic:"qr_code_scanner",t:"批號綁定成功",d:"BAT-5544 已鎖定至 WO-58839"},
+  {c:"y",ic:"schedule",t:"效期臨界提醒",d:"EPX-0120（BAT-5522）剩 6 天到期，建議先投"},
+  {c:"r",ic:"block",t:"投料順序攔截",d:"偵測 S4 早於 S3，已阻擋放行"}
+];
+
+var STATIONS=[
+  {n:"SMT-A1",v:1840,cap:2400},{n:"DIP-B2",v:2210,cap:2400},{n:"PKG-C1",v:640,cap:1800},
+  {n:"ASM-D3",v:1520,cap:2000},{n:"OPT-E1",v:980,cap:1600},{n:"TEST-F1",v:1360,cap:1800}
+];
+var WIPROWS=[
+  ["WFR-3006","矽晶圓 12吋","SMT-A1","BAT-7781",1840,"2026/09/12","正常","t-ok"],
+  ["PCB-2201","四層基板","DIP-B2","BAT-6620",2210,"2026/11/30","正常","t-ok"],
+  ["EPX-0120","封裝環氧樹脂","PKG-C1","BAT-5522",42,"2026/08/19","效期臨界","t-warn"],
+  ["SEN-4400","MEMS 感測晶粒","PKG-C1","BAT-5510",598,"2027/01/05","正常","t-ok"],
+  ["CAS-1102","鋁合金外殼","ASM-D3","BAT-4410",95,"—","正常","t-ok"],
+  ["LEN-7700","非球面鏡片","OPT-E1","BAT-3310",980,"2027/03/22","正常","t-ok"],
+  ["FLX-0012","助焊劑","DIP-B2","BAT-6640",1,"2026/08/15","呆滯 45 天","t-bad"]
+];
+
+var ALERTS=[
+  {lv:"hi",ic:"error",t:"封裝環氧樹脂缺料",part:"EPX-0120 · PKG-C1",d:"現量 42 組低於安全水位 120 組，預估 3.5 小時後停線，已通知倉庫補料。",num:"42",lbl:"現量/組",tag:["缺料停線風險","t-bad"]},
+  {lv:"md",ic:"warning",t:"批號標籤即將耗盡",part:"LBL-0033 · SMT-A1",d:"WO-58841 需 120 張，庫存 90 張，缺口 30 張，建議 60 分內補足。",num:"90",lbl:"現量/張",tag:["待補料","t-warn"]},
+  {lv:"md",ic:"hourglass_top",t:"助焊劑呆滯逾 45 天",part:"FLX-0012 · DIP-B2",d:"批號 BAT-6640 長期無領用且即將到期，建議降級或先進先出處理。",num:"45",lbl:"呆滯天",tag:["呆滯料","t-warn"]},
+  {lv:"lo",ic:"local_shipping",t:"金線到料延遲",part:"WIR-0071 · PKG-C1",d:"供應商出貨延後 4 小時，尚在安全庫存內，持續追蹤。",num:"4h",lbl:"延遲",tag:["追蹤中","t-info"]}
+];
+
+var TRACE=[
+  {tm:"09:41",h:"領料單核發",m:"MR-2408-0912 由物流工程陳品睿核發，配料至 SMT-A1"},
+  {tm:"10:02",h:"AMHS 搬運任務建立",m:"載具 AGV-07 承接，起點 倉庫WH-2 → 目的 SMT-A1"},
+  {tm:"10:18",h:"投料掃碼比對",m:"WFR-3006 / BAT-7781 掃碼通過防呆，綁定 WO-58841"},
+  {tm:"10:47",h:"投料順序攔截",m:"S4 早於 S3 被系統阻擋，物流工程重新排序後放行"},
+  {tm:"11:20",h:"在製庫存回沖",m:"SMT-A1 用量 120 pcs 回沖，剩餘 1840 pcs"},
+  {tm:"11:58",h:"短缺預警觸發",m:"EPX-0120 低於安全水位，通知倉庫並更新到位率"}
+];
+var AUDIT=[
+  ["AU-3391","投料料號錯誤","OPT-E1","高","已攔截","t-ok","蔡宜芳"],
+  ["AU-3390","批號未綁定","PKG-C1","中","已修正","t-ok","黃柏諺"],
+  ["AU-3389","投料順序異常","SMT-A1","高","已修正","t-ok","陳品睿"],
+  ["AU-3388","效期過期投入","DIP-B2","中","調查中","t-warn","林詠晴"],
+  ["AU-3387","數量短投","ASM-D3","低","已結案","t-mut","吳承恩"]
+];
+
+var chart=null, curReq=0;
+function disposeChart(){ if(chart){ try{chart.dispose();}catch(e){} chart=null; } }
+
+function s0(){
+  var list='';
+  REQS.forEach(function(r,i){
+    list+='<div class="wk-item'+(i===curReq?' sel':'')+'" data-req="'+i+'">'+
+      '<div class="r1"><span class="no">'+r.no+'</span><span class="tag '+r.stc+'">'+r.st+'</span></div>'+
+      '<div class="r2"><span>'+r.part+'</span><span class="mono">'+n(r.qty)+' 件</span></div>'+
+      '<div class="r2"><span>'+r.line+'</span><span>需求 '+r.due+'</span></div></div>';
+  });
+  var r=REQS[curReq];
+  var rows='';
+  r.bom.forEach(function(b){
+    rows+='<tr><td class="mono"><b>'+b[0]+'</b></td><td>'+b[1]+'</td><td class="mono">'+n(b[2])+' '+b[3]+'</td><td class="mono">'+b[4]+'</td><td><span class="tag '+b[6]+'">'+b[5]+'</span></td></tr>';
+  });
+  var detail='<div class="wk-detail">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">'+
+      '<div><div style="font-size:12px;color:var(--sub);font-weight:600">領料單</div><div style="font-size:19px;font-weight:800">'+r.no+'</div></div>'+
+      '<span class="tag '+r.stc+'" style="font-size:12px">'+r.st+'</span></div>'+
+    '<div class="dl">'+
+      '<div class="c"><div class="l">對應工單</div><div class="v mono">'+r.wo+'</div></div>'+
+      '<div class="c"><div class="l">投料產線</div><div class="v">'+r.line+'</div></div>'+
+      '<div class="c"><div class="l">需求時間</div><div class="v">'+r.due+'</div></div>'+
+      '<div class="c"><div class="l">負責人</div><div class="v">'+r.owner+'</div></div></div>'+
+    '<div style="margin:10px 0 4px;display:flex;justify-content:space-between;font-size:12px;font-weight:700"><span>配料進度</span><span class="mono">'+r.prog+'%</span></div>'+bar(r.prog)+
+    '<div style="font-size:13px;font-weight:800;margin:16px 0 8px;display:flex;align-items:center;gap:7px"><span class="ms" style="color:var(--accent);font-size:19px">list_alt</span>BOM 用料明細</div>'+
+    '<div class="scroll"><table><thead><tr><th>料號</th><th>品名</th><th>需求量</th><th>批號</th><th>庫存</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+  return '<div class="grid split">'+
+    '<div class="wk-list" id="wkList">'+
+      '<div style="font-size:12px;font-weight:800;color:var(--sub);padding:4px 6px 2px">今日領料單（'+REQS.length+'）</div>'+list+
+    '</div>'+detail+'</div>';
+}
+
+function s1(){
+  var seq='';
+  SEQ.forEach(function(s,i){
+    seq+='<div class="st"><span class="step">投料 '+s.step+'</span><div class="mat">'+s.mat+'</div>'+
+      '<div class="sub mono">'+s.part+'</div><div class="sub mono">'+s.batch+'</div></div>';
+    if(i<SEQ.length-1) seq+='<div class="arw"><span class="ms">arrow_forward</span></div>';
+  });
+  var pk='';
+  POKA.forEach(function(p){
+    pk+='<div class="p '+p.c+'"><div class="pic"><span class="ms">'+p.ic+'</span></div>'+
+      '<div class="txt"><b>'+p.t+'</b><div>'+p.d+'</div></div></div>';
+  });
+  return '<div class="grid kpis" style="margin-bottom:16px">'+
+      kpi("checklist","今日投料序列","24","筆","up","+3 vs 昨日")+
+      kpi("verified_user","防呆通過率","96.8","%","up","+1.4%")+
+      kpi("block","投料攔截","3","次","dn","已全數處理")+
+      kpi("bolt","平均放行耗時","42","秒","fl","穩定")+
+    '</div>'+
+    '<div class="card" style="margin-bottom:16px"><h3><span class="ms">low_priority</span>WO-58839 投料序列</h3>'+
+      '<div class="cap">依 BOM 規定順序投入，系統即時比對料號、批號並執行防呆</div>'+
+      '<div class="scroll"><div class="seq">'+seq+'</div></div></div>'+
+    '<div class="grid two"><div class="card"><h3><span class="ms">shield</span>防呆確認紀錄</h3><div class="cap">近 4 筆投料防呆結果</div><div class="poka">'+pk+'</div></div>'+
+      '<div class="card"><h3><span class="ms">bar_chart</span>各站防呆通過率</h3><div class="cap">今日投料防呆比對統計</div><div id="chart" class="chart"></div></div></div>';
+}
+
+function s2(){
+  return '<div class="grid kpis" style="margin-bottom:16px">'+
+      kpi("local_shipping","運行載具","7","台","fl","AGV/AMR")+
+      kpi("route","進行中搬運","12","筆","up","+2")+
+      kpi("timer","平均交期","6.4","分","dn","-0.8 分")+
+      kpi("swap_horiz","今日流轉次數","318","次","up","+41")+
+    '</div>'+
+    '<div class="grid three"><div class="card"><h3><span class="ms">account_tree</span>現場物料流轉路徑</h3>'+
+      '<div class="cap">倉庫 → 各投料站 → 測試 → 入庫 的搬運流量（Sankey）</div><div id="chart" class="chart" style="height:320px"></div></div>'+
+      '<div class="card"><h3><span class="ms">pin_drop</span>載具即時定位</h3><div class="cap">AMHS 搬運任務追蹤</div>'+
+        '<div class="tl">'+
+        '<div class="ev"><div class="tm">AGV-07 · 搬運中</div><div class="h">WH-2 → SMT-A1</div><div class="m">承載 WFR-3006 ×120，預計 3 分抵達</div></div>'+
+        '<div class="ev"><div class="tm">AMR-03 · 等待交接</div><div class="h">DIP-B2 緩衝區</div><div class="m">PCB-2201 ×480 待上線</div></div>'+
+        '<div class="ev"><div class="tm">AGV-11 · 回程</div><div class="h">PKG-C1 → WH-2</div><div class="m">回收空周轉箱 ×10</div></div>'+
+        '<div class="ev"><div class="tm">AMR-05 · 充電</div><div class="h">充電站 CS-1</div><div class="m">電量 34%，預計 20 分恢復</div></div>'+
+        '</div></div></div>';
+}
+
+function s3(){
+  var mtx='';
+  STATIONS.forEach(function(s){
+    var pct=s.cap? s.v/s.cap:0;
+    var col= pct>=0.85?'linear-gradient(135deg,#dc2626,#f87171)': pct>=0.6?'linear-gradient(135deg,#7c3aed,#a78bfa)':'linear-gradient(135deg,#2563eb,#60a5fa)';
+    mtx+='<div class="cell" style="background:'+col+'"><div class="n">'+s.n+'</div>'+
+      '<div><div class="v mono">'+n(s.v)+'</div><div class="u">/ '+n(s.cap)+' 上限（'+Math.round(pct*100)+'%）</div></div></div>';
+  });
+  var rows='';
+  WIPROWS.forEach(function(w){
+    rows+='<tr><td class="mono"><b>'+w[0]+'</b></td><td>'+w[1]+'</td><td>'+w[2]+'</td><td class="mono">'+w[3]+'</td><td class="mono">'+n(w[4])+'</td><td class="mono">'+w[5]+'</td><td><span class="tag '+w[7]+'">'+w[6]+'</span></td></tr>';
+  });
+  return '<div class="grid kpis" style="margin-bottom:16px">'+
+      kpi("inventory_2","在製總量","8,550","件","fl","6 站點")+
+      kpi("event_available","批號效期臨界","4","批","dn","需優先投用")+
+      kpi("hourglass_disabled","呆滯料","1","批","fl","逾 45 天")+
+      kpi("percent","庫存週轉","11.2","次/月","up","+0.6")+
+    '</div>'+
+    '<div class="card" style="margin-bottom:16px"><h3><span class="ms">grid_view</span>各站在製水位矩陣</h3>'+
+      '<div class="cap">顏色代表相對產能上限的水位比例</div><div class="scroll"><div class="mtx">'+mtx+'</div></div>'+
+      '<div class="legend"><span><i style="background:#2563eb"></i>偏低 &lt;60%</span><span><i style="background:#7c3aed"></i>正常 60–85%</span><span><i style="background:#dc2626"></i>偏高 ≥85%</span></div></div>'+
+    '<div class="card"><h3><span class="ms">table_rows</span>批號效期與呆滯明細</h3><div class="cap">依先進先出與效期監控</div>'+
+      '<div class="scroll"><table><thead><tr><th>料號</th><th>品名</th><th>站點</th><th>批號</th><th>在製量</th><th>效期</th><th>狀態</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+
+function s4(){
+  var al='';
+  ALERTS.forEach(function(a){
+    al+='<div class="alert '+a.lv+'"><div class="aic"><span class="ms">'+a.ic+'</span></div>'+
+      '<div class="ab"><div class="at">'+a.t+' <span class="tag '+a.tag[1]+'">'+a.tag[0]+'</span></div>'+
+      '<div class="ad">'+a.d+'</div><div class="ad mono" style="margin-top:4px;color:var(--accent);font-weight:700">'+a.part+'</div></div>'+
+      '<div class="ameta"><b class="mono">'+a.num+'</b>'+a.lbl+'</div></div>';
+  });
+  return '<div class="grid kpis" style="margin-bottom:16px">'+
+      kpi("crisis_alert","進行中預警","4","件","dn","1 高風險")+
+      kpi("schedule","物料及時到位率","92.4","%","up","+3.1%")+
+      kpi("dangerous","投料錯誤率","0.7","%","dn","-0.4%")+
+      kpi("front_hand","缺料停線","0.8","次/月","dn","目標 <1")+
+    '</div>'+
+    '<div class="grid three"><div class="card"><h3><span class="ms">notifications_active</span>缺料與短缺預警</h3><div class="cap">依風險等級由高至低排序</div><div class="alerts">'+al+'</div></div>'+
+      '<div class="card"><h3><span class="ms">water_drop</span>安全水位比對</h3><div class="cap">關鍵料號現量 vs 安全水位</div><div id="chart" class="chart" style="height:340px"></div></div></div>';
+}
+
+function s5(){
+  var tl='';
+  TRACE.forEach(function(t){
+    tl+='<div class="ev"><div class="tm">'+t.tm+'</div><div class="h">'+t.h+'</div><div class="m">'+t.m+'</div></div>';
+  });
+  var rows='';
+  AUDIT.forEach(function(a){
+    rows+='<tr><td class="mono"><b>'+a[0]+'</b></td><td>'+a[1]+'</td><td>'+a[2]+'</td><td>'+a[3]+'</td><td><span class="tag '+a[5]+'">'+a[4]+'</span></td><td>'+a[6]+'</td></tr>';
+  });
+  return '<div class="grid kpis" style="margin-bottom:16px">'+
+      kpi("fact_check","今日稽核","31","筆","up","+5")+
+      kpi("gpp_bad","投料錯誤攔截","3","次","fl","0 流入產線")+
+      kpi("history","可追溯履歷","100","%","fl","批號全綁定")+
+      kpi("task_alt","異常結案率","94","%","up","+2%")+
+    '</div>'+
+    '<div class="grid three"><div class="card"><h3><span class="ms">history_edu</span>WO-58841 物料履歷追溯</h3><div class="cap">領用到預警的完整流轉軌跡</div>'+
+      '<div class="tl">'+tl+'</div></div>'+
+      '<div class="card"><h3><span class="ms">pie_chart</span>投料異常類型分布</h3><div class="cap">近 30 日投料稽核統計</div><div id="chart" class="chart" style="height:280px"></div></div></div>'+
+    '<div class="card" style="margin-top:16px"><h3><span class="ms">rule_folder</span>投料稽核紀錄</h3><div class="cap">異常攔截與結案追蹤</div>'+
+      '<div class="scroll"><table><thead><tr><th>稽核編號</th><th>異常類型</th><th>站點</th><th>風險</th><th>狀態</th><th>負責人</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+
+function kpi(ic,l,v,u,dir,d){
+  var cls=dir==="up"?"up":dir==="dn"?"dn":"fl";
+  var arw=dir==="up"?"trending_up":dir==="dn"?"trending_down":"trending_flat";
+  return '<div class="kpi"><div class="k-ic"><span class="ms">'+ic+'</span></div>'+
+    '<div class="k-l">'+l+'</div><div class="k-v mono">'+v+' <small>'+u+'</small></div>'+
+    '<div class="k-d '+cls+'"><span class="ms" style="font-size:15px">'+arw+'</span>'+d+'</div></div>';
+}
+
+function initChart(i){
+  var box=document.getElementById("chart");
+  if(!box) return;
+  chart=echarts.init(box);
+  var opt=null;
+  if(i===1){
+    opt={grid:{left:36,right:14,top:20,bottom:26},
+      xAxis:{type:"category",data:["SMT-A1","DIP-B2","PKG-C1","ASM-D3","OPT-E1","TEST-F1"],axisLabel:{fontSize:10,color:"#6b6580"}},
+      yAxis:{type:"value",max:100,axisLabel:{formatter:"{value}%",color:"#6b6580"},splitLine:{lineStyle:{color:"#eee"}}},
+      tooltip:{trigger:"axis",valueFormatter:function(v){return v+"%";}},
+      series:[{type:"bar",data:[97,99,94,96,98,95],barWidth:"52%",itemStyle:{borderRadius:[6,6,0,0],color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:"#a78bfa"},{offset:1,color:"#7c3aed"}])}}]};
+  } else if(i===2){
+    opt={tooltip:{trigger:"item",triggerOn:"mousemove"},
+      series:[{type:"sankey",left:8,right:120,top:10,bottom:10,nodeWidth:14,nodeGap:12,
+        label:{fontSize:11,color:"#1e1b2e"},
+        lineStyle:{color:"gradient",opacity:.42,curveness:.5},
+        itemStyle:{color:"#7c3aed",borderColor:"#7c3aed"},
+        data:[{name:"倉庫 WH-2"},{name:"SMT-A1"},{name:"DIP-B2"},{name:"PKG-C1"},{name:"ASM-D3"},{name:"OPT-E1"},{name:"測試 TEST-F1"},{name:"入庫 FGI"}],
+        links:[
+          {source:"倉庫 WH-2",target:"SMT-A1",value:120},{source:"倉庫 WH-2",target:"DIP-B2",value:96},
+          {source:"倉庫 WH-2",target:"PKG-C1",value:64},{source:"倉庫 WH-2",target:"ASM-D3",value:38},
+          {source:"倉庫 WH-2",target:"OPT-E1",value:52},
+          {source:"SMT-A1",target:"測試 TEST-F1",value:110},{source:"DIP-B2",target:"測試 TEST-F1",value:90},
+          {source:"PKG-C1",target:"測試 TEST-F1",value:60},{source:"ASM-D3",target:"測試 TEST-F1",value:36},
+          {source:"OPT-E1",target:"測試 TEST-F1",value:50},{source:"測試 TEST-F1",target:"入庫 FGI",value:320}]}]};
+  } else if(i===4){
+    opt={grid:{left:66,right:24,top:20,bottom:34},
+      tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},
+      legend:{data:["現量","安全水位"],bottom:0,textStyle:{fontSize:11}},
+      xAxis:{type:"value",axisLabel:{color:"#6b6580"},splitLine:{lineStyle:{color:"#eee"}}},
+      yAxis:{type:"category",data:["EPX-0120","LBL-0033","WIR-0071","SLD-0090","WFR-3006"],axisLabel:{fontSize:10,color:"#6b6580"}},
+      series:[
+        {name:"安全水位",type:"bar",data:[120,120,3,8,150],barGap:"-100%",barWidth:"58%",itemStyle:{color:"#ece8f6",borderRadius:5}},
+        {name:"現量",type:"bar",data:[42,90,2,6,180],barWidth:"58%",itemStyle:{borderRadius:5,color:function(p){var s=[120,120,3,8,150];return p.value<s[p.dataIndex]?"#dc2626":"#7c3aed";}}}]};
+  } else if(i===5){
+    opt={tooltip:{trigger:"item",formatter:"{b}: {c} 件 ({d}%)"},
+      legend:{bottom:0,textStyle:{fontSize:11},itemWidth:10,itemHeight:10},
+      series:[{type:"pie",radius:["42%","70%"],center:["50%","44%"],avoidLabelOverlap:true,
+        itemStyle:{borderColor:"#fff",borderWidth:2,borderRadius:4},
+        label:{fontSize:11},
+        color:["#7c3aed","#a78bfa","#c4b5fd","#f59e0b","#dc2626"],
+        data:[{value:12,name:"料號錯誤"},{value:8,name:"批號未綁定"},{value:6,name:"順序異常"},{value:4,name:"效期問題"},{value:2,name:"數量短投"}]}]};
+  }
+  if(opt) chart.setOption(opt);
+}
+
+var RENDER=[s0,s1,s2,s3,s4,s5];
+function bindList(){
+  var lst=document.getElementById("wkList"); if(!lst) return;
+  lst.onclick=function(e){
+    var it=e.target.closest("[data-req]"); if(!it) return;
+    curReq=+it.getAttribute("data-req");
+    var b=document.getElementById("screen"); b.innerHTML=s0(); void b.offsetHeight; bindList();
+  };
+}
+function show(i){
+  i=Math.max(0,Math.min(RENDER.length-1,i));
+  disposeChart();
+  var nav=document.getElementById("nav").children;
+  for(var k=0;k<nav.length;k++) nav[k].classList.toggle("on",+nav[k].getAttribute("data-i")===i);
+  document.getElementById("ptt").textContent=MODS[i].tt;
+  document.getElementById("pts").textContent=MODS[i].ts;
+  var box=document.getElementById("screen");
+  box.innerHTML=RENDER[i]();
+  void box.offsetHeight;
+  if(i===0) bindList();
+  initChart(i);
+}
+
+(function(){
+  var nav=document.getElementById("nav");
+  MODS.forEach(function(m,i){
+    var b=document.createElement("button");
+    b.setAttribute("data-i",i);
+    b.innerHTML='<span class="ms">'+m.ic+'</span><span class="lbl">'+m.lbl+'</span><span class="idx">'+i+'</span>';
+    b.addEventListener("click",function(){ location.hash="go="+i; show(i); try{window.scrollTo(0,0);}catch(e){} });
+    nav.appendChild(b);
+  });
+  show(0);
+})();
+
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>

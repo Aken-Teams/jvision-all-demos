@@ -1,18 +1,593 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>訂單與庫存管理｜Jvision 系統 Demo</title>
-  <meta name="description" content="收貨到出貨的倉內作業與庫存精準管理" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>訂單與庫存管理｜WMS 倉儲管理 Demo</title>
+<meta name="description" content="收貨到出貨的倉內作業與庫存精準管理" />
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+:root{
+  --accent:#0891b2;--accent2:#22d3ee;--accent-d:#0e7490;
+  --ink:#0f2b33;--muted:#5b7681;--line:#dbe8ec;--bg:#eef4f6;--card:#ffffff;
+  --ok:#16a34a;--warn:#d97706;--bad:#dc2626;--info:#0284c7;
+  --shadow:0 1px 2px rgba(8,145,178,.06),0 8px 24px rgba(8,145,178,.08);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:"Inter","Noto Sans TC",system-ui,sans-serif;
+  background:var(--bg);color:var(--ink);
+  -webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5;
+}
+.msy{font-family:"Material Symbols Outlined";font-weight:400;font-style:normal;line-height:1;vertical-align:middle;-webkit-font-feature-settings:'liga';font-feature-settings:'liga'}
+.shell{display:flex;min-height:100vh}
+.shell>*{min-width:0}
+
+/* Sidebar rail */
+.side{
+  width:224px;flex:none;background:linear-gradient(180deg,#083344 0%,#0b4553 60%,#0e5566 100%);
+  color:#cdeff5;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.brand .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#062830;flex:none;box-shadow:0 6px 16px rgba(34,211,238,.35)}
+.brand .logo .msy{font-size:22px}
+.brand b{display:block;color:#fff;font-size:15px;font-weight:800;letter-spacing:.3px}
+.brand span{font-size:11px;color:#7fd4e3;letter-spacing:.5px}
+.nav{display:flex;flex-direction:column;gap:3px;padding:12px 10px;overflow:auto;flex:1;min-width:0}
+.nav button{
+  display:flex;align-items:center;gap:11px;width:100%;text-align:left;cursor:pointer;
+  background:transparent;border:0;color:#bfe6ee;padding:10px 12px;border-radius:11px;
+  font-family:inherit;font-size:13.5px;font-weight:600;transition:.15s;min-width:0;
+}
+.nav button .msy{font-size:20px;flex:none}
+.nav button .nt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.nav button small{display:block;font-size:10.5px;color:#6fb9c8;font-weight:500}
+.nav button:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav button.on{background:linear-gradient(135deg,var(--accent),var(--accent-d));color:#fff;box-shadow:0 8px 20px rgba(8,145,178,.4)}
+.nav button.on small{color:#d4f5fb}
+.sfoot{padding:12px 16px;border-top:1px solid rgba(255,255,255,.08);font-size:11px;color:#7fd4e3;display:flex;align-items:center;gap:8px}
+.sfoot .dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 0 0 rgba(52,211,153,.6);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.5)}70%{box-shadow:0 0 0 8px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+
+/* Main */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{
+  display:flex;align-items:center;gap:14px;padding:14px 22px;background:rgba(255,255,255,.85);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;flex-wrap:wrap;
+}
+.top h1{font-size:17px;margin:0;font-weight:800}
+.top .sub{font-size:12px;color:var(--muted);margin-top:1px}
+.top .spacer{flex:1;min-width:12px}
+.chipbar{display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;background:#e0f5fa;color:var(--accent-d);border:1px solid #b6e6f0;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:700}
+.chip .msy{font-size:15px}
+.wrap{padding:20px 22px 40px;max-width:1240px;width:100%}
+
+/* Generic */
+.g{display:grid;gap:14px}
+.kpis{grid-template-columns:repeat(4,1fr)}
+.k{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:15px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden;min-width:0}
+.k::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--accent),var(--accent2))}
+.k .lab{font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+.k .lab .msy{font-size:16px;color:var(--accent)}
+.k .val{font-size:26px;font-weight:900;letter-spacing:-.5px;margin-top:6px}
+.k .val small{font-size:13px;font-weight:700;color:var(--muted)}
+.k .delta{font-size:11.5px;font-weight:700;margin-top:4px}
+.up{color:var(--ok)}.down{color:var(--bad)}.flat{color:var(--muted)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);min-width:0}
+.card>.ch{display:flex;align-items:center;gap:9px;padding:14px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.card>.ch h3{margin:0;font-size:14.5px;font-weight:800}
+.card>.ch .msy{color:var(--accent);font-size:19px}
+.card>.ch .r{margin-left:auto;font-size:12px;color:var(--muted);font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.card>.cb{padding:14px 16px}
+
+.two{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
+.split{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;letter-spacing:.4px;color:var(--muted);text-transform:uppercase;font-weight:700;background:#f4fafb}
+tbody tr:hover{background:#f2fbfd}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
+.t-ok{background:#dcfce7;color:#15803d}.t-warn{background:#fef3c7;color:#b45309}.t-bad{background:#fee2e2;color:#b91c1c}.t-info{background:#e0f2fe;color:#0369a1}.t-mut{background:#eef2f4;color:#64748b}
+.bar{height:7px;border-radius:6px;background:#e6eef1;overflow:hidden;min-width:60px}
+.bar>i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.echart{width:100%;height:270px}
+.mini{font-size:11.5px;color:var(--muted)}
+
+/* Left list pane (signature split) */
+.lp{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;min-width:0}
+.lp .lph{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.lp .lph .msy{color:var(--accent)}
+.lp .lph b{font-size:13.5px;font-weight:800}
+.lp .lph .cnt{margin-left:auto;font-size:11px;background:#e0f5fa;color:var(--accent-d);padding:2px 8px;border-radius:999px;font-weight:700}
+.lrow{padding:11px 14px;border-bottom:1px solid #eef4f6;display:flex;flex-direction:column;gap:5px}
+.lrow:hover{background:#f2fbfd}
+.lrow.sel{background:linear-gradient(90deg,#e0f7fb,#f4fdff);box-shadow:inset 3px 0 0 var(--accent)}
+.lrow .t1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lrow .t1 b{font-size:13px;font-weight:800}
+.lrow .t1 .id{font-size:11px;color:var(--muted);font-family:Inter}
+.lrow .t2{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted)}
+
+/* Detail pane */
+.dp{display:flex;flex-direction:column;gap:14px;min-width:0}
+.dhead{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.dhead .dt b{font-size:17px;font-weight:900}
+.dhead .dt .m{font-size:12px;color:var(--muted);margin-top:2px}
+.dhead .r{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:7px 13px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:default;font-family:inherit}
+.btn.pri{background:linear-gradient(135deg,var(--accent),var(--accent-d));color:#fff;border-color:transparent}
+.btn .msy{font-size:16px}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.fact{background:#f6fbfc;border:1px solid var(--line);border-radius:12px;padding:11px 12px;min-width:0}
+.fact .l{font-size:11px;color:var(--muted);font-weight:600}
+.fact .v{font-size:16px;font-weight:800;margin-top:3px}
+
+/* checklist / steps */
+.steps{display:flex;flex-direction:column;gap:0}
+.stp{display:flex;gap:12px;padding:0 0 16px;position:relative}
+.stp:last-child{padding-bottom:0}
+.stp .dot{width:26px;height:26px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:15px;z-index:1}
+.stp .dot .msy{font-size:15px}
+.stp .dot.done{background:var(--ok);color:#fff}
+.stp .dot.now{background:var(--accent);color:#fff;box-shadow:0 0 0 4px rgba(8,145,178,.15)}
+.stp .dot.wait{background:#e2eef1;color:#8aa;border:1px solid var(--line)}
+.stp::before{content:"";position:absolute;left:12.5px;top:26px;bottom:0;width:2px;background:var(--line)}
+.stp:last-child::before{display:none}
+.stp .sc b{font-size:13.5px;font-weight:800}
+.stp .sc .m{font-size:11.5px;color:var(--muted);margin-top:2px}
+
+/* Putaway bin matrix */
+.binmap{display:grid;grid-template-columns:repeat(12,1fr);gap:6px;min-width:520px}
+.binmap .cell{aspect-ratio:1;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff}
+.binmap .cell span{opacity:.95}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+/* Wave board */
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start;min-width:640px}
+.col{background:#f5fafb;border:1px solid var(--line);border-radius:13px;padding:10px;min-width:0}
+.col>.h{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;margin-bottom:9px;padding:0 2px}
+.col>.h .n{margin-left:auto;background:#fff;border:1px solid var(--line);border-radius:999px;font-size:11px;padding:1px 8px;color:var(--muted)}
+.tk{background:#fff;border:1px solid var(--line);border-radius:11px;padding:10px;margin-bottom:9px;box-shadow:0 1px 2px rgba(8,145,178,.05)}
+.tk:last-child{margin-bottom:0}
+.tk .tkt{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800}
+.tk .tkm{font-size:11px;color:var(--muted);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap}
+.tk .pr{margin-left:auto;width:9px;height:9px;border-radius:50%;flex:none}
+.pr-h{background:var(--bad)}.pr-m{background:var(--warn)}.pr-l{background:var(--ok)}
+
+/* PDA scan */
+.pda{max-width:300px;margin:0 auto;background:#0b3d49;border-radius:26px;padding:14px;box-shadow:0 20px 40px rgba(6,40,48,.3)}
+.pda .scr{background:#0f2b33;border-radius:16px;padding:14px;color:#d6f6fb;font-family:Inter}
+.pda .scr .sh{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#7fd4e3;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:8px;margin-bottom:10px}
+.pda .beam{height:110px;border:2px dashed #22d3ee;border-radius:12px;position:relative;overflow:hidden;background:rgba(34,211,238,.06);display:flex;align-items:center;justify-content:center}
+.pda .beam .msy{font-size:46px;color:#22d3ee}
+.pda .beam::after{content:"";position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#22d3ee,transparent);top:6px;animation:scan 2.4s ease-in-out infinite}
+@keyframes scan{0%,100%{top:6px}50%{top:100px}}
+.pda .row{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.pda .row b{color:#fff}
+.pda .big{font-size:22px;font-weight:900;color:#22d3ee;text-align:center;margin:10px 0 4px}
+.scanlog{font-size:12.5px}
+.scanlog .r{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--line)}
+.scanlog .r:last-child{border:0}
+.scanlog .r .msy{font-size:17px;flex:none}
+.scanlog .r .tm{margin-left:auto;color:var(--muted);font-size:11px;flex:none}
+
+/* gauge row */
+.gz{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.two,.split{grid-template-columns:1fr}.gz{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:860px){
+  .shell{flex-direction:column}
+  .side{width:100%;height:auto;position:sticky;top:0;flex-direction:row;align-items:center;z-index:30}
+  .brand{border-bottom:0;border-right:1px solid rgba(255,255,255,.08);padding:12px 14px;flex:none}
+  .brand .txt{display:none}
+  .nav{flex-direction:row;overflow-x:auto;padding:8px;gap:6px;flex:1}
+  .nav button{flex:none;white-space:nowrap;width:auto;padding:8px 12px}
+  .nav button small{display:none}
+  .sfoot{display:none}
+  .facts{grid-template-columns:1fr}
+}
+@media(max-width:820px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:560px){
+  .nav button .nt{display:none}
+  .kpis{grid-template-columns:1fr 1fr}
+  .gz{grid-template-columns:1fr}
+  .wrap{padding:14px 12px 34px}
+  .top{padding:12px 14px}
+}
+.ovx{overflow-x:auto}
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo"><span class="msy">warehouse</span></div>
+      <div class="txt">
+        <b>StockFlow WMS</b>
+        <span>倉儲作業中控台</span>
+      </div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="sfoot"><span class="dot"></span> 系統連線正常 · 3 座庫區</div>
+  </aside>
+  <main class="main">
+    <header class="top">
+      <div>
+        <h1 id="scrT">收貨驗收</h1>
+        <div class="sub" id="scrS">到貨排程、卸貨與品項驗收</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="chipbar">
+        <span class="chip"><span class="msy">today</span> 2026/08/13 週四</span>
+        <span class="chip"><span class="msy">person</span> 倉管 · 陳庭宇</span>
+      </div>
+    </header>
+    <div class="wrap"><div id="view"></div></div>
+  </main>
+</div>
+<script>
+var MOD=[
+  {icon:"call_received",name:"收貨驗收",desc:"到貨排程、卸貨與品項驗收"},
+  {icon:"shelves",name:"智慧上架",desc:"依儲位策略指派上架任務"},
+  {icon:"grid_view",name:"儲位地圖",desc:"庫區庫容與儲位使用視覺化"},
+  {icon:"inventory",name:"庫存盤點",desc:"即時庫存、循環盤點與調撥"},
+  {icon:"conveyor_belt",name:"波次揀貨",desc:"訂單合批、揀貨路徑與覆核"},
+  {icon:"local_shipping",name:"出貨裝車",desc:"覆核封箱、裝車與庫存回寫"}
+];
+var view=document.getElementById('view');
+var _chart=null,_gauges=[];
+function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+function disposeChart(){ if(_chart){try{_chart.dispose();}catch(e){} _chart=null;} }
+function disposeGauges(){ _gauges.forEach(function(g){try{g.dispose();}catch(e){}}); _gauges=[]; }
+function tag(cls,txt){return '<span class="tag '+cls+'">'+esc(txt)+'</span>';}
+function kpi(icon,lab,val,sub,dir){
+  var d=dir==='up'?'delta up':dir==='down'?'delta down':'delta flat';
+  var arrow=dir==='up'?'▲ ':dir==='down'?'▼ ':'';
+  return '<div class="k"><div class="lab"><span class="msy">'+icon+'</span>'+esc(lab)+'</div>'+
+    '<div class="val">'+esc(val)+'</div>'+
+    '<div class="'+d+'">'+arrow+esc(sub)+'</div></div>';
+}
+function fact(l,v){return '<div class="fact"><div class="l">'+esc(l)+'</div><div class="v">'+esc(v)+'</div></div>';}
+function step(cls,t,m){
+  var ic=cls==='done'?'check':cls==='now'?'sync':'schedule';
+  return '<div class="stp"><div class="dot '+cls+'"><span class="msy">'+ic+'</span></div><div class="sc"><b>'+esc(t)+'</b><div class="m">'+esc(m)+'</div></div></div>';
+}
+function progrow(name,pct){
+  return '<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;margin-bottom:5px"><span>'+esc(name)+'</span><span>'+pct+'%</span></div><div class="bar"><i style="width:'+pct+'%"></i></div></div>';
+}
+function logrow(icon,color,txt,tm){
+  return '<div class="r"><span class="msy" style="color:'+color+'">'+icon+'</span><span>'+esc(txt)+'</span><span class="tm">'+esc(tm)+'</span></div>';
+}
+function n(v){return Number(v||0).toLocaleString();}
+
+/* ---------- SCREEN 0 : 收貨驗收 ---------- */
+var ASN=[
+  {id:"ASN-24081",sup:"和昌食品",eta:"08:30",items:12,qty:640,dock:"D1",st:"驗收中",cls:"t-info"},
+  {id:"ASN-24082",sup:"永盛紙器",eta:"09:10",items:8,qty:1200,dock:"D2",st:"待卸貨",cls:"t-warn"},
+  {id:"ASN-24083",sup:"綠源生鮮",eta:"09:40",items:20,qty:880,dock:"D3",st:"驗收中",cls:"t-info"},
+  {id:"ASN-24084",sup:"立群電子",eta:"10:20",items:5,qty:300,dock:"—",st:"待到貨",cls:"t-mut"},
+  {id:"ASN-24085",sup:"大同物流",eta:"07:50",items:16,qty:1520,dock:"D1",st:"已完成",cls:"t-ok"},
+  {id:"ASN-24086",sup:"欣揚包裝",eta:"11:00",items:9,qty:540,dock:"—",st:"待到貨",cls:"t-mut"}
+];
+var ASN_LINES=[
+  {sku:"SKU-88012",name:"有機燕麥片 500g",po:120,rcv:120,st:"合格",cls:"t-ok"},
+  {sku:"SKU-88104",name:"冷壓橄欖油 1L",po:80,rcv:78,st:"短溢 2",cls:"t-warn"},
+  {sku:"SKU-88220",name:"手工蘇打餅 300g",po:200,rcv:200,st:"合格",cls:"t-ok"},
+  {sku:"SKU-88345",name:"堅果綜合罐 250g",po:60,rcv:60,st:"合格",cls:"t-ok"},
+  {sku:"SKU-88401",name:"氣泡礦泉水 6入",po:180,rcv:172,st:"破損 8",cls:"t-bad"}
+];
+function s0(){
+  var rows=ASN.map(function(a,i){
+    return '<div class="lrow'+(i===0?' sel':'')+'">'+
+      '<div class="t1"><b>'+esc(a.sup)+'</b><span class="id">'+esc(a.id)+'</span>'+tag(a.cls,a.st)+'</div>'+
+      '<div class="t2"><span class="msy" style="font-size:14px">schedule</span>ETA '+esc(a.eta)+' · 月台 '+esc(a.dock)+' · '+a.items+' 品項 / '+n(a.qty)+' 件</div>'+
+      '</div>';
+  }).join('');
+  var lines=ASN_LINES.map(function(l){
+    var rate=Math.round(l.rcv/l.po*100);
+    return '<tr><td><b>'+esc(l.name)+'</b><div class="mini">'+esc(l.sku)+'</div></td>'+
+      '<td class="num">'+l.po+'</td><td class="num">'+l.rcv+'</td>'+
+      '<td><div class="bar" style="width:90px"><i style="width:'+Math.min(rate,100)+'%"></i></div></td>'+
+      '<td>'+tag(l.cls,l.st)+'</td></tr>';
+  }).join('');
+  view.innerHTML=
+    '<div class="g kpis" style="margin-bottom:14px">'+
+      kpi("today","今日到貨單","6","4 待處理","flat")+
+      kpi("inventory_2","應收件數","5,080","件","flat")+
+      kpi("verified","驗收合格率","96.4%","+1.2% 週比","up")+
+      kpi("report","異常品項","3","短溢／破損","down")+
+    '</div>'+
+    '<div class="split">'+
+      '<div class="lp"><div class="lph"><span class="msy">receipt_long</span><b>到貨收貨佇列</b><span class="cnt">6 單</span></div>'+rows+'</div>'+
+      '<div class="dp">'+
+        '<div class="card"><div class="cb">'+
+          '<div class="dhead"><div class="dt"><b>和昌食品 · ASN-24081</b><div class="m">供應商到貨 · 月台 D1 · 收貨員 陳庭宇</div></div>'+
+            '<div class="r"><span class="btn"><span class="msy">qr_code_scanner</span>掃碼點收</span><span class="btn pri"><span class="msy">check</span>完成驗收</span></div></div>'+
+          '<div class="facts" style="margin-top:14px">'+fact("品項進度","6 / 12")+fact("已收件數","342 / 640")+fact("異常","2 項")+'</div>'+
+        '</div></div>'+
+        '<div class="card"><div class="ch"><span class="msy">fact_check</span><h3>驗收明細</h3><div class="r">PO-77120 · 差異自動比對</div></div>'+
+          '<div class="cb ovx"><table><thead><tr><th>品項</th><th class="num">應收</th><th class="num">實收</th><th>達成</th><th>狀態</th></tr></thead><tbody>'+lines+'</tbody></table></div></div>'+
+      '</div>'+
+    '</div>';
+}
+
+/* ---------- SCREEN 1 : 智慧上架 ---------- */
+var PUT=[
+  {id:"PT-5501",sku:"SKU-88012",name:"有機燕麥片 500g",qty:120,to:"A-03-12",st:"進行中",cls:"t-info"},
+  {id:"PT-5502",sku:"SKU-88220",name:"手工蘇打餅 300g",qty:200,to:"B-06-04",st:"待上架",cls:"t-warn"},
+  {id:"PT-5503",sku:"SKU-88345",name:"堅果綜合罐 250g",qty:60,to:"A-01-08",st:"待上架",cls:"t-warn"},
+  {id:"PT-5504",sku:"SKU-88104",name:"冷壓橄欖油 1L",qty:78,to:"C-02-15",st:"已完成",cls:"t-ok"},
+  {id:"PT-5505",sku:"SKU-88900",name:"即溶咖啡條 20入",qty:300,to:"A-04-02",st:"待上架",cls:"t-warn"}
+];
+function s1(){
+  var rows=PUT.map(function(p,i){
+    return '<div class="lrow'+(i===0?' sel':'')+'">'+
+      '<div class="t1"><b>'+esc(p.to)+'</b><span class="id">'+esc(p.id)+'</span>'+tag(p.cls,p.st)+'</div>'+
+      '<div class="t2"><span class="msy" style="font-size:14px">inventory_2</span>'+esc(p.name)+' · '+p.qty+' 件</div>'+
+      '</div>';
+  }).join('');
+  view.innerHTML=
+    '<div class="g kpis" style="margin-bottom:14px">'+
+      kpi("assignment","上架任務","5","3 待上架","flat")+
+      kpi("bolt","平均上架時效","4.2 分","每任務","up")+
+      kpi("route","省下走行","32%","路徑優化","up")+
+      kpi("shelves","揀貨面補","78%","覆蓋率","up")+
+    '</div>'+
+    '<div class="split">'+
+      '<div class="lp"><div class="lph"><span class="msy">assignment</span><b>上架任務指派</b><span class="cnt">5 筆</span></div>'+rows+'</div>'+
+      '<div class="dp">'+
+        '<div class="card"><div class="cb">'+
+          '<div class="dhead"><div class="dt"><b>PT-5501 · 有機燕麥片 500g</b><div class="m">建議儲位 A-03-12 · 策略：就近熱區</div></div>'+
+            '<div class="r"><span class="btn"><span class="msy">swap_horiz</span>改指派</span><span class="btn pri"><span class="msy">qr_code_2</span>掃碼入位</span></div></div>'+
+          '<div class="facts" style="margin-top:14px">'+fact("來源","收貨區 R-02")+fact("目的儲位","A-03-12")+fact("上架量","120 件")+'</div>'+
+          '<div class="steps" style="margin-top:16px">'+
+            step("done","取貨掃碼","已於 08:41 取自 R-02")+
+            step("now","移動至 A 區","建議路徑 · 距離 46m")+
+            step("wait","入位掃碼確認","掃儲位條碼完成上架")+
+          '</div>'+
+        '</div></div>'+
+        '<div class="card"><div class="ch"><span class="msy">insights</span><h3>各庫區上架負載</h3><div class="r">今日累計</div></div>'+
+          '<div class="cb"><div id="c1" class="echart"></div></div></div>'+
+      '</div>'+
+    '</div>';
+  void view.offsetHeight;
+  disposeChart();_chart=echarts.init(document.getElementById('c1'));
+  _chart.setOption({
+    grid:{left:40,right:14,top:24,bottom:28},
+    tooltip:{trigger:'axis'},
+    legend:{data:['已上架','待上架'],right:0,top:0,textStyle:{fontSize:11}},
+    xAxis:{type:'category',data:['A 區','B 區','C 區','D 區','E 區'],axisLine:{lineStyle:{color:'#cbd8dc'}},axisLabel:{color:'#5b7681'}},
+    yAxis:{type:'value',splitLine:{lineStyle:{color:'#eef4f6'}},axisLabel:{color:'#5b7681'}},
+    color:['#0891b2','#22d3ee'],
+    series:[
+      {name:'已上架',type:'bar',stack:'t',barWidth:24,data:[86,62,40,55,28]},
+      {name:'待上架',type:'bar',stack:'t',barWidth:24,data:[14,38,20,10,12],itemStyle:{borderRadius:[4,4,0,0]}}
+    ]
+  });
+}
+
+/* ---------- SCREEN 2 : 儲位地圖 ---------- */
+function s2(){
+  var colors=['#dc2626','#ea580c','#d97706','#0891b2','#22d3ee','#67e8f9','#e6eef1'];
+  var util=[92,80,60,45,30,15,0];
+  function pick(v){for(var i=0;i<util.length;i++){if(v>=util[i])return i;}return colors.length-1;}
+  var zones=['A','B','C'];
+  var vals=[95,90,88,60,55,40,35,20,15,80,72,66,50,44,33,25,18,10,93,85,70,62,48,30,22,14,8,78,64,52,46,38,12,5,68,58];
+  var cells='';
+  for(var i=0;i<48;i++){
+    var v=vals[i%vals.length];var ci=pick(v);
+    var lbl=zones[Math.floor(i/16)%3]+'-'+String((i%16)+1).padStart(2,'0');
+    cells+='<div class="cell" style="background:'+colors[ci]+'" title="'+lbl+' 使用率 '+v+'%"><span>'+v+'</span></div>';
+  }
+  view.innerHTML=
+    '<div class="g kpis" style="margin-bottom:14px">'+
+      kpi("grid_view","總儲位","1,440","格位","flat")+
+      kpi("pie_chart","整體庫容","68.4%","使用率","flat")+
+      kpi("warning","飽和儲位","46","≥ 90% 使用","down")+
+      kpi("event_available","可用空位","312","格位","up")+
+    '</div>'+
+    '<div class="two">'+
+      '<div class="card"><div class="ch"><span class="msy">grid_view</span><h3>A/B/C 庫區儲位熱度圖</h3><div class="r">深色＝高使用率</div></div>'+
+        '<div class="cb"><div class="ovx"><div class="binmap">'+cells+'</div></div>'+
+        '<div class="legend"><span><i style="background:#dc2626"></i>≥ 90% 飽和</span><span><i style="background:#d97706"></i>60–90% 偏高</span><span><i style="background:#0891b2"></i>30–60% 適中</span><span><i style="background:#67e8f9"></i>&lt; 30% 低量</span><span><i style="background:#e6eef1"></i>空位</span></div>'+
+        '</div></div>'+
+      '<div class="card"><div class="ch"><span class="msy">donut_small</span><h3>各庫區庫容占比</h3></div>'+
+        '<div class="cb"><div id="c2" class="echart" style="height:300px"></div></div></div>'+
+    '</div>';
+  void view.offsetHeight;
+  disposeChart();_chart=echarts.init(document.getElementById('c2'));
+  _chart.setOption({
+    tooltip:{trigger:'item',formatter:'{b}: {c}%'},
+    legend:{bottom:0,textStyle:{fontSize:11}},
+    color:['#0891b2','#22d3ee','#0e7490','#67e8f9','#155e75'],
+    series:[{
+      type:'pie',radius:['42%','70%'],center:['50%','44%'],
+      avoidLabelOverlap:true,
+      label:{formatter:'{b}\n{d}%',fontSize:11},
+      data:[
+        {name:'A 區 常溫',value:82},{name:'B 區 高架',value:71},
+        {name:'C 區 重物',value:64},{name:'D 區 冷藏',value:58},{name:'E 區 退貨',value:33}
+      ]
+    }]
+  });
+}
+
+/* ---------- SCREEN 3 : 庫存盤點 ---------- */
+var INV=[
+  {sku:"SKU-88012",name:"有機燕麥片 500g",book:1240,avail:1080,resv:160,loc:"A-03-12",st:"正常",cls:"t-ok"},
+  {sku:"SKU-88104",name:"冷壓橄欖油 1L",book:640,avail:120,resv:60,loc:"C-02-15",st:"低於安全",cls:"t-warn"},
+  {sku:"SKU-88220",name:"手工蘇打餅 300g",book:1980,avail:1740,resv:240,loc:"B-06-04",st:"正常",cls:"t-ok"},
+  {sku:"SKU-88345",name:"堅果綜合罐 250g",book:340,avail:0,resv:0,loc:"A-01-08",st:"缺貨",cls:"t-bad"},
+  {sku:"SKU-88401",name:"氣泡礦泉水 6入",book:2260,avail:2010,resv:250,loc:"B-02-09",st:"正常",cls:"t-ok"},
+  {sku:"SKU-88900",name:"即溶咖啡條 20入",book:880,avail:640,resv:240,loc:"A-04-02",st:"帳差 -8",cls:"t-warn"}
+];
+function s3(){
+  var rows=INV.map(function(v){
+    return '<tr><td><b>'+esc(v.name)+'</b><div class="mini">'+esc(v.sku)+' · '+esc(v.loc)+'</div></td>'+
+      '<td class="num">'+n(v.book)+'</td><td class="num">'+n(v.avail)+'</td><td class="num">'+n(v.resv)+'</td>'+
+      '<td>'+tag(v.cls,v.st)+'</td></tr>';
+  }).join('');
+  view.innerHTML=
+    '<div class="g kpis" style="margin-bottom:14px">'+
+      kpi("inventory","總 SKU","1,286","品項","flat")+
+      kpi("check_circle","盤點準確率","99.2%","本月","up")+
+      kpi("warning","低於安全庫存","24","SKU","down")+
+      kpi("swap_vert","今日調撥","17","筆","flat")+
+    '</div>'+
+    '<div class="two">'+
+      '<div class="card"><div class="ch"><span class="msy">inventory_2</span><h3>即時庫存與可用量</h3><div class="r"><span class="btn"><span class="msy">download</span>匯出</span><span class="btn pri"><span class="msy">fact_check</span>建立盤點</span></div></div>'+
+        '<div class="cb ovx"><table><thead><tr><th>品項</th><th class="num">帳面</th><th class="num">可用</th><th class="num">保留</th><th>狀態</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+      '<div class="dp">'+
+        '<div class="card"><div class="ch"><span class="msy">donut_large</span><h3>循環盤點進度</h3><div class="r">A/B/C 區</div></div>'+
+          '<div class="cb"><div class="gz">'+gz("g3a","A 區")+gz("g3b","B 區")+gz("g3c","C 區")+'</div></div></div>'+
+        '<div class="card"><div class="ch"><span class="msy">difference</span><h3>本日帳差調整</h3></div>'+
+          '<div class="cb ovx"><table><thead><tr><th>品項</th><th>類型</th><th class="num">差異</th><th>處理</th></tr></thead><tbody>'+
+          '<tr><td>即溶咖啡條 20入</td><td>'+tag("t-warn","盤盈缺")+'</td><td class="num" style="color:#dc2626">-8</td><td>'+tag("t-info","已調整")+'</td></tr>'+
+          '<tr><td>冷壓橄欖油 1L</td><td>'+tag("t-warn","破損報廢")+'</td><td class="num" style="color:#dc2626">-3</td><td>'+tag("t-info","已調整")+'</td></tr>'+
+          '<tr><td>堅果綜合罐 250g</td><td>'+tag("t-ok","盤盈")+'</td><td class="num" style="color:#15803d">+5</td><td>'+tag("t-mut","待覆核")+'</td></tr>'+
+          '</tbody></table></div></div>'+
+      '</div>'+
+    '</div>';
+  void view.offsetHeight;
+  disposeGauges();
+  gaugeInit('g3a',86);gaugeInit('g3b',62);gaugeInit('g3c',41);
+}
+function gz(id,name){return '<div style="text-align:center"><div id="'+id+'" style="height:130px"></div><div class="mini" style="margin-top:-6px;font-weight:700;color:var(--ink)">'+esc(name)+'</div></div>';}
+function gaugeInit(id,val){
+  var g=echarts.init(document.getElementById(id));_gauges.push(g);
+  g.setOption({
+    series:[{type:'gauge',startAngle:210,endAngle:-30,radius:'100%',center:['50%','58%'],
+      progress:{show:true,width:9,itemStyle:{color:'#0891b2'}},
+      axisLine:{lineStyle:{width:9,color:[[1,'#e6eef1']]}},
+      axisTick:{show:false},splitLine:{show:false},axisLabel:{show:false},pointer:{show:false},anchor:{show:false},
+      detail:{valueAnimation:false,fontSize:20,fontWeight:800,color:'#0f2b33',offsetCenter:[0,'0%'],formatter:'{value}%'},
+      data:[{value:val}]}]
+  });
+}
+
+/* ---------- SCREEN 4 : 波次揀貨 (kanban) ---------- */
+function s4(){
+  function col(title,icon,cnt,items){
+    return '<div class="col"><div class="h"><span class="msy" style="font-size:17px;color:var(--accent)">'+icon+'</span>'+esc(title)+'<span class="n">'+cnt+'</span></div>'+items+'</div>';
+  }
+  function tk(t,wave,lines,pr){
+    var prc=pr==='高'?'pr-h':pr==='中'?'pr-m':'pr-l';
+    return '<div class="tk"><div class="tkt">'+esc(t)+'<span class="pr '+prc+'"></span></div>'+
+      '<div class="tkm"><span>'+esc(wave)+'</span><span>'+lines+' 行</span><span>優先 '+esc(pr)+'</span></div></div>';
+  }
+  view.innerHTML=
+    '<div class="g kpis" style="margin-bottom:14px">'+
+      kpi("conveyor_belt","進行波次","4","波","flat")+
+      kpi("list_alt","待揀訂單","128","張","flat")+
+      kpi("speed","揀貨時效","41 秒","每行","up")+
+      kpi("verified_user","覆核通過率","98.6%","本班","up")+
+    '</div>'+
+    '<div class="card"><div class="ch"><span class="msy">view_kanban</span><h3>揀貨波次看板</h3><div class="r">合批 → 揀貨 → 覆核 → 待出</div></div>'+
+      '<div class="cb ovx"><div class="board">'+
+        col('合批待放','inbox',3,tk('W-3101','電商小件 · 早班','24','高')+tk('W-3102','門市補貨 · 早班','38','中')+tk('W-3103','大宗批發','16','低'))+
+        col('揀貨中','conveyor_belt',2,tk('W-3098','電商小件','30','高')+tk('W-3099','冷藏專區','12','高'))+
+        col('覆核封箱','fact_check',2,tk('W-3095','電商小件','28','中')+tk('W-3096','門市補貨','44','中'))+
+        col('待出貨','local_shipping',2,tk('W-3092','電商小件','22','高')+tk('W-3093','大宗批發','18','低'))+
+      '</div></div></div>'+
+    '<div class="two" style="margin-top:14px">'+
+      '<div class="card"><div class="ch"><span class="msy">timeline</span><h3>每小時揀貨行數</h3></div><div class="cb"><div id="c4" class="echart"></div></div></div>'+
+      '<div class="card"><div class="ch"><span class="msy">flag</span><h3>波次進度</h3></div><div class="cb">'+
+        progrow('W-3098 電商小件',82)+progrow('W-3099 冷藏專區',64)+progrow('W-3095 電商小件',96)+progrow('W-3096 門市補貨',48)+
+      '</div></div>'+
+    '</div>';
+  void view.offsetHeight;
+  disposeChart();_chart=echarts.init(document.getElementById('c4'));
+  _chart.setOption({
+    grid:{left:42,right:14,top:22,bottom:28},
+    tooltip:{trigger:'axis'},
+    xAxis:{type:'category',data:['08','09','10','11','12','13','14'],boundaryGap:false,axisLine:{lineStyle:{color:'#cbd8dc'}},axisLabel:{color:'#5b7681'}},
+    yAxis:{type:'value',splitLine:{lineStyle:{color:'#eef4f6'}},axisLabel:{color:'#5b7681'}},
+    series:[{type:'line',smooth:true,data:[120,186,240,205,90,168,222],
+      areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(34,211,238,.4)'},{offset:1,color:'rgba(34,211,238,0)'}])},
+      lineStyle:{width:3,color:'#0891b2'},itemStyle:{color:'#0891b2'},symbolSize:6}]
+  });
+}
+
+/* ---------- SCREEN 5 : 出貨裝車 (PDA scan) ---------- */
+var SHIP=[
+  {id:"SO-90211",dest:"台北 內湖倉",car:"車趟 A · 09:30",boxes:14,wt:"186kg",st:"裝車中",cls:"t-info"},
+  {id:"SO-90212",dest:"新竹 竹北店",car:"車趟 A · 09:30",boxes:8,wt:"94kg",st:"待裝車",cls:"t-warn"},
+  {id:"SO-90213",dest:"台中 西屯倉",car:"車趟 B · 11:00",boxes:22,wt:"310kg",st:"覆核中",cls:"t-mut"},
+  {id:"SO-90214",dest:"高雄 前鎮店",car:"車趟 C · 14:00",boxes:11,wt:"142kg",st:"已封箱",cls:"t-ok"}
+];
+function s5(){
+  var rows=SHIP.map(function(s){
+    return '<tr><td><b>'+esc(s.id)+'</b><div class="mini">'+esc(s.dest)+'</div></td>'+
+      '<td>'+esc(s.car)+'</td><td class="num">'+s.boxes+'</td><td class="num">'+esc(s.wt)+'</td><td>'+tag(s.cls,s.st)+'</td></tr>';
+  }).join('');
+  view.innerHTML=
+    '<div class="g kpis" style="margin-bottom:14px">'+
+      kpi("local_shipping","今日出貨單","32","張","flat")+
+      kpi("inventory_2","出貨件數","4,860","件","flat")+
+      kpi("schedule","準時出貨率","97.8%","+0.6%","up")+
+      kpi("sync_alt","庫存回寫","即時","ERP 同步","up")+
+    '</div>'+
+    '<div class="split">'+
+      '<div class="card"><div class="cb">'+
+        '<div class="dhead" style="margin-bottom:12px"><div class="dt"><b>裝車覆核掃碼</b><div class="m">出貨確認後自動回寫庫存與履約紀錄</div></div></div>'+
+        '<div class="pda"><div class="scr">'+
+          '<div class="sh"><span>PDA · 覆核</span><span>SO-90211</span></div>'+
+          '<div class="beam"><span class="msy">qr_code_scanner</span></div>'+
+          '<div class="big">12 / 14 箱</div>'+
+          '<div class="row"><span>目的地</span><b>台北 內湖倉</b></div>'+
+          '<div class="row"><span>當前箱號</span><b>BX-00012</b></div>'+
+          '<div class="row"><span>品項比對</span><b style="color:#34d399">✓ 相符</b></div>'+
+          '<div class="row" style="border:0"><span>車趟</span><b>A · 09:30</b></div>'+
+        '</div></div>'+
+      '</div></div>'+
+      '<div class="dp">'+
+        '<div class="card"><div class="ch"><span class="msy">list_alt</span><h3>出貨與裝車清單</h3><div class="r"><span class="btn pri"><span class="msy">check_circle</span>確認出貨</span></div></div>'+
+          '<div class="cb ovx"><table><thead><tr><th>出貨單</th><th>車趟</th><th class="num">箱數</th><th class="num">重量</th><th>狀態</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+        '<div class="card"><div class="ch"><span class="msy">history</span><h3>即時作業紀錄</h3></div>'+
+          '<div class="cb"><div class="scanlog">'+
+            logrow("check_circle","#16a34a","SO-90214 出貨確認 · 庫存回寫 -142 件","09:12")+
+            logrow("qr_code_scanner","#0891b2","SO-90211 掃碼裝車 BX-00012","09:08")+
+            logrow("inventory","#0284c7","SKU-88012 庫存異動 1,240 → 1,120","09:05")+
+            logrow("local_shipping","#d97706","車趟 A 指派 2 張出貨單","08:55")+
+          '</div></div></div>'+
+      '</div>'+
+    '</div>';
+}
+
+/* ---------- nav / router ---------- */
+var SCREENS=[s0,s1,s2,s3,s4,s5];
+function buildNav(){
+  var h=MOD.map(function(m,i){
+    return '<button data-i="'+i+'"><span class="msy">'+m.icon+'</span><span class="nt">'+esc(m.name)+'<small>'+esc(m.desc)+'</small></span></button>';
+  }).join('');
+  document.getElementById('nav').innerHTML=h;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-i]'),function(b){
+    b.addEventListener('click',function(){show(+b.getAttribute('data-i'));});
+  });
+}
+function show(i){
+  i=Math.max(0,Math.min(i,SCREENS.length-1));
+  disposeGauges();disposeChart();
+  document.getElementById('scrT').textContent=MOD[i].name;
+  document.getElementById('scrS').textContent=MOD[i].desc;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-i]'),function(b){
+    b.classList.toggle('on',+b.getAttribute('data-i')===i);
+  });
+  SCREENS[i]();
+}
+buildNav();
+show(0);
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>

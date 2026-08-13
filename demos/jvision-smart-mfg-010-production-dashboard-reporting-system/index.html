@@ -1,18 +1,251 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>生產報表看板系統（Production Dashboard/Reporting System）｜Jvision 系統 Demo</title>
-  <meta name="description" content="訂單到入庫的製造現場全流程數位化" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>生產報表看板系統（Production Dashboard/Reporting System）｜Jvision 系統 Demo</title>
+<meta name="description" content="訂單到入庫的製造現場全流程數位化（純 UI 展示）。" />
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{ --red:#dc2626; --red-d:#b91c1c; --org:#f97316; --ink:#18181b; --body:#3f3f46; --muted:#71717a; --line:#e7e5e4; --bg:#f5f5f4; --pnl:#fff; --green:#16a34a; --amber:#d97706; --sky:#0284c7; }
+  *{ box-sizing:border-box; } html,body{ margin:0; }
+  body{ font-family:Inter,"Noto Sans TC","Microsoft JhengHei",sans-serif; background:var(--bg); color:var(--body); -webkit-font-smoothing:antialiased; }
+  .material-symbols-outlined{ font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+  .shell{ display:grid; grid-template-columns:238px 1fr; min-height:100vh; }
+  .shell>*{ min-width:0; }
+  .side{ background:linear-gradient(180deg,#1c1917,#292524); color:#e7e5e4; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; min-width:0; }
+  .brand{ padding:20px 18px; display:flex; align-items:center; gap:11px; border-bottom:1px solid rgba(255,255,255,.08); }
+  .brand .lg{ width:42px; height:42px; border-radius:12px; background:linear-gradient(135deg,var(--red),var(--org)); color:#fff; display:grid; place-content:center; flex:none; }
+  .brand b{ color:#fff; font-size:15px; display:block; } .brand small{ color:#a8a29e; font-size:11px; }
+  .nav{ flex:1; padding:14px 12px; display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .nav .t{ font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:#78716c; padding:10px 12px 6px; }
+  .nav button{ display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:none; border:0; color:#d6d3d1; font:inherit; font-size:14px; font-weight:600; padding:11px 12px; border-radius:11px; cursor:pointer; white-space:nowrap; }
+  .nav button .material-symbols-outlined{ font-size:21px; color:#a8a29e; flex:none; }
+  .nav button:hover{ background:rgba(255,255,255,.06); } .nav button.on{ background:linear-gradient(135deg,var(--red),var(--org)); color:#fff; } .nav button.on .material-symbols-outlined{ color:#fff; }
+  .side-f{ padding:16px; border-top:1px solid rgba(255,255,255,.08); }
+  .shift{ font-size:11px; color:#a8a29e; } .shift b{ color:#fff; font-size:15px; display:block; margin-bottom:2px; }
+  .live{ display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:800; color:#fca5a5; margin-top:8px; }
+  .live .dot{ width:8px; height:8px; border-radius:50%; background:var(--red); animation:pulse 1.6s infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:1; box-shadow:0 0 0 0 rgba(220,38,38,.5);} 50%{ opacity:.5; box-shadow:0 0 0 6px rgba(220,38,38,0);} }
+  .main{ min-width:0; }
+  .top{ position:sticky; top:0; z-index:10; background:#fff; border-bottom:1px solid var(--line); padding:14px 26px; display:flex; align-items:center; gap:16px; }
+  .top h1{ margin:0; font-size:19px; font-weight:900; color:var(--ink); } .top .sub{ font-size:12px; color:var(--muted); }
+  .top .r{ margin-left:auto; display:flex; align-items:center; gap:12px; }
+  .pill{ display:inline-flex; align-items:center; gap:6px; background:#fef2f2; color:var(--red); border:1px solid #fecaca; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:800; }
+  .ava{ width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--red),var(--org)); color:#fff; font-weight:800; display:grid; place-content:center; flex:none; }
+  .body{ padding:22px 26px 44px; }
+  .vh{ display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:18px; flex-wrap:wrap; } .vh h2{ margin:0; font-size:21px; font-weight:900; color:var(--ink); } .vh p{ margin:3px 0 0; font-size:13px; color:var(--muted); }
+  .btn{ display:inline-flex; align-items:center; gap:6px; height:38px; padding:0 15px; border-radius:10px; border:0; background:var(--red); color:#fff; font:inherit; font-weight:800; font-size:13px; cursor:pointer; } .btn.ghost{ background:#fff; color:var(--red); border:1px solid var(--line); } .btn .material-symbols-outlined{ font-size:18px; }
+  .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:20px; } .kpis>*{ min-width:0; }
+  .kpi{ background:var(--pnl); border:1px solid var(--line); border-radius:16px; padding:16px 18px; position:relative; overflow:hidden; } .kpi::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:linear-gradient(180deg,var(--red),var(--org)); }
+  .kpi .l{ font-size:12px; font-weight:700; color:var(--muted); display:flex; gap:6px; align-items:center; } .kpi .l .material-symbols-outlined{ font-size:18px; color:var(--red); } .kpi .v{ font-size:27px; font-weight:900; color:var(--ink); margin-top:6px; } .kpi .v small{ font-size:13px; color:var(--muted); font-weight:700; } .kpi .d{ font-size:12px; font-weight:800; margin-top:4px; } .kpi .d.up{ color:var(--green);} .kpi .d.down{ color:var(--red);}
+  .grid{ display:grid; gap:18px; } .grid>*{ min-width:0; }
+  .g21{ grid-template-columns:2fr 1fr; } .g12{ grid-template-columns:1fr 2fr; } .g11{ grid-template-columns:1fr 1fr; } .g32{ grid-template-columns:1.5fr 1fr; }
+  .card{ background:var(--pnl); border:1px solid var(--line); border-radius:18px; padding:18px 20px; min-width:0; } .card>h3{ margin:0 0 14px; font-size:15px; font-weight:800; color:var(--ink); display:flex; align-items:center; gap:8px; } .card>h3 .material-symbols-outlined{ color:var(--red); font-size:20px; } .card>h3 .grow{ margin-left:auto; font-size:12px; font-weight:700; color:var(--org); }
+  .chart-wrap{ position:relative; width:100%; height:260px; } .chart-wrap.sm{ height:210px; }
+  .tbl{ width:100%; border-collapse:collapse; font-size:13px; } .tbl th{ text-align:left; font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:800; padding:11px 12px; border-bottom:2px solid var(--line); background:var(--bg); white-space:nowrap; } .tbl td{ padding:11px 12px; border-bottom:1px solid var(--line); white-space:nowrap; } .tbl tr:hover td{ background:#fafaf9; }
+  .tag{ font-size:11px; font-weight:800; border-radius:999px; padding:2px 9px; white-space:nowrap; } .t-run{ background:#dcfce7; color:#166534; } .t-warn{ background:#fef3c7; color:#92400e; } .t-stop{ background:#fee2e2; color:#991b1b; } .t-idle{ background:#e0e7ff; color:#3730a3; } .t-ok{ background:#dcfce7; color:#166534; } .t-off{ background:#f4f4f5; color:#52525b; }
+  .lineboard{ display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; } .lineboard>*{ min-width:0; }
+  .lb{ background:var(--pnl); border:1px solid var(--line); border-radius:16px; padding:15px; border-top:4px solid var(--red); }
+  .lb .h{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; } .lb .h b{ color:var(--ink); font-size:15px; } .lb .prod{ font-size:12px; color:var(--muted); margin-bottom:10px; }
+  .lb .prog{ height:9px; border-radius:999px; background:var(--line); overflow:hidden; } .lb .prog span{ display:block; height:100%; background:linear-gradient(90deg,var(--red),var(--org)); }
+  .lb .row{ display:flex; justify-content:space-between; margin-top:10px; font-size:12px; } .lb .row b{ color:var(--ink); font-size:15px; display:block; } .lb .row span{ color:var(--muted); font-size:11px; }
+  .pipe{ display:flex; align-items:stretch; gap:0; overflow-x:auto; padding-bottom:4px; }
+  .pstep{ flex:1; min-width:150px; background:var(--pnl); border:1px solid var(--line); border-radius:14px; padding:14px; text-align:center; }
+  .pstep .ic{ width:40px; height:40px; margin:0 auto 8px; border-radius:11px; background:#fef2f2; color:var(--red); display:grid; place-content:center; } .pstep b{ color:var(--ink); font-size:13px; display:block; } .pstep small{ color:var(--muted); font-size:11px; } .pstep .n{ font-size:20px; font-weight:900; color:var(--org); margin-top:6px; }
+  .parrow{ display:flex; align-items:center; color:var(--muted); flex:none; padding:0 4px; }
+  .feed{ position:relative; padding-left:26px; }
+  .feed::before{ content:""; position:absolute; left:9px; top:4px; bottom:4px; width:2px; background:var(--line); }
+  .fitem{ position:relative; padding:0 0 16px; } .fitem:last-child{ padding-bottom:0; }
+  .fitem .dot{ position:absolute; left:-22px; top:3px; width:14px; height:14px; border-radius:50%; border:3px solid #fff; }
+  .fitem .fc{ background:var(--pnl); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .fitem .fh{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; } .fitem .fh b{ color:var(--ink); font-size:14px; } .fitem .fh .when{ margin-left:auto; font-size:11px; color:var(--muted); white-space:nowrap; }
+  .fitem p{ margin:6px 0 0; font-size:12px; color:var(--body); line-height:1.55; }
+  .sev{ font-size:10px; font-weight:800; border-radius:6px; padding:1px 8px; } .sev.s3{ background:#fee2e2; color:#991b1b; } .sev.s2{ background:#fef3c7; color:#92400e; } .sev.s1{ background:#dbeafe; color:#1e40af; }
+  .rcat{ display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; } .rcat>*{ min-width:0; }
+  .rc{ background:var(--pnl); border:1px solid var(--line); border-radius:15px; padding:15px; } .rc .ic{ width:38px; height:38px; border-radius:11px; background:linear-gradient(135deg,var(--red),var(--org)); color:#fff; display:grid; place-content:center; margin-bottom:10px; } .rc b{ color:var(--ink); font-size:14px; } .rc small{ display:block; color:var(--muted); font-size:11px; margin-top:3px; line-height:1.5; } .rc .meta{ display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; } .rc .meta span{ font-size:10px; font-weight:700; color:var(--muted); background:var(--bg); border-radius:6px; padding:2px 7px; }
+  .dgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; } .dgrid>*{ min-width:0; }
+  .dcell{ border:1px solid var(--line); border-radius:12px; padding:12px; background:var(--pnl); } .dcell .top2{ display:flex; align-items:center; justify-content:space-between; } .dcell b{ font-size:13px; color:var(--ink); } .dcell .st{ width:10px; height:10px; border-radius:50%; flex:none; } .dcell small{ display:block; font-size:11px; color:var(--muted); margin-top:6px; } .dcell .v2{ font-size:15px; font-weight:900; color:var(--ink); margin-top:4px; }
+  .matrix{ width:100%; border-collapse:separate; border-spacing:5px; min-width:420px; }
+  .matrix th{ font-size:11px; color:var(--muted); font-weight:800; padding:4px; white-space:nowrap; }
+  .matrix td{ text-align:center; border-radius:9px; padding:12px 6px; font-size:13px; font-weight:800; color:#fff; white-space:nowrap; }
+  .note{ background:linear-gradient(135deg,#fff7ed,#fef2f2); border:1px solid #fed7aa; border-radius:14px; padding:14px 16px; display:flex; gap:12px; }
+  .note .ic{ width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,var(--red),var(--org)); color:#fff; display:grid; place-content:center; flex:none; } .note p{ margin:0; font-size:13px; line-height:1.6; color:var(--body); } .note b{ color:var(--ink); }
+  .legend{ display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--muted); margin-top:10px; } .legend span{ display:inline-flex; align-items:center; gap:5px; } .legend i{ width:11px; height:11px; border-radius:3px; display:inline-block; }
+  @media (max-width:860px){
+    .shell{ grid-template-columns:1fr; } .side{ position:static; height:auto; } .nav{ flex-direction:row; flex-wrap:wrap; overflow:visible; } .nav button{ flex:none; width:auto; } .nav .t,.side-f{ display:none; }
+    .g21,.g12,.g11,.g32{ grid-template-columns:1fr; }
+  }
+  @media (max-width:560px){ .nav button span:not(.material-symbols-outlined){ display:none; } .nav button{ padding:10px; } }
+  @media (max-width:640px){ .top{ flex-wrap:wrap; padding:12px 16px; } .top .r{ width:100%; } .body{ padding:16px 14px 30px; } .kpis{ grid-template-columns:1fr 1fr; } }
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="lg"><span class="material-symbols-outlined">insert_chart</span></span><div><b>生產報表看板</b><small>大鋼精密製造 MES</small></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-f"><div class="shift"><b>早班 A（07:00–15:00）</b>值班：生管 王志明<div class="live"><span class="dot"></span>資料即時同步中</div></div></div>
+  </aside>
+  <div class="main">
+    <header class="top"><div><h1 id="vt">即時生產看板</h1><div class="sub" id="vsub">全廠產線進度 · 2026-08-13 週四</div></div><div class="r"><span class="pill"><span class="material-symbols-outlined" style="font-size:16px;">notifications_active</span>3 未處理警示</span><span class="ava">王</span></div></header>
+    <div class="body" id="view"></div>
+  </div>
+</div>
+<script>
+const MODS=[
+ ["dashboard","即時生產看板","全廠產線進度、達成率與稼動即時總覽"],
+ ["sensors","數據採集監控","MES/SCADA 機台訊號採集狀態與斷線告警"],
+ ["cleaning_services","資料整合清洗","多來源資料合併、去重與品質驗證管線"],
+ ["summarize","多維度報表","產量、良率、稼動報表產出與排程寄送"],
+ ["notification_important","異常警示推播","門檻觸發、分級告警與處理追蹤"],
+ ["query_stats","決策分析","趨勢、瓶頸與 OEE 損失決策洞察"]
+];
+const LINES=[
+ ["SMT-A1","主機板 M300 貼片","陳建宏",8600,7220,84,"run"],
+ ["SMT-A2","電源板 P120 貼片","林佳蓉",6400,4980,78,"run"],
+ ["DIP-B1","連接器 C55 插件","黃俊傑",5200,5010,96,"run"],
+ ["ASSY-C1","模組 K9 組裝","吳雅婷",4800,2160,45,"warn"],
+ ["TEST-D1","成品 FCT 測試","蔡明志",7200,6480,90,"run"],
+ ["PACK-E1","包裝出貨線","周庭瑄",9000,3150,35,"stop"]
+];
+const DEVS=[
+ ["回流焊爐 R-01","溫區 247°C","run"],["貼片機 SM-08","CPH 21.4k","run"],["錫膏印刷 P-03","壓力 0.42MPa","run"],
+ ["AOI 檢測 V-11","良率 98.7%","run"],["插件機 DI-04","節拍 3.1s","warn"],["波峰焊 W-02","訊號逾時","off"],
+ ["FCT 測試站 T-06","通過率 96%","run"],["雷雕機 L-09","待料停機","idle"],["打包機 K-01","速率 82%","run"],
+ ["自動倉 AS-01","入庫 1240","run"],["溫濕度 S-22","24°C/55%","run"],["氣壓 S-31","5.8bar","warn"]
+];
+const DEVSTAT={run:"#16a34a",warn:"#d97706",off:"#dc2626",idle:"#6366f1"};
+const DEVTXT={run:"採集中",warn:"訊號偏差",off:"已斷線",idle:"待機"};
+const SIGNALS=[
+ ["09:12:04","貼片機 SM-08","MES","貼裝完成回報","正常","ok"],
+ ["09:12:03","回流焊 R-01","SCADA","溫區溫度 247°C","正常","ok"],
+ ["09:11:58","波峰焊 W-02","SCADA","訊號逾時 45s 未回應","斷線","off"],
+ ["09:11:55","AOI V-11","MES","檢測 128 片 / 不良 2","正常","ok"],
+ ["09:11:47","插件機 DI-04","SCADA","節拍偏慢 3.1s","偏差","warn"],
+ ["09:11:40","FCT T-06","MES","測試批次完成 240 pcs","正常","ok"],
+ ["09:11:32","自動倉 AS-01","ERP","入庫交易同步","正常","ok"],
+ ["09:11:20","氣壓 S-31","SCADA","氣壓 5.8bar 低於門檻","偏差","warn"]
+];
+const PIPE=[
+ ["input","多來源匯入","MES/SCADA/ERP","1,284,900","筆/日"],
+ ["merge","主鍵對齊合併","工單×機台×時間","642,300","筆"],
+ ["filter_alt","重複與抖動過濾","移除 3.1%","19,900","筆"],
+ ["fact_check","規則與範圍檢核","攔截 214 筆","98.7","%通過"],
+ ["table_chart","分析寬表輸出","可信任資料集","624,180","筆"]
+];
+const VALID=[
+ ["空值檢查","產出數量欄位",1284900,62,"已補值"],
+ ["範圍驗證","溫度 0–350°C",642300,41,"已修正"],
+ ["單位換算","kg/pcs 統一",320100,0,"通過"],
+ ["時間對齊","時區與時戳",642300,98,"已校正"],
+ ["重複交易","入庫單去重",19900,13,"已剔除"],
+ ["異常值","3σ 離群偵測",624180,54,"已標記"]
+];
+const REPORTS=[
+ ["query_stats","日產量達成報表","各產線工單產出 vs 目標，含達成率排名","每日 15:30","生管/廠長","PDF"],
+ ["verified","良率與不良分析","不良品項 Pareto 與工站別良率趨勢","每日 16:00","品保","Excel"],
+ ["speed","設備稼動 OEE 報表","稼動×效率×良率三率與損失分解","週一 09:00","廠務主管","PDF"],
+ ["inventory","物料耗用報表","BOM 用量 vs 實領，缺料預警","每日 08:00","生管/資材","Excel"],
+ ["schedule","準時交付報表","工單交期達成與延誤原因分析","週五 17:00","業務/廠長","PDF"],
+ ["group_work","班別產能對比","早中晚三班產能與人均產出","每日 22:00","製造課長","Excel"]
+];
+const SCHED=[
+ ["RPT-2208","日產量達成報表","2026-08-13 15:30","已產出","生管群組","已寄送"],
+ ["RPT-2207","良率與不良分析","2026-08-13 16:00","排程中","品保群組","待寄送"],
+ ["RPT-2206","設備稼動 OEE 報表","2026-08-12 09:00","已產出","主管群組","已寄送"],
+ ["RPT-2205","物料耗用報表","2026-08-13 08:00","已產出","資材群組","已寄送"],
+ ["RPT-2204","準時交付報表","2026-08-11 17:00","已產出","業務群組","已寄送"],
+ ["RPT-2203","班別產能對比","2026-08-12 22:00","失敗","製造課長","重試中"]
+];
+const ALERTS=[
+ [3,"PACK-E1 包裝線停線","09:08","缺料","包裝線因外箱料號 BX-220 缺料停線 22 分鐘，影響 2 張本週出貨工單，已推播資材補料。","蔡建良"],
+ [3,"波峰焊 W-02 斷線","09:04","設備","SCADA 訊號逾時 45 秒未回應，資料採集中斷，已通知設備保養即時排查。","設備保養組"],
+ [2,"ASSY-C1 達成率偏低","08:47","進度","模組 K9 組裝達成率僅 45%，低於同時段目標 70%，建議調度支援人力。","製造課長"],
+ [2,"回流焊 R-01 溫區逼近上限","08:31","品質","第 3 溫區 247°C 逼近 250°C 上限，建議確認參數避免焊點不良。","製程工程"],
+ [2,"插件機 DI-04 節拍偏慢","08:15","效率","節拍 3.1s 高於標準 2.6s，稼動效率下降，建議檢查供料軌道。","現場領班"],
+ [1,"鋁料 AL-08 低於安全庫存","07:52","物料","關鍵鋁料剩餘 480 kg 低於安全庫存 600 kg，明日兩張工單恐受影響。","資材專員"]
+];
+const SEVC={3:"#dc2626",2:"#d97706",1:"#0284c7"};
+const SEVT={3:"嚴重",2:"中度",1:"提醒"};
+const MATRIX=[
+ ["SMT-A1",[3.2,1.1,0.6]],["SMT-A2",[5.4,2.0,0.9]],["DIP-B1",[1.2,0.7,0.4]],
+ ["ASSY-C1",[8.6,4.2,1.8]],["TEST-D1",[2.4,1.3,0.5]],["PACK-E1",[6.8,3.1,1.4]]
+];
+const MCOLS=["換線/待料","設備故障","品質重工"];
+function mcol(v){ return v>=6?"#b91c1c":v>=3?"#dc2626":v>=1.5?"#f97316":"#fbbf24"; }
+const kpi=(ic,l,v,u,d,up)=>`<div class="kpi"><div class="l"><span class="material-symbols-outlined">${ic}</span>${l}</div><div class="v">${v}<small>${u||""}</small></div><div class="d ${up?"up":"down"}">${d}</div></div>`;
+const KPIROW={
+ 0:()=>`<div class="kpis">${kpi("inventory_2","今日總產出","29,000","pcs","目標 41,200 · 70.4%",true)+kpi("target","平均達成率","71","%","+6pt vs 昨日",true)+kpi("bolt","即時稼動率","88","%","6 線運轉中",true)+kpi("warning","異常工單","3","張","缺料 1 · 設備 1 · 進度 1",false)}</div>`,
+ 4:()=>`<div class="kpis">${kpi("notifications_active","未處理警示","3","件","嚴重 2 · 中 1",false)+kpi("timer","平均反應時間","6.4","分","−58% vs 導入前",true)+kpi("done_all","今日已關閉","17","件","關閉率 85%",true)+kpi("schedule","最久待處理","22","分","PACK-E1 停線",false)}</div>`
+};
+const SCREENS={
+ 0:()=>KPIROW[0]()+
+   `<div class="card" style="margin-bottom:18px;"><h3><span class="material-symbols-outlined">precision_manufacturing</span>產線即時進度看板<span class="grow">6 條產線 · 早班</span></h3><div class="lineboard">${LINES.map(function(l){var p=Math.round(l[4]/l[3]*100);var st=l[6];var stt=st==="run"?"t-run":st==="warn"?"t-warn":"t-stop";var stl=st==="run"?"運轉中":st==="warn"?"落後":"停線";var bc=st==="run"?"#16a34a":st==="warn"?"#d97706":"#dc2626";return '<div class="lb" style="border-top-color:'+bc+';"><div class="h"><b>'+l[0]+'</b><span class="tag '+stt+'">'+stl+'</span></div><div class="prod">'+l[1]+'</div><div class="prog"><span style="width:'+p+'%;"></span></div><div class="row"><div><b>'+l[4].toLocaleString()+'</b><span>已產出 / '+l[3].toLocaleString()+'</span></div><div style="text-align:right;"><b>'+p+'%</b><span>達成率</span></div></div><div class="row" style="margin-top:6px;"><div><b style="font-size:13px;">'+l[2]+'</b><span>線長</span></div><div style="text-align:right;"><b style="font-size:13px;color:'+(l[5]>=80?'#16a34a':'#d97706')+';">'+l[5]+'%</b><span>稼動</span></div></div></div>';}).join("")}</div></div>
+   <div class="grid g21"><div class="card"><h3><span class="material-symbols-outlined">show_chart</span>全廠時段產出趨勢（pcs/時）</h3><div class="chart-wrap"><canvas id="c_trend"></canvas></div></div><div class="card"><h3><span class="material-symbols-outlined">donut_large</span>產線狀態分佈</h3><div class="chart-wrap sm"><canvas id="c_status"></canvas></div></div></div>`,
+ 1:()=>`<div class="kpis">${kpi("lan","採集節點","148","個","線上 145 · 離線 3",false)+kpi("swap_vert","訊號吞吐","21.4","k/分","即時串流",true)+kpi("percent","採集完整率","98.0","%","+2.4pt",true)+kpi("link_off","斷線節點","1","個","波峰焊 W-02",false)}</div>
+   <div class="grid g11" style="margin-bottom:18px;"><div class="card"><h3><span class="material-symbols-outlined">device_hub</span>機台採集狀態<span class="grow">12 台顯示</span></h3><div class="dgrid">${DEVS.map(function(d){return '<div class="dcell"><div class="top2"><b>'+d[0]+'</b><span class="st" style="background:'+DEVSTAT[d[2]]+';box-shadow:0 0 0 3px '+DEVSTAT[d[2]]+'22;"></span></div><div class="v2" style="color:'+(d[2]==='off'?'#dc2626':'#18181b')+';">'+d[1]+'</div><small>'+DEVTXT[d[2]]+'</small></div>';}).join("")}</div></div>
+   <div class="card"><h3><span class="material-symbols-outlined">stacked_line_chart</span>各來源採集量（萬筆/時）</h3><div class="chart-wrap"><canvas id="c_src"></canvas></div><div class="legend"><span><i style="background:#dc2626;"></i>MES</span><span><i style="background:#f97316;"></i>SCADA</span><span><i style="background:#0284c7;"></i>ERP</span></div></div></div>
+   <div class="card"><h3><span class="material-symbols-outlined">rss_feed</span>即時訊號串流</h3><div style="overflow-x:auto;"><table class="tbl"><thead><tr><th>時間</th><th>來源機台</th><th>系統</th><th>事件</th><th>狀態</th></tr></thead><tbody>${SIGNALS.map(function(s){return '<tr><td style="font-variant-numeric:tabular-nums;color:#71717a;">'+s[0]+'</td><td style="font-weight:700;color:#18181b;">'+s[1]+'</td><td>'+s[2]+'</td><td>'+s[3]+'</td><td><span class="tag '+(s[5]==='ok'?'t-ok':s[5]==='warn'?'t-warn':'t-stop')+'">'+s[4]+'</span></td></tr>';}).join("")}</tbody></table></div></div>`,
+ 2:()=>`<div class="card" style="margin-bottom:18px;"><h3><span class="material-symbols-outlined">account_tree</span>資料整合清洗管線</h3><div class="pipe">${PIPE.map(function(p,i){return '<div class="pstep"><div class="ic"><span class="material-symbols-outlined">'+p[0]+'</span></div><b>'+p[1]+'</b><small>'+p[2]+'</small><div class="n">'+p[3]+'</div><small>'+p[4]+'</small></div>'+(i<PIPE.length-1?'<div class="parrow"><span class="material-symbols-outlined">chevron_right</span></div>':'');}).join("")}</div></div>
+   <div class="grid g32"><div class="card"><h3><span class="material-symbols-outlined">rule</span>資料品質驗證明細</h3><div style="overflow-x:auto;"><table class="tbl"><thead><tr><th>檢核規則</th><th>對象</th><th>檢核筆數</th><th>問題數</th><th>處置</th></tr></thead><tbody>${VALID.map(function(v){return '<tr><td style="font-weight:700;color:#18181b;">'+v[0]+'</td><td>'+v[1]+'</td><td style="font-variant-numeric:tabular-nums;">'+v[2].toLocaleString()+'</td><td style="font-weight:800;color:'+(v[3]>0?'#d97706':'#16a34a')+';">'+v[3]+'</td><td><span class="tag '+(v[4]==='通過'?'t-ok':'t-idle')+'">'+v[4]+'</span></td></tr>';}).join("")}</tbody></table></div></div>
+   <div class="card"><h3><span class="material-symbols-outlined">verified_user</span>清洗前後資料品質</h3><div class="chart-wrap"><canvas id="c_dq"></canvas></div><div class="note" style="margin-top:14px;"><span class="ic"><span class="material-symbols-outlined">task_alt</span></span><p><b>本日清洗結果：</b>整合 128 萬筆原始資料，攔截 214 筆異常，通過率 <b>98.7%</b>，輸出可信任分析寬表供報表與看板取用。</p></div></div></div>`,
+ 3:()=>`<div class="grid g32" style="margin-bottom:18px;"><div class="card"><h3><span class="material-symbols-outlined">library_books</span>報表目錄<span class="grow">6 份常用報表</span></h3><div class="rcat">${REPORTS.map(function(r){return '<div class="rc"><div class="ic"><span class="material-symbols-outlined">'+r[0]+'</span></div><b>'+r[1]+'</b><small>'+r[2]+'</small><div class="meta"><span>'+r[3]+'</span><span>'+r[4]+'</span><span>'+r[5]+'</span></div></div>';}).join("")}</div></div>
+   <div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>近 7 日報表產出時效（分）</h3><div class="chart-wrap"><canvas id="c_rpt"></canvas></div><div class="note" style="margin-top:14px;"><span class="ic"><span class="material-symbols-outlined">bolt</span></span><p><b>時效大幅改善：</b>報表產出由人工 4.2 小時縮短至系統自動 <b>3.6 分</b>，並可排程自動寄送對應群組。</p></div></div></div>
+   <div class="card"><h3><span class="material-symbols-outlined">schedule_send</span>排程報表產出紀錄</h3><div style="overflow-x:auto;"><table class="tbl"><thead><tr><th>編號</th><th>報表</th><th>產出時間</th><th>狀態</th><th>收件群組</th><th>寄送</th></tr></thead><tbody>${SCHED.map(function(s){return '<tr><td style="font-weight:800;color:#18181b;">'+s[0]+'</td><td>'+s[1]+'</td><td style="color:#71717a;">'+s[2]+'</td><td><span class="tag '+(s[3]==='已產出'?'t-ok':s[3]==='排程中'?'t-idle':'t-stop')+'">'+s[3]+'</span></td><td>'+s[4]+'</td><td><span class="tag '+(s[5]==='已寄送'?'t-run':s[5]==='待寄送'?'t-warn':'t-stop')+'">'+s[5]+'</span></td></tr>';}).join("")}</tbody></table></div></div>`,
+ 4:()=>KPIROW[4]()+
+   `<div class="grid g32"><div class="card"><h3><span class="material-symbols-outlined">campaign</span>異常警示推播（依嚴重度）</h3><div class="feed">${ALERTS.map(function(a){return '<div class="fitem"><span class="dot" style="background:'+SEVC[a[0]]+';"></span><div class="fc"><div class="fh"><span class="sev s'+a[0]+'">'+SEVT[a[0]]+'</span><b>'+a[1]+'</b><span class="when">'+a[2]+'</span></div><p>'+a[4]+'</p><div class="fh" style="margin-top:8px;"><span class="tag t-idle">'+a[3]+'</span><span style="font-size:11px;color:#71717a;">指派：'+a[5]+'</span></div></div></div>';}).join("")}</div></div>
+   <div class="card"><h3><span class="material-symbols-outlined">pie_chart</span>異常類型分佈</h3><div class="chart-wrap sm"><canvas id="c_atype"></canvas></div><h3 style="margin-top:18px;"><span class="material-symbols-outlined">timeline</span>近 6 小時警示量</h3><div class="chart-wrap sm"><canvas id="c_ahr"></canvas></div></div></div>`,
+ 5:()=>`<div class="kpis">${kpi("speed","綜合 OEE","72.4","%","目標 85% · 差 12.6pt",false)+kpi("bolt","稼動率 A","88","%","+3pt",true)+kpi("bolt","效率 P","84","%","−2pt",false)+kpi("verified","良率 Q","97.8","%","+0.6pt",true)}</div>
+   <div class="grid g11" style="margin-bottom:18px;"><div class="card"><h3><span class="material-symbols-outlined">radar</span>三率與損失雷達</h3><div class="chart-wrap"><canvas id="c_radar"></canvas></div></div><div class="card"><h3><span class="material-symbols-outlined">waterfall_chart</span>OEE 損失分解（pt）</h3><div class="chart-wrap"><canvas id="c_loss"></canvas></div></div></div>
+   <div class="card" style="margin-bottom:18px;"><h3><span class="material-symbols-outlined">grid_on</span>工站瓶頸熱區矩陣（損失時數/日）</h3><div style="overflow-x:auto;"><table class="matrix"><thead><tr><th style="text-align:left;">工站 ／ 損失類型</th>${MCOLS.map(function(c){return '<th>'+c+'</th>';}).join("")}</tr></thead><tbody>${MATRIX.map(function(m){return '<tr><td style="background:transparent;color:#18181b;text-align:left;font-weight:800;">'+m[0]+'</td>'+m[1].map(function(v){return '<td style="background:'+mcol(v)+';">'+v.toFixed(1)+'h</td>';}).join("")+'</tr>';}).join("")}</tbody></table></div><div class="legend"><span><i style="background:#fbbf24;"></i>&lt;1.5h</span><span><i style="background:#f97316;"></i>1.5–3h</span><span><i style="background:#dc2626;"></i>3–6h</span><span><i style="background:#b91c1c;"></i>&gt;6h</span></div></div>
+   <div class="note"><span class="ic"><span class="material-symbols-outlined">lightbulb</span></span><p><b>決策建議：</b>ASSY-C1 換線/待料損失 8.6h 為全廠最大瓶頸，建議導入快速換模與備料前置；PACK-E1 停線損失次高，優先檢討外箱料號 BX-220 供料穩定度。整體 OEE 若消除前兩大損失，可望自 72.4% 提升至約 <b>82%</b>。</p></div>`
+};
+let CHARTS=[];
+function destroyCharts(){ CHARTS.forEach(function(c){try{c.destroy();}catch(e){}}); CHARTS=[]; }
+const RED="#dc2626",ORG="#f97316",SKY="#0284c7",GRN="#16a34a",AMB="#d97706";
+const GRID={color:"#f0efed"},TICK={color:"#71717a",font:{size:11}};
+function mkLine(id,labels,ds){ var el=document.getElementById(id); if(!el)return; CHARTS.push(new Chart(el,{type:"line",data:{labels:labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:ds.length>1,labels:{boxWidth:12,font:{size:11}}}},scales:{x:{grid:{display:false},ticks:TICK},y:{grid:GRID,ticks:TICK,beginAtZero:true}}}})); }
+function drawFor(i){
+ destroyCharts(); if(!window.Chart)return;
+ if(i===0){
+   mkLine("c_trend",["07","08","09","10","11","12","13","14"],[{label:"實際產出",data:[3100,3600,3850,4020,3980,3400,3720,3600],borderColor:RED,backgroundColor:"rgba(220,38,38,.12)",fill:true,tension:.35,borderWidth:3,pointRadius:0},{label:"目標",data:[3600,3600,3600,3600,3600,3600,3600,3600],borderColor:ORG,borderDash:[6,4],borderWidth:2,pointRadius:0,tension:0}]);
+   var s=document.getElementById("c_status"); if(s)CHARTS.push(new Chart(s,{type:"doughnut",data:{labels:["運轉中","落後","停線"],datasets:[{data:[4,1,1],backgroundColor:[GRN,AMB,RED],borderColor:"#fff",borderWidth:3}]},options:{responsive:true,maintainAspectRatio:false,cutout:"62%",plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}}}}}));
+ }
+ if(i===1){
+   var el=document.getElementById("c_src"); if(el)CHARTS.push(new Chart(el,{type:"bar",data:{labels:["07","08","09","10","11","12"],datasets:[{label:"MES",data:[8.2,9.1,9.6,9.4,9.8,8.9],backgroundColor:RED,stack:"s"},{label:"SCADA",data:[6.1,6.8,7.2,7.0,7.4,6.6],backgroundColor:ORG,stack:"s"},{label:"ERP",data:[2.1,2.4,2.6,2.5,2.7,2.3],backgroundColor:SKY,stack:"s"}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{stacked:true,grid:{display:false},ticks:TICK},y:{stacked:true,grid:GRID,ticks:TICK,beginAtZero:true}}}}));
+ }
+ if(i===2){
+   var el2=document.getElementById("c_dq"); if(el2)CHARTS.push(new Chart(el2,{type:"bar",data:{labels:["完整率","準確率","一致性","時效性","去重率"],datasets:[{label:"清洗前",data:[86,88,82,90,91],backgroundColor:"#fca5a5",borderRadius:5},{label:"清洗後",data:[99.1,98.7,97.8,99.4,99.9],backgroundColor:RED,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"top",labels:{boxWidth:12,font:{size:11}}}},scales:{x:{grid:{display:false},ticks:TICK},y:{grid:GRID,ticks:TICK,min:70,max:100}}}}));
+ }
+ if(i===3){
+   var el3=document.getElementById("c_rpt"); if(el3)CHARTS.push(new Chart(el3,{type:"bar",data:{labels:["8/7","8/8","8/9","8/10","8/11","8/12","8/13"],datasets:[{label:"產出耗時（分）",data:[4.8,4.1,3.9,3.7,4.2,3.5,3.6],backgroundColor:function(ctx){return ctx.raw>4?ORG:RED;},borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:TICK},y:{grid:GRID,ticks:TICK,beginAtZero:true}}}}));
+ }
+ if(i===4){
+   var t=document.getElementById("c_atype"); if(t)CHARTS.push(new Chart(t,{type:"doughnut",data:{labels:["設備","缺料","品質","進度","效率"],datasets:[{data:[9,6,5,4,3],backgroundColor:[RED,ORG,"#eab308",SKY,"#6366f1"],borderColor:"#fff",borderWidth:3}]},options:{responsive:true,maintainAspectRatio:false,cutout:"58%",plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}}}}}));
+   mkLine("c_ahr",["04","05","06","07","08","09"],[{label:"警示量",data:[2,3,1,4,5,3],borderColor:RED,backgroundColor:"rgba(220,38,38,.14)",fill:true,tension:.35,borderWidth:3,pointRadius:3,pointBackgroundColor:RED}]);
+ }
+ if(i===5){
+   var r=document.getElementById("c_radar"); if(r)CHARTS.push(new Chart(r,{type:"radar",data:{labels:["稼動 A","效率 P","良率 Q","換線損失","故障損失","重工損失"],datasets:[{label:"目標",data:[95,92,99,95,95,96],borderColor:ORG,backgroundColor:"rgba(249,115,22,.12)",borderWidth:2,pointRadius:2},{label:"實際",data:[88,84,97.8,72,80,88],borderColor:RED,backgroundColor:"rgba(220,38,38,.18)",borderWidth:2,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}}},scales:{r:{min:50,max:100,grid:{color:"#e7e5e4"},angleLines:{color:"#e7e5e4"},pointLabels:{font:{size:11},color:"#3f3f46"},ticks:{display:false}}}}}));
+   var l=document.getElementById("c_loss"); if(l)CHARTS.push(new Chart(l,{type:"bar",data:{labels:["理論 100","計畫停機","換線待料","設備故障","速度損失","品質重工","實際 OEE"],datasets:[{data:[100,-6,-9,-5,-5,-2.6,72.4],backgroundColor:[GRN,ORG,RED,RED,AMB,"#eab308",RED],borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{grid:GRID,ticks:TICK},y:{grid:{display:false},ticks:{color:"#3f3f46",font:{size:11}}}}}}));
+ }
+}
+const nav=document.getElementById("nav"),view=document.getElementById("view"),vt=document.getElementById("vt"),vsub=document.getElementById("vsub");
+nav.innerHTML=`<div class="t">功能模組</div>`+MODS.map(function(m,i){return '<button data-i="'+i+'" class="'+(i===0?"on":"")+'"><span class="material-symbols-outlined">'+m[0]+'</span><span>'+m[1]+'</span></button>';}).join("");
+function show(i){
+ i=Math.max(0,Math.min(i,MODS.length-1));
+ nav.querySelectorAll("button").forEach(function(b){b.classList.toggle("on",+b.dataset.i===i);});
+ vt.textContent=MODS[i][1]; vsub.textContent=MODS[i][2];
+ view.innerHTML=`<div class="vh"><div><h2>${MODS[i][1]}</h2><p>${MODS[i][2]}</p></div><button class="btn ghost"><span class="material-symbols-outlined">download</span>匯出</button></div>`+SCREENS[i]();
+ void view.offsetHeight;
+ drawFor(i);
+}
+nav.addEventListener("click",function(e){var b=e.target.closest("button[data-i]");if(b)show(+b.dataset.i);});
+show(0);
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>

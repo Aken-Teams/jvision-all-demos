@@ -1,18 +1,451 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>OEE系統（Overall Equipment Effectiveness）｜Jvision 系統 Demo</title>
-  <meta name="description" content="保養、維修、預兆到備品的設備全生命週期" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OEE系統（Overall Equipment Effectiveness）｜Jvision 系統 Demo</title>
+<meta name="description" content="稼動率×效能×良率綜合指標，六大損失分析與改善行動追蹤" />
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--accent:#334155;--accent2:#64748b;--bg:#f1f5f9;--card:#fff;--line:#e2e8f0;--txt:#1e293b;--mut:#64748b;--ok:#16a34a;--warn:#d97706;--bad:#dc2626;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--txt);font-family:"Inter","Noto Sans TC",sans-serif;-webkit-font-smoothing:antialiased;}
+body{display:flex;min-height:100vh;}
+.material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+a{color:inherit;text-decoration:none;}
+
+.sidebar{width:236px;flex:none;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;height:100vh;min-width:0;}
+.brand{display:flex;align-items:center;gap:11px;padding:4px 8px 18px;}
+.brand .logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:flex;align-items:center;justify-content:center;flex:none;}
+.brand .logo .material-symbols-outlined{font-size:22px;}
+.brand b{font-size:15px;font-weight:800;letter-spacing:.3px;display:block;}
+.brand span{font-size:11px;color:var(--mut);}
+.nav{display:flex;flex-direction:column;gap:4px;margin-top:6px;}
+.nav button{display:flex;align-items:center;gap:11px;padding:11px 13px;border:0;background:transparent;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--mut);text-align:left;width:100%;flex:none;white-space:nowrap;min-width:0;transition:.15s;}
+.nav button .material-symbols-outlined{font-size:21px;flex:none;}
+.nav button .lbl{min-width:0;overflow:hidden;text-overflow:ellipsis;}
+.nav button:hover{background:#f1f5f9;color:var(--txt);}
+.nav button.on{background:var(--accent);color:#fff;box-shadow:0 6px 16px -6px rgba(51,65,85,.6);}
+.sidebar .foot{margin-top:auto;padding:12px 10px 2px;font-size:11px;color:#94a3b8;line-height:1.5;}
+
+.main{flex:1;min-width:0;padding:24px 30px 44px;}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px;}
+.top h1{font-size:21px;font-weight:800;letter-spacing:.2px;display:flex;align-items:center;gap:10px;}
+.top h1 .material-symbols-outlined{font-size:24px;color:var(--accent);}
+.top p{font-size:12.5px;color:var(--mut);margin-top:5px;}
+.pill{font-size:11.5px;font-weight:700;padding:6px 12px;border-radius:999px;background:#e2e8f0;color:var(--accent);white-space:nowrap;}
+
+.grid{display:grid;gap:14px;min-width:0;}
+.g4{grid-template-columns:repeat(4,1fr);}
+.g3{grid-template-columns:repeat(3,1fr);}
+.g2{grid-template-columns:repeat(2,1fr);}
+.g23{grid-template-columns:2fr 1fr;}
+.g32{grid-template-columns:1.4fr 1fr;}
+@media(max-width:820px){.g4,.g3,.g2,.g23,.g32{grid-template-columns:1fr;}}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 17px;min-width:0;}
+.card h3{font-size:13.5px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:3px;}
+.card h3 .material-symbols-outlined{font-size:19px;color:var(--accent2);}
+.card .sub{font-size:11.5px;color:var(--mut);margin-bottom:12px;}
+
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px;min-width:0;position:relative;overflow:hidden;}
+.kpi .k-top{display:flex;align-items:center;justify-content:space-between;}
+.kpi .k-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:none;}
+.kpi .k-ic .material-symbols-outlined{font-size:20px;}
+.kpi .k-lbl{font-size:12px;color:var(--mut);font-weight:600;margin-top:11px;}
+.kpi .k-val{font-size:26px;font-weight:900;letter-spacing:.5px;margin-top:2px;}
+.kpi .k-val small{font-size:13px;font-weight:700;color:var(--mut);}
+.kpi .k-dt{font-size:11px;font-weight:700;margin-top:5px;display:inline-flex;align-items:center;gap:3px;}
+.kpi .k-dt .material-symbols-outlined{font-size:15px;}
+.up{color:var(--ok);}.down{color:var(--bad);}
+.bar{height:6px;border-radius:6px;background:#eef2f6;margin-top:10px;overflow:hidden;}
+.bar>i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent2));animation:grow 1s ease;}
+@keyframes grow{from{width:0;}}
+
+.tw{overflow-x:auto;min-width:0;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:440px;}
+th{text-align:left;font-size:11px;color:var(--mut);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
+td{padding:10px;border-bottom:1px solid #f1f5f9;white-space:nowrap;}
+tr:last-child td{border-bottom:0;}
+.tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;display:inline-block;}
+.t-ok{background:#dcfce7;color:#15803d;}.t-warn{background:#fef3c7;color:#b45309;}.t-bad{background:#fee2e2;color:#b91c1c;}.t-info{background:#e0e7ff;color:#4338ca;}.t-mut{background:#e2e8f0;color:#475569;}
+.mini{height:7px;border-radius:5px;background:#eef2f6;overflow:hidden;min-width:70px;}
+.mini>i{display:block;height:100%;border-radius:5px;}
+
+.cwrap{position:relative;width:100%;}
+.h180{height:180px;}.h220{height:220px;}.h260{height:260px;}
+
+.donutbox{position:relative;height:200px;}
+.donut-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+.donut-c b{font-size:30px;font-weight:900;color:var(--accent);}
+.donut-c span{font-size:11.5px;color:var(--mut);font-weight:600;}
+
+.tl{display:flex;flex-direction:column;gap:9px;}
+.tl-row{display:flex;align-items:center;gap:10px;min-width:0;}
+.tl-row .nm{width:96px;flex:none;font-size:12px;font-weight:600;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tl-bar{flex:1;height:22px;border-radius:6px;background:#f1f5f9;display:flex;overflow:hidden;min-width:0;}
+.tl-bar>i{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;}
+.tl-row .vv{width:52px;flex:none;text-align:right;font-size:12px;font-weight:700;}
+
+.lgd{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-size:11.5px;color:var(--mut);}
+.lgd span{display:inline-flex;align-items:center;gap:5px;}
+.dot{width:10px;height:10px;border-radius:3px;flex:none;}
+
+.strip{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;}
+.strip>div{flex:1;min-width:120px;padding:13px 15px;border-right:1px solid var(--line);}
+.strip>div:last-child{border-right:0;}
+.strip .s-l{font-size:11px;color:var(--mut);font-weight:600;}
+.strip .s-v{font-size:20px;font-weight:900;margin-top:3px;}
+
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;min-width:0;}
+@media(max-width:820px){.board{grid-template-columns:1fr;}}
+.col{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:11px 10px;min-width:0;}
+.col-h{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:800;margin-bottom:9px;padding:0 3px;}
+.col-h .cnt{font-size:11px;font-weight:700;color:#fff;background:var(--accent2);border-radius:999px;padding:1px 8px;}
+.tk{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 11px;margin-bottom:8px;box-shadow:0 1px 2px rgba(15,23,42,.04);}
+.tk:last-child{margin-bottom:0;}
+.tk .tk-t{font-size:12.5px;font-weight:700;margin-bottom:5px;line-height:1.3;}
+.tk .tk-m{font-size:11px;color:var(--mut);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.tk .tk-b{display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
+.ava{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;}
+
+.six{display:flex;flex-direction:column;gap:8px;}
+.six-r{display:flex;align-items:center;gap:11px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;min-width:0;}
+.six-r .rk{width:24px;height:24px;border-radius:7px;background:var(--accent);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;}
+.six-r .rt{flex:1;min-width:0;}
+.six-r .rt b{font-size:12.5px;display:block;}
+.six-r .rt span{font-size:11px;color:var(--mut);}
+.six-r .rv{font-size:13px;font-weight:800;flex:none;}
+
+.hint{font-size:11.5px;color:var(--mut);margin-top:11px;display:flex;align-items:center;gap:6px;line-height:1.5;}
+.hint .material-symbols-outlined{font-size:16px;color:var(--accent2);flex:none;}
+
+@media(max-width:860px){
+  body{flex-direction:column;}
+  .sidebar{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap;align-items:center;padding:12px 14px;gap:8px;border-right:0;border-bottom:1px solid var(--line);}
+  .brand{padding:0 8px 0 0;}
+  .sidebar .foot{display:none;}
+  .nav{flex-direction:row;flex-wrap:wrap;margin-top:0;flex:1;}
+  .nav button{width:auto;padding:9px 12px;}
+  .main{padding:18px 16px 40px;}
+}
+@media(max-width:560px){
+  .nav button .lbl{display:none;}
+  .nav button{padding:9px 11px;}
+}
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<aside class="sidebar">
+  <div class="brand">
+    <div class="logo"><span class="material-symbols-outlined">speed</span></div>
+    <div><b>OEE 綜效</b><span>設備綜合效率平台</span></div>
+  </div>
+  <nav class="nav" id="nav"></nav>
+  <div class="foot">Jvision Demo · 純前端展示<br/>資料為模擬數據</div>
+</aside>
+<main class="main">
+  <div id="view"></div>
+</main>
+
+<script>
+var MODS=[
+  {icon:"dashboard",name:"OEE 總覽"},
+  {icon:"hourglass_bottom",name:"稼動率分析"},
+  {icon:"bolt",name:"效能損失"},
+  {icon:"verified",name:"良率追蹤"},
+  {icon:"insights",name:"損失帕累托"},
+  {icon:"task_alt",name:"改善追蹤"}
+];
+var A="#334155",A2="#64748b";
+var charts=[];
+function destroyCharts(){for(var i=0;i<charts.length;i++){try{charts[i].destroy();}catch(e){}}charts=[];}
+function mk(id,cfg){var el=document.getElementById(id);if(!el)return;charts.push(new Chart(el.getContext("2d"),cfg));}
+
+(function(){
+  var nav=document.getElementById("nav"),h="";
+  for(var i=0;i<MODS.length;i++){
+    h+='<button data-i="'+i+'"><span class="material-symbols-outlined">'+MODS[i].icon+'</span><span class="lbl">'+MODS[i].name+'</span></button>';
+  }
+  nav.innerHTML=h;
+  nav.addEventListener("click",function(e){
+    var b=e.target.closest("[data-i]");if(!b)return;show(+b.getAttribute("data-i"));
+  });
+})();
+
+function head(icon,title,desc,pill){
+  return '<div class="top"><div><h1><span class="material-symbols-outlined">'+icon+'</span>'+title+'</h1><p>'+desc+'</p></div><div class="pill">'+pill+'</div></div>';
+}
+function kpi(ic,bg,cl,lbl,val,unit,dir,dt,pct){
+  return '<div class="kpi"><div class="k-top"><div class="k-ic" style="background:'+bg+';color:'+cl+'"><span class="material-symbols-outlined">'+ic+'</span></div>'+
+  (dt?'<div class="k-dt '+(dir>0?"up":"down")+'"><span class="material-symbols-outlined">'+(dir>0?"trending_up":"trending_down")+'</span>'+dt+'</div>':'')+
+  '</div><div class="k-lbl">'+lbl+'</div><div class="k-val">'+val+(unit?'<small> '+unit+'</small>':'')+'</div>'+
+  (pct!=null?'<div class="bar"><i style="width:'+pct+'%"></i></div>':'')+'</div>';
+}
+function copt(mn,mx){return{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{font:{size:11},boxWidth:12}}},scales:{y:{min:mn,max:mx,grid:{color:"#f1f5f9"},ticks:{callback:function(v){return v+"%";},font:{size:10}}},x:{grid:{display:false},ticks:{font:{size:10}}}}};}
+
+/* ===== SCREEN 0 : OEE 總覽 ===== */
+function v0(){
+  var v='';
+  v+=head("dashboard","OEE 綜合效率總覽","本班全廠設備綜合效率＝稼動率 × 效能 × 良率","本班 2026-08-13 早班");
+  v+='<div class="grid g4">'
+    +kpi("speed","#e0e7ff","#4338ca","OEE 綜合指標","82.4","%",1,"3.1%",82)
+    +kpi("hourglass_bottom","#dcfce7","#15803d","稼動率 Availability","91.2","%",1,"1.4%",91)
+    +kpi("bolt","#fef3c7","#b45309","效能 Performance","93.6","%",-1,"0.8%",94)
+    +kpi("verified","#e2e8f0","#334155","良率 Quality","96.5","%",1,"0.6%",96)
+    +'</div>';
+  v+='<div class="grid g23" style="margin-top:14px">';
+  v+='<div class="card"><h3><span class="material-symbols-outlined">show_chart</span>近 8 小時 OEE 走勢</h3><div class="sub">依生產小時彙整，虛線為目標值 85%</div><div class="cwrap h260"><canvas id="c0a"></canvas></div></div>';
+  v+='<div class="card"><h3><span class="material-symbols-outlined">donut_large</span>OEE 三因子拆解</h3><div class="sub">綜合指標＝各因子連乘</div><div class="donutbox"><canvas id="c0b"></canvas><div class="donut-c"><b>82.4%</b><span>OEE</span></div></div>'
+    +'<div class="lgd"><span><i class="dot" style="background:#334155"></i>稼動 91.2%</span><span><i class="dot" style="background:#64748b"></i>效能 93.6%</span><span><i class="dot" style="background:#94a3b8"></i>良率 96.5%</span></div></div>';
+  v+='</div>';
+  v+='<div class="strip" style="margin-top:14px">'
+    +'<div><div class="s-l">計畫產量</div><div class="s-v">18,400</div></div>'
+    +'<div><div class="s-l">實際產出</div><div class="s-v">16,720</div></div>'
+    +'<div><div class="s-l">良品數</div><div class="s-v">16,135</div></div>'
+    +'<div><div class="s-l">非計畫停機</div><div class="s-v" style="color:#dc2626">42 分</div></div>'
+    +'<div><div class="s-l">監控機台</div><div class="s-v">12 台</div></div>'
+    +'</div>';
+  v+='<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">precision_manufacturing</span>各機台 OEE 排名</h3><div class="sub">綠色達標 ≥85%，橘色待改善</div>'
+    +'<div class="tw"><table><thead><tr><th>機台</th><th>產線</th><th>稼動</th><th>效能</th><th>良率</th><th>OEE</th><th>達標</th></tr></thead><tbody>';
+  var rows=[
+    ["CNC-07","A 線",95,96,98,"89.4","t-ok","達標"],
+    ["INJ-03","B 線",93,94,97,"84.8","t-warn","接近"],
+    ["SMT-11","C 線",90,95,96,"82.1","t-warn","待改善"],
+    ["CNC-02","A 線",88,92,95,"76.9","t-bad","未達"],
+    ["PKG-05","D 線",96,97,99,"92.2","t-ok","達標"]
+  ];
+  for(var i=0;i<rows.length;i++){var r=rows[i];
+    v+='<tr><td><b>'+r[0]+'</b></td><td>'+r[1]+'</td><td>'+r[2]+'%</td><td>'+r[3]+'%</td><td>'+r[4]+'%</td><td><b>'+r[5]+'%</b></td><td><span class="tag '+r[6]+'">'+r[7]+'</span></td></tr>';
+  }
+  v+='</tbody></table></div></div>';
+  return v;
+}
+function v0c(){
+  mk("c0a",{type:"line",data:{labels:["08","09","10","11","12","13","14","15"],datasets:[
+    {label:"OEE",data:[79,81,84,83,80,85,86,84],borderColor:A,backgroundColor:"rgba(51,65,85,.10)",fill:true,tension:.4,borderWidth:2,pointRadius:3},
+    {label:"目標",data:[85,85,85,85,85,85,85,85],borderColor:"#cbd5e1",borderDash:[5,5],pointRadius:0,borderWidth:1.5,fill:false}
+  ]},options:copt(70,90)});
+  mk("c0b",{type:"doughnut",data:{labels:["稼動","效能","良率"],datasets:[{data:[91.2,93.6,96.5],backgroundColor:["#334155","#64748b","#94a3b8"],borderWidth:2,borderColor:"#fff"}]},options:{cutout:"68%",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+}
+
+/* ===== SCREEN 1 : 稼動率分析 ===== */
+function v1(){
+  var v='';
+  v+=head("hourglass_bottom","稼動率分析","計畫工時扣除停機損失後的實際運轉比率","本班 480 分鐘");
+  v+='<div class="grid g4">'
+    +kpi("timer","#e0e7ff","#4338ca","計畫運轉","480","分",1,"",100)
+    +kpi("pause_circle","#fef3c7","#b45309","計畫停機","24","分",-1,"",5)
+    +kpi("error","#fee2e2","#b91c1c","非計畫停機","18","分",-1,"6分",4)
+    +kpi("play_circle","#dcfce7","#15803d","實際運轉","438","分",1,"",91)
+    +'</div>';
+  v+='<div class="grid g32" style="margin-top:14px">';
+  v+='<div class="card"><h3><span class="material-symbols-outlined">stacked_bar_chart</span>停機時間瀑布拆解</h3><div class="sub">由計畫工時逐項扣除，得出可用運轉時間</div><div class="cwrap h260"><canvas id="c1a"></canvas></div></div>';
+  v+='<div class="card"><h3><span class="material-symbols-outlined">table_chart</span>停機事件分佈</h3><div class="sub">各原因累計占比</div><div class="tl">';
+  var dt=[["換模換線",14,"#334155"],["設備故障",10,"#dc2626"],["等待物料",8,"#d97706"],["計畫保養",6,"#64748b"],["其他待機",4,"#94a3b8"]];
+  var mx=14;
+  for(var i=0;i<dt.length;i++){var d=dt[i];
+    v+='<div class="tl-row"><div class="nm">'+d[0]+'</div><div class="tl-bar"><i style="width:'+(d[1]/mx*100)+'%;background:'+d[2]+'">'+(d[1]>=6?d[1]+"分":"")+'</i></div><div class="vv">'+d[1]+'分</div></div>';
+  }
+  v+='</div><div class="hint"><span class="material-symbols-outlined">lightbulb</span>換模換線為最大稼動損失，建議推行 SMED 快速換模。</div></div>';
+  v+='</div>';
+  v+='<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">history</span>本班停機事件明細</h3><div class="sub">依發生時間排序，標記已分類原因</div>'
+    +'<div class="tw"><table><thead><tr><th>時間</th><th>機台</th><th>時長</th><th>原因分類</th><th>影響</th><th>狀態</th></tr></thead><tbody>';
+  var ev=[
+    ["08:12","CNC-02","6 分","設備故障","停線","t-bad","已排除"],
+    ["09:40","INJ-03","14 分","換模換線","減產","t-warn","已完成"],
+    ["11:05","SMT-11","8 分","等待物料","停機","t-warn","已補料"],
+    ["13:20","PKG-05","6 分","計畫保養","計畫內","t-info","已保養"],
+    ["14:35","CNC-07","4 分","其他待機","無","t-mut","已恢復"]
+  ];
+  for(var i=0;i<ev.length;i++){var e=ev[i];
+    v+='<tr><td>'+e[0]+'</td><td><b>'+e[1]+'</b></td><td>'+e[2]+'</td><td>'+e[3]+'</td><td><span class="tag '+e[5]+'">'+e[4]+'</span></td><td>'+e[6]+'</td></tr>';
+  }
+  v+='</tbody></table></div></div>';
+  return v;
+}
+function v1c(){
+  mk("c1a",{type:"bar",data:{labels:["計畫工時","計畫停機","換模","故障","物料","實際運轉"],datasets:[
+    {data:[[0,480],[456,480],[442,456],[432,442],[424,432],[0,438]],backgroundColor:["#e2e8f0","#64748b","#334155","#dc2626","#d97706","#16a34a"],borderRadius:4,barPercentage:.7}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){var a=c.raw;return Math.abs(a[1]-a[0])+" 分";}}}},scales:{y:{beginAtZero:true,max:500,grid:{color:"#f1f5f9"},ticks:{font:{size:10}}},x:{grid:{display:false},ticks:{font:{size:10}}}}}});
+}
+
+/* ===== SCREEN 2 : 效能損失 ===== */
+function v2(){
+  var v='';
+  v+=head("bolt","效能損失分析","理想節拍與實際速度差異造成的速度與小停機損失","效能 93.6%");
+  v+='<div class="grid g4">'
+    +kpi("bolt","#e0e7ff","#4338ca","理想節拍","1.20","秒/件",1,"",100)
+    +kpi("trending_down","#fef3c7","#b45309","實際節拍","1.28","秒/件",-1,"0.08秒",94)
+    +kpi("pause_presentation","#fee2e2","#b91c1c","小停機次數","37","次",-1,"5次",62)
+    +kpi("slow_motion_video","#e2e8f0","#334155","速度損失","6.4","%",-1,"1.1%",64)
+    +'</div>';
+  v+='<div class="grid g2" style="margin-top:14px">';
+  v+='<div class="card"><h3><span class="material-symbols-outlined">speed</span>各機台實際 vs 理想速度</h3><div class="sub">單位：件/分鐘</div><div class="cwrap h260"><canvas id="c2a"></canvas></div></div>';
+  v+='<div class="card"><h3><span class="material-symbols-outlined">radar</span>效能損失因子雷達</h3><div class="sub">分數越高代表損失越大</div><div class="cwrap h260"><canvas id="c2b"></canvas></div></div>';
+  v+='</div>';
+  v+='<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">list_alt</span>小停機（Minor Stops）紀錄</h3><div class="sub">短於 3 分鐘、未列入稼動停機的微停機</div>'
+    +'<div class="tw"><table><thead><tr><th>機台</th><th>次數</th><th>累計時間</th><th>主因</th><th>速度損失</th><th>趨勢</th></tr></thead><tbody>';
+  var rows=[
+    ["CNC-07",9,"7 分","感測誤觸","4.2%",56,"#16a34a"],
+    ["INJ-03",12,"11 分","進料卡阻","7.8%",78,"#d97706"],
+    ["SMT-11",8,"6 分","貼片校正","5.1%",51,"#64748b"],
+    ["CNC-02",6,"5 分","刀具磨耗","6.9%",69,"#dc2626"],
+    ["PKG-05",2,"2 分","封膜暫停","2.3%",23,"#334155"]
+  ];
+  for(var i=0;i<rows.length;i++){var r=rows[i];
+    v+='<tr><td><b>'+r[0]+'</b></td><td>'+r[1]+' 次</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td>'+r[4]+'</td><td><div class="mini"><i style="width:'+r[5]+'%;background:'+r[6]+'"></i></div></td></tr>';
+  }
+  v+='</tbody></table></div></div>';
+  return v;
+}
+function v2c(){
+  mk("c2a",{type:"bar",data:{labels:["CNC-07","INJ-03","SMT-11","CNC-02","PKG-05"],datasets:[
+    {label:"理想",data:[50,46,52,48,55],backgroundColor:"#cbd5e1",borderRadius:4,barPercentage:.7},
+    {label:"實際",data:[47,42,49,44,53],backgroundColor:"#334155",borderRadius:4,barPercentage:.7}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{font:{size:11},boxWidth:12}}},scales:{y:{beginAtZero:true,grid:{color:"#f1f5f9"},ticks:{font:{size:10}}},x:{grid:{display:false},ticks:{font:{size:10}}}}}});
+  mk("c2b",{type:"radar",data:{labels:["速度衰減","小停機","暖機損失","刀具磨耗","進料卡阻","校正等待"],datasets:[
+    {label:"損失分數",data:[64,72,38,55,68,45],borderColor:A,backgroundColor:"rgba(51,65,85,.18)",borderWidth:2,pointBackgroundColor:A}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{r:{beginAtZero:true,max:100,grid:{color:"#e2e8f0"},angleLines:{color:"#e2e8f0"},pointLabels:{font:{size:10}},ticks:{display:false}}}}});
+}
+
+/* ===== SCREEN 3 : 良率追蹤 ===== */
+function v3(){
+  var v='';
+  v+=head("verified","良率與品質損失追蹤","不良、重工造成的品質損失分析","良率 96.5%");
+  v+='<div class="grid g4">'
+    +kpi("inventory","#e0e7ff","#4338ca","總產出","16,720","件",1,"",100)
+    +kpi("check_circle","#dcfce7","#15803d","良品","16,135","件",1,"",97)
+    +kpi("cancel","#fee2e2","#b91c1c","不良品","420","件",-1,"38件",8)
+    +kpi("cached","#fef3c7","#b45309","重工","165","件",-1,"12件",4)
+    +'</div>';
+  v+='<div class="grid g23" style="margin-top:14px">';
+  v+='<div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>不良類型分佈</h3><div class="sub">依缺陷代碼統計本班不良件數</div><div class="cwrap h260"><canvas id="c3a"></canvas></div></div>';
+  v+='<div class="card"><h3><span class="material-symbols-outlined">pie_chart</span>品質損失構成</h3><div class="donutbox"><canvas id="c3b"></canvas><div class="donut-c"><b>3.5%</b><span>損失率</span></div></div>'
+    +'<div class="lgd"><span><i class="dot" style="background:#dc2626"></i>報廢</span><span><i class="dot" style="background:#d97706"></i>重工</span><span><i class="dot" style="background:#64748b"></i>降級</span></div></div>';
+  v+='</div>';
+  v+='<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">fact_check</span>缺陷明細與判定</h3><div class="sub">SPC 標記與處置狀態</div>'
+    +'<div class="tw"><table><thead><tr><th>缺陷代碼</th><th>描述</th><th>機台</th><th>件數</th><th>占比</th><th>判定</th></tr></thead><tbody>';
+  var rows=[
+    ["D-01","尺寸超差","CNC-02",128,"30.5%","報廢","t-bad"],
+    ["D-04","表面刮傷","PKG-05",96,"22.9%","降級","t-warn"],
+    ["D-02","毛邊未除","INJ-03",84,"20.0%","重工","t-info"],
+    ["D-07","焊點虛焊","SMT-11",68,"16.2%","重工","t-info"],
+    ["D-09","色差","INJ-03",44,"10.5%","降級","t-warn"]
+  ];
+  for(var i=0;i<rows.length;i++){var r=rows[i];
+    v+='<tr><td><b>'+r[0]+'</b></td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+' 件</td><td>'+r[4]+'</td><td><span class="tag '+r[6]+'">'+r[5]+'</span></td></tr>';
+  }
+  v+='</tbody></table></div></div>';
+  return v;
+}
+function v3c(){
+  mk("c3a",{type:"bar",data:{labels:["尺寸超差","表面刮傷","毛邊未除","焊點虛焊","色差"],datasets:[
+    {label:"件數",data:[128,96,84,68,44],backgroundColor:["#334155","#475569","#64748b","#94a3b8","#cbd5e1"],borderRadius:5,barPercentage:.6}
+  ]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:"#f1f5f9"},ticks:{font:{size:10}}},y:{grid:{display:false},ticks:{font:{size:10}}}}}});
+  mk("c3b",{type:"doughnut",data:{labels:["報廢","重工","降級"],datasets:[{data:[420,165,140],backgroundColor:["#dc2626","#d97706","#64748b"],borderWidth:2,borderColor:"#fff"}]},options:{cutout:"68%",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+}
+
+/* ===== SCREEN 4 : 損失帕累托 ===== */
+function v4(){
+  var v='';
+  v+=head("insights","六大損失帕累托分析","依 TPM 六大損失排序，鎖定貢獻最大的改善標的","本月累計");
+  v+='<div class="card"><h3><span class="material-symbols-outlined">insights</span>損失時間帕累托圖</h3><div class="sub">長條為各損失時間（分/月），折線為累計占比 %</div><div class="cwrap h260"><canvas id="c4a"></canvas></div></div>';
+  v+='<div class="grid g2" style="margin-top:14px">';
+  v+='<div class="card"><h3><span class="material-symbols-outlined">format_list_numbered</span>六大損失排序</h3><div class="sub">前三項為 80/20 關鍵少數</div><div class="six">';
+  var six=[
+    ["設備故障","突發性停機損失","320 分"],
+    ["換模換線","切換與調整損失","248 分"],
+    ["速度衰減","實際慢於理想節拍","176 分"],
+    ["小停機空轉","短暫停止與空轉","132 分"],
+    ["不良重工","品質不良損失","96 分"],
+    ["暖機啟動","開機初期損失","58 分"]
+  ];
+  for(var i=0;i<six.length;i++){var s=six[i];
+    v+='<div class="six-r"><div class="rk">'+(i+1)+'</div><div class="rt"><b>'+s[0]+'</b><span>'+s[1]+'</span></div><div class="rv">'+s[2]+'</div></div>';
+  }
+  v+='</div></div>';
+  v+='<div class="card"><h3><span class="material-symbols-outlined">query_stats</span>損失類別占比</h3><div class="sub">停機/速度/品質三大類</div><div class="cwrap h220"><canvas id="c4b"></canvas></div>'
+    +'<div class="hint"><span class="material-symbols-outlined">flag</span>前三項損失合計占 68%，優先投入設備故障與換模改善可最大化 OEE 回升。</div></div>';
+  v+='</div>';
+  return v;
+}
+function v4c(){
+  mk("c4a",{data:{labels:["設備故障","換模換線","速度衰減","小停機","不良重工","暖機"],datasets:[
+    {type:"bar",label:"損失(分)",data:[320,248,176,132,96,58],backgroundColor:"#334155",borderRadius:5,order:2,yAxisID:"y"},
+    {type:"line",label:"累計%",data:[29,52,68,80,89,100],borderColor:"#d97706",backgroundColor:"#d97706",borderWidth:2,pointRadius:3,tension:.2,order:1,yAxisID:"y1"}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{font:{size:11},boxWidth:12}}},scales:{y:{beginAtZero:true,grid:{color:"#f1f5f9"},ticks:{font:{size:10}}},y1:{position:"right",beginAtZero:true,max:100,grid:{display:false},ticks:{callback:function(v){return v+"%";},font:{size:10}}},x:{grid:{display:false},ticks:{font:{size:10}}}}}});
+  mk("c4b",{type:"polarArea",data:{labels:["停機損失","速度損失","品質損失"],datasets:[{data:[568,308,96],backgroundColor:["rgba(51,65,85,.85)","rgba(100,116,139,.8)","rgba(148,163,184,.8)"],borderWidth:1,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{font:{size:11},boxWidth:12}}},scales:{r:{grid:{color:"#e2e8f0"},ticks:{display:false}}}}});
+}
+
+/* ===== SCREEN 5 : 改善追蹤 ===== */
+function v5(){
+  var v='';
+  v+=head("task_alt","改善行動追蹤","針對關鍵損失開立改善行動，追蹤進度與 OEE 成效","進行中 6 案");
+  v+='<div class="grid g4">'
+    +kpi("assignment","#e0e7ff","#4338ca","改善案總數","18","案",1,"",100)
+    +kpi("pending_actions","#fef3c7","#b45309","進行中","6","案",1,"",33)
+    +kpi("check_circle","#dcfce7","#15803d","已結案","10","案",1,"2案",56)
+    +kpi("trending_up","#e2e8f0","#334155","OEE 提升","+4.8","%",1,"改善後",96)
+    +'</div>';
+  v+='<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">view_kanban</span>改善行動看板</h3><div class="sub">由待處理流向已結案，PDCA 循環管理</div>';
+  v+='<div class="tw"><div class="board" style="min-width:640px">';
+  var cols=[
+    ["待處理","3",[
+      ["CNC-02 主軸異音診斷","設備故障","王","高"],
+      ["SMT-11 貼片校正 SOP","效能損失","陳","中"]
+    ]],
+    ["進行中","2",[
+      ["B線 SMED 快速換模導入","換模損失","林","高"],
+      ["INJ-03 進料防卡治具","小停機","黃","中"]
+    ]],
+    ["驗證中","1",[
+      ["CNC 刀具壽命預測上線","速度衰減","張","中"]
+    ]],
+    ["已結案","2",[
+      ["尺寸 SPC 管制強化","品質損失","李","已結"],
+      ["PKG-05 封膜參數優化","品質損失","吳","已結"]
+    ]]
+  ];
+  for(var c=0;c<cols.length;c++){var col=cols[c];
+    v+='<div class="col"><div class="col-h"><span>'+col[0]+'</span><span class="cnt">'+col[1]+'</span></div>';
+    for(var k=0;k<col[2].length;k++){var t=col[2][k];
+      var pc=t[3]==="高"?"t-bad":(t[3]==="中"?"t-warn":"t-ok");
+      v+='<div class="tk"><div class="tk-t">'+t[0]+'</div><div class="tk-m"><span class="tag t-mut">'+t[1]+'</span></div>'
+        +'<div class="tk-b"><span class="tag '+pc+'">'+t[3]+'</span><div class="ava">'+t[2]+'</div></div></div>';
+    }
+    v+='</div>';
+  }
+  v+='</div></div></div>';
+  v+='<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">monitoring</span>改善前後 OEE 對比</h3><div class="sub">重點改善案導入前後 4 週平均</div><div class="cwrap h220"><canvas id="c5a"></canvas></div></div>';
+  return v;
+}
+function v5c(){
+  mk("c5a",{type:"bar",data:{labels:["B線 SMED","INJ-03 防卡","CNC 刀具預測","SPC 管制","封膜優化"],datasets:[
+    {label:"改善前",data:[76,78,80,79,82],backgroundColor:"#cbd5e1",borderRadius:4,barPercentage:.7},
+    {label:"改善後",data:[84,85,86,88,90],backgroundColor:"#334155",borderRadius:4,barPercentage:.7}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{font:{size:11},boxWidth:12}}},scales:{y:{beginAtZero:false,min:70,max:95,grid:{color:"#f1f5f9"},ticks:{callback:function(v){return v+"%";},font:{size:10}}},x:{grid:{display:false},ticks:{font:{size:10}}}}}});
+}
+
+/* ===== render engine ===== */
+var RENDER=[v0,v1,v2,v3,v4,v5];
+var INIT=[v0c,v1c,v2c,v3c,v4c,v5c];
+var container=document.getElementById("view");
+function show(i){
+  i=Math.max(0,Math.min(i,RENDER.length-1));
+  destroyCharts();
+  var btns=document.querySelectorAll("[data-i]");
+  for(var b=0;b<btns.length;b++){btns[b].classList.toggle("on",+btns[b].getAttribute("data-i")===i);}
+  container.innerHTML=RENDER[i]();
+  void container.offsetHeight;
+  INIT[i]();
+}
+show(0);
+
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>
