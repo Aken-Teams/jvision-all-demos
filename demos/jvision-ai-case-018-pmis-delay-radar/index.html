@@ -1,18 +1,271 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>進度逾期預警圖｜Jvision 系統 Demo</title>
-  <meta name="description" content="進度、日報、品安到估價成本的工程管理" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>進度逾期預警圖 · PMIS Delay Radar｜Jvision 系統 Demo</title>
+<meta name="description" content="營建專案進度逾期預警：甘特、S 曲線、里程碑與資源負載（純 UI 展示）。" />
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+  :root{ --red:#dc2626; --red-d:#991b1b; --amber:#f59e0b; --amber-d:#b45309; --ink:#1f1512; --body:#4b4038; --muted:#8a7d72; --line:#ece3da; --bg:#f6f2ec; --card:#fff; --green:#16a34a; --slate:#64748b; }
+  *{ box-sizing:border-box; } html,body{ margin:0; }
+  body{ font-family:Inter,"Noto Sans TC","Microsoft JhengHei",sans-serif; background:var(--bg); color:var(--body); -webkit-font-smoothing:antialiased; }
+  .material-symbols-outlined{ font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; line-height:1; }
+  /* TOP NAV (light) */
+  .top{ position:sticky; top:0; z-index:30; background:var(--card); border-bottom:1px solid var(--line); display:flex; align-items:center; gap:14px; padding:10px 20px; flex-wrap:nowrap; overflow-x:auto; }
+  .brand{ display:flex; align-items:center; gap:11px; flex:none; min-width:0; }
+  .logo{ width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg,var(--red),var(--amber)); display:grid; place-items:center; color:#fff; flex:none; box-shadow:0 8px 18px rgba(220,38,38,.32); }
+  .logo .material-symbols-outlined{ font-size:24px; }
+  .brand b{ font-size:15px; font-weight:900; color:var(--ink); display:block; }
+  .brand span{ font-size:10px; color:var(--red); letter-spacing:2px; font-weight:800; }
+  .nav{ display:flex; gap:3px; margin-left:auto; flex-wrap:nowrap; min-width:0; flex:none; }
+  .nav button{ border:0; background:transparent; color:var(--muted); font:inherit; font-weight:700; font-size:13px; padding:9px 12px; border-radius:9px; cursor:pointer; display:flex; align-items:center; gap:6px; flex:none; white-space:nowrap; }
+  .nav button .material-symbols-outlined{ font-size:19px; }
+  .nav button:hover{ background:#faf5ef; color:var(--red); }
+  .nav button.on{ background:linear-gradient(135deg,var(--red),var(--amber)); color:#fff; box-shadow:0 6px 14px rgba(220,38,38,.28); }
+  .top .live{ flex:none; display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:var(--red-d); background:#fee2e2; border-radius:999px; padding:6px 12px; }
+  .top .live .dot{ width:7px; height:7px; border-radius:50%; background:var(--red); animation:pulse 2s infinite; } @keyframes pulse{50%{opacity:.25;}}
+  .wrap{ max-width:1360px; margin:0 auto; padding:22px 24px 48px; min-width:0; }
+  .vh{ display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:18px; flex-wrap:wrap; }
+  .vh h2{ margin:0; font-size:22px; font-weight:900; color:var(--ink); } .vh p{ margin:4px 0 0; font-size:13px; color:var(--muted); }
+  .proj{ font-size:12px; color:var(--muted); background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 12px; display:flex; gap:14px; flex-wrap:wrap; }
+  .proj b{ color:var(--ink); }
+  /* KPI */
+  .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:20px; }
+  .kpi{ background:var(--card); border:1px solid var(--line); border-radius:15px; padding:15px 17px; border-left:4px solid var(--red); position:relative; overflow:hidden; }
+  .kpi.ok{ border-left-color:var(--green); } .kpi.warn{ border-left-color:var(--amber); }
+  .kpi .l{ font-size:12px; font-weight:700; color:var(--muted); display:flex; gap:6px; align-items:center; } .kpi .l .material-symbols-outlined{ font-size:18px; color:var(--red); }
+  .kpi.ok .l .material-symbols-outlined{ color:var(--green); } .kpi.warn .l .material-symbols-outlined{ color:var(--amber); }
+  .kpi .v{ font-size:26px; font-weight:900; color:var(--ink); margin-top:6px; } .kpi .v small{ font-size:13px; color:var(--muted); font-weight:700; }
+  .kpi .d{ font-size:12px; font-weight:800; margin-top:4px; color:var(--muted); }
+  .grid{ display:grid; gap:18px; } .grid>*{ min-width:0; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:17px 19px; min-width:0; }
+  .card>h3{ margin:0 0 14px; font-size:15px; font-weight:900; color:var(--ink); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .card>h3 .material-symbols-outlined{ color:var(--red); font-size:20px; } .card>h3 .leg{ margin-left:auto; font-size:11px; font-weight:700; color:var(--muted); display:flex; gap:10px; flex-wrap:wrap; }
+  .leg i{ width:10px; height:10px; border-radius:3px; display:inline-block; vertical-align:middle; margin-right:3px; }
+  .btn{ display:inline-flex; align-items:center; gap:6px; height:38px; padding:0 15px; border-radius:10px; border:0; background:linear-gradient(135deg,var(--red),var(--amber)); color:#fff; font:inherit; font-weight:800; font-size:13px; cursor:pointer; }
+  .btn.ghost{ background:#fff; color:var(--red); border:1px solid var(--line); } .btn .material-symbols-outlined{ font-size:18px; }
+  /* GANTT */
+  .gantt{ overflow-x:auto; }
+  .gt-head{ display:grid; grid-template-columns:150px 1fr; border-bottom:2px solid var(--line); min-width:820px; }
+  .gt-head .hl{ font-size:11px; font-weight:800; color:var(--muted); padding:6px 6px; align-self:end; }
+  .gt-weeks{ display:grid; grid-template-columns:repeat(12,1fr); }
+  .gt-weeks div{ font-size:10.5px; font-weight:800; color:var(--muted); padding:6px 2px; text-align:center; border-left:1px solid var(--line); }
+  .gt-row{ display:grid; grid-template-columns:150px 1fr; border-bottom:1px solid var(--line); min-width:820px; align-items:center; }
+  .gt-row:hover{ background:#faf6f0; }
+  .gt-lbl{ font-size:12.5px; font-weight:700; color:var(--ink); padding:10px 6px; }
+  .gt-lbl small{ display:block; color:var(--muted); font-weight:600; font-size:10.5px; margin-top:1px; }
+  .gt-track{ position:relative; height:46px; background:repeating-linear-gradient(90deg,transparent,transparent calc(8.333% - 1px),#f0eae2 calc(8.333% - 1px),#f0eae2 8.333%); }
+  .gt-plan{ position:absolute; top:9px; height:28px; border-radius:7px; border:1.5px dashed #c9bcae; background:rgba(201,188,174,.14); }
+  .gt-bar{ position:absolute; top:13px; height:20px; border-radius:6px; display:flex; align-items:center; padding:0 8px; font-size:10.5px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; box-shadow:0 2px 6px rgba(31,21,18,.18); }
+  .b-done{ background:linear-gradient(90deg,#15803d,#22c55e); } .b-run{ background:linear-gradient(90deg,#b45309,#f59e0b); } .b-late{ background:linear-gradient(90deg,#991b1b,#ef4444); } .b-wait{ background:linear-gradient(90deg,#64748b,#94a3b8); }
+  .gt-now{ position:absolute; top:0; bottom:0; width:2px; background:var(--red); z-index:3; }
+  .gt-now::after{ content:"今日"; position:absolute; top:-1px; left:3px; font-size:9px; font-weight:800; color:#fff; background:var(--red); border-radius:0 4px 4px 0; padding:1px 4px; white-space:nowrap; }
+  .gt-ms{ position:absolute; top:6px; width:0; height:0; z-index:2; border-left:7px solid transparent; border-right:7px solid transparent; border-bottom:11px solid var(--amber); transform:translateX(-7px); }
+  .chart{ width:100%; height:300px; } .chart.sm{ height:250px; }
+  /* table */
+  .tbl{ width:100%; border-collapse:collapse; font-size:13px; }
+  .tbl th{ text-align:left; font-size:11px; color:var(--muted); font-weight:800; padding:10px 12px; border-bottom:2px solid var(--line); background:#faf6f0; white-space:nowrap; }
+  .tbl td{ padding:10px 12px; border-bottom:1px solid var(--line); white-space:nowrap; } .tbl tr:hover td{ background:#faf6f0; }
+  .tag{ font-size:11px; font-weight:800; border-radius:999px; padding:2px 9px; white-space:nowrap; }
+  .g-done{ background:#dcfce7; color:#166534; } .g-run{ background:#fef3c7; color:#92400e; } .g-late{ background:#fee2e2; color:#991b1b; } .g-wait{ background:#f1f5f9; color:#475569; }
+  .spi{ font-weight:900; } .spi.bad{ color:var(--red); } .spi.warn{ color:var(--amber-d); } .spi.ok{ color:var(--green); }
+  .bar{ height:8px; border-radius:999px; background:#efe8df; overflow:hidden; min-width:70px; } .bar span{ display:block; height:100%; }
+  /* alerts */
+  .alert{ display:flex; gap:12px; padding:13px 0; border-top:1px solid var(--line); } .alert:first-of-type{ border-top:0; }
+  .alert-ic{ width:36px; height:36px; border-radius:10px; display:grid; place-content:center; flex:none; }
+  .a-red{ background:#fee2e2; color:var(--red); } .a-amber{ background:#fef3c7; color:var(--amber-d); } .a-blue{ background:#e0e7ff; color:#3730a3; }
+  .alert p{ margin:0; font-size:13px; line-height:1.5; } .alert b{ color:var(--ink); } .alert small{ display:block; font-size:11px; color:var(--muted); margin-top:2px; }
+  .alert .tm{ margin-left:auto; font-size:10.5px; color:var(--muted); white-space:nowrap; flex:none; }
+  /* milestones */
+  .ms{ display:flex; flex-direction:column; gap:0; }
+  .ms-i{ display:grid; grid-template-columns:20px 1fr auto; gap:14px; align-items:flex-start; position:relative; padding:2px 0 18px; }
+  .ms-dot{ width:15px; height:15px; border-radius:50%; margin-top:3px; border:3px solid #fff; box-shadow:0 0 0 2px var(--line); z-index:2; }
+  .ms-i.done .ms-dot{ background:var(--green); box-shadow:0 0 0 2px var(--green); } .ms-i.now .ms-dot{ background:var(--amber); box-shadow:0 0 0 2px var(--amber); } .ms-i.late .ms-dot{ background:var(--red); box-shadow:0 0 0 2px var(--red); } .ms-i.todo .ms-dot{ background:#cbd5e1; }
+  .ms-i:not(:last-child)::before{ content:""; position:absolute; left:7px; top:16px; bottom:-2px; width:2px; background:var(--line); }
+  .ms-i b{ font-size:14px; color:var(--ink); } .ms-i small{ display:block; font-size:12px; color:var(--muted); margin-top:2px; }
+  .ms-i .r{ text-align:right; font-size:12px; color:var(--muted); white-space:nowrap; } .ms-i .r b{ font-size:13px; display:block; }
+  /* resource load */
+  .res{ display:flex; flex-direction:column; gap:14px; }
+  .res-r{ display:grid; grid-template-columns:120px 1fr 56px; gap:12px; align-items:center; }
+  .res-r .nm{ font-size:13px; font-weight:700; color:var(--ink); } .res-r .nm small{ display:block; color:var(--muted); font-weight:600; font-size:11px; }
+  .res-track{ height:22px; border-radius:7px; background:#efe8df; overflow:hidden; position:relative; }
+  .res-track span{ display:block; height:100%; border-radius:7px; }
+  .res-track .cap{ position:absolute; top:0; bottom:0; width:2px; background:var(--red); }
+  .res-r .pc{ font-size:13px; font-weight:900; text-align:right; }
+  .note{ font-size:12px; color:var(--muted); line-height:1.7; margin-top:12px; }
+  @media (max-width:900px){ .grid{ grid-template-columns:1fr !important; } }
+  @media (max-width:560px){ .wrap{ padding:16px 12px 36px; } .nav button span:last-child{ display:none; } .nav button{ padding:9px; } .brand span{ display:none; } .top .live{ display:none; } }
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<header class="top">
+  <div class="brand">
+    <div class="logo"><span class="material-symbols-outlined">radar</span></div>
+    <div><b>進度逾期預警圖</b><span>PMIS DELAY RADAR</span></div>
+  </div>
+  <nav class="nav" id="nav"></nav>
+  <span class="live"><span class="dot"></span>逾期 3 項</span>
+</header>
+<div class="wrap" id="view"></div>
+<script>
+const NAV=[["insights","進度總覽"],["view_timeline","專案甘特"],["show_chart","S 曲線"],["crisis_alert","逾期預警"],["flag","里程碑"],["engineering","資源負載"]];
+const DESC=[
+ "整體工期健康度、SPI 與逾期工項一眼掌握",
+ "WBS 工項排程甘特，逾期工作以紅色標示、對照計畫條",
+ "計畫與實際累計完成率（S 曲線）比對與偏差研判",
+ "落後且位於要徑的工項自動排序預警與趕工對策",
+ "關鍵里程碑達成狀況與剩餘天數追蹤",
+ "工班與機具每週投入負載，超載即示警"];
+const PROJ="市立醫院擴建工程 · 標案 PJ-2026-014 · 合約工期 320 天 · 第 26 週";
+
+/* ---- gantt data: 工項, 工種, 計畫[start%,width%], 實際狀態, 實際條[start%,width%], 完成% ---- */
+const WBS=[
+ ["整地與假設工程","土建",[0,10],"done",[0,10],100],
+ ["基礎開挖","土建",[8,14],"done",[8,15],100],
+ ["筏基與地下室結構","結構",[20,20],"late",[20,16],72],
+ ["地上層 RC 結構","結構",[38,26],"run",[38,18],44],
+ ["外牆與帷幕","外裝",[56,20],"wait",[0,0],0],
+ ["機電幹管","機電",[42,24],"late",[44,12],28],
+ ["室內裝修","裝修",[66,22],"wait",[0,0],0],
+ ["水電衛消末端","機電",[74,16],"wait",[0,0],0],
+ ["竣工查驗與交付","收尾",[90,10],"wait",[0,0],0]];
+const MSTONE=[/* 位置% */ [16,"基礎完成"],[40,"結構到頂"],[76,"機電竣工"],[100,"竣工交付"]];
+
+const KPI=[
+ ["整體完成率","54.8","%","計畫 61.2%（落後 6.4%）","warn","monitoring"],
+ ["進度績效 SPI","0.89","","<0.95 進度落後","late","speed"],
+ ["逾期工項","3","項","要徑 2 項需趕工","late","crisis_alert"],
+ ["預估延誤","11","天","若不介入將順延交付","warn","event_busy"]];
+
+const ALERTS=[
+ ["red","筏基與地下室結構","要徑工項，實際完成 72%（計畫 90%），落後約 8 天，鋼筋續接查驗卡關。","要徑 · SPI 0.80","3 小時前"],
+ ["red","機電幹管","與 RC 結構界面衝突，管線淨高不足需修改，落後 6 天。","界面衝突","昨日"],
+ ["amber","地上層 RC 結構","雨天工作面受限，本週澆置延後 1 天，需追蹤是否連動落後。","天候影響","昨日"],
+ ["amber","外牆與帷幕","上游結構落後恐壓縮進場工期，材料到場需提前協調。","前置風險","2 天前"],
+ ["blue","室內裝修","尚未進場，維持計畫；待機電幹管完成後啟動。","如期","本週"]];
+
+const LATE=[
+ ["筏基與地下室結構","結構","要徑","0.80","−8 天","趕工 · 加班雙班","late"],
+ ["機電幹管","機電","要徑","0.62","−6 天","修改設計 · 界面協調","late"],
+ ["地上層 RC 結構","結構","非要徑","0.92","−2 天","追蹤天候 · 補澆置","run"]];
+
+const RES=[
+ ["土建工班","泥作 · 模板",68,"green"],
+ ["結構工班","鋼筋 · 混凝土",112,"red"],
+ ["機電工班","水電 · 空調",96,"amber"],
+ ["裝修工班","輕隔間 · 油漆",34,"green"],
+ ["塔式起重機","2 台",118,"red"],
+ ["混凝土泵浦","3 台",78,"green"]];
+
+const stTx=s=>({done:"已完成",run:"進行中",late:"逾期",wait:"未開始"})[s];
+const barColor=c=>c==="red"?"var(--red)":c==="amber"?"var(--amber)":"var(--green)";
+
+function kpiRow(){return `<div class="kpis">${KPI.map(k=>`<div class="kpi ${k[4]==="late"?"":k[4]==="warn"?"warn":"ok"}"><div class="l"><span class="material-symbols-outlined">${k[5]}</span>${k[0]}</div><div class="v">${k[1]}<small> ${k[2]}</small></div><div class="d">${k[3]}</div></div>`).join("")}</div>`;}
+
+function ganttHtml(){
+  const weeks=Array.from({length:12},(_,i)=>`<div>W${i*3+1}</div>`).join("");
+  return `<div class="gantt"><div class="gt-head"><div class="hl">工項 \\ 週次</div><div class="gt-weeks">${weeks}</div></div>`+
+   WBS.map(w=>{
+     const plan=`<div class="gt-plan" style="left:${w[2][0]}%;width:${w[2][1]}%;"></div>`;
+     const bar=w[4][1]>0?`<div class="gt-bar b-${w[3]}" style="left:${w[4][0]}%;width:${w[4][1]}%;">${w[5]}%</div>`:"";
+     return `<div class="gt-row"><div class="gt-lbl">${w[0]}<small>${w[1]}</small></div><div class="gt-track"><div class="gt-now" style="left:44%;"></div>${plan}${bar}</div></div>`;
+   }).join("")+
+   `<div class="gt-row" style="border-bottom:0;"><div class="gt-lbl" style="color:var(--muted);font-weight:800;">里程碑</div><div class="gt-track" style="height:26px;background:none;">${MSTONE.map(m=>`<div class="gt-ms" style="left:${m[0]}%;" title="${m[1]}"></div>`).join("")}<div class="gt-now" style="left:44%;"></div></div></div>`+
+   `</div>`;
+}
+
+const SCREENS={
+ 0:()=>kpiRow()+
+  `<div class="grid" style="grid-template-columns:1.5fr 1fr;">
+    <div class="card"><h3><span class="material-symbols-outlined">show_chart</span>計畫 vs 實際 S 曲線<span class="leg"><span><i style="background:#94a3b8;"></i>計畫</span><span><i style="background:#dc2626;"></i>實際</span></span></h3><div id="cS0" class="chart"></div></div>
+    <div class="card"><h3><span class="material-symbols-outlined">notifications_active</span>逾期預警摘要</h3>${ALERTS.slice(0,4).map(a=>`<div class="alert"><span class="alert-ic a-${a[0]}"><span class="material-symbols-outlined">${a[0]==="red"?"error":a[0]==="amber"?"warning":"info"}</span></span><p><b>${a[1]}</b><small>${a[2]}</small></p><span class="tm">${a[4]}</span></div>`).join("")}</div>
+  </div>
+  <div class="card" style="margin-top:18px;"><h3><span class="material-symbols-outlined">table_view</span>各工項進度總表</h3><div style="overflow-x:auto;"><table class="tbl"><thead><tr><th>工項</th><th>工種</th><th>狀態</th><th>SPI</th><th>完成率</th><th>進度</th></tr></thead><tbody>${WBS.map(w=>{const spi=(w[5]/Math.max(1,planPct(w))).toFixed(2);const cls=w[3]==="late"?"g-late":w[3]==="run"?"g-run":w[3]==="done"?"g-done":"g-wait";const sc=+spi<0.9?"bad":+spi<1?"warn":"ok";return `<tr><td style="font-weight:800;color:var(--ink);">${w[0]}</td><td>${w[1]}</td><td><span class="tag ${cls}">${stTx(w[3])}</span></td><td class="spi ${w[3]==="wait"?"":sc}">${w[3]==="wait"?"—":spi}</td><td>${w[5]}%</td><td><div class="bar"><span style="width:${w[5]}%;background:${w[3]==="late"?"var(--red)":w[3]==="run"?"var(--amber)":"var(--green)"};"></span></div></td></tr>`;}).join("")}</tbody></table></div></div>`,
+
+ 1:()=>`<div class="card"><h3><span class="material-symbols-outlined">view_timeline</span>專案甘特（WBS）<span class="leg"><span><i style="background:#22c55e;"></i>已完成</span><span><i style="background:#f59e0b;"></i>進行中</span><span><i style="background:#ef4444;"></i>逾期</span><span><i style="background:#94a3b8;"></i>未開始</span><span><i style="background:#c9bcae;border:1px dashed #a99;"></i>計畫</span></span></h3>${ganttHtml()}<div class="note">虛線框為計畫工期，實心條為實際進度；紅色條代表落後於計畫的逾期工項，紅線為今日、三角標為里程碑。橫向可捲動檢視全部 12 週。</div></div>
+  <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:18px;">
+    <div class="card"><h3><span class="material-symbols-outlined">alt_route</span>要徑分析</h3><div class="alert"><span class="alert-ic a-red"><span class="material-symbols-outlined">priority_high</span></span><p><b>要徑：基礎 → 結構 → 機電幹管 → 收尾</b><small>要徑總浮時已被侵蝕，任一環節再落後將直接延後竣工。</small></p></div><div class="alert"><span class="alert-ic a-amber"><span class="material-symbols-outlined">schedule</span></span><p><b>浮時預警</b><small>地上層 RC 結構浮時剩 3 天，建議優先補足人力。</small></p></div></div>
+    <div class="card"><h3><span class="material-symbols-outlined">rule</span>排程判定規則</h3><div class="alert"><span class="alert-ic a-blue">1</span><p><b>要徑優先：</b><small>位於要徑且落後的工項列為最高趕工優先。</small></p></div><div class="alert"><span class="alert-ic a-blue">2</span><p><b>界面凍結：</b><small>上下游界面未確認前，後段工項不得進場施作。</small></p></div><div class="alert"><span class="alert-ic a-blue">3</span><p><b>里程碑守恆：</b><small>關鍵里程碑落後需指定補救對策與新達成日。</small></p></div></div>
+  </div>`,
+
+ 2:()=>kpiRow()+
+  `<div class="card"><h3><span class="material-symbols-outlined">show_chart</span>累計進度 S 曲線（計畫 / 實際 / 預測）<span class="leg"><span><i style="background:#94a3b8;"></i>計畫</span><span><i style="background:#dc2626;"></i>實際</span><span><i style="background:#f59e0b;"></i>預測</span></span></h3><div id="cS2" class="chart" style="height:340px;"></div></div>
+  <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:18px;">
+    <div class="card"><h3><span class="material-symbols-outlined">difference</span>週進度偏差（計畫−實際）</h3><div id="cD2" class="chart sm"></div></div>
+    <div class="card"><h3><span class="material-symbols-outlined">summarize</span>偏差研判</h3><div class="alert"><span class="alert-ic a-red"><span class="material-symbols-outlined">trending_down</span></span><p><b>累計落後 6.4%</b><small>實際 54.8% 對計畫 61.2%，SPI 0.89 持續低於門檻 0.95。</small></p></div><div class="alert"><span class="alert-ic a-amber"><span class="material-symbols-outlined">query_stats</span></span><p><b>趨勢預測</b><small>依近 4 週斜率外推，竣工恐順延約 11 天。</small></p></div><div class="alert"><span class="alert-ic a-blue"><span class="material-symbols-outlined">bolt</span></span><p><b>趕工情境</b><small>結構雙班 + 機電並行可回補 8 天，落後收斂至 3 天內。</small></p></div></div>
+  </div>`,
+
+ 3:()=>`<div class="card"><h3><span class="material-symbols-outlined">crisis_alert</span>逾期工項預警清單（依要徑與落後排序）</h3><div style="overflow-x:auto;"><table class="tbl"><thead><tr><th>工項</th><th>工種</th><th>要徑</th><th>SPI</th><th>落後</th><th>建議對策</th><th>狀態</th></tr></thead><tbody>${LATE.map(l=>`<tr><td style="font-weight:800;color:var(--ink);">${l[0]}</td><td>${l[1]}</td><td>${l[2]==="要徑"?'<span class="tag g-late">要徑</span>':'<span class="tag g-wait">非要徑</span>'}</td><td class="spi ${+l[3]<0.9?"bad":"warn"}">${l[3]}</td><td style="color:var(--red);font-weight:800;">${l[4]}</td><td>${l[5]}</td><td><span class="tag g-${l[6]}">${stTx(l[6])}</span></td></tr>`).join("")}</tbody></table></div></div>
+  <div class="grid" style="grid-template-columns:1.2fr 1fr;margin-top:18px;">
+    <div class="card"><h3><span class="material-symbols-outlined">campaign</span>預警事件流</h3>${ALERTS.map(a=>`<div class="alert"><span class="alert-ic a-${a[0]}"><span class="material-symbols-outlined">${a[0]==="red"?"error":a[0]==="amber"?"warning":"info"}</span></span><p><b>${a[1]}</b><small>${a[2]}</small></p><span class="tm">${a[4]}</span></div>`).join("")}</div>
+    <div class="card"><h3><span class="material-symbols-outlined">donut_large</span>逾期成因分布</h3><div id="cC3" class="chart"></div><div class="note">前二大成因為界面衝突與天候影響，合計逾六成，優先建立界面協調會與雨季施工備案。</div></div>
+  </div>`,
+
+ 4:()=>`<div class="grid" style="grid-template-columns:1.1fr 1fr;">
+    <div class="card"><h3><span class="material-symbols-outlined">flag</span>關鍵里程碑追蹤</h3><div class="ms">
+      <div class="ms-i done"><span class="ms-dot"></span><div><b>基礎完成</b><small>02/18 · 假設工程與基礎開挖驗收通過</small></div><div class="r"><b style="color:var(--green);">已達成</b>準時</div></div>
+      <div class="ms-i late"><span class="ms-dot"></span><div><b>結構到頂</b><small>原訂 05/30 · 受地下室結構落後影響</small></div><div class="r"><b style="color:var(--red);">落後 8 天</b>預估 06/07</div></div>
+      <div class="ms-i now"><span class="ms-dot"></span><div><b>機電竣工</b><small>原訂 08/22 · 幹管界面衝突處理中</small></div><div class="r"><b style="color:var(--amber-d);">風險</b>剩 58 天</div></div>
+      <div class="ms-i todo"><span class="ms-dot"></span><div><b>竣工交付</b><small>合約 10/30 · 待前段收斂後確認</small></div><div class="r"><b>未開始</b>剩 127 天</div></div>
+    </div></div>
+    <div class="card"><h3><span class="material-symbols-outlined">event_available</span>里程碑達成率</h3><div id="cM4" class="chart"></div><div class="note">4 個關鍵里程碑已達成 1 項、1 項落後、1 項風險、1 項待啟動，整體達成率須靠結構趕工回穩。</div></div>
+  </div>
+  <div class="card" style="margin-top:18px;"><h3><span class="material-symbols-outlined">checklist</span>里程碑守恆與補救</h3><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
+    <div class="alert"><span class="alert-ic a-red"><span class="material-symbols-outlined">construction</span></span><p><b>結構到頂補救</b><small>鋼筋工班加開夜班、預組續接，目標回補至 06/03。</small></p></div>
+    <div class="alert"><span class="alert-ic a-amber"><span class="material-symbols-outlined">handshake</span></span><p><b>機電界面協調</b><small>每週界面會議，凍結淨高變更後始能放樣。</small></p></div>
+    <div class="alert"><span class="alert-ic a-blue"><span class="material-symbols-outlined">update</span></span><p><b>交付基準</b><small>竣工里程碑保留 5 天緩衝，逾期預警觸發即重排。</small></p></div>
+  </div></div>`,
+
+ 5:()=>`<div class="card"><h3><span class="material-symbols-outlined">engineering</span>本週資源負載（相對產能 100%）<span class="leg"><span><i style="background:#16a34a;"></i>正常</span><span><i style="background:#f59e0b;"></i>接近上限</span><span><i style="background:#dc2626;"></i>超載</span></span></h3><div class="res">${RES.map(r=>`<div class="res-r"><div class="nm">${r[0]}<small>${r[1]}</small></div><div class="res-track"><span style="width:${Math.min(100,r[2])}%;background:${barColor(r[3])};"></span><div class="cap" style="left:100%;"></div></div><div class="pc" style="color:${barColor(r[3])};">${r[2]}%</div></div>`).join("")}</div><div class="note">紅線為產能上限；結構工班與塔吊已超載，是趕工瓶頸。建議調度裝修工班暫緩、優先支援結構，並協調第二班塔吊時段。</div></div>
+  <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:18px;">
+    <div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>未來 6 週工班需求預測</h3><div id="cR5" class="chart"></div></div>
+    <div class="card"><h3><span class="material-symbols-outlined">tips_and_updates</span>資源調整建議</h3><div class="alert"><span class="alert-ic a-red"><span class="material-symbols-outlined">group_add</span></span><p><b>結構工班 +12%</b><small>加開夜班回補地下室結構，紓解要徑落後。</small></p></div><div class="alert"><span class="alert-ic a-amber"><span class="material-symbols-outlined">precision_manufacturing</span></span><p><b>塔吊時段重排</b><small>與相鄰標段錯開吊裝，降低超載尖峰。</small></p></div><div class="alert"><span class="alert-ic a-blue"><span class="material-symbols-outlined">swap_horiz</span></span><p><b>裝修工班延後進場</b><small>閒置產能 66%，暫緩至機電竣工後再投入。</small></p></div></div>
+  </div>`
+};
+
+/* helper: 依今日 44% 推算某工項的計畫應完成% */
+function planPct(w){const s=w[2][0],e=w[2][0]+w[2][1],now=44;if(now<=s)return 1;if(now>=e)return 100;return Math.round((now-s)/(e-s)*100)||1;}
+
+let charts=[];
+function ax(){return {axisLabel:{color:"#8a7d72",fontSize:11},axisLine:{lineStyle:{color:"#ece3da"}},splitLine:{lineStyle:{color:"#f0eae2"}}};}
+function scurve(id){const el=document.getElementById(id);if(!el)return;const c=echarts.init(el);
+  const wk=Array.from({length:13},(_,i)=>"W"+(i*3+1));
+  const plan=[0,6,14,24,34,42,50,61,71,80,88,95,100];
+  const act =[0,7,15,25,33,40,47,55,null,null,null,null,null];
+  const fc  =[null,null,null,null,null,null,null,55,63,72,82,91,100];
+  c.setOption({grid:{left:6,right:14,top:16,bottom:6,containLabel:true},tooltip:{trigger:"axis"},legend:{show:false},
+   xAxis:Object.assign({type:"category",data:wk,boundaryGap:false},ax()),yAxis:Object.assign({type:"value",max:100,axisLabel:{formatter:"{value}%",color:"#8a7d72"}},ax()),
+   series:[
+    {name:"計畫",type:"line",data:plan,smooth:true,symbol:"none",lineStyle:{width:2,type:"dashed",color:"#94a3b8"},areaStyle:{color:"rgba(148,163,184,.10)"}},
+    {name:"實際",type:"line",data:act,smooth:true,symbol:"circle",symbolSize:6,lineStyle:{width:3,color:"#dc2626"},itemStyle:{color:"#dc2626"},areaStyle:{color:"rgba(220,38,38,.10)"}},
+    {name:"預測",type:"line",data:fc,smooth:true,symbol:"none",lineStyle:{width:2,type:"dotted",color:"#f59e0b"}}
+   ]});charts.push(c);}
+function draw(i){
+ charts.forEach(c=>{try{c.dispose();}catch(e){}});charts=[];
+ if(!window.echarts)return;
+ if(i===0)scurve("cS0");
+ if(i===2){scurve("cS2");
+   const d=document.getElementById("cD2");if(d){const c=echarts.init(d);c.setOption({grid:{left:6,right:14,top:16,bottom:6,containLabel:true},tooltip:{trigger:"axis"},xAxis:Object.assign({type:"category",data:["W16","W19","W22","W25"]},ax()),yAxis:Object.assign({type:"value",axisLabel:{formatter:"{value}%",color:"#8a7d72"}},ax()),series:[{type:"bar",data:[-1,-3,-5,-6.4],itemStyle:{color:p=>p.value<-4?"#dc2626":"#f59e0b",borderRadius:[0,0,4,4]},label:{show:true,position:"bottom",formatter:"{c}%",color:"#8a7d72",fontSize:10}}]});charts.push(c);}}
+ if(i===3){const p=document.getElementById("cC3");if(p){const c=echarts.init(p);c.setOption({tooltip:{trigger:"item"},legend:{bottom:0,textStyle:{color:"#8a7d72"}},series:[{type:"pie",radius:["45%","70%"],center:["50%","44%"],avoidLabelOverlap:true,itemStyle:{borderColor:"#fff",borderWidth:2},label:{show:false},data:[{value:34,name:"界面衝突",itemStyle:{color:"#dc2626"}},{value:28,name:"天候影響",itemStyle:{color:"#f59e0b"}},{value:20,name:"人力不足",itemStyle:{color:"#b45309"}},{value:18,name:"設計變更",itemStyle:{color:"#94a3b8"}}]}]});charts.push(c);}}
+ if(i===4){const m=document.getElementById("cM4");if(m){const c=echarts.init(m);c.setOption({series:[{type:"gauge",radius:"96%",center:["50%","58%"],startAngle:210,endAngle:-30,min:0,max:100,progress:{show:true,width:16,itemStyle:{color:"#dc2626"}},axisLine:{lineStyle:{width:16,color:[[1,"#efe8df"]]}},pointer:{show:false},axisTick:{show:false},splitLine:{show:false},axisLabel:{show:false},detail:{valueAnimation:false,formatter:"{value}%",fontSize:30,fontWeight:"bolder",offsetCenter:[0,"10%"],color:"#1f1512"},title:{offsetCenter:[0,"38%"],color:"#8a7d72",fontSize:12},data:[{value:25,name:"里程碑達成率"}]}]});charts.push(c);}}
+ if(i===5){const r=document.getElementById("cR5");if(r){const c=echarts.init(r);c.setOption({grid:{left:6,right:14,top:24,bottom:6,containLabel:true},tooltip:{trigger:"axis"},legend:{top:0,textStyle:{color:"#8a7d72"},data:["結構","機電","裝修"]},xAxis:Object.assign({type:"category",data:["W27","W28","W29","W30","W31","W32"]},ax()),yAxis:Object.assign({type:"value",name:"人日",nameTextStyle:{color:"#8a7d72"}},ax()),series:[{name:"結構",type:"bar",stack:"a",data:[220,240,180,120,60,20],itemStyle:{color:"#dc2626"}},{name:"機電",type:"bar",stack:"a",data:[120,160,200,220,180,140],itemStyle:{color:"#f59e0b"}},{name:"裝修",type:"bar",stack:"a",data:[0,0,40,120,200,240],itemStyle:{color:"#64748b"}}]});charts.push(c);}}
+}
+
+const nav=document.getElementById("nav"),view=document.getElementById("view");
+nav.innerHTML=NAV.map((m,i)=>`<button data-i="${i}" class="${i===0?"on":""}"><span class="material-symbols-outlined">${m[0]}</span><span>${m[1]}</span></button>`).join("");
+function show(i){
+ nav.querySelectorAll("button[data-i]").forEach(b=>b.classList.toggle("on",+b.dataset.i===i));
+ view.innerHTML=`<div class="vh"><div><h2>${NAV[i][1]}</h2><p>${DESC[i]}</p></div><div class="proj"><span>${PROJ}</span></div></div>`+SCREENS[i]();
+ draw(i);
+}
+nav.addEventListener("click",e=>{const b=e.target.closest("button[data-i]");if(b)show(+b.dataset.i);});
+window.addEventListener("resize",()=>charts.forEach(c=>{try{c.resize();}catch(e){}}));
+show(0);
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>
