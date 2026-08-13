@@ -149,7 +149,7 @@ function renderMission() {
   // participants avatars
   setHTML("#runAgents", c.participants.map((pid) => {
     const a = _agent(pid);
-    return `<div class="flex items-center gap-1.5 bg-soft border border-line rounded-full pl-1 pr-3 py-1"><span class="w-6 h-6 rounded-full bg-violet/10 text-violet grid place-content-center"><span class="material-symbols-outlined text-[15px]">${a.icon}</span></span><span class="text-[12px] font-semibold text-body">${a.name}</span></div>`;
+    return `<div class="flex items-center gap-1.5 bg-soft border border-line rounded-full pl-1 pr-3 py-1"><span class="w-6 h-6 rounded-full bg-violet/10 text-violet grid place-content-center"><span class="material-symbols-outlined text-[15px]">${a.icon}</span></span><span class="text-[12px] font-semibold text-body">${a.label || a.name}</span></div>`;
   }).join(""));
 
   // right summary (compact chips)
@@ -177,6 +177,9 @@ let _curStage = -1;
 function postFrame(msg) { const f = document.querySelector("#resultFrame"); if (f && f.contentWindow) { try { f.contentWindow.postMessage(msg, "*"); } catch (e) {} } }
 function setLive(on) { const el = document.querySelector("#frameLive"); if (!el) return; el.innerHTML = on ? '<span class="w-1.5 h-1.5 rounded-full bg-success"></span> 連線中' : '<span class="w-1.5 h-1.5 rounded-full bg-idle"></span> 待機'; }
 
+/* 舊暱稱 → 新功能名（跟卡片一致） */
+function _disp(who) { const a = (typeof AGENTS !== "undefined") && AGENTS.find((x) => x.name === who); return (a && a.label) || who; }
+
 /* ---------- 播放：步驟 + 對話 + 完成項目 + 進度 ---------- */
 let _timers = [];
 function _logHTML(m) {
@@ -184,11 +187,12 @@ function _logHTML(m) {
   const nameColor = { brand: "text-brand", violet: "text-violet", success: "text-success" }[m.color] || "text-brand";
   const bubble = m.color === "success" ? "border-success/40" : "border-line";
   const bg = m.color === "success" ? "style='background:#f0fdf4'" : "";
+  const nm = _disp(m.who);
   const file = m.file ? `<div class="mt-2 bg-soft p-1.5 rounded border border-line text-[11px] font-mono text-muted inline-flex items-center gap-1.5"><span class="material-symbols-outlined text-[13px]">description</span> ${m.file}</div>` : "";
   return `<div class="log-item flex gap-3">
-    <div class="w-7 h-7 rounded-lg ${badge} grid place-content-center shrink-0 text-[11px] font-bold mt-0.5">${m.who[0]}</div>
+    <div class="w-7 h-7 rounded-lg ${badge} grid place-content-center shrink-0 text-[11px] font-bold mt-0.5">${nm[0]}</div>
     <div class="p-2.5 rounded-tr-xl rounded-b-xl rounded-tl-sm border ${bubble} w-full" ${bg}>
-      <div class="flex justify-between items-center mb-0.5"><span class="text-[12px] font-bold ${nameColor}">${m.who}</span><span class="text-[10px] text-muted">${m.time}</span></div>
+      <div class="flex justify-between items-center mb-0.5"><span class="text-[12px] font-bold ${nameColor}">${nm}</span><span class="text-[10px] text-muted">${m.time}</span></div>
       <p class="text-[13px] text-ink leading-relaxed">${m.text}</p>${file}
     </div>
   </div>`;
@@ -196,10 +200,11 @@ function _logHTML(m) {
 function _typingHTML(m) {
   const badge = { brand: "bg-brand text-white", violet: "bg-violet/15 text-violet", success: "bg-success text-white" }[m.color] || "bg-brand text-white";
   const nameColor = { brand: "text-brand", violet: "text-violet", success: "text-success" }[m.color] || "text-brand";
+  const nm = _disp(m.who);
   return `<div id="typingBubble" class="flex gap-3">
-    <div class="w-7 h-7 rounded-lg ${badge} grid place-content-center shrink-0 text-[11px] font-bold mt-0.5">${m.who[0]}</div>
+    <div class="w-7 h-7 rounded-lg ${badge} grid place-content-center shrink-0 text-[11px] font-bold mt-0.5">${nm[0]}</div>
     <div class="p-2.5 rounded-tr-xl rounded-b-xl rounded-tl-sm border border-line bg-soft/60 inline-flex items-center gap-2">
-      <span class="text-[12px] font-bold ${nameColor}">${m.who}</span>
+      <span class="text-[12px] font-bold ${nameColor}">${nm}</span>
       <span class="inline-flex gap-1">
         <span class="w-1.5 h-1.5 bg-muted rounded-full animate-bounce"></span>
         <span class="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style="animation-delay:.15s"></span>

@@ -177,6 +177,17 @@
     .flow-step-out { cursor:default; background:var(--accent-soft); border-color:var(--accent-line); }
     .flow-step-out .fs-n { background:var(--accent); color:#fff; }
     .flow-detail { background:#fff; border:1px solid var(--line,#e2e8f0); border-radius:16px; padding:22px; min-height:380px; }
+
+    /* benefits: horizontal collaboration flow */
+    .collab { display:flex; align-items:flex-start; }
+    .collab-step { flex:1; display:flex; flex-direction:column; align-items:center; text-align:center; position:relative; padding:0 8px; }
+    .collab-step:not(:last-child)::after { content:""; position:absolute; top:27px; left:calc(50% + 30px); right:calc(-50% + 30px); height:2px; background:var(--accent-line); z-index:0; }
+    .collab-ico { width:54px; height:54px; border-radius:50%; display:grid; place-content:center; border:2px solid var(--accent-line); background:#fff; color:var(--accent); margin-bottom:12px; position:relative; z-index:1; }
+    .collab-step.done .collab-ico { background:var(--accent); color:#fff; border-color:var(--accent); box-shadow:0 8px 20px rgba(15,30,70,.18); }
+    .collab-num { font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--accent); margin-bottom:4px; }
+    .collab-title { font-weight:800; color:#0f1e46; margin-bottom:5px; font-size:15px; }
+    .collab-desc { font-size:12px; color:#64748b; line-height:1.6; max-width:210px; }
+    @media (max-width:640px){ .collab { flex-direction:column; gap:18px; } .collab-step { flex-direction:row; text-align:left; gap:14px; padding:0; } .collab-step::after { display:none; } .collab-ico { margin-bottom:0; flex:none; } .collab-desc { max-width:none; } }
   </style>
 </head>
 <body class="text-body antialiased min-h-screen flex flex-col">
@@ -474,6 +485,17 @@
         (D.flow.decisions || []).forEach((dc, i) => { const idx = Math.min(stages.length - 1, i + 1); if (!stages[idx].decision) stages[idx].decision = (dc.yes || dc.no) ? dc : { label: dc.label, yes: "", no: "" }; });
       }
       const flowStepsHtml = stages.map((s, i) => `<button class="flow-step${i === 0 ? " active" : ""}" data-step="${i}"><span class="fs-n">${i + 1}</span><span class="fs-body"><b>${esc(clip(s.title, 24))}</b>${s.role ? `<small>${esc(clip(s.role, 12))}</small>` : ""}</span>${s.decision ? '<span class="material-symbols-outlined fs-flag">alt_route</span>' : ""}</button>`).join("");
+      // benefits tab — simple horizontal "how we work through the stages" flow
+      const collabIcon = (t, i) => {
+        if (/建立|擷取|匯入|受理|登記|新增|盤點/.test(t)) return "input";
+        if (/排|派|評估|審查|分析|比對|規劃/.test(t)) return "fact_check";
+        if (/處理|執行|推進|開工|隔離|議合|報價|跟進|照護/.test(t)) return "engineering";
+        if (/確認|覆核|核准|驗證|審核|複核/.test(t)) return "verified";
+        if (/入庫|結案|歸檔|完成|發布|交接|留存|關案|入帳/.test(t)) return "task_alt";
+        return ["looks_one", "looks_two", "looks_3", "looks_4", "looks_5", "looks_6"][i] || "adjust";
+      };
+      const collabSteps = stages.slice(0, 6);
+      const collabHtml = collabSteps.map((s, i) => `<div class="collab-step${i === collabSteps.length - 1 ? " done" : ""}"><div class="collab-ico"><span class="material-symbols-outlined">${esc(collabIcon(s.title, i))}</span></div><div class="collab-num">STEP ${String(i + 1).padStart(2, "0")}</div><div class="collab-title">${esc(clip(s.title, 12))}</div><div class="collab-desc">${esc(clip(s.desc || "", 40))}</div></div>`).join("");
       function flowDetailHtml(i) {
         const s = stages[i]; if (!s) return "";
         const dec = s.decision, rule = s.rule;
@@ -609,11 +631,13 @@
             <h2 class="sec-title mb-4">帶來的效益</h2>
             <p class="sec-lead mb-8">把重複的人工作業自動化，讓數據即時可視、異常更早被發現、決策更快更準。</p>
             <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">${kpiCardsHtml}</div>
-            <div class="grid lg:grid-cols-2 gap-6 mb-6">
-              <div class="chart-card"><h3 class="font-bold text-ink mb-1 px-1">導入前後對比</h3><div id="benefitBar" class="chart-box" style="height:${Math.max(240, kpis.length * 56)}px;"></div></div>
-              <div class="chart-card"><h3 class="font-bold text-ink mb-1 px-1">${esc((D.benefits.trend && D.benefits.trend.series && D.benefits.trend.series[0] && D.benefits.trend.series[0].name) || "改善趨勢")}</h3><div id="benefitTrend" class="chart-box" style="height:280px;"></div></div>
+            <div class="chart-card mb-8"><h3 class="font-bold text-ink mb-1 px-1">導入前後對比</h3><div id="benefitBar" class="chart-box" style="height:${Math.max(220, kpis.length * 52)}px;"></div></div>
+            <div class="bg-white rounded-2xl border border-line p-6 mb-8">
+              <h3 class="font-bold text-ink mb-1 flex items-center gap-2"><span class="material-symbols-outlined txt-accent">handshake</span>與客戶協作的方式</h3>
+              <p class="text-sm text-muted mb-7">導入後，系統帶著團隊一步步走完每個階段的協作。</p>
+              <div class="collab">${collabHtml}</div>
             </div>
-            <h3 class="font-bold text-ink mb-4 mt-2">導入後帶來的改變</h3>
+            <h3 class="font-bold text-ink mb-4">導入後帶來的改變</h3>
             <ul class="grid md:grid-cols-3 gap-5">${pointsHtml}</ul>
             <p class="text-xs text-muted mt-4">＊上方效益數字為示範情境值，用於呈現系統帶來的改善方向。</p>
           </section>
@@ -703,15 +727,6 @@
             { name: "改善前", type: "bar", barGap: "-10%", data: kpis.map((k, i) => ({ value: beforeN[i], real: k.before + k.unit })), itemStyle: { color: "#cbd5e1", borderRadius: 4 }, label: { show: true, position: "right", fontSize: 11, color: "#94a3b8", formatter: (p) => p.data.real } },
             { name: "改善後", type: "bar", data: kpis.map((k, i) => ({ value: afterN[i], real: k.after + k.unit })), itemStyle: { color: accent, borderRadius: 4 }, label: { show: true, position: "right", fontSize: 12, fontWeight: "bold", color: accent, formatter: (p) => p.data.real } },
           ],
-        });
-        // trend line
-        const tr = D.benefits.trend || { labels: [], series: [] };
-        echart("benefitTrend", {
-          grid: { left: 8, right: 20, top: 20, bottom: 8, containLabel: true },
-          tooltip: { trigger: "axis" },
-          xAxis: { type: "category", data: tr.labels || [], boundaryGap: false, axisLine: { lineStyle: { color: "#e2e8f0" } }, axisLabel: { color: "#64748b" } },
-          yAxis: { type: "value", axisLine: { show: false }, splitLine: { lineStyle: { color: "#f1f5f9" } }, axisLabel: { color: "#64748b" } },
-          series: (tr.series || []).map((s) => ({ name: s.name, type: "line", smooth: true, data: s.data.map(num), symbolSize: 7, itemStyle: { color: accent }, lineStyle: { color: accent, width: 3 }, areaStyle: { color: "rgba(30,64,175,.08)" } })),
         });
       }
 
