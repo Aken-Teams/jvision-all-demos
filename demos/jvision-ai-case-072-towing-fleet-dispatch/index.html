@@ -1,18 +1,171 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>拖吊車隊任務站｜Jvision 系統 Demo</title>
-  <meta name="description" content="派車、追蹤、簽收到成本油耗的車隊管理" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>拖吊車隊任務站｜Jvision 系統 Demo</title>
+<meta name="description" content="拖吊案件受理、就近派車、即時位置到收費結算的車隊調度（純 UI 展示）。" />
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{ --accent:#dc2626; --accent-d:#991b1b; --accent2:#f97316; --ink:#1c1210; --body:#4b3f3b; --muted:#8a7c76; --line:#eaddd8; --bg:#faf5f3; --green:#16a34a; --amber:#f59e0b; --red:#dc2626; }
+  *{ box-sizing:border-box; } html,body{ margin:0; }
+  body{ font-family:Inter,"Noto Sans TC","Microsoft JhengHei",sans-serif; background:var(--bg); color:var(--body); -webkit-font-smoothing:antialiased; }
+  .material-symbols-outlined{ font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; line-height:1; }
+  /* TOP NAV */
+  .top{ background:linear-gradient(92deg,#7f1d1d,#dc2626 62%,#ea580c); color:#fee2e2; position:sticky; top:0; z-index:1000; box-shadow:0 2px 14px rgba(153,27,27,.28); }
+  .top .bar{ display:flex; align-items:center; gap:16px; padding:0 22px; height:60px; flex-wrap:wrap; }
+  .brand{ display:flex; align-items:center; gap:11px; min-width:0; } .brand .lg{ width:40px; height:40px; border-radius:12px; background:#fff; color:var(--accent); display:grid; place-content:center; flex:none; box-shadow:0 0 16px rgba(255,255,255,.35); }
+  .brand b{ color:#fff; font-size:16px; display:block; font-family:"Noto Sans TC"; font-weight:900; } .brand small{ color:#fecaca; font-size:10.5px; letter-spacing:.14em; }
+  .live{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#fff; background:rgba(255,255,255,.14); border-radius:999px; padding:5px 12px; }
+  .live .dot{ width:7px; height:7px; border-radius:50%; background:#fde047; animation:pulse 1.8s infinite; } @keyframes pulse{50%{opacity:.25;}}
+  .top .r{ margin-left:auto; display:flex; align-items:center; gap:14px; color:#fecaca; font-size:13px; } .ava{ width:34px; height:34px; border-radius:50%; background:#fff; color:var(--accent); font-weight:900; display:grid; place-content:center; }
+  nav.tabs{ display:flex; gap:4px; padding:0 16px; overflow-x:auto; border-top:1px solid rgba(255,255,255,.14); flex-wrap:wrap; }
+  nav.tabs button{ display:inline-flex; align-items:center; gap:7px; white-space:nowrap; background:none; border:0; border-bottom:3px solid transparent; color:#fecaca; font:inherit; font-size:13px; font-weight:700; padding:11px 14px; cursor:pointer; flex:none; } nav.tabs button .material-symbols-outlined{ font-size:19px; }
+  nav.tabs button:hover{ color:#fff; } nav.tabs button.on{ color:#fff; border-bottom-color:#fde047; }
+  .body{ max-width:1360px; margin:0 auto; padding:22px 24px 46px; }
+  .vh{ display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:16px; flex-wrap:wrap; } .vh h2{ margin:0; font-size:22px; font-weight:900; color:var(--ink); font-family:"Noto Sans TC"; } .vh p{ margin:4px 0 0; font-size:13px; color:var(--muted); }
+  .btn{ display:inline-flex; align-items:center; gap:6px; height:38px; padding:0 15px; border-radius:10px; border:0; background:var(--accent); color:#fff; font:inherit; font-weight:800; font-size:13px; cursor:pointer; } .btn.ghost{ background:#fff; color:var(--accent); border:1px solid var(--line); } .btn .material-symbols-outlined{ font-size:18px; }
+  .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:18px; }
+  .kpi{ background:#fff; border:1px solid var(--line); border-radius:15px; padding:15px 17px; position:relative; overflow:hidden; } .kpi::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:linear-gradient(var(--accent),var(--accent2)); }
+  .kpi .l{ font-size:12px; font-weight:700; color:var(--muted); display:flex; gap:6px; align-items:center; } .kpi .l .material-symbols-outlined{ font-size:18px; color:var(--accent); } .kpi .v{ font-size:27px; font-weight:900; color:var(--ink); margin-top:6px; } .kpi .v small{ font-size:13px; color:var(--muted); font-weight:700; } .kpi .d{ font-size:12px; font-weight:800; color:var(--green); margin-top:4px; }
+  .grid{ display:grid; gap:18px; } .grid>*{ min-width:0; }
+  .g-16{ grid-template-columns:1.6fr 1fr; } .g-14{ grid-template-columns:1fr 1.4fr; } .g-11{ grid-template-columns:1fr 1fr; } .g-15{ grid-template-columns:1.5fr 1fr; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:18px 20px; min-width:0; } .card>h3{ margin:0 0 14px; font-size:15px; font-weight:800; color:var(--ink); display:flex; align-items:center; gap:8px; font-family:"Noto Sans TC"; } .card>h3 .material-symbols-outlined{ color:var(--accent); font-size:20px; } .card>h3 .grow{ margin-left:auto; font-size:12px; font-weight:700; color:var(--accent); cursor:pointer; }
+  /* MAP */
+  .lmap{ height:440px; width:100%; border-radius:16px; overflow:hidden; z-index:0; border:1px solid var(--line); }
+  .map-legend{ position:absolute; left:12px; bottom:12px; z-index:600; background:rgba(255,255,255,.95); border:1px solid var(--line); border-radius:10px; padding:8px 12px; display:flex; gap:14px; font-size:11px; font-weight:700; flex-wrap:wrap; } .map-legend span{ display:inline-flex; align-items:center; gap:5px; color:var(--ink); } .map-legend i{ width:9px; height:9px; border-radius:3px; display:inline-block; }
+  /* dispatch queue */
+  .q{ display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--line); } .q:first-of-type{ border-top:0; }
+  .pri{ display:inline-grid; place-content:center; min-width:44px; height:26px; padding:0 8px; border-radius:8px; color:#fff; flex:none; font-weight:800; font-size:12px; align-self:flex-start; }
+  .q .info{ flex:1; min-width:0; } .q .info b{ color:var(--ink); font-size:14px; display:block; } .q .info small{ color:var(--muted); font-size:12px; }
+  .eta{ text-align:right; flex:none; } .eta b{ color:var(--accent); font-size:16px; font-weight:900; } .eta small{ display:block; color:var(--muted); font-size:11px; }
+  /* vehicle list */
+  .veh{ display:flex; align-items:center; gap:12px; padding:11px 0; border-top:1px solid var(--line); } .veh:first-of-type{ border-top:0; }
+  .veh .ic{ width:38px; height:38px; border-radius:11px; display:grid; place-content:center; color:#fff; flex:none; }
+  .veh .vinfo{ flex:1; min-width:0; } .veh .vinfo b{ color:var(--ink); font-size:14px; } .veh .vinfo small{ display:block; color:var(--muted); font-size:12px; }
+  .vst{ font-size:11px; font-weight:800; border-radius:999px; padding:3px 10px; flex:none; }
+  .m-run{ background:var(--accent); } .m-tow{ background:var(--accent2); } .m-idle{ background:#94a3b8; } .m-late{ background:#7f1d1d; }
+  .v-run{ background:#fee2e2; color:#991b1b; } .v-tow{ background:#ffedd5; color:#9a3412; } .v-idle{ background:#f1f5f9; color:#64748b; } .v-late{ background:#fecaca; color:#7f1d1d; }
+  /* progress timeline */
+  .tl{ list-style:none; margin:0; padding:0; } .tl li{ position:relative; padding:0 0 20px 26px; } .tl li::before{ content:""; position:absolute; left:6px; top:2px; bottom:-4px; width:2px; background:var(--line); } .tl li:last-child::before{ display:none; }
+  .tl li .dot{ position:absolute; left:0; top:1px; width:14px; height:14px; border-radius:50%; background:#fff; border:3px solid var(--line); } .tl li.done .dot{ border-color:var(--accent); background:var(--accent); } .tl li.now .dot{ border-color:var(--accent2); background:#fff; box-shadow:0 0 0 4px rgba(249,115,22,.2); }
+  .tl li b{ color:var(--ink); font-size:14px; } .tl li small{ display:block; color:var(--muted); font-size:12px; margin-top:2px; }
+  /* table */
+  .tbl{ width:100%; border-collapse:collapse; font-size:13px; } .tbl th{ text-align:left; font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:800; padding:11px 12px; border-bottom:2px solid var(--line); background:var(--bg); white-space:nowrap; } .tbl td{ padding:11px 12px; border-bottom:1px solid var(--line); white-space:nowrap; } .tbl tr:hover td{ background:var(--bg); }
+  .scroll{ overflow-x:auto; }
+  .tag{ font-size:11px; font-weight:800; border-radius:999px; padding:2px 9px; white-space:nowrap; } .g-ok{ background:#dcfce7; color:#166534; } .g-warn{ background:#fee2e2; color:#991b1b; } .g-run{ background:#ffedd5; color:#9a3412; }
+  .chart{ width:100%; height:280px; }
+  .bars{ display:flex; flex-direction:column; gap:12px; } .bars .row{ } .bars .row .top2{ display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px; } .bars .row .top2 b{ color:var(--ink); } .bars .row .track{ height:9px; border-radius:999px; background:var(--line); overflow:hidden; } .bars .row .fill{ height:100%; border-radius:999px; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+  .rc{ display:grid; grid-template-columns:1fr 1fr; gap:12px; } .rc>*{ min-width:0; }
+  .receipt{ border:1px solid var(--line); border-radius:14px; padding:16px; background:var(--bg); } .receipt .rr{ display:flex; justify-content:space-between; padding:6px 0; font-size:13px; border-bottom:1px dashed var(--line); } .receipt .rr:last-child{ border-bottom:0; font-weight:900; color:var(--ink); font-size:15px; padding-top:10px; }
+  @media (max-width:820px){ .body{ padding:16px 14px 30px; } .g-16,.g-14,.g-11,.g-15,.rc{ grid-template-columns:1fr; } .lmap{ height:340px; } }
+  @media (max-width:560px){ nav.tabs button span:not(.material-symbols-outlined){ display:none; } nav.tabs button{ padding:11px 12px; } .top .r .clk{ display:none; } }
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<header class="top">
+  <div class="bar">
+    <div class="brand"><span class="lg"><span class="material-symbols-outlined">emergency</span></span><div><b>拖吊車隊任務站</b><small>TOWING FLEET DISPATCH</small></div></div>
+    <span class="live"><span class="dot"></span>8 車 · 5 案處理中</span>
+    <div class="r"><span class="clk"><span class="material-symbols-outlined" style="font-size:18px;vertical-align:-4px;">schedule</span> 2026-08-13 14:20 · 高雄站</span><span class="ava">調</span></div>
+  </div>
+  <nav class="tabs" id="tabs"></nav>
+</header>
+<main class="body" id="view"></main>
+<script>
+const MODS=[["dashboard","派遣總覽"],["my_location","即時地圖"],["near_me","任務派車"],["conveyor_belt","拖吊進度"],["receipt_long","收費結算"],["leaderboard","車隊績效"]];
+const NAMES=["派遣總覽","即時地圖","任務派車","拖吊進度","收費結算","車隊績效"];
+const DESC=["拖吊案件受理、派遣佇列與到場時效總覽","拖吊車與案發地點即時位置（高雄）","就近推薦可用拖吊車並確認派遣","到場、上架、拖回全流程進度追蹤","拖吊費計算、簽收對帳與入帳","到場時效與司機績效分析"];
+const KPI=[["平均到場時效","18","分鐘","−34%"],["當日拖吊完成","42","件","+9 件"],["準時到場率","96","%","+11%"],["拖吊車在線","8/9","台","1 台保養"]];
+// veh: 車號, 司機, 車型/區域, 狀態, lat, lng
+const VEH=[
+ ["TW-01","王大明","平板式 · 前鎮區","run",22.606,120.315],
+ ["TW-02","陳建國","一般式 · 苓雅區","tow",22.622,120.315],
+ ["TW-03","林志豪","重型拖救 · 小港區","run",22.565,120.355],
+ ["TW-04","黃俊傑","平板式 · 三民區","late",22.655,120.320],
+ ["TW-05","張家維","一般式 · 鼓山區","idle",22.665,120.278],
+ ["TW-06","李文彬","重型拖救 · 鳳山區","tow",22.627,120.360],
+ ["TW-07","吳志明","平板式 · 左營區","run",22.690,120.293],
+ ["TW-08","劉建宏","一般式 · 前金區","idle",22.630,120.295]
+];
+// incidents: 編號, 地點, 車損類型, 緊急度, lat, lng
+const INC=[
+ ["#TW-24081","中山路/五福路口","自小客 · 拋錨","一般",22.618,120.302],
+ ["#TW-24082","國道1號 367K 南下","貨車 · 事故","緊急",22.700,120.310],
+ ["#TW-24083","中華三路 · 停車場","休旅車 · 違停","一般",22.634,120.294],
+ ["#TW-24084","小港機場聯外道","自小客 · 電瓶","一般",22.575,120.348]
+];
+// queue: 編號, 地點, 車損, 緊急度pri(1緊急2一般), 指派, eta
+const QUEUE=[
+ ["#TW-24082","國道1號 367K 南下","貨車事故 · 需重型",1,"TW-03 林志豪","6"],
+ ["#TW-24085","三多路/中山路","自小客追撞",1,"TW-01 王大明","11"],
+ ["#TW-24081","中山路/五福路口","自小客拋錨",2,"TW-08 劉建宏","14"],
+ ["#TW-24083","中華三路停車場","休旅違停拖吊",2,"待派車","—"],
+ ["#TW-24084","小港機場聯外道","自小客電瓶",2,"待派車","—"]
+];
+const vic=s=>s==="run"?"m-run":s==="tow"?"m-tow":s==="late"?"m-late":"m-idle";
+const vsc=s=>s==="run"?"v-run":s==="tow"?"v-tow":s==="late"?"v-late":"v-idle";
+const vtx=s=>s==="run"?"前往中":s==="tow"?"拖回中":s==="late"?"逾時":"待命";
+const kpiRow=()=>`<div class="kpis">${KPI.map(k=>`<div class="kpi"><div class="l"><span class="material-symbols-outlined">monitoring</span>${k[0]}</div><div class="v">${k[1]}<small> ${k[2]}</small></div><div class="d">${k[3]}</div></div>`).join("")}</div>`;
+function mapHtml(){ return `<div style="position:relative;"><div id="lmap" class="lmap"></div><div class="map-legend"><span><i style="background:#dc2626;"></i>前往中</span><span><i style="background:#f97316;"></i>拖回中</span><span><i style="background:#94a3b8;"></i>待命</span><span><i style="background:#7f1d1d;"></i>逾時</span><span><i style="background:#0f172a;"></i>案發地點</span></div></div>`; }
+let lmap=null;
+function initMap(){
+  if(!window.L){const el=document.getElementById("lmap");if(el)el.innerHTML='<div style="padding:40px;text-align:center;color:#8a7c76;">地圖載入中…</div>';return;}
+  if(lmap){lmap.remove();lmap=null;}
+  lmap=L.map("lmap",{zoomControl:true,attributionControl:false,scrollWheelZoom:false}).setView([22.632,120.315],12);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{maxZoom:19,subdomains:"abcd"}).addTo(lmap);
+  const col=s=>s==="run"?"#dc2626":s==="tow"?"#f97316":s==="late"?"#7f1d1d":"#94a3b8";
+  VEH.forEach(v=>{ const icon=L.divIcon({className:"",iconSize:[30,30],iconAnchor:[15,15],html:`<div style="background:${col(v[3])};width:30px;height:30px;border-radius:10px 10px 10px 3px;display:grid;place-content:center;color:#fff;box-shadow:0 3px 8px rgba(0,0,0,.35);"><span class="material-symbols-outlined" style="font-size:18px;">local_shipping</span></div>`}); L.marker([v[4],v[5]],{icon}).addTo(lmap).bindPopup(`<b>${v[0]}</b> · ${v[1]}<br/>${v[2]} · ${vtx(v[3])}`); });
+  INC.forEach(c=>{ const isU=c[3]==="緊急"; const icon=L.divIcon({className:"",iconSize:[26,26],iconAnchor:[13,13],html:`<div style="background:#0f172a;width:26px;height:26px;border-radius:50%;display:grid;place-content:center;color:#fff;border:2px solid ${isU?'#dc2626':'#fff'};box-shadow:0 2px 6px rgba(0,0,0,.4);"><span class="material-symbols-outlined" style="font-size:15px;">${isU?'warning':'car_crash'}</span></div>`}); L.marker([c[4],c[5]],{icon}).addTo(lmap).bindPopup(`<b>${c[0]}</b><br/>${c[1]}<br/>${c[2]} · ${c[3]}`); });
+  // dispatch lines: nearest car -> incident
+  L.polyline([[22.565,120.355],[22.700,120.310]],{color:"#dc2626",weight:3,dashArray:"7 7",opacity:.7}).addTo(lmap);
+  L.polyline([[22.606,120.315],[22.618,120.302]],{color:"#f97316",weight:3,dashArray:"7 7",opacity:.7}).addTo(lmap);
+  requestAnimationFrame(()=>{try{lmap.invalidateSize();}catch(e){}});
+}
+const queueList=()=>QUEUE.map(q=>`<div class="q"><span class="pri" style="background:${q[3]===1?'#dc2626':'#94a3b8'};">${q[3]===1?'緊急':'一般'}</span><div class="info"><b>${q[0]} · ${q[2]}</b><small>${q[1]} · ${q[4].startsWith("待")?'<span style="color:#dc2626;font-weight:800;">'+q[4]+'</span>':q[4]}</small></div><div class="eta">${q[5]==="—"?'<button class="btn" style="height:30px;padding:0 12px;">派車</button>':'<b>'+q[5]+'′</b><small>ETA</small>'}</div></div>`).join("");
+const vehList=(n)=>VEH.slice(0,n||8).map(v=>`<div class="veh"><span class="ic ${vic(v[3])}"><span class="material-symbols-outlined">local_shipping</span></span><div class="vinfo"><b>${v[0]} · ${v[1]}</b><small>${v[2]}</small></div><span class="vst ${vsc(v[3])}">${vtx(v[3])}</span></div>`).join("");
+const SCREENS={
+ 0:()=>kpiRow()+`<div class="grid g-16"><div class="card"><h3><span class="material-symbols-outlined">emergency</span>派遣佇列 · 依緊急度排序<span class="grow">全部案件 ›</span></h3>${queueList()}</div><div class="card"><h3><span class="material-symbols-outlined">local_shipping</span>拖吊車即時狀態</h3>${vehList(8)}</div></div>`,
+ 1:()=>`<div class="card"><h3><span class="material-symbols-outlined">my_location</span>拖吊車 × 案發地點即時地圖<span class="grow">高雄前鎮站 ›</span></h3>${mapHtml()}</div><div class="card" style="margin-top:18px;"><h3><span class="material-symbols-outlined">list</span>即時車況與 ETA</h3><div class="scroll"><table class="tbl"><thead><tr><th>車號</th><th>司機</th><th>車型 / 責任區</th><th>狀態</th><th>ETA</th></tr></thead><tbody>${VEH.map(v=>`<tr><td style="font-weight:800;color:var(--ink);">${v[0]}</td><td>${v[1]}</td><td>${v[2]}</td><td><span class="vst ${vsc(v[3])}">${vtx(v[3])}</span></td><td>${v[3]==="idle"?"—":"+"+(6+Math.round(v[4]*10)%22)+" 分"}</td></tr>`).join("")}</tbody></table></div></div>`,
+ 2:()=>`<div class="grid g-14"><div class="card"><h3><span class="material-symbols-outlined">near_me</span>待派案件</h3>${INC.map(c=>`<div class="q"><span class="pri" style="background:${c[3]==="緊急"?'#dc2626':'#94a3b8'};">${c[3]}</span><div class="info"><b>${c[0]}</b><small>${c[1]} · ${c[2]}</small></div><button class="btn ghost" style="height:30px;padding:0 10px;">就近派車</button></div>`).join("")}</div><div class="card"><h3><span class="material-symbols-outlined">recommend</span>系統推薦 · #TW-24082 國道事故</h3><p style="margin:-6px 0 12px;color:var(--muted);font-size:13px;">緊急事故需<b style="color:var(--accent);">重型拖救車</b>，依即時位置與車型比對推薦：</p>${[["TW-03 林志豪","重型拖救 · 小港區","4.2 km","6 分",1],["TW-06 李文彬","重型拖救 · 鳳山區","7.8 km","12 分",0],["TW-01 王大明","平板式 · 前鎮區","車型不符","—",0]].map(r=>`<div class="veh"><span class="ic ${r[4]?'m-run':'m-idle'}"><span class="material-symbols-outlined">${r[4]?'check_circle':'local_shipping'}</span></span><div class="vinfo"><b>${r[0]}</b><small>${r[1]} · 距離 ${r[2]}</small></div><div class="eta"><b style="color:${r[4]?'var(--accent)':'var(--muted)'};">${r[3]}</b><small>${r[4]?'建議':'ETA'}</small></div></div>`).join("")}<button class="btn" style="width:100%;margin-top:14px;justify-content:center;"><span class="material-symbols-outlined">send</span>派遣 TW-03 前往</button></div></div>`,
+ 3:()=>`<div class="grid g-15"><div class="card"><h3><span class="material-symbols-outlined">conveyor_belt</span>#TW-24082 拖回進度</h3><ul class="tl"><li class="done"><span class="dot"></span><b>案件受理 · 14:02</b><small>國道1號 367K 貨車事故，客服受理員登錄分級「緊急」</small></li><li class="done"><span class="dot"></span><b>就近派車 · 14:04</b><small>系統推薦 TW-03（重型拖救），調度確認派遣</small></li><li class="done"><span class="dot"></span><b>司機接單前往 · 14:05</b><small>林志豪導航前往，回傳 ETA 6 分</small></li><li class="now"><span class="dot"></span><b>到場處理中 · 14:11</b><small>已到場拍照存證，車輛上架作業中</small></li><li><span class="dot"></span><b>拖回廠區</b><small>預計拖往 前鎮保管場</small></li><li><span class="dot"></span><b>收費結算</b><small>依里程與車型計費、簽收對帳</small></li></ul></div><div class="card"><h3><span class="material-symbols-outlined">pending_actions</span>今日進行中案件</h3><div class="scroll"><table class="tbl"><thead><tr><th>案件</th><th>司機</th><th>階段</th><th>狀態</th></tr></thead><tbody>${[["#TW-24082","林志豪","上架中","g-run"],["#TW-24085","王大明","前往中","g-run"],["#TW-24081","劉建宏","前往中","g-run"],["#TW-24079","陳建國","拖回中","g-run"],["#TW-24077","吳志明","已到場","g-run"],["#TW-24074","黃俊傑","逾時待處理","g-warn"]].map(r=>`<tr><td style="font-weight:800;color:var(--ink);">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td><span class="tag ${r[3]}">${r[3]==="g-warn"?"注意":"進行中"}</span></td></tr>`).join("")}</tbody></table></div></div></div>`,
+ 4:()=>kpiRow2()+`<div class="grid g-11"><div class="card"><h3><span class="material-symbols-outlined">receipt_long</span>#TW-24079 拖吊收費單</h3><div class="receipt"><div class="rr"><span>基本拖吊費（一般式）</span><b>1,500</b></div><div class="rr"><span>里程費 12.4 km × $35</span><b>434</b></div><div class="rr"><span>夜間加成 (22:00-06:00)</span><b>0</b></div><div class="rr"><span>過磅 / 上架處理</span><b>300</b></div><div class="rr"><span>應收總計</span><b>NT$ 2,234</b></div></div><div class="veh" style="margin-top:6px;"><span class="ic m-run"><span class="material-symbols-outlined">draw</span></span><div class="vinfo"><b>車主已電子簽收</b><small>14:52 · 陳O明 · LINE 回傳簽名</small></div><span class="vst v-run">已對帳</span></div></div><div class="card"><h3><span class="material-symbols-outlined">table_chart</span>今日結算對帳</h3><div class="scroll"><table class="tbl"><thead><tr><th>案件</th><th>車型</th><th>金額</th><th>付款</th><th>狀態</th></tr></thead><tbody>${[["#TW-24079","一般式","2,234","現金","g-ok","已入帳"],["#TW-24077","平板式","2,680","刷卡","g-ok","已入帳"],["#TW-24074","重型","5,120","月結","g-run","待對帳"],["#TW-24071","一般式","1,860","現金","g-ok","已入帳"],["#TW-24068","平板式","2,450","刷卡","g-warn","待補簽"]].map(r=>`<tr><td style="font-weight:800;color:var(--ink);">${r[0]}</td><td>${r[1]}</td><td>NT$ ${r[2]}</td><td>${r[3]}</td><td><span class="tag ${r[4]}">${r[5]}</span></td></tr>`).join("")}</tbody></table></div><div style="margin-top:12px;padding:12px 14px;background:var(--bg);border-radius:12px;display:flex;justify-content:space-between;font-weight:900;color:var(--ink);"><span>今日應收合計</span><span style="color:var(--accent);">NT$ 14,344</span></div></div></div>`,
+ 5:()=>kpiRow3()+`<div class="grid g-15"><div class="card"><h3><span class="material-symbols-outlined">trending_up</span>近 6 週平均到場時效（分鐘）</h3><div id="cTrend" class="chart"></div></div><div class="card"><h3><span class="material-symbols-outlined">emoji_events</span>司機績效排行 · 準時到場率</h3><div class="bars">${[["林志豪 TW-03",98],["王大明 TW-01",96],["吳志明 TW-07",94],["劉建宏 TW-08",91],["陳建國 TW-02",88],["黃俊傑 TW-04",81]].map(r=>`<div class="row"><div class="top2"><b>${r[0]}</b><span style="color:var(--accent);font-weight:800;">${r[1]}%</span></div><div class="track"><div class="fill" style="width:${r[1]}%;"></div></div></div>`).join("")}</div></div></div><div class="grid g-11" style="margin-top:18px;"><div class="card"><h3><span class="material-symbols-outlined">pie_chart</span>案件類型分布</h3><div id="cPie" class="chart" style="height:240px;"></div></div><div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>各區責任案件量（本月）</h3><div id="cBar" class="chart" style="height:240px;"></div></div></div>`
+};
+const KPI2=[["今日應收","14,344","元","+8%"],["平均客單價","2,730","元","+3%"],["現金 / 刷卡","62 / 38","%","即時"],["待對帳","2","件","−3 件"]];
+const KPI3=[["月度出勤","9","台","滿載"],["平均到場","18","分鐘","−34%"],["準時到場率","93","%","+11%"],["客訴率","1.2","%","−0.6%"]];
+const kpiRow2=()=>`<div class="kpis">${KPI2.map(k=>`<div class="kpi"><div class="l"><span class="material-symbols-outlined">payments</span>${k[0]}</div><div class="v">${k[1]}<small> ${k[2]}</small></div><div class="d">${k[3]}</div></div>`).join("")}</div>`;
+const kpiRow3=()=>`<div class="kpis">${KPI3.map(k=>`<div class="kpi"><div class="l"><span class="material-symbols-outlined">insights</span>${k[0]}</div><div class="v">${k[1]}<small> ${k[2]}</small></div><div class="d">${k[3]}</div></div>`).join("")}</div>`;
+let charts=[];
+function draw(i){
+ charts.forEach(c=>{try{c.dispose();}catch(e){}});charts=[];if(!window.echarts)return;
+ if(i===5){
+  const t=document.getElementById("cTrend");
+  if(t){const c=echarts.init(t);c.setOption({grid:{left:8,right:16,top:20,bottom:8,containLabel:true},tooltip:{trigger:"axis"},xAxis:{type:"category",boundaryGap:false,data:["第1週","第2週","第3週","第4週","第5週","第6週"],axisLabel:{color:"#8a7c76"}},yAxis:{type:"value",splitLine:{lineStyle:{color:"#f0e6e2"}},axisLabel:{color:"#8a7c76"}},series:[{type:"line",smooth:true,data:[27,25,23,21,19,18],symbolSize:7,itemStyle:{color:"#dc2626"},lineStyle:{color:"#dc2626",width:3},areaStyle:{color:"rgba(220,38,38,.14)"}}]});charts.push(c);}
+  const p=document.getElementById("cPie");
+  if(p){const c=echarts.init(p);c.setOption({tooltip:{trigger:"item"},legend:{bottom:0,textStyle:{fontSize:11}},series:[{type:"pie",radius:["46%","72%"],center:["50%","44%"],itemStyle:{borderColor:"#fff",borderWidth:2},label:{show:false},data:[{name:"拋錨故障",value:38,itemStyle:{color:"#dc2626"}},{name:"事故拖救",value:27,itemStyle:{color:"#f97316"}},{name:"違停拖吊",value:22,itemStyle:{color:"#fbbf24"}},{name:"其他",value:13,itemStyle:{color:"#94a3b8"}}]}]});charts.push(c);}
+  const b=document.getElementById("cBar");
+  if(b){const c=echarts.init(b);c.setOption({grid:{left:8,right:16,top:16,bottom:8,containLabel:true},tooltip:{trigger:"axis"},xAxis:{type:"category",data:["前鎮","苓雅","三民","鼓山","小港","鳳山"],axisLabel:{color:"#8a7c76"}},yAxis:{type:"value",splitLine:{lineStyle:{color:"#f0e6e2"}},axisLabel:{color:"#8a7c76"}},series:[{type:"bar",barWidth:"52%",data:[142,118,96,74,131,88],itemStyle:{color:"#f97316",borderRadius:[6,6,0,0]}}]});charts.push(c);}
+ }
+}
+const view=document.getElementById("view"),tabs=document.getElementById("tabs");
+tabs.innerHTML=MODS.map((m,i)=>`<button data-i="${i}" class="${i===0?"on":""}"><span class="material-symbols-outlined">${m[0]}</span><span>${m[1]}</span></button>`).join("");
+function show(i){
+  tabs.querySelectorAll("button").forEach(b=>b.classList.toggle("on",+b.dataset.i===i));
+  view.innerHTML=`<div class="vh"><div><h2>${NAMES[i]}</h2><p>${DESC[i]}</p></div>${i===2?'<button class="btn"><span class="material-symbols-outlined">bolt</span>智慧就近派車</button>':i===0?'<button class="btn ghost"><span class="material-symbols-outlined">add_call</span>新增報案</button>':''}</div>`+SCREENS[i]();
+  void view.offsetHeight;
+  draw(i);
+  if(i===1){initMap();}else if(lmap){lmap.remove();lmap=null;}
+}
+tabs.addEventListener("click",e=>{const b=e.target.closest("button[data-i]");if(b)show(+b.dataset.i);});
+window.addEventListener("resize",()=>charts.forEach(c=>{try{c.resize();}catch(e){}}));
+show(0);
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>
