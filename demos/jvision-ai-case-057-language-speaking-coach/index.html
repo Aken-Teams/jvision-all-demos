@@ -1,18 +1,349 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>語言口說練習艙｜Jvision 系統 Demo</title>
-  <meta name="description" content="課程、學員、測驗到學習進度的教學管理" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>語言口說練習艙 · Language Speaking Coach</title>
+<meta name="description" content="口說練習主題、AI 發音評分、錄音回饋、每日打卡到成效追蹤（純 UI 展示）。"/>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+<style>
+:root{--accent:#f43f5e;--accent2:#fb7185;--ink:#3f0a1a;--bg:#fdf2f5;--card:#fff;--line:#fbd8e1;--soft:#fff1f4;--mut:#9a6474;--ok:#16a34a;--warn:#f59e0b;--bad:#e11d48;--info:#7c3aed}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:Inter,"Noto Sans TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+.material-symbols-outlined{font-size:20px;vertical-align:middle;line-height:1}
+.shell{display:grid;grid-template-columns:242px 1fr;min-height:100vh}
+.shell>*{min-width:0}
+/* sidebar */
+.side{background:linear-gradient(180deg,#fff,#fff5f7);border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;overflow:auto;min-width:0}
+.side .bd{display:flex;align-items:center;gap:10px;padding:4px 8px 16px}
+.side .lg{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;color:#fff;flex:none;box-shadow:0 8px 20px rgba(244,63,94,.4)}
+.side .lg .material-symbols-outlined{font-size:26px}
+.side .bd b{font-size:15px;font-weight:800;font-family:"Noto Sans TC";display:block}
+.side .bd span{font-size:9px;color:var(--accent);letter-spacing:1.5px}
+.side button{display:flex;align-items:center;gap:11px;background:transparent;border:0;color:#7a4a58;font:inherit;font-weight:600;font-size:13.5px;padding:10px 12px;border-radius:11px;cursor:pointer;text-align:left;width:100%;font-family:"Noto Sans TC"}
+.side button .material-symbols-outlined{font-size:20px;color:#e79bad}
+.side button:hover{background:#ffe4ea}
+.side button.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 6px 16px rgba(244,63,94,.32)}
+.side button.on .material-symbols-outlined{color:#fff}
+.side .streak{margin-top:14px;background:linear-gradient(135deg,#fff1f4,#ffe0e8);border:1px solid var(--line);border-radius:14px;padding:12px 13px}
+.side .streak .fire{display:flex;align-items:center;gap:7px;font-weight:800;font-family:"Noto Sans TC";font-size:13px}
+.side .streak .fire .material-symbols-outlined{color:#f97316;font-size:22px}
+.side .streak .n{font-family:Inter;font-weight:900;font-size:26px;color:var(--accent);line-height:1.1;margin-top:4px}
+.side .streak small{font-size:11px;color:var(--mut);display:block}
+.side .foot{margin-top:auto;padding:12px 10px 2px;font-size:11px;color:var(--mut);border-top:1px solid var(--line);line-height:1.8}
+/* main */
+.main{padding:22px 24px;min-width:0}
+.vh{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+.vh h2{margin:0;font-size:21px;font-family:"Noto Sans TC";font-weight:900}
+.vh p{margin:3px 0 0;color:var(--mut);font-size:13px}
+.live{background:#ffe0e8;color:#be123c;padding:6px 13px;border-radius:20px;font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;animation:p 1.4s infinite}
+@keyframes p{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(244,63,94,.5)}50%{opacity:.35;box-shadow:0 0 0 6px rgba(244,63,94,0)}}
+/* kpi */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:15px 16px;position:relative;overflow:hidden;min-width:0}
+.kpi .l{font-size:12px;color:var(--mut);font-weight:700}
+.kpi .v{font-size:25px;font-weight:900;margin-top:4px;font-family:Inter}
+.kpi .v small{font-size:12px;color:var(--mut);font-weight:700}
+.kpi .d{font-size:11px;font-weight:800;margin-top:2px}
+.kpi .ic{position:absolute;right:12px;top:12px;color:var(--accent);opacity:.24}
+.up{color:var(--ok)}.dn{color:var(--bad)}
+/* grid */
+.grid{display:grid;gap:16px}.grid>*{min-width:0}
+.g2{grid-template-columns:1.35fr .95fr}
+.g21{grid-template-columns:1.5fr 1fr}
+.g11{grid-template-columns:1fr 1fr}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;min-width:0}
+.card h3{margin:0 0 13px;font-size:14px;font-family:"Noto Sans TC";font-weight:800;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.card h3 .material-symbols-outlined{color:var(--accent)}
+.card h3 .grow{margin-left:auto;font-size:12px;font-weight:700;color:var(--accent)}
+.tag{font-size:10.5px;font-weight:800;padding:2px 9px;border-radius:20px;white-space:nowrap;display:inline-block}
+.t-ok{background:#dcfce7;color:#15803d}.t-warn{background:#fef3c7;color:#b45309}.t-bad{background:#ffe1e6;color:#be123c}.t-info{background:#ede9fe;color:#6d28d9}.t-rose{background:#ffe0e8;color:#be123c}
+.chart{width:100%;min-height:60px}
+table.data{width:100%;border-collapse:collapse;font-size:12.5px}
+table.data th,table.data td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left}
+table.data th{color:var(--mut);font-weight:800;font-size:11px;background:var(--soft)}
+table.data tr:hover td{background:var(--soft)}
+.scroll{overflow-x:auto}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--mut);margin-top:10px}
+.legend span{display:flex;align-items:center;gap:5px}
+.dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+.note{font-size:11.5px;color:var(--mut);margin:13px 0 0;line-height:1.6}
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 15px;border-radius:10px;border:0;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font:inherit;font-weight:800;font-size:12.5px;cursor:pointer;font-family:"Noto Sans TC"}
+.btn.ghost{background:#fff;color:var(--accent);border:1px solid var(--line)}
+.btn .material-symbols-outlined{font-size:18px}
+/* practice topic cards */
+.topics{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.topics>*{min-width:0}
+.tp{border:1px solid var(--line);border-radius:14px;padding:13px 14px;background:#fff;border-top:3px solid var(--accent);position:relative}
+.tp.on{background:linear-gradient(135deg,#fff1f4,#fff);box-shadow:0 8px 20px rgba(244,63,94,.14)}
+.tp .th{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+.tp .ei{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:#ffe0e8;color:var(--accent);flex:none}
+.tp .ei .material-symbols-outlined{font-size:20px}
+.tp b{font-size:13.5px;font-family:"Noto Sans TC"}
+.tp small{color:var(--mut);font-size:11px;display:block}
+.tp .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--mut)}
+.tp .meta span{display:flex;align-items:center;gap:3px}
+.tp .meta .material-symbols-outlined{font-size:14px}
+.tp .pg{height:6px;background:#ffe0e8;border-radius:6px;overflow:hidden;margin-top:9px}
+.tp .pg i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+/* practice card / recorder */
+.rec{background:linear-gradient(135deg,#fff5f7,#fff);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+.rec .scene{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--accent);font-weight:800;margin-bottom:8px}
+.rec .sent{font-size:17px;font-weight:700;font-family:"Noto Sans TC";line-height:1.5;margin:4px 0}
+.rec .ipa{color:var(--mut);font-size:12.5px;margin-top:3px}
+.wave{display:flex;align-items:center;gap:2px;height:64px;margin:14px 0;padding:0 4px}
+.wave i{flex:1;background:linear-gradient(180deg,var(--accent2),var(--accent));border-radius:2px;opacity:.85}
+.recbar{display:flex;align-items:center;gap:12px;margin-top:6px}
+.recbtn{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:grid;place-items:center;flex:none;box-shadow:0 8px 20px rgba(244,63,94,.4);border:0;cursor:pointer}
+.recbtn .material-symbols-outlined{font-size:26px}
+.recbar .rt{font-family:Inter;font-weight:900;font-size:18px}
+.recbar .rt small{font-size:11px;color:var(--mut);font-weight:600;display:block}
+.iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--accent);display:grid;place-items:center;cursor:pointer;flex:none}
+/* score ring */
+.scorehero{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.ring{width:120px;height:120px;border-radius:50%;flex:none;display:grid;place-items:center;background:conic-gradient(var(--accent) 0 87%,#ffe0e8 87% 100%)}
+.ring .in{width:92px;height:92px;border-radius:50%;background:#fff;display:grid;place-items:center;text-align:center}
+.ring .in b{font-size:30px;font-weight:900;font-family:Inter;color:var(--accent);line-height:1}
+.ring .in span{font-size:11px;color:var(--mut)}
+.scols{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;flex:1;min-width:0}
+.sc{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff}
+.sc .sl{font-size:11.5px;color:var(--mut);font-weight:700;display:flex;justify-content:space-between}
+.sc .sv{font-size:19px;font-weight:900;font-family:Inter;margin-top:2px}
+.sc .pg{height:6px;background:#ffe0e8;border-radius:6px;overflow:hidden;margin-top:6px}
+.sc .pg i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+/* feedback line-by-line */
+.fbk{display:flex;flex-direction:column;gap:11px}
+.fl{border:1px solid var(--line);border-radius:13px;padding:12px 14px;border-left:4px solid var(--ok)}
+.fl.warn{border-left-color:var(--warn);background:#fffdf5}
+.fl.bad{border-left-color:var(--bad);background:#fffafb}
+.fl .ft{font-size:14px;font-family:"Noto Sans TC";font-weight:700;line-height:1.5}
+.fl .ft em{font-style:normal;background:#ffe0e8;color:var(--bad);border-radius:4px;padding:0 3px;font-weight:800}
+.fl .ft em.ok{background:#dcfce7;color:#15803d}
+.fl .fm{font-size:11.5px;color:var(--mut);margin-top:6px;display:flex;gap:14px;flex-wrap:wrap}
+.fl .fm span{display:flex;align-items:center;gap:4px}
+.fl .fm b{color:var(--ink)}
+.fl .adv{font-size:12px;color:#7a4a58;margin-top:6px;line-height:1.6;background:var(--soft);border-radius:9px;padding:8px 10px}
+.fl .adv b{color:var(--accent)}
+/* calendar heat */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal .d{aspect-ratio:1;border-radius:8px;display:grid;place-items:center;font-size:11px;font-weight:700;color:#b98a97;background:#fdeef2}
+.cal .d.l1{background:#fecdd8;color:#9f1239}.cal .d.l2{background:#fb7185;color:#fff}.cal .d.l3{background:#f43f5e;color:#fff}.cal .d.l4{background:#be123c;color:#fff}
+.cal .hd{font-size:10.5px;color:var(--mut);text-align:center;font-weight:700}
+.badges{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.bg{border:1px solid var(--line);border-radius:13px;padding:12px;text-align:center;background:#fff}
+.bg.lock{opacity:.5}
+.bg .bi{width:44px;height:44px;border-radius:50%;margin:0 auto 6px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.bg.lock .bi{background:#e5cfd6}
+.bg b{font-size:12px;font-family:"Noto Sans TC";display:block}
+.bg small{font-size:10.5px;color:var(--mut)}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px}
+.stc{background:var(--soft);border-radius:13px;padding:13px;text-align:center}
+.stc b{display:block;font-size:22px;font-weight:900;font-family:Inter;color:var(--ink)}
+.stc span{font-size:11.5px;color:var(--mut)}
+/* progress list rows */
+.prow{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line)}.prow:first-of-type{border-top:0}
+.prow .av{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px;flex:none;font-family:"Noto Sans TC"}
+.prow .in{flex:1;min-width:0}.prow .in b{font-size:13px;font-family:"Noto Sans TC"}.prow .in small{display:block;color:var(--mut);font-size:11.5px}
+.prow .lv{font-family:Inter;font-weight:900;font-size:15px;flex:none}
+@media(max-width:860px){
+ .shell{grid-template-columns:1fr}
+ .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;overflow:visible}
+ .side .bd{width:100%;padding-bottom:8px}
+ .side button{width:auto;flex:none}
+ .side .streak,.side .foot{display:none}
+ .kpis{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:820px){
+ .g2,.g21,.g11{grid-template-columns:1fr}
+ .topics{grid-template-columns:1fr}
+}
+@media(max-width:430px){
+ .kpis{grid-template-columns:1fr}
+ .main{padding:16px 14px}
+}
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="bd"><div class="lg"><span class="material-symbols-outlined">record_voice_over</span></div><div><b>語言口說練習艙</b><span>SPEAKING COACH</span></div></div>
+    <div id="nav"></div>
+    <div class="streak">
+      <div class="fire"><span class="material-symbols-outlined">local_fire_department</span>連續打卡</div>
+      <div class="n">27<small>天 · 本週 6/7 · 最長 34 天</small></div>
+    </div>
+    <div class="foot">學員 陳語彤 · B1 進階中<br/>今日目標 3 句 · 已完成 2<br/>總練習 412 句 · 平均 84 分</div>
+  </aside>
+  <main class="main">
+    <div class="vh"><div><h2 id="vt">學習總覽</h2><p id="vd"></p></div><div class="live"><i></i>AI 發音引擎連線中</div></div>
+    <div id="view"></div>
+  </main>
+</div>
+<script>
+var MOD=[
+["學習總覽","dashboard","學習總覽","口說練習戰情、發音評分雷達與進步趨勢"],
+["練習主題","forum","口說練習主題","情境對話題庫、程度推薦與練習進度"],
+["口說評分","graphic_eq","AI 發音評分","單次錄音的五維發音評分與逐項細節"],
+["錄音回饋","rate_review","錄音回饋糾音","錄音波形回放、逐句糾音與改善建議"],
+["打卡進度","local_fire_department","每日打卡進度","連續天數、練習月曆與里程碑徽章"],
+["成效追蹤","insights","成效追蹤","口說進步曲線、五維變化與程度分析"]];
+
+/* 練習主題 [emoji-icon,主題,情境,程度,句數,完成,狀態tag] */
+var TOPIC=[
+["restaurant","餐廳點餐","在美式餐廳點餐與加點","A2 初級","12","12","t-ok","已完成"],
+["work","求職面試","自我介紹與常見面試問答","B1 進階","15","9","t-rose","練習中"],
+["flight","機場出入境","報到、轉機與行李詢問","A2 初級","10","10","t-ok","已完成"],
+["shopping_cart","購物退換","描述商品問題與退換貨","B1 進階","11","4","t-warn","待完成"],
+["local_hospital","看診就醫","描述症狀與預約門診","B2 中高級","14","2","t-info","新主題"],
+["groups","小組會議","表達意見與禮貌打斷","B2 中高級","13","0","t-info","未開始"]];
+/* 例句 */
+var SENT=[
+["work","面試 · 自我介紹","I have over five years of experience in digital marketing.","/aɪ hæv ˈoʊvɚ faɪv jɪrz əv ɪkˈspɪriəns/","B1"],
+["work","面試 · 談優勢","My greatest strength is solving problems under pressure.","/maɪ ˈɡreɪtɪst streŋθ/","B1"]];
+
+/* 五維評分 [維度,分數,tag,說明] */
+var DIM=[
+["準確度","88","t-ok","母音清晰，字尾子音偶爾脫落"],
+["流暢度","82","t-warn","語速略快，句中停頓稍多"],
+["語調","79","t-warn","句尾上揚不足，疑問句需再明顯"],
+["詞彙","90","t-ok","用詞得體，商務用語運用佳"],
+["文法","86","t-ok","時態正確，冠詞偶有遺漏"]];
+
+/* 逐句回饋 [句,狀態,錯詞html,發音問題,分數,建議] */
+var FBK=[
+["good","I have over five years of experience.","ok","字尾 /s/ 清楚","94","節奏自然，continue 保持。"],
+["warn","My greatest <em>strength</em> is problem solving.","warn","strength /streŋθ/ 的 /θ/ 發成 /s/","78","舌尖輕觸上齒，送氣發 /θ/，避免發成 /s/。多練 think、three。"],
+["bad","I'm <em>comfortable</em> working in a fast-paced team.","bad","comfortable 重音位置錯誤","64","重音在第一音節 <b>COMF</b>-ter-bul，第二音節 /ər/ 弱化不要唸成 /fɔːr/。"],
+["good","I always meet my deadlines.","ok","連音 meet_my 自然","91","連音處理很好，語調平穩。"]];
+
+/* 打卡月曆 level 0-4 */
+var CAL=[0,1,2,1,3,2,4, 1,2,3,4,2,3,1, 2,3,4,3,2,4,3, 1,2,4,3,2,3,4, 3,2,0];
+/* 徽章 */
+var BADGE=[
+["local_fire_department","連續 7 天","已達成",0],["military_tech","單日 10 句","已達成",0],["stars","評分破 90","已達成",0],
+["workspace_premium","連續 30 天","再 3 天",1],["diamond","累積 500 句","再 88 句",1],["emoji_events","全主題精通","6 選 2",1]];
+
+/* 學員程度進度 */
+var PROG=[
+["點餐情境","A2","92","+8","已精通"],["面試情境","B1","81","+14","進步中"],["旅遊情境","A2","95","+5","已精通"],
+["購物情境","B1","74","+11","進步中"],["就醫情境","B2","68","+6","起步"],["會議情境","B2","--","--","未開始"]];
+
+var nav=document.getElementById('nav'),view=document.getElementById('view'),vt=document.getElementById('vt'),vd=document.getElementById('vd');
+MOD.forEach(function(m,i){var b=document.createElement('button');b.dataset.i=i;b.className=i===0?'on':'';b.innerHTML='<span class="material-symbols-outlined">'+m[1]+'</span>'+m[0];b.onclick=function(){show(i);};nav.appendChild(b);});
+
+function wave(n,seed){var s='';for(var i=0;i<n;i++){var h=20+Math.abs(Math.sin((i+seed)*1.3)*70)+((i*7+seed)%13);h=Math.min(100,h);s+='<i style="height:'+h.toFixed(0)+'%"></i>';}return s;}
+
+var SCREENS=[
+// 0 學習總覽
+function(){return '<div class="kpis">'+
+ '<div class="kpi"><span class="material-symbols-outlined ic">grade</span><div class="l">本週平均分</div><div class="v">84<small> /100</small></div><div class="d up">▲ 較上週 +6</div></div>'+
+ '<div class="kpi"><span class="material-symbols-outlined ic">record_voice_over</span><div class="l">本週練習句數</div><div class="v">58<small> 句</small></div><div class="d up">▲ 目標達成 116%</div></div>'+
+ '<div class="kpi"><span class="material-symbols-outlined ic">local_fire_department</span><div class="l">連續打卡</div><div class="v" style="color:var(--accent)">27<small> 天</small></div><div class="d up">距離 30 天徽章 3 天</div></div>'+
+ '<div class="kpi"><span class="material-symbols-outlined ic">trending_up</span><div class="l">口說程度</div><div class="v" style="color:var(--info)">B1</div><div class="d up">▲ 距 B2 還差 8%</div></div>'+
+ '</div>'+
+ '<div class="grid g2">'+
+ '<div class="card"><h3><span class="material-symbols-outlined">graphic_eq</span>發音評分雷達 · 最近一次練習</h3><div class="chart" id="c_radar" style="height:300px"></div>'+
+ '<div class="legend"><span><i class="dot" style="background:var(--accent)"></i>本次評分</span><span><i class="dot" style="background:#c4b5fd"></i>四週前</span></div></div>'+
+ '<div class="card"><h3><span class="material-symbols-outlined">forum</span>進行中的練習主題</h3>'+
+ TOPIC.filter(function(t){return t[6]==='t-rose'||t[6]==='t-warn';}).concat([TOPIC[0]]).slice(0,3).map(function(t){return '<div class="prow"><span class="av"><span class="material-symbols-outlined" style="font-size:18px">'+t[0]+'</span></span><div class="in"><b>'+t[1]+'</b><small>'+t[3]+' · '+t[5]+'/'+t[4]+' 句</small></div><span class="tag '+t[6]+'">'+t[7]+'</span></div>';}).join('')+
+ '<div class="stat" style="margin-top:12px"><div class="stc"><b>412</b><span>累積練習句</span></div><div class="stc"><b>6</b><span>主題進行</span></div><div class="stc"><b>34</b><span>最長連續</span></div></div></div>'+
+ '</div>'+
+ '<div class="card" style="margin-top:16px"><h3><span class="material-symbols-outlined">trending_up</span>近八週口說總分進步趨勢</h3><div class="chart" id="c_trend" style="height:210px"></div></div>';},
+// 1 練習主題
+function(){return '<div class="grid g21">'+
+ '<div class="card"><h3><span class="material-symbols-outlined">forum</span>情境練習題庫<span class="grow">依你的程度推薦</span></h3>'+
+ '<div class="topics">'+TOPIC.map(function(t,i){var pct=Math.round(t[5]/t[4]*100);return '<div class="tp'+(i===1?' on':'')+'"><div class="th"><span class="ei"><span class="material-symbols-outlined">'+t[0]+'</span></span><div><b>'+t[1]+'</b><small>'+t[2]+'</small></div></div><div class="meta"><span><span class="material-symbols-outlined">signal_cellular_alt</span>'+t[3]+'</span><span><span class="material-symbols-outlined">format_list_numbered</span>'+t[4]+' 句</span><span class="tag '+t[6]+'">'+t[7]+'</span></div><div class="pg"><i style="width:'+pct+'%"></i></div></div>';}).join('')+'</div></div>'+
+ '<div class="card"><h3><span class="material-symbols-outlined">star</span>推薦例句 · 求職面試 B1</h3>'+
+ SENT.map(function(s){return '<div class="rec" style="margin-bottom:12px"><div class="scene"><span class="material-symbols-outlined" style="font-size:16px">work</span>'+s[1]+'</div><div class="sent">'+s[2]+'</div><div class="ipa">'+s[3]+'</div><div class="recbar"><button class="iconbtn"><span class="material-symbols-outlined">volume_up</span></button><small style="color:var(--mut);font-size:12px">點擊聆聽範讀</small><span class="tag t-rose" style="margin-left:auto">'+s[4]+'</span></div></div>';}).join('')+
+ '<div style="display:flex;gap:10px;margin-top:4px"><button class="btn"><span class="material-symbols-outlined">mic</span>開始跟讀錄音</button><button class="btn ghost">換一句</button></div>'+
+ '<p class="note">系統依你的程度（B1）與各主題完成度推薦例句，優先補強尚未精通的情境。</p></div>'+
+ '</div>';},
+// 2 口說評分
+function(){return '<div class="card"><h3><span class="material-symbols-outlined">graphic_eq</span>AI 發音評分報告 · 求職面試 #09<span class="grow">2026-08-13 14:22</span></h3>'+
+ '<div class="scorehero"><div class="ring"><div class="in"><b>87</b><span>綜合分</span></div></div>'+
+ '<div class="scols">'+DIM.map(function(d){return '<div class="sc"><div class="sl"><span>'+d[0]+'</span><span class="tag '+d[2]+'">'+(d[2]==='t-ok'?'良好':'待加強')+'</span></div><div class="sv">'+d[1]+'</div><div class="pg"><i style="width:'+d[1]+'%"></i></div></div>';}).join('')+'</div></div>'+
+ '<p class="note">綜合分由準確度、流暢度、語調、詞彙、文法加權計算；本次語調與流暢度為主要待加強項。</p></div>'+
+ '<div class="grid g11" style="margin-top:16px">'+
+ '<div class="card"><h3><span class="material-symbols-outlined">radar</span>五維評分雷達</h3><div class="chart" id="c_radar2" style="height:290px"></div></div>'+
+ '<div class="card"><h3><span class="material-symbols-outlined">fact_check</span>各維度評語</h3>'+
+ DIM.map(function(d){return '<div class="prow"><span class="av" style="background:'+(d[2]==='t-ok'?'linear-gradient(135deg,#16a34a,#4ade80)':'linear-gradient(135deg,var(--warn),#fbbf24)')+'">'+d[1]+'</span><div class="in"><b>'+d[0]+'</b><small>'+d[3]+'</small></div><span class="tag '+d[2]+'">'+(d[2]==='t-ok'?'良好':'待加強')+'</span></div>';}).join('')+
+ '<div style="display:flex;gap:10px;margin-top:14px"><button class="btn"><span class="material-symbols-outlined">replay</span>查看逐句回饋</button><button class="btn ghost">重新錄音</button></div></div>'+
+ '</div>';},
+// 3 錄音回饋
+function(){return '<div class="grid g2">'+
+ '<div class="card"><h3><span class="material-symbols-outlined">graphic_eq</span>錄音波形回放 · 求職面試 #09</h3>'+
+ '<div class="rec"><div class="scene"><span class="material-symbols-outlined" style="font-size:16px">record_voice_over</span>你的錄音 · 00:18</div>'+
+ '<div class="wave">'+wave(48,3)+'</div>'+
+ '<div class="recbar"><button class="recbtn"><span class="material-symbols-outlined">play_arrow</span></button><div class="rt">00:18<small>你的錄音</small></div><button class="iconbtn"><span class="material-symbols-outlined">graphic_eq</span></button><button class="iconbtn"><span class="material-symbols-outlined">volume_up</span></button></div></div>'+
+ '<div class="rec" style="margin-top:12px;background:linear-gradient(135deg,#f5f0ff,#fff);border-color:#e3d8fb"><div class="scene" style="color:var(--info)"><span class="material-symbols-outlined" style="font-size:16px">campaign</span>AI 範讀對照 · 00:16</div>'+
+ '<div class="wave">'+wave(48,9).replace(/f43f5e/g,'7c3aed').replace(/fb7185/g,'a78bfa')+'</div>'+
+ '<div class="recbar"><button class="recbtn" style="background:linear-gradient(135deg,var(--info),#a78bfa);box-shadow:0 8px 20px rgba(124,58,237,.35)"><span class="material-symbols-outlined">play_arrow</span></button><div class="rt">00:16<small>標準範讀</small></div><small style="color:var(--mut);font-size:11.5px;margin-left:auto">你的語速快 12%，句中停頓多 2 處</small></div></div>'+
+ '<div style="display:flex;gap:10px;margin-top:14px"><button class="btn"><span class="material-symbols-outlined">mic</span>依建議重錄</button><button class="btn ghost">存入我的錯題本</button></div></div>'+
+ '<div class="card"><h3><span class="material-symbols-outlined">rate_review</span>逐句糾音回饋<span class="grow">2 句待改善</span></h3>'+
+ '<div class="fbk">'+FBK.map(function(f){var st=f[0]==='good'?'':f[0];return '<div class="fl '+st+'"><div class="ft">'+f[2]+'</div><div class="fm"><span><span class="material-symbols-outlined" style="font-size:14px;color:var(--accent)">graphic_eq</span>'+f[3]+'</span><span>發音分 <b>'+f[4]+'</b></span></div>'+(f[0]!=='good'?'<div class="adv"><b>糾音建議 · </b>'+f[5]+'</div>':'')+'</div>';}).join('')+'</div>'+
+ '<p class="note">AI 逐句標記發錯的音節（紅框）與正確處（綠框），並給出口型、重音與連音的改善建議供重錄比對。</p></div>'+
+ '</div>';},
+// 4 打卡進度
+function(){return '<div class="grid g2">'+
+ '<div class="card"><h3><span class="material-symbols-outlined">calendar_month</span>2026 年 8 月 · 練習月曆<span class="grow">顏色越深練習越多</span></h3>'+
+ '<div class="cal">'+['日','一','二','三','四','五','六'].map(function(h){return '<div class="hd">'+h+'</div>';}).join('')+
+ '<div class="d"></div><div class="d"></div><div class="d"></div><div class="d"></div>'+
+ CAL.map(function(lv,i){var cls=lv?'l'+lv:'';return '<div class="d '+cls+'">'+(i+1)+'</div>';}).join('')+'</div>'+
+ '<div class="legend"><span>少</span><span><i class="dot" style="background:#fdeef2"></i></span><span><i class="dot" style="background:#fecdd8"></i></span><span><i class="dot" style="background:#fb7185"></i></span><span><i class="dot" style="background:#f43f5e"></i></span><span><i class="dot" style="background:#be123c"></i></span><span>多</span></div>'+
+ '<div class="stat" style="margin-top:14px"><div class="stc"><b style="color:var(--accent)">27</b><span>連續天數</span></div><div class="stc"><b>34</b><span>最長連續</span></div><div class="stc"><b>28</b><span>本月打卡</span></div><div class="stc"><b>96%</b><span>本月達成率</span></div></div></div>'+
+ '<div class="card"><h3><span class="material-symbols-outlined">military_tech</span>里程碑徽章<span class="grow">已解鎖 3 / 6</span></h3>'+
+ '<div class="badges">'+BADGE.map(function(b){return '<div class="bg'+(b[3]?' lock':'')+'"><div class="bi"><span class="material-symbols-outlined">'+(b[3]?'lock':b[0])+'</span></div><b>'+b[1]+'</b><small>'+b[2]+'</small></div>';}).join('')+'</div>'+
+ '<h3 style="margin-top:16px"><span class="material-symbols-outlined">bar_chart</span>近 7 日每日練習句數</h3><div class="chart" id="c_daily" style="height:170px"></div></div>'+
+ '</div>';},
+// 5 成效追蹤
+function(){return '<div class="grid g11">'+
+ '<div class="card"><h3><span class="material-symbols-outlined">show_chart</span>口說五維評分 · 進步趨勢</h3><div class="chart" id="c_five" style="height:300px"></div><p class="note">近六週語調與流暢度提升最明顯，準確度穩定維持在高檔。</p></div>'+
+ '<div class="card"><h3><span class="material-symbols-outlined">radar</span>程度雷達 · 本月 vs 上月</h3><div class="chart" id="c_radar3" style="height:300px"></div><p class="note">整體外擴代表口說能力全面提升，語調為本月最大進步項。</p></div>'+
+ '</div>'+
+ '<div class="card" style="margin-top:16px"><h3><span class="material-symbols-outlined">insights</span>各情境主題精熟度</h3>'+
+ '<div class="scroll"><table class="data"><tr><th>情境主題</th><th>目前程度</th><th>最新分數</th><th>四週變化</th><th>狀態</th></tr>'+
+ PROG.map(function(p){var st=p[4]==='已精通'?'t-ok':p[4]==='進步中'?'t-rose':p[4]==='起步'?'t-warn':'t-info';var dc=p[3].indexOf('+')>=0?'up':'';return '<tr><td><b>'+p[0]+'</b></td><td>'+p[1]+'</td><td style="font-family:Inter;font-weight:800">'+p[2]+'</td><td class="'+dc+'" style="font-weight:800">'+p[3]+'</td><td><span class="tag '+st+'">'+p[4]+'</span></td></tr>';}).join('')+
+ '</table></div>'+
+ '<div class="stat" style="margin-top:14px"><div class="stc"><b>84</b><span>綜合平均分</span></div><div class="stc"><b style="color:var(--ok)">+21</b><span>六週進步</span></div><div class="stc"><b>B1</b><span>目前程度</span></div><div class="stc"><b>92%</b><span>距 B2 進度</span></div></div>'+
+ '<p class="note">系統彙整各情境練習分數，計算語言能力參考等級（CEFR），並建議下一階段優先補強的情境與音素。</p></div>';}
+];
+
+// chart lifecycle
+var charts=[];
+function clearCharts(){charts.forEach(function(c){try{c.destroy();}catch(e){}});charts=[];}
+function mk(id,opt){var el=document.getElementById(id);if(!el)return;var c=new ApexCharts(el,opt);c.render();charts.push(c);}
+var ROSE='#f43f5e',ROSE2='#fb7185',ROSE3='#fecdd8',PUR='#7c3aed',PUR2='#c4b5fd',OKG='#16a34a',WARN='#f59e0b';
+function base(extra){return Object.assign({chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},fontFamily:'Inter,"Noto Sans TC",sans-serif',toolbar:{show:false}},dataLabels:{enabled:false},grid:{borderColor:'#fbe0e7',strokeDashArray:4},legend:{fontSize:'12px'},tooltip:{style:{fontSize:'12px'}}},extra);}
+var DIMLBL=['準確度','流暢度','語調','詞彙','文法'];
+
+function draw(i){
+ clearCharts();
+ if(i===0){
+  mk('c_radar',base({chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:'radar',height:300},series:[{name:'本次',data:[88,82,79,90,86]},{name:'四週前',data:[74,68,60,82,76]}],labels:DIMLBL,colors:[ROSE,PUR2],markers:{size:3},stroke:{width:2},fill:{opacity:.22},yaxis:{show:false,min:0,max:100}}));
+  mk('c_trend',base({chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:'area',height:210},series:[{name:'口說總分',data:[63,66,70,72,75,78,81,84]}],colors:[ROSE],stroke:{curve:'smooth',width:3},fill:{type:'gradient',gradient:{shadeIntensity:.4,opacityFrom:.4,opacityTo:.05}},xaxis:{categories:['W1','W2','W3','W4','W5','W6','W7','W8'],labels:{style:{fontSize:'11px'}}},yaxis:{min:50,max:100,labels:{style:{fontSize:'10px'}}},markers:{size:4}}));
+ }else if(i===2){
+  mk('c_radar2',base({chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:'radar',height:290},series:[{name:'本次評分',data:[88,82,79,90,86]}],labels:DIMLBL,colors:[ROSE],markers:{size:4,colors:[ROSE]},stroke:{width:2},fill:{opacity:.3},yaxis:{show:false,min:0,max:100}}));
+ }else if(i===4){
+  mk('c_daily',base({chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:'bar',height:170},series:[{name:'練習句數',data:[6,9,7,11,8,10,7]}],colors:[ROSE],plotOptions:{bar:{borderRadius:5,columnWidth:'52%'}},xaxis:{categories:['一','二','三','四','五','六','日'],labels:{style:{fontSize:'11px'}}},yaxis:{labels:{style:{fontSize:'10px'}}}}));
+ }else if(i===5){
+  mk('c_five',base({chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:'line',height:300},series:[{name:'準確度',data:[80,82,84,85,87,88]},{name:'流暢度',data:[66,69,72,76,79,82]},{name:'語調',data:[58,62,67,71,75,79]}],colors:[ROSE,PUR,WARN],stroke:{width:3,curve:'smooth'},markers:{size:4},xaxis:{categories:['W1','W2','W3','W4','W5','W6'],labels:{style:{fontSize:'11px'}}},yaxis:{min:50,max:100,labels:{style:{fontSize:'10px'}}},legend:{position:'top'}}));
+  mk('c_radar3',base({chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:'radar',height:300},series:[{name:'本月',data:[88,82,79,90,86]},{name:'上月',data:[80,74,66,86,81]}],labels:DIMLBL,colors:[ROSE,ROSE2],markers:{size:3},stroke:{width:2},fill:{opacity:.2},yaxis:{show:false,min:0,max:100}}));
+ }
+}
+
+function show(i){
+ nav.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',+b.dataset.i===i);});
+ vt.textContent=MOD[i][2];vd.textContent=MOD[i][3];
+ view.innerHTML=SCREENS[i]();
+ draw(i);
+}
+show(0);
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>
