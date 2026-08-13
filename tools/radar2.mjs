@@ -1,0 +1,12 @@
+import { chromium } from 'playwright';
+const [repo,go,id]=process.argv.slice(2);
+const b=await chromium.launch({channel:'chrome'});const ctx=await b.newContext();const p=await ctx.newPage();
+const c=await ctx.newCDPSession(p);await c.send('Network.setCacheDisabled',{cacheDisabled:true});
+await p.setViewportSize({width:1200,height:900});
+await p.goto('http://localhost:4599/demos/'+repo+'/#go='+go,{waitUntil:'load'});await p.waitForTimeout(600);
+const r=await p.evaluate((id)=>{const el=document.getElementById(id);if(!el)return{noel:id};
+ const polys=[...el.querySelectorAll('.apexcharts-radar-series polygon')];
+ return{w:Math.round(el.getBoundingClientRect().width),nPoly:polys.length,nan:polys.some(pg=>(pg.getAttribute('points')||'').includes('NaN')),sample:(polys[0]?polys[0].getAttribute('points')||'':'').slice(0,40)};
+},id);
+console.log(repo,'go='+go,id,JSON.stringify(r));
+await b.close();
