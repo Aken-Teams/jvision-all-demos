@@ -1,60 +1,39 @@
-# Jvision 估價與工程管理 Demo
+# 工程估價與專案管理
 
-Jvision 估價與工程專案管理平台，展示報價估價、轉工程專案、進度品質、圖說送審、估驗請款與驗收維保流程。
+> 進度、日報、品安到估價成本的工程管理
 
-## 線上 Demo
+Jvision 估價與工程專案管理平台，展示報價估價、轉工程專案、進度品質、圖說送審、估驗請款與驗收維保流程。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-estimate-pmis.vercel.app](https://jvision-estimate-pmis.vercel.app)
+**產業別：**營建工程　|　**系統類型：**營建工程管理
 
-![Jvision 估價與工程管理 Demo 海報](docs/marketing/jvision-estimate-pmis-poster.png)
+## 功能模組
 
-## Demo 功能
+- **工程進度** — WBS 排程與進度追蹤
+- **工地日報** — 日報、人機料回報
+- **品質安衛** — 巡檢與缺失改善
+- **估價發包** — 估價、發包與計價
+- **成本控管** — 預算、實支與請款
+- **現場紀錄** — 照片與文件留存
 
-- 報價估價
-- 工程 PMIS
-- 財務送審
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 工務工程師
+- 專案經理
+- 工程處長
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立工程估價與專案管理資料
+2. Jvision 估價與工程專案管理平台，展示報價估價、轉工程專案、進度品質、圖說送審、估驗請款與驗收維保流程
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](docs/marketing/jvision-estimate-pmis-poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-estimate-pmis-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-estimate-pmis-product-introduction.pdf)
+- 日報彙整工時：2.8小時/日 → **0.5小時/日**
+- 進度落後預警：38% → **85%**
+- 估驗計價天數：9.4天 → **3.8天**
+- 缺失改善時效：6.6天 → **1.9天**
 
 ---
 
-Jvision AI｜Jvision 估價與工程管理互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-estimate-pmis/` 提供。

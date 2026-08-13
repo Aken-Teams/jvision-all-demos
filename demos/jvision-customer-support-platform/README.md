@@ -1,26 +1,39 @@
-# Jvision 客服支援平台 Demo
+# 客戶服務平台
 
-可互動測試的客服收件箱、AI 回覆、知識庫、支援入口、自動化流程與客服報表平台。
+> 多渠道客服、SLA 到客訴補償的服務管理
 
-## Demo
+Jvision 客服支援平台，展示共享收件箱、AI 摘要與回覆、知識庫、支援入口、工作流程、主動訊息與客服報表流程。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網址：https://jvision-customer-support-platform.vercel.app
-- 線上海報：https://jvision-customer-support-platform.vercel.app/marketing/jvision-customer-support-platform-poster.png
-- 產品介紹 PDF：https://jvision-customer-support-platform.vercel.app/marketing/jvision-customer-support-platform-product-introduction.pdf
+**產業別：**客服管理　|　**系統類型：**客服服務台
 
-## 專案海報
+## 功能模組
 
-[![Jvision 客服支援平台海報](docs/marketing/jvision-customer-support-platform-poster.png)](docs/marketing/jvision-customer-support-platform-poster.png)
+- **服務工單** — 客訴/服務單管理
+- **SLA 追蹤** — 時效與升級管理
+- **多渠道客服** — 整合多渠道對話
+- **客訴補償** — 補償與退換處理
+- **AI 客服助理** — 自動回覆與建議
+- **滿意度** — 回饋與滿意度分析
 
-## 功能
+## 適合誰使用
 
-- 共享客服收件箱
-- AI 摘要與回覆草稿
-- 知識庫與網站支援入口
-- 工作流程自動分派
-- 主動訊息與滿意度調查
-- 客服洞察報表
+- 客服專員
+- 客服主管
+- 營運經理
 
-## 素材
+## 運作流程
 
-行銷素材放在 `docs/marketing`，同時複製到 `public/marketing` 供 Vercel 正式站直接存取。
+1. 建立客戶服務平台資料
+2. Jvision 客服支援平台，展示共享收件箱、AI 摘要與回覆、知識庫、支援入口、工作流程、主動訊息與客服報表流程
+3. 確認結果並完成留存
+
+## 導入效益
+
+- 首次回應時間：29分鐘 → **5.3分鐘**
+- 一次解決率：62% → **88%**
+- 客訴關案：4.9天 → **1.9天**
+- 滿意度：76% → **94%**
+
+---
+
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-customer-support-platform/` 提供。

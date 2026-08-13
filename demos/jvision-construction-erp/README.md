@@ -1,60 +1,39 @@
-# Jvision 營建 工程管理 Demo
+# 營建工程 ERP
 
-Jvision 營建 工程管理 專案管理、採購用料、出工、報價、合約成本與收款結算互動展示。
+> 訂單、庫存、財務、人資一體的營運中樞
 
-## 線上 Demo
+Jvision 營建 工程管理 專案管理、採購用料、出工、報價、合約成本與收款結算互動展示。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-construction-erp.vercel.app](https://jvision-construction-erp.vercel.app)
+**產業別：**營建工程　|　**系統類型：**ERP 企業資源規劃
 
-![Jvision 營建 工程管理 Demo 海報](assets/poster.png)
+## 功能模組
 
-## Demo 功能
+- **訂單採購** — 銷售、採購單據一條龍處理
+- **庫存成本** — 即時庫存、成本與呆滯分析
+- **財務會計** — 總帳、應收付與傳票拋轉
+- **人資薪資** — 出勤、薪資與組織管理
+- **簽核流程** — 多層簽核與權限控管
+- **經營報表** — 跨模組即時經營儀表
 
-- 專案控管
-- 現場營運
-- 成本結算
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 工務工程師
+- 專案經理
+- 工程處長
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立營建工程 ERP資料
+2. Jvision 營建 工程管理 專案管理、採購用料、出工、報價、合約成本與收款結算互動展示
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](assets/poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-construction-erp-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-construction-erp-product-introduction.pdf)
+- 日報彙整工時：2.9小時/日 → **0.5小時/日**
+- 進度落後預警：42% → **90%**
+- 估驗計價天數：9.8天 → **3.8天**
+- 缺失改善時效：7.4天 → **2天**
 
 ---
 
-Jvision AI｜Jvision 營建 工程管理互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-construction-erp/` 提供。

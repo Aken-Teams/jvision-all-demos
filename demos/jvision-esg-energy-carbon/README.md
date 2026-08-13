@@ -1,32 +1,39 @@
-﻿# Jvision ESG 能源與碳管理平台
+# 能源與碳排管理
 
-整合「組織溫室氣體盤查平台」與「能源管理系統」的新獨立 Demo。原有展示仍保留，這個版本專注在 ESG、能源與碳排管理的一體化流程。
+> 碳盤查、能源監控到減碳目標的永續管理
 
-## 線上 Demo
+整合能源監控、溫室氣體盤查、排放分類、減碳任務與 AI 摘要的互動 Demo。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-https://jvision-esg-energy-carbon.vercel.app
+**產業別：**ESG 永續　|　**系統類型：**ESG 永續 / 能源管理
 
-![Jvision ESG 能源與碳管理平台海報](assets/poster.png)
+## 功能模組
 
-## Demo 功能
+- **碳盤查** — 範疇一、二、三排放盤查
+- **能源監控** — 用電/用能即時監控
+- **減碳目標** — 目標設定與進度追蹤
+- **排放源管理** — 排放源清冊與係數庫
+- **永續報告** — GRI/ISO 報告產出
+- **需量告警** — 用電尖峰即時預警
 
-- 新增溫室氣體盤查活動數據
-- 接入能源設備並切換設備狀態
-- 依排放熱點建立節能任務
-- 查看直接排放、外購能源排放與供應鏈排放來源排序
-- 生成 Jvision AI 能源與碳排摘要
+## 適合誰使用
 
-## 指令
+- 永續管理師
+- ESG 主管
+- 總經理
 
-```bash
-npm install
-npm run assets
-npm run build
-npm run verify
-```
+## 運作流程
 
-## 行銷素材
+1. 建立能源與碳排管理資料
+2. 整合能源監控、溫室氣體盤查、排放分類、減碳任務與 AI 摘要的互動 Demo
+3. 確認結果並完成留存
 
-- `docs/marketing/jvision-esg-energy-carbon-poster.png`
-- `docs/marketing/jvision-esg-energy-carbon-poster.pdf`
-- `docs/marketing/jvision-esg-energy-carbon-product-introduction.pdf`
+## 導入效益
+
+- 盤查作業工時：42小時 → **7.7小時**
+- 數據完整率：59% → **97%**
+- 減碳目標達成：52% → **83%**
+- 用能異常反應：23小時 → **2小時**
+
+---
+
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-esg-energy-carbon/` 提供。

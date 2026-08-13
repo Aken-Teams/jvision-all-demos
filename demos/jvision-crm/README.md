@@ -1,60 +1,39 @@
-# Jvision CRM Demo
+# 客戶關係管理 CRM
 
-Jvision CRM 提供客戶管理、銷售管線、任務追蹤、活動紀錄與報表分析的完整互動 Demo。
+> 從名單到成交的完整客戶生命週期管理
 
-## 線上 Demo
+Jvision CRM 提供客戶管理、銷售管線、任務追蹤、活動紀錄與報表分析的完整互動 Demo。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-crm.vercel.app](https://jvision-crm.vercel.app)
+**產業別：**企業協作　|　**系統類型：**CRM 客戶關係管理
 
-![Jvision CRM Demo 海報](docs/marketing/jvision-crm-poster.png)
+## 功能模組
 
-## Demo 功能
+- **客戶 360 視圖** — 整合互動、報價、合約與服務歷程
+- **銷售管線** — 拖曳看板管理商機階段與轉化率
+- **報價與合約** — 線上報價、審核與電子簽核
+- **行銷活動** — 名單分群、活動追蹤與成效分析
+- **AI 業務助理** — 下一步建議、風險提醒與成交預測
+- **業績報表** — 銷售漏斗、預測與達成率儀表
 
-- 客戶資料
-- 銷售管線
-- 任務與報表
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 專案專員
+- 部門經理
+- 營運長
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立客戶關係管理 CRM資料
+2. Jvision CRM 提供客戶管理、銷售管線、任務追蹤、活動紀錄與報表分析的完整互動 Demo
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](docs/marketing/jvision-crm-poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-crm-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-crm-product-introduction.pdf)
+- 跨部門協調工時：8.3小時/週 → **2小時/週**
+- 任務準時率：69% → **88%**
+- 資訊落差：30% → **7.5%**
+- 文件查找時間：20分鐘 → **3.2分鐘**
 
 ---
 
-Jvision AI｜Jvision CRM互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-crm/` 提供。

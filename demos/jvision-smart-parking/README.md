@@ -1,60 +1,40 @@
-# Jvision 智慧停車場管理 Demo
+# 智慧停車管理
 
-Jvision 智慧停車場管理平台，展示車牌辨識、AI 空車位偵測、車位導引、EV 地鎖、VIP 訪客車位與安全事件監控流程。
+> 派車、追蹤、簽收到成本油耗的車隊管理
 
-## 線上 Demo
+Jvision 智慧停車場管理平台，展示車牌辨識、AI 空車位偵測、車位導引、EV 地鎖、VIP 訪客車位與安全事件監控流程。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-smart-parking.vercel.app](https://jvision-smart-parking.vercel.app)
+**產業別：**交通運輸　|　**系統類型：**TMS 運輸調度
 
-![Jvision 智慧停車場管理 Demo 海報](docs/marketing/jvision-smart-parking-poster.png)
+## 功能模組
 
-## Demo 功能
+- **路線調度** — 派車與路線規劃
+- **任務派車** — 任務指派與追蹤
+- **即時追蹤** — GPS 定位與到貨
+- **簽收回單** — 電子簽收與回單
+- **成本油耗** — 油耗與成本分析
+- **冷鏈溫控** — 溫度監控與告警
 
-- 車牌辨識
-- 空位導引
-- 安全事件
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 停車場場務
+- 客服人員
+- 值班主管
+- 商場營運主管
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立智慧停車管理資料
+2. Jvision 智慧停車場管理平台，展示車牌辨識、AI 空車位偵測、車位導引、EV 地鎖、VIP 訪客車位與安全事件監控流程
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](docs/marketing/jvision-smart-parking-poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-smart-parking-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-smart-parking-product-introduction.pdf)
+- 派車規劃工時：4.1小時/日 → **1小時/日**
+- 準時配送率：90% → **99%**
+- 空車率：21% → **9.4%**
+- 油耗異常反應：24小時 → **2.9小時**
 
 ---
 
-Jvision AI｜Jvision 智慧停車場管理互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-smart-parking/` 提供。

@@ -1,60 +1,39 @@
-# Jvision 寵物服務預約 Demo
+# 寵物服務預約
 
-Jvision 寵物服務預約平台，展示寵物旅館、安親、美容、課程預約、商品加購、入住管理與照護通知流程。
+> 把日常作業收斂成可操作、可追蹤的營運中樞
 
-## 線上 Demo
+Jvision 寵物服務預約平台，展示寵物旅館、安親、美容、課程預約、商品加購、入住管理與照護通知流程。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-pet-booking.vercel.app](https://jvision-pet-booking.vercel.app)
+**產業別：**生活服務　|　**系統類型：**營運管理主控台
 
-![Jvision 寵物服務預約 Demo 海報](docs/marketing/jvision-pet-booking-poster.png)
+## 功能模組
 
-## Demo 功能
+- **營運總覽** — 今日狀態與待辦
+- **作業看板** — 作業流程看板
+- **例外處理** — 異常與例外管理
+- **資料建立** — 快速建立與流轉
+- **營運洞察** — 數據彙整與洞察
+- **操作紀錄** — 稽核與追溯
 
-- 線上預約
-- 商品加購
-- 照護通知
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 門市櫃檯
+- 店長
+- 品牌負責人
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立寵物服務預約資料
+2. Jvision 寵物服務預約平台，展示寵物旅館、安親、美容、課程預約、商品加購、入住管理與照護通知流程
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](docs/marketing/jvision-pet-booking-poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-pet-booking-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-pet-booking-product-introduction.pdf)
+- 預約作業工時：2.9小時/日 → **0.5小時/日**
+- 準時到府率：82% → **99%**
+- 重工率：12% → **3.8%**
+- 客訴關案：4.2天 → **1天**
 
 ---
 
-Jvision AI｜Jvision 寵物服務預約互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-pet-booking/` 提供。

@@ -1,60 +1,39 @@
-# Jvision 建築工程管理 Demo
+# 營建專案管理
 
-Jvision 建築工程專案、工地日報、品質安衛、材料成本與審批流程一站式 demo。
+> 進度、日報、品安到估價成本的工程管理
 
-## 線上 Demo
+Jvision 建築工程專案、工地日報、品質安衛、材料成本與審批流程一站式 demo。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-construction-erp.vercel.app](https://jvision-construction-erp.vercel.app)
+**產業別：**營建工程　|　**系統類型：**營建工程管理
 
-![Jvision 建築工程管理 Demo 海報](assets/poster.png)
+## 功能模組
 
-## Demo 功能
+- **工程進度** — WBS 排程與進度追蹤
+- **工地日報** — 日報、人機料回報
+- **品質安衛** — 巡檢與缺失改善
+- **估價發包** — 估價、發包與計價
+- **成本控管** — 預算、實支與請款
+- **現場紀錄** — 照片與文件留存
 
-- 專案控管
-- 現場營運
-- 成本結算
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 工務工程師
+- 專案經理
+- 工程處長
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立營建專案管理資料
+2. Jvision 建築工程專案、工地日報、品質安衛、材料成本與審批流程一站式 demo
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](assets/poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-construction-erp-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-construction-erp-product-introduction.pdf)
+- 日報彙整工時：3.1小時/日 → **0.5小時/日**
+- 進度落後預警：42% → **94%**
+- 估驗計價天數：9.6天 → **3.8天**
+- 缺失改善時效：7天 → **2天**
 
 ---
 
-Jvision AI｜Jvision 建築工程管理互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-construction/` 提供。

@@ -1,60 +1,40 @@
-# Jvision 生產工單管理 Demo
+# 生產工單管理
 
-Jvision 生產工單管理平台，展示訂單轉工單、排產派工、現場回報、品檢入庫與 AI 摘要。
+> 訂單轉工單、排產派工、現場回報到品檢入庫，一條龍把生產現場數位化。
 
-## 線上 Demo
+生產工單管理把訂單、工單、派工、報工與品檢入庫整合到同一畫面，並用 AI 摘要現場狀況，讓生管專注處理例外。
 
-- 正式網站：[https://jvision-production-order.vercel.app](https://jvision-production-order.vercel.app)
+**產業別：**生產製造　|　**系統類型：**MES 製造執行系統
 
-![Jvision 生產工單管理 Demo 海報](docs/marketing/jvision-production-order-poster.png)
+## 功能模組
 
-## Demo 功能
+- **工單管理** — 訂單轉工單、拆併單與派發
+- **排產派工** — 依產能與交期派工到產線
+- **現場回報** — 報工、進度與異常即時回報
+- **品檢入庫** — 檢驗判定、不良處置與入庫
 
-- 工單下達
-- 派工追蹤
-- AI 摘要
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 生管專員
+- 製造課長
+- 廠長
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 訂單轉工單
+2. 排產派工
+3. 領料開工
+4. 報工回報
+5. 品檢判定
+6. 允收入庫
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](docs/marketing/jvision-production-order-poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-production-order-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-production-order-product-introduction.pdf)
+- 工單建立工時：6小時/日 → **1.5小時/日**
+- 準時交付率：80% → **94%**
+- 現場進度延遲：40分鐘 → **10分鐘**
+- 缺料停線次數：10次/月 → **3次/月**
 
 ---
 
-Jvision AI｜Jvision 生產工單管理互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-production-order/` 提供。

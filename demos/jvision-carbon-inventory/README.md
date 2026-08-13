@@ -1,60 +1,39 @@
-# Jvision 組織溫室氣體盤查 Demo
+# 組織碳盤查
 
-Jvision 組織溫室氣體盤查 Demo，整合活動資料、排放係數、範疇一/二/三計算、排放清冊、熱點分析與報告輸出。
+> 碳盤查、能源監控到減碳目標的永續管理
 
-## 線上 Demo
+Jvision 組織溫室氣體盤查 Demo，整合活動資料、排放係數、範疇一/二/三計算、排放清冊、熱點分析與報告輸出。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-carbon-inventory.vercel.app](https://jvision-carbon-inventory.vercel.app)
+**產業別：**ESG 永續　|　**系統類型：**ESG 永續 / 能源管理
 
-![Jvision 組織溫室氣體盤查 Demo 海報](docs/marketing/jvision-carbon-inventory-poster.png)
+## 功能模組
 
-## Demo 功能
+- **碳盤查** — 範疇一、二、三排放盤查
+- **能源監控** — 用電/用能即時監控
+- **減碳目標** — 目標設定與進度追蹤
+- **排放源管理** — 排放源清冊與係數庫
+- **永續報告** — GRI/ISO 報告產出
+- **需量告警** — 用電尖峰即時預警
 
-- 盤查資料
-- 排放清冊
-- AI 查核
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 電商營運
+- 商品經理
+- 品牌負責人
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立組織碳盤查資料
+2. Jvision 組織溫室氣體盤查 Demo，整合活動資料、排放係數、範疇一/二/三計算、排放清冊、熱點分析與報告輸出
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](docs/marketing/jvision-carbon-inventory-poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-carbon-inventory-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-carbon-inventory-product-introduction.pdf)
+- 盤查作業工時：42小時 → **7.7小時**
+- 數據完整率：59% → **97%**
+- 減碳目標達成：52% → **83%**
+- 用能異常反應：23小時 → **2小時**
 
 ---
 
-Jvision AI｜Jvision 組織溫室氣體盤查互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-carbon-inventory/` 提供。

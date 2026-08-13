@@ -1,26 +1,39 @@
-﻿# Jvision 營建工程整合平台
+# 營建專案管理套件
 
-整合工程估價、現場進度、品質安衛、材料成本與請款流程的互動 Demo，讓工程管理一頁掌握。
+> 進度、日報、品安到估價成本的工程管理
 
-## 線上 Demo
+整合營建工程、營建工程管理、估價與工程管理的互動 Demo把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-[https://jvision-construction-management-sui.vercel.app](https://jvision-construction-management-sui.vercel.app)
+**產業別：**營建工程　|　**系統類型：**營建工程管理
 
-## 行銷海報
+## 功能模組
 
-![Jvision 營建工程整合平台海報](./assets/poster.png)
+- **工程進度** — WBS 排程與進度追蹤
+- **工地日報** — 日報、人機料回報
+- **品質安衛** — 巡檢與缺失改善
+- **估價發包** — 估價、發包與計價
+- **成本控管** — 預算、實支與請款
+- **現場紀錄** — 照片與文件留存
 
-## 檔案
+## 適合誰使用
 
-- [海報 PNG](./docs/marketing/jvision-construction-management-suite-poster.png)
-- [海報 PDF](./docs/marketing/jvision-construction-management-suite-poster.pdf)
-- [產品介紹 PDF](./docs/marketing/jvision-construction-management-suite-product-introduction.pdf)
+- 工務工程師
+- 專案經理
+- 工程處長
 
-## Demo 功能
+## 運作流程
 
-- 新增工程估價
-- 推進報價簽核流程
-- 核准後轉工程專案
-- 更新工程進度與材料成本
-- 新增日報、品質、安衛與請款待辦
-- 產生 AI 工程摘要
+1. 建立營建專案管理套件資料
+2. 整合營建工程、營建工程管理、估價與工程管理的互動 Demo
+3. 確認結果並完成留存
+
+## 導入效益
+
+- 日報彙整工時：2.9小時/日 → **0.5小時/日**
+- 進度落後預警：40% → **95%**
+- 估驗計價天數：10天 → **3.8天**
+- 缺失改善時效：7.3天 → **1.9天**
+
+---
+
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-construction-management-suite/` 提供。

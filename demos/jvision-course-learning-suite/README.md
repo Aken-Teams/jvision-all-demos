@@ -1,25 +1,39 @@
-﻿# Jvision 課程學習整合平台
+# 課程與學習管理套件
 
-整合「課程工具平台」與「線上課程平台」的互動 Demo。原有展示仍保留，這個專案是新增的合併版本。
+> 課程、學員、測驗到學習進度的教學管理
 
-## 線上 Demo
+整合課程工具平台與線上課程平台的互動 Demo把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-[https://jvision-course-learning-suite.vercel.app](https://jvision-course-learning-suite.vercel.app)
+**產業別：**教育　|　**系統類型：**學習管理平台
 
-## 行銷海報
+## 功能模組
 
-![Jvision 課程學習整合平台海報](./assets/poster.png)
+- **課程管理** — 課程、單元與教材
+- **學員管理** — 名冊、分班與出勤
+- **作業測驗** — 派題、批改與成績
+- **學習進度** — 進度追蹤與提醒
+- **學習輔導** — 提問與輔導紀錄
+- **證書結業** — 結業與證照管理
 
-## 檔案
+## 適合誰使用
 
-- [海報 PNG](./docs/marketing/jvision-course-learning-suite-poster.png)
-- [海報 PDF](./docs/marketing/jvision-course-learning-suite-poster.pdf)
-- [產品介紹 PDF](./docs/marketing/jvision-course-learning-suite-product-introduction.pdf)
+- 教務專員
+- 教務主任
+- 機構負責人
 
-## Demo 功能
+## 運作流程
 
-- 新增課程與發布上架
-- 課表預約與候補劃位
-- 課程銷售與購課管理
-- 影音單元與作業回饋
-- 學員進度與營運摘要
+1. 建立課程與學習管理套件資料
+2. 整合課程工具平台與線上課程平台的互動 Demo
+3. 確認結果並完成留存
+
+## 導入效益
+
+- 排課作業工時：6.1小時/週 → **1.5小時/週**
+- 作業批改時效：5.3天 → **1天**
+- 出席掌握率：67% → **89%**
+- 學習進度可視：45% → **88%**
+
+---
+
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-course-learning-suite/` 提供。

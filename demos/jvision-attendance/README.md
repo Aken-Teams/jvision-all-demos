@@ -1,60 +1,39 @@
-# JVision HR
+# 出勤差勤管理
 
-Jvision 雲端打卡、外勤回報、異常判斷、請假簽核、排班與工時計薪互動展示。
+> 出勤、薪資、招募到績效的人資全流程
 
-## 線上 Demo
+Jvision 雲端打卡、外勤回報、異常判斷、請假簽核、排班與工時計薪互動展示。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-attendance.vercel.app](https://jvision-attendance.vercel.app)
+**產業別：**人力資源　|　**系統類型：**HRIS 人力資源系統
 
-![JVision HR 海報](assets/poster.png)
+## 功能模組
 
-## Demo 功能
+- **出勤差勤** — 打卡、請假與加班
+- **薪資計算** — 薪資、勞健保與報稅
+- **排班管理** — 智慧排班與工時控管
+- **招募任用** — 職缺、面試與報到
+- **教育訓練** — 課程、證照與紀錄
+- **績效考核** — 目標設定與考核流程
 
-- 雲端打卡
-- 外勤異常
-- 請假工時
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 人資專員
+- 人資經理
+- 營運主管
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立出勤差勤管理資料
+2. Jvision 雲端打卡、外勤回報、異常判斷、請假簽核、排班與工時計薪互動展示
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](assets/poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-attendance-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-attendance-product-introduction.pdf)
+- 薪資作業工時：40小時/月 → **8.2小時/月**
+- 出勤異常處理：29分鐘 → **4.9分鐘**
+- 招募到位天數：48天 → **26天**
+- 表單簽核時效：3.1天 → **1天**
 
 ---
 
-Jvision AI｜JVision HR互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-attendance/` 提供。

@@ -1,34 +1,39 @@
-# Jvision 拖吊派遣與車隊管理平台
+# 道路救援調度
 
-可互動展示的拖吊派遣 Demo，整合來電接案、道路救援派遣、司機任務、車隊狀態、扣車管理、帳務收款與 AI 營運摘要。
+> 派車、追蹤、簽收到成本油耗的車隊管理
 
-## 線上 Demo
+整合拖吊接單、道路救援派遣、司機任務、車隊狀態、扣車管理、帳務收款與 AI 摘要的 Demo。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-https://jvision-towing-dispatch.vercel.app
+**產業別：**物流運輸　|　**系統類型：**TMS 運輸調度
 
-## 專案海報
+## 功能模組
 
-[![Jvision 拖吊派遣與車隊管理平台海報](docs/marketing/jvision-towing-dispatch-poster.png)](docs/marketing/jvision-towing-dispatch-poster.png)
+- **路線調度** — 派車與路線規劃
+- **任務派車** — 任務指派與追蹤
+- **即時追蹤** — GPS 定位與到貨
+- **簽收回單** — 電子簽收與回單
+- **成本油耗** — 油耗與成本分析
+- **冷鏈溫控** — 溫度監控與告警
 
-## Demo 功能
+## 適合誰使用
 
-- 新增道路救援與拖吊任務
-- 指派最近車輛與司機
-- 依流程推進派遣狀態
-- 查看車隊狀態與帳務收款
-- 生成 AI 派遣營運摘要
+- 調度專員
+- 車隊主管
+- 營運經理
 
-## 指令
+## 運作流程
 
-```bash
-npm install
-npm run build
-npm run assets
-npm run verify
-```
+1. 建立道路救援調度資料
+2. 整合拖吊接單、道路救援派遣、司機任務、車隊狀態、扣車管理、帳務收款與 AI 摘要的 Demo
+3. 確認結果並完成留存
 
-## 行銷素材
+## 導入效益
 
-- `docs/marketing/jvision-towing-dispatch-poster.png`
-- `docs/marketing/jvision-towing-dispatch-poster.pdf`
-- `docs/marketing/jvision-towing-dispatch-product-introduction.pdf`
+- 派車規劃工時：3.8小時/日 → **0.9小時/日**
+- 準時配送率：80% → **91%**
+- 空車率：21% → **9.4%**
+- 簽收回單時效：23小時 → **1.9小時**
+
+---
+
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-towing-dispatch/` 提供。

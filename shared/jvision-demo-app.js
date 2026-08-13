@@ -27,6 +27,7 @@
   const improved = (k) => (LOWER.test(k.label) || /分鐘|小時|天|次/.test(k.unit || "") ? num(k.after) < num(k.before) : num(k.after) > num(k.before));
   const deltaPct = (k) => { const b = num(k.before); return b ? Math.round((num(k.after) - b) / b * 100) : 0; };
   const OWNERS = ["王志明", "林怡君", "陳彥廷", "黃詩涵", "李柏翰", "吳佳蓉", "張家維", "劉建宏"];
+  const oname = (o) => String(o || "").split(/[｜|]/)[0].trim();
   const ICON = (n) => `<span class="material-symbols-outlined">${n}</span>`;
   const hx = (hex, wr) => { hex = String(hex).replace("#", ""); if (hex.length < 6) hex = "1e40af"; const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16); const m = (c) => Math.round(c + (255 - c) * wr).toString(16).padStart(2, "0"); return "#" + m(r) + m(g) + m(b); };
   const dk = (hex, r) => { hex = String(hex).replace("#", ""); if (hex.length < 6) hex = "1e40af"; const p = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16); const m = (c) => Math.round(c * (1 - r)).toString(16).padStart(2, "0"); return "#" + m(p) + m(g) + m(b); };
@@ -59,7 +60,7 @@
     let g = [...new Set(ctx.records.rows.map((r) => r.stage).filter(Boolean))];
     if (!g.length) g = ctx.stages.map((s) => s.title);
     const pt = (p) => (p === "high" ? "高" : p === "low" ? "低" : "中");
-    return `<div class="da-board${big ? " big" : ""}">${g.map((s) => { const items = ctx.records.rows.filter((r) => r.stage === s); return `<div class="da-col"><div class="da-col-h">${esc(s)}<span class="da-count">${items.length}</span></div>${items.map((r) => `<div class="da-ticket"><div class="da-tk-top"><b>${esc(r.id)}</b><span class="da-tag tag-${esc(r.priority)}">${pt(r.priority)}</span></div><p class="da-tk-t">${esc(r.target || "")}</p>${progress(prPct(r))}<div class="da-tk-foot"><span class="da-owner sm">${avatar(r.owner)}${esc(clip(r.owner, 4))}</span><span class="da-tk-due">${ICON("schedule")}${esc(r.due || "")}</span></div><span class="da-tk-risk">${esc(r.risk || "")}</span></div>`).join("")}<button class="da-col-add">${ICON("add")}新增</button></div>`; }).join("")}</div>`;
+    return `<div class="da-board${big ? " big" : ""}">${g.map((s) => { const items = ctx.records.rows.filter((r) => r.stage === s); return `<div class="da-col"><div class="da-col-h">${esc(s)}<span class="da-count">${items.length}</span></div>${items.map((r) => `<div class="da-ticket"><div class="da-tk-top"><b>${esc(r.id)}</b><span class="da-tag tag-${esc(r.priority)}">${pt(r.priority)}</span></div><p class="da-tk-t">${esc(r.target || "")}</p>${progress(prPct(r))}<div class="da-tk-foot"><span class="da-owner sm">${avatar(oname(r.owner))}${esc(clip(oname(r.owner), 5))}</span><span class="da-tk-due">${ICON("schedule")}${esc(r.due || "")}</span></div><span class="da-tk-risk">${esc(r.risk || "")}</span></div>`).join("")}<button class="da-col-add">${ICON("add")}新增</button></div>`; }).join("")}</div>`;
   };
   const aiBlock = (ctx) => `<div class="da-ai"><div class="da-ai-row"><span class="da-ai-ico">${ICON("auto_awesome")}</span><p><b>今日重點：</b>目前 ${ctx.records.rows.filter((r) => r.priority === "high").length} 筆高優先項目需先處理，${esc((ctx.D.flow && ctx.D.flow.output) || "完成後留存紀錄")}。</p></div>${(ctx.rules.length ? ctx.rules : [{ id: "RULE", rule: "依期限與影響度自動排序待處理項目。" }]).map((r) => `<div class="da-rule"><span class="rid">${esc(r.id || "RULE")}</span><p>${esc(r.rule)}</p></div>`).join("")}</div>`;
   const miniList = (ctx, n) => ctx.records.rows.slice(0, n || 5).map((r) => `<div class="da-mini"><div><b>${esc(r.id)}</b><small>${esc(r.target)}・${esc(r.owner)}</small></div>${pill(r.stage, "pill-stage")}</div>`).join("");
@@ -74,7 +75,7 @@
   const ACTS = [["add_circle", "建立"], ["sync", "更新"], ["arrow_forward", "推進"], ["person_add", "指派"], ["check_circle", "完成"], ["undo", "退回"]];
   const activityFeed = (ctx) => ctx.records.rows.slice(0, 6).map((r, i) => { const a = ACTS[i % 6]; return `<div class="da-act"><span class="da-act-ic">${ICON(a[0])}</span><div><p><b>${esc(r.owner)}</b> ${a[1]}了 <b>${esc(r.id)}</b>${i % 6 === 2 ? "・" + esc(r.stage) : ""}</p><small>${(i + 1) * 7} 分鐘前</small></div></div>`; }).join("");
   const quickTiles = (ctx) => ctx.modules.slice(1, 5).map((m) => `<button class="da-qt">${ICON(m.icon || "bolt")}<span>${esc(m.name)}</span></button>`).join("");
-  const tableRich = (ctx) => `<div class="da-table-wrap"><table class="da-table"><thead><tr><th></th>${cols(ctx).map((c) => `<th>${esc(c.label)}</th>`).join("")}<th>進度</th><th></th></tr></thead><tbody>${ctx.records.rows.map((r) => `<tr><td>${priTag(r.priority)}</td>${cols(ctx).map((c) => { const v = r[c.key]; if (c.key === "owner") return `<td><span class="da-owner">${avatar(v)}${esc(v)}</span></td>`; if (c.key === "risk") return `<td>${pill(v, "pill-risk")}</td>`; if (c.key === "stage") return `<td>${pill(v, "pill-stage")}</td>`; if (c.key === "id") return `<td style="font-weight:800;color:var(--da-ink);">${esc(v)}</td>`; return `<td>${esc(v)}</td>`; }).join("")}<td style="min-width:96px;">${progress(prPct(r))}</td><td><button class="da-icon-btn">${ICON("more_horiz")}</button></td></tr>`).join("")}</tbody></table></div>`;
+  const tableRich = (ctx) => `<div class="da-table-wrap"><table class="da-table"><thead><tr><th></th>${cols(ctx).map((c) => `<th>${esc(c.label)}</th>`).join("")}<th>進度</th><th></th></tr></thead><tbody>${ctx.records.rows.map((r) => `<tr><td>${priTag(r.priority)}</td>${cols(ctx).map((c) => { const v = r[c.key]; if (c.key === "owner") return `<td><span class="da-owner">${avatar(oname(v))}${esc(oname(v))}</span></td>`; if (c.key === "risk") return `<td>${pill(v, "pill-risk")}</td>`; if (c.key === "stage") return `<td>${pill(v, "pill-stage")}</td>`; if (c.key === "id") return `<td style="font-weight:800;color:var(--da-ink);">${esc(v)}</td>`; return `<td>${esc(v)}</td>`; }).join("")}<td style="min-width:96px;">${progress(prPct(r))}</td><td><button class="da-icon-btn">${ICON("more_horiz")}</button></td></tr>`).join("")}</tbody></table></div>`;
   const sumRow = (ctx) => { const rows = ctx.records.rows; const hi = rows.filter((r) => r.priority === "high").length, done = rows.filter((r) => /完成|已|入庫|關閉|結案/.test(r.stage)).length; return `<div class="da-sumrow"><div class="da-sum"><span>總項目</span><b>${rows.length}</b></div><div class="da-sum"><span>高優先</span><b style="color:#dc2626;">${hi}</b></div><div class="da-sum"><span>已完成</span><b style="color:#059669;">${done}</b></div><div class="da-sum"><span>完成率</span><b>${Math.round(done / rows.length * 100)}%</b></div></div>`; };
 
   // ---------- screen builders ----------
@@ -82,8 +83,9 @@
     dashboard(ctx) {
       return alertBanner(ctx) + kpiStrip(ctx) +
         `<div class="da-grid" style="grid-template-columns:1.8fr 1fr;"><div class="da-card"><div class="da-ch-h"><h3>${ICON("trending_up")}處理量與改善趨勢</h3><div class="da-seg"><button class="on">近 6 週</button><button>近 30 天</button></div></div><div id="daC1" class="da-chart" style="height:250px;"></div></div><div class="da-card"><h3>${ICON("donut_large")}各階段分佈</h3><div id="daC2" class="da-chart" style="height:250px;"></div></div></div>` +
-        `<div class="da-grid" style="grid-template-columns:1.7fr 1fr;"><div class="da-card"><div class="da-ch-h"><h3>${ICON("view_kanban")}流程看板</h3><a class="da-link">查看全部 ${ICON("chevron_right")}</a></div>${boardHtml(ctx)}</div><div class="da-card"><h3>${ICON("bolt")}最新動態</h3><div class="da-feed">${activityFeed(ctx)}</div></div></div>` +
-        `<div class="da-grid" style="grid-template-columns:1.7fr 1fr;"><div class="da-card"><div class="da-ch-h"><h3>${ICON("table_rows")}${esc(ctx.records.title || "資料清單")}</h3><a class="da-link">全部 ${ICON("chevron_right")}</a></div>${tableRich(ctx)}</div><div class="da-side-stack"><div class="da-card"><h3>${ICON("bolt")}快速操作</h3><div class="da-qtiles">${quickTiles(ctx)}</div></div><div class="da-card"><h3>${ICON("smart_toy")}AI 建議</h3>${aiBlock(ctx)}</div></div></div>`;
+        `<div class="da-card"><div class="da-ch-h"><h3>${ICON("view_kanban")}流程看板</h3><a class="da-link">查看全部 ${ICON("chevron_right")}</a></div>${boardHtml(ctx, true)}</div>` +
+        `<div class="da-grid" style="grid-template-columns:1.6fr 1fr;"><div class="da-card"><div class="da-ch-h"><h3>${ICON("table_rows")}${esc(ctx.records.title || "資料清單")}</h3><a class="da-link">全部 ${ICON("chevron_right")}</a></div>${tableRich(ctx)}</div><div class="da-card"><h3>${ICON("bolt")}最新動態</h3><div class="da-feed">${activityFeed(ctx)}</div></div></div>` +
+        `<div class="da-grid" style="grid-template-columns:1fr 1.7fr;"><div class="da-card"><h3>${ICON("bolt")}快速操作</h3><div class="da-qtiles">${quickTiles(ctx)}</div></div><div class="da-card"><h3>${ICON("smart_toy")}AI 建議與規則</h3>${aiBlock(ctx)}</div></div>`;
     },
     list(ctx, mod) {
       return sumRow(ctx) +
@@ -197,7 +199,7 @@
   // ---------- chrome (nav) ----------
   function chromeConsole(app, ctx) {
     const nav = ctx.modules.map((m, i) => `<button data-i="${i}" class="${i === 0 ? "active" : ""}">${ICON(m.icon || "widgets")}${esc(m.name)}</button>`).join("");
-    app.innerHTML = `<div class="da-shell arch-console"><aside class="da-side"><div class="da-brand"><span class="da-logo">${ICON("hub")}</span><div><b>${esc(ctx.brand)}</b><small>Jvision Cloud</small></div></div><nav class="da-nav"><div class="da-nav-t">功能模組</div>${nav}</nav><div class="da-side-foot"><p>使用角色</p>${ctx.entry.map((r) => `<span class="da-role">${esc(r)}</span>`).join("") || '<span class="da-role">承辦</span>'}</div></aside><div class="da-main"><header class="da-top"><div><h1 id="daTitle">${esc(ctx.modules[0] ? ctx.modules[0].name : "營運總覽")}</h1><div class="da-crumb">${esc(ctx.title)}</div></div><label class="da-search">${ICON("search")}<input placeholder="搜尋…" /></label><span class="da-date">2026-07-23</span><span class="da-ava">JV</span></header><div class="da-body" id="daBody"></div></div></div>`;
+    app.innerHTML = `<div class="da-shell arch-console"><aside class="da-side"><div class="da-brand"><span class="da-logo">${ICON("hub")}</span><div><b>${esc(ctx.brand)}</b><small>${esc(ctx.sub)}</small></div></div><nav class="da-nav"><div class="da-nav-t">功能模組</div>${nav}</nav><div class="da-side-foot"><p>使用角色</p>${ctx.entry.map((r) => `<span class="da-role">${esc(r)}</span>`).join("") || '<span class="da-role">承辦</span>'}</div></aside><div class="da-main"><header class="da-top"><div><h1 id="daTitle">${esc(ctx.modules[0] ? ctx.modules[0].name : "營運總覽")}</h1><div class="da-crumb">${esc(ctx.title)}</div></div><label class="da-search">${ICON("search")}<input placeholder="搜尋…" /></label><span class="da-date">2026-07-23</span><span class="da-ava">JV</span></header><div class="da-body" id="daBody"></div></div></div>`;
     return ".da-nav";
   }
   function chromePipeline(app, ctx) {
@@ -207,7 +209,7 @@
   }
   function chromeReport(app, ctx) {
     const links = ctx.modules.map((m, i) => `<button data-i="${i}" class="${i === 0 ? "active" : ""}">${esc(m.name)}</button>`).join("");
-    app.innerHTML = `<div class="arch-report"><header class="rp-top"><div class="rp-brand"><span class="rp-logo">${ICON("analytics")}</span><div><b>${esc(ctx.brand)}</b><small>Analytics & Reporting</small></div></div><nav class="rp-nav">${links}</nav><span class="da-ava">JV</span></header><div class="rp-body"><header class="da-viewbar"><div><h1 id="daTitle">${esc(ctx.modules[0] ? ctx.modules[0].name : "營運總覽")}</h1><div class="da-crumb">${esc(ctx.title)}</div></div></header><div id="daBody"></div></div></div>`;
+    app.innerHTML = `<div class="arch-report"><header class="rp-top"><div class="rp-brand"><span class="rp-logo">${ICON("analytics")}</span><div><b>${esc(ctx.brand)}</b><small>${esc(ctx.sub)}</small></div></div><nav class="rp-nav">${links}</nav><span class="da-ava">JV</span></header><div class="rp-body"><header class="da-viewbar"><div><h1 id="daTitle">${esc(ctx.modules[0] ? ctx.modules[0].name : "營運總覽")}</h1><div class="da-crumb">${esc(ctx.title)}</div></div></header><div id="daBody"></div></div></div>`;
     return ".rp-nav";
   }
 
@@ -226,8 +228,8 @@
       stages: (D.flow && D.flow.stages || []),
       records: (D.records && D.records.rows && D.records.rows.length) ? D.records : synthRecords(D),
       rules: D.decisionRules || [],
-      brand: clip((D.systemType || D.title || "System").replace(/（.*?）/g, ""), 11),
-      title: D.title || "系統", systemType: D.systemType || cat,
+      brand: clip((D.title || D.systemType || "System").replace(/（.*?）/g, "").trim(), 12),
+      title: D.title || "系統", systemType: D.systemType || cat, sub: D.systemType || cat,
     };
     if (!ctx.modules.length) ctx.modules = [{ name: "營運總覽", icon: "dashboard", desc: "" }];
     // pad records so no screen ever looks sparse / empty

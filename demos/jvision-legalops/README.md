@@ -1,60 +1,39 @@
-# Jvision 法律案件管理 Demo
+# 法務案件管理
 
-Jvision 法律案件、庭期、待辦、工時、提醒通知與請款管理互動展示。
+> 案件、庭期、合約到工時計費的法務管理
 
-## 線上 Demo
+Jvision 法律案件、庭期、待辦、工時、提醒通知與請款管理互動展示。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-legalops.vercel.app](https://jvision-legalops.vercel.app)
+**產業別：**專業服務　|　**系統類型：**法務案件管理
 
-![Jvision 法律案件管理 Demo 海報](assets/poster.png)
+## 功能模組
 
-## Demo 功能
+- **案件管理** — 案件建檔與進度
+- **庭期管理** — 開庭與期限提醒
+- **合約管理** — 合約審閱與風險
+- **工時計費** — 工時記錄與計費
+- **文件管理** — 文件版本與檢索
+- **案件追溯** — 全程紀錄與稽核
 
-- 案件控管
-- 庭期待辦
-- 工時請款
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 案件管理專員
+- 專案合夥人
+- 事務所負責人
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立法務案件管理資料
+2. Jvision 法律案件、庭期、待辦、工時、提醒通知與請款管理互動展示
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](assets/poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-legalops-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-legalops-product-introduction.pdf)
+- 案件文件工時：5.6小時 → **1.4小時**
+- 期限掌握率：68% → **90%**
+- 計費遺漏：9.4% → **1.9%**
+- 進度查找時間：19分鐘 → **2.8分鐘**
 
 ---
 
-Jvision AI｜Jvision 法律案件管理互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-legalops/` 提供。

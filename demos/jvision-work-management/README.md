@@ -1,61 +1,39 @@
-# Jvision 工作管理平台 Demo
+# 工作協作管理
 
-Jvision 工作管理平台提供任務、專案看板、AI 摘要、目標追蹤、工作負荷與自動化規則的互動展示。
+> 任務、專案、知識到流程自動化的團隊協作
 
-## 線上 Demo
+Jvision 工作管理平台提供任務、專案看板、AI 摘要、目標追蹤、工作負荷與自動化規則的互動展示。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-work-management.vercel.app](https://jvision-work-management.vercel.app)
+**產業別：**企業協作　|　**系統類型：**協作 / 專案平台
 
-![Jvision 工作管理平台 Demo 海報](docs/marketing/jvision-work-management-poster.png)
+## 功能模組
 
-## Demo 功能
+- **任務看板** — 任務指派與進度
+- **專案協作** — 專案與里程碑
+- **知識文件** — 文件與知識庫
+- **流程自動化** — 表單簽核自動化
+- **團隊溝通** — 討論與通知
+- **工作報表** — 產能與進度報表
 
-- 專案管理
-- 任務追蹤
-- 目標報告
-- AI 自動化
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 專案專員
+- 部門經理
+- 營運長
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立工作協作管理資料
+2. Jvision 工作管理平台提供任務、專案看板、AI 摘要、目標追蹤、工作負荷與自動化規則的互動展示
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](docs/marketing/jvision-work-management-poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-work-management-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-work-management-product-introduction.pdf)
+- 跨部門協調工時：8.3小時/週 → **2小時/週**
+- 任務準時率：69% → **88%**
+- 資訊落差：30% → **7.5%**
+- 文件查找時間：20分鐘 → **3.2分鐘**
 
 ---
 
-Jvision AI｜Jvision 工作管理平台互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-work-management/` 提供。

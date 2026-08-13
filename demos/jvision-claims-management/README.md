@@ -1,69 +1,39 @@
-# Jvision 智慧理賠管理
+# 保險理賠管理
 
-Jvision 智慧理賠管理是一套可直接操作的保險理賠流程 Demo，整合案件、文件、任務、準備金與付款進度，協助理賠團隊在同一個工作介面掌握案件狀態與後續作業。
+> 受理、審核、風險到撥付的案件審查流程
 
-## 線上 Demo
+從報案、文件、任務、準備金到付款的完整理賠管理展示把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-claims-management.vercel.app](https://jvision-claims-management.vercel.app)
-- 行銷海報：[線上查看 PNG](https://jvision-claims-management.vercel.app/marketing/jvision-claims-management-poster.png)
-- 產品介紹：[線上查看 PDF](https://jvision-claims-management.vercel.app/marketing/jvision-claims-management-product-introduction.pdf)
+**產業別：**金融保險　|　**系統類型：**金融 / 保險案件系統
 
-## 專案海報
+## 功能模組
 
-[![Jvision 智慧理賠管理海報](docs/marketing/jvision-claims-management-poster.png)](docs/marketing/jvision-claims-management-poster.png)
+- **案件受理** — 理賠/貸款案件建立
+- **審核初核** — 文件審查與資格核對
+- **風險評分** — 風險模型與評分
+- **覆核核准** — 多層覆核與核決
+- **撥付理算** — 理算與撥款作業
+- **案件追溯** — 全程紀錄與稽核
 
-## Demo 功能
+## 適合誰使用
 
-- 理賠案件列表、搜尋與案件切換
-- 案件狀態、風險等級、承辦人與準備金總覽
-- 建立新理賠案件並立即加入案件佇列
-- 保單與事故、文件、溝通紀錄及財務頁籤切換
-- 待辦任務新增、完成狀態切換與追蹤
-- 付款審核操作示範
-- Jvision 智慧摘要與案件處理建議
-- 桌面、平板與手機 RWD 響應式排版
+- 客戶服務專員
+- 業務主管
+- 法遵主管
 
-> 本站為產品功能展示用途，畫面中的客戶、案件、金額與事故資料皆為示範資料。
+## 運作流程
 
-## 操作方式
+1. 建立保險理賠管理資料
+2. 從報案、文件、任務、準備金到付款的完整理賠管理展示
+3. 確認結果並完成留存
 
-1. 從左側案件佇列選擇任一案件。
-2. 使用搜尋欄依案件編號、客戶或車輛篩選資料。
-3. 切換案件頁籤查看不同理賠作業區域。
-4. 在待辦任務區新增任務或切換完成狀態。
-5. 點選「建立新案件」測試新增案件流程。
-6. 點選「送出付款審核」測試財務審核操作。
+## 導入效益
 
-## 技術架構
-
-- Next.js 16（App Router）
-- React 19
-- TypeScript
-- Tailwind CSS 4
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run lint
-npm run build
-```
-
-## 專案用途
-
-此專案用於 Jvision 智慧理賠管理的產品展示、流程驗證與行銷介紹，可作為後續串接保單核心、文件管理、事故影像辨識、工作流程與付款系統的前端原型。
+- 案件平均處理：7.1天 → **3天**
+- 風險檢出率：74% → **99%**
+- 文件缺漏率：12% → **2.8%**
+- 覆核作業工時：5小時/日 → **1小時/日**
 
 ---
 
-Jvision AI｜智慧理賠流程互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-claims-management/` 提供。

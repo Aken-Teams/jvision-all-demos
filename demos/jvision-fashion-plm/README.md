@@ -1,33 +1,39 @@
-# Jvision 服裝系列開發 PLM 平台
+# 服飾產品生命週期管理 PLM
 
-Jvision 服裝系列開發 PLM 平台是一個獨立互動 Demo，將系列企劃、款式監控、BOM 物料、雲端檔案、動態報表與 AI 摘要集中在同一個商品開發工作台。
+> 訂單到入庫的製造現場全流程數位化
 
-## 線上 Demo
+整合系列企劃、款式監控、BOM 物料、雲端檔案、動態報表與 AI 摘要的 Fashion PLM Demo。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-https://jvision-fashion-plm.vercel.app
+**產業別：**生產製造　|　**系統類型：**MES 製造執行系統
 
-![Jvision 服裝系列開發 PLM 平台海報](assets/poster.png)
+## 功能模組
 
-## Demo 功能
+- **工單管理** — 訂單轉工單、拆併單與工單派發
+- **排程排產** — 依產能、交期、負載自動排程
+- **現場執行** — 派工、報工與進度即時回報
+- **設備稼動 OEE** — 稼動、效率、良率即時監控
+- **品質入庫** — 檢驗判定、不良處置與入庫
+- **AI 改善建議** — 異常摘要與瓶頸改善建議
 
-- 新增服裝款式資料
-- 更新企劃、打樣、試穿修正與核准量產階段
-- 追蹤 BOM 物料、供應商、成本與替代料狀態
-- 上傳技術包與系列開發文件
-- 查看跨部門同步紀錄
-- 生成 Jvision AI 系列上市摘要
+## 適合誰使用
 
-## 指令
+- 生管專員
+- 製造課長
+- 廠長
 
-```bash
-npm install
-npm run assets
-npm run build
-npm run verify
-```
+## 運作流程
 
-## 行銷素材
+1. 建立服飾產品生命週期管理 PLM資料
+2. 整合系列企劃、款式監控、BOM 物料、雲端檔案、動態報表與 AI 摘要的 Fashion PLM Demo
+3. 確認結果並完成留存
 
-- `docs/marketing/jvision-fashion-plm-poster.png`
-- `docs/marketing/jvision-fashion-plm-poster.pdf`
-- `docs/marketing/jvision-fashion-plm-product-introduction.pdf`
+## 導入效益
+
+- 排程作業工時：8小時/日 → **1.5小時/日**
+- 準時交付率：77% → **93%**
+- 缺料停線次數：13次/月 → **2.8次/月**
+- 設備稼動率：75% → **92%**
+
+---
+
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-fashion-plm/` 提供。

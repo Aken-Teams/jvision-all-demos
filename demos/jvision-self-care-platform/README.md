@@ -1,25 +1,39 @@
-# Jvision 美業預約營運平台 Demo
+# 健康自主管理平台
 
-可互動測試的沙龍、SPA、美療、醫美、按摩、指甲店與多據點品牌營運平台。
+> 預約、病歷、診療到申報回診的照護流程
 
-## Demo
+Jvision 美業預約營運平台，展示自助預約、智慧排班、客戶檔案、POS、會員、表單、訊息行銷與多店報表流程。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網址：https://jvision-self-care-platform.vercel.app
-- 線上海報：https://jvision-self-care-platform.vercel.app/marketing/jvision-self-care-platform-poster.png
-- 產品介紹 PDF：https://jvision-self-care-platform.vercel.app/marketing/jvision-self-care-platform-product-introduction.pdf
+**產業別：**醫療照護　|　**系統類型：**診所 / 照護系統
 
-## 專案海報
+## 功能模組
 
-[![Jvision 美業預約營運平台海報](docs/marketing/jvision-self-care-platform-poster.png)](docs/marketing/jvision-self-care-platform-poster.png)
+- **預約掛號** — 線上預約與報到
+- **病患病歷** — 病歷與就診紀錄
+- **診療處置** — 醫囑、處方與處置
+- **申報請款** — 健保申報與請款
+- **回診追蹤** — 主動回診與提醒
+- **藥材庫存** — 藥品/耗材管理
 
-## 功能
+## 適合誰使用
 
-- 自助預約與智慧排班
-- 客戶檔案、偏好與諮詢表單
-- POS 結帳、訂金、會員點數
-- 會員方案與回訪訊息
-- 多店營運儀表板
+- 櫃檯人員
+- 護理長
+- 院所負責人
 
-## 素材
+## 運作流程
 
-行銷素材放在 `docs/marketing`，同時複製到 `public/marketing` 供 Vercel 正式站直接存取。
+1. 建立健康自主管理平台資料
+2. Jvision 美業預約營運平台，展示自助預約、智慧排班、客戶檔案、POS、會員、表單、訊息行銷與多店報表流程
+3. 確認結果並完成留存
+
+## 導入效益
+
+- 候診等待：36分鐘 → **12分鐘**
+- 回診完成率：74% → **96%**
+- 申報退件率：7.7% → **1.9%**
+- 紀錄作業工時：4小時/日 → **1小時/日**
+
+---
+
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-self-care-platform/` 提供。

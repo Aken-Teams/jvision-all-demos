@@ -1,60 +1,39 @@
-# Jvision 供應商品質管理 Demo
+# 供應商品質管理 SQM
 
-Jvision SQM 供應商品質管理平台，展示採購收料、IQC 檢驗、供應商文件、綠色產品資料與評鑑稽核流程。
+> 供應商協同、詢比議價到交期風險控管
 
-## 線上 Demo
+Jvision SQM 供應商品質管理平台，展示採購收料、IQC 檢驗、供應商文件、綠色產品資料與評鑑稽核流程。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-sqm.vercel.app](https://jvision-sqm.vercel.app)
+**產業別：**品質管理　|　**系統類型：**SRM 採購供應商管理
 
-![Jvision 供應商品質管理 Demo 海報](docs/marketing/jvision-sqm-poster.png)
+## 功能模組
 
-## Demo 功能
+- **供應商管理** — 建檔、分級與績效評分
+- **詢報價協作** — 線上詢價、比價與議價
+- **採購訂單** — 請購、下單與交期追蹤
+- **交期風險** — 缺料預警與到貨監控
+- **供應商品質** — 進料檢驗與 SCAR 改善
+- **綠色採購** — ESG 評分與永續採購
 
-- IQC 檢驗
-- 文件補件
-- 供應商評鑑
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 品保工程師
+- 品質經理
+- 廠長
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立供應商品質管理 SQM資料
+2. Jvision SQM 供應商品質管理平台，展示採購收料、IQC 檢驗、供應商文件、綠色產品資料與評鑑稽核流程
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](docs/marketing/jvision-sqm-poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-sqm-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-sqm-product-introduction.pdf)
+- 批號追溯時間：187分鐘 → **15分鐘**
+- 客訴平均關案：21天 → **8.6天**
+- 改善驗證率：64% → **92%**
+- 重複不良率：5.9% → **2.1%**
 
 ---
 
-Jvision AI｜Jvision 供應商品質管理互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-sqm/` 提供。

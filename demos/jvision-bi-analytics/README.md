@@ -1,60 +1,39 @@
-# Jvision BI 分析平台 Demo
+# 商業智慧分析 BI
 
-Jvision BI 資料連接、AI 洞察、互動報表、語意模型、治理分享與內嵌分析互動展示。
+> 把分散數據變成可下鑽、可決策的經營洞察
 
-## 線上 Demo
+Jvision BI 資料連接、AI 洞察、互動報表、語意模型、治理分享與內嵌分析互動展示。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-bi-analytics.vercel.app](https://jvision-bi-analytics.vercel.app)
+**產業別：**數據分析　|　**系統類型：**BI 商業智慧
 
-![Jvision BI 分析平台 Demo 海報](assets/poster.png)
+## 功能模組
 
-## Demo 功能
+- **經營儀表板** — 關鍵指標即時總覽
+- **趨勢分析** — 多維度趨勢與比較
+- **指標下鑽** — 逐層鑽取到明細
+- **平衡計分卡** — 策略目標與 KPI 對齊
+- **AI 洞察** — 自動發現異常與機會
+- **報表匯出** — 排程報表與分享
 
-- 資料連接
-- AI 洞察
-- 分享治理
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 資料分析師
+- 營運主管
+- 總經理
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立商業智慧分析 BI資料
+2. Jvision BI 資料連接、AI 洞察、互動報表、語意模型、治理分享與內嵌分析互動展示
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](assets/poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-bi-analytics-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-bi-analytics-product-introduction.pdf)
+- 報表產出工時：16小時 → **1小時**
+- 異常發現時效：3.2天 → **1天**
+- 資料覆蓋率：53% → **86%**
+- 決策反應時間：5天 → **1天**
 
 ---
 
-Jvision AI｜Jvision BI 分析平台互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-bi-analytics/` 提供。

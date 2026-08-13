@@ -1,36 +1,39 @@
-﻿# Jvision 工作與專案管理平台
+# 工作與專案協作套件
 
-整合專案排程、任務看板、目標追蹤、工時負荷與 AI 摘要的互動 Demo，讓跨部門協作更清楚。
+> 任務、專案、知識到流程自動化的團隊協作
 
-## 線上 Demo
+整合專案排程、任務看板、工作負荷、目標追蹤、自動化規則與 AI 摘要 Demo把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-[https://jvision-work-project-suite.vercel.app](https://jvision-work-project-suite.vercel.app)
+**產業別：**企業協作　|　**系統類型：**協作 / 專案平台
 
-## 行銷海報
+## 功能模組
 
-![Jvision 工作與專案管理平台海報](./assets/poster.png)
+- **任務看板** — 任務指派與進度
+- **專案協作** — 專案與里程碑
+- **知識文件** — 文件與知識庫
+- **流程自動化** — 表單簽核自動化
+- **團隊溝通** — 討論與通知
+- **工作報表** — 產能與進度報表
 
-## 檔案
+## 適合誰使用
 
-- [海報 PNG](./docs/marketing/jvision-work-project-suite-poster.png)
-- [海報 PDF](./docs/marketing/jvision-work-project-suite-poster.pdf)
-- [產品介紹 PDF](./docs/marketing/jvision-work-project-suite-product-introduction.pdf)
-- [線上海報 PNG](https://jvision-work-project-suite.vercel.app/jvision-work-project-suite-poster.png)
-- [線上產品介紹 PDF](https://jvision-work-project-suite.vercel.app/jvision-work-project-suite-product-introduction.pdf)
+- 專案專員
+- 部門經理
+- 營運長
 
-## Demo 功能
+## 運作流程
 
-- 新增任務與專案資訊
-- 推進任務看板狀態
-- 平衡成員工作負荷
-- 更新目標進度
-- 產生 AI 工作摘要
+1. 建立工作與專案協作套件資料
+2. 整合專案排程、任務看板、工作負荷、目標追蹤、自動化規則與 AI 摘要 Demo
+3. 確認結果並完成留存
 
-## 指令
+## 導入效益
 
-```bash
-npm install
-npm run build
-npm run assets
-npm run verify
-```
+- 跨部門協調工時：8.3小時/週 → **2小時/週**
+- 任務準時率：69% → **88%**
+- 資訊落差：30% → **7.5%**
+- 文件查找時間：20分鐘 → **3.2分鐘**
+
+---
+
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-work-project-suite/` 提供。

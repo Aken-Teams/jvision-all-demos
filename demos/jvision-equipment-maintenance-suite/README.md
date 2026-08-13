@@ -1,36 +1,37 @@
-﻿# Jvision 設備維護整合平台
+# 設備維護管理套件
 
-整合「設備維護」與「智慧設備維護與預防保養」的互動 Demo。原有展示仍保留，這個專案是新增的合併版本。
+> 保養、維修、預兆到備品的設備全生命週期
 
-## 線上 Demo
+依設備台帳與保養週期安排預防保養，追蹤點檢缺失、校正期限與年度保養達成率。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-[https://jvision-equipment-maintenance-suite.vercel.app](https://jvision-equipment-maintenance-suite.vercel.app)
+**產業別：**設備維護　|　**系統類型：**CMMS 設備維護
 
-## 行銷海報
+## 功能模組
 
-![Jvision 設備維護整合平台海報](./assets/poster.png)
+- **保養排程** — 預防保養自動排程
+- **維修工單** — 報修、派工與完工
+- **預兆診斷** — 設備數據異常預警
+- **備品管理** — 備品庫存與領用
+- **OEE 稼動** — 稼動與故障分析
+- **履歷追溯** — 設備維護履歷
 
-## 檔案
+## 適合誰使用
 
-- [海報 PNG](./docs/marketing/jvision-equipment-maintenance-suite-poster.png)
-- [海報 PDF](./docs/marketing/jvision-equipment-maintenance-suite-poster.pdf)
-- [產品介紹 PDF](./docs/marketing/jvision-equipment-maintenance-suite-product-introduction.pdf)
-- [線上海報 PNG](https://jvision-equipment-maintenance-suite.vercel.app/jvision-equipment-maintenance-suite-poster.png)
-- [線上產品介紹 PDF](https://jvision-equipment-maintenance-suite.vercel.app/jvision-equipment-maintenance-suite-product-introduction.pdf)
+- 設備保養管理師
 
-## Demo 功能
+## 運作流程
 
-- 新增維修通報
-- 推進工單看板
-- 建立預防保養提醒
-- 查看設備 MTBF / MTTR
-- 產生 AI 維護摘要
+1. 建立年度保養計畫
+2. 執行點檢並處理缺失
+3. 主管驗收並更新下次保養日
 
-## 指令
+## 導入效益
 
-```bash
-npm install
-npm run build
-npm run assets
-npm run verify
-```
+- 非計畫停機：23小時/月 → **5.6小時/月**
+- 保養準時率：71% → **90%**
+- 備品缺料：9.4次/月 → **1.9次/月**
+- 故障排除時間：85分鐘 → **24分鐘**
+
+---
+
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-equipment-maintenance-suite/` 提供。

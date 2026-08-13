@@ -1,60 +1,39 @@
-# Jvision 印刷業解決方案 Demo
+# 印刷產業 ERP
 
-Jvision 印刷業解決方案，展示估價轉單、圖檔版模、排版整合、合版排程、託外加工、WIP、領料入庫與實際成本流程。
+> 訂單到入庫的製造現場全流程數位化
 
-## 線上 Demo
+Jvision 印刷業解決方案，展示估價轉單、圖檔版模、排版整合、合版排程、託外加工、WIP、領料入庫與實際成本流程。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-printing-erp.vercel.app](https://jvision-printing-erp.vercel.app)
+**產業別：**生產製造　|　**系統類型：**MES 製造執行系統
 
-![Jvision 印刷業解決方案 Demo 海報](docs/marketing/jvision-printing-erp-poster.png)
+## 功能模組
 
-## Demo 功能
+- **工單管理** — 訂單轉工單、拆併單與工單派發
+- **排程排產** — 依產能、交期、負載自動排程
+- **現場執行** — 派工、報工與進度即時回報
+- **設備稼動 OEE** — 稼動、效率、良率即時監控
+- **品質入庫** — 檢驗判定、不良處置與入庫
+- **AI 改善建議** — 異常摘要與瓶頸改善建議
 
-- 快速估價
-- 合版排程
-- 生產成本
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 生管專員
+- 製造課長
+- 廠長
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立印刷產業 ERP資料
+2. Jvision 印刷業解決方案，展示估價轉單、圖檔版模、排版整合、合版排程、託外加工、WIP、領料入庫與實際成本流程
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](docs/marketing/jvision-printing-erp-poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-printing-erp-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-printing-erp-product-introduction.pdf)
+- 排程作業工時：7.7小時/日 → **1.6小時/日**
+- 準時交付率：83% → **95%**
+- 缺料停線次數：12次/月 → **2.8次/月**
+- 設備稼動率：78% → **90%**
 
 ---
 
-Jvision AI｜Jvision 印刷業解決方案互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-printing-erp/` 提供。

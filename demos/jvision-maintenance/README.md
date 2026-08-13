@@ -1,60 +1,37 @@
-# Jvision Maintenance Demo
+# 設備維護管理
 
-Jvision 智慧設備維護與預防保養 Demo
+> 保養、維修、預兆到備品的設備全生命週期
 
-## 線上 Demo
+管理工廠設備的報修、故障判斷、維修派工與復機確認，讓停機影響與備品用量可追溯。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-maintenance.vercel.app](https://jvision-maintenance.vercel.app)
+**產業別：**設備維護　|　**系統類型：**CMMS 設備維護
 
-![Jvision Maintenance Demo 海報](docs/marketing/jvision-maintenance-poster.png)
+## 功能模組
 
-## Demo 功能
+- **保養排程** — 預防保養自動排程
+- **維修工單** — 報修、派工與完工
+- **預兆診斷** — 設備數據異常預警
+- **備品管理** — 備品庫存與領用
+- **OEE 稼動** — 稼動與故障分析
+- **履歷追溯** — 設備維護履歷
 
-- 預防保養
-- 維修看板
-- AI 摘要
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 設備維修工程師
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 受理故障並判定停機風險
+2. 派工維修與登錄備品用量
+3. 試車確認並恢復生產
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](docs/marketing/jvision-maintenance-poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-maintenance-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-maintenance-product-introduction.pdf)
+- 非計畫停機：23小時/月 → **5.6小時/月**
+- 保養準時率：71% → **90%**
+- 備品缺料：9.4次/月 → **1.9次/月**
+- 故障排除時間：85分鐘 → **24分鐘**
 
 ---
 
-Jvision AI｜Jvision Maintenance互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-maintenance/` 提供。

@@ -1,60 +1,39 @@
-# Jvision Inventory Demo
+# 商品庫存管理
 
-Jvision 智慧庫存與倉儲管理 Demo
+> 收貨到出貨的倉內作業與庫存精準管理
 
-## 線上 Demo
+Jvision 智慧庫存與倉儲管理 Demo把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-inventory.vercel.app](https://jvision-inventory.vercel.app)
+**產業別：**零售電商　|　**系統類型：**WMS 倉儲管理系統
 
-![Jvision Inventory Demo 海報](docs/marketing/jvision-inventory-poster.png)
+## 功能模組
 
-## Demo 功能
+- **入庫上架** — 收貨、驗收與智慧上架
+- **揀貨出貨** — 波次揀貨、覆核與出貨
+- **儲位管理** — 儲位規劃與庫容視覺化
+- **庫存盤點** — 即時庫存、盤點與調撥
+- **拉動補料** — 安全庫存與自動補貨
+- **條碼作業** — PDA 掃碼即時作業
 
-- 智慧補貨
-- 條碼作業
-- AI 摘要
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 電商營運
+- 商品經理
+- 品牌負責人
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立商品庫存管理資料
+2. Jvision 智慧庫存與倉儲管理 Demo
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](docs/marketing/jvision-inventory-poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-inventory-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-inventory-product-introduction.pdf)
+- 補貨反應：25小時 → **3.9小時**
+- 熱銷掌握率：61% → **88%**
+- 缺貨率：12% → **3.8%**
+- 結帳等待：5.9分鐘 → **1.6分鐘**
 
 ---
 
-Jvision AI｜Jvision Inventory互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-inventory/` 提供。

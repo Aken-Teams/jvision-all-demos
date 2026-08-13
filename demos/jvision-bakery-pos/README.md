@@ -1,36 +1,39 @@
-# Jvision 烘焙 POS 與前店後廠管理
+# 烘焙門市 POS
 
-可互動展示的烘焙門市與前店後廠管理 Demo，整合門市 POS、禮盒預購、庫存入出、中央廚房生產、報廢扣料與 AI 銷售摘要。
+> 前台結帳、會員到進銷存的門市一體化
 
-## 線上 Demo
+門市 POS、禮盒預購、庫存入出、中央廚房生產、報廢扣料與 AI 銷售摘要 Demo把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-[https://jvision-bakery-pos.vercel.app](https://jvision-bakery-pos.vercel.app)
+**產業別：**餐飲旅宿　|　**系統類型：**POS 門市管理
 
-## 行銷海報
+## 功能模組
 
-![Jvision 烘焙 POS 與前店後廠管理海報](./assets/poster.png)
+- **前台結帳** — 點餐、開單與快速結帳
+- **桌位 / 訂位** — 桌況與訂位管理
+- **訂單管理** — 內用、外帶、外送整合
+- **庫存進銷** — 即時庫存與自動叫貨
+- **會員行銷** — 會員、點數與優惠
+- **日結報表** — 營收與熱銷分析
 
-## 檔案
+## 適合誰使用
 
-- [海報 PNG](./docs/marketing/jvision-bakery-pos-poster.png)
-- [海報 PDF](./docs/marketing/jvision-bakery-pos-poster.pdf)
-- [產品介紹 PDF](./docs/marketing/jvision-bakery-pos-product-introduction.pdf)
-- [線上海報 PNG](https://jvision-bakery-pos.vercel.app/jvision-bakery-pos-poster.png)
-- [線上產品介紹 PDF](https://jvision-bakery-pos.vercel.app/jvision-bakery-pos-product-introduction.pdf)
+- 營運專員
+- 店經理
+- 品牌負責人
 
-## Demo 功能
+## 運作流程
 
-- 新增門市 POS 與禮盒預購訂單
-- 建立自由組合禮盒與會員促銷
-- 訂單轉生產批次
-- 更新庫存、入庫與報廢扣料
-- 檢視營收、未收款、低庫存與 AI 營運紀錄
+1. 建立烘焙門市 POS資料
+2. 門市 POS、禮盒預購、庫存入出、中央廚房生產、報廢扣料與 AI 銷售摘要 Demo
+3. 確認結果並完成留存
 
-## 指令
+## 導入效益
 
-```bash
-npm install
-npm run build
-npm run assets
-npm run verify
-```
+- 結帳等待：8.5分鐘 → **1.9分鐘**
+- 翻桌率：69% → **92%**
+- 備料浪費：16% → **5.6%**
+- 訂位掌握率：62% → **94%**
+
+---
+
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-bakery-pos/` 提供。

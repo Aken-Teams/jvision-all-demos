@@ -1,60 +1,39 @@
-# Jvision 個人財務管理 Demo
+# 個人財務管理
 
-Jvision 個人財務管理、帳戶資產、交易記帳、預算控管、帳單提醒與財務分析互動展示。
+> 應收付、現金流到預算的財務即時掌握
 
-## 線上 Demo
+Jvision 個人財務管理、帳戶資產、交易記帳、預算控管、帳單提醒與財務分析互動展示。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-personal-finance.vercel.app](https://jvision-personal-finance.vercel.app)
+**產業別：**金融保險　|　**系統類型：**財務會計系統
 
-![Jvision 個人財務管理 Demo 海報](assets/poster.png)
+## 功能模組
 
-## Demo 功能
+- **應收帳款** — 開立、對帳與催收
+- **應付帳款** — 請款、付款與對帳
+- **現金流** — 資金調度與預測
+- **預算管理** — 編列、控管與差異分析
+- **固定資產** — 資產登錄與折舊
+- **總帳傳票** — 傳票、拋轉與月結
 
-- 資產總覽
-- 自動記帳
-- 提醒分析
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 客戶服務專員
+- 業務主管
+- 法遵主管
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立個人財務管理資料
+2. Jvision 個人財務管理、帳戶資產、交易記帳、預算控管、帳單提醒與財務分析互動展示
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](assets/poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-personal-finance-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-personal-finance-product-introduction.pdf)
+- 案件平均處理：7.1天 → **3天**
+- 風險檢出率：74% → **99%**
+- 文件缺漏率：12% → **2.8%**
+- 覆核作業工時：5小時/日 → **1小時/日**
 
 ---
 
-Jvision AI｜Jvision 個人財務管理互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-personal-finance/` 提供。

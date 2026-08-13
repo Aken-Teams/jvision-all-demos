@@ -1,34 +1,40 @@
-# Jvision 汽車玻璃維修與請款管理平台
+# 汽車玻璃服務管理
 
-可互動展示的汽車玻璃店務 Demo，整合預約工單、技師派工、玻璃訂購、客戶簽名、保險請款、收款追蹤與 AI 店務摘要。
+> 派車、追蹤、簽收到成本油耗的車隊管理
 
-## 線上 Demo
+整合汽車玻璃預約、技師派工、玻璃訂購、客戶簽名、保險請款、收款與 AI 摘要的 Demo。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-https://jvision-auto-glass-ops.vercel.app
+**產業別：**交通運輸　|　**系統類型：**TMS 運輸調度
 
-## 專案海報
+## 功能模組
 
-[![Jvision 汽車玻璃維修與請款管理平台海報](docs/marketing/jvision-auto-glass-ops-poster.png)](docs/marketing/jvision-auto-glass-ops-poster.png)
+- **路線調度** — 派車與路線規劃
+- **任務派車** — 任務指派與追蹤
+- **即時追蹤** — GPS 定位與到貨
+- **簽收回單** — 電子簽收與回單
+- **成本油耗** — 油耗與成本分析
+- **冷鏈溫控** — 溫度監控與告警
 
-## Demo 功能
+## 適合誰使用
 
-- 新增汽車玻璃維修工單
-- 送出玻璃訂購與追蹤到貨
-- 依流程推進工單狀態
-- 更新保險請款與收款狀態
-- 生成 AI 店務與請款摘要
+- 服務顧問
+- 玻璃技師
+- ADAS 校正人員
+- 理賠專員
 
-## 指令
+## 運作流程
 
-```bash
-npm install
-npm run build
-npm run assets
-npm run verify
-```
+1. 建立汽車玻璃服務管理資料
+2. 整合汽車玻璃預約、技師派工、玻璃訂購、客戶簽名、保險請款、收款與 AI 摘要的 Demo
+3. 確認結果並完成留存
 
-## 行銷素材
+## 導入效益
 
-- `docs/marketing/jvision-auto-glass-ops-poster.png`
-- `docs/marketing/jvision-auto-glass-ops-poster.pdf`
-- `docs/marketing/jvision-auto-glass-ops-product-introduction.pdf`
+- 派車規劃工時：3.9小時/日 → **1小時/日**
+- 準時配送率：85% → **99%**
+- 空車率：22% → **9.4%**
+- 油耗異常反應：25小時 → **2.9小時**
+
+---
+
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-auto-glass-ops/` 提供。

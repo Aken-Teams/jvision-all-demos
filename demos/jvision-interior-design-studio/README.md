@@ -1,33 +1,39 @@
-# Jvision 室內設計專案管理平台
+# 室內設計專案管理
 
-Jvision 室內設計專案管理平台是一個獨立互動 Demo，將提案、選品板、商品資料庫、採購追蹤、客戶儀表板與 AI 摘要集中在同一個設計工作台。
+> 進度、日報、品安到估價成本的工程管理
 
-## 線上 Demo
+整合提案、選品板、商品資料庫、採購追蹤、客戶儀表板與 AI 摘要的室內設計 Demo。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-https://jvision-interior-design-studio.vercel.app
+**產業別：**營建工程　|　**系統類型：**營建工程管理
 
-![Jvision 室內設計專案管理平台海報](assets/poster.png)
+## 功能模組
 
-## Demo 功能
+- **工程進度** — WBS 排程與進度追蹤
+- **工地日報** — 日報、人機料回報
+- **品質安衛** — 巡檢與缺失改善
+- **估價發包** — 估價、發包與計價
+- **成本控管** — 預算、實支與請款
+- **現場紀錄** — 照片與文件留存
 
-- 新增室內設計提案與預算
-- 核准或替換選品板項目
-- 從選品建立採購追蹤
-- 更新下單、運送與到貨狀態
-- 查看客戶儀表板紀錄
-- 生成 Jvision AI 專案摘要
+## 適合誰使用
 
-## 指令
+- 工務工程師
+- 專案經理
+- 工程處長
 
-```bash
-npm install
-npm run assets
-npm run build
-npm run verify
-```
+## 運作流程
 
-## 行銷素材
+1. 建立室內設計專案管理資料
+2. 整合提案、選品板、商品資料庫、採購追蹤、客戶儀表板與 AI 摘要的室內設計 Demo
+3. 確認結果並完成留存
 
-- `docs/marketing/jvision-interior-design-studio-poster.png`
-- `docs/marketing/jvision-interior-design-studio-poster.pdf`
-- `docs/marketing/jvision-interior-design-studio-product-introduction.pdf`
+## 導入效益
+
+- 日報彙整工時：2.9小時/日 → **0.5小時/日**
+- 進度落後預警：42% → **90%**
+- 估驗計價天數：9.8天 → **3.8天**
+- 缺失改善時效：7.4天 → **2天**
+
+---
+
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-interior-design-studio/` 提供。

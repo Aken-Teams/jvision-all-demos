@@ -1,60 +1,39 @@
-# Jvision 線上課程平台 Demo
+# 線上課程平台
 
-Jvision 線上課程、銷售頁、金流、影音串流、作業互動與學員管理 demo。
+> 課程、學員、測驗到學習進度的教學管理
 
-## 線上 Demo
+Jvision 線上課程、銷售頁、金流、影音串流、作業互動與學員管理 demo。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-- 正式網站：[https://jvision-course-platform.vercel.app](https://jvision-course-platform.vercel.app)
+**產業別：**教育　|　**系統類型：**學習管理平台
 
-![Jvision 線上課程平台 Demo 海報](assets/poster.png)
+## 功能模組
 
-## Demo 功能
+- **課程管理** — 課程、單元與教材
+- **學員管理** — 名冊、分班與出勤
+- **作業測驗** — 派題、批改與成績
+- **學習進度** — 進度追蹤與提醒
+- **學習輔導** — 提問與輔導紀錄
+- **證書結業** — 結業與證照管理
 
-- 課程銷售
-- 影音學習
-- 營運報表
-- 可操作的表單、按鈕、篩選或流程狀態
-- 桌面、平板與手機 RWD 響應式排版
+## 適合誰使用
 
-> 本站為產品功能展示用途，畫面中的人物、公司、金額與營運資料皆為示範資料。
+- 教務專員
+- 教務主任
+- 機構負責人
 
-## 操作方式
+## 運作流程
 
-1. 開啟線上 Demo，先查看儀表板與營運摘要。
-2. 依照頁面導覽切換主要功能區。
-3. 操作新增、編輯、篩選、狀態切換或流程按鈕。
-4. 使用不同螢幕尺寸檢視 RWD 操作介面。
+1. 建立線上課程平台資料
+2. Jvision 線上課程、銷售頁、金流、影音串流、作業互動與學員管理 demo
+3. 確認結果並完成留存
 
-## 技術架構
+## 導入效益
 
-- Next.js
-- React
-- TypeScript
-- Vercel Production Deployment
-
-## 本機啟動
-
-需要 Node.js 20 或更新版本。
-
-```bash
-npm install
-npm run dev
-```
-
-開啟 [http://localhost:3000](http://localhost:3000) 即可使用 Demo。
-
-## 品質檢查
-
-```bash
-npm run build
-```
-
-## 行銷素材
-
-- [行銷海報 PNG](assets/poster.png)
-- [行銷海報 PDF](docs/marketing/jvision-course-platform-poster.pdf)
-- [產品介紹 PDF](docs/marketing/jvision-course-platform-product-introduction.pdf)
+- 排課作業工時：5.6小時/週 → **1.4小時/週**
+- 作業批改時效：4.7天 → **0.9天**
+- 出席掌握率：66% → **89%**
+- 學習進度可視：42% → **85%**
 
 ---
 
-Jvision AI｜Jvision 線上課程平台互動展示
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-course-platform/` 提供。

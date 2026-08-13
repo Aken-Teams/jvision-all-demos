@@ -1,34 +1,39 @@
-# Jvision 招牌店務與工單管理平台
+# 廣告招牌業務管理
 
-可互動展示的招牌店務 Demo，整合客戶線索、報價模板、製作工單、安裝排程、檔案管理、團隊任務與 AI 店務摘要。
+> 從名單到成交的完整客戶生命週期管理
 
-## 線上 Demo
+整合銷售跟進、報價模板、製作工單、安裝排程、檔案管理與 AI 摘要的招牌店務 Demo。把散落的作業，整合成一個「可操作、可追蹤、可稽核」的單一平台。
 
-https://jvision-sign-shop-management.vercel.app
+**產業別：**生產製造　|　**系統類型：**CRM 客戶關係管理
 
-## 專案海報
+## 功能模組
 
-[![Jvision 招牌店務與工單管理平台海報](docs/marketing/jvision-sign-shop-management-poster.png)](docs/marketing/jvision-sign-shop-management-poster.png)
+- **客戶 360 視圖** — 整合互動、報價、合約與服務歷程
+- **銷售管線** — 拖曳看板管理商機階段與轉化率
+- **報價與合約** — 線上報價、審核與電子簽核
+- **行銷活動** — 名單分群、活動追蹤與成效分析
+- **AI 業務助理** — 下一步建議、風險提醒與成交預測
+- **業績報表** — 銷售漏斗、預測與達成率儀表
 
-## Demo 功能
+## 適合誰使用
 
-- 新增招牌工程案件與報價金額
-- 依流程推進工單階段
-- 產生報價提醒與 AI 店務摘要
-- 上傳設計稿、丈量照片與施工文件
-- 查看團隊同步紀錄
+- 生管專員
+- 製造課長
+- 廠長
 
-## 指令
+## 運作流程
 
-```bash
-npm install
-npm run build
-npm run assets
-npm run verify
-```
+1. 建立廣告招牌業務管理資料
+2. 整合銷售跟進、報價模板、製作工單、安裝排程、檔案管理與 AI 摘要的招牌店務 Demo
+3. 確認結果並完成留存
 
-## 行銷素材
+## 導入效益
 
-- `docs/marketing/jvision-sign-shop-management-poster.png`
-- `docs/marketing/jvision-sign-shop-management-poster.pdf`
-- `docs/marketing/jvision-sign-shop-management-product-introduction.pdf`
+- 排程作業工時：8.3小時/日 → **1.5小時/日**
+- 準時交付率：82% → **91%**
+- 缺料停線次數：12次/月 → **2.8次/月**
+- 設備稼動率：73% → **93%**
+
+---
+
+本頁為 **純 UI 系統展示**（無後端），畫面與資料皆為擬真示範，與專案詳細頁的功能模組、運作流程一致。單一網域下以 `/demos/jvision-sign-shop-management/` 提供。
