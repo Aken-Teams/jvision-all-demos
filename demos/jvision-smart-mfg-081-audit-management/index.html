@@ -1,18 +1,498 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Audit Management（稽核管理）｜Jvision 系統 Demo</title>
-  <meta name="description" content="從異常到改善的品質閉環與追溯稽核" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>稽核管理 Audit Management｜Jvision Demo</title>
+<meta name="description" content="稽核計畫排程、檢查表、缺失看板、改善追蹤與績效報表" />
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --accent:#0891b2;--accent2:#22d3ee;--ink:#0f2b33;--mut:#5b7681;
+  --bg:#eef4f6;--card:#ffffff;--line:#dbe6ea;--soft:#f2f8fa;
+  --ok:#16a34a;--warn:#d97706;--bad:#dc2626;--info:#2563eb;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;overflow-x:hidden}
+body{font-family:"Inter","Noto Sans TC",system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+.material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle}
+a{color:inherit;text-decoration:none}
+
+/* top nav */
+.top{position:sticky;top:0;z-index:30;background:linear-gradient(100deg,#083b46,#0891b2);color:#fff;box-shadow:0 2px 14px rgba(8,59,70,.28)}
+.top .bar{max-width:1360px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:11px 18px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;min-width:0}
+.brand .logo{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.16);display:grid;place-items:center;flex:none}
+.brand .logo .material-symbols-outlined{font-size:22px;color:var(--accent2)}
+.brand .t{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.brand .t b{font-size:15px;white-space:nowrap}
+.brand .t span{font-size:11px;opacity:.8;font-weight:500;white-space:nowrap}
+.nav{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.nav button{flex:none;white-space:nowrap;min-width:0;cursor:pointer;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);color:#eafcff;padding:8px 13px;border-radius:999px;font:inherit;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;transition:.15s}
+.nav button .material-symbols-outlined{font-size:18px}
+.nav button:hover{background:rgba(255,255,255,.2)}
+.nav button.on{background:#fff;color:var(--accent);border-color:#fff}
+
+main{max-width:1360px;margin:0 auto;padding:18px}
+.screen-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.screen-head h1{margin:0;font-size:21px;font-weight:800;letter-spacing:.2px}
+.screen-head .sub{color:var(--mut);font-size:13px;margin-top:3px}
+.pill{display:inline-flex;align-items:center;gap:5px;background:var(--soft);border:1px solid var(--line);color:var(--accent);font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px}
+.pill .material-symbols-outlined{font-size:16px}
+
+/* generic layout helpers */
+.grid{display:grid;gap:14px;min-width:0}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g23{grid-template-columns:2fr 1fr}
+.g32{grid-template-columns:1.4fr 1fr}
+.grid>*{min-width:0}
+@media(max-width:820px){.g4,.g3,.g2,.g23,.g32{grid-template-columns:1fr}}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px;box-shadow:0 1px 3px rgba(15,43,51,.05);min-width:0}
+.card h3{margin:0 0 10px;font-size:14px;font-weight:800;display:flex;align-items:center;gap:7px}
+.card h3 .material-symbols-outlined{font-size:19px;color:var(--accent)}
+.card .cap{font-size:12px;color:var(--mut);font-weight:500;margin-left:auto}
+
+/* KPI */
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px;position:relative;overflow:hidden}
+.kpi::after{content:"";position:absolute;right:-14px;top:-14px;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.22),transparent 70%)}
+.kpi .lb{font-size:12.5px;color:var(--mut);font-weight:600;display:flex;align-items:center;gap:6px}
+.kpi .lb .material-symbols-outlined{font-size:18px;color:var(--accent)}
+.kpi .v{font-size:28px;font-weight:900;margin-top:8px;letter-spacing:.5px}
+.kpi .v small{font-size:14px;font-weight:700;color:var(--mut);margin-left:3px}
+.kpi .d{font-size:12px;font-weight:700;margin-top:5px;display:flex;align-items:center;gap:4px}
+.kpi .d .material-symbols-outlined{font-size:15px}
+.up{color:var(--ok)}.down{color:var(--bad)}.flat{color:var(--mut)}
+
+/* tables */
+.tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+.tbl th{text-align:left;font-weight:700;color:var(--mut);font-size:11.5px;padding:9px 10px;border-bottom:2px solid var(--line);white-space:nowrap;background:var(--soft)}
+.tbl td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#f7fcfd}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.t-ok{background:#dcfce7;color:#15803d}
+.t-warn{background:#fef3c7;color:#b45309}
+.t-bad{background:#fee2e2;color:#b91c1c}
+.t-info{background:#e0f2fe;color:#0369a1}
+.t-mut{background:#eef2f4;color:#526169}
+.t-cy{background:#cffafe;color:#0e7490}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+.bar-wrap{background:#e9f1f4;border-radius:999px;height:8px;overflow:hidden}
+.bar-wrap i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+
+.chartbox{position:relative;height:260px;min-width:0}
+.chartbox.sm{height:210px}
+
+/* kanban board */
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;min-width:0}
+@media(max-width:820px){.board{grid-template-columns:1fr}}
+.col{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0}
+.col .ch{display:flex;align-items:center;gap:7px;font-weight:800;font-size:13px;margin-bottom:9px}
+.col .ch .n{margin-left:auto;background:#fff;border:1px solid var(--line);border-radius:999px;font-size:11px;padding:1px 8px;color:var(--mut);font-weight:700}
+.tik{background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:10px;margin-bottom:9px;box-shadow:0 1px 2px rgba(15,43,51,.05)}
+.tik:last-child{margin-bottom:0}
+.tik .id{font-size:11px;color:var(--accent);font-weight:800;letter-spacing:.4px}
+.tik .ti{font-size:13px;font-weight:700;margin:3px 0 6px;line-height:1.35}
+.tik .mt{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--mut)}
+.tik .av{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:800;display:grid;place-items:center;flex:none}
+.sev{border-left-color:var(--bad)}.sev2{border-left-color:var(--warn)}.sev3{border-left-color:var(--info)}
+
+/* calendar */
+.cal{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px;min-width:640px}
+.cal th{padding:7px;color:var(--mut);font-size:11px;font-weight:700;text-align:center;border-bottom:1px solid var(--line)}
+.cal td{border:1px solid var(--line);height:78px;vertical-align:top;padding:5px;position:relative}
+.cal td .dn{font-size:11px;color:var(--mut);font-weight:700}
+.cal td.off{background:var(--soft)}
+.ev{display:block;font-size:10.5px;font-weight:700;border-radius:5px;padding:2px 5px;margin-top:3px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.e-a{background:var(--accent)}.e-b{background:#0ea5b7}.e-c{background:#6366f1}.e-d{background:var(--warn)}
+
+/* checklist rows */
+.clitem{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid var(--line)}
+.clitem:last-child{border-bottom:none}
+.clitem .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none}
+.clitem .ic .material-symbols-outlined{font-size:19px}
+.ic-ok{background:#dcfce7;color:#15803d}.ic-ob{background:#fef3c7;color:#b45309}.ic-nc{background:#fee2e2;color:#b91c1c}
+.clitem .bd{min-width:0;flex:1}
+.clitem .bd b{font-size:13px;font-weight:700}
+.clitem .bd p{margin:2px 0 0;font-size:11.5px;color:var(--mut)}
+.clitem .sc{font-weight:900;font-size:15px;flex:none}
+
+/* timeline */
+.tl{position:relative;padding-left:22px}
+.tl::before{content:"";position:absolute;left:7px;top:4px;bottom:4px;width:2px;background:var(--line)}
+.tl .it{position:relative;padding:0 0 15px 4px}
+.tl .it:last-child{padding-bottom:0}
+.tl .it::before{content:"";position:absolute;left:-19px;top:3px;width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 0 0 2px var(--accent2)}
+.tl .it .tm{font-size:11px;color:var(--accent);font-weight:800}
+.tl .it .tx{font-size:12.5px;margin-top:2px}
+.tl .it .tx b{font-weight:700}
+
+/* radar / matrix small */
+.mtx{display:grid;grid-template-columns:auto repeat(4,1fr);gap:5px;min-width:420px}
+.mtx .h{font-size:11px;color:var(--mut);font-weight:700;text-align:center;padding:5px}
+.mtx .rh{font-size:11.5px;font-weight:700;display:flex;align-items:center;padding:5px}
+.mtx .cell{height:44px;border-radius:8px;display:grid;place-items:center;font-weight:800;font-size:13px;color:#fff}
+
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-top:10px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+
+.foot{max-width:1360px;margin:0 auto;padding:16px 18px 34px;color:var(--mut);font-size:12px}
+.mini{font-size:11.5px;color:var(--mut)}
+.hl{color:var(--accent);font-weight:800}
+
+@media(max-width:560px){
+  .nav button .lbl{display:none}
+  .nav button{padding:8px 11px}
+  .brand .t span{display:none}
+}
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<header class="top">
+  <div class="bar">
+    <div class="brand">
+      <div class="logo"><span class="material-symbols-outlined">fact_check</span></div>
+      <div class="t"><b>稽核管理 Audit</b><span>Jvision QMS · 稽核閉環平台</span></div>
+    </div>
+    <nav class="nav" id="nav">
+      <button data-i="0" class="on"><span class="material-symbols-outlined">event_available</span><span class="lbl">稽核排程</span></button>
+      <button data-i="1"><span class="material-symbols-outlined">checklist</span><span class="lbl">檢查表</span></button>
+      <button data-i="2"><span class="material-symbols-outlined">view_kanban</span><span class="lbl">缺失看板</span></button>
+      <button data-i="3"><span class="material-symbols-outlined">task_alt</span><span class="lbl">改善追蹤</span></button>
+      <button data-i="4"><span class="material-symbols-outlined">verified</span><span class="lbl">驗證結案</span></button>
+      <button data-i="5"><span class="material-symbols-outlined">assessment</span><span class="lbl">績效報表</span></button>
+    </nav>
+  </div>
+</header>
+<main id="app"></main>
+<footer class="foot">Jvision 稽核管理 Demo · 純前端展示，資料為模擬示意 · 主色 #0891b2 / #22d3ee</footer>
+
+<script>
+"use strict";
+var app=document.getElementById("app");
+var charts=[];
+function destroyCharts(){for(var k=0;k<charts.length;k++){try{charts[k].destroy();}catch(e){}}charts=[];}
+function gid(id){return document.getElementById(id);}
+function mkChart(id,cfg){var el=gid(id);if(!el)return;var c=new Chart(el,cfg);charts.push(c);return c;}
+
+var C={ac:"#0891b2",ac2:"#22d3ee",ok:"#16a34a",warn:"#d97706",bad:"#dc2626",info:"#2563eb",vio:"#6366f1",grid:"#e5eef1",mut:"#5b7681"};
+
+/* ---------- SCREEN 0 : 稽核計畫排程 (calendar signature) ---------- */
+function s0(){
+  var cal=buildCal();
+  return ''+
+  '<div class="screen-head"><div><h1>稽核計畫排程</h1><div class="sub">年度稽核計畫 · 現場排程日曆與稽核員派工</div></div>'+
+  '<span class="pill"><span class="material-symbols-outlined">calendar_month</span>2026 年 8 月</span></div>'+
+  '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("event_available","本月稽核場次","18","場","+3","up")+
+    kpi("groups","出勤稽核員","9","人","滿編","flat")+
+    kpi("pending_actions","待確認排程","4","場","-2","down")+
+    kpi("verified_user","計畫達成率","86","%","+5","up")+
+  '</div>'+
+  '<div class="grid g32">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">calendar_month</span>稽核日曆 <span class="cap">8/1 – 8/31</span></h3>'+
+      '<div class="scroll">'+cal+'</div>'+
+      '<div class="legend"><span><i class="dot" style="background:'+C.ac+'"></i>系統稽核</span><span><i class="dot" style="background:#0ea5b7"></i>製程稽核</span><span><i class="dot" style="background:#6366f1"></i>供應商稽核</span><span><i class="dot" style="background:'+C.warn+'"></i>追蹤複核</span></div>'+
+    '</div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">donut_small</span>稽核類型分布</h3>'+
+      '<div class="chartbox sm"><canvas id="c0a"></canvas></div>'+
+      '<h3 style="margin-top:14px"><span class="material-symbols-outlined">upcoming</span>近期排程</h3>'+
+      upcomingList()+
+    '</div>'+
+  '</div>';
+}
+function buildCal(){
+  var head='<table class="cal"><thead><tr>';
+  var wk=["日","一","二","三","四","五","六"];
+  for(var i=0;i<7;i++)head+='<th>'+wk[i]+'</th>';
+  head+='</tr></thead><tbody>';
+  // Aug 2026: Aug 1 = Saturday
+  var events={ "3":[["e-a","系統稽核·組裝一課"]],"5":[["e-b","製程稽核·SMT"]],"7":[["e-c","供應商·長興電子"]],
+    "10":[["e-a","系統稽核·倉儲"]],"12":[["e-d","追蹤複核·塗裝"]],"13":[["e-b","製程稽核·CNC"]],
+    "17":[["e-c","供應商·鴻順精密"]],"18":[["e-a","系統稽核·品保室"]],"20":[["e-b","製程稽核·電鍍"],["e-d","追蹤複核·包裝"]],
+    "24":[["e-a","系統稽核·成品倉"]],"26":[["e-c","供應商·台鋼材料"]],"27":[["e-b","製程稽核·焊接"]],"31":[["e-d","追蹤複核·組裝二課"]] };
+  var day=1,startDow=6,total=31,cell=0,rows="";
+  for(var r=0;r<6;r++){
+    rows+='<tr>';
+    for(var d=0;d<7;d++){
+      if(cell<startDow||day>total){rows+='<td class="off"></td>';}
+      else{
+        var ev=events[String(day)]||[];var es="";
+        for(var e=0;e<ev.length;e++)es+='<span class="ev '+ev[e][0]+'">'+ev[e][1]+'</span>';
+        rows+='<td><span class="dn">'+day+'</span>'+es+'</td>';
+        day++;
+      }
+      cell++;
+    }
+    rows+='</tr>';
+    if(day>total)break;
+  }
+  return head+rows+'</tbody></table>';
+}
+function upcomingList(){
+  var rows=[["8/17","供應商稽核","鴻順精密","林佳蓉"],["8/18","系統稽核","品保室","陳志明"],["8/20","製程稽核","電鍍線","王大衛"],["8/24","系統稽核","成品倉","黃郁婷"]];
+  var h='<div class="tl" style="margin-top:6px">';
+  for(var i=0;i<rows.length;i++)h+='<div class="it"><div class="tm">'+rows[i][0]+' · '+rows[i][1]+'</div><div class="tx"><b>'+rows[i][2]+'</b> ｜ 主稽 '+rows[i][3]+'</div></div>';
+  return h+'</div>';
+}
+
+/* ---------- SCREEN 1 : 檢查表管理 (checklist scoring signature) ---------- */
+function s1(){
+  var items=[
+    ["ic-ok","check_circle","4.1 文件版本管制","現行文件均為最新受控版本","5"],
+    ["ic-ok","check_circle","4.2 量測儀器校驗","校驗標籤在效期內，紀錄完整","5"],
+    ["ic-ob","help","5.1 首件檢驗紀錄","部分產線首件紀錄未即時簽核","3"],
+    ["ic-nc","cancel","5.3 不合格品標示","隔離區標示不清，混料風險","1"],
+    ["ic-ok","check_circle","6.2 人員資格認證","焊接人員證照齊備","5"],
+    ["ic-ob","help","7.1 環境溫濕度","無塵室濕度紀錄有中斷","3"]
+  ];
+  var cl='';
+  for(var i=0;i<items.length;i++){cl+='<div class="clitem"><div class="ic '+items[i][0]+'"><span class="material-symbols-outlined">'+items[i][1]+'</span></div><div class="bd"><b>'+items[i][2]+'</b><p>'+items[i][3]+'</p></div><div class="sc" style="color:'+(items[i][4]==="5"?C.ok:items[i][4]==="1"?C.bad:C.warn)+'">'+items[i][4]+'</div></div>';}
+  var tmpl=[
+    ["QMS-系統稽核表 v4.2","系統稽核","32 項","已發布","t-ok"],
+    ["製程稽核表-SMT v3.1","製程稽核","28 項","已發布","t-ok"],
+    ["供應商評鑑表 v2.6","供應商稽核","41 項","已發布","t-ok"],
+    ["5S 現場稽核表 v1.8","現場稽核","20 項","審核中","t-warn"],
+    ["環安衛稽核表 v2.0","專案稽核","24 項","草稿","t-mut"]
+  ];
+  var tr='';
+  for(var j=0;j<tmpl.length;j++)tr+='<tr><td><b>'+tmpl[j][0]+'</b></td><td>'+tmpl[j][1]+'</td><td>'+tmpl[j][2]+'</td><td><span class="tag '+tmpl[j][4]+'">'+tmpl[j][3]+'</span></td></tr>';
+  return ''+
+  '<div class="screen-head"><div><h1>檢查表管理</h1><div class="sub">稽核項目範本 · 版本控管與現場逐項評分</div></div>'+
+  '<span class="pill"><span class="material-symbols-outlined">rule</span>評分基準 1–5</span></div>'+
+  '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("checklist","檢查表範本","14","份","+1","up")+
+    kpi("done_all","本次符合率","67","%","-8","down")+
+    kpi("report","現場缺失項","2","項","+2","up")+
+    kpi("history_edu","範本更新","3","次","本月","flat")+
+  '</div>'+
+  '<div class="grid g23">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">grading</span>現場稽核評分 <span class="cap">系統稽核·組裝一課</span></h3>'+cl+
+      '<div style="margin-top:12px;background:var(--soft);border-radius:10px;padding:12px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span class="mini">綜合符合度</span><b class="hl">67%</b></div><div class="bar-wrap"><i style="width:67%"></i></div></div>'+
+    '</div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">radar</span>構面評分雷達</h3><div class="chartbox sm"><canvas id="c1a"></canvas></div>'+
+      '<h3 style="margin-top:14px"><span class="material-symbols-outlined">description</span>檢查表範本庫</h3>'+
+      '<div class="scroll"><table class="tbl" style="min-width:420px"><thead><tr><th>範本名稱</th><th>類型</th><th>項目</th><th>狀態</th></tr></thead><tbody>'+tr+'</tbody></table></div>'+
+    '</div>'+
+  '</div>';
+}
+
+/* ---------- SCREEN 2 : 缺失看板 (KANBAN signature) ---------- */
+function s2(){
+  var cols=[
+    ["待分派","report_problem",[
+      ["NC-2608-014","隔離區不合格品標示不清","sev","組裝一課","高","LJ"],
+      ["NC-2608-015","首件檢驗未即時簽核","sev2","SMT 線","中","WD"]
+    ]],
+    ["改善中","engineering",[
+      ["NC-2608-009","電鍍槽液濃度紀錄缺漏","sev2","電鍍線","中","HY"],
+      ["NC-2608-011","無塵室濕度監控中斷","sev3","品保室","低","CM"],
+      ["NC-2608-012","焊接參數未依作業標準","sev","焊接課","高","WD"]
+    ]],
+    ["待驗證","fact_check",[
+      ["NC-2608-006","量具校驗標籤逾期","sev2","CNC 課","中","LJ"],
+      ["NC-2608-008","出貨標籤批號不一致","sev","成品倉","高","HY"]
+    ]],
+    ["已結案","task_alt",[
+      ["NC-2608-002","5S 通道堆放物料","sev3","倉儲","低","CM"],
+      ["NC-2608-004","作業指導書版本過舊","sev2","塗裝課","中","LJ"]
+    ]]
+  ];
+  var board='<div class="board">';
+  for(var c=0;c<cols.length;c++){
+    board+='<div class="col"><div class="ch"><span class="material-symbols-outlined" style="font-size:18px;color:'+C.ac+'">'+cols[c][1]+'</span>'+cols[c][0]+'<span class="n">'+cols[c][2].length+'</span></div>';
+    var arr=cols[c][2];
+    for(var t=0;t<arr.length;t++){
+      board+='<div class="tik '+arr[t][2]+'"><div class="id">'+arr[t][0]+'</div><div class="ti">'+arr[t][1]+'</div><div class="mt"><span class="av">'+arr[t][5]+'</span><span>'+arr[t][3]+'</span><span class="tag '+(arr[t][4]==="高"?"t-bad":arr[t][4]==="中"?"t-warn":"t-info")+'">'+arr[t][4]+'</span></div></div>';
+    }
+    board+='</div>';
+  }
+  board+='</div>';
+  return ''+
+  '<div class="screen-head"><div><h1>缺失看板</h1><div class="sub">缺失開立 · 分派責任部門 · 狀態拖拉追蹤</div></div>'+
+  '<span class="pill"><span class="material-symbols-outlined">view_kanban</span>共 9 張缺失單</span></div>'+
+  '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("report_problem","開立缺失","23","件","本月","flat")+
+    kpi("priority_high","高嚴重度","4","件","+1","up")+
+    kpi("schedule","逾期未處理","2","件","需催辦","down")+
+    kpi("task_alt","結案率","74","%","+6","up")+
+  '</div>'+
+  '<div class="card"><h3><span class="material-symbols-outlined">dashboard</span>缺失流轉看板</h3><div class="scroll">'+board+'</div></div>'+
+  '<div class="grid g2" style="margin-top:14px">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">stacked_bar_chart</span>各部門缺失數</h3><div class="chartbox sm"><canvas id="c2a"></canvas></div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">pie_chart</span>缺失類別占比</h3><div class="chartbox sm"><canvas id="c2b"></canvas></div></div>'+
+  '</div>';
+}
+
+/* ---------- SCREEN 3 : 改善追蹤 (gantt-ish progress + overdue) ---------- */
+function s3(){
+  var rows=[
+    ["NC-2608-012","焊接參數未依作業標準","焊接課","王大衛","8/22",78,"t-warn","改善中"],
+    ["NC-2608-008","出貨標籤批號不一致","成品倉","黃郁婷","8/16",100,"t-info","待驗證"],
+    ["NC-2608-009","電鍍槽液濃度紀錄缺漏","電鍍線","黃郁婷","8/25",45,"t-warn","改善中"],
+    ["NC-2608-006","量具校驗標籤逾期","CNC 課","林佳蓉","8/12",100,"t-bad","逾期"],
+    ["NC-2608-011","無塵室濕度監控中斷","品保室","陳明","8/28",30,"t-info","改善中"],
+    ["NC-2608-014","隔離區標示不清","組裝一課","林佳蓉","8/10",15,"t-bad","逾期"]
+  ];
+  var tr='';
+  for(var i=0;i<rows.length;i++){
+    var r=rows[i];
+    tr+='<tr><td><b>'+r[0]+'</b><div class="mini">'+r[1]+'</div></td><td>'+r[2]+'</td><td>'+r[3]+'</td><td>'+r[4]+'</td>'+
+    '<td style="min-width:130px"><div style="display:flex;align-items:center;gap:8px"><div class="bar-wrap" style="flex:1"><i style="width:'+r[5]+'%;'+(r[7]==="逾期"?"background:linear-gradient(90deg,#dc2626,#f87171)":"")+'"></i></div><b style="font-size:12px">'+r[5]+'%</b></div></td>'+
+    '<td><span class="tag '+r[6]+'">'+r[7]+'</span></td></tr>';
+  }
+  return ''+
+  '<div class="screen-head"><div><h1>改善追蹤</h1><div class="sub">矯正措施執行進度 · 逾期提醒與催辦</div></div>'+
+  '<span class="pill"><span class="material-symbols-outlined">notifications_active</span>2 件逾期催辦</span></div>'+
+  '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("pending_actions","進行中改善","11","件","","flat")+
+    kpi("schedule","逾期改善","2","件","需催辦","down")+
+    kpi("trending_up","平均改善天數","6.4","天","-1.8","up")+
+    kpi("verified","如期完成率","81","%","+4","up")+
+  '</div>'+
+  '<div class="grid g23">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">timeline</span>改善措施進度</h3><div class="scroll"><table class="tbl"><thead><tr><th>缺失單</th><th>部門</th><th>負責人</th><th>期限</th><th>進度</th><th>狀態</th></tr></thead><tbody>'+tr+'</tbody></table></div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">show_chart</span>每週改善結案趨勢</h3><div class="chartbox sm"><canvas id="c3a"></canvas></div>'+
+      '<h3 style="margin-top:14px"><span class="material-symbols-outlined">notifications</span>逾期催辦</h3>'+
+      '<div class="tl"><div class="it"><div class="tm">逾期 4 天 · NC-2608-006</div><div class="tx">量具校驗標籤逾期 ｜ <b>CNC 課 · 林佳蓉</b></div></div>'+
+      '<div class="it"><div class="tm">逾期 6 天 · NC-2608-014</div><div class="tx">隔離區標示不清 ｜ <b>組裝一課 · 林佳蓉</b></div></div></div>'+
+    '</div>'+
+  '</div>';
+}
+
+/* ---------- SCREEN 4 : 改善驗證結案 (verification + evidence) ---------- */
+function s4(){
+  var rows=[
+    ["NC-2607-021","作業指導書版本過舊","塗裝課","已上傳","已核准","t-ok","通過"],
+    ["NC-2608-008","出貨標籤批號不一致","成品倉","已上傳","審核中","t-warn","待審"],
+    ["NC-2607-018","5S 通道堆放物料","倉儲","已上傳","已核准","t-ok","通過"],
+    ["NC-2608-006","量具校驗標籤逾期","CNC 課","補件中","退回","t-bad","退回"],
+    ["NC-2607-015","焊接證照過期","焊接課","已上傳","已核准","t-ok","通過"]
+  ];
+  var tr='';
+  for(var i=0;i<rows.length;i++){var r=rows[i];tr+='<tr><td><b>'+r[0]+'</b></td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td><span class="tag '+r[5]+'">'+r[6]+'</span></td></tr>';}
+  return ''+
+  '<div class="screen-head"><div><h1>改善驗證結案</h1><div class="sub">驗證證據審核 · 缺失關閉與結案報告</div></div>'+
+  '<span class="pill"><span class="material-symbols-outlined">verified</span>驗證閉環</span></div>'+
+  '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("verified","本月結案","17","件","+4","up")+
+    kpi("hourglass_top","待審驗證","3","件","","flat")+
+    kpi("undo","退回補件","1","件","","flat")+
+    kpi("check_circle","缺失結案率","88","%","+7","up")+
+  '</div>'+
+  '<div class="grid g32">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">rule_folder</span>驗證審核清單</h3><div class="scroll"><table class="tbl" style="min-width:520px"><thead><tr><th>缺失單</th><th>缺失摘要</th><th>部門</th><th>證據</th><th>結果</th></tr></thead><tbody>'+tr+'</tbody></table></div>'+
+      '<div class="legend"><span><i class="dot" style="background:'+C.ok+'"></i>通過關閉</span><span><i class="dot" style="background:'+C.warn+'"></i>審核中</span><span><i class="dot" style="background:'+C.bad+'"></i>退回補件</span></div>'+
+    '</div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">insights</span>結案週期分析</h3><div class="chartbox sm"><canvas id="c4a"></canvas></div>'+
+      '<h3 style="margin-top:14px"><span class="material-symbols-outlined">receipt_long</span>結案報告摘要</h3>'+
+      '<div style="background:var(--soft);border-radius:10px;padding:12px;font-size:12.5px;line-height:1.7">'+
+        '<div>報告編號 <b class="hl">AR-2026-08-031</b></div>'+
+        '<div>受稽單位 <b>組裝一課</b> ｜ 稽核類型 <b>系統稽核</b></div>'+
+        '<div>缺失合計 <b>6</b> 項 · 已關閉 <b class="hl">5</b> 項</div>'+
+        '<div>驗證通過率 <b class="hl">83%</b> · 主稽 <b>陳志明</b></div>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+}
+
+/* ---------- SCREEN 5 : 稽核績效報表 (analytics) ---------- */
+function s5(){
+  var mtx=matrix();
+  return ''+
+  '<div class="screen-head"><div><h1>稽核績效報表</h1><div class="sub">計畫達成率 · 缺失結案率 · 部門風險熱區</div></div>'+
+  '<span class="pill"><span class="material-symbols-outlined">assessment</span>2026 Q3</span></div>'+
+  '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("event_available","計畫達成率","86","%","+5","up")+
+    kpi("task_alt","缺失結案率","88","%","+7","up")+
+    kpi("timelapse","平均結案天數","8.8","天","-2.4","up")+
+    kpi("replay","重複缺失率","2.1","%","-1.6","up")+
+  '</div>'+
+  '<div class="grid g2" style="margin-bottom:14px">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">stacked_line_chart</span>計畫 vs 實際稽核場次</h3><div class="chartbox"><canvas id="c5a"></canvas></div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>缺失結案率趨勢</h3><div class="chartbox"><canvas id="c5b"></canvas></div></div>'+
+  '</div>'+
+  '<div class="grid g2">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">grid_view</span>部門風險熱區矩陣</h3><div class="scroll">'+mtx+'</div>'+
+      '<div class="legend"><span><i class="dot" style="background:'+C.ok+'"></i>低</span><span><i class="dot" style="background:'+C.warn+'"></i>中</span><span><i class="dot" style="background:'+C.bad+'"></i>高</span></div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">emoji_events</span>各部門稽核評等</h3>'+deptRank()+'</div>'+
+  '</div>';
+}
+function matrix(){
+  var deps=["組裝一課","SMT 線","電鍍線","成品倉","品保室"];
+  var cats=["文件","製程","人員","環安"];
+  var data=[[3,2,1,2],[2,3,1,1],[3,3,2,2],[2,1,1,3],[1,2,1,1]];
+  var col=function(v){return v>=3?C.bad:v===2?C.warn:C.ok;};
+  var h='<div class="mtx"><div class="h"></div>';
+  for(var c=0;c<cats.length;c++)h+='<div class="h">'+cats[c]+'</div>';
+  for(var r=0;r<deps.length;r++){
+    h+='<div class="rh">'+deps[r]+'</div>';
+    for(var k=0;k<cats.length;k++){var v=data[r][k];h+='<div class="cell" style="background:'+col(v)+'">'+v+'</div>';}
+  }
+  return h+'</div>';
+}
+function deptRank(){
+  var rows=[["組裝一課","A",92],["SMT 線","A",89],["電鍍線","B",76],["成品倉","B",81],["品保室","A",94],["焊接課","C",68]];
+  var h='';
+  for(var i=0;i<rows.length;i++){var r=rows[i];var t=r[1]==="A"?"t-ok":r[1]==="B"?"t-warn":"t-bad";
+    h+='<div class="clitem"><div class="ic '+(r[1]==="A"?"ic-ok":r[1]==="B"?"ic-ob":"ic-nc")+'"><b style="font-size:14px">'+r[1]+'</b></div><div class="bd"><b>'+r[0]+'</b><div class="bar-wrap" style="margin-top:5px"><i style="width:'+r[2]+'%"></i></div></div><div class="sc" style="color:'+(r[2]>=85?C.ok:r[2]>=75?C.warn:C.bad)+'">'+r[2]+'</div></div>';
+  }
+  return h;
+}
+
+/* ---------- KPI helper ---------- */
+function kpi(icon,label,val,unit,delta,dir){
+  var arrow=dir==="up"?"trending_up":dir==="down"?"trending_down":"trending_flat";
+  var dd=delta?'<div class="d '+dir+'"><span class="material-symbols-outlined">'+arrow+'</span>'+delta+'</div>':'<div class="d flat">—</div>';
+  return '<div class="kpi"><div class="lb"><span class="material-symbols-outlined">'+icon+'</span>'+label+'</div><div class="v">'+val+(unit?'<small>'+unit+'</small>':'')+'</div>'+dd+'</div>';
+}
+
+/* ---------- chart init per screen ---------- */
+var gridOpt={grid:{color:C.grid},ticks:{color:C.mut,font:{size:11}}};
+function baseScales(){return {x:{grid:{display:false},ticks:{color:C.mut,font:{size:11}}},y:{grid:{color:C.grid},ticks:{color:C.mut,font:{size:11}},beginAtZero:true}};}
+function noLeg(){return {legend:{display:false}};}
+
+function initCharts(i){
+  if(i===0){
+    mkChart("c0a",{type:"doughnut",data:{labels:["系統稽核","製程稽核","供應商稽核","追蹤複核"],datasets:[{data:[7,6,3,2],backgroundColor:[C.ac,"#0ea5b7",C.vio,C.warn],borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"60%",plugins:{legend:{position:"bottom",labels:{color:C.mut,font:{size:11},boxWidth:12}}}}});
+  }else if(i===1){
+    mkChart("c1a",{type:"radar",data:{labels:["文件管制","製程管控","人員資格","設備校驗","環安衛","紀錄追溯"],datasets:[{label:"本次",data:[5,3,5,4,3,4],borderColor:C.ac,backgroundColor:"rgba(8,145,178,.22)",pointBackgroundColor:C.ac},{label:"基準",data:[4,4,4,4,4,4],borderColor:C.ac2,backgroundColor:"rgba(34,211,238,.12)",pointBackgroundColor:C.ac2}]},options:{responsive:true,maintainAspectRatio:false,scales:{r:{min:0,max:5,grid:{color:C.grid},angleLines:{color:C.grid},pointLabels:{color:C.mut,font:{size:10}},ticks:{display:false}}},plugins:{legend:{position:"bottom",labels:{color:C.mut,font:{size:11},boxWidth:12}}}}});
+  }else if(i===2){
+    mkChart("c2a",{type:"bar",data:{labels:["組裝","SMT","電鍍","CNC","成品倉","焊接"],datasets:[{label:"缺失數",data:[6,4,5,3,4,5],backgroundColor:C.ac,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:noLeg(),scales:baseScales()}});
+    mkChart("c2b",{type:"pie",data:{labels:["製程","文件","人員","環安","設備"],datasets:[{data:[9,6,4,3,5],backgroundColor:[C.ac,C.ac2,C.vio,C.warn,"#0ea5b7"],borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:C.mut,font:{size:11},boxWidth:12}}}}});
+  }else if(i===3){
+    mkChart("c3a",{type:"line",data:{labels:["第1週","第2週","第3週","第4週","第5週","第6週"],datasets:[{label:"結案數",data:[3,5,4,7,6,9],borderColor:C.ac,backgroundColor:"rgba(8,145,178,.15)",fill:true,tension:.35,pointRadius:3},{label:"新開立",data:[6,5,7,5,4,4],borderColor:C.warn,backgroundColor:"transparent",tension:.35,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:C.mut,font:{size:11},boxWidth:12}}},scales:baseScales()}});
+  }else if(i===4){
+    mkChart("c4a",{type:"bar",data:{labels:["文件","製程","人員","環安","設備"],datasets:[{label:"平均結案天數",data:[6.2,10.4,7.1,5.5,9.3],backgroundColor:[C.ac,C.warn,C.ac2,C.ok,C.vio],borderRadius:5}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:noLeg(),scales:{x:{grid:{color:C.grid},ticks:{color:C.mut,font:{size:11}},beginAtZero:true},y:{grid:{display:false},ticks:{color:C.mut,font:{size:11}}}}}});
+  }else if(i===5){
+    mkChart("c5a",{type:"bar",data:{labels:["4月","5月","6月","7月","8月"],datasets:[{label:"計畫場次",data:[16,18,17,19,18],backgroundColor:"rgba(8,145,178,.30)",borderRadius:5},{label:"實際完成",data:[14,17,15,18,16],backgroundColor:C.ac,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:C.mut,font:{size:11},boxWidth:12}}},scales:baseScales()}});
+    mkChart("c5b",{type:"line",data:{labels:["3月","4月","5月","6月","7月","8月"],datasets:[{label:"結案率 %",data:[72,76,79,83,85,88],borderColor:C.ac,backgroundColor:"rgba(34,211,238,.18)",fill:true,tension:.35,pointRadius:3},{label:"目標 90%",data:[90,90,90,90,90,90],borderColor:C.bad,borderDash:[6,4],pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:C.mut,font:{size:11},boxWidth:12}}},scales:{x:{grid:{display:false},ticks:{color:C.mut,font:{size:11}}},y:{grid:{color:C.grid},ticks:{color:C.mut,font:{size:11}},min:60,max:100}}}});
+  }
+}
+
+var screens=[s0,s1,s2,s3,s4,s5];
+function show(i){
+  destroyCharts();
+  var btns=document.querySelectorAll("[data-i]");
+  for(var b=0;b<btns.length;b++)btns[b].classList.toggle("on",+btns[b].getAttribute("data-i")===i);
+  app.innerHTML=screens[i]();
+  void app.offsetHeight;
+  initCharts(i);
+}
+var navEl=document.getElementById("nav");
+navEl.addEventListener("click",function(ev){var t=ev.target.closest("[data-i]");if(!t)return;show(+t.getAttribute("data-i"));try{window.scrollTo(0,0);}catch(e){}});
+show(0);
+
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>

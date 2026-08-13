@@ -1,18 +1,480 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>防呆系統（Poka-Yoke Error-Proofing System）｜Jvision 系統 Demo</title>
-  <meta name="description" content="訂單到入庫的製造現場全流程數位化" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>防呆系統（Poka-Yoke Error-Proofing System）｜Jvision Demo</title>
+<meta name="description" content="條碼/影像防呆比對、製程連鎖攔截、異常操作即時阻斷" />
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --acc:#b45309;--acc2:#f59e0b;--bg:#f4f1ec;--card:#ffffff;--ink:#26211b;--mut:#7a6f60;
+  --line:#e7e0d4;--ok:#15803d;--okbg:#dcfce7;--ng:#b91c1c;--ngbg:#fee2e2;--warn:#a16207;--warnbg:#fef3c7;
+  --side:#241d14;--side2:#332a1d;--sideink:#e9e0cf;--sidemut:#9e917b;
+}
+html,body{background:var(--bg);color:var(--ink);font-family:"Inter","Noto Sans TC",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:400;font-style:normal;line-height:1;vertical-align:middle}
+.shell{display:flex;min-height:100vh}
+.shell>*{min-width:0}
+.side{width:250px;flex:none;background:var(--side);color:var(--sideink);display:flex;flex-direction:column;padding:18px 14px;gap:6px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{display:flex;align-items:center;gap:11px;padding:6px 8px 16px}
+.brand .lg{width:42px;height:42px;flex:none;border-radius:11px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 6px 16px rgba(180,83,9,.4)}
+.brand .lg .material-symbols-outlined{font-size:24px}
+.brand b{font-size:15px;font-weight:800;letter-spacing:.3px;display:block}
+.brand span{font-size:11px;color:var(--sidemut);letter-spacing:.5px}
+.nav{display:flex;flex-direction:column;gap:4px;min-width:0}
+.nav button{display:flex;align-items:center;gap:11px;padding:11px 12px;border:0;background:transparent;color:var(--sidemut);border-radius:10px;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;text-align:left;width:100%;transition:.15s;min-width:0}
+.nav button .material-symbols-outlined{font-size:21px;flex:none}
+.nav button .tx{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav button:hover{background:var(--side2);color:var(--sideink)}
+.nav button.on{background:linear-gradient(135deg,var(--acc),#92400e);color:#fff;box-shadow:0 6px 14px rgba(180,83,9,.35)}
+.nav button .n{margin-left:auto;font-size:11px;opacity:.7;flex:none}
+.side .foot{margin-top:auto;padding:12px 8px 4px;font-size:11px;color:var(--sidemut);line-height:1.6;border-top:1px solid #3a3122}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{position:sticky;top:0;z-index:9;background:rgba(244,241,236,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:14px 26px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.top h1{font-size:17px;font-weight:800}
+.top .sub{font-size:12px;color:var(--mut);margin-top:2px}
+.top .live{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--acc);background:#fff;border:1px solid var(--line);padding:7px 12px;border-radius:20px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(21,128,61,.5);animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(21,128,61,.5)}70%{box-shadow:0 0 0 8px rgba(21,128,61,0)}100%{box-shadow:0 0 0 0 rgba(21,128,61,0)}}
+.wrap{padding:22px 26px 46px;flex:1}
+.grid{display:grid;gap:16px}
+.k4{grid-template-columns:repeat(4,1fr)}
+.k3{grid-template-columns:repeat(3,1fr)}
+.k2{grid-template-columns:repeat(2,1fr)}
+.c23{grid-template-columns:2fr 1fr}
+.c12{grid-template-columns:1fr 2fr}
+.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:17px}
+.card.pad0{padding:0;overflow:hidden}
+.ct{display:flex;align-items:center;gap:9px;margin-bottom:14px}
+.ct .material-symbols-outlined{font-size:20px;color:var(--acc)}
+.ct b{font-size:14.5px;font-weight:800}
+.ct .tag{margin-left:auto;font-size:11px;font-weight:700;color:var(--mut);background:#f4f1ec;border:1px solid var(--line);padding:3px 9px;border-radius:20px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:16px;position:relative;overflow:hidden}
+.kpi .ico{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;margin-bottom:11px}
+.kpi .ico .material-symbols-outlined{font-size:21px}
+.kpi .lab{font-size:12px;color:var(--mut);font-weight:600}
+.kpi .val{font-size:27px;font-weight:900;letter-spacing:-.5px;margin-top:3px}
+.kpi .val small{font-size:13px;font-weight:700;color:var(--mut)}
+.kpi .delta{font-size:11.5px;font-weight:700;margin-top:6px;display:inline-flex;align-items:center;gap:3px}
+.up{color:var(--ok)}.down{color:var(--ng)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;color:var(--mut);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:#faf8f4}
+td{padding:11px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:#faf7f2}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.p-ok{background:var(--okbg);color:var(--ok)}
+.p-ng{background:var(--ngbg);color:var(--ng)}
+.p-wa{background:var(--warnbg);color:var(--warn)}
+.p-mut{background:#eee7db;color:var(--mut)}
+.p-acc{background:#fde9cf;color:#92400e}
+.mono{font-family:"Inter",monospace;font-variant-numeric:tabular-nums;letter-spacing:.2px}
+.bar{height:8px;border-radius:6px;background:#eee7db;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.chartbox{position:relative;height:230px}
+.chartbox.sm{height:190px}
+canvas{max-width:100%}
+.scanhead{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#241d14,#3a2e1c);color:#fff;border-radius:15px;padding:20px 22px;flex-wrap:wrap}
+.scanhead .laser{width:66px;height:66px;flex:none;border-radius:14px;background:rgba(245,158,11,.14);border:1.5px solid rgba(245,158,11,.5);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.scanhead .laser .material-symbols-outlined{font-size:34px;color:var(--acc2)}
+.scanhead .laser::after{content:"";position:absolute;left:6px;right:6px;height:2px;background:var(--acc2);box-shadow:0 0 8px var(--acc2);top:12px;animation:scan 1.6s ease-in-out infinite}
+@keyframes scan{0%,100%{top:12px}50%{top:52px}}
+.scanhead .big{font-size:24px;font-weight:900;letter-spacing:.5px}
+.scanhead .lab{font-size:11.5px;color:#c9b597;letter-spacing:.5px}
+.matchrow{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--line);border-radius:12px;margin-bottom:9px}
+.matchrow .ic{width:34px;height:34px;flex:none;border-radius:9px;display:flex;align-items:center;justify-content:center}
+.matchrow .ic .material-symbols-outlined{font-size:19px}
+.matchrow .info{min-width:0;flex:1}
+.matchrow .info b{font-size:13px;font-weight:700;display:block}
+.matchrow .info span{font-size:11.5px;color:var(--mut)}
+.iboard{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.station{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--card);position:relative}
+.station .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;gap:8px}
+.station .sh b{font-size:13px;font-weight:800}
+.station.lock{border-color:#f3b6b6;background:linear-gradient(180deg,#fff,#fff5f5)}
+.station.run{border-color:#bfe3c8;background:linear-gradient(180deg,#fff,#f4fbf6)}
+.station.wait{border-color:#f0dfb0;background:linear-gradient(180deg,#fff,#fffbf0)}
+.station .meta{font-size:11.5px;color:var(--mut);line-height:1.9}
+.station .meta em{font-style:normal;color:var(--ink);font-weight:700}
+.imgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.imcell{border:1px solid var(--line);border-radius:13px;overflow:hidden;background:var(--card)}
+.imcell .ph{height:96px;position:relative;display:flex;align-items:center;justify-content:center;color:#fff}
+.imcell .ph .material-symbols-outlined{font-size:34px;opacity:.9}
+.imcell .cap{padding:9px 11px}
+.imcell .cap b{font-size:12.5px;font-weight:800}
+.imcell .cap span{font-size:11px;color:var(--mut);display:block;margin-top:2px}
+.ph.ok{background:linear-gradient(135deg,#166534,#15803d)}
+.ph.ng{background:linear-gradient(135deg,#991b1b,#b91c1c)}
+.ph.rv{background:linear-gradient(135deg,#a16207,#ca8a04)}
+.tl{position:relative;padding-left:26px}
+.tl::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.tlitem{position:relative;padding:0 0 18px 6px}
+.tlitem::before{content:"";position:absolute;left:-21px;top:3px;width:13px;height:13px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 0 0 1.5px var(--line);background:#cbc2b2}
+.tlitem.ng::before{background:var(--ng)}
+.tlitem.ok::before{background:var(--ok)}
+.tlitem.wa::before{background:var(--acc2)}
+.tlitem .tm{font-size:11px;color:var(--mut);font-weight:700;font-family:monospace}
+.tlitem .hd{font-size:13.5px;font-weight:800;margin:2px 0 3px}
+.tlitem .bd{font-size:12px;color:var(--mut);line-height:1.6}
+.thresh{display:flex;align-items:center;gap:8px}
+.thresh .num{font-weight:800;font-family:monospace}
+.seg{display:inline-flex;background:#f4f1ec;border:1px solid var(--line);border-radius:9px;padding:2px;gap:2px}
+.seg span{font-size:11px;font-weight:700;color:var(--mut);padding:4px 10px;border-radius:7px}
+.seg span.on{background:var(--acc);color:#fff}
+.toggle{width:40px;height:22px;border-radius:20px;background:var(--ok);position:relative;flex:none}
+.toggle.off{background:#cbc2b2}
+.toggle::after{content:"";position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:#fff}
+.toggle.off::after{right:20px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--mut);margin-top:10px}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+@media(max-width:1100px){.k4{grid-template-columns:repeat(2,1fr)}.iboard,.imgrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:860px){
+  .shell{flex-direction:column}
+  .side{width:auto;height:auto;position:static;flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px 12px;overflow:visible}
+  .brand{padding:2px 8px 2px 2px}
+  .side .foot{display:none}
+  .nav{flex-direction:row;flex-wrap:wrap;gap:6px}
+  .nav button{width:auto;flex:none;white-space:nowrap;padding:9px 12px}
+  .nav button .n{display:none}
+}
+@media(max-width:820px){
+  .k4,.k3,.k2,.c23,.c12{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .nav button .tx{display:none}
+  .nav button{padding:9px 11px}
+  .wrap{padding:16px 14px 40px}
+  .top{padding:12px 14px}
+}
+/*rwdfix*/.card{min-width:0}[class*="grid"]>*,[class*="g2"]>*,[class*="g3"]>*{min-width:0}.ct{min-width:0;flex-wrap:wrap}.scroll{min-width:0;max-width:100%;overflow-x:auto}</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <div class="lg"><span class="material-symbols-outlined">shield</span></div>
+      <div><b>PokaGuard</b><span>防呆稽核平台</span></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="foot">產線 A｜第二廠<br>版本 v3.9 · MES/SFC 整合<br>© 2026 Jvision 智慧製造</div>
+  </aside>
+  <div class="main">
+    <div class="top">
+      <div>
+        <h1 id="ttl">—</h1>
+        <div class="sub" id="sub">—</div>
+      </div>
+      <div class="live"><span class="dot"></span> 連線正常 · 攔截引擎運轉中</div>
+    </div>
+    <div class="wrap"><div id="view"></div></div>
+  </div>
+</div>
+<script>
+var SCREENS=[
+  {icon:"qr_code_scanner",name:"條碼防呆比對",sub:"上料掃碼即時比對工單 BOM，錯料立即阻擋"},
+  {icon:"linked_services",name:"製程連鎖攔截",sub:"前工序未完/參數超標即鎖定設備，禁止流入下站"},
+  {icon:"photo_camera",name:"影像防呆檢測",sub:"AOI 視覺比對方向、極性、漏裝並判定 OK/NG"},
+  {icon:"gpp_maybe",name:"異常攔截處置",sub:"攔截事件推播、線長覆核與放行授權留痕"},
+  {icon:"verified_user",name:"防呆規則設定",sub:"維護防呆點、扭力/數量門檻與連鎖條件"},
+  {icon:"insights",name:"防呆成效分析",sub:"攔截率、誤操作事件與漏檢逃逸統計趨勢"}
+];
+var charts=[];
+function destroyCharts(){for(var i=0;i<charts.length;i++){try{charts[i].destroy();}catch(e){}}charts=[];}
+function el(id){return document.getElementById(id);}
+function mkChart(id,cfg){var cv=document.getElementById(id);if(!cv)return;var c=new Chart(cv.getContext("2d"),cfg);charts.push(c);}
+Chart.defaults.font.family="Inter, 'Noto Sans TC', sans-serif";
+Chart.defaults.color="#7a6f60";
+
+function kpi(icon,col,bg,lab,val,unit,dir,delta){
+  var arrow=dir==="up"?"trending_up":"trending_down";
+  var dcls=dir==="up"?"up":"down";
+  return '<div class="kpi"><div class="ico" style="background:'+bg+';color:'+col+'"><span class="material-symbols-outlined">'+icon+'</span></div>'
+    +'<div class="lab">'+lab+'</div><div class="val">'+val+' <small>'+unit+'</small></div>'
+    +'<div class="delta '+dcls+'"><span class="material-symbols-outlined" style="font-size:15px">'+arrow+'</span>'+delta+'</div></div>';
+}
+
+function screen0(){
+  return '<div class="scanhead">'
+    +'<div class="laser"><span class="material-symbols-outlined">barcode_reader</span></div>'
+    +'<div style="min-width:0;flex:1"><div class="lab">目前掃描工單 · WO-24-0817-03</div><div class="big">PCBA 主板組裝 · 站別 ST-04</div><div class="lab" style="margin-top:4px">操作員 陳建宏 · 08:42:17 · 第 128 片</div></div>'
+    +'<div style="text-align:right"><div class="lab">本班掃描</div><div class="big" style="color:#f59e0b">1,284</div></div></div>'
+    +'<div class="grid k4" style="margin-top:16px">'
+    +kpi("qr_code_2","#b45309","#fde9cf","本班掃描筆數","1,284","筆","up","即時累計")
+    +kpi("block","#b91c1c","#fee2e2","錯料攔截","23","次","down","-38% vs 昨")
+    +kpi("check_circle","#15803d","#dcfce7","比對通過率","98.2","%","up","+0.6%")
+    +kpi("timer","#a16207","#fef3c7","平均比對耗時","0.34","秒","up","-0.05s")
+    +'</div>'
+    +'<div class="grid c23" style="margin-top:16px">'
+    +'<div class="card"><div class="ct"><span class="material-symbols-outlined">fact_check</span><b>當前掃描比對明細</b><span class="tag">WO-24-0817-03</span></div>'
+      +matchRow("ok","料號比對 · C0402-104K","BOM 需求 C0402-104K｜掃得 C0402-104K")
+      +matchRow("ok","批號效期 · LOT-2604-A17","效期 2026-11-30 · 未過期")
+      +matchRow("ok","站別權限 · ST-04","操作員具備 SMT 認證")
+      +matchRow("ng","上料槽位 · Feeder #7","應上 R33，實測偵測到 C104 錯置")
+      +'<div style="margin-top:12px;padding:12px 14px;border-radius:12px;background:var(--ngbg);color:#7f1d1d;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="color:#b91c1c">gpp_bad</span>偵測到料槽錯置，已阻擋貼裝並要求重新上料</div>'
+      +'</div>'
+    +'<div class="card"><div class="ct"><span class="material-symbols-outlined">history</span><b>最近掃碼</b></div>'+scanLog()+'</div>'
+    +'</div>';
+}
+function matchRow(st,t,s){
+  var ic=st==="ok"?"task_alt":"cancel";var cls=st==="ok"?"p-ok":"p-ng";
+  var bg=st==="ok"?"background:var(--okbg);color:var(--ok)":"background:var(--ngbg);color:var(--ng)";
+  return '<div class="matchrow"><div class="ic" style="'+bg+'"><span class="material-symbols-outlined">'+ic+'</span></div>'
+    +'<div class="info"><b>'+t+'</b><span>'+s+'</span></div>'
+    +'<span class="pill '+cls+'">'+(st==="ok"?"符合":"攔截")+'</span></div>';
+}
+function scanLog(){
+  var d=[["08:42:16","C0402-104K","OK"],["08:42:09","C0402-104K","OK"],["08:41:58","R33-333","OK"],["08:41:44","C0104-錯置","NG"],["08:41:31","C0603-475K","OK"],["08:41:22","U12-STM32","OK"],["08:41:05","LOT-過期","NG"],["08:40:51","J01-連接器","OK"]];
+  var h='<div>';
+  for(var i=0;i<d.length;i++){var ng=d[i][2]==="NG";
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line)">'
+      +'<span class="mono" style="font-size:11px;color:var(--mut)">'+d[i][0]+'</span>'
+      +'<span class="mono" style="font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+d[i][1]+'</span>'
+      +'<span class="pill '+(ng?"p-ng":"p-ok")+'">'+d[i][2]+'</span></div>';}
+  return h+'</div>';
+}
+
+function screen1(){
+  var st=[
+    ["run","ST-01 錫膏印刷","作業中","OP 王琳｜良品 214","循環 32s"],
+    ["run","ST-02 SPI 檢測","作業中","自動｜通過 98.4%","循環 18s"],
+    ["run","ST-03 貼片 SMT","作業中","OP 陳建宏｜貼裝 128","循環 41s"],
+    ["lock","ST-04 回焊爐","已鎖定","上游 SPI 判 NG 未處置","連鎖阻斷"],
+    ["wait","ST-05 AOI 檢查","待料","上游未放行","閒置 6m"],
+    ["wait","ST-06 ICT 測試","待料","前工序未完成","閒置 6m"],
+    ["run","ST-07 分板","作業中","OP 林佳蓉｜分板 96","循環 12s"],
+    ["run","ST-08 包裝入庫","作業中","OP 張士豪｜入庫 88","循環 25s"]
+  ];
+  var board='<div class="iboard">';
+  for(var i=0;i<st.length;i++){var s=st[i];
+    var pill=s[0]==="run"?"p-ok":s[0]==="lock"?"p-ng":"p-wa";
+    var ico=s[0]==="run"?"play_circle":s[0]==="lock"?"lock":"hourglass_top";
+    board+='<div class="station '+s[0]+'"><div class="sh"><b>'+s[1]+'</b><span class="pill '+pill+'"><span class="material-symbols-outlined" style="font-size:14px">'+ico+'</span>'+s[2]+'</span></div>'
+      +'<div class="meta">'+s[3]+'<br><em>'+s[4]+'</em></div></div>';
+  }
+  board+='</div>';
+  return '<div class="grid k4">'
+    +kpi("link","#b45309","#fde9cf","連鎖規則啟用","42","條","up","全線覆蓋")
+    +kpi("lock","#b91c1c","#fee2e2","目前鎖定站別","1","站","down","ST-04")
+    +kpi("pending_actions","#a16207","#fef3c7","待放行工序","2","站","down","等候處置")
+    +kpi("bolt","#15803d","#dcfce7","阻斷回應時間","120","ms","up","即時鎖機")
+    +'</div>'
+    +'<div class="card" style="margin-top:16px"><div class="ct"><span class="material-symbols-outlined">account_tree</span><b>製程連鎖狀態板 · SMT 產線 A</b><span class="tag">紅=鎖定 綠=作業 黃=待料</span></div>'
+    +'<div style="overflow-x:auto">'+board+'</div></div>'
+    +'<div class="grid c23" style="margin-top:16px">'
+    +'<div class="card"><div class="ct"><span class="material-symbols-outlined">rule</span><b>觸發中連鎖規則</b></div>'+ilTable()+'</div>'
+    +'<div class="card"><div class="ct"><span class="material-symbols-outlined">warning</span><b>ST-04 鎖定原因</b></div>'
+      +'<div style="font-size:13px;line-height:1.9;color:var(--mut)">回焊爐入口偵測到來自 ST-02 的板件 SPI 判定為 <b style="color:var(--ng)">NG</b>，但未完成不良覆核。依連鎖規則 <span class="mono">IL-14</span>，禁止進入回焊避免不良品固化。</div>'
+      +'<div style="margin-top:14px;padding:12px;border-radius:11px;background:#faf7f2;border:1px solid var(--line)"><div style="font-size:11px;color:var(--mut);font-weight:700">解除條件</div><div style="font-size:13px;font-weight:700;margin-top:5px">品保覆核 SPI 不良並簽核放行 → 自動解鎖</div></div>'
+      +'</div>'
+    +'</div>';
+}
+function ilTable(){
+  var d=[["IL-14","SPI 判 NG 未覆核 → 鎖回焊爐","ST-04","觸發中","p-ng"],
+    ["IL-07","上游未報完工 → 鎖下站","ST-05/06","觸發中","p-wa"],
+    ["IL-22","扭力未達 8.0N·m → 鎖鎖附","ST-07","監控中","p-ok"],
+    ["IL-31","首件未確認 → 鎖批量生產","全線","監控中","p-ok"],
+    ["IL-09","治具版本不符 → 鎖上料","ST-03","監控中","p-ok"]];
+  var h='<div style="overflow-x:auto"><table><thead><tr><th>規則</th><th>條件</th><th>站別</th><th>狀態</th></tr></thead><tbody>';
+  for(var i=0;i<d.length;i++)h+='<tr><td class="mono">'+d[i][0]+'</td><td>'+d[i][1]+'</td><td class="mono">'+d[i][2]+'</td><td><span class="pill '+d[i][4]+'">'+d[i][3]+'</span></td></tr>';
+  return h+'</tbody></table></div>';
+}
+
+function screen2(){
+  var cells=[
+    ["ok","U3 · STM32","方向正確 · 100%"],
+    ["ng","D7 · 二極體","極性反接 · NG"],
+    ["ok","C21 · 電容","貼裝正常"],
+    ["ok","R14 · 電阻","貼裝正常"],
+    ["rv","J2 · 連接器","偏移 0.12mm 待覆判"],
+    ["ok","L1 · 電感","貼裝正常"],
+    ["ng","C34 · 電容","漏裝 · NG"],
+    ["ok","Q5 · 電晶體","方向正確"]
+  ];
+  var grid='<div class="imgrid">';
+  for(var i=0;i<cells.length;i++){var c=cells[i];
+    var ic=c[0]==="ok"?"check_circle":c[0]==="ng"?"cancel":"help";
+    var tag=c[0]==="ok"?"PASS":c[0]==="ng"?"NG":"REVIEW";
+    var pcls=c[0]==="ok"?"p-ok":c[0]==="ng"?"p-ng":"p-wa";
+    grid+='<div class="imcell"><div class="ph '+c[0]+'"><span class="material-symbols-outlined">'+ic+'</span></div>'
+      +'<div class="cap"><b>'+c[1]+'</b><span>'+c[2]+'</span><div style="margin-top:6px"><span class="pill '+pcls+'">'+tag+'</span></div></div></div>';
+  }
+  grid+='</div>';
+  return '<div class="grid k4">'
+    +kpi("photo_camera","#b45309","#fde9cf","本班檢測片數","892","片","up","即時累計")
+    +kpi("verified","#15803d","#dcfce7","AOI 良率","96.8","%","up","+0.9%")
+    +kpi("do_not_disturb_on","#b91c1c","#fee2e2","判定 NG","29","片","down","-11 vs 昨")
+    +kpi("visibility","#a16207","#fef3c7","待人工覆判","6","片","down","REVIEW")
+    +'</div>'
+    +'<div class="grid c23" style="margin-top:16px">'
+    +'<div class="card"><div class="ct"><span class="material-symbols-outlined">grid_view</span><b>影像檢測工位 · 板序 #892</b><span class="tag">8 檢測點</span></div>'
+      +'<div style="overflow-x:auto">'+grid+'</div></div>'
+    +'<div class="card"><div class="ct"><span class="material-symbols-outlined">donut_large</span><b>缺陷類別分佈</b></div><div class="chartbox sm"><canvas id="c2pie"></canvas></div>'
+      +'<div class="legend"><span><i style="background:#b91c1c"></i>極性反接</span><span><i style="background:#f59e0b"></i>偏移</span><span><i style="background:#b45309"></i>漏裝</span><span><i style="background:#a16207"></i>錫橋</span><span><i style="background:#cbc2b2"></i>其他</span></div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="card" style="margin-top:16px"><div class="ct"><span class="material-symbols-outlined">stacked_line_chart</span><b>各檢測點 NG 趨勢（近 8 小時）</b></div><div class="chartbox"><canvas id="c2line"></canvas></div></div>';
+}
+
+function screen3(){
+  var tl=[
+    ["ng","08:41:44","錯料攔截 · ST-03","料槽 Feeder#7 錯置 C104，掃碼比對 BOM 不符已阻擋貼裝","陳建宏 · 系統自動"],
+    ["wa","08:39:10","扭力異常提示 · ST-07","鎖附扭力 7.4N·m 低於門檻 8.0，等候線長覆核","林佳蓉 · 待處置"],
+    ["ng","08:33:52","連鎖鎖定 · ST-04","SPI 判 NG 未覆核，回焊爐入口連鎖阻斷","系統 IL-14"],
+    ["ok","08:28:31","放行 · ST-04","品保覆核 SPI 不良（虛焊）並退線重工，設備解鎖","品保 黃郁婷"],
+    ["ok","08:15:07","首件確認放行 · 全線","WO-24-0817-03 首件三檢通過，開放批量生產","製造課長 吳承翰"],
+    ["wa","07:58:20","效期預警 · ST-01","LOT-2603-B 錫膏回溫剩餘 20 分鐘","系統自動"]
+  ];
+  var tlh='<div class="tl">';
+  for(var i=0;i<tl.length;i++){var t=tl[i];
+    tlh+='<div class="tlitem '+t[0]+'"><div class="tm">'+t[1]+'</div><div class="hd">'+t[2]+'</div><div class="bd">'+t[3]+'</div>'
+      +'<div style="font-size:11px;color:var(--acc);font-weight:700;margin-top:4px">'+t[4]+'</div></div>';
+  }
+  tlh+='</div>';
+  var q=[
+    ["扭力異常","ST-07","線長覆核","p-wa","高"],
+    ["漏裝 C34","ST-05 AOI","待退線重工","p-ng","高"],
+    ["連接器偏移","ST-05 AOI","待人工覆判","p-wa","中"],
+    ["效期預警","ST-01","確認回溫","p-mut","低"]
+  ];
+  var qh='<div style="overflow-x:auto"><table><thead><tr><th>異常事件</th><th>站別</th><th>待辦處置</th><th>優先</th></tr></thead><tbody>';
+  for(var j=0;j<q.length;j++)qh+='<tr><td><b>'+q[j][0]+'</b></td><td class="mono">'+q[j][1]+'</td><td><span class="pill '+q[j][3]+'">'+q[j][2]+'</span></td><td>'+q[j][4]+'</td></tr>';
+  qh+='</tbody></table></div>';
+  return '<div class="grid k4">'
+    +kpi("notification_important","#b91c1c","#fee2e2","本班攔截事件","41","件","down","-15% vs 昨")
+    +kpi("pending","#a16207","#fef3c7","待處置","3","件","down","含 1 高優先")
+    +kpi("how_to_reg","#b45309","#fde9cf","授權放行","6","次","up","全數留痕")
+    +kpi("schedule","#15803d","#dcfce7","平均處置時間","4.2","分","up","-1.1 分")
+    +'</div>'
+    +'<div class="grid c23" style="margin-top:16px">'
+    +'<div class="card"><div class="ct"><span class="material-symbols-outlined">timeline</span><b>攔截事件時間軸</b><span class="tag">今日 · 產線 A</span></div>'+tlh+'</div>'
+    +'<div class="card"><div class="ct"><span class="material-symbols-outlined">assignment_late</span><b>待處置佇列</b></div>'+qh
+      +'<div style="margin-top:14px;padding:12px;border-radius:11px;background:#faf7f2;border:1px solid var(--line);font-size:12px;line-height:1.7;color:var(--mut)"><b style="color:var(--ink)">放行授權規則</b><br>高優先事件須線長+品保雙簽；扭力/漏裝類需附覆核照片方可解鎖。</div>'
+      +'</div>'
+    +'</div>';
+}
+
+function screen4(){
+  var r=[
+    ["PY-01","料號 BOM 比對","上料/貼裝","阻擋",1],
+    ["PY-02","批號效期檢查","上料","阻擋",1],
+    ["PY-03","鎖附扭力門檻","鎖附","阻擋",1],
+    ["PY-04","首件三檢確認","批量前","阻擋",1],
+    ["PY-05","治具版本核對","換線","阻擋",1],
+    ["PY-06","數量計數防漏","包裝","提示",0],
+    ["PY-07","AOI 影像比對","檢查","阻擋",1],
+    ["PY-08","作業員權限認證","全站","阻擋",1]
+  ];
+  var rh='<div style="overflow-x:auto"><table><thead><tr><th>防呆點</th><th>名稱</th><th>套用工序</th><th>攔截動作</th><th>啟用</th></tr></thead><tbody>';
+  for(var i=0;i<r.length;i++){
+    var act=r[i][3]==="阻擋"?'<span class="pill p-ng">阻擋鎖機</span>':'<span class="pill p-wa">提示告警</span>';
+    var tg='<div class="toggle '+(r[i][4]?"":"off")+'"></div>';
+    rh+='<tr><td class="mono"><b>'+r[i][0]+'</b></td><td>'+r[i][1]+'</td><td>'+r[i][2]+'</td><td>'+act+'</td><td>'+tg+'</td></tr>';
+  }
+  rh+='</tbody></table>';
+  var th=[
+    ["鎖附扭力下限","8.0","N·m","阻擋"],
+    ["鎖附扭力上限","12.0","N·m","阻擋"],
+    ["批號效期預警","30","分鐘","提示"],
+    ["AOI 偏移容差","0.10","mm","覆判"],
+    ["首件檢驗點數","3","檢","阻擋"]
+  ];
+  var threshH='';
+  for(var j=0;j<th.length;j++){
+    var segOn=th[j][3];
+    threshH+='<div style="display:flex;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid var(--line)">'
+      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+th[j][0]+'</div>'
+      +'<div class="seg" style="margin-top:6px"><span class="'+(segOn==="阻擋"?"on":"")+'">阻擋</span><span class="'+(segOn==="覆判"?"on":"")+'">覆判</span><span class="'+(segOn==="提示"?"on":"")+'">提示</span></div></div>'
+      +'<div class="thresh"><span class="num" style="font-size:19px;color:var(--acc)">'+th[j][1]+'</span><span style="font-size:12px;color:var(--mut)">'+th[j][2]+'</span></div></div>';
+  }
+  return '<div class="grid k4">'
+    +kpi("verified_user","#b45309","#fde9cf","啟用防呆點","24","點","up","本產品別")
+    +kpi("gavel","#15803d","#dcfce7","阻擋型規則","19","條","up","強制鎖機")
+    +kpi("tune","#a16207","#fef3c7","門檻條件","12","項","up","可調整")
+    +kpi("update","#7a6f60","#eee7db","上次調整","3","天前","up","吳承翰")
+    +'</div>'
+    +'<div class="grid c23" style="margin-top:16px">'
+    +'<div class="card"><div class="ct"><span class="material-symbols-outlined">checklist</span><b>防呆點清單 · PCBA 主板</b><span class="tag">共 8 點</span></div>'+rh+'</div>'
+    +'<div class="card"><div class="ct"><span class="material-symbols-outlined">tune</span><b>門檻與攔截動作</b></div>'+threshH+'</div>'
+    +'</div>';
+}
+
+function screen5(){
+  return '<div class="grid k4">'
+    +kpi("shield","#15803d","#dcfce7","防呆攔截率","99.4","%","up","+1.8% vs 上月")
+    +kpi("error","#b91c1c","#fee2e2","誤操作事件","118","件","down","-42% vs 上月")
+    +kpi("running_with_errors","#a16207","#fef3c7","漏檢逃逸","3","件","down","流出客戶 0")
+    +kpi("savings","#b45309","#fde9cf","重工成本節省","286","萬","up","本季累計")
+    +'</div>'
+    +'<div class="grid c23" style="margin-top:16px">'
+    +'<div class="card"><div class="ct"><span class="material-symbols-outlined">show_chart</span><b>攔截率 vs 誤操作事件（近 6 個月）</b></div><div class="chartbox"><canvas id="c5line"></canvas></div></div>'
+    +'<div class="card"><div class="ct"><span class="material-symbols-outlined">bar_chart</span><b>各防呆點攔截次數</b></div><div class="chartbox"><canvas id="c5bar"></canvas></div></div>'
+    +'</div>'
+    +'<div class="grid c12" style="margin-top:16px">'
+    +'<div class="card"><div class="ct"><span class="material-symbols-outlined">radar</span><b>產線防呆健全度</b></div><div class="chartbox"><canvas id="c5radar"></canvas></div></div>'
+    +'<div class="card"><div class="ct"><span class="material-symbols-outlined">leaderboard</span><b>攔截原因 Top 排行</b></div>'+topReasons()+'</div>'
+    +'</div>';
+}
+function topReasons(){
+  var d=[["錯料/料槽錯置",412,92],["批號效期過期",188,64],["扭力未達門檻",143,52],["首件未確認",97,38],["治具版本不符",61,26],["作業員無權限",44,18]];
+  var h='';
+  for(var i=0;i<d.length;i++){
+    h+='<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><b>'+d[i][0]+'</b><span class="mono" style="color:var(--mut)">'+d[i][1]+' 次</span></div>'
+      +'<div class="bar"><i style="width:'+d[i][2]+'%"></i></div></div>';
+  }
+  return h;
+}
+
+function initCharts(i){
+  var GRID={color:"#eee7db"};
+  if(i===2){
+    mkChart("c2pie",{type:"doughnut",data:{labels:["極性反接","偏移","漏裝","錫橋","其他"],datasets:[{data:[11,7,5,4,2],backgroundColor:["#b91c1c","#f59e0b","#b45309","#a16207","#cbc2b2"],borderWidth:2,borderColor:"#fff"}]},options:{cutout:"58%",plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false}});
+    mkChart("c2line",{type:"line",data:{labels:["01","02","03","04","05","06","07","08"],datasets:[
+      {label:"極性反接",data:[3,2,4,3,5,2,3,4],borderColor:"#b91c1c",backgroundColor:"rgba(185,28,28,.08)",tension:.35,fill:true},
+      {label:"漏裝",data:[1,2,1,3,2,1,2,1],borderColor:"#b45309",backgroundColor:"rgba(180,83,9,.08)",tension:.35,fill:true},
+      {label:"偏移",data:[2,1,2,1,3,2,1,2],borderColor:"#f59e0b",backgroundColor:"rgba(245,158,11,.08)",tension:.35,fill:true}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{x:{grid:GRID},y:{grid:GRID,beginAtZero:true}}}});
+  }else if(i===5){
+    mkChart("c5line",{type:"line",data:{labels:["3月","4月","5月","6月","7月","8月"],datasets:[
+      {label:"防呆攔截率 %",data:[96.1,97.0,97.8,98.5,98.9,99.4],borderColor:"#15803d",backgroundColor:"rgba(21,128,61,.1)",tension:.35,fill:true,yAxisID:"y"},
+      {label:"誤操作事件",data:[204,182,168,149,131,118],borderColor:"#b91c1c",backgroundColor:"rgba(185,28,28,.06)",tension:.35,yAxisID:"y1"}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{x:{grid:GRID},y:{position:"left",min:94,max:100,grid:GRID},y1:{position:"right",grid:{drawOnChartArea:false}}}}});
+    mkChart("c5bar",{type:"bar",data:{labels:["錯料","效期","扭力","首件","治具","權限"],datasets:[{label:"攔截次數",data:[412,188,143,97,61,44],backgroundColor:"#b45309",borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:GRID,beginAtZero:true}}}});
+    mkChart("c5radar",{type:"radar",data:{labels:["錯料防呆","連鎖攔截","影像檢測","扭力管控","效期管控","權限控管"],datasets:[
+      {label:"本月",data:[98,95,92,90,94,99],borderColor:"#b45309",backgroundColor:"rgba(180,83,9,.18)",borderWidth:2,pointBackgroundColor:"#b45309"},
+      {label:"目標",data:[95,92,90,88,90,95],borderColor:"#f59e0b",backgroundColor:"rgba(245,158,11,.08)",borderWidth:2,pointBackgroundColor:"#f59e0b"}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{r:{min:70,max:100,grid:GRID,angleLines:GRID,pointLabels:{font:{size:11}}}}}});
+  }
+}
+
+var RENDER=[screen0,screen1,screen2,screen3,screen4,screen5];
+function show(i){
+  i=Math.max(0,Math.min(i,SCREENS.length-1));
+  destroyCharts();
+  var btns=document.querySelectorAll("#nav button");
+  for(var b=0;b<btns.length;b++)btns[b].className=(+btns[b].getAttribute("data-i")===i)?"on":"";
+  el("ttl").textContent=SCREENS[i].name;
+  el("sub").textContent=SCREENS[i].sub;
+  var view=el("view");
+  view.innerHTML=RENDER[i]();
+  void view.offsetHeight;
+  initCharts(i);
+}
+(function buildNav(){
+  var nav=el("nav");var h="";
+  for(var i=0;i<SCREENS.length;i++){
+    h+='<button data-i="'+i+'"><span class="material-symbols-outlined">'+SCREENS[i].icon+'</span><span class="tx">'+SCREENS[i].name+'</span><span class="n">v'+i+'</span></button>';
+  }
+  nav.innerHTML=h;
+  var btns=nav.querySelectorAll("button");
+  for(var j=0;j<btns.length;j++){btns[j].addEventListener("click",function(){show(+this.getAttribute("data-i"));try{window.scrollTo(0,0);}catch(e){}});}
+})();
+show(0);
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>

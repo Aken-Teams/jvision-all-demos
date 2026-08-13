@@ -1,18 +1,519 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>IPQC（In-Process Quality Control，製程在線檢驗）｜Jvision 系統 Demo</title>
-  <meta name="description" content="從異常到改善的品質閉環與追溯稽核" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>IPQC 製程在線檢驗 · 純 UI 展示</title>
+<meta name="description" content="從異常到改善的品質閉環與追溯稽核" />
+<link rel="icon" href="../../favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+  :root{
+    --accent:#e11d48; --accent2:#fb7185; --ink:#1f2430; --muted:#6b7280;
+    --line:#eceef2; --bg:#f4f5f7; --card:#ffffff; --ok:#16a34a; --warn:#f59e0b; --bad:#e11d48;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Inter","Noto Sans TC",system-ui,sans-serif;
+    background:var(--bg); color:var(--ink); font-size:14px; line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .ms{font-family:"Material Symbols Outlined";font-weight:400;font-style:normal;line-height:1;vertical-align:middle;}
+  .topbar{
+    position:sticky; top:0; z-index:20; background:rgba(255,255,255,.92);
+    backdrop-filter:blur(8px); border-bottom:1px solid var(--line);
+  }
+  .topbar-in{max-width:1360px;margin:0 auto;padding:10px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:10px;flex:none;min-width:0;}
+  .brand .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:var(--shadow);}
+  .brand .logo .ms{font-size:20px;}
+  .brand b{font-size:15px;font-weight:800;letter-spacing:.2px;white-space:nowrap;}
+  .brand span{display:block;font-size:11px;color:var(--muted);white-space:nowrap;}
+  nav{display:flex;gap:6px;flex-wrap:wrap;flex:1 1 auto;min-width:0;justify-content:flex-end;}
+  nav button{
+    flex:none;white-space:nowrap;min-width:0;cursor:pointer;border:1px solid var(--line);
+    background:#fff;color:var(--muted);padding:8px 12px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;
+    display:inline-flex;align-items:center;gap:7px;transition:.15s;
+  }
+  nav button .ms{font-size:18px;}
+  nav button:hover{border-color:var(--accent2);color:var(--accent);}
+  nav button.on{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#fff;box-shadow:0 6px 16px rgba(225,29,72,.28);}
+  main{max-width:1360px;margin:0 auto;padding:20px 18px 60px;}
+  .screen-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px;}
+  .screen-head h1{margin:0;font-size:20px;font-weight:800;letter-spacing:.2px;}
+  .screen-head p{margin:4px 0 0;color:var(--muted);font-size:13px;max-width:720px;}
+  .tag{display:inline-flex;align-items:center;gap:6px;background:#fff1f3;color:var(--accent);border:1px solid #ffd9e0;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;}
+  .tag .ms{font-size:15px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);}
+  .card-p{padding:16px 18px;min-width:0;}
+  .card h3{margin:0 0 2px;font-size:14px;font-weight:800;}
+  .card .sub{color:var(--muted);font-size:12px;margin-bottom:12px;}
+  .grid{display:grid;gap:14px;}
+  .g-kpi{grid-template-columns:repeat(4,1fr);}
+  .g-2a{grid-template-columns:1.4fr 1fr;}
+  .g-2b{grid-template-columns:1fr 1.5fr;}
+  @media(max-width:820px){
+    .g-kpi{grid-template-columns:1fr 1fr;}
+    .g-2a,.g-2b{grid-template-columns:1fr;}
+  }
+  @media(max-width:480px){ .g-kpi{grid-template-columns:1fr;} }
+  .kpi{padding:15px 16px;position:relative;overflow:hidden;min-width:0;}
+  .kpi .lab{color:var(--muted);font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;}
+  .kpi .val{font-size:24px;font-weight:800;margin-top:6px;letter-spacing:.4px;}
+  .kpi .val small{font-size:13px;font-weight:600;color:var(--muted);margin-left:3px;}
+  .kpi .dl{font-size:12px;margin-top:6px;font-weight:700;display:inline-flex;align-items:center;gap:3px;}
+  .kpi .up{color:var(--ok);} .kpi .dn{color:var(--bad);}
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap;}
+  .c-ok{background:#e8f7ee;color:var(--ok);}
+  .c-warn{background:#fef4e6;color:#b45309;}
+  .c-bad{background:#ffe9ee;color:var(--bad);}
+  .c-info{background:#eef2ff;color:#4f46e5;}
+  .c-mut{background:#eef0f3;color:var(--muted);}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  th{font-size:11.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+  tbody tr:hover{background:#fafbfc;}
+  .mono{font-variant-numeric:tabular-nums;font-family:"Inter",monospace;}
+  .chart{width:100%;height:300px;}
+  .scroll{overflow-x:auto;}
+  .board{display:grid;grid-template-columns:repeat(4,minmax(230px,1fr));gap:14px;}
+  .col{background:#f8f9fb;border:1px solid var(--line);border-radius:14px;padding:10px;min-width:0;}
+  .col-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:2px 4px;}
+  .col-h b{font-size:13px;}
+  .col-h .cnt{background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:11.5px;font-weight:700;color:var(--muted);}
+  .tk{background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:11px;padding:10px 11px;margin-bottom:9px;box-shadow:0 1px 2px rgba(16,24,40,.04);}
+  .tk .id{font-size:11px;color:var(--muted);font-weight:700;font-family:monospace;}
+  .tk .t{font-size:13px;font-weight:700;margin:3px 0 6px;white-space:normal;}
+  .tk .m{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);}
+  .tk .av{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;}
+  .matrix td .bar{height:7px;border-radius:6px;background:#eef0f3;position:relative;min-width:90px;}
+  .matrix td .bar i{position:absolute;top:-3px;width:3px;height:13px;border-radius:2px;background:var(--accent);}
+  .prog{height:8px;border-radius:6px;background:#eef0f3;overflow:hidden;min-width:90px;}
+  .prog i{display:block;height:100%;border-radius:6px;}
+  .gauge{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);}
+  .gauge:last-child{border-bottom:none;}
+  .gauge .nm{width:140px;min-width:0;font-weight:700;font-size:12.5px;}
+  .gauge .track{flex:1;min-width:0;height:14px;border-radius:8px;background:linear-gradient(90deg,#ffe9ee 0%,#e8f7ee 22%,#e8f7ee 78%,#ffe9ee 100%);position:relative;}
+  .gauge .track .lsl,.gauge .track .usl{position:absolute;top:-3px;width:2px;height:20px;background:var(--bad);}
+  .gauge .track .pin{position:absolute;top:-4px;width:4px;height:22px;border-radius:3px;background:var(--ink);transform:translateX(-50%);}
+  .gauge .rd{width:70px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;font-size:13px;}
+  .tl{position:relative;padding-left:26px;}
+  .tl::before{content:"";position:absolute;left:9px;top:4px;bottom:4px;width:2px;background:var(--line);}
+  .tl-i{position:relative;padding:0 0 16px;}
+  .tl-i::before{content:"";position:absolute;left:-21px;top:3px;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid var(--accent);}
+  .tl-i.warn::before{border-color:var(--warn);}
+  .tl-i.bad::before{border-color:var(--bad);}
+  .tl-i.ok::before{border-color:var(--ok);}
+  .tl-i .tm{font-size:11.5px;color:var(--muted);font-weight:700;font-family:monospace;}
+  .tl-i .bd{font-size:13px;margin-top:2px;}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px;}
+  .legend span{display:inline-flex;align-items:center;gap:5px;}
+  .note{margin-top:14px;padding:12px;background:#fff1f3;border:1px solid #ffd9e0;border-radius:12px;font-size:12.5px;color:var(--accent);font-weight:600;}
+  .foot{color:var(--muted);font-size:12px;text-align:center;margin-top:28px;}
+  @media(max-width:560px){ nav button .lab{display:none;} nav button{padding:8px 10px;} }
+</style>
 </head>
 <body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <div class="logo"><span class="ms">fact_check</span></div>
+      <div><b>IPQC 製程在線檢驗</b><span>In-Process Quality Control · QMS</span></div>
+    </div>
+    <nav id="nav"></nav>
+  </div>
+</header>
+<main>
   <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <div class="foot">純 UI 系統展示（無後端）· 畫面與資料皆為擬真示範 · IPQC 製程在線檢驗</div>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  var chart = null;
+
+  var NAVS = [
+    {icon:"checklist_rtl", label:"檢驗點設定"},
+    {icon:"event_available", label:"巡檢排程"},
+    {icon:"edit_note", label:"現場量測"},
+    {icon:"monitoring", label:"異常/SPC"},
+    {icon:"notifications_active", label:"即時通報"},
+    {icon:"task_alt", label:"處置追蹤"}
+  ];
+
+  function el(id){ return document.getElementById(id); }
+  function esc(s){ return String(s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];}); }
+
+  var navBox = el("nav");
+  var navHtml = "";
+  for(var i=0;i<NAVS.length;i++){
+    navHtml += '<button data-i="'+i+'"><span class="ms">'+NAVS[i].icon+'</span><span class="lab">'+NAVS[i].label+'</span></button>';
+  }
+  navBox.innerHTML = navHtml;
+  navBox.addEventListener("click", function(e){
+    var b = e.target.closest("button[data-i]");
+    if(!b) return;
+    show(+b.getAttribute("data-i"));
+    try{ location.hash = "v"+b.getAttribute("data-i"); }catch(err){}
+  });
+
+  function head(title, sub, tag){
+    return '<div class="screen-head"><div><h1>'+title+'</h1><p>'+sub+'</p></div>'+
+      '<span class="tag"><span class="ms">bolt</span>'+tag+'</span></div>';
+  }
+  function kpi(lab, icon, val, unit, delta, up){
+    return '<div class="card kpi"><div class="lab"><span class="ms" style="font-size:16px;color:var(--accent)">'+icon+'</span>'+lab+'</div>'+
+      '<div class="val">'+val+(unit?'<small>'+unit+'</small>':'')+'</div>'+
+      '<div class="dl '+(up?'up':'dn')+'"><span class="ms" style="font-size:14px">'+(up?'trending_up':'trending_down')+'</span>'+delta+'</div></div>';
+  }
+
+  // ============ SCREEN 0 — 檢驗點設定 ============
+  function s0(){
+    var pts = [
+      {id:"IPQC-CNC01", name:"CNC 銑削-外徑", ch:"外徑 Ø", lsl:23.95, usl:24.05, cur:24.01, cpk:1.42, freq:"每 2 小時", line:"A 線", on:true},
+      {id:"IPQC-CNC02", name:"CNC 銑削-深度", ch:"孔深", lsl:12.40, usl:12.60, cur:12.57, cpk:1.05, freq:"每 2 小時", line:"A 線", on:true},
+      {id:"IPQC-INJ07", name:"射出-重量", ch:"淨重 g", lsl:37.90, usl:38.50, cur:38.44, cpk:0.92, freq:"每 1 小時", line:"B 線", on:true},
+      {id:"IPQC-INJ08", name:"射出-外觀", ch:"外觀判定", lsl:0, usl:0, cur:0, cpk:null, freq:"每批", line:"B 線", on:true},
+      {id:"IPQC-WELD3", name:"焊接-拉力", ch:"拉力 N", lsl:480, usl:9999, cur:498, cpk:1.18, freq:"每 4 小時", line:"C 線", on:true},
+      {id:"IPQC-ASM12", name:"組裝-扭力", ch:"鎖付扭力 N·m", lsl:8.0, usl:9.0, cur:8.7, cpk:1.33, freq:"每 2 小時", line:"D 線", on:false},
+      {id:"IPQC-PLT05", name:"電鍍-膜厚", ch:"膜厚 μm", lsl:12.0, usl:18.0, cur:14.2, cpk:1.51, freq:"每 3 小時", line:"E 線", on:true},
+      {id:"IPQC-PCB09", name:"SMT-錫膏厚", ch:"錫膏 μm", lsl:100, usl:140, cur:132, cpk:1.09, freq:"每 1 小時", line:"F 線", on:true}
+    ];
+    function cpkChip(v){
+      if(v===null) return '<span class="chip c-info">計數型</span>';
+      if(v>=1.33) return '<span class="chip c-ok">Cpk '+v.toFixed(2)+'</span>';
+      if(v>=1.0) return '<span class="chip c-warn">Cpk '+v.toFixed(2)+'</span>';
+      return '<span class="chip c-bad">Cpk '+v.toFixed(2)+'</span>';
+    }
+    function bar(p){
+      if(p.usl===9999||p.lsl===p.usl) return '<span style="color:var(--muted)">—</span>';
+      var pos = (p.cur-p.lsl)/(p.usl-p.lsl)*100;
+      pos = Math.max(4,Math.min(96,pos));
+      return '<div class="bar"><i style="left:'+pos.toFixed(0)+'%"></i></div>';
+    }
+    var rows = "";
+    for(var i=0;i<pts.length;i++){
+      var p = pts[i];
+      rows += '<tr><td class="mono" style="font-weight:700">'+esc(p.id)+'</td>'+
+        '<td>'+esc(p.name)+'<div style="font-size:11.5px;color:var(--muted)">'+esc(p.ch)+'</div></td>'+
+        '<td class="mono">'+(p.lsl===p.usl?'—':p.lsl)+'</td>'+
+        '<td class="mono">'+(p.usl===9999||p.usl===p.lsl?'—':p.usl)+'</td>'+
+        '<td class="matrix">'+bar(p)+'</td>'+
+        '<td class="mono" style="font-weight:700">'+(p.cpk===null?'—':p.cur)+'</td>'+
+        '<td>'+cpkChip(p.cpk)+'</td>'+
+        '<td><span class="chip c-mut">'+esc(p.freq)+'</span></td>'+
+        '<td>'+esc(p.line)+'</td>'+
+        '<td>'+(p.on?'<span class="chip c-ok"><span class="dot" style="background:var(--ok)"></span>啟用</span>':'<span class="chip c-mut">停用</span>')+'</td></tr>';
+    }
+    var active=0, risk=0;
+    for(var k=0;k<pts.length;k++){ if(pts[k].on)active++; if(pts[k].cpk!==null&&pts[k].cpk<1.33)risk++; }
+    return head("檢驗點設定", "維護製程檢驗點、規格上下限（LSL/USL）與抽驗頻率，作為巡檢排程與異常判定的基準。", "IPQC 設定基準")+
+      '<div class="grid g-kpi" style="margin-bottom:14px">'+
+        kpi("檢驗點總數","checklist",pts.length,"點","本月新增 2 點",true)+
+        kpi("啟用中","toggle_on",active,"點","覆蓋 6 條產線",true)+
+        kpi("能力不足 Cpk&lt;1.33","warning",risk,"點","需加嚴監控",false)+
+        kpi("平均抽驗頻率","schedule","2.1","小時","符合管制計畫",true)+
+      '</div>'+
+      '<div class="card card-p"><h3>製程檢驗點清單</h3><div class="sub">「製程分布」標記量測值相對規格中線的位置；計數型項目以外觀判定管理。</div>'+
+        '<div class="scroll"><table><thead><tr><th>檢驗點</th><th>項目 / 特性</th><th>LSL</th><th>USL</th><th>製程分布</th><th>現值</th><th>製程能力</th><th>頻率</th><th>產線</th><th>狀態</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+  }
+
+  // ============ SCREEN 1 — 巡檢排程 KANBAN ============
+  function s1(){
+    var cols = [
+      {key:"todo", title:"待巡檢", icon:"schedule", tint:"var(--muted)"},
+      {key:"doing", title:"巡檢中", icon:"directions_walk", tint:"var(--accent)"},
+      {key:"review", title:"待判定", icon:"pending", tint:"var(--warn)"},
+      {key:"done", title:"已完成", icon:"check_circle", tint:"var(--ok)"}
+    ];
+    var tasks = {
+      todo:[
+        {id:"PT-2418", t:"A 線 CNC 外徑巡檢", who:"陳", line:"A 線 · CNC01", due:"14:00", pri:"c-warn", prit:"即將到期"},
+        {id:"PT-2421", t:"B 線 射出淨重抽驗", who:"林", line:"B 線 · INJ07", due:"14:30", pri:"c-mut", prit:"排定"},
+        {id:"PT-2425", t:"F 線 SMT 錫膏厚度", who:"黃", line:"F 線 · PCB09", due:"15:00", pri:"c-mut", prit:"排定"}
+      ],
+      doing:[
+        {id:"PT-2410", t:"C 線 焊接拉力量測", who:"吳", line:"C 線 · WELD3", due:"13:20", pri:"c-info", prit:"進行中"},
+        {id:"PT-2412", t:"E 線 電鍍膜厚巡檢", who:"張", line:"E 線 · PLT05", due:"13:40", pri:"c-info", prit:"進行中"}
+      ],
+      review:[
+        {id:"PT-2405", t:"A 線 孔深超差複判", who:"陳", line:"A 線 · CNC02", due:"逾 12 分", pri:"c-bad", prit:"逾期"},
+        {id:"PT-2407", t:"B 線 外觀不良確認", who:"林", line:"B 線 · INJ08", due:"待覆核", pri:"c-warn", prit:"待判定"}
+      ],
+      done:[
+        {id:"PT-2390", t:"D 線 鎖付扭力巡檢", who:"周", line:"D 線 · ASM12", due:"12:10", pri:"c-ok", prit:"合格"},
+        {id:"PT-2388", t:"A 線 外徑首件確認", who:"陳", line:"A 線 · CNC01", due:"11:50", pri:"c-ok", prit:"合格"},
+        {id:"PT-2385", t:"F 線 錫膏首件", who:"黃", line:"F 線 · PCB09", due:"11:30", pri:"c-ok", prit:"合格"}
+      ]
+    };
+    var board = "";
+    for(var c=0;c<cols.length;c++){
+      var col = cols[c], list = tasks[col.key], cards="";
+      for(var j=0;j<list.length;j++){
+        var tk = list[j];
+        cards += '<div class="tk" style="border-left-color:'+col.tint+'">'+
+          '<div class="id">'+esc(tk.id)+'</div>'+
+          '<div class="t">'+esc(tk.t)+'</div>'+
+          '<div class="m"><span class="av">'+esc(tk.who)+'</span><span>'+esc(tk.line)+'</span></div>'+
+          '<div class="m" style="margin-top:6px"><span class="chip '+tk.pri+'"><span class="ms" style="font-size:13px">flag</span>'+esc(tk.prit)+'</span><span><span class="ms" style="font-size:13px">schedule</span> '+esc(tk.due)+'</span></div>'+
+          '</div>';
+      }
+      board += '<div class="col"><div class="col-h"><b><span class="ms" style="font-size:16px;color:'+col.tint+';vertical-align:-3px">'+col.icon+'</span> '+col.title+'</b><span class="cnt">'+list.length+'</span></div>'+cards+'</div>';
+    }
+    return head("巡檢排程看板", "依班別與檢驗點自動產生巡檢任務，看板追蹤待巡檢、巡檢中、待判定與完成狀態，逾期任務自動升級。", "早班 · 08:00–16:00")+
+      '<div class="grid g-kpi" style="margin-bottom:14px">'+
+        kpi("今日巡檢任務","assignment",42,"件","早班 18 件",true)+
+        kpi("巡檢達成率","donut_large","88","%","目標 90%",true)+
+        kpi("逾期任務","running_with_errors",1,"件","已升級班長",false)+
+        kpi("平均巡檢耗時","timer","9.4","分","較上週 -1.2",true)+
+      '</div>'+
+      '<div class="card card-p"><h3>巡檢任務看板</h3><div class="sub">卡片左側色條代表狀態；逾期任務以紅色標記並自動通知現場與主管。</div>'+
+        '<div class="scroll"><div class="board">'+board+'</div></div></div>';
+  }
+
+  // ============ SCREEN 2 — 現場量測登錄 ============
+  function s2(){
+    var g = [
+      {nm:"外徑 Ø (mm)", lsl:23.95, usl:24.05, val:24.01},
+      {nm:"孔深 (mm)", lsl:12.40, usl:12.60, val:12.58},
+      {nm:"淨重 (g)", lsl:37.90, usl:38.50, val:38.46},
+      {nm:"鎖付扭力 (N·m)", lsl:8.0, usl:9.0, val:8.7},
+      {nm:"膜厚 (μm)", lsl:12.0, usl:18.0, val:14.2}
+    ];
+    var gauges = "";
+    for(var i=0;i<g.length;i++){
+      var it=g[i];
+      var pos=(it.val-it.lsl)/(it.usl-it.lsl)*100; pos=Math.max(2,Math.min(98,pos));
+      var oos = it.val<it.lsl||it.val>it.usl;
+      gauges += '<div class="gauge"><div class="nm">'+esc(it.nm)+'</div>'+
+        '<div class="track"><div class="lsl" style="left:0"></div><div class="usl" style="right:0"></div><div class="pin" style="left:'+pos.toFixed(1)+'%;background:'+(oos?'var(--bad)':'var(--ink)')+'"></div></div>'+
+        '<div class="rd" style="color:'+(oos?'var(--bad)':'var(--ink)')+'">'+it.val+'</div>'+
+        '<div style="width:56px;text-align:center">'+(oos?'<span class="chip c-bad">超差</span>':'<span class="chip c-ok">合格</span>')+'</div></div>';
+    }
+    var recs = [
+      {tm:"13:42", pt:"IPQC-CNC01", ch:"外徑", val:24.01, res:"合格", cls:"c-ok", op:"陳志明", lot:"A24-0813-07"},
+      {tm:"13:38", pt:"IPQC-CNC02", ch:"孔深", val:12.58, res:"合格", cls:"c-ok", op:"陳志明", lot:"A24-0813-07"},
+      {tm:"13:30", pt:"IPQC-INJ07", ch:"淨重", val:38.46, res:"合格", cls:"c-ok", op:"林佳蓉", lot:"B77-0813-03"},
+      {tm:"13:22", pt:"IPQC-CNC02", ch:"孔深", val:12.62, res:"超差", cls:"c-bad", op:"陳志明", lot:"A24-0813-06"},
+      {tm:"13:15", pt:"IPQC-WELD3", ch:"拉力", val:498, res:"合格", cls:"c-ok", op:"吳孟儒", lot:"C31-0813-02"},
+      {tm:"13:08", pt:"IPQC-PLT05", ch:"膜厚", val:14.2, res:"合格", cls:"c-ok", op:"張婉如", lot:"E05-0813-01"},
+      {tm:"12:55", pt:"IPQC-PCB09", ch:"錫膏", val:132, res:"合格", cls:"c-ok", op:"黃國銘", lot:"F09-0813-05"},
+      {tm:"12:40", pt:"IPQC-INJ08", ch:"外觀", val:"NG-毛邊", res:"不良", cls:"c-bad", op:"林佳蓉", lot:"B77-0813-02"}
+    ];
+    var rows="";
+    for(var r=0;r<recs.length;r++){
+      var d=recs[r];
+      rows += '<tr><td class="mono">'+esc(d.tm)+'</td><td class="mono" style="font-weight:700">'+esc(d.pt)+'</td>'+
+        '<td>'+esc(d.ch)+'</td><td class="mono" style="font-weight:700">'+esc(d.val)+'</td>'+
+        '<td><span class="chip '+d.cls+'">'+esc(d.res)+'</span></td><td>'+esc(d.op)+'</td><td class="mono">'+esc(d.lot)+'</td></tr>';
+    }
+    return head("現場量測登錄", "巡檢員於產線逐項登錄量測值，系統即時比對規格上下限並自動判定合格或超差，超差項目串接後段流程。", "工單 WO-24-0813 · A 線")+
+      '<div class="grid g-2b">'+
+        '<div class="card card-p"><h3>即時量測登錄</h3><div class="sub">綠帶為合格區間，紅色端點為 LSL / USL，指針為本次量測值。</div>'+gauges+
+          '<div class="legend"><span><span class="dot" style="background:var(--ink)"></span>量測值</span><span><span class="dot" style="background:var(--bad)"></span>規格界限</span><span><span class="dot" style="background:var(--ok)"></span>合格區</span></div></div>'+
+        '<div class="card card-p"><h3>本班登錄紀錄</h3><div class="sub">超差 / 不良項目自動標記，並串接異常判定與即時通報。</div>'+
+          '<div class="scroll"><table><thead><tr><th>時間</th><th>檢驗點</th><th>特性</th><th>量測值</th><th>判定</th><th>登錄人</th><th>批號</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+      '</div>';
+  }
+
+  // ============ SCREEN 3 — 異常判定 / SPC ============
+  function s3(){
+    return head("異常判定 / SPC 管制圖", "以 X-bar 管制圖與 Cpk 判讀製程趨勢，偵測連續超差與異常規則，判定異常等級並鎖定失效工站。", "IPQC-CNC02 · 孔深")+
+      '<div class="grid g-kpi" style="margin-bottom:14px">'+
+        kpi("製程能力 Cpk","speed","1.05","","低於門檻 1.33",false)+
+        kpi("本班超差點","report","3","點","連續 2 點超 UCL",false)+
+        kpi("製程不良率","percent","2.4","%","目標 &lt;2.0%",false)+
+        kpi("異常等級","priority_high","B 級","","建議加嚴抽驗",false)+
+      '</div>'+
+      '<div class="grid g-2a">'+
+        '<div class="card card-p"><h3>X-bar 管制圖 · 孔深 (mm)</h3><div class="sub">紅線為管制上下限 UCL/LCL，灰虛線為中心線 CL；超出界限的點判定為異常。</div><div id="c3a" class="chart"></div></div>'+
+        '<div class="card card-p"><h3>不良柏拉圖</h3><div class="sub">依異常型態累積佔比，鎖定主要改善對象。</div><div id="c3b" class="chart"></div></div>'+
+      '</div>';
+  }
+  function draw3(){
+    var a = el("c3a");
+    if(a && window.echarts){
+      var CL=12.50, UCL=12.60, LCL=12.40;
+      var pts=[12.51,12.49,12.53,12.55,12.52,12.58,12.56,12.61,12.62,12.57,12.54,12.50,12.48,12.52,12.55];
+      var xs=[]; for(var i=0;i<pts.length;i++) xs.push(i+1);
+      chart = window.echarts.init(a);
+      chart.setOption({
+        grid:{left:46,right:56,top:24,bottom:30},
+        tooltip:{trigger:"axis"},
+        xAxis:{type:"category",data:xs,axisLine:{lineStyle:{color:"#c8ccd4"}}},
+        yAxis:{type:"value",min:12.35,max:12.65,axisLine:{show:false},splitLine:{lineStyle:{color:"#f0f1f4"}}},
+        series:[
+          {type:"line",data:pts,symbol:"circle",symbolSize:7,lineStyle:{color:"#e11d48",width:2},
+            itemStyle:{color:function(p){ return (p.value>UCL||p.value<LCL)?"#e11d48":"#fb7185"; }},
+            markLine:{silent:true,symbol:"none",data:[
+              {yAxis:UCL,lineStyle:{color:"#e11d48"},label:{formatter:"UCL "+UCL,color:"#e11d48",position:"end"}},
+              {yAxis:CL,lineStyle:{color:"#9aa0aa",type:"dashed"},label:{formatter:"CL "+CL,color:"#9aa0aa",position:"end"}},
+              {yAxis:LCL,lineStyle:{color:"#e11d48"},label:{formatter:"LCL "+LCL,color:"#e11d48",position:"end"}}
+            ]}}
+        ]
+      });
+    }
+    var b = el("c3b");
+    if(b && window.echarts){
+      var cats=["尺寸超差","外觀毛邊","刀具磨耗","定位偏移","其他"];
+      var vals=[38,24,16,12,6];
+      var tot=0; for(var m=0;m<vals.length;m++) tot+=vals[m];
+      var cum=[], s=0;
+      for(var n=0;n<vals.length;n++){ s+=vals[n]; cum.push(+(s/tot*100).toFixed(0)); }
+      var c2 = window.echarts.init(b);
+      c2.setOption({
+        grid:{left:40,right:44,top:24,bottom:34},
+        tooltip:{trigger:"axis"},
+        xAxis:{type:"category",data:cats,axisLabel:{interval:0,fontSize:10},axisLine:{lineStyle:{color:"#c8ccd4"}}},
+        yAxis:[{type:"value",axisLine:{show:false},splitLine:{lineStyle:{color:"#f0f1f4"}}},
+               {type:"value",max:100,axisLabel:{formatter:"{value}%"},splitLine:{show:false}}],
+        series:[
+          {type:"bar",data:vals,barWidth:"48%",itemStyle:{color:"#fb7185",borderRadius:[5,5,0,0]}},
+          {type:"line",yAxisIndex:1,data:cum,symbol:"circle",symbolSize:6,lineStyle:{color:"#e11d48",width:2},itemStyle:{color:"#e11d48"}}
+        ]
+      });
+    }
+  }
+
+  // ============ SCREEN 4 — 即時通報 ============
+  function s4(){
+    var evts = [
+      {tm:"13:22", cls:"bad", ttl:"孔深連續超差 · A 線 CNC02", body:"IPQC-CNC02 量測 12.62mm 超出 USL 12.60，第 2 點連續超差，觸發 <b>批次隔離</b>。", who:"系統自動"},
+      {tm:"13:23", cls:"bad", ttl:"推播 · 班長 + 品保工程師", body:"高優先異常，已推播 App 與現場燈號；批號 A24-0813-06 標記待處置。", who:"通報引擎"},
+      {tm:"13:35", cls:"warn", ttl:"逾時未回應 · 升級", body:"12 分鐘未確認，依規則升級至 <b>製程工程部主管</b> 並副知品質經理。", who:"升級規則 ESC-02"},
+      {tm:"13:41", cls:"ok", ttl:"已確認 · 停機檢查", body:"班長回報已停機，安排刀具更換與首件重驗，異常轉入原因分析。", who:"吳孟儒"},
+      {tm:"13:08", cls:"warn", ttl:"淨重接近上限 · B 線 INJ07", body:"連續 5 點偏向上限，Cpk 0.92，建議調整保壓；列入監控未隔離。", who:"系統自動"},
+      {tm:"12:40", cls:"bad", ttl:"外觀不良 · B 線 INJ08", body:"毛邊不良判定 NG，批號 B77-0813-02 隔離待重工。", who:"林佳蓉"}
+    ];
+    var tl="";
+    for(var i=0;i<evts.length;i++){
+      var e=evts[i];
+      tl += '<div class="tl-i '+e.cls+'"><div class="tm">'+esc(e.tm)+' · '+esc(e.who)+'</div>'+
+        '<div class="bd"><b>'+esc(e.ttl)+'</b><br>'+e.body+'</div></div>';
+    }
+    var chans = [
+      {nm:"App 推播", icon:"smartphone", cnt:18, cls:"c-info"},
+      {nm:"現場燈號 / 看板", icon:"emergency_share", cnt:6, cls:"c-warn"},
+      {nm:"Email 副知主管", icon:"mail", cnt:9, cls:"c-mut"},
+      {nm:"升級至主管", icon:"trending_up", cnt:2, cls:"c-bad"}
+    ];
+    var chs="";
+    for(var c=0;c<chans.length;c++){
+      var ch=chans[c];
+      chs += '<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)">'+
+        '<span style="display:flex;align-items:center;gap:9px;font-weight:700"><span class="ms" style="color:var(--accent)">'+ch.icon+'</span>'+esc(ch.nm)+'</span>'+
+        '<span class="chip '+ch.cls+'">今日 '+ch.cnt+' 次</span></div>';
+    }
+    return head("即時通報中心", "超差與不良異常即時推播現場與主管，逾時未回應自動升級，可觸發批次隔離與停機檢查。", "近 8 小時 · 即時")+
+      '<div class="grid g-kpi" style="margin-bottom:14px">'+
+        kpi("今日通報","campaign",35,"則","高優先 6 則",false)+
+        kpi("平均回應","forum","6.2","分","目標 &lt;10 分",true)+
+        kpi("升級案件","escalator_warning",2,"件","逾時觸發",false)+
+        kpi("批次隔離","block",3,"批","待處置",false)+
+      '</div>'+
+      '<div class="grid g-2a">'+
+        '<div class="card card-p"><h3>即時通報時間軸</h3><div class="sub">紅點為高優先，橙點為監控，綠點為已處置。</div><div class="tl">'+tl+'</div></div>'+
+        '<div class="card card-p"><h3>通報管道統計</h3><div class="sub">多管道併行推播，確保現場與主管同步知悉。</div>'+chs+
+          '<div class="note"><span class="ms" style="font-size:16px;vertical-align:-3px">rule</span> 規則 ESC-02：高優先異常 12 分鐘未確認自動升級至主管。</div></div>'+
+      '</div>';
+  }
+
+  // ============ SCREEN 5 — 處置追蹤 ============
+  function s5(){
+    var cases = [
+      {id:"NCR-0813-06", lot:"A24-0813-06", iss:"孔深超差", stage:"改善驗證", pct:75, cls:"c-warn", own:"吳孟儒", due:"08-15", disp:"隔離 / 重工"},
+      {id:"NCR-0813-02", lot:"B77-0813-02", iss:"外觀毛邊", stage:"原因分析", pct:45, cls:"c-info", own:"林佳蓉", due:"08-16", disp:"隔離待重工"},
+      {id:"NCR-0812-11", lot:"C31-0812-04", iss:"焊接拉力不足", stage:"已關閉", pct:100, cls:"c-ok", own:"吳孟儒", due:"08-12", disp:"報廢"},
+      {id:"NCR-0812-08", lot:"E05-0812-01", iss:"膜厚偏薄", stage:"改善驗證", pct:82, cls:"c-warn", own:"張婉如", due:"08-14", disp:"讓步允收"},
+      {id:"NCR-0811-15", lot:"B77-0811-09", iss:"淨重超差", stage:"已關閉", pct:100, cls:"c-ok", own:"林佳蓉", due:"08-11", disp:"重工"},
+      {id:"NCR-0813-01", lot:"F09-0813-05", iss:"錫膏過厚", stage:"待判定", pct:15, cls:"c-mut", own:"黃國銘", due:"08-17", disp:"待評估"}
+    ];
+    var rows="";
+    for(var i=0;i<cases.length;i++){
+      var c=cases[i];
+      var col = c.pct>=100?"var(--ok)":(c.pct>=60?"var(--warn)":"var(--accent)");
+      rows += '<tr><td class="mono" style="font-weight:700">'+esc(c.id)+'</td><td class="mono">'+esc(c.lot)+'</td>'+
+        '<td>'+esc(c.iss)+'</td><td><span class="chip '+c.cls+'">'+esc(c.stage)+'</span></td>'+
+        '<td style="min-width:120px"><div class="prog"><i style="width:'+c.pct+'%;background:'+col+'"></i></div><div style="font-size:11px;color:var(--muted);margin-top:3px">'+c.pct+'%</div></td>'+
+        '<td>'+esc(c.disp)+'</td><td>'+esc(c.own)+'</td><td class="mono">'+esc(c.due)+'</td></tr>';
+    }
+    return head("處置追蹤", "追蹤異常從待判定、原因分析、改善驗證到已關閉的品質閉環；改善對策需驗證證據方可結案（RULE-03）。", "品質閉環 · 追溯稽核")+
+      '<div class="grid g-kpi" style="margin-bottom:14px">'+
+        kpi("進行中案件","pending_actions",4,"件","本週新增 3 件",false)+
+        kpi("平均關案","event_repeat","9.4","天","較去年 -12.6",true)+
+        kpi("改善驗證率","verified","92","%","目標 90%",true)+
+        kpi("重複不良率","replay","2.0","%","較去年 -4.0",true)+
+      '</div>'+
+      '<div class="grid g-2a">'+
+        '<div class="card card-p"><h3>處置閉環漏斗</h3><div class="sub">各階段案件數，反映異常從判定到結案的收斂情形。</div><div id="c5a" class="chart"></div></div>'+
+        '<div class="card card-p"><h3>製程不良率趨勢</h3><div class="sub">近 6 週製程不良率，導入後穩定收斂至目標線以下。</div><div id="c5b" class="chart"></div></div>'+
+      '</div>'+
+      '<div class="card card-p" style="margin-top:14px"><h3>異常處置追蹤表</h3><div class="sub">未取得驗證證據的案件不得關閉；報廢 / 重工 / 讓步允收需主管核准。</div>'+
+        '<div class="scroll"><table><thead><tr><th>NCR 編號</th><th>批號</th><th>異常</th><th>階段</th><th>進度</th><th>處置方式</th><th>負責人</th><th>期限</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+  }
+  function draw5(){
+    var a = el("c5a");
+    if(a && window.echarts){
+      chart = window.echarts.init(a);
+      chart.setOption({
+        tooltip:{trigger:"item"},
+        series:[{type:"funnel",left:10,right:10,top:10,bottom:10,minSize:"26%",gap:3,
+          label:{color:"#fff",fontWeight:700,formatter:"{b} {c}"},
+          itemStyle:{borderColor:"#fff",borderWidth:2},
+          data:[
+            {value:38,name:"待判定",itemStyle:{color:"#9aa0aa"}},
+            {value:29,name:"原因分析",itemStyle:{color:"#fb7185"}},
+            {value:22,name:"改善驗證",itemStyle:{color:"#f43f6f"}},
+            {value:18,name:"已關閉",itemStyle:{color:"#e11d48"}}
+          ]}]
+      });
+    }
+    var b = el("c5b");
+    if(b && window.echarts){
+      var c2 = window.echarts.init(b);
+      c2.setOption({
+        grid:{left:44,right:20,top:24,bottom:30},
+        tooltip:{trigger:"axis"},
+        xAxis:{type:"category",data:["第1週","第2週","第3週","第4週","第5週","第6週"],axisLine:{lineStyle:{color:"#c8ccd4"}}},
+        yAxis:{type:"value",axisLabel:{formatter:"{value}%"},axisLine:{show:false},splitLine:{lineStyle:{color:"#f0f1f4"}}},
+        series:[
+          {type:"line",data:[5.8,4.9,4.2,3.3,2.6,2.0],smooth:true,symbol:"circle",symbolSize:7,
+            lineStyle:{color:"#e11d48",width:3},itemStyle:{color:"#e11d48"},
+            areaStyle:{color:new window.echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:"rgba(225,29,72,.22)"},{offset:1,color:"rgba(225,29,72,0)"}])},
+            markLine:{silent:true,symbol:"none",data:[{yAxis:2.0,lineStyle:{color:"#16a34a",type:"dashed"},label:{formatter:"目標 2.0%",color:"#16a34a"}}]}}
+        ]
+      });
+    }
+  }
+
+  // ============ router ============
+  var RENDER = [s0,s1,s2,s3,s4,s5];
+  var DRAW = [null,null,null,draw3,null,draw5];
+
+  function show(i){
+    i = Math.max(0, Math.min(RENDER.length-1, i|0));
+    if(chart){ try{ chart.dispose(); }catch(e){} chart=null; }
+    var btns = document.querySelectorAll("[data-i]");
+    for(var b=0;b<btns.length;b++){ btns[b].classList.toggle("on", +btns[b].getAttribute("data-i")===i); }
+    var container = el("app");
+    container.innerHTML = RENDER[i]();
+    void container.offsetHeight;
+    if(DRAW[i]) DRAW[i]();
+  }
+  window.addEventListener("resize", function(){ if(chart){ try{ chart.resize(); }catch(e){} } });
+
+  window.show = show;
+  show(0);
+
+  function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+})();
+</script>
 </body>
 </html>

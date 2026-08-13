@@ -1,18 +1,487 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FA（Failure Analysis，不良分析）｜Jvision 系統 Demo</title>
-  <meta name="description" content="從異常到改善的品質閉環與追溯稽核" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FA 不良分析實驗室平台</title>
+<meta name="description" content="從異常到改善的品質閉環與追溯稽核" />
+<link rel="icon" href="../../favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --accent:#0369a1; --accent2:#38bdf8;
+    --bg:#0b1220; --panel:#111c2e;
+    --line:#243449; --txt:#e6eefb; --mut:#93a7c4; --dim:#64789a;
+    --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden;}
+  body{
+    font-family:"Inter","Noto Sans TC",sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%,#12325233,transparent),var(--bg);
+    color:var(--txt); line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  .ico{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+  header.topbar{
+    position:sticky;top:0;z-index:50;
+    background:linear-gradient(90deg,#0a1524,#0e1e33);
+    border-bottom:1px solid var(--line); padding:10px 16px;
+  }
+  .brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .logo{
+    width:40px;height:40px;border-radius:11px;flex:none;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:flex;align-items:center;justify-content:center;color:#04121f;
+    box-shadow:0 6px 18px #0369a144;
+  }
+  .logo .ico{font-size:24px;}
+  .brand h1{font-size:16px;margin:0;font-weight:800;letter-spacing:.3px;}
+  .brand .sub{font-size:11.5px;color:var(--mut);font-weight:500;}
+  .brand .live{
+    margin-left:auto;display:flex;align-items:center;gap:7px;
+    font-size:11.5px;color:var(--accent2);background:#0d2438;border:1px solid #1c3b56;
+    padding:6px 11px;border-radius:999px;flex:none;white-space:nowrap;min-width:0;
+  }
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 3px #38bdf833;flex:none;}
+  nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+  nav.tabs button{
+    flex:none;white-space:nowrap;min-width:0;
+    display:flex;align-items:center;gap:8px;cursor:pointer;
+    background:#0f1d30;border:1px solid var(--line);color:var(--mut);
+    padding:9px 14px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;
+    transition:.15s;
+  }
+  nav.tabs button .ico{font-size:19px;}
+  nav.tabs button .idx{font-size:11px;color:var(--dim);font-weight:700;}
+  nav.tabs button:hover{border-color:#2f4a68;color:var(--txt);}
+  nav.tabs button.active{
+    background:linear-gradient(135deg,var(--accent),#0284c7);
+    border-color:var(--accent2);color:#fff;box-shadow:0 6px 16px #0369a155;
+  }
+  nav.tabs button.active .idx{color:#bfe6ff;}
+  main{padding:20px 16px 60px;max-width:1360px;margin:0 auto;}
+  .screen-head{margin-bottom:18px;}
+  .screen-head .eyebrow{font-size:12px;color:var(--accent2);font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+  .screen-head h2{margin:4px 0 3px;font-size:22px;font-weight:800;}
+  .screen-head p{margin:0;color:var(--mut);font-size:13.5px;}
+  .grid{display:grid;gap:14px;}
+  .g4{grid-template-columns:repeat(4,1fr);}
+  .g2{grid-template-columns:repeat(2,1fr);}
+  .g23{grid-template-columns:2fr 1fr;}
+  .g32{grid-template-columns:1fr 2fr;}
+  @media(max-width:820px){ .g4,.g2,.g23,.g32{grid-template-columns:1fr;} }
+  .card{
+    background:linear-gradient(180deg,var(--panel),#0f1a2b);
+    border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0;
+  }
+  .card.pad0{padding:0;overflow:hidden;}
+  .card h3{margin:0 0 12px;font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:8px;}
+  .card h3 .ico{font-size:19px;color:var(--accent2);}
+  .card h3 small{margin-left:auto;font-size:11px;color:var(--dim);font-weight:600;}
+  .kpi .lab{font-size:12.5px;color:var(--mut);display:flex;align-items:center;gap:7px;}
+  .kpi .lab .ico{font-size:18px;color:var(--accent2);}
+  .kpi .val{font-size:28px;font-weight:800;margin-top:8px;letter-spacing:.5px;}
+  .kpi .val small{font-size:13px;color:var(--dim);font-weight:600;margin-left:3px;}
+  .kpi .delta{font-size:12px;margin-top:6px;font-weight:600;display:flex;align-items:center;gap:5px;}
+  .up{color:var(--ok);}.down{color:var(--bad);}.flat{color:var(--warn);}
+  .kpi .bar{height:5px;background:#1b2c44;border-radius:5px;margin-top:12px;overflow:hidden;}
+  .kpi .bar i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap;}
+  .c-hi{background:#3a1620;color:#fca5b4;border:1px solid #59202e;}
+  .c-md{background:#3a2c12;color:#fcd68b;border:1px solid #5a4318;}
+  .c-lo{background:#0f2b3f;color:#8fd3f4;border:1px solid #1c4a66;}
+  .c-ok{background:#0f2f1f;color:#86efac;border:1px solid #1c4d33;}
+  .c-gy{background:#1b2740;color:#9db3d4;border:1px solid #2b3c58;}
+  .tbl-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px;}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  th{color:var(--dim);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;background:#0d1727;}
+  tbody tr:hover{background:#13233a;}
+  td .mono{font-family:"Inter",monospace;color:var(--accent2);font-weight:600;}
+  .prog{width:100px;height:6px;background:#1b2c44;border-radius:6px;overflow:hidden;display:inline-block;vertical-align:middle;}
+  .prog i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+  .chart-box{position:relative;height:280px;}
+  .chart-box.sm{height:220px;}
+  .chart-scroll{overflow-x:auto;}
+  .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  @media(max-width:820px){.board{grid-template-columns:1fr;}}
+  .col{background:#0e1a2b;border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;}
+  .col-h{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed var(--line);}
+  .col-h .n{margin-left:auto;background:#1b2c44;color:var(--mut);border-radius:999px;padding:1px 8px;font-size:11px;}
+  .tk{background:linear-gradient(180deg,#132338,#101d30);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:9px;border-left:3px solid var(--accent2);}
+  .tk:last-child{margin-bottom:0;}
+  .tk .id{font-size:11px;color:var(--accent2);font-weight:700;font-family:monospace;}
+  .tk .t{font-size:13px;font-weight:600;margin:3px 0 6px;white-space:normal;}
+  .tk .m{font-size:11px;color:var(--mut);display:flex;justify-content:space-between;gap:6px;}
+  .gtt{min-width:720px;}
+  .gtt .row{display:grid;grid-template-columns:150px 1fr;gap:10px;align-items:center;margin-bottom:9px;}
+  .gtt .lab{font-size:12px;color:var(--mut);white-space:nowrap;}
+  .gtt .lab b{color:var(--txt);display:block;font-size:12.5px;}
+  .track{position:relative;height:26px;background:#0e1a2b;border:1px solid var(--line);border-radius:7px;overflow:hidden;}
+  .track i{position:absolute;top:3px;bottom:3px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:#04121f;overflow:hidden;white-space:nowrap;}
+  .bx{background:linear-gradient(90deg,var(--accent),var(--accent2));}
+  .bx-w{background:linear-gradient(90deg,#b45309,var(--warn));}
+  .bx-d{background:linear-gradient(90deg,#334155,#64789a);color:#e6eefb;}
+  .gtt-ax{display:grid;grid-template-columns:150px 1fr;gap:10px;margin-bottom:6px;}
+  .gtt-ax .scl{display:flex;justify-content:space-between;font-size:10.5px;color:var(--dim);}
+  .dcard{background:#0e1a2b;border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .dcard .img{height:120px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .dcard .img .ico{font-size:54px;opacity:.85;color:#04121f;}
+  .dcard .cap{padding:11px;}
+  .dcard .cap .h{font-size:12.5px;font-weight:700;display:flex;justify-content:space-between;gap:6px;align-items:center;}
+  .dcard .cap .d{font-size:11.5px;color:var(--mut);margin-top:5px;}
+  .scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,#ffffff0d 0 1px,transparent 1px 6px);}
+  .tree{font-size:12.5px;}
+  .tnode{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:9px;background:#0e1a2b;border:1px solid var(--line);margin-bottom:8px;border-left:3px solid var(--accent2);}
+  .tnode .ico{font-size:18px;}
+  .tnode .pct{margin-left:auto;font-weight:800;font-family:monospace;}
+  .tnode.lv2{margin-left:22px;background:#0d1626;}
+  .tnode.lv3{margin-left:44px;background:#0b1420;}
+  .tnode .txt b{font-weight:700;}.tnode .txt span{color:var(--mut);font-size:11px;display:block;}
+  .tl{position:relative;padding-left:26px;}
+  .tl::before{content:"";position:absolute;left:8px;top:4px;bottom:4px;width:2px;background:var(--line);}
+  .tl-item{position:relative;margin-bottom:16px;}
+  .tl-item:last-child{margin-bottom:0;}
+  .tl-item .pt{position:absolute;left:-24px;top:2px;width:15px;height:15px;border-radius:50%;background:var(--panel);border:3px solid var(--accent2);}
+  .tl-item.done .pt{background:var(--ok);border-color:var(--ok);}
+  .tl-item.now .pt{background:var(--warn);border-color:var(--warn);box-shadow:0 0 0 4px #f59e0b33;}
+  .tl-item .th{font-size:13px;font-weight:700;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .tl-item .tm{font-size:11px;color:var(--dim);font-family:monospace;}
+  .tl-item .td{font-size:12px;color:var(--mut);margin-top:3px;}
+  .lrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px;}
+  .lrow:last-child{border-bottom:none;}
+  .lrow .k{color:var(--mut);}.lrow .v{margin-left:auto;font-weight:700;}
+  .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  @media(max-width:560px){.stat-grid{grid-template-columns:1fr;}}
+  .mini{background:#0e1a2b;border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center;}
+  .mini .v{font-size:22px;font-weight:800;}
+  .mini .l{font-size:11px;color:var(--mut);margin-top:3px;}
+  .foot{margin-top:28px;text-align:center;color:var(--dim);font-size:11.5px;border-top:1px solid var(--line);padding-top:18px;}
+  @media(max-width:560px){
+    nav.tabs button .lbl{display:none;}
+    nav.tabs button{padding:9px 12px;}
+    .brand h1{font-size:14px;}
+  }
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo"><span class="ico">biotech</span></div>
+    <div>
+      <h1>FA 不良分析實驗室平台</h1>
+      <div class="sub">Failure Analysis Lab · 送測 → 分析 → 判定 → 報告</div>
+    </div>
+    <div class="live"><span class="dot"></span> 實驗室即時看板</div>
+  </div>
+  <nav class="tabs" id="nav"></nav>
+</header>
+<main id="app"></main>
+
+<script>
+(function(){
+  "use strict";
+  var charts = [];
+  function killCharts(){ for(var i=0;i<charts.length;i++){ try{charts[i].destroy();}catch(e){} } charts=[]; }
+  function el(id){ return document.getElementById(id); }
+  Chart.defaults.color = "#93a7c4";
+  Chart.defaults.font.family = "Inter, 'Noto Sans TC', sans-serif";
+  Chart.defaults.borderColor = "#243449";
+
+  var MODS = [
+    {ico:"assignment_add", name:"送測登錄"},
+    {ico:"biotech", name:"初步檢查"},
+    {ico:"calendar_month", name:"分析排程"},
+    {ico:"grain", name:"儀器分析"},
+    {ico:"account_tree", name:"失效機制判定"},
+    {ico:"description", name:"報告產出"}
+  ];
+
+  function head(eb,t,p){ return '<div class="screen-head"><div class="eyebrow">'+eb+'</div><h2>'+t+'</h2><p>'+p+'</p></div>'; }
+  function chip(cls,txt){ return '<span class="chip '+cls+'">'+txt+'</span>'; }
+  function pri(p){ if(p==="高")return chip("c-hi","● 高"); if(p==="中")return chip("c-md","● 中"); return chip("c-lo","● 低"); }
+  function trend(dc){ return dc==="up"?"trending_up":dc==="down"?"trending_down":"trending_flat"; }
+  function kpiCard(k){
+    return '<div class="card kpi"><div class="lab"><span class="ico">'+k.ico+'</span>'+k.lab+'</div>'+
+      '<div class="val">'+k.val+'<small>'+k.u+'</small></div>'+
+      '<div class="delta '+k.dc+'"><span class="ico" style="font-size:15px">'+trend(k.dc)+'</span>'+k.d+'</div>'+
+      '<div class="bar"><i style="width:'+k.p+'%"></i></div></div>';
+  }
+
+  // ============ SCREEN 0 : 送測登錄 ============
+  function s0(){
+    var kpis=[
+      {ico:"inbox",lab:"本月送測案件",val:"186",u:"件",d:"+12 vs 上月",dc:"up",p:78},
+      {ico:"pending_actions",lab:"待收件登錄",val:"9",u:"件",d:"平均候收 1.4h",dc:"flat",p:35},
+      {ico:"priority_high",lab:"高優先客訴案",val:"5",u:"件",d:"含已出貨批號",dc:"down",p:62},
+      {ico:"schedule",lab:"平均登錄時間",val:"6.2",u:"分",d:"-2.1 分改善",dc:"up",p:44}
+    ];
+    var kh=""; for(var i=0;i<kpis.length;i++){ kh+=kpiCard(kpis[i]); }
+    var cols=[
+      {t:"待收件",ic:"markunread_mailbox",items:[
+        {id:"FA-2608-0193",tt:"IC 封裝爆米花 · 客訴退回",src:"客訴 · 已出貨",p:"高",who:"林承翰"},
+        {id:"FA-2608-0192",tt:"PCB 銅箔剝離 · 產線攔截",src:"產線 · 攔截",p:"中",who:"陳品妍"},
+        {id:"FA-2608-0191",tt:"連接器接觸不良",src:"客訴",p:"中",who:"待指派"}
+      ]},
+      {t:"樣品清點",ic:"inventory_2",items:[
+        {id:"FA-2608-0189",tt:"MLCC 龜裂 · 批號 K2418",src:"品保 · 隔離",p:"高",who:"黃偉倫"},
+        {id:"FA-2608-0188",tt:"LED 光衰異常",src:"可靠度",p:"低",who:"吳芷妍"}
+      ]},
+      {t:"資料建檔",ic:"assignment",items:[
+        {id:"FA-2608-0185",tt:"焊點空洞 · X-ray 待排",src:"產線",p:"中",who:"林承翰"},
+        {id:"FA-2608-0184",tt:"晶片裂紋 · SEM 待排",src:"研發",p:"高",who:"黃偉倫"}
+      ]},
+      {t:"登錄完成",ic:"task_alt",items:[
+        {id:"FA-2608-0182",tt:"氧化變色 · 切片待排",src:"客訴",p:"低",who:"陳品妍"},
+        {id:"FA-2608-0181",tt:"銲錫橋接 · 已排程",src:"產線",p:"中",who:"吳芷妍"},
+        {id:"FA-2608-0180",tt:"電性開路 · 已排程",src:"研發",p:"高",who:"林承翰"}
+      ]}
+    ];
+    var bh="";
+    for(var c=0;c<cols.length;c++){ var col=cols[c]; var it="";
+      for(var j=0;j<col.items.length;j++){ var t=col.items[j];
+        it+='<div class="tk"><div class="id">'+t.id+'</div><div class="t">'+t.tt+'</div>'+
+            '<div class="m"><span>'+t.src+'</span>'+pri(t.p)+'</div>'+
+            '<div class="m" style="margin-top:6px"><span>負責 '+t.who+'</span></div></div>';
+      }
+      bh+='<div class="col"><div class="col-h"><span class="ico" style="font-size:17px;color:var(--accent2)">'+col.ic+'</span>'+col.t+'<span class="n">'+col.items.length+'</span></div>'+it+'</div>';
+    }
+    return head("MODULE 01 · 送測登錄","案件收件登錄看板","不良品送測案件依收件流程分欄流轉，記錄失效現象、來源批號與優先序。")+
+      '<div class="grid g4" style="margin-bottom:14px">'+kh+'</div>'+
+      '<div class="card"><h3><span class="ico">view_kanban</span>收件流轉看板<small>拖曳式作業流</small></h3>'+
+      '<div class="chart-scroll"><div class="board" style="min-width:720px">'+bh+'</div></div></div>'+
+      '<div class="grid g2" style="margin-top:14px">'+
+        '<div class="card"><h3><span class="ico">pie_chart</span>案件來源分布</h3><div class="chart-box sm"><canvas id="c0a"></canvas></div></div>'+
+        '<div class="card"><h3><span class="ico">bar_chart</span>近 7 日收件量</h3><div class="chart-box sm"><canvas id="c0b"></canvas></div></div>'+
+      '</div>';
+  }
+  function d0(){
+    charts.push(new Chart(el("c0a"),{type:"doughnut",data:{labels:["客訴退回","產線攔截","品保隔離","研發送測"],datasets:[{data:[42,28,18,12],backgroundColor:["#ef4444","#f59e0b","#38bdf8","#0369a1"],borderColor:"#0f1a2b",borderWidth:3}]},options:{responsive:true,maintainAspectRatio:false,cutout:"60%",plugins:{legend:{position:"right",labels:{boxWidth:12,padding:12}}}}}));
+    charts.push(new Chart(el("c0b"),{type:"bar",data:{labels:["8/8","8/9","8/10","8/11","8/12","8/13","8/14"],datasets:[{label:"收件",data:[24,31,19,27,33,22,30],backgroundColor:"#0369a1",borderRadius:6,barThickness:22}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:"#243449"},beginAtZero:true}}}}));
+  }
+
+  // ============ SCREEN 1 : 初步檢查 ============
+  function s1(){
+    var stat=[{v:"7",l:"待初判樣品"},{v:"63%",l:"外觀已判"},{v:"41%",l:"電性已測"}];
+    var sh=""; for(var i=0;i<stat.length;i++){ sh+='<div class="mini"><div class="v">'+stat[i].v+'</div><div class="l">'+stat[i].l+'</div></div>'; }
+    var rows=[
+      {id:"FA-2608-0189",sp:"MLCC K2418",look:"表面龜裂",elec:"漏電流偏高",path:"破壞",tgt:"切片",r:"高",who:"黃偉倫"},
+      {id:"FA-2608-0184",sp:"晶片 W17-04",look:"角落裂紋",elec:"開路",path:"非破壞",tgt:"SEM",r:"高",who:"黃偉倫"},
+      {id:"FA-2608-0193",sp:"IC 封裝",look:"膨脹爆裂",elec:"功能失效",path:"非破壞",tgt:"X-ray",r:"高",who:"林承翰"},
+      {id:"FA-2608-0185",sp:"BGA 焊球",look:"外觀正常",elec:"間歇開路",path:"非破壞",tgt:"X-ray",r:"中",who:"林承翰"},
+      {id:"FA-2608-0192",sp:"PCB 銅箔",look:"銅箔剝離",elec:"導通異常",path:"破壞",tgt:"切片",r:"中",who:"陳品妍"},
+      {id:"FA-2608-0188",sp:"LED L09",look:"光衰",elec:"Vf 偏移",path:"非破壞",tgt:"SEM",r:"低",who:"吳芷妍"}
+    ];
+    var tr=""; for(var j=0;j<rows.length;j++){ var r=rows[j];
+      tr+='<tr><td><span class="mono">'+r.id+'</span></td><td>'+r.sp+'</td><td>'+r.look+'</td><td>'+r.elec+'</td>'+
+          '<td>'+(r.path==="破壞"?chip("c-md","破壞"):chip("c-lo","非破壞"))+'</td>'+
+          '<td>'+chip("c-gy",r.tgt)+'</td><td>'+pri(r.r)+'</td><td>'+r.who+'</td></tr>';
+    }
+    return head("MODULE 02 · 初步檢查","外觀電性初判分流","以外觀鏡檢與電性初測分流失效樣品，決定破壞或非破壞分析路徑與後段設備。")+
+      '<div class="grid g32" style="margin-bottom:14px">'+
+        '<div class="card"><h3><span class="ico">insights</span>初判概況</h3><div class="stat-grid">'+sh+'</div>'+
+          '<div class="lrow"><span class="k">外觀 NG 佔比</span><span class="prog"><i style="width:58%"></i></span><span class="v">58%</span></div>'+
+          '<div class="lrow"><span class="k">電性 NG 佔比</span><span class="prog"><i style="width:47%"></i></span><span class="v">47%</span></div>'+
+          '<div class="lrow"><span class="k">需破壞分析</span><span class="prog"><i style="width:33%"></i></span><span class="v">33%</span></div>'+
+        '</div>'+
+        '<div class="card"><h3><span class="ico">radar</span>初步失效樣態雷達</h3><div class="chart-box sm"><canvas id="c1a"></canvas></div></div>'+
+      '</div>'+
+      '<div class="card pad0"><div style="padding:16px 16px 4px"><h3><span class="ico">rule</span>樣品分流判定表<small>'+rows.length+' 件待處理</small></h3></div>'+
+      '<div class="tbl-wrap"><table><thead><tr><th>案件</th><th>樣品</th><th>外觀初判</th><th>電性初判</th><th>路徑</th><th>建議設備</th><th>優先</th><th>工程師</th></tr></thead><tbody>'+tr+'</tbody></table></div></div>';
+  }
+  function d1(){
+    charts.push(new Chart(el("c1a"),{type:"radar",data:{labels:["裂紋/破裂","剝離/分層","氧化腐蝕","焊接缺陷","電性異常","污染"],datasets:[{label:"本月",data:[32,21,15,26,29,12],backgroundColor:"#0369a133",borderColor:"#38bdf8",pointBackgroundColor:"#38bdf8",borderWidth:2},{label:"上月",data:[24,18,20,22,25,16],backgroundColor:"transparent",borderColor:"#64789a",borderDash:[5,4],pointBackgroundColor:"#64789a",borderWidth:1.5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12}}},scales:{r:{angleLines:{color:"#243449"},grid:{color:"#243449"},pointLabels:{color:"#cddcf3",font:{size:11}},ticks:{display:false}}}}}));
+  }
+
+  // ============ SCREEN 2 : 分析排程 ============
+  function s2(){
+    var eq=[
+      {n:"X-ray #1",m:"非破壞影像",util:82,cls:"bx",segs:[[4,26,"FA-0193"],[34,22,"FA-0185"],[62,30,"FA-0180"]]},
+      {n:"SEM #1",m:"表面形貌",util:74,cls:"bx",segs:[[2,30,"FA-0184"],[38,28,"FA-0188"]]},
+      {n:"切片研磨機",m:"破壞性分析",util:91,cls:"bx-w",segs:[[6,34,"FA-0189"],[46,40,"FA-0192"]]},
+      {n:"FTIR",m:"成分鑑定",util:48,cls:"bx",segs:[[10,24,"FA-0182"]]},
+      {n:"C-SAM",m:"分層檢測",util:35,cls:"bx-d",segs:[[20,26,"保養"]]}
+    ];
+    var gh="";
+    for(var i=0;i<eq.length;i++){ var e=eq[i]; var segs="";
+      for(var s=0;s<e.segs.length;s++){ var g=e.segs[s];
+        segs+='<i class="'+e.cls+'" style="left:'+g[0]+'%;width:'+g[1]+'%">'+g[2]+'</i>';
+      }
+      gh+='<div class="row"><div class="lab"><b>'+e.n+'</b>'+e.m+' · 稼動 '+e.util+'%</div><div class="track">'+segs+'</div></div>';
+    }
+    return head("MODULE 03 · 分析排程","儀器分析排程與稼動","依樣品類型與設備負載安排 X-ray／SEM／切片排程，控管設備稼動率與分析交期。")+
+      '<div class="card" style="margin-bottom:14px"><h3><span class="ico">calendar_view_week</span>今日設備排程甘特<small>08:00 – 18:00</small></h3>'+
+      '<div class="chart-scroll"><div class="gtt">'+
+        '<div class="gtt-ax"><div class="lab"></div><div class="scl"><span>08:00</span><span>10:00</span><span>12:00</span><span>14:00</span><span>16:00</span><span>18:00</span></div></div>'+
+        gh+
+      '</div></div>'+
+      '<div style="margin-top:12px;font-size:11.5px;color:var(--mut)">'+chip("c-lo","已排作業")+' &nbsp;'+chip("c-md","高負載")+' &nbsp;'+chip("c-gy","保養/待機")+'</div>'+
+      '</div>'+
+      '<div class="grid g2">'+
+        '<div class="card"><h3><span class="ico">stacked_bar_chart</span>設備稼動率（本週）</h3><div class="chart-box sm"><canvas id="c2a"></canvas></div></div>'+
+        '<div class="card"><h3><span class="ico">hourglass_top</span>各設備候排隊列</h3>'+
+          '<div class="lrow"><span class="k">切片研磨機</span><span class="prog"><i style="width:90%;background:linear-gradient(90deg,#b45309,#f59e0b)"></i></span><span class="v">6 件</span></div>'+
+          '<div class="lrow"><span class="k">X-ray #1</span><span class="prog"><i style="width:65%"></i></span><span class="v">4 件</span></div>'+
+          '<div class="lrow"><span class="k">SEM #1</span><span class="prog"><i style="width:50%"></i></span><span class="v">3 件</span></div>'+
+          '<div class="lrow"><span class="k">FTIR</span><span class="prog"><i style="width:25%"></i></span><span class="v">1 件</span></div>'+
+          '<div class="lrow"><span class="k">C-SAM</span><span class="prog"><i style="width:15%"></i></span><span class="v">0 件</span></div>'+
+          '<div class="lrow"><span class="k">平均候排時間</span><span class="v" style="color:var(--warn)">1.8 天</span></div>'+
+        '</div>'+
+      '</div>';
+  }
+  function d2(){
+    charts.push(new Chart(el("c2a"),{type:"bar",data:{labels:["X-ray","SEM","切片","FTIR","C-SAM"],datasets:[{label:"作業",data:[62,55,71,34,22],backgroundColor:"#0369a1",borderRadius:5,stack:"s"},{label:"待機",data:[38,45,29,66,78],backgroundColor:"#1b2c44",borderRadius:5,stack:"s"}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12}}},scales:{x:{grid:{display:false},stacked:true},y:{stacked:true,max:100,grid:{color:"#243449"},ticks:{callback:function(v){return v+"%";}}}}}}));
+  }
+
+  // ============ SCREEN 3 : 儀器分析 ============
+  function s3(){
+    var cards=[
+      {ico:"blur_on",g:"linear-gradient(135deg,#0369a1,#38bdf8)",id:"FA-0193 · X-ray",h:"封裝內部空洞",d:"焊點空洞率 18.4%（規格<10%），偵測到晶片下方分層。",sz:"Ø 142µm"},
+      {ico:"grain",g:"linear-gradient(135deg,#334155,#64789a)",id:"FA-0184 · SEM",h:"晶片角落裂紋",d:"晶粒邊緣延伸裂紋約 38µm，判為切割應力誘發。",sz:"長 38µm"},
+      {ico:"lens_blur",g:"linear-gradient(135deg,#7c2d12,#f59e0b)",id:"FA-0189 · 切片",h:"MLCC 內電極龜裂",d:"陶瓷體貫穿裂紋，橫跨 3 層內電極，來自機械應力。",sz:"深 210µm"},
+      {ico:"scatter_plot",g:"linear-gradient(135deg,#0f766e,#22d3ee)",id:"FA-0192 · EDX",h:"銅箔介面氧化",d:"介面偵測到高濃度氧與氯，判為助焊劑殘留腐蝕。",sz:"O 22%/Cl 3%"}
+    ];
+    var ch="";
+    for(var i=0;i<cards.length;i++){ var c=cards[i];
+      ch+='<div class="dcard"><div class="img" style="background:'+c.g+'"><div class="scan"></div><span class="ico">'+c.ico+'</span></div>'+
+          '<div class="cap"><div class="h">'+c.h+chip("c-lo",c.sz)+'</div><div class="d">'+c.d+'</div>'+
+          '<div class="d" style="margin-top:6px;color:var(--accent2);font-family:monospace">'+c.id+'</div></div></div>';
+    }
+    return head("MODULE 04 · 儀器分析","缺陷影像判讀與量測","判讀 X-ray／SEM／切片影像量測缺陷尺寸與位置，標定失效點並累積缺陷資料。")+
+      '<div class="grid g4" style="margin-bottom:14px">'+ch+'</div>'+
+      '<div class="grid g23">'+
+        '<div class="card"><h3><span class="ico">bubble_chart</span>缺陷尺寸 vs 位置分布</h3><div class="chart-box"><canvas id="c3a"></canvas></div></div>'+
+        '<div class="card"><h3><span class="ico">format_list_numbered</span>缺陷類型計數</h3><div class="chart-box"><canvas id="c3b"></canvas></div></div>'+
+      '</div>';
+  }
+  function d3(){
+    charts.push(new Chart(el("c3a"),{type:"scatter",data:{datasets:[
+      {label:"空洞",data:[{x:12,y:142},{x:18,y:98},{x:9,y:176},{x:15,y:120}],backgroundColor:"#38bdf8",pointRadius:5},
+      {label:"裂紋",data:[{x:45,y:38},{x:52,y:61},{x:60,y:29},{x:48,y:74}],backgroundColor:"#f59e0b",pointRadius:5},
+      {label:"腐蝕",data:[{x:78,y:22},{x:85,y:33},{x:72,y:18}],backgroundColor:"#ef4444",pointRadius:5}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12}}},scales:{x:{title:{display:true,text:"失效位置（%邊緣→中心）",color:"#93a7c4"},grid:{color:"#243449"},min:0,max:100},y:{title:{display:true,text:"缺陷尺寸 µm",color:"#93a7c4"},grid:{color:"#243449"},beginAtZero:true}}}}));
+    charts.push(new Chart(el("c3b"),{type:"bar",data:{labels:["空洞","裂紋","分層","腐蝕","污染","變形"],datasets:[{label:"件數",data:[28,34,16,21,12,8],backgroundColor:["#38bdf8","#f59e0b","#0369a1","#ef4444","#22c55e","#64789a"],borderRadius:5}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:"#243449"},beginAtZero:true},y:{grid:{display:false}}}}}));
+  }
+
+  // ============ SCREEN 4 : 失效機制判定 ============
+  function s4(){
+    var tree=[
+      {lv:1,ic:"account_tree",col:"#ef4444",b:"機械應力失效",s:"37% · 主導失效族群",p:"37%"},
+      {lv:2,ic:"subdirectory_arrow_right",col:"#f59e0b",b:"切割/研磨應力誘發裂紋",s:"晶片角落 · SEM 佐證",p:"21%"},
+      {lv:2,ic:"subdirectory_arrow_right",col:"#f59e0b",b:"板彎導致 MLCC 龜裂",s:"貼片後應力 · 切片佐證",p:"16%"},
+      {lv:1,ic:"account_tree",col:"#38bdf8",b:"熱/濕氣失效",s:"29%",p:"29%"},
+      {lv:2,ic:"subdirectory_arrow_right",col:"#38bdf8",b:"回焊爆米花分層",s:"吸濕未烘烤 · X-ray 佐證",p:"18%"},
+      {lv:3,ic:"arrow_right",col:"#64789a",b:"儲存濕度管控不足",s:"MSL 等級誤判",p:"11%"},
+      {lv:1,ic:"account_tree",col:"#22c55e",b:"化學/腐蝕失效",s:"22%",p:"22%"}
+    ];
+    var th="";
+    for(var i=0;i<tree.length;i++){ var n=tree[i];
+      th+='<div class="tnode lv'+n.lv+'" style="border-left-color:'+n.col+'"><span class="ico" style="color:'+n.col+'">'+n.ic+'</span>'+
+          '<div class="txt"><b>'+n.b+'</b><span>'+n.s+'</span></div><span class="pct" style="color:'+n.col+'">'+n.p+'</span></div>';
+    }
+    return head("MODULE 05 · 失效機制判定","失效機制樹與根因確認","由失效機制樹確認根因並關聯 CAPA，發行 FA 報告並追蹤根因確認率。")+
+      '<div class="grid g23">'+
+        '<div class="card"><h3><span class="ico">account_tree</span>失效機制樹（本季彙總）<small>依佔比排序</small></h3><div class="tree">'+th+'</div></div>'+
+        '<div class="card"><h3><span class="ico">donut_large</span>根因大類分布</h3><div class="chart-box sm"><canvas id="c4a"></canvas></div>'+
+          '<div class="lrow" style="margin-top:6px"><span class="k">根因確認率</span><span class="v" style="color:var(--ok)">89%</span></div>'+
+          '<div class="lrow"><span class="k">待補驗證</span><span class="v" style="color:var(--warn)">7 件</span></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="card" style="margin-top:14px"><h3><span class="ico">grid_on</span>失效模式 × 製程站別矩陣</h3>'+matrix()+'</div>';
+  }
+  function matrix(){
+    var cols=["前段製程","打線/貼片","回焊","分板","出貨/運輸"];
+    var modes=[
+      {m:"裂紋",v:[1,3,1,2,0]},
+      {m:"分層",v:[0,1,3,0,0]},
+      {m:"空洞",v:[0,2,3,0,0]},
+      {m:"腐蝕",v:[2,0,1,0,1]},
+      {m:"變形",v:[0,1,0,1,2]}
+    ];
+    function cel(v){
+      var bg = v===0?"#0e1a2b":v===1?"#123a52":v===2?"#0369a1":"#ef4444";
+      var cl = v>=2?"#fff":"#8fd3f4";
+      return '<td style="text-align:center;background:'+bg+';color:'+cl+';font-weight:700;border:1px solid #0b1220">'+(v===0?"·":v)+'</td>';
+    }
+    var hd="<tr><th>失效模式＼站別</th>"; for(var c=0;c<cols.length;c++){hd+="<th style='text-align:center'>"+cols[c]+"</th>";} hd+="</tr>";
+    var bd=""; for(var m=0;m<modes.length;m++){ bd+="<tr><td style='font-weight:700'>"+modes[m].m+"</td>"; for(var k=0;k<modes[m].v.length;k++){bd+=cel(modes[m].v[k]);} bd+="</tr>"; }
+    return '<div class="tbl-wrap"><table style="min-width:600px"><thead>'+hd+'</thead><tbody>'+bd+'</tbody></table></div>'+
+      '<div style="margin-top:10px;font-size:11.5px;color:var(--mut)">數字為案件數；紅色為熱點站別，需優先關聯 CAPA。</div>';
+  }
+  function d4(){
+    charts.push(new Chart(el("c4a"),{type:"polarArea",data:{labels:["機械應力","熱/濕氣","化學腐蝕","電性過載","其他"],datasets:[{data:[37,29,22,8,4],backgroundColor:["#ef4444cc","#38bdf8cc","#22c55ecc","#f59e0bcc","#64789acc"],borderColor:"#0f1a2b",borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"right",labels:{boxWidth:12,padding:10}}},scales:{r:{grid:{color:"#243449"},angleLines:{color:"#243449"},ticks:{display:false}}}}}));
+  }
+
+  // ============ SCREEN 5 : 報告產出 ============
+  function s5(){
+    var kpis=[
+      {ico:"description",lab:"本月發行報告",val:"142",u:"份",d:"+9 vs 上月",dc:"up",p:80},
+      {ico:"timelapse",lab:"平均分析週期",val:"5.8",u:"天",d:"目標 6.0 天內",dc:"up",p:72},
+      {ico:"verified",lab:"根因確認率",val:"89",u:"%",d:"+6pt 季改善",dc:"up",p:89},
+      {ico:"link",lab:"關聯 CAPA 案",val:"38",u:"件",d:"驗證中 12",dc:"flat",p:55}
+    ];
+    var kh=""; for(var i=0;i<kpis.length;i++){ kh+=kpiCard(kpis[i]); }
+    var tl=[
+      {c:"done",tm:"08/14 09:12",h:"FA-2608-0184 報告發行"+chip("c-ok","已核准"),d:"晶片切割應力誘發裂紋，關聯 CAPA-0451，通知研發製程調整。"},
+      {c:"done",tm:"08/13 16:40",h:"FA-2608-0193 報告發行"+chip("c-ok","已核准"),d:"封裝吸濕爆米花分層，建議調整 MSL 烘烤，已同步客訴 CS-1188。"},
+      {c:"now",tm:"08/14 11:05",h:"FA-2608-0189 報告審核中"+chip("c-md","主任審核"),d:"MLCC 板彎龜裂，待補板彎量測驗證資料後發行。"},
+      {c:"",tm:"08/15 預計",h:"FA-2608-0192 撰寫中"+chip("c-lo","撰寫"),d:"銅箔介面氯殘留腐蝕，EDX 成分佐證整理中。"}
+    ];
+    var th=""; for(var j=0;j<tl.length;j++){ var t=tl[j];
+      th+='<div class="tl-item '+t.c+'"><span class="pt"></span><div class="th">'+t.h+'</div><div class="tm">'+t.tm+'</div><div class="td">'+t.d+'</div></div>';
+    }
+    return head("MODULE 06 · 報告產出","FA 報告發行與週期指標","FA 報告發行、關聯 CAPA 與客訴閉環，追蹤平均分析週期與根因確認率趨勢。")+
+      '<div class="grid g4" style="margin-bottom:14px">'+kh+'</div>'+
+      '<div class="grid g23">'+
+        '<div class="card"><h3><span class="ico">timeline</span>報告產出時間軸</h3><div class="tl">'+th+'</div></div>'+
+        '<div class="card"><h3><span class="ico">show_chart</span>平均分析週期趨勢</h3><div class="chart-box"><canvas id="c5a"></canvas></div></div>'+
+      '</div>'+
+      '<div class="card" style="margin-top:14px"><h3><span class="ico">query_stats</span>週期分解與根因確認率</h3><div class="chart-box sm"><canvas id="c5b"></canvas></div></div>';
+  }
+  function d5(){
+    charts.push(new Chart(el("c5a"),{type:"line",data:{labels:["3月","4月","5月","6月","7月","8月"],datasets:[
+      {label:"平均分析週期(天)",data:[8.9,8.1,7.4,6.9,6.2,5.8],borderColor:"#38bdf8",backgroundColor:"#38bdf822",fill:true,tension:.35,pointRadius:4},
+      {label:"目標(天)",data:[6,6,6,6,6,6],borderColor:"#f59e0b",borderDash:[6,4],pointRadius:0,tension:0}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12}}},scales:{x:{grid:{display:false}},y:{grid:{color:"#243449"},beginAtZero:true}}}}));
+    charts.push(new Chart(el("c5b"),{type:"bar",data:{labels:["3月","4月","5月","6月","7月","8月"],datasets:[
+      {label:"排隊等待",data:[3.1,2.7,2.2,1.9,1.6,1.4],backgroundColor:"#1b2c44",stack:"c",borderRadius:4},
+      {label:"儀器分析",data:[3.4,3.1,2.9,2.7,2.5,2.4],backgroundColor:"#0369a1",stack:"c",borderRadius:4},
+      {label:"判定與報告",data:[2.4,2.3,2.3,2.3,2.1,2.0],backgroundColor:"#38bdf8",stack:"c",borderRadius:4},
+      {type:"line",label:"根因確認率%",data:[71,76,80,83,86,89],borderColor:"#22c55e",backgroundColor:"#22c55e",pointRadius:4,tension:.3,yAxisID:"y2"}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12}}},scales:{x:{grid:{display:false},stacked:true},y:{stacked:true,grid:{color:"#243449"},title:{display:true,text:"天",color:"#93a7c4"}},y2:{position:"right",min:50,max:100,grid:{display:false},title:{display:true,text:"%",color:"#93a7c4"}}}}}));
+  }
+
+  var SCREENS=[{r:s0,d:d0},{r:s1,d:d1},{r:s2,d:d2},{r:s3,d:d3},{r:s4,d:d4},{r:s5,d:d5}];
+
+  var nav=el("nav"), navHtml="";
+  for(var i=0;i<MODS.length;i++){
+    navHtml+='<button data-i="'+i+'"><span class="idx">0'+(i+1)+'</span><span class="ico">'+MODS[i].ico+'</span><span class="lbl">'+MODS[i].name+'</span></button>';
+  }
+  nav.innerHTML=navHtml;
+
+  function show(i){
+    killCharts();
+    var app=el("app");
+    var buttons=nav.querySelectorAll("[data-i]");
+    for(var b=0;b<buttons.length;b++){ buttons[b].classList.toggle("active", +buttons[b].getAttribute("data-i")===i); }
+    app.innerHTML = SCREENS[i].r();
+    void app.offsetHeight;
+    try{ SCREENS[i].d(); }catch(e){}
+  }
+
+  nav.addEventListener("click", function(ev){
+    var t = ev.target;
+    while(t && t!==nav && !t.hasAttribute("data-i")){ t=t.parentNode; }
+    if(t && t.hasAttribute("data-i")){ var k=t.getAttribute("data-i"); show(+k); try{location.hash="v"+k;}catch(e){} }
+  });
+
+  window.show = show;
+})();
+
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>
