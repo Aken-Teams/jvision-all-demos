@@ -4,15 +4,553 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>太陽能案場維運艙｜Jvision 系統 Demo</title>
-  <meta name="description" content="碳盤查、能源監控到減碳目標的永續管理" />
+  <meta name="description" content="追蹤太陽能案場發電、巡檢、維修與售電收益的維運管理平台" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --accent:#1d4ed8; --accent2:#60a5fa;
+      --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f1f5f9; --card:#ffffff;
+      --ok:#16a34a; --warn:#f59e0b; --bad:#dc2626;
+      --side:#0b1220; --side2:#111c33;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{font-family:"Inter","Noto Sans TC",system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+    .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;font-size:20px}
+    .shell{display:flex;min-height:100vh;align-items:stretch}
+    /* sidebar */
+    .side{width:236px;flex:none;background:linear-gradient(180deg,var(--side),var(--side2));color:#cbd5e1;display:flex;flex-direction:column;padding:18px 14px;gap:6px;position:sticky;top:0;height:100vh;overflow-y:auto}
+    .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 16px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:8px}
+    .brand .logo{width:38px;height:38px;flex:none;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 6px 18px rgba(29,78,216,.45)}
+    .brand b{color:#fff;font-size:15px;font-weight:800;display:block;line-height:1.2}
+    .brand span{font-size:11px;color:#7f92b3;letter-spacing:.04em}
+    .navbtn{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:transparent;border:0;color:#a9b8d4;padding:11px 12px;border-radius:11px;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;transition:.16s;min-width:0}
+    .navbtn .material-symbols-outlined{font-size:21px;flex:none}
+    .navbtn small{display:block;font-size:11px;font-weight:500;color:#6f80a1;margin-top:1px}
+    .navbtn:hover{background:rgba(96,165,250,.12);color:#fff}
+    .navbtn.on{background:linear-gradient(135deg,rgba(29,78,216,.9),rgba(96,165,250,.55));color:#fff;box-shadow:0 6px 16px rgba(29,78,216,.35)}
+    .navbtn .txt{min-width:0}
+    .sidefoot{margin-top:auto;padding:12px 10px 4px;border-top:1px solid rgba(255,255,255,.08);font-size:11px;color:#6f80a1;line-height:1.7}
+    .sidefoot b{color:#9fb2d6}
+    /* main */
+    .main{flex:1;min-width:0;padding:22px clamp(14px,2.4vw,30px) 40px}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+    .top .h{min-width:0}
+    .top h1{margin:0;font-size:clamp(19px,2.4vw,25px);font-weight:900;letter-spacing:-.02em}
+    .top p{margin:4px 0 0;color:var(--muted);font-size:13px}
+    .pill{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:700;color:var(--accent)}
+    .pill .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(22,163,74,.5);animation:pulse 2s infinite}
+    @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 8px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+    /* grids */
+    .grid{display:grid;gap:14px}
+    .g-kpi{grid-template-columns:repeat(4,1fr)}
+    .g-2{grid-template-columns:2fr 1fr}
+    .g-2e{grid-template-columns:1fr 1fr}
+    .g-3{grid-template-columns:repeat(3,1fr)}
+    .g-plant{grid-template-columns:repeat(3,1fr)}
+    @media(max-width:820px){
+      .g-kpi{grid-template-columns:1fr 1fr}
+      .g-2,.g-2e,.g-3,.g-plant{grid-template-columns:1fr}
+    }
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 17px;min-width:0;box-shadow:0 1px 2px rgba(15,23,42,.03)}
+    .card h3{margin:0 0 3px;font-size:14.5px;font-weight:800}
+    .card .sub{color:var(--muted);font-size:12px;margin-bottom:12px}
+    .cardhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+    .cardhead h3{margin:0}
+    /* kpi */
+    .kpi{position:relative;overflow:hidden}
+    .kpi .lab{font-size:12.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+    .kpi .lab .material-symbols-outlined{font-size:18px;color:var(--accent)}
+    .kpi .val{font-size:27px;font-weight:900;letter-spacing:-.02em;margin-top:8px}
+    .kpi .val small{font-size:13px;font-weight:700;color:var(--muted)}
+    .kpi .delta{font-size:12px;font-weight:700;margin-top:4px}
+    .up{color:var(--ok)} .down{color:var(--bad)}
+    .kpi .spark{position:absolute;right:12px;bottom:10px;width:66px;height:30px;opacity:.85}
+    .bar{height:7px;border-radius:5px;background:#eef2f7;overflow:hidden;margin-top:10px}
+    .bar>i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    /* chart box */
+    .chart{width:100%;height:290px;min-width:0}
+    .chart.sm{height:230px}
+    /* table */
+    table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+    th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+    th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;background:#f8fafc;position:sticky;top:0}
+    tbody tr:hover{background:#f8fafc}
+    td b{font-weight:800}
+    .tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px}
+    .t-ok{background:#dcfce7;color:#15803d} .t-warn{background:#fef3c7;color:#b45309} .t-bad{background:#fee2e2;color:#b91c1c} .t-info{background:#dbeafe;color:#1d4ed8} .t-mut{background:#f1f5f9;color:#475569}
+    .mono{font-variant-numeric:tabular-nums}
+    .tprog{width:120px;height:6px;border-radius:4px;background:#eef2f7;display:inline-block;overflow:hidden;vertical-align:middle}
+    .tprog>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    /* plant board (signature v0) */
+    .plant{border:1px solid var(--line);border-radius:14px;padding:14px;background:linear-gradient(180deg,#fff,#fbfdff);position:relative;overflow:hidden;min-width:0}
+    .plant .pt{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+    .plant .nm{font-weight:800;font-size:14.5px}
+    .plant .loc{font-size:11.5px;color:var(--muted);margin-top:2px}
+    .plant .big{font-size:23px;font-weight:900;margin:12px 0 2px}
+    .plant .big small{font-size:12px;color:var(--muted);font-weight:700}
+    .plant .mini{display:flex;gap:14px;margin-top:10px;font-size:11.5px;color:var(--muted)}
+    .plant .mini b{display:block;color:var(--ink);font-size:14px;font-weight:800}
+    .plant .health{height:8px;border-radius:5px;background:#eef2f7;margin-top:12px;overflow:hidden}
+    .plant .health>i{display:block;height:100%;border-radius:5px}
+    .badge{position:absolute;top:14px;right:14px;font-size:10.5px;font-weight:800;padding:3px 8px;border-radius:999px}
+    /* kanban (v2) */
+    .kb{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    @media(max-width:820px){.kb{grid-template-columns:1fr 1fr}}
+    @media(max-width:520px){.kb{grid-template-columns:1fr}}
+    .kbcol{background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:11px;min-width:0}
+    .kbcol .kh{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:800;margin-bottom:10px;padding:0 3px}
+    .kbcol .kh span.cnt{background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-size:11px;color:var(--muted)}
+    .ticket{background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:9px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+    .ticket .tt{font-size:13px;font-weight:800;line-height:1.35}
+    .ticket .meta{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+    .ticket .who{display:inline-flex;align-items:center;gap:5px}
+    .ticket .av{width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center}
+    .prio{width:4px;border-radius:4px;height:15px;display:inline-block;vertical-align:middle;flex:none}
+    /* timeline (v3) */
+    .tl{position:relative;padding-left:26px}
+    .tl:before{content:"";position:absolute;left:9px;top:4px;bottom:4px;width:2px;background:var(--line)}
+    .tli{position:relative;padding:0 0 18px}
+    .tli:last-child{padding-bottom:0}
+    .tli .dot{position:absolute;left:-22px;top:2px;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px var(--line)}
+    .tli .tm{font-size:11.5px;color:var(--muted);font-weight:700}
+    .tli .ti{font-size:13.5px;font-weight:800;margin:2px 0 2px}
+    .tli .td{font-size:12.5px;color:var(--muted);line-height:1.5}
+    /* calendar (v4 signature) */
+    .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;min-width:520px}
+    .cal .dow{font-size:11px;font-weight:800;color:var(--muted);text-align:center;padding:4px 0}
+    .cell{border:1px solid var(--line);border-radius:10px;min-height:72px;padding:6px 7px;background:#fff;min-width:0}
+    .cell.mut{background:#f8fafc;color:#cbd5e1}
+    .cell .d{font-size:11.5px;font-weight:800;color:var(--muted)}
+    .cell.today{border-color:var(--accent);box-shadow:0 0 0 2px rgba(29,78,216,.15)}
+    .ev{font-size:10.5px;font-weight:700;border-radius:6px;padding:2px 5px;margin-top:4px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .ev.c{background:#dbeafe;color:#1d4ed8} .ev.m{background:#dcfce7;color:#15803d} .ev.i{background:#fef3c7;color:#b45309}
+    .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:12px}
+    .legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:middle}
+    /* misc */
+    .rowflex{display:flex;gap:12px;flex-wrap:wrap}
+    .stat{flex:1;min-width:120px;border:1px solid var(--line);border-radius:12px;padding:12px 13px;background:#fff}
+    .stat .l{font-size:11.5px;color:var(--muted);font-weight:600}
+    .stat .v{font-size:20px;font-weight:900;margin-top:4px}
+    .lgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin-top:6px}
+    @media(max-width:520px){.lgrid{grid-template-columns:1fr}}
+    .lgrid .li{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px dashed var(--line)}
+    .lgrid .li i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:7px}
+    /* mobile nav */
+    .mobbrand{display:none}
+    @media(max-width:860px){
+      .shell{flex-direction:column}
+      .side{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap;align-items:center;padding:11px 12px;gap:8px}
+      .brand{display:none}
+      .mobbrand{display:flex;align-items:center;gap:9px;width:100%;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:2px}
+      .mobbrand .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff}
+      .mobbrand b{color:#fff;font-size:14px;font-weight:800}
+      .navbtn{width:auto;flex:none;white-space:nowrap;padding:9px 12px}
+      .navbtn small{display:none}
+      .sidefoot{display:none}
+    }
+    @media(max-width:560px){
+      .navbtn .txt{display:none}
+      .navbtn{padding:9px 11px}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <div class="shell">
+    <aside class="side">
+      <div class="mobbrand">
+        <div class="logo"><span class="material-symbols-outlined">solar_power</span></div>
+        <b>太陽能案場維運艙</b>
+      </div>
+      <div class="brand">
+        <div class="logo"><span class="material-symbols-outlined">solar_power</span></div>
+        <div><b>維運艙</b><span>Solar Asset O&amp;M</span></div>
+      </div>
+      <nav id="nav"></nav>
+      <div class="sidefoot">
+        <b>39 座案場</b> · 全台併網<br/>
+        資料為展示用途 · <b>Jvision</b> Demo
+      </div>
+    </aside>
+    <main class="main">
+      <div class="top">
+        <div class="h">
+          <h1 id="scr-title">案場總覽</h1>
+          <p id="scr-sub">全案場發電、可用率即時看板</p>
+        </div>
+        <span class="pill"><span class="dot"></span>即時連線 · 2026/08/13 14:20</span>
+      </div>
+      <div id="view"></div>
+    </main>
+  </div>
+
+  <script>
+  var MODS=[
+    {icon:"solar_power",name:"案場總覽",sub:"全案場發電、可用率即時看板"},
+    {icon:"monitoring",name:"發電監控",sub:"逆變器、串列發電曲線追蹤"},
+    {icon:"build",name:"巡檢派工",sub:"現場巡檢與維修工單調度"},
+    {icon:"warning",name:"故障告警",sub:"設備異常告警與診斷處置"},
+    {icon:"cleaning_services",name:"清洗保養",sub:"面板清洗與定期保養排程"},
+    {icon:"payments",name:"售電收益",sub:"躉售電費結算與收益分析"}
+  ];
+
+  var nav=document.getElementById("nav");
+  MODS.forEach(function(m,i){
+    var b=document.createElement("button");
+    b.className="navbtn"; b.setAttribute("data-i",i);
+    b.innerHTML='<span class="material-symbols-outlined">'+m.icon+'</span><span class="txt"><span>'+m.name+'</span><small>'+m.sub+'</small></span>';
+    b.addEventListener("click",function(){show(i)});
+    nav.appendChild(b);
+  });
+
+  var view=document.getElementById("view");
+  var chart=null;
+  function disposeChart(){ if(chart){try{chart.dispose()}catch(e){} chart=null;} }
+  function mkChart(el,opt){ if(!el)return; var c=echarts.init(el); c.setOption(opt); chart=c; }
+
+  // ================= SCREEN 0 : 案場總覽 =================
+  function v0(){
+    var plants=[
+      {nm:"雲林麥寮一場",loc:"雲林 · 地面型 8.4MW",now:6.82,cap:8.4,pr:84,avail:99.2,health:92,st:"正常",c:"var(--ok)",bc:"#dcfce7",bt:"#15803d"},
+      {nm:"台南七股鹽田",loc:"台南 · 水面型 12.1MW",now:9.55,cap:12.1,pr:81,avail:98.7,health:88,st:"正常",c:"var(--ok)",bc:"#dcfce7",bt:"#15803d"},
+      {nm:"彰化芳苑漁電",loc:"彰化 · 漁電共生 6.0MW",now:3.10,cap:6.0,pr:66,avail:94.1,health:71,st:"效率偏低",c:"var(--warn)",bc:"#fef3c7",bt:"#b45309"},
+      {nm:"屏東林邊二場",loc:"屏東 · 地面型 5.2MW",now:4.28,cap:5.2,pr:86,avail:99.5,health:95,st:"正常",c:"var(--ok)",bc:"#dcfce7",bt:"#15803d"},
+      {nm:"嘉義布袋案場",loc:"嘉義 · 屋頂型 2.3MW",now:0.42,cap:2.3,pr:38,avail:71.0,health:41,st:"逆變器故障",c:"var(--bad)",bc:"#fee2e2",bt:"#b91c1c"},
+      {nm:"高雄永安案場",loc:"高雄 · 地面型 9.6MW",now:7.31,cap:9.6,pr:79,avail:97.9,health:85,st:"正常",c:"var(--ok)",bc:"#dcfce7",bt:"#15803d"}
+    ];
+    var kpis=[
+      {ic:"bolt",lab:"即時總發電",val:"31.5",un:"MW",d:"裝置容量 43.6MWp",up:true},
+      {ic:"insights",lab:"今日累計發電",val:"214.8",un:"MWh",d:"+6.2% vs 昨日",up:true},
+      {ic:"check_circle",lab:"案場可用率",val:"97.4",un:"%",d:"目標 98.0%",up:false},
+      {ic:"co2",lab:"今日減碳量",val:"106.5",un:"噸CO₂e",d:"約 5,900 棵樹",up:true}
+    ];
+    var h='<div class="grid g-kpi">';
+    kpis.forEach(function(k,idx){
+      h+='<div class="card kpi"><div class="lab"><span class="material-symbols-outlined">'+k.ic+'</span>'+k.lab+'</div>'+
+         '<div class="val">'+k.val+' <small>'+k.un+'</small></div>'+
+         '<div class="delta '+(k.up?'up':'down')+'">'+(k.up?'▲ ':'▼ ')+k.d+'</div>'+
+         '<canvas class="spark" id="sp'+idx+'"></canvas></div>';
+    });
+    h+='</div>';
+    h+='<div class="grid g-2" style="margin-top:14px">'+
+       '<div class="card"><div class="cardhead"><h3>全案場即時發電（近12小時）</h3><span class="tag t-info">MW</span></div><div id="c0" class="chart"></div></div>'+
+       '<div class="card"><h3>可用率分布</h3><div class="sub">39 座案場健康狀態</div><div id="c0b" class="chart" style="height:250px"></div></div>'+
+       '</div>';
+    h+='<div class="card" style="margin-top:14px"><div class="cardhead"><h3>案場健康度看板</h3><span class="tag t-mut">6 / 39 座</span></div>'+
+       '<div class="grid g-plant">';
+    plants.forEach(function(p){
+      h+='<div class="plant"><span class="badge" style="background:'+p.bc+';color:'+p.bt+'">'+p.st+'</span>'+
+         '<div class="pt"><div><div class="nm">'+p.nm+'</div><div class="loc">'+p.loc+'</div></div></div>'+
+         '<div class="big">'+p.now.toFixed(2)+' <small>/ '+p.cap.toFixed(1)+' MW</small></div>'+
+         '<div class="mini"><div>PR值<b>'+p.pr+'%</b></div><div>可用率<b>'+p.avail+'%</b></div><div>健康度<b>'+p.health+'</b></div></div>'+
+         '<div class="health"><i style="width:'+p.health+'%;background:'+p.c+'"></i></div></div>';
+    });
+    h+='</div></div>';
+    view.innerHTML=h;
+    void view.offsetHeight;
+    kpis.forEach(function(k,idx){
+      var cv=document.getElementById("sp"+idx); if(!cv)return;
+      cv.width=132;cv.height=60;var ctx=cv.getContext("2d");
+      var d=[8,12,9,14,11,16,13,18,15,20,17,19];
+      ctx.strokeStyle=k.up?"#16a34a":"#dc2626";ctx.lineWidth=2;ctx.beginPath();
+      d.forEach(function(y,i){var x=i/(d.length-1)*128+2;var yy=56-(y/22)*48;i?ctx.lineTo(x,yy):ctx.moveTo(x,yy)});
+      ctx.stroke();
+    });
+    mkChart(document.getElementById("c0"),{
+      tooltip:{trigger:"axis"},
+      grid:{left:38,right:14,top:24,bottom:26},
+      legend:{data:["實際發電","理論發電"],right:0,top:0,textStyle:{fontSize:11}},
+      xAxis:{type:"category",boundaryGap:false,data:["06","07","08","09","10","11","12","13","14","15","16","17"],axisLabel:{fontSize:11}},
+      yAxis:{type:"value",name:"MW",axisLabel:{fontSize:11}},
+      series:[
+        {name:"實際發電",type:"line",smooth:true,areaStyle:{color:"rgba(29,78,216,.14)"},lineStyle:{color:"#1d4ed8",width:3},itemStyle:{color:"#1d4ed8"},data:[2.1,8.4,16.2,24.5,31.8,38.2,41.6,39.4,34.1,26.8,17.3,8.9]},
+        {name:"理論發電",type:"line",smooth:true,lineStyle:{color:"#94a3b8",width:2,type:"dashed"},itemStyle:{color:"#94a3b8"},data:[2.4,9.1,17.4,26.0,33.6,40.0,43.2,41.5,36.4,28.9,18.9,9.6]}
+      ]
+    });
+    mkChart(document.getElementById("c0b"),{
+      tooltip:{trigger:"item"},
+      legend:{bottom:0,textStyle:{fontSize:11}},
+      series:[{type:"pie",radius:["48%","72%"],center:["50%","44%"],avoidLabelOverlap:false,
+        label:{show:true,formatter:"{b}\n{c}",fontSize:11},
+        data:[
+          {value:31,name:"正常",itemStyle:{color:"#16a34a"}},
+          {value:5,name:"效率偏低",itemStyle:{color:"#f59e0b"}},
+          {value:3,name:"故障處理中",itemStyle:{color:"#dc2626"}}
+        ]}]
+    });
+  }
+
+  // ================= SCREEN 1 : 發電監控 =================
+  function v1(){
+    var inv=[
+      {id:"INV-A01",cap:"250kW",now:212,pr:88,temp:41,st:"運轉中",c:"t-ok"},
+      {id:"INV-A02",cap:"250kW",now:205,pr:85,temp:43,st:"運轉中",c:"t-ok"},
+      {id:"INV-A03",cap:"250kW",now:118,pr:49,temp:58,st:"降載",c:"t-warn"},
+      {id:"INV-A04",cap:"250kW",now:0,pr:0,temp:36,st:"停機",c:"t-bad"},
+      {id:"INV-B01",cap:"250kW",now:221,pr:91,temp:40,st:"運轉中",c:"t-ok"},
+      {id:"INV-B02",cap:"250kW",now:198,pr:82,temp:44,st:"運轉中",c:"t-ok"}
+    ];
+    var h='<div class="rowflex" style="margin-bottom:14px">'+
+      '<div class="stat"><div class="l">案場 PR 值</div><div class="v">83.4%</div></div>'+
+      '<div class="stat"><div class="l">逆變器在線</div><div class="v">46 / 48</div></div>'+
+      '<div class="stat"><div class="l">今日發電</div><div class="v">42.6 MWh</div></div>'+
+      '<div class="stat"><div class="l">系統效率損失</div><div class="v" style="color:var(--warn)">6.8%</div></div>'+
+      '<div class="stat"><div class="l">面板衰退率</div><div class="v">0.52%/年</div></div>'+
+      '</div>';
+    h+='<div class="grid g-2e">'+
+       '<div class="card"><div class="cardhead"><h3>雲林麥寮一場 · 發電曲線</h3><span class="tag t-info">實際 vs 理論</span></div><div id="c1" class="chart"></div></div>'+
+       '<div class="card"><div class="cardhead"><h3>各分區 PR 值</h3><span class="tag t-mut">近30日</span></div><div id="c1b" class="chart"></div></div>'+
+       '</div>';
+    h+='<div class="card" style="margin-top:14px"><div class="cardhead"><h3>逆變器即時狀態</h3><span class="tag t-warn">2 台需關注</span></div>'+
+       '<div style="overflow-x:auto"><table><thead><tr><th>逆變器</th><th>容量</th><th>即時輸出</th><th>效能比</th><th>模組溫度</th><th>負載</th><th>狀態</th></tr></thead><tbody>';
+    inv.forEach(function(r){
+      h+='<tr><td><b>'+r.id+'</b></td><td class="mono">'+r.cap+'</td><td class="mono"><b>'+r.now+'</b> kW</td>'+
+         '<td class="mono">'+r.pr+'%</td><td class="mono">'+r.temp+'°C</td>'+
+         '<td><span class="tprog"><i style="width:'+r.pr+'%"></i></span></td>'+
+         '<td><span class="tag '+r.c+'">'+r.st+'</span></td></tr>';
+    });
+    h+='</tbody></table></div></div>';
+    view.innerHTML=h;
+    void view.offsetHeight;
+    mkChart(document.getElementById("c1"),{
+      tooltip:{trigger:"axis"},
+      grid:{left:44,right:44,top:28,bottom:26},
+      legend:{data:["實際輸出","理論輸出","日照量"],top:0,textStyle:{fontSize:11}},
+      xAxis:{type:"category",boundaryGap:false,data:["06","08","10","12","14","16","18"],axisLabel:{fontSize:11}},
+      yAxis:[{type:"value",name:"kW",axisLabel:{fontSize:11}},{type:"value",name:"W/m²",axisLabel:{fontSize:11},splitLine:{show:false}}],
+      series:[
+        {name:"實際輸出",type:"line",smooth:true,areaStyle:{color:"rgba(29,78,216,.13)"},lineStyle:{color:"#1d4ed8",width:3},itemStyle:{color:"#1d4ed8"},data:[120,1980,4820,6820,5540,3120,640]},
+        {name:"理論輸出",type:"line",smooth:true,lineStyle:{color:"#94a3b8",width:2,type:"dashed"},itemStyle:{color:"#94a3b8"},data:[140,2150,5100,7050,5900,3380,720]},
+        {name:"日照量",type:"line",yAxisIndex:1,smooth:true,lineStyle:{color:"#f59e0b",width:2},itemStyle:{color:"#f59e0b"},data:[60,320,680,910,760,430,120]}
+      ]
+    });
+    mkChart(document.getElementById("c1b"),{
+      tooltip:{trigger:"axis"},
+      grid:{left:40,right:14,top:20,bottom:26},
+      xAxis:{type:"category",data:["A區","B區","C區","D區","E區","F區"],axisLabel:{fontSize:11}},
+      yAxis:{type:"value",name:"%",min:50,max:95,axisLabel:{fontSize:11}},
+      series:[{type:"bar",barWidth:"52%",data:[
+        {value:88,itemStyle:{color:"#1d4ed8"}},{value:85,itemStyle:{color:"#1d4ed8"}},
+        {value:66,itemStyle:{color:"#f59e0b"}},{value:91,itemStyle:{color:"#60a5fa"}},
+        {value:83,itemStyle:{color:"#1d4ed8"}},{value:79,itemStyle:{color:"#1d4ed8"}}
+      ],label:{show:true,position:"top",formatter:"{c}%",fontSize:11}}]
+    });
+  }
+
+  // ================= SCREEN 2 : 巡檢派工 (kanban) =================
+  function v2(){
+    var cols=[
+      {t:"待派工",cls:"t-mut",items:[
+        {tt:"布袋案場 INV-C03 逆變器離線",p:"var(--bad)",who:"未指派",ini:"?",tag:"急件",tc:"t-bad",due:"今日"},
+        {tt:"芳苑漁電 A區串列電流異常",p:"var(--warn)",who:"未指派",ini:"?",tag:"巡檢",tc:"t-warn",due:"08/14"}
+      ]},
+      {t:"已派工",cls:"t-info",items:[
+        {tt:"麥寮一場 面板清洗（第3區）",p:"var(--accent2)",who:"陳志明",ini:"陳",tag:"保養",tc:"t-info",due:"08/13"},
+        {tt:"七股鹽田 匯流箱檢測",p:"var(--accent2)",who:"林建宏",ini:"林",tag:"巡檢",tc:"t-info",due:"08/14"},
+        {tt:"永安案場 除草作業",p:"var(--warn)",who:"王大維",ini:"王",tag:"環境",tc:"t-mut",due:"08/15"}
+      ]},
+      {t:"處理中",cls:"t-warn",items:[
+        {tt:"林邊二場 電纜接頭過熱更換",p:"var(--bad)",who:"陳志明",ini:"陳",tag:"維修",tc:"t-bad",due:"進行中"},
+        {tt:"布袋案場 逆變器返修送修",p:"var(--warn)",who:"外包廠商",ini:"外",tag:"送修",tc:"t-warn",due:"進行中"}
+      ]},
+      {t:"已完成",cls:"t-ok",items:[
+        {tt:"麥寮一場 月度預防保養",p:"var(--ok)",who:"林建宏",ini:"林",tag:"保養",tc:"t-ok",due:"08/12"},
+        {tt:"七股鹽田 逆變器韌體更新",p:"var(--ok)",who:"王大維",ini:"王",tag:"維修",tc:"t-ok",due:"08/11"},
+        {tt:"芳苑漁電 紅外線熱像巡檢",p:"var(--ok)",who:"陳志明",ini:"陳",tag:"巡檢",tc:"t-ok",due:"08/10"}
+      ]}
+    ];
+    var h='<div class="rowflex" style="margin-bottom:14px">'+
+      '<div class="stat"><div class="l">本月工單</div><div class="v">128</div></div>'+
+      '<div class="stat"><div class="l">處理中</div><div class="v" style="color:var(--warn)">14</div></div>'+
+      '<div class="stat"><div class="l">逾期</div><div class="v" style="color:var(--bad)">3</div></div>'+
+      '<div class="stat"><div class="l">平均完工工時</div><div class="v">3.4 hr</div></div>'+
+      '<div class="stat"><div class="l">準時完工率</div><div class="v" style="color:var(--ok)">94.5%</div></div>'+
+      '</div>';
+    h+='<div class="card"><div class="cardhead"><h3>巡檢維修工單看板</h3><span class="tag t-info">拖曳式派工（示意）</span></div>'+
+       '<div style="overflow-x:auto"><div class="kb">';
+    cols.forEach(function(c){
+      h+='<div class="kbcol"><div class="kh"><span><span class="tag '+c.cls+'">'+c.t+'</span></span><span class="cnt">'+c.items.length+'</span></div>';
+      c.items.forEach(function(it){
+        h+='<div class="ticket"><div style="display:flex;gap:8px;align-items:flex-start"><span class="prio" style="background:'+it.p+'"></span>'+
+           '<div style="min-width:0"><div class="tt">'+it.tt+'</div>'+
+           '<div class="meta"><span class="tag '+it.tc+'">'+it.tag+'</span>'+
+           '<span class="who"><span class="av">'+it.ini+'</span>'+it.who+'</span>'+
+           '<span><span class="material-symbols-outlined" style="font-size:14px">event</span> '+it.due+'</span></div></div></div></div>';
+      });
+      h+='</div>';
+    });
+    h+='</div></div></div>';
+    view.innerHTML=h;
+    void view.offsetHeight;
+  }
+
+  // ================= SCREEN 3 : 故障告警 (timeline + donut) =================
+  function v3(){
+    var evs=[
+      {tm:"14:02",ti:"布袋案場 INV-C03 逆變器通訊中斷",td:"連續 3 次心跳逾時，已自動判定離線並升級為急件工單 WO-2261。",dc:"#dc2626",sv:"嚴重"},
+      {tm:"11:38",ti:"芳苑漁電 A區串列電流低於閾值",td:"實測電流較同組低 18%，疑似模組陰影或旁路二極體異常，待現場巡檢。",dc:"#f59e0b",sv:"警告"},
+      {tm:"10:15",ti:"林邊二場 匯流箱溫度偏高",td:"電纜接頭溫度達 68°C，已派工更換，處理中。",dc:"#f59e0b",sv:"警告"},
+      {tm:"09:04",ti:"永安案場 逆變器對地絕緣告警",td:"清晨露水造成暫時性絕緣下降，日照升溫後自動恢復，無需處置。",dc:"#60a5fa",sv:"提示"},
+      {tm:"08:41",ti:"七股鹽田 電網頻率短暫波動",td:"台電端頻率擾動，案場保護動作後於 6 秒內恢復併網。",dc:"#16a34a",sv:"已恢復"}
+    ];
+    var h='<div class="grid g-2">'+
+      '<div class="card"><div class="cardhead"><h3>今日告警時間軸</h3><span class="tag t-bad">1 嚴重 · 2 警告</span></div><div class="tl">';
+    evs.forEach(function(e){
+      h+='<div class="tli"><span class="dot" style="background:'+e.dc+'"></span>'+
+         '<div class="tm">'+e.tm+' · <span style="color:'+e.dc+';font-weight:800">'+e.sv+'</span></div>'+
+         '<div class="ti">'+e.ti+'</div><div class="td">'+e.td+'</div></div>';
+    });
+    h+='</div></div>';
+    h+='<div><div class="card"><h3>告警類型分布</h3><div class="sub">近 7 日 · 共 64 筆</div><div id="c3" class="chart sm"></div></div>'+
+       '<div class="card" style="margin-top:14px"><h3>平均處理時效</h3><div class="lgrid">'+
+       '<div class="li"><span><i style="background:#dc2626"></i>嚴重</span><b>0.8 hr</b></div>'+
+       '<div class="li"><span><i style="background:#f59e0b"></i>警告</span><b>4.2 hr</b></div>'+
+       '<div class="li"><span><i style="background:#60a5fa"></i>提示</span><b>自動恢復</b></div>'+
+       '<div class="li"><span><i style="background:#16a34a"></i>已解</span><b>58 / 64</b></div>'+
+       '</div></div></div></div>';
+    view.innerHTML=h;
+    void view.offsetHeight;
+    mkChart(document.getElementById("c3"),{
+      tooltip:{trigger:"item"},
+      legend:{bottom:0,type:"scroll",textStyle:{fontSize:11}},
+      series:[{type:"pie",radius:["45%","70%"],center:["50%","42%"],
+        label:{show:true,formatter:"{c}",fontSize:11},
+        data:[
+          {value:18,name:"逆變器異常",itemStyle:{color:"#1d4ed8"}},
+          {value:14,name:"串列/模組",itemStyle:{color:"#60a5fa"}},
+          {value:11,name:"通訊中斷",itemStyle:{color:"#f59e0b"}},
+          {value:9,name:"溫度過高",itemStyle:{color:"#dc2626"}},
+          {value:12,name:"電網相關",itemStyle:{color:"#94a3b8"}}
+        ]}]
+    });
+  }
+
+  // ================= SCREEN 4 : 清洗保養 (calendar signature) =================
+  function v4(){
+    var dow=["日","一","二","三","四","五","六"];
+    var events={
+      3:[{t:"麥寮清洗",c:"c"}],5:[{t:"預防保養",c:"m"}],
+      10:[{t:"熱像巡檢",c:"i"}],12:[{t:"七股保養",c:"m"}],
+      13:[{t:"麥寮清洗",c:"c"},{t:"永安除草",c:"m"}],
+      17:[{t:"芳苑巡檢",c:"i"}],19:[{t:"林邊清洗",c:"c"}],
+      21:[{t:"匯流箱檢",c:"i"}],25:[{t:"月度保養",c:"m"}],28:[{t:"布袋清洗",c:"c"}]
+    };
+    var startDow=6, days=31, today=13;
+    var cells=[];
+    for(var i=0;i<startDow;i++)cells.push(null);
+    for(var d=1;d<=days;d++)cells.push(d);
+    while(cells.length%7!==0)cells.push(null);
+    var h='<div class="rowflex" style="margin-bottom:14px">'+
+      '<div class="stat"><div class="l">本月清洗場次</div><div class="v">18 場</div></div>'+
+      '<div class="stat"><div class="l">預防保養完成</div><div class="v" style="color:var(--ok)">22 / 26</div></div>'+
+      '<div class="stat"><div class="l">清洗前後增益</div><div class="v" style="color:var(--accent)">+7.3%</div></div>'+
+      '<div class="stat"><div class="l">下次到期</div><div class="v">3 天內 4 項</div></div>'+
+      '</div>';
+    h+='<div class="grid g-2">'+
+       '<div class="card"><div class="cardhead"><h3>2026 年 8 月 · 保養排程</h3><span class="tag t-info">清洗 / 保養 / 巡檢</span></div>'+
+       '<div style="overflow-x:auto"><div class="cal">';
+    dow.forEach(function(w){h+='<div class="dow">'+w+'</div>'});
+    cells.forEach(function(d){
+      if(d===null){h+='<div class="cell mut"></div>';return;}
+      var cls="cell"+(d===today?" today":"");
+      h+='<div class="'+cls+'"><div class="d">'+d+'</div>';
+      (events[d]||[]).forEach(function(e){h+='<div class="ev '+e.c+'">'+e.t+'</div>'});
+      h+='</div>';
+    });
+    h+='</div></div><div class="legend"><span><i style="background:#dbeafe"></i>面板清洗</span><span><i style="background:#dcfce7"></i>預防保養</span><span><i style="background:#fef3c7"></i>巡檢檢測</span></div></div>';
+    h+='<div class="card"><h3>清洗成效追蹤</h3><div class="sub">清洗後 PR 值回升</div><div id="c4" class="chart sm"></div></div>';
+    h+='</div>';
+    view.innerHTML=h;
+    void view.offsetHeight;
+    mkChart(document.getElementById("c4"),{
+      tooltip:{trigger:"axis"},
+      grid:{left:38,right:16,top:24,bottom:26},
+      xAxis:{type:"category",data:["清洗前","清洗後","+1週","+2週","+4週","+6週"],axisLabel:{fontSize:10.5}},
+      yAxis:{type:"value",name:"PR%",min:70,max:92,axisLabel:{fontSize:11}},
+      series:[{type:"line",smooth:true,symbolSize:8,
+        areaStyle:{color:"rgba(29,78,216,.12)"},lineStyle:{color:"#1d4ed8",width:3},itemStyle:{color:"#1d4ed8"},
+        markPoint:{data:[{type:"max",name:"峰值"}]},
+        data:[75,88,87,86,84,83]}]
+    });
+  }
+
+  // ================= SCREEN 5 : 售電收益 =================
+  function v5(){
+    var rows=[
+      {nm:"雲林麥寮一場",gen:"1,182",rate:"5.12",rev:"605.2",pr:84,ytd:"4,821",st:"達標",c:"t-ok"},
+      {nm:"台南七股鹽田",gen:"1,644",rate:"4.98",rev:"818.7",pr:81,ytd:"6,530",st:"達標",c:"t-ok"},
+      {nm:"彰化芳苑漁電",gen:"612",rate:"5.86",rev:"358.6",pr:66,ytd:"2,410",st:"低於預期",c:"t-warn"},
+      {nm:"屏東林邊二場",gen:"744",rate:"4.75",rev:"353.4",pr:86,ytd:"2,980",st:"達標",c:"t-ok"},
+      {nm:"嘉義布袋案場",gen:"188",rate:"5.30",rev:"99.6",pr:38,ytd:"1,120",st:"故障影響",c:"t-bad"},
+      {nm:"高雄永安案場",gen:"1,326",rate:"4.88",rev:"647.1",pr:79,ytd:"5,240",st:"達標",c:"t-ok"}
+    ];
+    var h='<div class="grid g-kpi" style="margin-bottom:2px">'+
+      '<div class="card kpi"><div class="lab"><span class="material-symbols-outlined">payments</span>本月售電收益</div><div class="val">2,882 <small>萬元</small></div><div class="delta up">▲ +4.8% vs 上月</div></div>'+
+      '<div class="card kpi"><div class="lab"><span class="material-symbols-outlined">savings</span>年度累計收益</div><div class="val">2.31 <small>億元</small></div><div class="delta up">▲ 達成率 92%</div></div>'+
+      '<div class="card kpi"><div class="lab"><span class="material-symbols-outlined">bolt</span>本月售電量</div><div class="val">5,696 <small>MWh</small></div><div class="delta up">▲ +3.1%</div></div>'+
+      '<div class="card kpi"><div class="lab"><span class="material-symbols-outlined">trending_up</span>平均躉購費率</div><div class="val">5.02 <small>元/度</small></div><div class="delta down">▼ 20年約定費率</div></div>'+
+      '</div>';
+    h+='<div class="grid g-2e" style="margin-top:14px">'+
+       '<div class="card"><div class="cardhead"><h3>月度售電收益趨勢</h3><span class="tag t-info">萬元</span></div><div id="c5" class="chart"></div></div>'+
+       '<div class="card"><div class="cardhead"><h3>各案場收益占比</h3><span class="tag t-mut">本月</span></div><div id="c5b" class="chart"></div></div>'+
+       '</div>';
+    h+='<div class="card" style="margin-top:14px"><div class="cardhead"><h3>案場收益結算明細</h3><span class="tag t-warn">2 案場低於預期</span></div>'+
+       '<div style="overflow-x:auto"><table><thead><tr><th>案場</th><th>本月發電(MWh)</th><th>費率(元/度)</th><th>本月收益(萬元)</th><th>PR值</th><th>年度累計(萬元)</th><th>狀態</th></tr></thead><tbody>';
+    rows.forEach(function(r){
+      h+='<tr><td><b>'+r.nm+'</b></td><td class="mono">'+r.gen+'</td><td class="mono">'+r.rate+'</td>'+
+         '<td class="mono"><b>'+r.rev+'</b></td><td class="mono">'+r.pr+'%</td><td class="mono">'+r.ytd+'</td>'+
+         '<td><span class="tag '+r.c+'">'+r.st+'</span></td></tr>';
+    });
+    h+='<tr style="background:#f8fafc;font-weight:800"><td>合計</td><td class="mono">5,696</td><td>—</td><td class="mono">2,882.6</td><td>—</td><td class="mono">23,101</td><td><span class="tag t-info">92% 達成</span></td></tr>';
+    h+='</tbody></table></div></div>';
+    view.innerHTML=h;
+    void view.offsetHeight;
+    mkChart(document.getElementById("c5"),{
+      tooltip:{trigger:"axis"},
+      grid:{left:48,right:14,top:24,bottom:26},
+      legend:{data:["實際收益","目標收益"],top:0,textStyle:{fontSize:11}},
+      xAxis:{type:"category",data:["3月","4月","5月","6月","7月","8月"],axisLabel:{fontSize:11}},
+      yAxis:{type:"value",name:"萬元",axisLabel:{fontSize:11}},
+      series:[
+        {name:"實際收益",type:"bar",barWidth:"42%",itemStyle:{color:"#1d4ed8",borderRadius:[5,5,0,0]},data:[2410,2620,2755,2810,2751,2882]},
+        {name:"目標收益",type:"line",smooth:true,lineStyle:{color:"#f59e0b",width:2,type:"dashed"},itemStyle:{color:"#f59e0b"},data:[2500,2600,2700,2800,2900,3100]}
+      ]
+    });
+    mkChart(document.getElementById("c5b"),{
+      tooltip:{trigger:"item",formatter:"{b}: {c} 萬元 ({d}%)"},
+      legend:{bottom:0,type:"scroll",textStyle:{fontSize:11}},
+      series:[{type:"pie",radius:["40%","68%"],center:["50%","42%"],
+        label:{show:false},
+        data:[
+          {value:605,name:"麥寮一場",itemStyle:{color:"#1d4ed8"}},
+          {value:819,name:"七股鹽田",itemStyle:{color:"#2563eb"}},
+          {value:359,name:"芳苑漁電",itemStyle:{color:"#60a5fa"}},
+          {value:353,name:"林邊二場",itemStyle:{color:"#93c5fd"}},
+          {value:100,name:"布袋案場",itemStyle:{color:"#f59e0b"}},
+          {value:647,name:"永安案場",itemStyle:{color:"#3b82f6"}}
+        ]}]
+    });
+  }
+
+  var SCREENS=[v0,v1,v2,v3,v4,v5];
+
+  function show(i){
+    i=Math.max(0,Math.min(i,SCREENS.length-1));
+    disposeChart();
+    document.querySelectorAll("[data-i]").forEach(function(b){
+      b.classList.toggle("on",+b.getAttribute("data-i")===i);
+    });
+    document.getElementById("scr-title").textContent=MODS[i].name;
+    document.getElementById("scr-sub").textContent=MODS[i].sub;
+    SCREENS[i]();
+  }
+
+  show(0);
+
+  function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+  </script>
 </body>
 </html>
