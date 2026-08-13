@@ -377,7 +377,9 @@ function renderProjects() {
   });
   setupCardEmbeds();
   document.querySelector("#resultSummary").textContent = `找到 ${state.filtered.length} 個專案，目前顯示 ${visibleProjects.length} 個。`;
-  loadMore.hidden = state.visible >= state.filtered.length || !state.filtered.length;
+  const hideMore = state.visible >= state.filtered.length || !state.filtered.length;
+  loadMore.hidden = hideMore;
+  loadMore.style.display = hideMore ? "none" : ""; // [hidden] 被 inline-flex 覆蓋，需強制 display
 }
 
 function renderSuggestions() {

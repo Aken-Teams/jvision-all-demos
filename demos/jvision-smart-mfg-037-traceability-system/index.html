@@ -1,18 +1,514 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>產品追溯系統（Traceability System）｜Jvision 系統 Demo</title>
-  <meta name="description" content="把分散數據變成可下鑽、可決策的經營洞察" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>產品追溯系統（Traceability System）｜Jvision Demo</title>
+<meta name="description" content="物料批次履歷、投料綁定、製程參數關聯、序號生成與雙向追溯查詢的控制中心" />
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+<style>
+:root{
+  --accent:#7c3aed; --accent2:#a78bfa;
+  --bg:#0e0b1a; --panel:#171227; --panel2:#1f1836; --line:#2c2444;
+  --ink:#ece9f6; --muted:#9a90b8; --dim:#6f6690;
+  --ok:#34d399; --warn:#fbbf24; --bad:#f87171; --info:#60a5fa;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:"Inter","Noto Sans TC",system-ui,sans-serif;
+  background:radial-gradient(1200px 700px at 80% -10%,rgba(124,58,237,.18),transparent 60%),var(--bg);
+  color:var(--ink); min-height:100vh; -webkit-font-smoothing:antialiased;
+}
+.ms{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle}
+/* top nav */
+.topbar{position:sticky;top:0;z-index:30;background:rgba(14,11,26,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.tb-in{max-width:1360px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;flex:none}
+.brand b{font-size:15px;font-weight:800;white-space:nowrap}
+.brand span{font-size:11px;color:var(--muted);display:block;font-weight:500}
+.tb-status{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(52,211,153,.18)}
+nav.tabs{background:var(--panel);border-bottom:1px solid var(--line)}
+.tabs-in{max-width:1360px;margin:0 auto;padding:8px 12px;display:flex;gap:8px;flex-wrap:wrap}
+.tabs button{flex:none;white-space:nowrap;min-width:0;display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
+.tabs button .ms{font-size:19px}
+.tabs button:hover{color:var(--ink);border-color:var(--accent2)}
+.tabs button.on{background:linear-gradient(135deg,var(--accent),#6d28d9);color:#fff;border-color:transparent;box-shadow:0 6px 18px -6px rgba(124,58,237,.6)}
+.tabs button .idx{font-size:11px;opacity:.7}
+main{max-width:1360px;margin:0 auto;padding:18px 16px 60px}
+/* headings */
+.screen-head{display:flex;align-items:flex-start;gap:12px;margin:2px 0 16px}
+.screen-head .ic{width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,rgba(124,58,237,.35),rgba(167,139,250,.18));border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--accent2);flex:none}
+.screen-head h2{margin:0;font-size:19px;font-weight:800}
+.screen-head p{margin:3px 0 0;font-size:13px;color:var(--muted)}
+/* generic panel */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.card h3{margin:0 0 12px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
+.card h3 .ms{font-size:18px;color:var(--accent2)}
+.sub{font-size:12px;color:var(--dim);font-weight:500}
+/* grids */
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g23{grid-template-columns:1.6fr 1fr}
+.g32{grid-template-columns:1fr 1.5fr}
+@media(max-width:820px){
+  .g4,.g3,.g2,.g23,.g32{grid-template-columns:1fr}
+}
+/* kpi */
+.kpi{background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:14px;padding:15px;min-width:0}
+.kpi .k-top{display:flex;align-items:center;justify-content:space-between}
+.kpi .k-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;flex:none}
+.kpi .k-lbl{font-size:12px;color:var(--muted);margin:10px 0 4px;font-weight:500}
+.kpi .k-val{font-size:26px;font-weight:800;letter-spacing:-.5px}
+.kpi .k-val small{font-size:13px;color:var(--muted);font-weight:600;margin-left:3px}
+.kpi .k-chg{font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px}
+.up{color:var(--ok);background:rgba(52,211,153,.12)}
+.down{color:var(--bad);background:rgba(248,113,113,.12)}
+.neu{color:var(--info);background:rgba(96,165,250,.12)}
+/* table */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+th{text-align:left;padding:9px 12px;color:var(--dim);font-weight:600;font-size:11px;letter-spacing:.4px;text-transform:uppercase;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid rgba(44,36,68,.6);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(124,58,237,.06)}
+.mono{font-family:"Inter",monospace;font-variant-numeric:tabular-nums;letter-spacing:.3px}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.p-ok{color:var(--ok);background:rgba(52,211,153,.13)}
+.p-warn{color:var(--warn);background:rgba(251,191,36,.13)}
+.p-bad{color:var(--bad);background:rgba(248,113,113,.13)}
+.p-info{color:var(--info);background:rgba(96,165,250,.13)}
+.p-muted{color:var(--muted);background:rgba(154,144,184,.12)}
+/* progress */
+.bar{height:7px;border-radius:20px;background:var(--panel2);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+/* binding board */
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:820px){.board{grid-template-columns:1fr}}
+.wo{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0}
+.wo .wo-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.wo .wo-h b{font-size:13px}
+.lot{display:flex;align-items:center;gap:8px;font-size:12px;padding:7px 9px;border-radius:9px;background:var(--panel);border:1px solid var(--line);margin-top:6px}
+.lot .mono{color:var(--accent2);font-weight:600}
+.lot .ms{font-size:15px}
+/* matrix */
+.mtx-wrap{overflow-x:auto}
+.mtx{border-collapse:separate;border-spacing:4px;min-width:560px}
+.mtx td,.mtx th{padding:0}
+.cell{width:100%;border-radius:8px;padding:9px 6px;text-align:center;font-size:12px;font-weight:600;color:#0b0716}
+.mtx th{color:var(--dim);font-size:11px;font-weight:600;padding:4px;white-space:nowrap}
+.mtx .rh{color:var(--muted);font-size:12px;font-weight:600;text-align:right;padding-right:8px;white-space:nowrap}
+/* genealogy tree */
+.tree{overflow-x:auto;padding:6px 2px}
+.tree-in{display:flex;gap:0;align-items:stretch;min-width:640px}
+.tcol{display:flex;flex-direction:column;justify-content:center;gap:10px;padding:0 4px;min-width:150px}
+.tcol .tcap{font-size:11px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;text-align:center}
+.node{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:12px;position:relative}
+.node b{display:block;font-size:12px}
+.node .mono{color:var(--accent2);font-size:11px}
+.node.root{border-color:var(--accent);box-shadow:0 0 0 1px rgba(124,58,237,.35),0 8px 20px -10px rgba(124,58,237,.5)}
+.conn{display:flex;align-items:center;color:var(--line);flex:none}
+.conn .ms{font-size:22px;color:var(--accent2);opacity:.5}
+/* timeline */
+.tl{position:relative;padding-left:22px}
+.tl:before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:linear-gradient(var(--accent),var(--accent2))}
+.tl .ev{position:relative;padding:0 0 16px 6px}
+.tl .ev:last-child{padding-bottom:0}
+.tl .ev:before{content:"";position:absolute;left:-19px;top:3px;width:11px;height:11px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 3px var(--panel)}
+.tl .ev .t{font-size:11px;color:var(--dim);font-weight:600}
+.tl .ev b{font-size:13px;display:block;margin:2px 0}
+.tl .ev p{margin:0;font-size:12px;color:var(--muted)}
+/* funnel */
+.fn{display:flex;flex-direction:column;gap:9px;align-items:center}
+.fn .step{border-radius:10px;padding:11px 12px;text-align:center;color:#fff;font-weight:700;font-size:13px;box-shadow:0 6px 16px -8px rgba(0,0,0,.6)}
+.fn .step small{display:block;font-weight:500;font-size:11px;opacity:.85;margin-top:2px}
+/* serial cards */
+.serchip{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:11px;display:flex;gap:10px;align-items:center;min-width:0}
+.serchip .qr{width:40px;height:40px;border-radius:8px;background:conic-gradient(from 45deg,var(--accent),var(--accent2),var(--accent));display:flex;align-items:center;justify-content:center;color:#fff;flex:none}
+.serchip .sm{font-size:11px;color:var(--muted)}
+.serchip .sb{font-size:13px;font-weight:700}
+.list{display:flex;flex-direction:column;gap:9px}
+.rowline{display:flex;align-items:center;gap:10px;font-size:12px;padding:9px 11px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);min-width:0}
+.rowline .grow{flex:1;min-width:0}
+.chart{width:100%}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:middle}
+.note{font-size:11px;color:var(--dim);margin-top:10px;display:flex;align-items:center;gap:6px}
+@media(max-width:560px){ .tabs button .lbl{display:none} .tb-status .txt{display:none} }
+.split14{margin-top:14px}
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<header class="topbar">
+  <div class="tb-in">
+    <div class="brand">
+      <div class="logo"><span class="ms">account_tree</span></div>
+      <div><b>Traceability Control</b><span>產品追溯系統 · 控制中心</span></div>
+    </div>
+    <div class="tb-status">
+      <span class="dot"></span><span class="txt">即時採集中 · 資料完整率 99.2%</span>
+    </div>
+  </div>
+</header>
+<nav class="tabs">
+  <div class="tabs-in" id="tabs">
+    <button data-i="0" onclick="show(0)"><span class="idx mono">01</span><span class="ms">inventory_2</span><span class="lbl">物料批次履歷</span></button>
+    <button data-i="1" onclick="show(1)"><span class="idx mono">02</span><span class="ms">link</span><span class="lbl">投料綁定</span></button>
+    <button data-i="2" onclick="show(2)"><span class="idx mono">03</span><span class="ms">precision_manufacturing</span><span class="lbl">製程參數關聯</span></button>
+    <button data-i="3" onclick="show(3)"><span class="idx mono">04</span><span class="ms">qr_code_2</span><span class="lbl">序號生成</span></button>
+    <button data-i="4" onclick="show(4)"><span class="idx mono">05</span><span class="ms">account_tree</span><span class="lbl">雙向追溯查詢</span></button>
+    <button data-i="5" onclick="show(5)"><span class="idx mono">06</span><span class="ms">campaign</span><span class="lbl">召回影響分析</span></button>
+  </div>
+</nav>
+<main><div id="view"></div></main>
+
+<script>
+"use strict";
+var AX="#9a90b8", GRID="#2c2444", ACC="#7c3aed", ACC2="#a78bfa";
+var charts=[];
+function killCharts(){for(var i=0;i<charts.length;i++){try{charts[i].destroy();}catch(e){}}charts=[];}
+function el(id){return document.getElementById(id);}
+
+var MODULES=[
+  {icon:"inventory_2",name:"物料批次履歷",desc:"來料批號、供應商與收貨紀錄"},
+  {icon:"link",name:"投料綁定",desc:"工單投料與批次逐筆綁定"},
+  {icon:"precision_manufacturing",name:"製程參數關聯",desc:"機台、人員與製程數值自動採集"},
+  {icon:"qr_code_2",name:"序號生成",desc:"完工序號賦碼與譜系建立"},
+  {icon:"account_tree",name:"雙向追溯查詢",desc:"序號/批號正逆向鑽取譜系"},
+  {icon:"campaign",name:"召回影響分析",desc:"客訴定位波及範圍與出貨清單"}
+];
+
+/* ---------- helpers ---------- */
+function baseChart(type,height){
+  return {chart:{type:type,height:height,fontFamily:'Inter,Noto Sans TC,sans-serif',foreColor:AX,
+    toolbar:{show:false},redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false}},
+    grid:{borderColor:GRID,strokeDashArray:3},
+    tooltip:{theme:'dark'},dataLabels:{enabled:false},legend:{labels:{colors:AX}}};
+}
+function kpi(ic,color,lbl,val,unit,chg,cls){
+  return '<div class="kpi"><div class="k-top"><div class="k-ic" style="background:'+color+'"><span class="ms">'+ic+'</span></div>'
+    +'<span class="k-chg '+cls+'">'+chg+'</span></div>'
+    +'<div class="k-lbl">'+lbl+'</div><div class="k-val">'+val+(unit?'<small>'+unit+'</small>':'')+'</div></div>';
+}
+function head(i){
+  var m=MODULES[i];
+  return '<div class="screen-head"><div class="ic"><span class="ms">'+m.icon+'</span></div>'
+    +'<div><h2>'+m.name+'</h2><p>'+m.desc+'</p></div></div>';
+}
+
+/* ================= SCREEN 0 : 物料批次履歷 ================= */
+function s0(){
+  var rows=[
+    {lot:"LOT-AL6061-2408A",mat:"鋁擠型 6061-T6",sup:"晶鋁金屬",qty:"4,800 kg",date:"08-11 07:20",coa:"ok",st:"可用"},
+    {lot:"LOT-PCB-K220",mat:"主板 PCB K220",sup:"宏泰電路",qty:"12,000 pcs",date:"08-11 09:05",coa:"ok",st:"可用"},
+    {lot:"LOT-CAP-104J",mat:"電容 104J 50V",sup:"國巨被動",qty:"180,000 pcs",date:"08-10 14:40",coa:"warn",st:"待複驗"},
+    {lot:"LOT-SCR-M3X8",mat:"螺絲 M3x8 不鏽鋼",sup:"順鎖五金",qty:"56,000 pcs",date:"08-10 11:12",coa:"ok",st:"可用"},
+    {lot:"LOT-LCD-70T",mat:"LCD 面板 7.0\"",sup:"友達光電",qty:"3,200 pcs",date:"08-09 16:30",coa:"bad",st:"隔離"},
+    {lot:"LOT-WIRE-24AWG",mat:"線材 24AWG",sup:"泰昌電線",qty:"8,500 m",date:"08-09 08:55",coa:"ok",st:"可用"}
+  ];
+  var stMap={"可用":"p-ok","待複驗":"p-warn","隔離":"p-bad"};
+  var coaMap={ok:['p-ok','check_circle','合格'],warn:['p-warn','pending','待驗'],bad:['p-bad','cancel','退回']};
+  var tr="";
+  for(var i=0;i<rows.length;i++){var r=rows[i];var c=coaMap[r.coa];
+    tr+='<tr><td class="mono" style="color:var(--accent2);font-weight:600">'+r.lot+'</td><td>'+r.mat+'</td><td>'+r.sup+'</td>'
+      +'<td class="mono">'+r.qty+'</td><td class="mono">'+r.date+'</td>'
+      +'<td><span class="pill '+c[0]+'"><span class="ms">'+c[1]+'</span>'+c[2]+'</span></td>'
+      +'<td><span class="pill '+stMap[r.st]+'">'+r.st+'</span></td></tr>';
+  }
+  var h=head(0);
+  h+='<div class="grid g4">'
+    +kpi('inventory_2','linear-gradient(135deg,#7c3aed,#a78bfa)','在庫批次','1,284','批','+42','up')
+    +kpi('local_shipping','linear-gradient(135deg,#2563eb,#60a5fa)','本日入庫','36','批','+9','up')
+    +kpi('verified','linear-gradient(135deg,#059669,#34d399)','COA 合格率','98.6','%','+0.7','up')
+    +kpi('block','linear-gradient(135deg,#dc2626,#f87171)','隔離批次','7','批','+2','down')
+    +'</div>';
+  h+='<div class="grid g23 split14">'
+    +'<div class="card"><h3><span class="ms">receipt_long</span>來料批次收貨明細 <span class="sub">· 近 3 日</span></h3>'
+      +'<div class="tbl-wrap"><table><thead><tr><th>批號</th><th>物料</th><th>供應商</th><th>數量</th><th>收貨時間</th><th>COA</th><th>狀態</th></tr></thead><tbody>'+tr+'</tbody></table></div></div>'
+    +'<div class="card"><h3><span class="ms">show_chart</span>每日入庫批次趨勢</h3><div id="c0" class="chart"></div>'
+      +'<div class="note"><span class="ms">info</span>入庫即建立批號履歷，供後段投料綁定引用</div></div>'
+    +'</div>';
+  return h;
+}
+function s0charts(){
+  var o=baseChart('area',260);
+  o.series=[{name:'入庫批次',data:[22,28,25,31,29,36,33]},{name:'隔離批次',data:[2,1,3,2,4,2,3]}];
+  o.colors=[ACC,'#f87171'];
+  o.stroke={curve:'smooth',width:2};
+  o.fill={type:'gradient',gradient:{opacityFrom:.35,opacityTo:.03}};
+  o.xaxis={categories:['08-05','08-06','08-07','08-08','08-09','08-10','08-11'],labels:{style:{colors:AX}}};
+  o.yaxis={labels:{style:{colors:AX}}};
+  var c=new ApexCharts(el('c0'),o);c.render();charts.push(c);
+}
+
+/* ================= SCREEN 1 : 投料綁定 ================= */
+function s1(){
+  var wos=[
+    {wo:"WO-24081101",prod:"控制器 CX-200",pct:100,st:"已綁定",cls:"p-ok",lots:[["鋁擠型","LOT-AL6061-2408A"],["主板","LOT-PCB-K220"],["電容","LOT-CAP-104J"]]},
+    {wo:"WO-24081102",prod:"感測模組 S-30",pct:66,st:"綁定中",cls:"p-info",lots:[["PCB","LOT-PCB-K220"],["線材","LOT-WIRE-24AWG"],["螺絲","未綁定"]]},
+    {wo:"WO-24081103",prod:"顯示單元 D-70",pct:33,st:"待綁定",cls:"p-warn",lots:[["LCD","隔離中"],["線材","LOT-WIRE-24AWG"],["外殼","未綁定"]]}
+  ];
+  var b="";
+  for(var i=0;i<wos.length;i++){var w=wos[i];
+    var lt="";
+    for(var j=0;j<w.lots.length;j++){var l=w.lots[j];var bad=(l[1].indexOf('LOT')!==0);
+      lt+='<div class="lot"><span class="ms" style="color:'+(bad?'#fbbf24':'#34d399')+'">'+(bad?'link_off':'link')+'</span>'
+        +'<span>'+l[0]+'</span><span class="mono" style="margin-left:auto;color:'+(bad?'#9a90b8':'#a78bfa')+'">'+l[1]+'</span></div>';
+    }
+    b+='<div class="wo"><div class="wo-h"><b>'+w.wo+'</b><span class="pill '+w.cls+'">'+w.st+'</span></div>'
+      +'<div class="sub" style="margin-bottom:8px">'+w.prod+'</div>'
+      +'<div class="bar"><i style="width:'+w.pct+'%"></i></div>'
+      +'<div class="sub" style="margin:6px 0 2px">綁定進度 '+w.pct+'%</div>'+lt+'</div>';
+  }
+  var h=head(1);
+  h+='<div class="grid g4">'
+    +kpi('link','linear-gradient(135deg,#7c3aed,#a78bfa)','今日投料綁定','218','筆','+31','up')
+    +kpi('task_alt','linear-gradient(135deg,#059669,#34d399)','綁定完成工單','14','張','+3','up')
+    +kpi('link_off','linear-gradient(135deg,#d97706,#fbbf24)','待綁定物料','9','項','-4','up')
+    +kpi('error','linear-gradient(135deg,#dc2626,#f87171)','綁定異常攔截','2','件','+2','down')
+    +'</div>';
+  h+='<div class="card split14"><h3><span class="ms">dashboard_customize</span>工單投料綁定看板 <span class="sub">· 掃碼即時綁定物料批次</span></h3>'
+    +'<div class="board">'+b+'</div>'
+    +'<div class="note"><span class="ms">shield</span>依 RULE-02：缺料或隔離批次不得綁入正式生產，系統自動攔截</div></div>';
+  h+='<div class="card split14"><h3><span class="ms">bar_chart</span>各站別綁定達成率</h3><div id="c1" class="chart"></div></div>';
+  return h;
+}
+function s1charts(){
+  var o=baseChart('bar',230);
+  o.plotOptions={bar:{horizontal:true,borderRadius:5,barHeight:'55%',distributed:true}};
+  o.series=[{name:'達成率',data:[100,92,78,66,54]}];
+  o.colors=[ACC2,ACC2,'#8b5cf6','#6d28d9','#5b21b6'];
+  o.xaxis={categories:['備料站','貼片站','插件站','組裝站','包裝站'],max:100,labels:{style:{colors:AX}}};
+  o.yaxis={labels:{style:{colors:AX}}};
+  o.legend={show:false};
+  var c=new ApexCharts(el('c1'),o);c.render();charts.push(c);
+}
+
+/* ================= SCREEN 2 : 製程參數關聯 ================= */
+function s2(){
+  var stations=['備料','貼片','回焊','插件','組裝'];
+  var params=['溫度','扭力','電流','時間'];
+  var vals=[[92,88,95,90,86],[80,94,76,88,91],[97,72,90,85,79],[88,96,82,93,90]];
+  function heat(v){
+    if(v>=90)return'#34d399'; if(v>=80)return'#a3e635'; if(v>=72)return'#fbbf24'; return'#f87171';
+  }
+  var mtx='<table class="mtx"><thead><tr><th></th>';
+  for(var s=0;s<stations.length;s++)mtx+='<th>'+stations[s]+'</th>';
+  mtx+='</tr></thead><tbody>';
+  for(var p=0;p<params.length;p++){
+    mtx+='<tr><td class="rh">'+params[p]+' Cpk</td>';
+    for(var s2i=0;s2i<stations.length;s2i++){var v=vals[p][s2i];
+      mtx+='<td><div class="cell" style="background:'+heat(v)+'">'+(v/100).toFixed(2)+'</div></td>';
+    }
+    mtx+='</tr>';
+  }
+  mtx+='</tbody></table>';
+  var h=head(2);
+  h+='<div class="grid g4">'
+    +kpi('precision_manufacturing','linear-gradient(135deg,#7c3aed,#a78bfa)','採集資料點','1.24','M/日','+8%','up')
+    +kpi('sensors','linear-gradient(135deg,#2563eb,#60a5fa)','連線機台','48','台','全連線','neu')
+    +kpi('speed','linear-gradient(135deg,#059669,#34d399)','平均 Cpk','1.42','','+0.05','up')
+    +kpi('report','linear-gradient(135deg,#d97706,#fbbf24)','參數越界告警','5','次','-3','up')
+    +'</div>';
+  h+='<div class="grid g23 split14">'
+    +'<div class="card"><h3><span class="ms">grid_on</span>站別 × 參數 製程能力矩陣</h3><div class="mtx-wrap">'+mtx+'</div>'
+      +'<div class="legend"><span><i style="background:#34d399"></i>優 ≥0.90</span><span><i style="background:#a3e635"></i>良</span><span><i style="background:#fbbf24"></i>注意</span><span><i style="background:#f87171"></i>越界</span></div></div>'
+    +'<div class="card"><h3><span class="ms">monitoring</span>回焊溫度管制圖 <span class="sub">· UCL 250 / LCL 230</span></h3><div id="c2" class="chart"></div></div>'
+    +'</div>';
+  h+='<div class="card split14"><h3><span class="ms">badge</span>製程資料自動關聯（序號 × 機台 × 人員）</h3>'
+    +'<div class="tbl-wrap"><table><thead><tr><th>在製序號</th><th>站別</th><th>機台</th><th>作業員</th><th>關鍵參數</th><th>採集時間</th><th>判定</th></tr></thead><tbody>'
+    +ptr("SN-CX200-000481","回焊","RF-03","陳建宏","峰溫 244°C",'08-11 10:22','p-ok','正常')
+    +ptr("SN-CX200-000482","回焊","RF-03","陳建宏","峰溫 251°C",'08-11 10:24','p-warn','偏高')
+    +ptr("SN-S30-001129","貼片","SMT-01","林佳穎","貼裝 0.02mm",'08-11 10:26','p-ok','正常')
+    +ptr("SN-CX200-000483","組裝","AS-05","王志豪","扭力 1.2N·m",'08-11 10:28','p-ok','正常')
+    +ptr("SN-D70-000377","插件","AI-02","張美玲","電流 3.1A",'08-11 10:31','p-bad','越界')
+    +'</tbody></table></div></div>';
+  return h;
+}
+function ptr(sn,st,mc,op,par,t,cls,jd){
+  return '<tr><td class="mono" style="color:var(--accent2)">'+sn+'</td><td>'+st+'</td><td class="mono">'+mc+'</td><td>'+op+'</td><td class="mono">'+par+'</td><td class="mono">'+t+'</td><td><span class="pill '+cls+'">'+jd+'</span></td></tr>';
+}
+function s2charts(){
+  var o=baseChart('line',260);
+  o.series=[
+    {name:'峰溫',data:[242,244,246,243,251,245,244,247,249,244]},
+    {name:'UCL',data:[250,250,250,250,250,250,250,250,250,250]},
+    {name:'LCL',data:[230,230,230,230,230,230,230,230,230,230]}
+  ];
+  o.colors=[ACC2,'#f87171','#60a5fa'];
+  o.stroke={curve:'straight',width:[3,2,2],dashArray:[0,5,5]};
+  o.markers={size:[4,0,0]};
+  o.xaxis={categories:['1','2','3','4','5','6','7','8','9','10'],labels:{style:{colors:AX}}};
+  o.yaxis={min:220,max:260,labels:{style:{colors:AX}}};
+  var c=new ApexCharts(el('c2'),o);c.render();charts.push(c);
+}
+
+/* ================= SCREEN 3 : 序號生成 ================= */
+function s3(){
+  var sers=[
+    {sn:"SN-CX200-000481",prod:"控制器 CX-200",t:"10:22"},
+    {sn:"SN-CX200-000482",prod:"控制器 CX-200",t:"10:24"},
+    {sn:"SN-S30-001129",prod:"感測模組 S-30",t:"10:26"},
+    {sn:"SN-CX200-000483",prod:"控制器 CX-200",t:"10:28"}
+  ];
+  var sc="";
+  for(var i=0;i<sers.length;i++){var s=sers[i];
+    sc+='<div class="serchip"><div class="qr"><span class="ms">qr_code_2</span></div>'
+      +'<div style="min-width:0"><div class="sm">'+s.prod+' · '+s.t+'</div><div class="sb mono" style="color:var(--accent2)">'+s.sn+'</div></div></div>';
+  }
+  var h=head(3);
+  h+='<div class="grid g4">'
+    +kpi('qr_code_2','linear-gradient(135deg,#7c3aed,#a78bfa)','今日賦碼序號','1,846','pcs','+120','up')
+    +kpi('fingerprint','linear-gradient(135deg,#2563eb,#60a5fa)','唯一碼衝突','0','件','0','neu')
+    +kpi('account_tree','linear-gradient(135deg,#059669,#34d399)','譜系完整率','99.4','%','+0.3','up')
+    +kpi('print_disabled','linear-gradient(135deg,#d97706,#fbbf24)','補印重賦碼','6','pcs','-2','up')
+    +'</div>';
+  h+='<div class="grid g32 split14">'
+    +'<div class="card"><h3><span class="ms">timeline</span>序號生成流水</h3><div class="tl">'
+      +tlev('10:31','SN-CX200-000484 賦碼','控制器 CX-200 完工，封存製程譜系並印製標籤')
+      +tlev('10:28','SN-CX200-000483 賦碼','綁定 3 批物料 + 5 站製程參數')
+      +tlev('10:26','SN-S30-001129 賦碼','感測模組 S-30 完工入序')
+      +tlev('10:24','SN-CX200-000482 賦碼','峰溫偏高，已標記待品保確認')
+    +'</div></div>'
+    +'<div class="card"><h3><span class="ms">donut_large</span>各產品線賦碼佔比</h3><div id="c3" class="chart"></div>'
+      +'<h3 style="margin-top:14px"><span class="ms">bolt</span>最新賦碼序號</h3><div class="grid g2">'+sc+'</div></div>'
+    +'</div>';
+  return h;
+}
+function tlev(t,b,p){return '<div class="ev"><div class="t">'+t+'</div><b>'+b+'</b><p>'+p+'</p></div>';}
+function s3charts(){
+  var o=baseChart('donut',240);
+  o.series=[920,540,286,100];
+  o.labels=['控制器 CX-200','感測模組 S-30','顯示單元 D-70','其他'];
+  o.colors=[ACC,ACC2,'#60a5fa','#475569'];
+  o.plotOptions={pie:{donut:{size:'62%',labels:{show:true,total:{show:true,label:'今日總量',color:AX,formatter:function(){return'1,846';}}}}}};
+  o.legend={position:'bottom',labels:{colors:AX}};
+  var c=new ApexCharts(el('c3'),o);c.render();charts.push(c);
+}
+
+/* ================= SCREEN 4 : 雙向追溯查詢 (signature genealogy tree) ================= */
+function s4(){
+  var h=head(4);
+  h+='<div class="card"><h3><span class="ms">travel_explore</span>追溯查詢 <span class="sub">· 輸入 SN-CX200-000482 正逆向鑽取</span></h3>'
+    +'<div class="tree"><div class="tree-in">'
+    +tcol('供應來源',[nd('晶鋁金屬','LOT-AL6061-2408A'),nd('宏泰電路','LOT-PCB-K220'),nd('國巨被動','LOT-CAP-104J')])
+    +conn()
+    +tcol('工單投料',[nd('WO-24081101','控制器 CX-200')])
+    +conn()
+    +tcol('製程站別',[nd('回焊 RF-03','峰溫 251°C ⚠'),nd('組裝 AS-05','扭力 1.2N·m')])
+    +conn()
+    +tcol('完工序號',['<div class="node root"><b>SN-CX200-000482</b><span class="mono">控制器 CX-200</span></div>'])
+    +conn()
+    +tcol('出貨對象',[nd('CUST-A 精機','出貨單 DO-88213')])
+    +'</div></div>'
+    +'<div class="note"><span class="ms">swap_horiz</span>正向：由物料批次查成品去向；逆向：由成品序號查用料與製程</div></div>';
+  h+='<div class="grid g4 split14">'
+    +kpi('search','linear-gradient(135deg,#7c3aed,#a78bfa)','本月追溯查詢','1,032','次','+18%','up')
+    +kpi('bolt','linear-gradient(135deg,#059669,#34d399)','平均查詢時效','1.8','秒','-62%','up')
+    +kpi('hub','linear-gradient(135deg,#2563eb,#60a5fa)','平均譜系節點','14','個','','neu')
+    +kpi('fact_check','linear-gradient(135deg,#d97706,#fbbf24)','資料完整率','99.2','%','+1.1','up')
+    +'</div>';
+  h+='<div class="grid g2 split14">'
+    +'<div class="card"><h3><span class="ms">query_stats</span>追溯查詢時效改善</h3><div id="c4a" class="chart"></div></div>'
+    +'<div class="card"><h3><span class="ms">manage_search</span>近期查詢紀錄</h3>'
+      +'<div class="tbl-wrap"><table><thead><tr><th>查詢碼</th><th>方向</th><th>查詢人</th><th>命中節點</th><th>耗時</th></tr></thead><tbody>'
+      +qtr('SN-CX200-000482','逆向','品保-李','16','1.6s')
+      +qtr('LOT-CAP-104J','正向','客服-周','214','2.3s')
+      +qtr('SN-S30-001129','逆向','品保-李','11','1.2s')
+      +qtr('LOT-PCB-K220','正向','工程-黃','388','2.9s')
+      +qtr('DO-88213','雙向','客服-周','27','1.9s')
+      +'</tbody></table></div></div>'
+    +'</div>';
+  return h;
+}
+function nd(a,b){return '<div class="node"><b>'+a+'</b><span class="mono">'+b+'</span></div>';}
+function tcol(cap,arr){return '<div class="tcol"><div class="tcap">'+cap+'</div>'+arr.join('')+'</div>';}
+function conn(){return '<div class="conn"><span class="ms">chevron_right</span></div>';}
+function qtr(c,d,p,n,t){var dc=d==='逆向'?'p-info':(d==='正向'?'p-ok':'p-muted');
+  return '<tr><td class="mono" style="color:var(--accent2)">'+c+'</td><td><span class="pill '+dc+'">'+d+'</span></td><td>'+p+'</td><td class="mono">'+n+'</td><td class="mono">'+t+'</td></tr>';}
+function s4charts(){
+  var o=baseChart('bar',260);
+  o.series=[{name:'平均查詢耗時(秒)',data:[4.8,4.1,3.3,2.6,2.1,1.8]}];
+  o.colors=[ACC];
+  o.plotOptions={bar:{borderRadius:5,columnWidth:'52%'}};
+  o.xaxis={categories:['3月','4月','5月','6月','7月','8月'],labels:{style:{colors:AX}}};
+  o.yaxis={labels:{style:{colors:AX}}};
+  var c=new ApexCharts(el('c4a'),o);c.render();charts.push(c);
+}
+
+/* ================= SCREEN 5 : 召回影響分析 ================= */
+function s5(){
+  var h=head(5);
+  h+='<div class="grid g4">'
+    +kpi('campaign','linear-gradient(135deg,#dc2626,#f87171)','進行中召回案','2','案','+1','down')
+    +kpi('inventory','linear-gradient(135deg,#d97706,#fbbf24)','波及序號','1,240','pcs','','neu')
+    +kpi('local_shipping','linear-gradient(135deg,#2563eb,#60a5fa)','影響出貨單','18','張','','neu')
+    +kpi('timer','linear-gradient(135deg,#059669,#34d399)','範圍圈定時效','4.2','分','-88%','up')
+    +'</div>';
+  h+='<div class="grid g32 split14">'
+    +'<div class="card"><h3><span class="ms">filter_alt</span>召回影響收斂漏斗 <span class="sub">· 問題批次 LOT-CAP-104J</span></h3>'
+      +'<div class="fn">'
+      +fn('問題批次投入','180,000 pcs 電容',100,'#6d28d9')
+      +fn('波及工單','7 張工單',72,'#7c3aed')
+      +fn('波及序號','1,240 pcs 成品',54,'#8b5cf6')
+      +fn('已出貨序號','860 pcs',40,'#a78bfa')
+      +fn('需召回客戶','5 家 · 18 張出貨單',28,'#c4b5fd')
+      +'</div><div class="note"><span class="ms">bolt</span>由問題批次一鍵反查，範圍自動收斂，取代人工比對逐張出貨單</div></div>'
+    +'<div class="card"><h3><span class="ms">radar</span>召回應變評估雷達</h3><div id="c5" class="chart"></div></div>'
+    +'</div>';
+  h+='<div class="card split14"><h3><span class="ms">list_alt</span>受影響出貨清單</h3>'
+    +'<div class="tbl-wrap"><table><thead><tr><th>出貨單</th><th>客戶</th><th>成品序號範圍</th><th>數量</th><th>出貨日</th><th>召回狀態</th></tr></thead><tbody>'
+    +rtr('DO-88213','CUST-A 精機','SN-CX200-000460 ~ 000520','60','08-06','p-bad','已通知')
+    +rtr('DO-88190','CUST-B 自動化','SN-S30-001100 ~ 001180','80','08-05','p-warn','評估中')
+    +rtr('DO-88155','CUST-C 電子','SN-CX200-000401 ~ 000459','58','08-04','p-ok','已回收')
+    +rtr('DO-88121','CUST-D 儀器','SN-D70-000320 ~ 000377','57','08-03','p-warn','評估中')
+    +rtr('DO-88098','CUST-E 系統','SN-CX200-000350 ~ 000400','50','08-02','p-info','待出貨攔截')
+    +'</tbody></table></div>'
+    +'<div class="note"><span class="ms">verified_user</span>依 RULE-02 與追溯譜系，未出貨部分於出貨站自動攔截，避免問題品流出</div></div>';
+  return h;
+}
+function fn(t,s,w,col){return '<div class="step" style="width:'+w+'%;min-width:180px;background:'+col+'">'+t+'<small>'+s+'</small></div>';}
+function rtr(d,c,r,q,dt,cls,st){
+  return '<tr><td class="mono" style="color:var(--accent2)">'+d+'</td><td>'+c+'</td><td class="mono">'+r+'</td><td class="mono">'+q+'</td><td class="mono">'+dt+'</td><td><span class="pill '+cls+'">'+st+'</span></td></tr>';
+}
+function s5charts(){
+  var o=baseChart('radar',280);
+  o.series=[{name:'本次召回',data:[85,70,60,90,55,75]}];
+  o.colors=[ACC2];
+  o.stroke={width:2};
+  o.fill={opacity:.25,colors:[ACC]};
+  o.markers={size:3,colors:[ACC2]};
+  o.xaxis={categories:['波及範圍','出貨滲透','客戶數','定位速度','庫存可攔截','資料完整'],labels:{style:{colors:AX}}};
+  o.yaxis={show:false,max:100};
+  o.plotOptions={radar:{polygons:{strokeColors:GRID,connectorColors:GRID}}};
+  var c=new ApexCharts(el('c5'),o);c.render();charts.push(c);
+}
+
+/* ---------- render router ---------- */
+var RENDER=[s0,s1,s2,s3,s4,s5];
+var CHARTS=[s0charts,s1charts,s2charts,s3charts,s4charts,s5charts];
+var cur=-1;
+function show(i){
+  if(i===cur)return;
+  killCharts();
+  cur=i;
+  var v=el('view');
+  v.innerHTML=RENDER[i]();
+  var btns=document.querySelectorAll('[data-i]');
+  for(var b=0;b<btns.length;b++){btns[b].className=(+btns[b].getAttribute('data-i')===i)?'on':'';}
+  void v.offsetHeight;
+  CHARTS[i]();
+}
+show(0);
+
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>

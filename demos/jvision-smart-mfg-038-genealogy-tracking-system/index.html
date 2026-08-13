@@ -4,15 +4,519 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>系譜追溯系統（Genealogy Tracking System）｜Jvision 系統 Demo</title>
-  <meta name="description" content="訂單到入庫的製造現場全流程數位化" />
+  <meta name="description" content="零件掃碼綁定到影響範圍分析的製造系譜追溯全流程" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --accent:#0369a1;--accent2:#38bdf8;--ink:#0f172a;--muted:#64748b;
+      --line:#e2e8f0;--bg:#f1f5f9;--card:#ffffff;--soft:#f0f9ff;
+      --ok:#16a34a;--warn:#d97706;--bad:#dc2626;--radius:16px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{max-width:100%;overflow-x:hidden}
+    body{font-family:"Inter","Noto Sans TC",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
+    .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;direction:ltr;vertical-align:middle}
+    /* top nav */
+    .topbar{position:sticky;top:0;z-index:40;background:linear-gradient(100deg,#075985,#0369a1 55%,#0284c7);color:#fff;box-shadow:0 6px 18px rgba(3,105,161,.25)}
+    .topbar-in{max-width:1360px;margin:0 auto;padding:12px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:11px;min-width:0}
+    .brand .logo{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.16);display:grid;place-items:center;border:1px solid rgba(255,255,255,.28)}
+    .brand .logo .material-symbols-outlined{font-size:24px;color:#e0f2fe}
+    .brand h1{font-size:16px;font-weight:800;letter-spacing:.2px;white-space:nowrap}
+    .brand p{font-size:11px;color:#bae6fd;font-weight:500}
+    .topmeta{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .chip{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.24);color:#e0f2fe;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px;white-space:nowrap}
+    .chip .material-symbols-outlined{font-size:16px}
+    nav.tabs{background:#082f49;border-top:1px solid rgba(255,255,255,.08)}
+    nav.tabs .tabs-in{max-width:1360px;margin:0 auto;padding:8px 12px;display:flex;gap:8px;flex-wrap:wrap}
+    nav.tabs button{flex:none;white-space:nowrap;min-width:0;cursor:pointer;border:1px solid transparent;background:rgba(255,255,255,.06);color:#cbd5e1;padding:8px 14px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;transition:.15s}
+    nav.tabs button .material-symbols-outlined{font-size:18px}
+    nav.tabs button:hover{background:rgba(255,255,255,.12);color:#fff}
+    nav.tabs button.on{background:linear-gradient(120deg,#38bdf8,#0ea5e9);color:#04263a;border-color:#7dd3fc;box-shadow:0 4px 12px rgba(56,189,248,.35)}
+    main{max-width:1360px;margin:0 auto;padding:22px 18px 60px}
+    .screen-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+    .screen-head .ic{width:46px;height:46px;border-radius:13px;background:var(--soft);border:1px solid #bae6fd;display:grid;place-items:center;flex:none}
+    .screen-head .ic .material-symbols-outlined{font-size:26px;color:var(--accent)}
+    .screen-head h2{font-size:21px;font-weight:800}
+    .screen-head p{font-size:13px;color:var(--muted);margin-top:2px}
+    .screen-head .tag{margin-left:auto;align-self:center;font-size:12px;color:var(--accent);background:var(--soft);border:1px solid #bae6fd;padding:6px 12px;border-radius:999px;font-weight:700;white-space:nowrap}
+    /* grids */
+    .grid{display:grid;gap:14px}
+    .g-kpi{grid-template-columns:repeat(4,1fr)}
+    .g-2{grid-template-columns:1.5fr 1fr}
+    .g-2e{grid-template-columns:1fr 1fr}
+    .g-3{grid-template-columns:repeat(3,1fr)}
+    .g-tree{grid-template-columns:1.15fr .85fr}
+    .g-imp{grid-template-columns:.9fr 1.1fr}
+    @media(max-width:820px){
+      .g-kpi{grid-template-columns:1fr 1fr}
+      .g-2,.g-2e,.g-3,.g-tree,.g-imp{grid-template-columns:1fr}
+    }
+    @media(max-width:520px){ .g-kpi{grid-template-columns:1fr} }
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;min-width:0}
+    .card.pad0{padding:0;overflow:hidden}
+    .card-h{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+    .card-h h3{font-size:15px;font-weight:800}
+    .card-h .material-symbols-outlined{font-size:19px;color:var(--accent)}
+    .card-h .sub{font-size:12px;color:var(--muted);margin-left:auto;white-space:nowrap}
+    /* kpi */
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:15px;min-width:0;position:relative;overflow:hidden}
+    .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#38bdf8,#0369a1)}
+    .kpi .lab{font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+    .kpi .lab .material-symbols-outlined{font-size:17px;color:var(--accent)}
+    .kpi .val{font-size:27px;font-weight:900;margin-top:6px;letter-spacing:-.5px}
+    .kpi .val small{font-size:13px;font-weight:700;color:var(--muted);margin-left:3px}
+    .kpi .dt{font-size:11px;margin-top:5px;font-weight:600;display:flex;align-items:center;gap:3px}
+    .kpi .dt.up{color:var(--ok)} .kpi .dt.down{color:var(--bad)} .kpi .dt.flat{color:var(--muted)}
+    /* table */
+    table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+    thead th{text-align:left;font-size:11px;color:var(--muted);font-weight:700;padding:10px 12px;border-bottom:2px solid var(--line);background:#f8fafc;white-space:nowrap;letter-spacing:.3px}
+    tbody td{padding:10px 12px;border-bottom:1px solid #eef2f7;white-space:nowrap}
+    tbody tr:hover{background:#f8fbff}
+    .mono{font-family:"Inter",monospace;font-weight:600;letter-spacing:.3px}
+    .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
+    .b-ok{background:#dcfce7;color:#15803d} .b-warn{background:#fef3c7;color:#b45309}
+    .b-bad{background:#fee2e2;color:#b91c1c} .b-info{background:#e0f2fe;color:#0369a1}
+    .b-mut{background:#e2e8f0;color:#475569}
+    .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
+    .chart{width:100%;height:280px}
+    .chart.sm{height:230px}
+    .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    /* module 0: scan feed cards */
+    .scanrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:13px;background:var(--card);margin-bottom:10px;min-width:0}
+    .scanrow .qic{width:42px;height:42px;border-radius:11px;background:var(--soft);border:1px solid #bae6fd;display:grid;place-items:center;flex:none}
+    .scanrow .qic .material-symbols-outlined{font-size:24px;color:var(--accent)}
+    .scanrow .info{min-width:0;flex:1}
+    .scanrow .info .t{font-weight:800;font-size:14px}
+    .scanrow .info .s{font-size:12px;color:var(--muted)}
+    .scanrow .rt{text-align:right;flex:none}
+    .scanrow .rt .n{font-size:12px;color:var(--muted)}
+    .prog{height:9px;background:#e2e8f0;border-radius:999px;overflow:hidden;margin-top:6px}
+    .prog>span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#38bdf8,#0369a1)}
+    /* module 1: assembly board */
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    @media(max-width:820px){.board{grid-template-columns:1fr 1fr}}
+    @media(max-width:520px){.board{grid-template-columns:1fr}}
+    .col{background:#f8fafc;border:1px solid var(--line);border-radius:13px;padding:10px;min-width:0}
+    .col>.ch{font-size:12px;font-weight:800;color:#334155;display:flex;align-items:center;justify-content:space-between;padding:4px 4px 8px}
+    .col>.ch b{background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-size:11px;color:var(--accent)}
+    .tk{background:#fff;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:9px;padding:9px 10px;margin-bottom:8px}
+    .tk .k{font-weight:800;font-size:13px}
+    .tk .m{font-size:11px;color:var(--muted);margin-top:3px;white-space:normal}
+    .tk .f{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+    /* module 2: genealogy tree */
+    .tree{font-size:13px;padding:4px 0}
+    .tnode{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;margin:4px 0;border:1px solid var(--line);background:#fff;min-width:0}
+    .tnode .tc{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none}
+    .tnode .tc .material-symbols-outlined{font-size:18px}
+    .tnode .tt{min-width:0;flex:1}
+    .tnode .tt b{font-size:13px} .tnode .tt span{font-size:11px;color:var(--muted);display:block}
+    .lv1{margin-left:0}.lv2{margin-left:26px}.lv3{margin-left:52px}
+    .tnode.root{border-color:#0369a1;background:var(--soft)}
+    .tnode.root .tc{background:#0369a1} .tnode.root .tc .material-symbols-outlined{color:#fff}
+    .tnode.sub .tc{background:#e0f2fe} .tnode.sub .tc .material-symbols-outlined{color:#0369a1}
+    .tnode.leaf .tc{background:#f1f5f9} .tnode.leaf .tc .material-symbols-outlined{color:#64748b}
+    .tnode.flag{border-color:#f59e0b;background:#fffbeb}
+    /* module 4: impact spread list */
+    .spread{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+    .spread .sh{background:#fef2f2;padding:11px 14px;display:flex;align-items:center;gap:9px;border-bottom:1px solid #fecaca}
+    .spread .sh .material-symbols-outlined{color:var(--bad)}
+    .spread .row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #eef2f7;min-width:0}
+    .spread .row:last-child{border-bottom:none}
+    .spread .row .lv{font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;background:#e0f2fe;color:#0369a1;flex:none}
+    .spread .row .x{min-width:0;flex:1}
+    .spread .row .x b{font-size:13px}.spread .row .x span{font-size:11px;color:var(--muted);display:block}
+    /* module 5: recall / audit timeline */
+    .tl{position:relative;padding-left:26px}
+    .tl::before{content:"";position:absolute;left:9px;top:4px;bottom:4px;width:2px;background:var(--line)}
+    .tli{position:relative;padding:0 0 16px 0}
+    .tli::before{content:"";position:absolute;left:-21px;top:3px;width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--accent)}
+    .tli.done::before{background:var(--ok);border-color:var(--ok)}
+    .tli.now::before{background:var(--warn);border-color:var(--warn)}
+    .tli .tt{font-weight:800;font-size:13px}
+    .tli .tm{font-size:12px;color:var(--muted)}
+    .tli .td{font-size:12px;color:#475569;margin-top:3px}
+    .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+    .legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:middle}
+    .mini{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+    .mini .m{flex:1;min-width:120px;background:#f8fafc;border:1px solid var(--line);border-radius:11px;padding:11px 13px}
+    .mini .m .l{font-size:11px;color:var(--muted);font-weight:600}
+    .mini .m .v{font-size:19px;font-weight:900;margin-top:2px}
+    .foot{margin-top:26px;text-align:center;font-size:12px;color:#94a3b8}
+    @media(max-width:560px){ .hide-sm{display:none} nav.tabs button{padding:8px 11px} }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <header class="topbar">
+    <div class="topbar-in">
+      <div class="brand">
+        <div class="logo"><span class="material-symbols-outlined">account_tree</span></div>
+        <div>
+          <h1>系譜追溯系統</h1>
+          <p>Genealogy Tracking System · MES 追溯模組</p>
+        </div>
+      </div>
+      <div class="topmeta">
+        <span class="chip"><span class="material-symbols-outlined">factory</span>第二廠 · 組裝線</span>
+        <span class="chip"><span class="material-symbols-outlined">badge</span>品保工程師 陳彥廷</span>
+        <span class="chip"><span class="material-symbols-outlined">schedule</span>2026-08-14 09:42</span>
+      </div>
+    </div>
+    <nav class="tabs">
+      <div class="tabs-in" id="tabs"></div>
+    </nav>
+  </header>
+  <main><div id="view"></div></main>
+
+  <script>
+  (function(){
+    "use strict";
+    var MODS=[
+      {icon:"qr_code_scanner",name:"零件掃碼綁定",desc:"序號 / 批號掃碼登錄與供應商來源綁定"},
+      {icon:"account_tree",name:"組裝關聯建立",desc:"父子件多階層 BOM 組裝關聯建檔"},
+      {icon:"hub",name:"系譜樹查詢",desc:"成品向下展開、零件向上追溯樹狀系譜"},
+      {icon:"manage_search",name:"異常批次查詢",desc:"依批號 / 供應商 / 日期定位受影響零件"},
+      {icon:"share",name:"影響範圍分析",desc:"受牽連成品、客戶與出貨的擴散範圍評估"},
+      {icon:"fact_check",name:"召回與稽核",desc:"召回清單產生、追溯履歷與稽核佐證"}
+    ];
+    var view=document.getElementById("view");
+    var chart=null;
+
+    // ---------- helpers ----------
+    function el(id){return document.getElementById(id);}
+    function head(i,tag){
+      return '<div class="screen-head">'+
+        '<div class="ic"><span class="material-symbols-outlined">'+MODS[i].icon+'</span></div>'+
+        '<div><h2>'+MODS[i].name+'</h2><p>'+MODS[i].desc+'</p></div>'+
+        '<span class="tag">'+tag+'</span></div>';
+    }
+    function kpi(lab,ic,val,unit,dir,dt){
+      var cls=dir==="up"?"up":dir==="down"?"down":"flat";
+      var arw=dir==="up"?"trending_up":dir==="down"?"trending_down":"trending_flat";
+      return '<div class="kpi"><div class="lab"><span class="material-symbols-outlined">'+ic+'</span>'+lab+'</div>'+
+        '<div class="val">'+val+(unit?'<small>'+unit+'</small>':'')+'</div>'+
+        '<div class="dt '+cls+'"><span class="material-symbols-outlined" style="font-size:15px">'+arw+'</span>'+dt+'</div></div>';
+    }
+    function initChart(id,opt){
+      var dom=el(id); if(!dom) return;
+      if(chart){try{chart.dispose();}catch(e){} chart=null;}
+      chart=echarts.init(dom);
+      chart.setOption(opt);
+    }
+    var AXBASE={grid:{left:8,right:14,top:28,bottom:8,containLabel:true},
+      tooltip:{trigger:"axis",backgroundColor:"#0f172a",borderWidth:0,textStyle:{color:"#fff",fontSize:12}},
+      textStyle:{fontFamily:"Inter,Noto Sans TC"}};
+
+    // ============================================================
+    // SCREEN 0 — 零件掃碼綁定 (scan feed + progress + supplier chart)
+    // ============================================================
+    function v0(){
+      var feed=[
+        {t:"RM-鋁擠型 6063-T5",s:"批 LOT-AL-260814-07 · 立群金屬",n:"09:41:22",st:"b-ok",stx:"已綁定"},
+        {t:"PCBA-主控板 v3.2",s:"序 SN-PCBA-88213 · 華邦電子",n:"09:40:58",st:"b-ok",stx:"已綁定"},
+        {t:"軸承 6204-ZZ",s:"批 LOT-BR-260813-31 · NSK 台灣",n:"09:39:11",st:"b-warn",stx:"待複驗"},
+        {t:"密封圈 NBR-24",s:"批 LOT-SE-260814-02 · 泓瀚橡膠",n:"09:37:45",st:"b-ok",stx:"已綁定"},
+        {t:"步進馬達 42BYG",s:"序 SN-MT-40021 · 東方馬達",n:"09:36:03",st:"b-bad",stx:"來源不符"}
+      ];
+      var rows=feed.map(function(f){
+        return '<div class="scanrow"><div class="qic"><span class="material-symbols-outlined">qr_code_2</span></div>'+
+          '<div class="info"><div class="t">'+f.t+'</div><div class="s">'+f.s+'</div></div>'+
+          '<div class="rt"><span class="badge '+f.st+'">'+f.stx+'</span><div class="n" style="margin-top:5px">'+f.n+'</div></div></div>';
+      }).join("");
+      var h=head(0,"進料掃碼作業站");
+      h+='<div class="grid g-kpi" style="margin-bottom:14px">'+
+        kpi("今日掃碼綁定","qr_code_scanner","1,284","筆","up","較昨日 +8.6%")+
+        kpi("綁定成功率","task_alt","98.7","%","up","+0.4pt")+
+        kpi("待複驗零件","pending_actions","23","筆","down","-5 筆")+
+        kpi("來源異常","report","4","筆","flat","即時攔截")+'</div>';
+      h+='<div class="grid g-2">'+
+        '<div class="card"><div class="card-h"><span class="material-symbols-outlined">bolt</span><h3>即時掃碼綁定紀錄</h3><span class="sub">每筆自動綁定供應商與進料批</span></div>'+rows+'</div>'+
+        '<div class="card"><div class="card-h"><span class="material-symbols-outlined">donut_large</span><h3>供應商進料佔比（今日）</h3></div><div id="c0a" class="chart sm"></div>'+
+        '<div class="prog" style="margin-top:6px"><span style="width:98.7%"></span></div>'+
+        '<div style="font-size:12px;color:var(--muted);margin-top:6px">綁定完整率 98.7%，4 筆來源不符已凍結入庫。</div></div>'+
+        '</div>';
+      view.innerHTML=h;
+      void view.offsetHeight;
+      initChart("c0a",{
+        tooltip:{trigger:"item",backgroundColor:"#0f172a",borderWidth:0,textStyle:{color:"#fff"}},
+        legend:{bottom:0,itemWidth:10,itemHeight:10,textStyle:{fontSize:11}},
+        series:[{type:"pie",radius:["45%","70%"],center:["50%","44%"],avoidLabelOverlap:true,
+          itemStyle:{borderColor:"#fff",borderWidth:2},label:{show:false},
+          data:[
+            {value:412,name:"立群金屬",itemStyle:{color:"#0369a1"}},
+            {value:326,name:"華邦電子",itemStyle:{color:"#38bdf8"}},
+            {value:248,name:"NSK 台灣",itemStyle:{color:"#0ea5e9"}},
+            {value:186,name:"東方馬達",itemStyle:{color:"#7dd3fc"}},
+            {value:112,name:"其他",itemStyle:{color:"#cbd5e1"}}
+          ]}]
+      });
+    }
+
+    // ============================================================
+    // SCREEN 1 — 組裝關聯建立 (kanban board + station chart)
+    // ============================================================
+    function v1(){
+      var cols=[
+        {ch:"待組裝",n:3,items:[
+          {k:"WO-26-0812",m:"變頻控制箱 CB-300 × 40",f:'<span class="badge b-info">階層 3</span><span class="badge b-mut">40 件</span>'},
+          {k:"WO-26-0819",m:"泵浦模組 PM-120 × 25",f:'<span class="badge b-info">階層 2</span><span class="badge b-mut">25 件</span>'}
+        ]},
+        {ch:"組裝中",n:2,items:[
+          {k:"WO-26-0806",m:"主控機箱 MC-500 × 18",f:'<span class="badge b-warn">綁定中</span><span class="badge b-mut">站 3/5</span>'},
+          {k:"WO-26-0808",m:"驅動單元 DU-88 × 60",f:'<span class="badge b-warn">綁定中</span><span class="badge b-mut">站 2/4</span>'}
+        ]},
+        {ch:"待覆核",n:2,items:[
+          {k:"WO-26-0801",m:"感測模組 SM-24 × 120",f:'<span class="badge b-info">關聯 348</span><span class="badge b-mut">品保覆核</span>'}
+        ]},
+        {ch:"已建檔",n:5,items:[
+          {k:"WO-26-0788",m:"電源背板 PB-40 × 80",f:'<span class="badge b-ok">系譜完成</span>'},
+          {k:"WO-26-0790",m:"散熱模組 HS-12 × 200",f:'<span class="badge b-ok">系譜完成</span>'}
+        ]}
+      ];
+      var board=cols.map(function(c){
+        var tks=c.items.map(function(t){
+          return '<div class="tk"><div class="k">'+t.k+'</div><div class="m">'+t.m+'</div><div class="f">'+t.f+'</div></div>';
+        }).join("");
+        return '<div class="col"><div class="ch">'+c.ch+'<b>'+c.n+'</b></div>'+tks+'</div>';
+      }).join("");
+      var h=head(1,"組裝關聯看板");
+      h+='<div class="grid g-kpi" style="margin-bottom:14px">'+
+        kpi("進行中工單","assignment","12","張","flat","含 2 張綁定中")+
+        kpi("今日建立關聯","link","3,482","筆","up","+12%")+
+        kpi("父子件平均階層","layers","3.4","層","flat","最深 5 層")+
+        kpi("關聯錯誤攔截","gpp_bad","6","筆","down","-3 筆")+'</div>';
+      h+='<div class="card pad0" style="padding:16px;margin-bottom:14px"><div class="card-h"><span class="material-symbols-outlined">view_kanban</span><h3>組裝工單關聯建檔看板</h3><span class="sub">依組裝站別推進，完成後寫入系譜</span></div>'+
+        '<div class="scroll"><div class="board">'+board+'</div></div></div>';
+      h+='<div class="card"><div class="card-h"><span class="material-symbols-outlined">bar_chart</span><h3>各組裝站關聯建立量（近 7 日）</h3></div><div id="c1a" class="chart"></div></div>';
+      view.innerHTML=h;
+      void view.offsetHeight;
+      initChart("c1a",Object.assign({},AXBASE,{
+        legend:{top:0,right:0,itemWidth:12,itemHeight:8,textStyle:{fontSize:11}},
+        xAxis:{type:"category",data:["8/08","8/09","8/10","8/11","8/12","8/13","8/14"],axisLine:{lineStyle:{color:"#cbd5e1"}},axisLabel:{color:"#64748b"}},
+        yAxis:{type:"value",splitLine:{lineStyle:{color:"#eef2f7"}},axisLabel:{color:"#94a3b8"}},
+        series:[
+          {name:"站1 上料綁定",type:"bar",stack:"a",data:[210,240,198,265,280,255,310],itemStyle:{color:"#0369a1"}},
+          {name:"站3 主體組裝",type:"bar",stack:"a",data:[180,205,190,220,240,228,270],itemStyle:{color:"#38bdf8"}},
+          {name:"站5 覆核封裝",type:"bar",stack:"a",data:[120,140,132,150,168,160,190],itemStyle:{color:"#7dd3fc"}}
+        ]
+      }));
+    }
+
+    // ============================================================
+    // SCREEN 2 — 系譜樹查詢 (tree + completeness gauge)
+    // ============================================================
+    function v2(){
+      var tree=[
+        {c:"root",lv:"lv1",ic:"inventory_2",b:"MC-500 主控機箱",s:"成品序號 SN-MC500-2261 · 工單 WO-26-0806"},
+        {c:"sub",lv:"lv2",ic:"account_tree",b:"CB-300 變頻控制箱",s:"半成品 · 站3 組裝 · 綁定 4 零件"},
+        {c:"leaf",lv:"lv3",ic:"memory",b:"PCBA 主控板 v3.2",s:"SN-PCBA-88213 · 華邦電子"},
+        {c:"leaf flag",lv:"lv3",ic:"warning",b:"步進馬達 42BYG",s:"SN-MT-40021 · 東方馬達 · 來源待確認"},
+        {c:"sub",lv:"lv2",ic:"account_tree",b:"PM-120 泵浦模組",s:"半成品 · 站4 組裝 · 綁定 3 零件"},
+        {c:"leaf",lv:"lv3",ic:"settings",b:"軸承 6204-ZZ",s:"LOT-BR-260813-31 · NSK 台灣"},
+        {c:"leaf",lv:"lv3",ic:"blur_circular",b:"密封圈 NBR-24",s:"LOT-SE-260814-02 · 泓瀚橡膠"}
+      ];
+      var nodes=tree.map(function(n){
+        return '<div class="tnode '+n.c+' '+n.lv+'"><div class="tc"><span class="material-symbols-outlined">'+n.ic+'</span></div>'+
+          '<div class="tt"><b>'+n.b+'</b><span>'+n.s+'</span></div></div>';
+      }).join("");
+      var h=head(2,"系譜樹瀏覽器");
+      h+='<div class="grid g-kpi" style="margin-bottom:14px">'+
+        kpi("系譜資料完整率","verified","96.4","%","up","+1.8pt")+
+        kpi("成品可追溯數","inventory_2","8,642","件","up","+240 件")+
+        kpi("平均查詢時效","bolt","0.8","秒","down","-0.3 秒")+
+        kpi("斷鏈缺漏節點","link_off","31","個","down","-14 個")+'</div>';
+      h+='<div class="grid g-tree">'+
+        '<div class="card"><div class="card-h"><span class="material-symbols-outlined">hub</span><h3>成品系譜樹（向下展開）</h3><span class="sub">SN-MC500-2261</span></div>'+
+        '<div class="scroll"><div class="tree" style="min-width:360px">'+nodes+'</div></div>'+
+        '<div style="font-size:12px;color:var(--warn);margin-top:8px;display:flex;align-items:center;gap:5px"><span class="material-symbols-outlined" style="font-size:16px">info</span>1 個節點來源待確認，已標記追蹤。</div></div>'+
+        '<div class="card"><div class="card-h"><span class="material-symbols-outlined">stacked_line_chart</span><h3>系譜完整率趨勢（近 6 週）</h3></div><div id="c2a" class="chart sm"></div>'+
+        '<div class="mini"><div class="m"><div class="l">最深階層</div><div class="v">5 層</div></div><div class="m"><div class="l">平均綁定件</div><div class="v">18.2</div></div></div></div>'+
+        '</div>';
+      view.innerHTML=h;
+      void view.offsetHeight;
+      initChart("c2a",Object.assign({},AXBASE,{
+        xAxis:{type:"category",boundaryGap:false,data:["W27","W28","W29","W30","W31","W32"],axisLine:{lineStyle:{color:"#cbd5e1"}},axisLabel:{color:"#64748b"}},
+        yAxis:{type:"value",min:88,max:100,splitLine:{lineStyle:{color:"#eef2f7"}},axisLabel:{color:"#94a3b8",formatter:"{value}%"}},
+        series:[{name:"完整率",type:"line",smooth:true,data:[89.6,91.2,92.8,94.1,95.3,96.4],
+          symbolSize:7,itemStyle:{color:"#0369a1"},lineStyle:{width:3,color:"#0369a1"},
+          areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:"rgba(56,189,248,.35)"},{offset:1,color:"rgba(56,189,248,0)"}])}}]
+      }));
+    }
+
+    // ============================================================
+    // SCREEN 3 — 異常批次查詢 (filter + result table + heat scatter)
+    // ============================================================
+    function v3(){
+      var rows=[
+        ["LOT-BR-260813-31","軸承 6204-ZZ","NSK 台灣","2026-08-13","82","4","b-bad","高風險"],
+        ["LOT-AL-260810-04","鋁擠型 6063-T5","立群金屬","2026-08-10","148","0","b-ok","正常"],
+        ["LOT-SE-260808-11","密封圈 NBR-24","泓瀚橡膠","2026-08-08","96","1","b-warn","觀察"],
+        ["LOT-PCBA-260805","主控板 v3.2","華邦電子","2026-08-05","61","2","b-warn","觀察"],
+        ["LOT-MT-260801-09","步進馬達 42BYG","東方馬達","2026-08-01","44","6","b-bad","高風險"]
+      ];
+      var tb=rows.map(function(r){
+        return '<tr><td class="mono">'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td class="mono">'+r[3]+'</td>'+
+          '<td class="mono">'+r[4]+'</td><td class="mono">'+r[5]+'</td>'+
+          '<td><span class="badge '+r[6]+'">'+r[7]+'</span></td>'+
+          '<td><span class="badge b-info">追溯展開</span></td></tr>';
+      }).join("");
+      var h=head(3,"異常批次追溯查詢");
+      h+='<div class="card" style="margin-bottom:14px"><div class="card-h"><span class="material-symbols-outlined">manage_search</span><h3>查詢條件</h3><span class="sub">依批號 / 供應商 / 日期定位受影響零件</span></div>'+
+        '<div class="scroll"><div style="display:flex;gap:10px;flex-wrap:wrap;min-width:0">'+
+        '<span class="chip" style="background:#e0f2fe;color:#0369a1;border-color:#bae6fd"><span class="material-symbols-outlined">factory</span>供應商：NSK 台灣</span>'+
+        '<span class="chip" style="background:#e0f2fe;color:#0369a1;border-color:#bae6fd"><span class="material-symbols-outlined">tag</span>批號：LOT-BR-260813-31</span>'+
+        '<span class="chip" style="background:#e0f2fe;color:#0369a1;border-color:#bae6fd"><span class="material-symbols-outlined">date_range</span>期間：2026-08-01 ~ 08-14</span>'+
+        '<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fecaca"><span class="material-symbols-outlined">priority_high</span>僅顯示高風險</span>'+
+        '</div></div></div>';
+      h+='<div class="grid g-kpi" style="margin-bottom:14px">'+
+        kpi("符合批次","inventory","5","批","flat","含 2 高風險")+
+        kpi("受影響零件","widgets","431","件","up","+18 件")+
+        kpi("關聯成品","precision_manufacturing","96","台","up","已定位")+
+        kpi("最早進料日","event","08-01","","flat","追溯起點")+'</div>';
+      h+='<div class="grid g-2">'+
+        '<div class="card pad0"><div style="padding:16px 16px 0"><div class="card-h"><span class="material-symbols-outlined">table_rows</span><h3>批次查詢結果</h3></div></div>'+
+        '<div class="scroll"><table><thead><tr><th>批號</th><th>零件</th><th>供應商</th><th>進料日</th><th>數量</th><th>異常</th><th>風險</th><th>操作</th></tr></thead><tbody>'+tb+'</tbody></table></div></div>'+
+        '<div class="card"><div class="card-h"><span class="material-symbols-outlined">scatter_plot</span><h3>異常件數 vs 進料量分布</h3></div><div id="c3a" class="chart"></div></div>'+
+        '</div>';
+      view.innerHTML=h;
+      void view.offsetHeight;
+      initChart("c3a",Object.assign({},AXBASE,{
+        tooltip:{trigger:"item",backgroundColor:"#0f172a",borderWidth:0,textStyle:{color:"#fff"},
+          formatter:function(p){return p.data[3]+"<br/>進料 "+p.data[0]+" 件 · 異常 "+p.data[1]+" 件";}},
+        xAxis:{type:"value",name:"進料量",nameTextStyle:{color:"#94a3b8"},splitLine:{lineStyle:{color:"#eef2f7"}},axisLabel:{color:"#94a3b8"}},
+        yAxis:{type:"value",name:"異常件",nameTextStyle:{color:"#94a3b8"},splitLine:{lineStyle:{color:"#eef2f7"}},axisLabel:{color:"#94a3b8"}},
+        series:[{type:"scatter",symbolSize:function(d){return 14+d[2]*3;},data:[
+          [82,4,4,"LOT-BR-260813-31 軸承"],
+          [148,0,1,"LOT-AL-260810-04 鋁擠型"],
+          [96,1,2,"LOT-SE-260808-11 密封圈"],
+          [61,2,2,"LOT-PCBA-260805 主控板"],
+          [44,6,5,"LOT-MT-260801-09 步進馬達"]
+        ],itemStyle:{color:function(p){return p.data[1]>=4?"#dc2626":p.data[1]>=1?"#d97706":"#0369a1";},opacity:.85}}]
+      }));
+    }
+
+    // ============================================================
+    // SCREEN 4 — 影響範圍分析 (spread list + sankey-like funnel chart)
+    // ============================================================
+    function v4(){
+      var spread=[
+        {lv:"L0",b:"異常批 LOT-BR-260813-31 軸承 6204-ZZ",s:"NSK 台灣 · 82 件進料 · 4 件異常"},
+        {lv:"L1",b:"3 張組裝工單受影響",s:"WO-26-0806 / WO-26-0808 / WO-26-0801"},
+        {lv:"L2",b:"96 台成品含此批零件",s:"泵浦模組 PM-120 × 60 · 驅動單元 DU-88 × 36"},
+        {lv:"L3",b:"12 筆出貨批已交付",s:"涉及 7 家客戶 · 需發召回通知"},
+        {lv:"L4",b:"5 家客戶列入優先召回",s:"台達能源 / 泓昇機電 / 中鋼構 等"}
+      ];
+      var sp=spread.map(function(s){
+        return '<div class="row"><span class="lv">'+s.lv+'</span><div class="x"><b>'+s.b+'</b><span>'+s.s+'</span></div></div>';
+      }).join("");
+      var h=head(4,"影響範圍擴散分析");
+      h+='<div class="grid g-kpi" style="margin-bottom:14px">'+
+        kpi("受影響成品","precision_manufacturing","96","台","flat","已鎖定")+
+        kpi("涉及出貨批","local_shipping","12","批","flat","7 家客戶")+
+        kpi("影響範圍鎖定時效","timer","6.4","分","down","-42%")+
+        kpi("建議召回範圍","campaign","36","台","up","高風險優先")+'</div>';
+      h+='<div class="grid g-imp">'+
+        '<div class="card"><div class="card-h"><span class="material-symbols-outlined">share</span><h3>異常擴散路徑</h3><span class="sub">零件 → 工單 → 成品 → 客戶</span></div>'+
+        '<div class="spread"><div class="sh"><span class="material-symbols-outlined">crisis_alert</span><b style="font-size:13px">追溯起點：異常軸承批次</b></div>'+sp+'</div></div>'+
+        '<div class="card"><div class="card-h"><span class="material-symbols-outlined">filter_alt</span><h3>影響收斂漏斗</h3><span class="sub">逐層鎖定召回範圍</span></div><div id="c4a" class="chart"></div></div>'+
+        '</div>';
+      view.innerHTML=h;
+      void view.offsetHeight;
+      initChart("c4a",{
+        tooltip:{trigger:"item",backgroundColor:"#0f172a",borderWidth:0,textStyle:{color:"#fff"},formatter:"{b}：{c}"},
+        textStyle:{fontFamily:"Inter,Noto Sans TC"},
+        series:[{type:"funnel",left:"6%",right:"6%",top:20,bottom:14,minSize:"22%",maxSize:"100%",
+          gap:3,label:{show:true,position:"inside",color:"#fff",fontWeight:600,fontSize:12},
+          itemStyle:{borderColor:"#fff",borderWidth:1},
+          data:[
+            {value:431,name:"受影響零件 431",itemStyle:{color:"#075985"}},
+            {value:96,name:"關聯成品 96",itemStyle:{color:"#0369a1"}},
+            {value:60,name:"未出貨 60",itemStyle:{color:"#0ea5e9"}},
+            {value:36,name:"已出貨待召回 36",itemStyle:{color:"#38bdf8"}},
+            {value:12,name:"高風險優先 12",itemStyle:{color:"#dc2626"}}
+          ]}]
+      });
+    }
+
+    // ============================================================
+    // SCREEN 5 — 召回與稽核 (timeline + audit table + status)
+    // ============================================================
+    function v5(){
+      var tl=[
+        {c:"done",t:"異常判定",m:"08-13 15:20 · 品保工程師 陳彥廷",d:"進料複驗發現軸承徑向間隙超規，凍結批次 LOT-BR-260813-31。"},
+        {c:"done",t:"系譜追溯展開",m:"08-13 15:48 · 系統自動",d:"向上追溯定位 96 台成品、12 筆出貨批，產出影響清單。"},
+        {c:"done",t:"召回清單核定",m:"08-14 09:05 · 製造工程 林凱翔",d:"核定 36 台優先召回，通知 5 家客戶並凍結庫存。"},
+        {c:"now",t:"客戶通知發送中",m:"08-14 09:40 · 進行中",d:"已發送 3/5 家，回簽 1 家；稽核佐證同步歸檔 QMS。"},
+        {c:"",t:"改善對策關閉",m:"預計 08-16",d:"供應商 8D 報告收回、複核驗證後結案。"}
+      ];
+      var items=tl.map(function(t){
+        return '<div class="tli '+t.c+'"><div class="tt">'+t.t+'</div><div class="tm">'+t.m+'</div><div class="td">'+t.d+'</div></div>';
+      }).join("");
+      var arows=[
+        ["AUD-26-0814-01","召回清單核定","林凱翔","08-14 09:05","b-ok","已完成"],
+        ["AUD-26-0814-02","客戶通知 台達能源","系統","08-14 09:32","b-ok","已回簽"],
+        ["AUD-26-0814-03","客戶通知 泓昇機電","系統","08-14 09:38","b-warn","待回簽"],
+        ["AUD-26-0813-11","批次凍結 LOT-BR","陳彥廷","08-13 15:22","b-ok","已完成"],
+        ["AUD-26-0813-12","系譜佐證歸檔","系統","08-13 15:50","b-info","QMS 同步"]
+      ];
+      var ab=arows.map(function(r){
+        return '<tr><td class="mono">'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td class="mono">'+r[3]+'</td><td><span class="badge '+r[4]+'">'+r[5]+'</span></td></tr>';
+      }).join("");
+      var h=head(5,"召回執行與稽核佐證");
+      h+='<div class="grid g-kpi" style="margin-bottom:14px">'+
+        kpi("召回案件","campaign","1","件","flat","進行中")+
+        kpi("客戶通知回簽","how_to_reg","3 / 5","","up","+2 家")+
+        kpi("追溯履歷歸檔","fact_check","100","%","up","QMS 同步")+
+        kpi("平均結案時效","event_available","2.1","天","down","-1.4 天")+'</div>';
+      h+='<div class="grid g-2">'+
+        '<div class="card"><div class="card-h"><span class="material-symbols-outlined">timeline</span><h3>召回處理時間軸</h3><span class="sub">從判定到結案</span></div><div class="tl">'+items+'</div>'+
+        '<div class="legend"><span><i style="background:#16a34a"></i>已完成</span><span><i style="background:#d97706"></i>進行中</span><span><i style="background:#e2e8f0"></i>待處理</span></div></div>'+
+        '<div class="card pad0"><div style="padding:16px 16px 0"><div class="card-h"><span class="material-symbols-outlined">history</span><h3>稽核追溯履歷</h3><span class="sub">可稽核 · 可佐證</span></div></div>'+
+        '<div class="scroll"><table><thead><tr><th>紀錄編號</th><th>動作</th><th>執行人</th><th>時間</th><th>狀態</th></tr></thead><tbody>'+ab+'</tbody></table></div>'+
+        '<div style="padding:12px 16px;border-top:1px solid var(--line)"><div id="c5a" class="chart sm" style="height:180px"></div></div></div>'+
+        '</div>';
+      view.innerHTML=h;
+      void view.offsetHeight;
+      initChart("c5a",Object.assign({},AXBASE,{
+        grid:{left:8,right:14,top:14,bottom:8,containLabel:true},
+        xAxis:{type:"value",splitLine:{lineStyle:{color:"#eef2f7"}},axisLabel:{color:"#94a3b8"}},
+        yAxis:{type:"category",data:["改善關閉","客戶通知","召回核定","系譜追溯","異常判定"],axisLabel:{color:"#64748b"},axisLine:{lineStyle:{color:"#cbd5e1"}}},
+        series:[{type:"bar",data:[
+          {value:2,itemStyle:{color:"#cbd5e1"}},
+          {value:6,itemStyle:{color:"#d97706"}},
+          {value:9,itemStyle:{color:"#0369a1"}},
+          {value:7,itemStyle:{color:"#38bdf8"}},
+          {value:11,itemStyle:{color:"#16a34a"}}
+        ],barWidth:"55%",label:{show:true,position:"right",color:"#64748b",fontSize:11,formatter:"{c} 筆"}}]
+      }));
+    }
+
+    var SCREENS=[v0,v1,v2,v3,v4,v5];
+
+    // ---------- nav ----------
+    var tabs=document.getElementById("tabs");
+    tabs.innerHTML=MODS.map(function(m,i){
+      return '<button data-i="'+i+'"><span class="material-symbols-outlined">'+m.icon+'</span><span class="hide-sm">'+m.name+'</span></button>';
+    }).join("");
+    var btns=tabs.querySelectorAll("[data-i]");
+
+    function show(i){
+      i=Math.max(0,Math.min(i,SCREENS.length-1));
+      for(var b=0;b<btns.length;b++){btns[b].classList.toggle("on",+btns[b].getAttribute("data-i")===i);}
+      SCREENS[i]();
+    }
+    for(var b=0;b<btns.length;b++){
+      btns[b].addEventListener("click",function(){show(+this.getAttribute("data-i"));try{window.scrollTo(0,0);}catch(e){}});
+    }
+
+    show(0);
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>

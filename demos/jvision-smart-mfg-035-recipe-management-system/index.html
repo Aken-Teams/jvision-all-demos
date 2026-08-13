@@ -4,15 +4,539 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>配方管理系統（Recipe Management System）｜Jvision 系統 Demo</title>
-  <meta name="description" content="訂單到入庫的製造現場全流程數位化" />
+  <meta name="description" content="配方版本控管、設備自動下載與異常配方攔截的製造現場平台" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --accent:#ea580c; --accent2:#fb923c; --accent-soft:#fff3ea;
+      --ink:#1c1917; --muted:#78716c; --line:#eee3db; --bg:#f7f4f1; --card:#ffffff;
+      --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --info:#2563eb;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{font-family:"Inter","Noto Sans TC",system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+    .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;font-size:20px}
+    a{color:inherit;text-decoration:none}
+
+    /* top nav */
+    .topbar{position:sticky;top:0;z-index:30;background:linear-gradient(180deg,#fffdfb,#fff);border-bottom:1px solid var(--line);box-shadow:0 1px 10px rgba(120,60,20,.04)}
+    .topbar-inner{max-width:1360px;margin:0 auto;padding:10px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .brand .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;flex:none;box-shadow:0 4px 12px rgba(234,88,12,.28)}
+    .brand .logo .material-symbols-outlined{font-size:22px}
+    .brand h1{font-size:15px;margin:0;font-weight:800;letter-spacing:.3px}
+    .brand .sub{font-size:11px;color:var(--muted);font-weight:500}
+    .topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0}
+    .pill{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:6px 11px;border-radius:999px;white-space:nowrap}
+    .avatar{width:34px;height:34px;border-radius:50%;background:#fde4d0;color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:none}
+
+    nav.tabs{max-width:1360px;margin:0 auto;padding:8px 12px;display:flex;gap:8px;flex-wrap:wrap}
+    nav.tabs button{flex:none;white-space:nowrap;min-width:0;display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;color:var(--muted);padding:8px 13px;border-radius:11px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
+    nav.tabs button .material-symbols-outlined{font-size:19px}
+    nav.tabs button:hover{border-color:var(--accent2);color:var(--accent)}
+    nav.tabs button.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 5px 14px rgba(234,88,12,.28)}
+
+    main{max-width:1360px;margin:0 auto;padding:16px 18px 60px}
+    .screen-head{display:flex;align-items:flex-end;gap:12px;margin:6px 0 16px;flex-wrap:wrap}
+    .screen-head .st{min-width:0}
+    .screen-head h2{margin:0;font-size:20px;font-weight:800}
+    .screen-head p{margin:3px 0 0;font-size:13px;color:var(--muted)}
+    .screen-head .tag{margin-left:auto;font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:6px 12px;border-radius:999px;white-space:nowrap}
+
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}
+    .card h3{margin:0 0 12px;font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px}
+    .card h3 .material-symbols-outlined{font-size:19px;color:var(--accent)}
+    .card .sub{font-size:12px;color:var(--muted);font-weight:500;margin-left:auto}
+
+    .grid{display:grid;gap:14px;min-width:0}
+    .g4{grid-template-columns:repeat(4,1fr)}
+    .g3{grid-template-columns:repeat(3,1fr)}
+    .g2{grid-template-columns:repeat(2,1fr)}
+    .g23{grid-template-columns:2fr 1fr}
+    .g32{grid-template-columns:1fr 2fr}
+    @media(max-width:820px){
+      .g4,.g3,.g2,.g23,.g32{grid-template-columns:1fr}
+    }
+
+    .kpi{background:linear-gradient(160deg,#fff,#fffaf6);border:1px solid var(--line);border-radius:16px;padding:15px;min-width:0}
+    .kpi .lbl{font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+    .kpi .lbl .material-symbols-outlined{font-size:17px;color:var(--accent)}
+    .kpi .val{font-size:26px;font-weight:900;margin-top:8px;letter-spacing:-.5px}
+    .kpi .val small{font-size:13px;font-weight:700;color:var(--muted)}
+    .kpi .delta{font-size:12px;font-weight:700;margin-top:5px;display:inline-flex;align-items:center;gap:3px}
+    .up{color:var(--ok)} .down{color:var(--bad)} .flat{color:var(--muted)}
+
+    .chart{width:100%;height:290px}
+    .chart.sm{height:230px}
+
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+    th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;background:#fbf8f5}
+    tbody tr:hover{background:#fffaf6}
+    .mono{font-family:"Inter",monospace;font-weight:600;font-size:12px}
+
+    .badge{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+    .b-ok{background:#e7f6ec;color:var(--ok)}
+    .b-warn{background:#fef3e0;color:var(--warn)}
+    .b-bad{background:#fdeaea;color:var(--bad)}
+    .b-info{background:#e8f0fe;color:var(--info)}
+    .b-mut{background:#f1ede9;color:var(--muted)}
+    .b-acc{background:var(--accent-soft);color:var(--accent)}
+
+    /* kanban */
+    .board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;min-width:720px}
+    .col{background:#fbf8f5;border:1px solid var(--line);border-radius:14px;padding:10px;min-width:0}
+    .col-head{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;margin-bottom:10px}
+    .col-head .cnt{margin-left:auto;font-size:11px;font-weight:800;background:#fff;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--muted)}
+    .col-head .dot{width:9px;height:9px;border-radius:50%}
+    .rcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:9px;box-shadow:0 1px 4px rgba(120,60,20,.04)}
+    .rcard:last-child{margin-bottom:0}
+    .rcard .rid{font-size:11px;font-weight:800;color:var(--accent);font-family:monospace}
+    .rcard .rname{font-size:13px;font-weight:700;margin:3px 0 6px;white-space:normal}
+    .rcard .rmeta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+    .rcard .rfoot{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap}
+    .mini-ava{width:22px;height:22px;border-radius:50%;background:#fde4d0;color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex:none}
+
+    /* timeline */
+    .tl{position:relative;padding-left:22px}
+    .tl:before{content:"";position:absolute;left:7px;top:4px;bottom:4px;width:2px;background:var(--line)}
+    .tl-item{position:relative;padding:0 0 16px}
+    .tl-item:last-child{padding-bottom:0}
+    .tl-item .dot{position:absolute;left:-19px;top:2px;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px var(--line)}
+    .tl-item .tt{font-size:13px;font-weight:700}
+    .tl-item .td{font-size:12px;color:var(--muted);margin-top:2px}
+    .tl-item .tm{font-size:11px;color:var(--muted);font-weight:600;font-family:monospace}
+
+    /* diff */
+    .diff{font-family:monospace;font-size:12.5px}
+    .diff td{white-space:nowrap}
+    .d-old{background:#fdeaea;color:var(--bad);text-decoration:line-through;opacity:.8}
+    .d-new{background:#e7f6ec;color:var(--ok);font-weight:700}
+    .d-same{color:var(--muted)}
+
+    /* matrix */
+    .matrix{min-width:640px;border-collapse:separate;border-spacing:0}
+    .matrix th,.matrix td{text-align:center;border:1px solid var(--line)}
+    .matrix th:first-child,.matrix td:first-child{text-align:left;font-weight:700;background:#fbf8f5;position:sticky;left:0}
+    .perm{display:inline-flex;width:26px;height:26px;border-radius:8px;align-items:center;justify-content:center}
+    .p-full{background:#e7f6ec;color:var(--ok)}
+    .p-read{background:#e8f0fe;color:var(--info)}
+    .p-none{background:#f4f0ec;color:#c4bab2}
+
+    .prog{height:8px;border-radius:999px;background:#f0eae4;overflow:hidden;min-width:70px}
+    .prog > i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent2),var(--accent))}
+
+    .eqcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px;min-width:0}
+    .eqcard .top{display:flex;align-items:center;gap:8px}
+    .eqcard .top .material-symbols-outlined{color:var(--accent)}
+    .eqcard .eqid{font-size:13px;font-weight:800}
+    .eqcard .eqsub{font-size:11px;color:var(--muted)}
+
+    .alert{display:flex;gap:11px;align-items:flex-start;background:#fff;border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:12px;padding:12px;min-width:0}
+    .alert.warn{border-left-color:var(--warn)}
+    .alert.info{border-left-color:var(--info)}
+    .alert .ico{width:34px;height:34px;border-radius:10px;background:#fdeaea;color:var(--bad);display:flex;align-items:center;justify-content:center;flex:none}
+    .alert.warn .ico{background:#fef3e0;color:var(--warn)}
+    .alert.info .ico{background:#e8f0fe;color:var(--info)}
+    .alert .at{font-size:13px;font-weight:800}
+    .alert .ad{font-size:12px;color:var(--muted);margin-top:3px;white-space:normal}
+    .alert .amt{font-size:11px;color:var(--muted);font-family:monospace;margin-top:4px}
+
+    .scroll{overflow-x:auto}
+    .stack{display:flex;flex-direction:column;gap:12px}
+    .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+    .chips{display:flex;gap:6px;flex-wrap:wrap}
+
+    @media(max-width:560px){
+      nav.tabs button .lbl-t{display:none}
+      nav.tabs button{padding:9px 11px}
+      .brand .sub{display:none}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo"><span class="material-symbols-outlined">science</span></div>
+        <div>
+          <h1>配方管理系統</h1>
+          <div class="sub">Recipe Management System · MES</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="pill"><span class="material-symbols-outlined" style="font-size:16px">verified</span>版本一致率 98.6%</span>
+        <span class="pill" style="color:var(--info);background:#e8f0fe"><span class="material-symbols-outlined" style="font-size:16px">factory</span>Fab-B 廠區</span>
+        <div class="avatar">陳</div>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs"></nav>
+  </header>
+  <main><div id="view"></div></main>
+
+  <script>
+  (function(){
+    "use strict";
+    var TABS=[
+      {icon:"science",label:"配方庫"},
+      {icon:"account_tree",label:"版本審核"},
+      {icon:"cloud_download",label:"設備下載"},
+      {icon:"difference",label:"執行比對"},
+      {icon:"gpp_bad",label:"異常攔截"},
+      {icon:"admin_panel_settings",label:"權限稽核"}
+    ];
+    var HEADS=[
+      {t:"配方庫管理",d:"配方主檔、參數群組與製程類別維護，看板追蹤配方生命週期狀態","tag":"看板中心"},
+      {t:"版本控管審核",d:"版本差異逐項比對、審核簽核與正式發布凍結流程","tag":"Diff / 簽核"},
+      {t:"設備自動下載",d:"配方派送至機台佇列，追蹤各機台下載與套用即時狀態","tag":"派送監控"},
+      {t:"執行紀錄比對",d:"機台回傳實際執行參數，與發布配方逐項比對計算一致率","tag":"參數比對"},
+      {t:"異常配方攔截",d:"版本不符與越權變更即時攔截告警，配方錯誤事件追溯","tag":"攔截告警"},
+      {t:"權限與稽核",d:"配方存取權限矩陣維護與全量操作稽核軌跡查詢","tag":"權限矩陣"}
+    ];
+
+    var charts=[];
+    function disposeCharts(){for(var i=0;i<charts.length;i++){try{charts[i].dispose();}catch(e){}}charts=[];}
+    function mk(id){var el=document.getElementById(id);if(!el)return null;var c=echarts.init(el);charts.push(c);return c;}
+    var PALETTE=["#ea580c","#fb923c","#2563eb","#16a34a","#d97706","#7c3aed"];
+
+    /* ---------- data ---------- */
+    var kpi0=[
+      {lbl:"配方總數",ico:"inventory_2",val:"1,284",unit:"筆",delta:"+38 本月",cls:"up"},
+      {lbl:"待審核版本",ico:"pending_actions",val:"17",unit:"版",delta:"+5 待處理",cls:"down"},
+      {lbl:"已發布使用中",ico:"verified",val:"926",unit:"版",delta:"生效中",cls:"flat"},
+      {lbl:"凍結/退役",ico:"lock",val:"341",unit:"版",delta:"歷史封存",cls:"flat"}
+    ];
+    var board=[
+      {col:"草稿建立",dot:"#94a3b8",items:[
+        {id:"RCP-2411",name:"CVD 氮化矽沉積 v3.2",meta:["CVD","製程站 D2"],user:"林",tag:"編輯中",tc:"b-mut"},
+        {id:"RCP-2418",name:"濕式蝕刻 BOE 清洗 v1.4",meta:["Wet Etch","站 W1"],user:"周",tag:"編輯中",tc:"b-mut"}
+      ]},
+      {col:"送審中",dot:"#fb923c",items:[
+        {id:"RCP-2402",name:"乾式蝕刻 多晶矽閘極 v5.1",meta:["Dry Etch","站 E3"],user:"陳",tag:"待審核",tc:"b-warn"},
+        {id:"RCP-2409",name:"離子植入劑量調校 v2.7",meta:["Implant","站 I2"],user:"郭",tag:"待審核",tc:"b-warn"},
+        {id:"RCP-2415",name:"快速熱退火 RTA v3.0",meta:["RTA","站 T1"],user:"許",tag:"待審核",tc:"b-warn"}
+      ]},
+      {col:"已發布",dot:"#16a34a",items:[
+        {id:"RCP-2388",name:"光阻塗佈 EUV v4.6",meta:["Litho","站 L4"],user:"黃",tag:"生效中",tc:"b-ok"},
+        {id:"RCP-2391",name:"化學機械研磨 CMP v2.3",meta:["CMP","站 C2"],user:"王",tag:"生效中",tc:"b-ok"}
+      ]},
+      {col:"凍結退役",dot:"#78716c",items:[
+        {id:"RCP-2201",name:"舊製程 PVD 鋁沉積 v9.8",meta:["PVD","站 P1"],user:"李",tag:"已退役",tc:"b-mut"}
+      ]}
+    ];
+
+    var versions=[
+      {id:"RCP-2402",name:"乾式蝕刻 多晶矽閘極",ver:"v5.1",prev:"v5.0",by:"陳彥廷",time:"08-14 09:12",state:"待審核",sc:"b-warn",risk:"中"},
+      {id:"RCP-2409",name:"離子植入劑量調校",ver:"v2.7",prev:"v2.6",by:"郭立群",time:"08-14 08:47",state:"待審核",sc:"b-warn",risk:"高"},
+      {id:"RCP-2388",name:"光阻塗佈 EUV",ver:"v4.6",prev:"v4.5",by:"黃詩涵",time:"08-13 16:20",state:"已核准",sc:"b-ok",risk:"低"},
+      {id:"RCP-2391",name:"化學機械研磨 CMP",ver:"v2.3",prev:"v2.2",by:"王承恩",time:"08-13 14:05",state:"已核准",sc:"b-ok",risk:"低"},
+      {id:"RCP-2415",name:"快速熱退火 RTA",ver:"v3.0",prev:"v2.9",by:"許雅婷",time:"08-13 11:38",state:"退回",sc:"b-bad",risk:"高"}
+    ];
+    var diffRows=[
+      {p:"腔體壓力 (mTorr)",o:"18",n:"22",s:"chg"},
+      {p:"RF 功率 (W)",o:"850",n:"920",s:"chg"},
+      {p:"製程時間 (s)",o:"45",n:"45",s:"same"},
+      {p:"CF4 流量 (sccm)",o:"60",n:"55",s:"chg"},
+      {p:"O2 流量 (sccm)",o:"—",n:"8",s:"add"},
+      {p:"基板溫度 (°C)",o:"65",n:"65",s:"same"}
+    ];
+    var apprTl=[
+      {t:"配方建立",d:"製程工程 陳彥廷 建立 v5.1 草稿",m:"08-14 09:12",c:"#2563eb"},
+      {t:"參數自檢通過",d:"系統規則校驗 12 項參數皆在製程視窗內",m:"08-14 09:15",c:"#16a34a"},
+      {t:"送交審核",d:"指派審核人：製程主管 李文彬",m:"08-14 09:16",c:"#fb923c"},
+      {t:"審核中",d:"審核人正比對 v5.0→v5.1 差異（4 項變更）",m:"08-14 09:40",c:"#ea580c"},
+      {t:"待發布凍結",d:"通過後將凍結版本並推送設備佇列",m:"—",c:"#94a3b8"}
+    ];
+
+    var eqList=[
+      {id:"ETCH-03",sub:"乾式蝕刻機 · 站 E3",st:"已套用",sc:"b-ok",ver:"v5.1",prog:100,q:0},
+      {id:"IMP-02",sub:"離子植入機 · 站 I2",st:"下載中",sc:"b-info",ver:"v2.7",prog:64,q:1},
+      {id:"LITHO-04",sub:"EUV 曝光機 · 站 L4",st:"已套用",sc:"b-ok",ver:"v4.6",prog:100,q:0},
+      {id:"CMP-02",sub:"研磨機 · 站 C2",st:"佇列中",sc:"b-warn",ver:"v2.3",prog:0,q:3},
+      {id:"RTA-01",sub:"熱退火爐 · 站 T1",st:"下載失敗",sc:"b-bad",ver:"v3.0",prog:30,q:0},
+      {id:"CVD-05",sub:"沉積機 · 站 D2",st:"已套用",sc:"b-ok",ver:"v3.1",prog:100,q:0}
+    ];
+
+    var cmpRows=[
+      {p:"腔體壓力",unit:"mTorr",recipe:22,actual:22.1,tol:"±0.5",ok:true},
+      {p:"RF 功率",unit:"W",recipe:920,actual:918,tol:"±10",ok:true},
+      {p:"CF4 流量",unit:"sccm",recipe:55,actual:53.2,tol:"±1.5",ok:false},
+      {p:"O2 流量",unit:"sccm",recipe:8,actual:8.0,tol:"±0.3",ok:true},
+      {p:"基板溫度",unit:"°C",recipe:65,actual:64.8,tol:"±1.0",ok:true},
+      {p:"製程時間",unit:"s",recipe:45,actual:45,tol:"±0.5",ok:true}
+    ];
+
+    var alerts=[
+      {sev:"bad",ico:"error",t:"版本不符攔截 · IMP-02",d:"機台實際套用 v2.5，發布版本為 v2.7，落後 2 版；已阻擋批次開始並通知設備工程。",m:"EVT-8841 · 08-14 09:52 · 站 I2"},
+      {sev:"bad",ico:"lock_open",t:"越權變更嘗試 · RTA-01",d:"操作員帳號無 RTA 配方寫入權限卻嘗試手動改參，已攔截並記錄。",m:"EVT-8840 · 08-14 09:30 · 站 T1"},
+      {sev:"warn",ico:"warning",t:"參數逼近上限 · ETCH-03",d:"CF4 流量偏離目標值 -3.3%，仍在容差內但連續 3 批下滑，建議複核。",m:"EVT-8838 · 08-14 09:12 · 站 E3"},
+      {sev:"info",ico:"schedule",t:"下載逾時提醒 · CMP-02",d:"配方 v2.3 於佇列中等待逾 8 分鐘，機台目前處理前一批次。",m:"EVT-8836 · 08-14 08:58 · 站 C2"}
+    ];
+
+    var permRows=[
+      {role:"製程工程",cells:["full","full","read","read","none"]},
+      {role:"製程主管",cells:["full","full","full","read","read"]},
+      {role:"設備工程",cells:["read","read","full","full","none"]},
+      {role:"品保",cells:["read","read","read","full","read"]},
+      {role:"操作員",cells:["none","read","read","none","none"]},
+      {role:"系統稽核",cells:["read","read","read","read","full"]}
+    ];
+    var permCols=["建立配方","版本審核","設備派送","執行比對","權限設定"];
+    var auditTl=[
+      {t:"發布配方 v5.1",d:"李文彬 核准並凍結 RCP-2402，推送至 ETCH-03",m:"08-14 09:44",c:"#16a34a"},
+      {t:"權限調整",d:"設備工程群組新增 RTA 站派送權限",m:"08-14 09:20",c:"#2563eb"},
+      {t:"攔截事件記錄",d:"EVT-8841 版本不符已寫入稽核軌跡並鎖定批次",m:"08-14 09:52",c:"#dc2626"},
+      {t:"配方匯出",d:"品保 張沛霖 匯出 CMP 系列配方稽核報表",m:"08-14 08:30",c:"#d97706"},
+      {t:"登入異常提醒",d:"操作員帳號於非授權時段嘗試存取配方庫",m:"08-14 07:11",c:"#ea580c"}
+    ];
+
+    /* ---------- helpers ---------- */
+    function esc(s){return String(s).replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+    function kpiCard(k){
+      return '<div class="kpi"><div class="lbl"><span class="material-symbols-outlined">'+k.ico+'</span>'+k.lbl+'</div>'+
+        '<div class="val">'+k.val+' <small>'+k.unit+'</small></div>'+
+        '<div class="delta '+k.cls+'">'+k.delta+'</div></div>';
+    }
+
+    /* ---------- screens ---------- */
+    function s0(){
+      var kp=kpi0.map(kpiCard).join("");
+      var cols=board.map(function(c){
+        var cards=c.items.map(function(it){
+          var meta=it.meta.map(function(m){return '<span class="badge b-acc">'+esc(m)+'</span>';}).join(" ");
+          return '<div class="rcard"><div class="rid">'+esc(it.id)+'</div><div class="rname">'+esc(it.name)+'</div>'+
+            '<div class="rmeta">'+meta+'</div>'+
+            '<div class="rfoot"><span class="mini-ava">'+esc(it.user)+'</span><span class="badge '+it.tc+'">'+esc(it.tag)+'</span></div></div>';
+        }).join("");
+        return '<div class="col"><div class="col-head"><span class="dot" style="background:'+c.dot+'"></span>'+esc(c.col)+'<span class="cnt">'+c.items.length+'</span></div>'+cards+'</div>';
+      }).join("");
+      return '<div class="grid g4" style="margin-bottom:14px">'+kp+'</div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">view_kanban</span>配方生命週期看板<span class="sub">草稿 → 送審 → 發布 → 退役</span></h3>'+
+        '<div class="scroll"><div class="board">'+cols+'</div></div></div>'+
+        '<div class="grid g23" style="margin-top:14px">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">category</span>配方分佈（依製程類別）</h3><div id="c0a" class="chart sm"></div></div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">trending_up</span>本月新增版本趨勢</h3><div id="c0b" class="chart sm"></div></div>'+
+        '</div>';
+    }
+    function chart0(){
+      var a=mk("c0a");
+      if(a)a.setOption({tooltip:{trigger:"item"},legend:{bottom:0,textStyle:{fontSize:11}},
+        series:[{type:"pie",radius:["42%","70%"],center:["50%","44%"],avoidLabelOverlap:true,itemStyle:{borderColor:"#fff",borderWidth:2},
+          label:{show:false},data:[
+            {value:312,name:"蝕刻 Etch"},{value:268,name:"沉積 CVD/PVD"},{value:224,name:"微影 Litho"},
+            {value:186,name:"離子植入"},{value:154,name:"CMP 研磨"},{value:140,name:"熱製程"}
+          ],color:PALETTE}]});
+      var b=mk("c0b");
+      if(b)b.setOption({tooltip:{trigger:"axis"},grid:{left:36,right:16,top:20,bottom:26},
+        xAxis:{type:"category",data:["第1週","第2週","第3週","第4週","第5週","第6週"],axisLine:{lineStyle:{color:"#ddd"}},axisLabel:{fontSize:11,color:"#78716c"}},
+        yAxis:{type:"value",splitLine:{lineStyle:{color:"#f0eae4"}},axisLabel:{fontSize:11,color:"#78716c"}},
+        series:[{type:"bar",data:[6,9,5,11,8,12],barWidth:"46%",itemStyle:{borderRadius:[6,6,0,0],color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:"#fb923c"},{offset:1,color:"#ea580c"}])}}]});
+    }
+
+    function s1(){
+      var rows=versions.map(function(v){
+        var rc=v.risk==="高"?"b-bad":v.risk==="中"?"b-warn":"b-ok";
+        return '<tr><td class="mono">'+esc(v.id)+'</td><td>'+esc(v.name)+'</td>'+
+          '<td><span class="badge b-mut">'+esc(v.prev)+'</span> → <span class="badge b-acc">'+esc(v.ver)+'</span></td>'+
+          '<td>'+esc(v.by)+'</td><td class="mono">'+esc(v.time)+'</td>'+
+          '<td><span class="badge '+rc+'">'+esc(v.risk)+'</span></td>'+
+          '<td><span class="badge '+v.sc+'">'+esc(v.state)+'</span></td></tr>';
+      }).join("");
+      var diff=diffRows.map(function(d){
+        if(d.s==="same")return '<tr><td>'+esc(d.p)+'</td><td class="d-same">'+esc(d.o)+'</td><td class="d-same">'+esc(d.n)+'</td><td><span class="badge b-mut">未變更</span></td></tr>';
+        if(d.s==="add")return '<tr><td>'+esc(d.p)+'</td><td class="d-same">'+esc(d.o)+'</td><td class="d-new">'+esc(d.n)+'</td><td><span class="badge b-info">新增</span></td></tr>';
+        return '<tr><td>'+esc(d.p)+'</td><td class="d-old">'+esc(d.o)+'</td><td class="d-new">'+esc(d.n)+'</td><td><span class="badge b-warn">修改</span></td></tr>';
+      }).join("");
+      var tl=apprTl.map(function(t){
+        return '<div class="tl-item"><span class="dot" style="background:'+t.c+'"></span><div class="tt">'+esc(t.t)+'</div><div class="td">'+esc(t.d)+'</div><div class="tm">'+esc(t.m)+'</div></div>';
+      }).join("");
+      return '<div class="card" style="margin-bottom:14px"><h3><span class="material-symbols-outlined">rule_folder</span>版本審核佇列<span class="sub">共 '+versions.length+' 版待處理 / 已處理</span></h3>'+
+        '<div class="scroll"><table><thead><tr><th>配方編號</th><th>名稱</th><th>版本異動</th><th>提交人</th><th>時間</th><th>風險</th><th>狀態</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+        '<div class="grid g23">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">difference</span>版本差異比對 · RCP-2402 v5.0 → v5.1<span class="sub">4 項變更</span></h3>'+
+            '<div class="scroll"><table class="diff"><thead><tr><th>參數</th><th>舊值 v5.0</th><th>新值 v5.1</th><th>異動</th></tr></thead><tbody>'+diff+'</tbody></table></div></div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">timeline</span>審核簽核流程</h3><div class="tl">'+tl+'</div></div>'+
+        '</div>';
+    }
+
+    function s2(){
+      var kp=[
+        {lbl:"今日派送機台",ico:"send",val:"42",unit:"台",delta:"+6 台",cls:"up"},
+        {lbl:"已套用",ico:"task_alt",val:"37",unit:"台",delta:"88.1%",cls:"up"},
+        {lbl:"下載中/佇列",ico:"downloading",val:"4",unit:"台",delta:"進行中",cls:"flat"},
+        {lbl:"下載失敗",ico:"error",val:"1",unit:"台",delta:"需重試",cls:"down"}
+      ].map(kpiCard).join("");
+      var cards=eqList.map(function(e){
+        return '<div class="eqcard"><div class="top"><span class="material-symbols-outlined">precision_manufacturing</span>'+
+          '<div style="min-width:0"><div class="eqid">'+esc(e.id)+'</div><div class="eqsub">'+esc(e.sub)+'</div></div>'+
+          '<span class="badge '+e.sc+'" style="margin-left:auto">'+esc(e.st)+'</span></div>'+
+          '<div class="row" style="margin-top:10px;font-size:12px"><span class="badge b-acc">配方 '+esc(e.ver)+'</span>'+
+          (e.q>0?'<span class="badge b-mut">佇列 '+e.q+'</span>':'<span class="badge b-ok">佇列清空</span>')+'</div>'+
+          '<div class="row" style="margin-top:9px"><div class="prog" style="flex:1"><i style="width:'+e.prog+'%"></i></div><span class="mono" style="font-size:11px">'+e.prog+'%</span></div></div>';
+      }).join("");
+      return '<div class="grid g4" style="margin-bottom:14px">'+kp+'</div>'+
+        '<div class="grid g32">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">donut_large</span>派送成功率</h3><div id="c2a" class="chart"></div></div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">grid_view</span>機台下載狀態</h3><div class="grid g3" style="gap:12px">'+cards+'</div></div>'+
+        '</div>'+
+        '<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">bar_chart</span>各製程站別派送耗時（秒）</h3><div id="c2b" class="chart sm"></div></div>';
+    }
+    function chart2(){
+      var a=mk("c2a");
+      if(a)a.setOption({series:[{type:"gauge",startAngle:210,endAngle:-30,min:0,max:100,progress:{show:true,width:16,itemStyle:{color:"#ea580c"}},
+        axisLine:{lineStyle:{width:16,color:[[1,"#f0eae4"]]}},pointer:{show:false},axisTick:{show:false},splitLine:{show:false},axisLabel:{show:false},
+        anchor:{show:false},title:{offsetCenter:[0,"70%"],fontSize:12,color:"#78716c"},
+        detail:{valueAnimation:false,fontSize:32,fontWeight:800,offsetCenter:[0,0],formatter:"{value}%",color:"#1c1917"},
+        data:[{value:88.1,name:"當日派送成功率"}]}]});
+      var b=mk("c2b");
+      if(b)b.setOption({tooltip:{trigger:"axis"},grid:{left:40,right:16,top:20,bottom:26},
+        xAxis:{type:"category",data:["Etch E3","Impl I2","Litho L4","CMP C2","RTA T1","CVD D2"],axisLabel:{fontSize:11,color:"#78716c"},axisLine:{lineStyle:{color:"#ddd"}}},
+        yAxis:{type:"value",splitLine:{lineStyle:{color:"#f0eae4"}},axisLabel:{fontSize:11,color:"#78716c"}},
+        series:[{type:"bar",data:[12,34,9,7,58,15],barWidth:"46%",itemStyle:{borderRadius:[6,6,0,0],color:function(p){return p.value>40?"#dc2626":"#fb923c";}}}]});
+    }
+
+    function s3(){
+      var rows=cmpRows.map(function(r){
+        var dev=(r.actual-r.recipe);
+        var devStr=(dev>0?"+":"")+dev.toFixed(1);
+        return '<tr><td>'+esc(r.p)+'</td><td class="mono">'+r.recipe+'</td><td class="mono">'+r.actual+'</td><td class="mono">'+esc(r.unit)+'</td>'+
+          '<td class="mono '+(r.ok?"":"")+'" style="color:'+(r.ok?"#16a34a":"#dc2626")+'">'+devStr+'</td>'+
+          '<td class="mono">'+esc(r.tol)+'</td>'+
+          '<td>'+(r.ok?'<span class="badge b-ok">符合</span>':'<span class="badge b-bad">超差</span>')+'</td></tr>';
+      }).join("");
+      var kp=[
+        {lbl:"今日比對批次",ico:"fact_check",val:"156",unit:"批",delta:"+12",cls:"up"},
+        {lbl:"版本一致率",ico:"verified",val:"98.6",unit:"%",delta:"+0.4pt",cls:"up"},
+        {lbl:"參數超差項",ico:"report_problem",val:"3",unit:"項",delta:"CF4 流量",cls:"down"},
+        {lbl:"平均偏移",ico:"straighten",val:"0.42",unit:"%",delta:"容差內",cls:"flat"}
+      ].map(kpiCard).join("");
+      return '<div class="grid g4" style="margin-bottom:14px">'+kp+'</div>'+
+        '<div class="grid g23">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">monitoring</span>RF 功率控制圖（實際 vs 配方目標）<span class="sub">ETCH-03 近 12 批</span></h3><div id="c3a" class="chart"></div></div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">radar</span>參數偏移雷達</h3><div id="c3b" class="chart"></div></div>'+
+        '</div>'+
+        '<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">difference</span>參數逐項比對 · 批次 LOT-A72391 @ ETCH-03</h3>'+
+          '<div class="scroll"><table><thead><tr><th>參數</th><th>配方目標</th><th>實際值</th><th>單位</th><th>偏移</th><th>容差</th><th>判定</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+    }
+    function chart3(){
+      var a=mk("c3a");
+      if(a)a.setOption({tooltip:{trigger:"axis"},legend:{top:0,textStyle:{fontSize:11}},grid:{left:44,right:16,top:32,bottom:26},
+        xAxis:{type:"category",data:["B1","B2","B3","B4","B5","B6","B7","B8","B9","B10","B11","B12"],axisLabel:{fontSize:10,color:"#78716c"},axisLine:{lineStyle:{color:"#ddd"}}},
+        yAxis:{type:"value",min:880,max:960,splitLine:{lineStyle:{color:"#f0eae4"}},axisLabel:{fontSize:11,color:"#78716c"}},
+        series:[
+          {name:"配方目標",type:"line",data:[920,920,920,920,920,920,920,920,920,920,920,920],lineStyle:{type:"dashed",color:"#78716c"},symbol:"none"},
+          {name:"上限 UCL",type:"line",data:[940,940,940,940,940,940,940,940,940,940,940,940],lineStyle:{type:"dotted",color:"#dc2626",width:1},symbol:"none"},
+          {name:"實際值",type:"line",smooth:true,data:[918,922,915,921,919,924,916,918,912,925,918,918],itemStyle:{color:"#ea580c"},areaStyle:{color:"rgba(234,88,12,.08)"}}
+        ]});
+      var b=mk("c3b");
+      if(b)b.setOption({tooltip:{},radar:{indicator:[
+          {name:"壓力",max:2},{name:"RF功率",max:2},{name:"CF4",max:2},{name:"O2",max:2},{name:"溫度",max:2},{name:"時間",max:2}
+        ],radius:"64%",axisName:{fontSize:11,color:"#78716c"},splitLine:{lineStyle:{color:"#eee3db"}},splitArea:{areaStyle:{color:["#fff","#fdf6f0"]}}},
+        series:[{type:"radar",data:[
+          {value:[0.4,0.2,1.8,0.0,0.3,0.0],name:"偏移量(%)",areaStyle:{color:"rgba(234,88,12,.18)"},lineStyle:{color:"#ea580c"},itemStyle:{color:"#ea580c"}}
+        ]}]});
+    }
+
+    function s4(){
+      var kp=[
+        {lbl:"今日攔截事件",ico:"gpp_bad",val:"6",unit:"件",delta:"+2",cls:"down"},
+        {lbl:"版本不符",ico:"sync_problem",val:"3",unit:"件",delta:"高優先",cls:"down"},
+        {lbl:"越權變更",ico:"lock_open",val:"2",unit:"件",delta:"已封鎖",cls:"down"},
+        {lbl:"已解除/複核",ico:"task_alt",val:"4",unit:"件",delta:"66.7%",cls:"up"}
+      ].map(kpiCard).join("");
+      var al=alerts.map(function(a){
+        var cls=a.sev==="bad"?"":a.sev==="warn"?"warn":"info";
+        return '<div class="alert '+cls+'"><div class="ico"><span class="material-symbols-outlined">'+a.ico+'</span></div>'+
+          '<div style="min-width:0"><div class="at">'+esc(a.t)+'</div><div class="ad">'+esc(a.d)+'</div><div class="amt">'+esc(a.m)+'</div></div></div>';
+      }).join("");
+      return '<div class="grid g4" style="margin-bottom:14px">'+kp+'</div>'+
+        '<div class="grid g2">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">notifications_active</span>攔截事件清單</h3><div class="stack">'+al+'</div></div>'+
+          '<div class="stack">'+
+            '<div class="card"><h3><span class="material-symbols-outlined">pie_chart</span>攔截原因分佈</h3><div id="c4a" class="chart sm"></div></div>'+
+            '<div class="card"><h3><span class="material-symbols-outlined">show_chart</span>近 8 週配方錯誤事件數</h3><div id="c4b" class="chart sm"></div></div>'+
+          '</div>'+
+        '</div>';
+    }
+    function chart4(){
+      var a=mk("c4a");
+      if(a)a.setOption({tooltip:{trigger:"item"},legend:{bottom:0,textStyle:{fontSize:11}},
+        series:[{type:"pie",radius:["40%","68%"],center:["50%","42%"],itemStyle:{borderColor:"#fff",borderWidth:2},label:{show:false},
+          data:[{value:9,name:"版本不符"},{value:6,name:"越權變更"},{value:4,name:"參數超差"},{value:2,name:"下載失敗"}],
+          color:["#dc2626","#ea580c","#d97706","#94a3b8"]}]});
+      var b=mk("c4b");
+      if(b)b.setOption({tooltip:{trigger:"axis"},grid:{left:34,right:16,top:20,bottom:26},
+        xAxis:{type:"category",data:["W1","W2","W3","W4","W5","W6","W7","W8"],axisLabel:{fontSize:11,color:"#78716c"},axisLine:{lineStyle:{color:"#ddd"}}},
+        yAxis:{type:"value",splitLine:{lineStyle:{color:"#f0eae4"}},axisLabel:{fontSize:11,color:"#78716c"}},
+        series:[{type:"line",smooth:true,data:[14,11,13,9,8,10,7,6],itemStyle:{color:"#dc2626"},areaStyle:{color:"rgba(220,38,38,.08)"},markLine:{silent:true,symbol:"none",data:[{yAxis:8,lineStyle:{color:"#16a34a",type:"dashed"},label:{formatter:"目標≤8",fontSize:10}}]}}]});
+    }
+
+    function s5(){
+      var head='<th>角色 \\ 功能</th>'+permCols.map(function(c){return '<th>'+esc(c)+'</th>';}).join("");
+      var body=permRows.map(function(r){
+        var cells=r.cells.map(function(c){
+          if(c==="full")return '<td><span class="perm p-full"><span class="material-symbols-outlined" style="font-size:16px">edit</span></span></td>';
+          if(c==="read")return '<td><span class="perm p-read"><span class="material-symbols-outlined" style="font-size:16px">visibility</span></span></td>';
+          return '<td><span class="perm p-none"><span class="material-symbols-outlined" style="font-size:16px">block</span></span></td>';
+        }).join("");
+        return '<tr><td>'+esc(r.role)+'</td>'+cells+'</tr>';
+      }).join("");
+      var tl=auditTl.map(function(t){
+        return '<div class="tl-item"><span class="dot" style="background:'+t.c+'"></span><div class="tt">'+esc(t.t)+'</div><div class="td">'+esc(t.d)+'</div><div class="tm">'+esc(t.m)+'</div></div>';
+      }).join("");
+      var kp=[
+        {lbl:"系統帳號",ico:"group",val:"148",unit:"人",delta:"6 角色",cls:"flat"},
+        {lbl:"今日稽核事件",ico:"history",val:"312",unit:"筆",delta:"+27",cls:"up"},
+        {lbl:"越權嘗試",ico:"gpp_maybe",val:"2",unit:"次",delta:"已阻擋",cls:"down"},
+        {lbl:"權限覆核率",ico:"fact_check",val:"100",unit:"%",delta:"季度達標",cls:"up"}
+      ].map(kpiCard).join("");
+      return '<div class="grid g4" style="margin-bottom:14px">'+kp+'</div>'+
+        '<div class="grid g23">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">grid_on</span>配方存取權限矩陣<span class="sub">編輯 / 唯讀 / 禁止</span></h3>'+
+            '<div class="scroll"><table class="matrix"><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div>'+
+            '<div class="row" style="margin-top:10px;font-size:11.5px;color:var(--muted)"><span class="perm p-full" style="width:20px;height:20px"><span class="material-symbols-outlined" style="font-size:13px">edit</span></span>編輯'+
+            '<span class="perm p-read" style="width:20px;height:20px"><span class="material-symbols-outlined" style="font-size:13px">visibility</span></span>唯讀'+
+            '<span class="perm p-none" style="width:20px;height:20px"><span class="material-symbols-outlined" style="font-size:13px">block</span></span>禁止</div></div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">manage_search</span>操作稽核軌跡</h3><div class="tl">'+tl+'</div></div>'+
+        '</div>';
+    }
+
+    var RENDER=[
+      {html:s0,chart:chart0},
+      {html:s1,chart:null},
+      {html:s2,chart:chart2},
+      {html:s3,chart:chart3},
+      {html:s4,chart:chart4},
+      {html:s5,chart:null}
+    ];
+
+    var view=document.getElementById("view");
+    var tabsEl=document.getElementById("tabs");
+    tabsEl.innerHTML=TABS.map(function(t,i){
+      return '<button data-i="'+i+'"><span class="material-symbols-outlined">'+t.icon+'</span><span class="lbl-t">'+t.label+'</span></button>';
+    }).join("");
+    var btns=tabsEl.querySelectorAll("[data-i]");
+    for(var i=0;i<btns.length;i++){(function(b){b.addEventListener("click",function(){show(+b.getAttribute("data-i"));});})(btns[i]);}
+
+    function show(i){
+      disposeCharts();
+      for(var k=0;k<btns.length;k++)btns[k].classList.toggle("active",+btns[k].getAttribute("data-i")===i);
+      var h=HEADS[i];
+      var r=RENDER[i];
+      view.innerHTML='<div class="screen-head"><div class="st"><h2>'+esc(h.t)+'</h2><p>'+esc(h.d)+'</p></div><span class="tag">'+esc(h.tag)+'</span></div>'+r.html();
+      void view.offsetHeight;
+      if(r.chart)r.chart();
+    }
+
+    window.__show=show;
+    show(0);
+
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+    window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>
