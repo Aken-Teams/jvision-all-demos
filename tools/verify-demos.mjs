@@ -14,7 +14,7 @@ for(const r of repos){
   // distinct screens per flow step
   const shots=[];
   for(const dv of steps){const g=(dv||'v0').replace(/\D/g,'');await p.goto(url+'#go='+g,{waitUntil:'load'});await p.waitForTimeout(200);
-    const t=await p.evaluate(()=>{const v=document.querySelector('#vt');return v?v.textContent.trim():'?';});shots.push(g+':'+t);}
+    const t=await p.evaluate(()=>{const vis=el=>el&&el.offsetParent!==null;const v=document.querySelector("#vt");if(v&&vis(v)&&v.textContent.trim())return v.textContent.trim();const hs=[...document.querySelectorAll(".vh h2,.view-h h1,#view h2,#view h1,main h2,main h1,section h2,.head h2,.phead h1")];for(const h of hs){if(vis(h)&&h.textContent.trim())return h.textContent.trim();}const cont=[...document.querySelectorAll("#view,.vbody,.view,section,main,.wrap")].find(e=>vis(e)&&e.innerText&&e.innerText.trim().length>20);return cont?cont.innerText.slice(0,60).replace(/s+/g," ").trim():"?";});shots.push(g+":"+t);}
   const uniq=new Set(shots.map(s=>s.split(':')[1]));
   const navN=await p.evaluate(()=>document.querySelectorAll('[data-i]').length);
   // overflow per view at 3 widths
