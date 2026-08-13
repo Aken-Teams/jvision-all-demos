@@ -268,7 +268,9 @@ function renderAgentMarketplace() {
   const searchEl = $("#agSearch"), squadsEl = $("#agSquads"), statusEl = $("#agStatus"), clearEl = $("#agClear");
   if (!grid) return;
   const initSquad = new URLSearchParams(location.search).get("squad") || "";
-  const state = { q: "", squad: AGENT_SQUADS.some((s) => s.key === initSquad) ? initSquad : "", status: "" };
+  const PAGE = 9;
+  const state = { q: "", squad: AGENT_SQUADS.some((s) => s.key === initSquad) ? initSquad : "", status: "", visible: PAGE };
+  const moreEl = $("#agMore");
 
   // featured strip
   if (feat) feat.innerHTML = FEATURED_IDS.map(agentById).filter(Boolean).map(featuredCardHTML).join("");
@@ -279,7 +281,7 @@ function renderAgentMarketplace() {
   function paintSquads() {
     squadsEl.innerHTML = squadBtn("", "全部 Agents", AGENTS.length, state.squad === "")
       + AGENT_SQUADS.map((s) => squadBtn(s.key, s.name, AGENTS.filter((a) => a.squad === s.key).length, state.squad === s.key)).join("");
-    squadsEl.querySelectorAll(".ag-filter").forEach((b) => b.addEventListener("click", () => { state.squad = b.dataset.squad; apply(); }));
+    squadsEl.querySelectorAll(".ag-filter").forEach((b) => b.addEventListener("click", () => { state.squad = b.dataset.squad; state.visible = PAGE; apply(); }));
   }
   // status filter
   const STATUSES = [["", "全部狀態"], ["active", "執行中"], ["idle", "待命"], ["pending", "待審核"]];
@@ -289,7 +291,7 @@ function renderAgentMarketplace() {
       const dot = v ? `<span class="w-2 h-2 rounded-full ${STATUS_META[v].dot}"></span>` : "";
       return `<button data-status="${v}" class="ag-status inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${active ? "bg-brand text-white border-brand" : "bg-white text-body border-line hover:border-brand2"}">${dot}${label}</button>`;
     }).join("");
-    statusEl.querySelectorAll(".ag-status").forEach((b) => b.addEventListener("click", () => { state.status = b.dataset.status; apply(); }));
+    statusEl.querySelectorAll(".ag-status").forEach((b) => b.addEventListener("click", () => { state.status = b.dataset.status; state.visible = PAGE; apply(); }));
   }
 
   function apply() {
@@ -305,15 +307,18 @@ function renderAgentMarketplace() {
     });
     const filtering = !!(state.q || state.squad || state.status);
     if (featWrap) featWrap.style.display = filtering ? "none" : "";
-    grid.innerHTML = list.length ? list.map(agentCardHTML).join("")
+    const shown = list.slice(0, state.visible);
+    grid.innerHTML = shown.length ? shown.map(agentCardHTML).join("")
       : `<div class="col-span-full text-center py-14 border border-dashed border-line rounded-2xl bg-white text-muted"><span class="material-symbols-outlined text-[36px]">search_off</span><p class="font-bold text-ink mt-2">找不到符合的 Agent</p><p class="text-sm mt-1">換個關鍵字或清除篩選再試一次。</p></div>`;
-    if (count) count.textContent = filtering ? `顯示 ${list.length} / ${AGENTS.length} 位 Agent` : `全部 ${AGENTS.length} 位 Agent`;
+    if (count) count.textContent = `顯示 ${shown.length} / ${filtering ? list.length : AGENTS.length} 位 Agent`;
+    if (moreEl) moreEl.hidden = list.length <= state.visible;
     if (clearEl) clearEl.disabled = !filtering;
     paintSquads(); paintStatus();
   }
 
-  if (searchEl) searchEl.addEventListener("input", (e) => { state.q = e.target.value; apply(); });
-  if (clearEl) clearEl.addEventListener("click", () => { state.q = ""; state.squad = ""; state.status = ""; if (searchEl) searchEl.value = ""; apply(); });
+  if (searchEl) searchEl.addEventListener("input", (e) => { state.q = e.target.value; state.visible = PAGE; apply(); });
+  if (clearEl) clearEl.addEventListener("click", () => { state.q = ""; state.squad = ""; state.status = ""; state.visible = PAGE; if (searchEl) searchEl.value = ""; apply(); });
+  if (moreEl) moreEl.addEventListener("click", () => { state.visible += PAGE; apply(); });
   paintSquads(); paintStatus(); apply();
 }
 

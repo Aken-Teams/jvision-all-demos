@@ -13,7 +13,6 @@
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-  <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.18.10/dist/browser/index.js"></script>
   <script>
     tailwind.config = { theme: { extend: {
       colors: { ink:"#0f1e46", body:"#334155", muted:"#64748b", line:"#e2e8f0", soft:"#f5f8fc", brand:"#1e40af", brand2:"#3b82f6" },
@@ -393,13 +392,13 @@
         if (dEntry.length) { s += "    使用者入口\n"; dEntry.forEach((e) => s += `      ${mm(e)}\n`); }
         s += "    功能模組\n"; (dMods.length ? dMods : [{ name: "核心模組" }]).forEach((m) => s += `      ${mm(m.name)}\n`);
         if (dData.length) { s += "    資料與整合\n"; dData.forEach((d) => s += `      ${mm(d)}\n`); }
-        // markmap tree (nicer radial mind map)
+        // d3 radial tree data (raw text; d3 escapes on render)
         const node = (content, children) => ({ content, children: children || [] });
         const kids = [];
-        if (dEntry.length) kids.push(node("使用者入口", dEntry.map((e) => node(esc(e)))));
-        kids.push(node("功能模組", (dMods.length ? dMods : [{ name: "核心模組" }]).map((m) => node(esc(m.name)))));
-        if (dData.length) kids.push(node("資料與整合", dData.map((d) => node(esc(d)))));
-        return { engine: "markmap", data: node(esc(dCore), kids), def: s };
+        if (dEntry.length) kids.push(node("使用者入口", dEntry.map((e) => node(e))));
+        kids.push(node("功能模組", (dMods.length ? dMods : [{ name: "核心模組" }]).map((m) => node(m.name))));
+        if (dData.length) kids.push(node("資料與整合", dData.map((d) => node(d))));
+        return { engine: "radial", data: node(dCore, kids), def: s };
       }
 
       // --- PROCESS diagrams ---
@@ -670,15 +669,40 @@
       async function drawDiagram(elId, spec) {
         const el = document.getElementById(elId); if (!el || el.dataset.done || !spec) return;
         if (spec.engine === "html") { el.innerHTML = spec.html; el.dataset.done = "1"; return; }
-        if (spec.engine === "markmap") {
-          if (window.markmap && window.markmap.Markmap && window.d3) {
+        if (spec.engine === "radial") {
+          if (window.d3) {
             try {
-              el.innerHTML = '<svg class="mm-svg" style="width:100%;height:440px;display:block;"></svg>';
-              const mmp = window.markmap.Markmap.create(el.querySelector("svg"), { autoFit: true, duration: 0, spacingVertical: 12, spacingHorizontal: 96, paddingX: 14, initialExpandLevel: -1, nodeMinHeight: 18 }, spec.data);
+              const d3 = window.d3, data = spec.data, groups = data.children || [];
+              const palette = ["#16a34a", "#dc2626", "#7c3aed", "#0891b2", "#d97706", "#db2777", "#2563eb", "#65a30d", "#0d9488", "#c026d3"];
+              // balance the top-level groups across left / right by leaf count
+              const leafN = (g) => (g.children ? g.children.length : 1);
+              const marked = groups.map((g, i) => ({ g, i, n: leafN(g) })).sort((a, b) => b.n - a.n);
+              const R = [], L = []; let rn = 0, ln = 0;
+              marked.forEach((o) => { if (rn <= ln) { R.push(o); rn += o.n; } else { L.push(o); ln += o.n; } });
+              const rGroups = R.sort((a, b) => a.i - b.i).map((o) => o.g), lGroups = L.sort((a, b) => a.i - b.i).map((o) => o.g);
+              const side = (gs, dir) => { if (!gs.length) return null; const h = d3.hierarchy({ content: data.content, children: gs }); d3.tree().nodeSize([52, 190]).separation((a, b) => (a.parent === b.parent ? 1 : 1.45))(h); const rx = h.x; h.each((n) => { n.sx = dir * n.y; n.sy = n.x - rx; }); return h; };
+              const HR = side(rGroups, 1), HL = side(lGroups, -1);
+              const grpIdx = (n) => { let m = n; while (m.depth > 1) m = m.parent; return groups.indexOf(m.data); };
+              const colorOf = (n) => palette[((grpIdx(n) < 0 ? 0 : grpIdx(n)) % palette.length)];
+              const nodes = [], links = [];
+              [HR, HL].forEach((h) => { if (!h) return; h.descendants().forEach((n) => { if (n.depth > 0) nodes.push(n); }); h.links().forEach((lk) => links.push(lk)); });
+              const link = (s, t) => { const mx = (s.sx + t.sx) / 2; return `M${s.sx},${s.sy}C${mx},${s.sy} ${mx},${t.sy} ${t.sx},${t.sy}`; };
+              const xs = [0, ...nodes.map((n) => n.sx)], ys = [0, ...nodes.map((n) => n.sy)];
+              const minX = Math.min(...xs) - 140, maxX = Math.max(...xs) + 140, minY = Math.min(...ys) - 30, maxY = Math.max(...ys) + 30;
+              el.innerHTML = "";
+              const svg = d3.select(el).append("svg").attr("viewBox", [minX, minY, maxX - minX, maxY - minY]).attr("width", "100%").style("max-width", "1000px").style("height", "auto").style("font-family", "Inter, Noto Sans TC, sans-serif").style("font-size", "16px");
+              svg.append("g").attr("fill", "none").attr("stroke-opacity", 0.85).attr("stroke-width", 2)
+                .selectAll("path").data(links).join("path").attr("stroke", (d) => d.target.depth === 1 ? "#cbd5e1" : colorOf(d.target)).attr("d", (d) => link(d.source, d.target));
+              const ng = svg.append("g").selectAll("g").data(nodes).join("g").attr("transform", (n) => `translate(${n.sx},${n.sy})`);
+              ng.append("circle").attr("r", (n) => n.depth === 1 ? 5 : 3.5).attr("fill", colorOf).attr("stroke", "#fff").attr("stroke-width", 1.5);
+              ng.append("text").attr("dy", "0.31em").attr("x", (n) => n.sx >= 0 ? 9 : -9).attr("text-anchor", (n) => n.sx >= 0 ? "start" : "end").attr("fill", "#334155").style("font-weight", (n) => n.depth === 1 ? "700" : "500").text((n) => n.data.content).clone(true).lower().attr("stroke", "#fff").attr("stroke-width", 3.5).attr("stroke-linejoin", "round");
+              const rootText = String(data.content), rw = rootText.length * 15 + 28;
+              const rg = svg.append("g");
+              rg.append("rect").attr("x", -rw / 2).attr("y", -16).attr("width", rw).attr("height", 32).attr("rx", 16).attr("fill", accent);
+              rg.append("text").attr("text-anchor", "middle").attr("dy", "0.32em").attr("fill", "#fff").style("font-weight", "800").text(rootText);
               el.dataset.done = "1";
-              requestAnimationFrame(() => { try { mmp.fit(); } catch (e) {} });
               return;
-            } catch (e) { console.warn("markmap", e); }
+            } catch (e) { console.warn("radial", e); }
           }
           if (mermaidReady && spec.def) { try { const r = await mermaid.render(elId + "Svg", spec.def); el.innerHTML = r.svg; el.dataset.done = "1"; return; } catch (e) { console.warn("mermaid fallback", e); } }
           el.innerHTML = '<p class="text-sm text-muted text-center py-6">心智圖載入失敗</p>'; return;

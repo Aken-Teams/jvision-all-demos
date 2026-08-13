@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>任務指揮中心 · 專案 Agents — JVision</title>
-  <meta name="description" content="一個需求進來，看整支 AI 團隊即時分工、交接與產出交付物的示範（3 個案例）。" />
+  <meta name="description" content="從一個問題出發，看整支 AI 團隊跑完整個流程，並交出真實成果（3 個不同情境）。" />
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
@@ -13,7 +13,7 @@
     tailwind.config = { theme: { extend: {
       colors: { ink:"#0f1e46", body:"#334155", muted:"#64748b", line:"#e2e8f0", soft:"#f5f8fc", brand:"#1e40af", brand2:"#3b82f6", accent:"#d97706", violet:"#7c3aed", success:"#16a34a", amber:"#d97706", idle:"#94a3b8" },
       fontFamily: { sans:['Inter','Noto Sans TC','Microsoft JhengHei','sans-serif'] },
-      maxWidth: { shell:'1360px' },
+      maxWidth: { shell:'1200px' },
     } } };
   </script>
   <style>
@@ -23,15 +23,10 @@
     .navlink { position:relative; }
     .navlink::after { content:""; position:absolute; left:0; right:0; bottom:-6px; height:2px; border-radius:2px; background:currentColor; transform:scaleX(0); transform-origin:right; transition:transform .28s ease; }
     .navlink:hover::after, .navlink.is-active::after { transform:scaleX(1); transform-origin:left; }
-    .dot-grid { background-image: radial-gradient(#dbe4f5 1px, transparent 1px); background-size: 8px 8px; }
-    .agent-link { stroke:#cbd5e1; stroke-width:2; fill:none; }
-    .agent-link.active { stroke:#7c3aed; filter:drop-shadow(0 0 4px rgba(124,58,237,.4)); }
-    .scroll-thin::-webkit-scrollbar { width:5px; }
-    .scroll-thin::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
+    .scroll-thin::-webkit-scrollbar { width:5px; } .scroll-thin::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
     .log-item { opacity:0; transform:translateY(6px); transition:opacity .4s ease, transform .4s ease; }
     .log-item.show { opacity:1; transform:none; }
-    .ping { animation:ping 1.4s cubic-bezier(0,0,.2,1) infinite; }
-    @keyframes ping { 75%,100%{ transform:scale(2); opacity:0; } }
+    #runProgressBar { transition: width .6s cubic-bezier(.2,.7,.2,1); }
   </style>
 </head>
 <body class="text-body antialiased">
@@ -46,113 +41,96 @@
     </nav>
   </header>
 
-  <main class="max-w-shell mx-auto px-6 py-6">
+  <main class="max-w-shell mx-auto px-6 py-6 space-y-6">
 
-    <!-- case switcher + demo notice -->
-    <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-      <div class="flex items-center gap-2 text-xs text-brand bg-brand/5 border border-brand/15 rounded-lg px-3 py-2 w-max"><span class="material-symbols-outlined text-[16px]">info</span> 示範：切換案例看不同場景的協作。</div>
+    <!-- case switcher + notice -->
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+      <div class="flex items-center gap-2 text-xs text-brand bg-brand/5 border border-brand/15 rounded-lg px-3 py-2 w-max"><span class="material-symbols-outlined text-[16px]">info</span> 示範：三個不同情境，各自跑完整流程並交出不同成果。</div>
       <div id="caseTabs" class="flex flex-wrap gap-2 sm:ml-auto"></div>
     </div>
 
-    <!-- task header -->
-    <header class="mb-6">
-      <div class="flex items-center gap-2 mb-1.5">
-        <span id="missCode" class="eyebrow text-[11px] font-bold text-muted uppercase">MISSION CONTROL</span>
-        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet/10 text-violet text-[11px] font-bold"><span class="w-1.5 h-1.5 rounded-full bg-violet"></span> AI 協作中</span>
-      </div>
-      <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
-        <h1 id="missObjective" class="text-2xl md:text-[28px] leading-tight font-black text-ink max-w-3xl">—</h1>
-        <div class="flex items-center gap-3 flex-wrap">
-          <div class="bg-white border border-line rounded-full px-4 py-2 flex items-center gap-2 shadow-sm">
-            <span class="relative flex h-3 w-3"><span class="ping absolute inline-flex h-full w-full rounded-full bg-success opacity-70"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-success"></span></span>
-            <span id="missStep" class="text-sm font-bold text-ink">—</span>
+    <!-- 1. Ask -->
+    <section class="bg-white border border-line rounded-2xl p-6 shadow-sm">
+      <span id="missCode" class="eyebrow text-[11px] font-bold text-muted uppercase">MISSION CONTROL</span>
+      <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mt-2">
+        <div class="max-w-2xl">
+          <p class="text-[11px] font-bold text-violet mb-2">STEP 0 · 你問一個問題</p>
+          <div class="flex items-start gap-3">
+            <span class="w-9 h-9 rounded-full bg-soft border border-line grid place-content-center shrink-0"><span class="material-symbols-outlined text-[20px] text-muted">person</span></span>
+            <div class="bg-soft border border-line rounded-2xl rounded-tl-sm px-4 py-3">
+              <p id="demoQuestion" class="text-[15px] text-ink font-medium">—</p>
+            </div>
           </div>
+          <h1 id="missObjective" class="sr-only">—</h1>
+          <p class="text-sm text-muted mt-3 flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px] text-violet">bolt</span> 團隊收到需求，開始分工並跑完整個流程。</p>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
           <div class="flex gap-1 border border-line rounded-xl p-2 bg-white shadow-sm">
             <div class="px-3 border-r border-line"><div class="text-[11px] text-muted font-semibold">參與 Agents</div><div id="statAgents" class="text-lg font-black text-ink">—</div></div>
-            <div class="px-3 border-r border-line"><div class="text-[11px] text-muted font-semibold">已完成步驟</div><div id="statSteps" class="text-lg font-black text-ink">—</div></div>
-            <div class="px-3"><div class="text-[11px] text-muted font-semibold">產出交付物</div><div id="statDeliv" class="text-lg font-black text-ink">—</div></div>
+            <div class="px-3 border-r border-line"><div class="text-[11px] text-muted font-semibold">流程步驟</div><div id="statSteps" class="text-lg font-black text-ink">—</div></div>
+            <div class="px-3"><div class="text-[11px] text-muted font-semibold">交付物</div><div id="statDeliv" class="text-lg font-black text-ink">—</div></div>
           </div>
           <button id="replayBtn" class="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-brand text-white text-sm font-bold hover:bg-brand2 transition-colors shadow-sm"><span class="material-symbols-outlined text-[18px]">replay</span> 重新播放</button>
         </div>
       </div>
-    </header>
+    </section>
 
-    <!-- three columns -->
-    <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 mb-6 items-start">
-
-      <!-- LEFT: task tree -->
-      <div class="xl:col-span-3">
-        <div class="bg-white border border-line rounded-2xl p-4 shadow-sm">
-          <h3 class="text-base font-black text-ink mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-brand">account_tree</span> 任務拆解</h3>
-          <div class="mb-3">
-            <div class="flex justify-between text-[11px] text-muted font-semibold mb-1"><span>整體進度</span><span id="taskPct">—</span></div>
-            <div class="w-full bg-line rounded-full h-1.5 overflow-hidden"><div id="taskBar" class="bg-brand h-1.5 rounded-full" style="width:0%"></div></div>
-          </div>
-          <div id="taskTree" class="flex flex-col gap-1"></div>
-        </div>
+    <!-- 2. Before / After -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-white border border-line rounded-2xl p-5">
+        <div class="flex items-center gap-2 mb-3"><span class="w-8 h-8 rounded-lg bg-soft text-muted grid place-content-center"><span class="material-symbols-outlined text-[18px]">sentiment_dissatisfied</span></span><h3 class="text-base font-black text-muted">沒有 Agents 之前</h3></div>
+        <ul id="baBefore" class="space-y-2"></ul>
       </div>
-
-      <!-- CENTER: collaboration + live log -->
-      <div class="xl:col-span-5">
-        <div class="bg-white border border-line rounded-2xl shadow-sm overflow-hidden flex flex-col">
-          <div class="relative h-44 border-b border-line bg-soft dot-grid flex items-center justify-center">
-            <span class="absolute top-2 left-3 eyebrow text-[10px] font-bold text-muted">協作網絡拓撲</span>
-            <svg class="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" style="z-index:1">
-              <path class="agent-link active" d="M50 50 Q 30 30 14 26"></path>
-              <path class="agent-link" d="M50 50 Q 70 30 86 26"></path>
-              <path class="agent-link active" d="M50 50 Q 30 72 18 80"></path>
-              <path class="agent-link" d="M50 50 Q 70 72 82 80"></path>
-            </svg>
-            <div class="relative w-full h-full max-w-sm mx-auto" id="graphWrap">
-              <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-20">
-                <div class="w-12 h-12 rounded-xl grid place-content-center text-white shadow-lg mb-1 border-2 border-white" style="background-image:linear-gradient(135deg,#1e40af,#7c3aed)"><span class="material-symbols-outlined">hub</span></div>
-                <span class="text-[10px] font-black bg-white px-2 py-0.5 rounded shadow-sm border border-line">智策</span>
-              </div>
-              <div id="graphNodes"></div>
-            </div>
-          </div>
-          <div class="flex flex-col">
-            <div class="p-3 border-b border-line flex justify-between items-center bg-white">
-              <h3 class="text-sm font-black text-ink flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">forum</span> 協作實況 (Live Log)</h3>
-              <span id="logHint" class="text-[12px] text-muted font-semibold"></span>
-            </div>
-            <div id="logFeed" class="p-4 h-[360px] overflow-y-auto scroll-thin flex flex-col gap-4"></div>
-          </div>
-        </div>
+      <div class="bg-white border-2 border-brand/30 rounded-2xl p-5 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl opacity-20" style="background:#7c3aed"></div>
+        <div class="flex items-center gap-2 mb-3"><span class="w-8 h-8 rounded-lg bg-brand/10 text-brand grid place-content-center"><span class="material-symbols-outlined text-[18px]">auto_awesome</span></span><h3 class="text-base font-black text-ink">有 Agents 之後</h3></div>
+        <ul id="baAfter" class="space-y-2"></ul>
       </div>
+    </section>
 
-      <!-- RIGHT: deliverables -->
-      <div class="xl:col-span-4">
-        <div class="bg-white border border-line rounded-2xl p-4 shadow-sm">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-base font-black text-ink flex items-center gap-2"><span class="material-symbols-outlined text-brand">inventory_2</span> 交付物</h3>
-            <span class="text-xs font-semibold bg-soft px-2 py-1 rounded border border-line text-muted">本任務交付物</span>
-          </div>
-          <div id="deliverList" class="flex flex-col gap-3"></div>
-          <button class="mt-3 w-full flex items-center justify-center gap-1 text-sm font-bold text-brand hover:text-brand2 transition-colors py-2"><span class="material-symbols-outlined text-[18px]">download</span> 下載全部打包 (ZIP)</button>
+    <!-- 3. Run once -->
+    <section class="bg-white border border-line rounded-2xl shadow-sm overflow-hidden">
+      <div class="p-5 border-b border-line">
+        <div class="flex items-center justify-between gap-3 mb-3">
+          <h3 class="text-base font-black text-ink flex items-center gap-2"><span class="material-symbols-outlined text-brand">groups</span> 團隊協作跑一次</h3>
+          <div class="flex items-center gap-3"><span id="runStatus" class="text-sm font-bold text-brand">協作中</span><span id="runPct" class="text-sm font-black text-ink w-10 text-right">0%</span></div>
         </div>
+        <div class="w-full bg-line rounded-full h-2 overflow-hidden"><div id="runProgressBar" class="bg-brand h-2 rounded-full" style="width:0%"></div></div>
+        <div id="runAgents" class="flex flex-wrap gap-2 mt-4"></div>
       </div>
-    </div>
+      <div class="p-3 border-b border-line flex justify-between items-center">
+        <h4 class="text-sm font-bold text-ink flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">forum</span> 協作實況</h4>
+        <span id="logHint" class="text-[12px] text-muted font-semibold"></span>
+      </div>
+      <div id="logFeed" class="p-4 max-h-[340px] overflow-y-auto scroll-thin flex flex-col gap-3"></div>
+    </section>
 
-    <!-- audit trail -->
-    <div class="bg-white border border-line rounded-2xl shadow-sm overflow-hidden">
+    <!-- 4. Deliverables (case-specific) -->
+    <section>
+      <div class="flex items-center gap-2 mb-4">
+        <span class="material-symbols-outlined text-brand text-[22px]">inventory_2</span>
+        <h2 class="text-xl font-black text-ink">交付成果</h2>
+        <span class="text-[11px] font-bold text-success bg-success/10 border border-success/20 rounded-full px-2 py-0.5">全部完成 ✓</span>
+        <span class="text-xs text-muted ml-auto hidden sm:block">以下為擬真示範資料，客戶可直接檢視／匯出</span>
+      </div>
+      <div id="deliverRoot"></div>
+    </section>
+
+    <!-- 5. Audit -->
+    <section class="bg-white border border-line rounded-2xl shadow-sm overflow-hidden">
       <div class="p-4 border-b border-line flex justify-between items-center">
         <h3 class="text-base font-black text-ink flex items-center gap-2"><span class="material-symbols-outlined text-brand">history</span> 決策紀錄 (Audit Trail)</h3>
-        <span class="text-xs text-muted">可解釋 · 可追溯</span>
+        <span class="text-xs text-muted">可解釋 · 可追溯 · 敏感決策經人工核可</span>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm text-ink">
           <thead class="bg-soft eyebrow text-[11px] text-muted border-b border-line">
-            <tr><th class="px-4 py-3 w-32">時間戳記</th><th class="px-4 py-3 w-40">節點 / Agent</th><th class="px-4 py-3 w-1/4">決策動作</th><th class="px-4 py-3">推理 / 依據</th><th class="px-4 py-3 w-24">狀態</th></tr>
+            <tr><th class="px-4 py-3 w-24">時間</th><th class="px-4 py-3 w-40">節點 / Agent</th><th class="px-4 py-3 w-1/4">決策動作</th><th class="px-4 py-3">推理 / 依據</th><th class="px-4 py-3 w-24">狀態</th></tr>
           </thead>
           <tbody id="auditBody" class="divide-y divide-line"></tbody>
         </table>
       </div>
-      <div class="p-3 border-t border-line flex justify-between items-center text-xs text-muted">
-        <span>顯示最新 3 筆決策</span>
-        <div class="flex gap-1"><button class="px-2 py-1 border border-line rounded opacity-50" disabled>上一頁</button><button class="px-2 py-1 border border-line rounded hover:bg-soft">下一頁</button></div>
-      </div>
-    </div>
+    </section>
   </main>
 
   <footer class="border-t border-line bg-white mt-8">
