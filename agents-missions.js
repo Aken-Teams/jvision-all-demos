@@ -152,23 +152,30 @@ function renderMission() {
     return `<div class="flex items-center gap-1.5 bg-soft border border-line rounded-full pl-1 pr-3 py-1"><span class="w-6 h-6 rounded-full bg-violet/10 text-violet grid place-content-center"><span class="material-symbols-outlined text-[15px]">${a.icon}</span></span><span class="text-[12px] font-semibold text-body">${a.name}</span></div>`;
   }).join(""));
 
-  // right summary
+  // right summary (compact chips)
   setHTML("#summaryList", c.summary.map((s) => `
-    <div class="bg-white border border-line rounded-xl p-4">
-      <div class="text-3xl font-black ${s.good ? "text-success" : "text-ink"}">${s.big}</div>
-      <div class="text-[13px] font-bold text-ink mt-0.5">${s.label}</div>
-      <div class="text-[11px] text-muted mt-0.5">${s.sub}</div>
+    <div class="inline-flex items-baseline gap-1.5 bg-soft border border-line rounded-lg px-3 py-1.5">
+      <span class="text-base font-black ${s.good ? "text-success" : "text-ink"}">${s.big}</span>
+      <span class="text-[11px] font-semibold text-muted">${s.label}</span>
     </div>`).join(""));
 
-  // embedded real result
+  // embedded real result (live webpage)
   setText("#resultTitle", c.resultTitle);
   setText("#resultDesc", c.resultDesc);
-  const frame = $("#resultFrame"); if (frame) frame.src = c.resultUrl;
-  const open = $("#resultOpen"); if (open) open.href = c.resultUrl;
   setText("#resultKind", c.kind);
+  const open = $("#resultOpen"); if (open) open.href = c.resultUrl;
+  const frame = $("#resultFrame");
+  if (frame) {
+    frame.onload = () => { postFrame({ type: "jv-reset" }); if (_curStage >= 0) postFrame({ type: "jv-stage", stage: _curStage }); };
+    frame.src = c.resultUrl;
+  }
 
   play(c);
 }
+
+let _curStage = -1;
+function postFrame(msg) { const f = document.querySelector("#resultFrame"); if (f && f.contentWindow) { try { f.contentWindow.postMessage(msg, "*"); } catch (e) {} } }
+function setLive(on) { const el = document.querySelector("#frameLive"); if (!el) return; el.innerHTML = on ? '<span class="w-1.5 h-1.5 rounded-full bg-success"></span> 連線中' : '<span class="w-1.5 h-1.5 rounded-full bg-idle"></span> 待機'; }
 
 /* ---------- 播放：步驟 + 對話 + 完成項目 + 進度 ---------- */
 let _timers = [];
@@ -186,35 +193,54 @@ function _logHTML(m) {
     </div>
   </div>`;
 }
-function _renderSteps(c, activeCount) {
-  const el = document.querySelector("#stepsList"); if (!el) return;
-  el.innerHTML = c.steps.map((s, i) => _stepHTML(s, i < activeCount ? "done" : i === activeCount ? "active" : "idle")).join("");
+function _typingHTML(m) {
+  const badge = { brand: "bg-brand text-white", violet: "bg-violet/15 text-violet", success: "bg-success text-white" }[m.color] || "bg-brand text-white";
+  const nameColor = { brand: "text-brand", violet: "text-violet", success: "text-success" }[m.color] || "text-brand";
+  return `<div id="typingBubble" class="flex gap-3">
+    <div class="w-7 h-7 rounded-lg ${badge} grid place-content-center shrink-0 text-[11px] font-bold mt-0.5">${m.who[0]}</div>
+    <div class="p-2.5 rounded-tr-xl rounded-b-xl rounded-tl-sm border border-line bg-soft/60 inline-flex items-center gap-2">
+      <span class="text-[12px] font-bold ${nameColor}">${m.who}</span>
+      <span class="inline-flex gap-1">
+        <span class="w-1.5 h-1.5 bg-muted rounded-full animate-bounce"></span>
+        <span class="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style="animation-delay:.15s"></span>
+        <span class="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style="animation-delay:.3s"></span>
+      </span>
+    </div>
+  </div>`;
 }
 function play(c) {
   const feed = document.querySelector("#logFeed"), doneEl = document.querySelector("#doneList"), hint = document.querySelector("#logHint");
   const bar = document.querySelector("#runProgressBar"), pct = document.querySelector("#runPct"), status = document.querySelector("#runStatus");
   if (!feed) return;
   _timers.forEach(clearTimeout); _timers = [];
-  feed.innerHTML = ""; if (doneEl) doneEl.innerHTML = ""; if (hint) hint.textContent = "協作中…";
+  feed.innerHTML = ""; if (doneEl) doneEl.innerHTML = ""; if (hint) hint.textContent = "AI 處理中…";
   if (bar) bar.style.width = "0%"; if (pct) pct.textContent = "0%";
   if (status) { status.textContent = "協作中"; status.className = "text-sm font-bold text-brand"; }
-  _renderSteps(c, 0);
-  const n = c.log.length;
+  _curStage = -1; postFrame({ type: "jv-reset" }); setLive(false);
+  const n = c.log.length, PER = 2400, LEAD = 950;
   c.log.forEach((m, i) => {
-    const t = setTimeout(() => {
+    // typing indicator
+    _timers.push(setTimeout(() => {
+      const old = document.getElementById("typingBubble"); if (old) old.remove();
+      feed.insertAdjacentHTML("beforeend", _typingHTML(m));
+      feed.scrollTop = feed.scrollHeight;
+    }, i * PER + 300));
+    // actual message + drive the webpage
+    _timers.push(setTimeout(() => {
+      const tb = document.getElementById("typingBubble"); if (tb) tb.remove();
       feed.insertAdjacentHTML("beforeend", _logHTML(m));
       const el = feed.lastElementChild; requestAnimationFrame(() => el.classList.add("show"));
       feed.scrollTop = feed.scrollHeight;
-      if (doneEl && c.done[i]) { doneEl.insertAdjacentHTML("beforeend", _doneHTML(c.done[i])); }
-      _renderSteps(c, i + 1);
+      if (doneEl && c.done[i]) doneEl.insertAdjacentHTML("beforeend", _doneHTML(c.done[i]));
+      // fill the live webpage stage-by-stage
+      _curStage = i; setLive(true); postFrame({ type: "jv-stage", stage: i });
       const p = Math.round(((i + 1) / n) * 100);
       if (bar) bar.style.width = p + "%"; if (pct) pct.textContent = p + "%";
       if (i === n - 1) {
         if (hint) hint.textContent = "全部完成 ✓";
         if (status) { status.textContent = "已完成 · 100%"; status.className = "text-sm font-bold text-success"; }
       }
-    }, i * 1000 + 300);
-    _timers.push(t);
+    }, i * PER + LEAD));
   });
 }
 
