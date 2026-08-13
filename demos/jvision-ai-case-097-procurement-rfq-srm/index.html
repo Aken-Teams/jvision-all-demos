@@ -4,15 +4,566 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>採購詢價協作所｜Jvision 系統 Demo</title>
-  <meta name="description" content="供應商協同、詢比議價到交期風險控管" />
+  <meta name="description" content="供應商協同、詢比議價到交期風險控管的 SRM 採購協作平台" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --accent:#e11d48; --accent2:#fb7185;
+      --ink:#1a1024; --muted:#6b6577; --line:#ece7f0; --bg:#f6f4f8; --card:#ffffff;
+      --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --info:#2563eb;
+      --side:#2a0f1e; --side2:#3d1226;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden}
+    body{font-family:"Inter","Noto Sans TC",system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+    .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;font-size:20px}
+    .shell{display:flex;min-height:100vh;align-items:stretch}
+    /* sidebar */
+    .side{width:242px;flex:none;background:linear-gradient(180deg,var(--side),var(--side2));color:#e7cfd9;display:flex;flex-direction:column;padding:18px 14px;gap:5px;position:sticky;top:0;height:100vh;overflow-y:auto}
+    .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 16px;border-bottom:1px solid rgba(255,255,255,.09);margin-bottom:8px}
+    .brand .logo{width:40px;height:40px;flex:none;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 6px 18px rgba(225,29,72,.45)}
+    .brand b{color:#fff;font-size:15px;font-weight:800;display:block;line-height:1.2}
+    .brand span{font-size:11px;color:#c99bad;letter-spacing:.04em}
+    .navbtn{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:transparent;border:0;color:#d3a9bd;padding:11px 12px;border-radius:11px;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;transition:.16s;min-width:0}
+    .navbtn .material-symbols-outlined{font-size:21px;flex:none}
+    .navbtn .txt{min-width:0}
+    .navbtn small{display:block;font-size:11px;font-weight:500;color:#a97e91;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .navbtn:hover{background:rgba(251,113,133,.14);color:#fff}
+    .navbtn.on{background:linear-gradient(135deg,rgba(225,29,72,.92),rgba(251,113,133,.5));color:#fff;box-shadow:0 6px 16px rgba(225,29,72,.35)}
+    .sidefoot{margin-top:auto;padding:12px 10px 4px;border-top:1px solid rgba(255,255,255,.09);font-size:11px;color:#a97e91;line-height:1.7}
+    .sidefoot b{color:#e7bccd}
+    /* main */
+    .main{flex:1;min-width:0;padding:20px clamp(13px,2.2vw,28px) 40px}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+    .top .h{min-width:0}
+    .top h1{margin:0;font-size:clamp(18px,2.3vw,24px);font-weight:900;letter-spacing:-.02em}
+    .top p{margin:4px 0 0;color:var(--muted);font-size:13px}
+    .pill{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:700;color:var(--accent)}
+    .pill .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:pulse 2s infinite}
+    @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 8px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+    /* grids */
+    .grid{display:grid;gap:14px}
+    .g-kpi{grid-template-columns:repeat(4,1fr)}
+    .g-2{grid-template-columns:2fr 1fr}
+    .g-2e{grid-template-columns:1fr 1fr}
+    .g-3{grid-template-columns:repeat(3,1fr)}
+    @media(max-width:820px){
+      .g-kpi{grid-template-columns:1fr 1fr}
+      .g-2,.g-2e,.g-3{grid-template-columns:1fr}
+    }
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 17px;min-width:0;box-shadow:0 1px 2px rgba(26,16,36,.03)}
+    .card h3{margin:0 0 3px;font-size:14.5px;font-weight:800}
+    .card .sub{color:var(--muted);font-size:12px;margin-bottom:12px}
+    .cardhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+    .cardhead h3{margin:0}
+    /* kpi */
+    .kpi{position:relative;overflow:hidden}
+    .kpi .lab{font-size:12.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+    .kpi .lab .material-symbols-outlined{font-size:18px;color:var(--accent)}
+    .kpi .val{font-size:26px;font-weight:900;letter-spacing:-.02em;margin-top:8px}
+    .kpi .val small{font-size:13px;font-weight:700;color:var(--muted)}
+    .kpi .delta{font-size:12px;font-weight:700;margin-top:4px}
+    .up{color:var(--ok)} .down{color:var(--bad)}
+    .bar{height:7px;border-radius:5px;background:#f1ecf3;overflow:hidden;margin-top:10px}
+    .bar>i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    /* chart */
+    .chartwrap{position:relative;width:100%;height:290px;min-width:0}
+    .chartwrap.sm{height:230px}
+    /* table */
+    table{width:100%;border-collapse:collapse;font-size:13px;min-width:600px}
+    th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+    th{font-size:11.5px;letter-spacing:.03em;color:var(--muted);font-weight:700;background:#faf7fb}
+    tbody tr:hover{background:#faf7fb}
+    td b{font-weight:800}
+    .tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px}
+    .t-ok{background:#dcfce7;color:#15803d} .t-warn{background:#fef3c7;color:#b45309} .t-bad{background:#fee2e2;color:#b91c1c} .t-info{background:#dbeafe;color:#1d4ed8} .t-mut{background:#f1eef4;color:#6b5f76} .t-acc{background:#ffe4ea;color:#be123c}
+    .mono{font-variant-numeric:tabular-nums}
+    .tprog{width:110px;height:6px;border-radius:4px;background:#f1ecf3;display:inline-block;overflow:hidden;vertical-align:middle}
+    .tprog>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    /* ===== SPLIT two-pane workspace (signature) ===== */
+    .split{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start}
+    @media(max-width:960px){.split{grid-template-columns:1fr}}
+    .listpane{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;min-width:0;box-shadow:0 1px 2px rgba(26,16,36,.03)}
+    .listpane .lh{display:flex;align-items:center;justify-content:space-between;padding:2px 6px 10px;border-bottom:1px solid var(--line);margin-bottom:8px}
+    .listpane .lh b{font-size:13.5px;font-weight:800}
+    .listpane .lh span{font-size:11.5px;color:var(--muted);font-weight:700}
+    .lrow{border:1px solid transparent;border-radius:12px;padding:11px 12px;margin-bottom:7px;cursor:pointer;background:#faf7fb;min-width:0}
+    .lrow.on{border-color:var(--accent);background:#fff;box-shadow:0 4px 14px rgba(225,29,72,.12)}
+    .lrow .r1{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .lrow .code{font-size:11.5px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums}
+    .lrow .nm{font-size:13.5px;font-weight:800;margin:4px 0 3px;line-height:1.35}
+    .lrow .mt{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+    .detpane{min-width:0;display:flex;flex-direction:column;gap:14px}
+    .drow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+    .dkv{flex:1;min-width:120px;border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:#faf7fb}
+    .dkv .l{font-size:11.5px;color:var(--muted);font-weight:600}
+    .dkv .v{font-size:19px;font-weight:900;margin-top:3px}
+    /* board / kanban */
+    .kb{display:grid;grid-template-columns:repeat(5,1fr);gap:11px}
+    @media(max-width:960px){.kb{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:640px){.kb{grid-template-columns:1fr}}
+    .kbcol{background:#faf7fb;border:1px solid var(--line);border-radius:14px;padding:10px;min-width:0}
+    .kbcol .kh{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:800;margin-bottom:9px;padding:0 2px}
+    .kbcol .kh span.cnt{background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-size:11px;color:var(--muted)}
+    .ticket{background:#fff;border:1px solid var(--line);border-radius:11px;padding:10px 11px;margin-bottom:8px;box-shadow:0 1px 2px rgba(26,16,36,.04)}
+    .ticket .tt{font-size:12.5px;font-weight:800;line-height:1.35}
+    .ticket .meta{display:flex;align-items:center;gap:7px;margin-top:7px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+    .av{width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none}
+    /* chat */
+    .chat{display:flex;flex-direction:column;gap:12px}
+    .msg{display:flex;gap:10px;max-width:88%}
+    .msg .b{border-radius:14px;padding:10px 13px;font-size:12.5px;line-height:1.5;box-shadow:0 1px 2px rgba(26,16,36,.05)}
+    .msg .who{font-size:11px;font-weight:800;margin-bottom:3px}
+    .msg .tm{font-size:10.5px;color:var(--muted);margin-top:4px}
+    .msg.buy{align-self:flex-end;flex-direction:row-reverse}
+    .msg.buy .b{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+    .msg.buy .who,.msg.buy .tm{color:#ffe4ea;text-align:right}
+    .msg.sup .b{background:#fff;border:1px solid var(--line)}
+    .msg.sup .who{color:var(--info)}
+    .msg .av{width:30px;height:30px;font-size:12px}
+    .msg.sup .av{background:linear-gradient(135deg,#2563eb,#60a5fa)}
+    /* approval steps */
+    .steps{display:flex;flex-direction:column;gap:0;position:relative;padding-left:26px}
+    .steps:before{content:"";position:absolute;left:10px;top:6px;bottom:16px;width:2px;background:var(--line)}
+    .stp{position:relative;padding:0 0 16px}
+    .stp .dot{position:absolute;left:-22px;top:0;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;border:3px solid #fff;box-shadow:0 0 0 1px var(--line)}
+    .stp .st{font-size:13.5px;font-weight:800}
+    .stp .sd{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5}
+    .stp .sm{font-size:11px;color:var(--muted);margin-top:3px;font-weight:700}
+    /* scorecard */
+    .scard{border:1px solid var(--line);border-radius:14px;padding:14px;background:linear-gradient(180deg,#fff,#fdfafb);min-width:0}
+    .scard .sn{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .scard .snm{font-weight:800;font-size:14px}
+    .scard .grade{font-size:22px;font-weight:900;line-height:1;padding:6px 12px;border-radius:12px}
+    .scard .metrics{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+    .scard .mrow{display:flex;align-items:center;gap:8px;font-size:11.5px}
+    .scard .mrow .ml{width:52px;flex:none;color:var(--muted);font-weight:700}
+    .scard .mrow .mb{flex:1;height:7px;border-radius:5px;background:#f1ecf3;overflow:hidden;min-width:0}
+    .scard .mrow .mb>i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    .scard .mrow .mv{width:30px;flex:none;text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
+    .rowflex{display:flex;gap:12px;flex-wrap:wrap}
+    .stat{flex:1;min-width:130px;border:1px solid var(--line);border-radius:12px;padding:12px 13px;background:#fff}
+    .stat .l{font-size:11.5px;color:var(--muted);font-weight:600}
+    .stat .v{font-size:20px;font-weight:900;margin-top:4px}
+    .chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:#f1eef4;color:#6b5f76}
+    .best{outline:2px solid var(--accent);outline-offset:-2px;background:#fff5f7}
+    /* mobile nav */
+    .mobbrand{display:none}
+    @media(max-width:860px){
+      .shell{flex-direction:column}
+      .side{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap;align-items:center;padding:11px 12px;gap:8px}
+      .brand{display:none}
+      .mobbrand{display:flex;align-items:center;gap:9px;width:100%;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,.09);margin-bottom:2px}
+      .mobbrand .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff}
+      .mobbrand b{color:#fff;font-size:14px;font-weight:800}
+      .navbtn{width:auto;flex:none;white-space:nowrap;padding:9px 12px}
+      .navbtn small{display:none}
+      .sidefoot{display:none}
+    }
+    @media(max-width:560px){
+      .navbtn .txt{display:none}
+      .navbtn{padding:9px 11px}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <div class="shell">
+    <aside class="side">
+      <div class="mobbrand">
+        <div class="logo"><span class="material-symbols-outlined">diversity_3</span></div>
+        <b>採購詢價協作所</b>
+      </div>
+      <div class="brand">
+        <div class="logo"><span class="material-symbols-outlined">diversity_3</span></div>
+        <div><b>採購詢價協作所</b><span>Procurement RFQ · SRM</span></div>
+      </div>
+      <nav id="nav"></nav>
+      <div class="sidefoot">
+        <b>本期 128 張詢價單</b> · 46 家供應商<br/>
+        資料為展示用途 · <b>Jvision</b> Demo
+      </div>
+    </aside>
+    <main class="main">
+      <div class="top">
+        <div class="h">
+          <h1 id="scr-title">請購需求池</h1>
+          <p id="scr-sub">彙整各廠請購、合併料件並排定詢價優先序</p>
+        </div>
+        <span class="pill"><span class="dot"></span>即時同步 · 2026/08/13 14:20</span>
+      </div>
+      <div id="view"></div>
+    </main>
+  </div>
+
+  <script>
+  var MODS=[
+    {icon:"assignment",name:"請購需求池",sub:"合併料件與詢價優先序"},
+    {icon:"mail",name:"詢價單發送",sub:"RFQ 發送與回覆追蹤"},
+    {icon:"table_view",name:"報價比對",sub:"多家並排比價分析"},
+    {icon:"forum",name:"線上議價",sub:"議價往返與讓步歷程"},
+    {icon:"verified",name:"核決簽核",sub:"分層簽核與下單"},
+    {icon:"grade",name:"供應商評鑑",sub:"綜合評分與分級"}
+  ];
+
+  var nav=document.getElementById("nav");
+  MODS.forEach(function(m,i){
+    var b=document.createElement("button");
+    b.className="navbtn"; b.setAttribute("data-i",i);
+    b.innerHTML='<span class="material-symbols-outlined">'+m.icon+'</span><span class="txt"><span>'+m.name+'</span><small>'+m.sub+'</small></span>';
+    b.addEventListener("click",function(){show(i)});
+    nav.appendChild(b);
+  });
+
+  var view=document.getElementById("view");
+  var chart=null;
+  function killCharts(){ if(chart){try{chart.destroy()}catch(e){}} chart=null; }
+  Chart.defaults.font.family='"Inter","Noto Sans TC",sans-serif';
+  Chart.defaults.font.size=11.5;
+  Chart.defaults.color='#6b6577';
+
+  // ================= SCREEN 0 : 請購需求池 (SPLIT signature) =================
+  function v0(){
+    var reqs=[
+      {code:"PR-2408-091",nm:"CNC 加工中心 主軸軸承 7014C",qty:"120 pcs",plant:"台中三廠",need:"08/22",prio:"急件",pc:"t-bad",ref:"NT$ 4,850/pcs",cat:"機械件",spec:"角接觸球軸承 · P4 級精度 · NSK/SKF 認可品牌",supN:5,merged:2},
+      {code:"PR-2408-092",nm:"注塑機 液壓比例閥 DG4V-3S",qty:"18 pcs",plant:"桃園二廠",need:"08/28",prio:"一般",pc:"t-mut",ref:"NT$ 12,300/pcs",cat:"液壓件",spec:"先導式比例方向閥 · 24VDC · Vickers 相容規格",supN:4,merged:0},
+      {code:"PR-2408-093",nm:"電控櫃 塑殼斷路器 3P 100A",qty:"64 pcs",plant:"台中三廠",need:"09/02",prio:"一般",pc:"t-mut",ref:"NT$ 2,180/pcs",cat:"電控件",spec:"過載短路保護 · IEC 60947 認證 · 附輔助接點",supN:6,merged:1},
+      {code:"PR-2408-094",nm:"輸送帶 PU 平皮帶 3.0mm",qty:"340 m",plant:"高雄一廠",need:"08/25",prio:"急件",pc:"t-bad",ref:"NT$ 620/m",cat:"耗材",spec:"食品級 PU 材質 · 抗油耐磨 · 表面壓花防滑",supN:3,merged:0},
+      {code:"PR-2408-095",nm:"伺服馬達 750W 附煞車",qty:"22 pcs",plant:"桃園二廠",need:"09/10",prio:"一般",pc:"t-mut",ref:"NT$ 18,600/pcs",cat:"電控件",spec:"AC 伺服 · 內建 23-bit 編碼器 · IP67 防護",supN:4,merged:0}
+    ];
+    var sel=(window.__v0sel==null?0:window.__v0sel);
+    if(sel>=reqs.length)sel=0;
+    var kpis=[
+      {ic:"assignment",lab:"待處理請購",val:"37",un:"張",d:"+6 今日新增",up:true},
+      {ic:"merge",lab:"可合併料件",val:"12",un:"組",d:"預估省 NT$ 2.4M",up:true},
+      {ic:"priority_high",lab:"急件需求",val:"8",un:"張",d:"3 張今日到期",up:false},
+      {ic:"schedule",lab:"平均詢價前置",val:"1.4",un:"天",d:"▼ 較上季 -0.6",up:true}
+    ];
+    var h='<div class="grid g-kpi">';
+    kpis.forEach(function(k){
+      h+='<div class="card kpi"><div class="lab"><span class="material-symbols-outlined">'+k.ic+'</span>'+k.lab+'</div>'+
+         '<div class="val">'+k.val+' <small>'+k.un+'</small></div>'+
+         '<div class="delta '+(k.up?'up':'down')+'">'+k.d+'</div></div>';
+    });
+    h+='</div>';
+
+    h+='<div class="split" style="margin-top:14px">';
+    h+='<div class="listpane"><div class="lh"><b>請購需求佇列</b><span>依急迫度排序</span></div>';
+    reqs.forEach(function(r,i){
+      h+='<div class="lrow'+(i===sel?' on':'')+'" onclick="__pick(0,'+i+')"><div class="r1"><span class="code">'+r.code+'</span><span class="tag '+r.pc+'">'+r.prio+'</span></div>'+
+         '<div class="nm">'+r.nm+'</div>'+
+         '<div class="mt"><span class="chip">'+r.cat+'</span><span><span class="material-symbols-outlined" style="font-size:13px">factory</span> '+r.plant+'</span><span><span class="material-symbols-outlined" style="font-size:13px">event</span> '+r.need+'</span></div></div>';
+    });
+    h+='</div>';
+    var d=reqs[sel];
+    h+='<div class="detpane">';
+    h+='<div class="card"><div class="cardhead"><h3>'+d.nm+'</h3><span class="tag '+d.pc+'">'+d.prio+'</span></div>'+
+       '<div class="sub" style="margin-bottom:10px">'+d.code+' · '+d.spec+'</div>'+
+       '<div class="drow"><div class="dkv"><div class="l">需求數量</div><div class="v">'+d.qty+'</div></div>'+
+       '<div class="dkv"><div class="l">需求交期</div><div class="v">'+d.need+'</div></div>'+
+       '<div class="dkv"><div class="l">參考單價</div><div class="v" style="font-size:16px">'+d.ref+'</div></div>'+
+       '<div class="dkv"><div class="l">合格供應商</div><div class="v">'+d.supN+' 家</div></div></div>';
+    if(d.merged>0){ h+='<div class="tag t-acc" style="margin-top:12px"><span class="material-symbols-outlined" style="font-size:15px">merge</span>已合併 '+d.merged+' 張同料件請購，合計拉高議價量</div>'; }
+    h+='<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><span class="tag t-info"><span class="material-symbols-outlined" style="font-size:15px">mail</span>轉為詢價單</span><span class="tag t-mut">加入需求池</span><span class="tag t-mut">指派採購</span></div></div>';
+    h+='<div class="card"><div class="cardhead"><h3>近 6 週請購量趨勢</h3><span class="tag t-mut">張數</span></div><div class="chartwrap sm"><canvas id="c0"></canvas></div></div>';
+    h+='</div></div>';
+    view.innerHTML=h;
+    void view.offsetHeight;
+    var el=document.getElementById("c0");
+    if(el) chart=new Chart(el,{type:"bar",data:{labels:["W28","W29","W30","W31","W32","W33"],datasets:[
+      {label:"急件",data:[6,5,8,7,9,8],backgroundColor:"#e11d48",borderRadius:5,stack:"s"},
+      {label:"一般",data:[22,26,24,29,27,29],backgroundColor:"#fbcfe0",borderRadius:5,stack:"s"}
+    ]},options:{maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,grid:{color:"#f1ecf3"}}}}});
+  }
+
+  // ================= SCREEN 1 : 詢價單發送 (SPLIT + progress) =================
+  function v1(){
+    var rfqs=[
+      {code:"RFQ-2408-041",nm:"CNC 主軸軸承 7014C ×120",due:"08/16 17:00",left:"剩 2 天",lc:"t-warn",sent:5,rep:3,st:"報價中",sc:"t-info",
+        list:[{s:"精工軸承貿易",r:"已報",rc:"t-ok",p:"NT$ 4,720"},{s:"日盛工業",r:"已報",rc:"t-ok",p:"NT$ 4,850"},{s:"泰豐機電",r:"已報",rc:"t-ok",p:"NT$ 4,690"},{s:"宏達傳動",r:"未回",rc:"t-mut",p:"—"},{s:"上緯精密",r:"未回",rc:"t-mut",p:"—"}]},
+      {code:"RFQ-2408-042",nm:"液壓比例閥 DG4V-3S ×18",due:"08/18 12:00",left:"剩 4 天",lc:"t-info",sent:4,rep:2,st:"報價中",sc:"t-info",
+        list:[{s:"銓盛液壓",r:"已報",rc:"t-ok",p:"NT$ 11,900"},{s:"永大油壓",r:"已報",rc:"t-ok",p:"NT$ 12,450"},{s:"力特工業",r:"未回",rc:"t-mut",p:"—"},{s:"三聯機械",r:"待確認",rc:"t-warn",p:"—"}]},
+      {code:"RFQ-2408-043",nm:"塑殼斷路器 3P 100A ×64",due:"08/15 17:00",left:"今日截止",lc:"t-bad",sent:6,rep:6,st:"待比價",sc:"t-acc",
+        list:[{s:"台達電控",r:"已報",rc:"t-ok",p:"NT$ 2,080"},{s:"士林電機",r:"已報",rc:"t-ok",p:"NT$ 2,150"},{s:"中興電工",r:"已報",rc:"t-ok",p:"NT$ 2,240"},{s:"華城電機",r:"已報",rc:"t-ok",p:"NT$ 1,990"},{s:"東元代理",r:"已報",rc:"t-ok",p:"NT$ 2,110"},{s:"亞力電機",r:"已報",rc:"t-ok",p:"NT$ 2,300"}]}
+    ];
+    var sel=(window.__v1sel==null?0:window.__v1sel);
+    if(sel>=rfqs.length)sel=0;
+    var h='<div class="rowflex" style="margin-bottom:14px">'+
+      '<div class="stat"><div class="l">本週已發詢價</div><div class="v">24 張</div></div>'+
+      '<div class="stat"><div class="l">等待報價中</div><div class="v" style="color:var(--warn)">11 張</div></div>'+
+      '<div class="stat"><div class="l">今日截止</div><div class="v" style="color:var(--bad)">3 張</div></div>'+
+      '<div class="stat"><div class="l">平均回覆率</div><div class="v" style="color:var(--ok)">78%</div></div>'+
+      '<div class="stat"><div class="l">平均回覆時效</div><div class="v">1.8 天</div></div>'+
+      '</div>';
+    h+='<div class="split">';
+    h+='<div class="listpane"><div class="lh"><b>詢價單追蹤</b><span>回覆進度</span></div>';
+    rfqs.forEach(function(r,i){
+      var pct=Math.round(r.rep/r.sent*100);
+      h+='<div class="lrow'+(i===sel?' on':'')+'" onclick="__pick(1,'+i+')"><div class="r1"><span class="code">'+r.code+'</span><span class="tag '+r.lc+'">'+r.left+'</span></div>'+
+         '<div class="nm">'+r.nm+'</div>'+
+         '<div class="mt" style="margin-bottom:6px"><span class="tag '+r.sc+'">'+r.st+'</span><span>回覆 '+r.rep+' / '+r.sent+' 家</span></div>'+
+         '<div class="tprog" style="width:100%"><i style="width:'+pct+'%"></i></div></div>';
+    });
+    h+='</div>';
+    var d=rfqs[sel];
+    h+='<div class="detpane"><div class="card"><div class="cardhead"><h3>'+d.code+' · 供應商回覆狀態</h3><span class="tag '+d.sc+'">'+d.st+'</span></div>'+
+       '<div class="sub" style="margin-bottom:6px">'+d.nm+' · 截止 '+d.due+'</div>'+
+       '<div style="overflow-x:auto"><table style="min-width:420px"><thead><tr><th>供應商</th><th>回覆狀態</th><th>報價</th><th>操作</th></tr></thead><tbody>';
+    d.list.forEach(function(x){
+      h+='<tr><td><b>'+x.s+'</b></td><td><span class="tag '+x.rc+'">'+x.r+'</span></td><td class="mono">'+x.p+'</td><td>'+(x.r==="未回"||x.r==="待確認"?'<span class="chip">催覆</span>':'<span class="chip">查看</span>')+'</td></tr>';
+    });
+    h+='</tbody></table></div></div>';
+    h+='<div class="card"><div class="cardhead"><h3>各品類詢價回覆率</h3><span class="tag t-mut">近 30 日</span></div><div class="chartwrap sm"><canvas id="c1"></canvas></div></div>';
+    h+='</div></div>';
+    view.innerHTML=h;
+    void view.offsetHeight;
+    var el=document.getElementById("c1");
+    if(el) chart=new Chart(el,{type:"line",data:{labels:["機械件","液壓件","電控件","耗材","五金","儀器"],datasets:[
+      {label:"回覆率 %",data:[82,71,88,90,76,64],borderColor:"#e11d48",backgroundColor:"rgba(225,29,72,.12)",fill:true,tension:.4,pointBackgroundColor:"#e11d48",borderWidth:3}
+    ]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:false,min:50,max:100,grid:{color:"#f1ecf3"}}}}});
+  }
+
+  // ================= SCREEN 2 : 報價比對 (comparison matrix) =================
+  function v2(){
+    var sups=["華城電機","台達電控","士林電機","東元代理","中興電工"];
+    var rows=[
+      {it:"單價 (元/pcs)",vals:["1,990","2,080","2,150","2,110","2,240"],best:0},
+      {it:"含稅總價 (萬元)",vals:["12.7","13.3","13.8","13.5","14.3"],best:0},
+      {it:"報價交期 (天)",vals:["14","10","18","12","21"],best:1},
+      {it:"付款條件",vals:["月結60","月結45","月結90","月結60","月結30"],best:2},
+      {it:"保固 (月)",vals:["24","18","24","18","12"],best:0},
+      {it:"最小訂購量",vals:["50","20","100","50","100"],best:1}
+    ];
+    var tco=[
+      {s:"華城電機",u:1990,tco:2035,dl:14,sc:92,best:true,note:"最佳總持有成本"},
+      {s:"台達電控",u:2080,tco:2098,dl:10,sc:88,best:false,note:"交期最短"},
+      {s:"東元代理",u:2110,tco:2150,dl:12,sc:85,best:false,note:"—"},
+      {s:"士林電機",u:2150,tco:2230,dl:18,sc:83,best:false,note:"付款條件佳"},
+      {s:"中興電工",u:2240,tco:2360,dl:21,sc:74,best:false,note:"高於參考價 2.7%"}
+    ];
+    var h='<div class="rowflex" style="margin-bottom:14px">'+
+      '<div class="stat"><div class="l">比價料號</div><div class="v" style="font-size:15px">斷路器 3P 100A</div></div>'+
+      '<div class="stat"><div class="l">參考單價</div><div class="v">NT$ 2,180</div></div>'+
+      '<div class="stat"><div class="l">最低報價</div><div class="v" style="color:var(--ok)">NT$ 1,990</div></div>'+
+      '<div class="stat"><div class="l">最高價差</div><div class="v" style="color:var(--bad)">+12.6%</div></div>'+
+      '<div class="stat"><div class="l">異常標記</div><div class="v" style="color:var(--warn)">1 家</div></div>'+
+      '</div>';
+    h+='<div class="card"><div class="cardhead"><h3>多家報價並排比對矩陣</h3><span class="tag t-acc">紅框為各項最優</span></div>'+
+       '<div style="overflow-x:auto"><table style="min-width:640px"><thead><tr><th>比較項目</th>';
+    sups.forEach(function(s,i){ h+='<th'+(i===0?' style="color:var(--accent)"':'')+'>'+s+'</th>'; });
+    h+='</tr></thead><tbody>';
+    rows.forEach(function(r){
+      h+='<tr><td><b>'+r.it+'</b></td>';
+      r.vals.forEach(function(v,i){ h+='<td class="mono'+(i===r.best?' best':'')+'">'+v+'</td>'; });
+      h+='</tr>';
+    });
+    h+='</tbody></table></div></div>';
+    h+='<div class="grid g-2" style="margin-top:14px">'+
+       '<div class="card"><div class="cardhead"><h3>總持有成本 (TCO) 排名</h3><span class="tag t-mut">含運費/稅/庫存</span></div>'+
+       '<div style="overflow-x:auto"><table style="min-width:460px"><thead><tr><th>供應商</th><th>單價</th><th>TCO/pcs</th><th>交期</th><th>綜合分</th><th>評註</th></tr></thead><tbody>';
+    tco.forEach(function(t){
+      h+='<tr'+(t.best?' style="background:#fff5f7"':'')+'><td><b>'+t.s+'</b>'+(t.best?' <span class="tag t-acc">建議</span>':'')+'</td>'+
+         '<td class="mono">'+t.u.toLocaleString()+'</td><td class="mono"><b>'+t.tco.toLocaleString()+'</b></td>'+
+         '<td class="mono">'+t.dl+'天</td><td class="mono">'+t.sc+'</td><td style="white-space:normal;font-size:12px;color:var(--muted)">'+t.note+'</td></tr>';
+    });
+    h+='</tbody></table></div></div>';
+    h+='<div class="card"><div class="cardhead"><h3>單價 vs 參考價</h3><span class="tag t-mut">紅線=參考價</span></div><div class="chartwrap"><canvas id="c2"></canvas></div></div>';
+    h+='</div>';
+    view.innerHTML=h;
+    void view.offsetHeight;
+    var el=document.getElementById("c2");
+    if(el) chart=new Chart(el,{type:"bar",data:{labels:["華城","台達","東元","士林","中興"],datasets:[
+      {label:"報價單價",data:[1990,2080,2110,2150,2240],backgroundColor:["#e11d48","#fb7185","#fb7185","#fb7185","#d97706"],borderRadius:6}
+    ]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:false,min:1800,grid:{color:"#f1ecf3"}}}},plugins:[{id:"refline",afterDraw:function(c){var y=c.scales.y.getPixelForValue(2180);var ctx=c.ctx;ctx.save();ctx.strokeStyle="#dc2626";ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(c.chartArea.left,y);ctx.lineTo(c.chartArea.right,y);ctx.stroke();ctx.fillStyle="#dc2626";ctx.font="700 11px Inter";ctx.fillText("參考價 2,180",c.chartArea.left+6,y-5);ctx.restore();}}]});
+  }
+
+  // ================= SCREEN 3 : 線上議價 (SPLIT chat + concession) =================
+  function v3(){
+    var deals=[
+      {code:"NG-2408-018",nm:"斷路器 3P 100A ×64",sup:"華城電機",cur:"NT$ 1,990",start:"NT$ 2,080",tgt:"NT$ 1,920",save:"4.3%",st:"議價中",sc:"t-warn",round:3},
+      {code:"NG-2408-019",nm:"CNC 主軸軸承 ×120",sup:"泰豐機電",cur:"NT$ 4,560",start:"NT$ 4,690",tgt:"NT$ 4,500",save:"2.8%",st:"議價中",sc:"t-warn",round:2},
+      {code:"NG-2408-017",nm:"液壓比例閥 ×18",sup:"銓盛液壓",cur:"NT$ 11,400",start:"NT$ 11,900",tgt:"NT$ 11,300",save:"4.2%",st:"已定案",sc:"t-ok",round:4}
+    ];
+    var sel=(window.__v3sel==null?0:window.__v3sel);
+    if(sel>=deals.length)sel=0;
+    var chats={0:[
+      {who:"sup",n:"華城電機 · 業務 林經理",t:"首報 NT$ 2,080/pcs，14 天交期，月結 60 天。此為含稅到廠價。",tm:"08/13 09:20"},
+      {who:"buy",n:"採購 · 王采潔",t:"本案量放大至 64 pcs 並綁定本季後續補貨，希望單價下修至 1,950。",tm:"08/13 10:05"},
+      {who:"sup",n:"華城電機 · 業務 林經理",t:"考量後續補貨，可讓至 NT$ 2,010，交期縮短至 12 天。",tm:"08/13 11:30"},
+      {who:"buy",n:"採購 · 王采潔",t:"台達已報 2,080/10天。若貴司做到 1,990 並保固 24 個月即可定案。",tm:"08/13 13:15"},
+      {who:"sup",n:"華城電機 · 業務 林經理",t:"接受 NT$ 1,990、保固 24 個月，唯付款改月結 45 天。",tm:"08/13 14:02"}
+    ],1:[
+      {who:"sup",n:"泰豐機電 · 陳課長",t:"軸承 7014C 首報 4,690/pcs，均為 NSK 原廠，交期 14 天。",tm:"08/13 08:40"},
+      {who:"buy",n:"採購 · 王采潔",t:"精工報 4,720、日盛 4,850。若貴司到 4,560 可優先下單。",tm:"08/13 10:10"},
+      {who:"sup",n:"泰豐機電 · 陳課長",t:"4,560 需月結由 60 改 30 天，或維持 60 天則 4,620。",tm:"08/13 11:55"}
+    ],2:[
+      {who:"sup",n:"銓盛液壓 · 張副理",t:"比例閥首報 11,900，內含到廠與教育訓練。",tm:"08/12 14:00"},
+      {who:"buy",n:"採購 · 王采潔",t:"參考價 12,300，量小但急，能否 11,300 並 7 天到貨？",tm:"08/12 15:20"},
+      {who:"sup",n:"銓盛液壓 · 張副理",t:"可做 11,400、10 天到貨，此為底價。",tm:"08/12 16:45"},
+      {who:"buy",n:"採購 · 王采潔",t:"同意 11,400、10 天，本案定案送簽。",tm:"08/13 09:00"}
+    ]};
+    var h='<div class="split">';
+    h+='<div class="listpane"><div class="lh"><b>議價案件</b><span>進行中 / 已定案</span></div>';
+    deals.forEach(function(dd,i){
+      h+='<div class="lrow'+(i===sel?' on':'')+'" onclick="__pick(3,'+i+')"><div class="r1"><span class="code">'+dd.code+'</span><span class="tag '+dd.sc+'">'+dd.st+'</span></div>'+
+         '<div class="nm">'+dd.nm+'</div>'+
+         '<div class="mt"><span><span class="material-symbols-outlined" style="font-size:13px">storefront</span> '+dd.sup+'</span><span>第 '+dd.round+' 回合</span></div>'+
+         '<div class="mt" style="margin-top:6px"><span class="tag t-acc">現價 '+dd.cur+'</span><span style="color:var(--ok);font-weight:800">省 '+dd.save+'</span></div></div>';
+    });
+    h+='</div>';
+    var d=deals[sel];
+    h+='<div class="detpane"><div class="card"><div class="cardhead"><h3>'+d.sup+' · 議價往返</h3><span class="tag '+d.sc+'">'+d.st+'</span></div>'+
+       '<div class="drow" style="margin-bottom:14px"><div class="dkv"><div class="l">首報價</div><div class="v" style="font-size:16px">'+d.start+'</div></div>'+
+       '<div class="dkv"><div class="l">目前合意</div><div class="v" style="font-size:16px;color:var(--accent)">'+d.cur+'</div></div>'+
+       '<div class="dkv"><div class="l">目標價</div><div class="v" style="font-size:16px">'+d.tgt+'</div></div>'+
+       '<div class="dkv"><div class="l">累計降幅</div><div class="v" style="color:var(--ok)">'+d.save+'</div></div></div>';
+    h+='<div class="chat">';
+    (chats[sel]||[]).forEach(function(m){
+      var ini=m.who==="buy"?"采":"供";
+      h+='<div class="msg '+m.who+'"><div class="av">'+ini+'</div><div><div class="b"><div class="who">'+m.n+'</div>'+m.t+'</div><div class="tm">'+m.tm+'</div></div></div>';
+    });
+    h+='</div></div>';
+    h+='<div class="card"><div class="cardhead"><h3>議價讓步歷程</h3><span class="tag t-mut">每回合單價</span></div><div class="chartwrap sm"><canvas id="c3"></canvas></div></div>';
+    h+='</div></div>';
+    view.innerHTML=h;
+    void view.offsetHeight;
+    var series={0:[2080,2010,1990],1:[4690,4620,4560],2:[11900,11400,11400]};
+    var el=document.getElementById("c3");
+    if(el) chart=new Chart(el,{type:"line",data:{labels:["第1回","第2回","第3回","第4回"].slice(0,series[sel].length),datasets:[
+      {label:"合意單價",data:series[sel],borderColor:"#e11d48",backgroundColor:"rgba(225,29,72,.12)",fill:true,tension:.3,pointRadius:5,pointBackgroundColor:"#e11d48",borderWidth:3}
+    ]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:"#f1ecf3"}}}}});
+  }
+
+  // ================= SCREEN 4 : 核決簽核 (approval kanban + steps) =================
+  function v4(){
+    var cols=[
+      {t:"待送簽",cls:"t-mut",items:[
+        {tt:"斷路器 3P 100A ×64 · 華城電機",amt:"NT$ 12.7 萬",who:"王采潔",ini:"采",tag:"一般",tc:"t-mut"},
+        {tt:"PU 平皮帶 340m · 立信橡膠",amt:"NT$ 21.1 萬",who:"李文彬",ini:"李",tag:"一般",tc:"t-mut"}
+      ]},
+      {t:"採購主管",cls:"t-info",items:[
+        {tt:"主軸軸承 ×120 · 泰豐機電",amt:"NT$ 54.7 萬",who:"待 陳課長",ini:"陳",tag:">50萬",tc:"t-info"}
+      ]},
+      {t:"供應鏈經理",cls:"t-warn",items:[
+        {tt:"伺服馬達 ×22 · 台達代理",amt:"NT$ 40.9 萬",who:"待 吳經理",ini:"吳",tag:"單一來源",tc:"t-acc"}
+      ]},
+      {t:"營運長",cls:"t-acc",items:[
+        {tt:"年度包材框架約 · 永豐包裝",amt:"NT$ 480 萬",who:"待 營運長",ini:"營",tag:">300萬",tc:"t-bad"}
+      ]},
+      {t:"已核准",cls:"t-ok",items:[
+        {tt:"液壓比例閥 ×18 · 銓盛液壓",amt:"NT$ 20.5 萬",who:"吳經理 核准",ini:"吳",tag:"完成",tc:"t-ok"},
+        {tt:"斷路器補料 ×20 · 華城電機",amt:"NT$ 4.0 萬",who:"陳課長 核准",ini:"陳",tag:"完成",tc:"t-ok"}
+      ]}
+    ];
+    var steps=[
+      {st:"採購送簽",sd:"王采潔 提交 NG-2408-018 議價結果，合意單價 NT$1,990 × 64 pcs。",sm:"08/13 14:05 · 已完成",ic:"check",bg:"#16a34a"},
+      {st:"採購主管核准",sd:"陳課長 確認比價與 TCO 分析，金額 12.7 萬未逾越權限上限。",sm:"08/13 15:20 · 已核准",ic:"check",bg:"#16a34a"},
+      {st:"供應鏈經理審核",sd:"檢核是否單一來源、是否影響生產排程；本案有 5 家報價故免經理層。",sm:"依規則自動略過",ic:"remove",bg:"#94a3b8"},
+      {st:"產生採購單",sd:"核准後系統自動產生 PO-2408-231 並回寫 ERP，通知供應商接單。",sm:"待前段完成",ic:"schedule",bg:"#d97706"}
+    ];
+    var h='<div class="rowflex" style="margin-bottom:14px">'+
+      '<div class="stat"><div class="l">待簽核</div><div class="v">6 張</div></div>'+
+      '<div class="stat"><div class="l">逾時未簽</div><div class="v" style="color:var(--bad)">1 張</div></div>'+
+      '<div class="stat"><div class="l">單一來源需經理</div><div class="v" style="color:var(--warn)">2 張</div></div>'+
+      '<div class="stat"><div class="l">本月核准金額</div><div class="v">NT$ 1,842 萬</div></div>'+
+      '<div class="stat"><div class="l">平均簽核時效</div><div class="v" style="color:var(--ok)">3.6 hr</div></div>'+
+      '</div>';
+    h+='<div class="grid g-2">';
+    h+='<div class="card"><div class="cardhead"><h3>核決簽核看板</h3><span class="tag t-info">依金額分層路由</span></div>'+
+       '<div style="overflow-x:auto"><div class="kb">';
+    cols.forEach(function(c){
+      h+='<div class="kbcol"><div class="kh"><span class="tag '+c.cls+'">'+c.t+'</span><span class="cnt">'+c.items.length+'</span></div>';
+      c.items.forEach(function(it){
+        h+='<div class="ticket"><div class="tt">'+it.tt+'</div>'+
+           '<div class="meta"><span class="tag '+it.tc+'">'+it.tag+'</span><b style="color:var(--accent)">'+it.amt+'</b></div>'+
+           '<div class="meta"><span class="av">'+it.ini+'</span>'+it.who+'</div></div>';
+      });
+      h+='</div>';
+    });
+    h+='</div></div></div>';
+    h+='<div class="card"><div class="cardhead"><h3>本案簽核路徑</h3><span class="tag t-acc">NG-2408-018</span></div><div class="steps">';
+    steps.forEach(function(s){
+      h+='<div class="stp"><span class="dot" style="background:'+s.bg+'"><span class="material-symbols-outlined" style="font-size:14px">'+s.ic+'</span></span>'+
+         '<div class="st">'+s.st+'</div><div class="sd">'+s.sd+'</div><div class="sm">'+s.sm+'</div></div>';
+    });
+    h+='</div><div style="margin-top:8px;padding:10px 12px;border:1px dashed var(--line);border-radius:12px;font-size:12px;color:var(--muted)"><b style="color:var(--ink)">簽核規則</b>：&gt;50 萬經採購主管、單一來源或影響生產經供應鏈經理、&gt;300 萬需營運長核准。</div></div>';
+    h+='</div>';
+    view.innerHTML=h;
+    void view.offsetHeight;
+  }
+
+  // ================= SCREEN 5 : 供應商評鑑 (scorecards + radar) =================
+  function v5(){
+    var cards=[
+      {snm:"華城電機",cat:"電控件 · A 級",gr:"A",gc:"#16a34a",gbg:"#dcfce7",m:[["品質",94],["交期",90],["價格",88],["配合",92]],score:91},
+      {snm:"泰豐機電",cat:"機械件 · A 級",gr:"A",gc:"#16a34a",gbg:"#dcfce7",m:[["品質",96],["交期",82],["價格",85],["配合",88]],score:88},
+      {snm:"銓盛液壓",cat:"液壓件 · B 級",gr:"B",gc:"#d97706",gbg:"#fef3c7",m:[["品質",88],["交期",78],["價格",80],["配合",84]],score:82},
+      {snm:"中興電工",cat:"電控件 · C 級",gr:"C",gc:"#dc2626",gbg:"#fee2e2",m:[["品質",72],["交期",64],["價格",76],["配合",70]],score:70}
+    ];
+    var tbl=[
+      {s:"華城電機",po:42,otd:"96%",rej:"0.4%",scar:0,gr:"A",gc:"t-ok"},
+      {s:"泰豐機電",po:31,otd:"89%",rej:"0.2%",scar:1,gr:"A",gc:"t-ok"},
+      {s:"銓盛液壓",po:18,otd:"83%",rej:"1.1%",scar:2,gr:"B",gc:"t-warn"},
+      {s:"士林電機",po:24,otd:"91%",rej:"0.6%",scar:1,gr:"B",gc:"t-warn"},
+      {s:"中興電工",po:9,otd:"71%",rej:"2.8%",scar:4,gr:"C",gc:"t-bad"}
+    ];
+    var h='<div class="rowflex" style="margin-bottom:14px">'+
+      '<div class="stat"><div class="l">合格供應商</div><div class="v">46 家</div></div>'+
+      '<div class="stat"><div class="l">A 級占比</div><div class="v" style="color:var(--ok)">37%</div></div>'+
+      '<div class="stat"><div class="l">本季待複評</div><div class="v" style="color:var(--warn)">8 家</div></div>'+
+      '<div class="stat"><div class="l">C 級輔導中</div><div class="v" style="color:var(--bad)">3 家</div></div>'+
+      '<div class="stat"><div class="l">整體準時交貨</div><div class="v">88.4%</div></div>'+
+      '</div>';
+    h+='<div class="grid g-2">';
+    h+='<div class="card"><div class="cardhead"><h3>供應商績效評鑑卡</h3><span class="tag t-mut">四維綜合分</span></div><div class="grid g-2e" style="gap:12px">';
+    cards.forEach(function(c){
+      h+='<div class="scard"><div class="sn"><div><div class="snm">'+c.snm+'</div><div style="font-size:11.5px;color:var(--muted);margin-top:2px">'+c.cat+'</div></div><div class="grade" style="color:'+c.gc+';background:'+c.gbg+'">'+c.gr+'</div></div>'+
+         '<div class="metrics">';
+      c.m.forEach(function(mm){ h+='<div class="mrow"><span class="ml">'+mm[0]+'</span><span class="mb"><i style="width:'+mm[1]+'%"></i></span><span class="mv">'+mm[1]+'</span></div>'; });
+      h+='</div><div style="margin-top:10px;font-size:12px;color:var(--muted)">綜合分 <b style="color:var(--accent);font-size:15px">'+c.score+'</b> / 100</div></div>';
+    });
+    h+='</div></div>';
+    h+='<div class="card"><div class="cardhead"><h3>重點供應商雷達比較</h3><span class="tag t-mut">華城 vs 中興</span></div><div class="chartwrap"><canvas id="c5"></canvas></div></div>';
+    h+='</div>';
+    h+='<div class="card" style="margin-top:14px"><div class="cardhead"><h3>供應商績效明細</h3><span class="tag t-warn">1 家列入輔導</span></div>'+
+       '<div style="overflow-x:auto"><table><thead><tr><th>供應商</th><th>本季 PO 數</th><th>準時交貨率</th><th>進料不良率</th><th>SCAR 開立</th><th>等級</th></tr></thead><tbody>';
+    tbl.forEach(function(r){
+      h+='<tr><td><b>'+r.s+'</b></td><td class="mono">'+r.po+'</td><td class="mono">'+r.otd+'</td><td class="mono">'+r.rej+'</td>'+
+         '<td class="mono">'+r.scar+'</td><td><span class="tag '+r.gc+'">'+r.gr+' 級</span></td></tr>';
+    });
+    h+='</tbody></table></div></div>';
+    view.innerHTML=h;
+    void view.offsetHeight;
+    var el=document.getElementById("c5");
+    if(el) chart=new Chart(el,{type:"radar",data:{labels:["品質","交期","價格","配合度","技術支援"],datasets:[
+      {label:"華城電機",data:[94,90,88,92,86],borderColor:"#e11d48",backgroundColor:"rgba(225,29,72,.18)",pointBackgroundColor:"#e11d48",borderWidth:2},
+      {label:"中興電工",data:[72,64,76,70,60],borderColor:"#94a3b8",backgroundColor:"rgba(148,163,184,.15)",pointBackgroundColor:"#94a3b8",borderWidth:2}
+    ]},options:{maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{r:{min:40,max:100,ticks:{stepSize:20,backdropColor:"transparent"},grid:{color:"#ece7f0"},angleLines:{color:"#ece7f0"},pointLabels:{font:{size:12,weight:"700"}}}}}});
+  }
+
+  var SCREENS=[v0,v1,v2,v3,v4,v5];
+
+  window.__pick=function(scr,i){
+    window["__v"+scr+"sel"]=i;
+    show(scr);
+  };
+
+  function show(i){
+    i=Math.max(0,Math.min(i,SCREENS.length-1));
+    killCharts();
+    document.querySelectorAll("[data-i]").forEach(function(b){
+      b.classList.toggle("on",+b.getAttribute("data-i")===i);
+    });
+    document.getElementById("scr-title").textContent=MODS[i].name;
+    document.getElementById("scr-sub").textContent=MODS[i].sub;
+    SCREENS[i]();
+  }
+
+  show(0);
+
+  function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+  </script>
 </body>
 </html>

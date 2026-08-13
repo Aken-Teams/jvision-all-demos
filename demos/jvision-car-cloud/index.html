@@ -1,18 +1,491 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>車聯網營運平台｜Jvision 系統 Demo</title>
-  <meta name="description" content="派車、追蹤、簽收到成本油耗的車隊管理" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>車聯網營運平台 · Connected Fleet Operations</title>
+<meta name="description" content="車隊派車調度、GPS 即時追蹤、電子簽收、油耗成本與異常告警的車聯網營運平台（純 UI 展示）。"/>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--ink:#171213;--accent:#dc2626;--accent2:#f97316;--bg:#f4f1f2;--card:#fff;--line:#e7dfe0;--mut:#7c6f71;--ok:#16a34a;--warn:#f59e0b;--bad:#ef4444;--blue:#3b82f6;--violet:#8b5cf6;--dark:#1c1517}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:Inter,"Noto Sans TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;font-size:20px;vertical-align:middle;line-height:1}
+a{color:inherit}
+/* ===== shell: left sidebar + main ===== */
+.shell{display:flex;min-height:100vh}
+.side{width:236px;flex:none;background:linear-gradient(185deg,#2a1b1d,#1c1517 60%,#150f10);color:#f3e7e8;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.side .brand{display:flex;align-items:center;gap:11px;padding:20px 18px 16px;min-width:0}
+.side .logo{width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-content:center;font-weight:900;flex:none;box-shadow:0 0 20px rgba(220,38,38,.5);font-family:"Noto Sans TC";color:#fff;font-size:19px}
+.side .brand b{font-size:15.5px;font-weight:800;display:block;font-family:"Noto Sans TC";line-height:1.15}
+.side .brand small{font-size:10px;color:#e8927a;letter-spacing:2.5px}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;color:#fecaca;background:rgba(220,38,38,.16);border-radius:999px;padding:4px 10px;margin:0 18px 12px}
+.live .dot{width:7px;height:7px;border-radius:50%;background:#f97316;animation:pulse 1.8s infinite}
+@keyframes pulse{50%{opacity:.25}}
+.side .nav{display:flex;flex-direction:column;gap:3px;padding:4px 12px;flex:1;min-height:0;overflow-y:auto}
+.side .nav button{display:flex;align-items:center;gap:11px;white-space:nowrap;background:none;border:0;border-radius:11px;color:#c9b7b9;font:inherit;font-size:13.5px;font-weight:700;padding:11px 13px;cursor:pointer;text-align:left;transition:.15s}
+.side .nav button .material-symbols-outlined{font-size:21px;flex:none}
+.side .nav button .lbl{min-width:0}
+.side .nav button:hover{background:rgba(255,255,255,.06);color:#fff}
+.side .nav button.on{background:linear-gradient(100deg,rgba(220,38,38,.28),rgba(249,115,22,.16));color:#fff;box-shadow:inset 3px 0 0 var(--accent2)}
+.side .foot{padding:14px 18px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px;min-width:0}
+.side .foot .ava{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:800;display:grid;place-content:center;font-family:"Noto Sans TC";flex:none}
+.side .foot .who{min-width:0}
+.side .foot .who b{font-size:12.5px;font-family:"Noto Sans TC";display:block}
+.side .foot .who small{font-size:10.5px;color:#a89597}
+/* ===== main ===== */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.wrap{max-width:1280px;width:100%;margin:0 auto;padding:22px 26px 46px;min-width:0}
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.ph h1{margin:0;font-size:22px;font-family:"Noto Sans TC";font-weight:900}
+.ph p{margin:4px 0 0;color:var(--mut);font-size:13px}
+.pill{background:#fde4e4;color:#b91c1c;padding:6px 13px;border-radius:20px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.view{display:none;animation:f .28s}
+.view.on{display:block}
+@keyframes f{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* grids */
+.grid{display:grid;gap:16px}
+.grid>*{min-width:0}
+.g2{grid-template-columns:1.5fr .95fr}
+.g11{grid-template-columns:1.2fr 1fr}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.two>*{min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpis>*{min-width:0}
+.mini{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.mini>*{min-width:0}
+/* cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;min-width:0}
+.card h3{margin:0 0 13px;font-size:14.5px;font-family:"Noto Sans TC";font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card h3 .material-symbols-outlined{color:var(--accent);font-size:20px}
+.card h3 .r{margin-left:auto;font-size:11.5px;color:var(--mut);font-weight:600}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:15px 16px;position:relative;overflow:hidden}
+.kpi::after{content:"";position:absolute;right:-18px;top:-18px;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle,rgba(220,38,38,.12),transparent 70%)}
+.kpi .l{font-size:12px;color:var(--mut);font-weight:700;display:flex;align-items:center;gap:5px}
+.kpi .l .material-symbols-outlined{font-size:17px;color:var(--accent)}
+.kpi .v{font-size:26px;font-weight:900;margin-top:5px;font-family:Inter}
+.kpi .v small{font-size:13px;font-weight:600;color:var(--mut)}
+.kpi .d{font-size:11.5px;font-weight:800;margin-top:3px}
+.up{color:var(--ok)}.dn{color:var(--bad)}
+.mc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 15px}
+.mc .l{font-size:12px;color:var(--mut);font-weight:700}
+.mc .v{font-size:22px;font-weight:900;font-family:Inter;margin-top:3px}
+.mc .v small{font-size:12px;color:var(--mut);font-weight:600}
+.tag{font-size:10.5px;font-weight:800;padding:2px 9px;border-radius:20px;white-space:nowrap;display:inline-block}
+.t-wait{background:#fef3c7;color:#b45309}.t-run{background:#ffe4d5;color:#c2410c}.t-done{background:#dcfce7;color:#15803d}.t-hold{background:#fee2e2;color:#b91c1c}.t-plan{background:#e0e7ff;color:#4338ca}.t-cold{background:#dbeafe;color:#1d4ed8}
+.av{width:26px;height:26px;border-radius:50%;display:grid;place-content:center;color:#fff;font-weight:800;font-family:"Noto Sans TC";font-size:11px;flex:none}
+/* charts */
+.chart{position:relative;width:100%;height:270px}
+.chart canvas{max-width:100%}
+/* ===== v0 fleet grid signature ===== */
+.fleet{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+.fleet>*{min-width:0}
+.vcar{border:1px solid var(--line);border-radius:13px;padding:12px;position:relative;background:linear-gradient(180deg,#fff,#fdf7f5)}
+.vcar .top{display:flex;align-items:center;gap:8px}
+.vcar .top .ic{width:32px;height:32px;border-radius:9px;display:grid;place-content:center;color:#fff;flex:none}
+.vcar b{font-size:13px;font-family:"Noto Sans TC";display:block}
+.vcar small{font-size:10.5px;color:var(--mut);display:block}
+.vcar .st{position:absolute;top:11px;right:11px}
+.vcar .bar{height:7px;background:#eee2e2;border-radius:6px;overflow:hidden;margin:10px 0 4px}
+.vcar .bar i{display:block;height:100%;border-radius:6px}
+.vcar .foot{display:flex;justify-content:space-between;font-size:10.5px;color:var(--mut)}
+/* ===== v1 board ===== */
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.board>*{min-width:0}
+.col{background:#faf4f4;border:1px solid var(--line);border-radius:13px;padding:10px;min-width:0}
+.col .ch{display:flex;align-items:center;gap:7px;font-family:"Noto Sans TC";font-weight:700;font-size:13px;margin-bottom:9px}
+.col .ch .material-symbols-outlined{font-size:17px;color:var(--accent)}
+.col .ch .n{margin-left:auto;background:#f3dede;color:#b91c1c;font-size:11px;font-weight:800;padding:1px 8px;border-radius:20px}
+.tk{background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:9px 10px;margin-bottom:8px;cursor:pointer;transition:.15s}
+.tk:hover{transform:translateY(-2px);box-shadow:0 5px 14px rgba(120,20,20,.1)}
+.tk b{font-size:12.5px;font-family:"Noto Sans TC";display:block}
+.tk small{font-size:11px;color:var(--mut);display:block;margin-top:2px}
+.tk .m{display:flex;align-items:center;gap:5px;margin-top:7px;font-size:11px;color:var(--mut)}
+/* ai banner */
+.ai{border:1px dashed #f8b4b4;background:linear-gradient(135deg,#fef2f2,#fff7ed);border-radius:14px;padding:14px 16px;display:flex;gap:13px;margin-bottom:18px}
+.ai .ic{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:grid;place-content:center;flex:none}
+.ai b{font-family:"Noto Sans TC";font-size:13.5px}
+.ai p{margin:3px 0 0;font-size:12.5px;color:#6b5a55;line-height:1.65}
+.ai .go{margin-left:auto;align-self:center;background:var(--accent);color:#fff;border:0;padding:8px 14px;border-radius:9px;font:inherit;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap}
+/* ===== v2 map ===== */
+#lmap{width:100%;height:520px;border-radius:14px;border:1px solid var(--line);z-index:1}
+.leaflet-popup-content{font-family:"Noto Sans TC",sans-serif;font-size:12.5px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12px;color:var(--mut)}
+.legend span{display:flex;align-items:center;gap:6px}
+.dot{width:11px;height:11px;border-radius:50%;display:inline-block}
+.trk{display:flex;flex-direction:column;gap:9px;max-height:520px;overflow:auto}
+.ti{border:1px solid var(--line);border-radius:11px;padding:10px 11px}
+.ti .hd{display:flex;align-items:center;gap:9px}
+.ti .hd b{font-size:12.5px;font-family:"Noto Sans TC"}
+.ti .hd .tag{margin-left:auto}
+.ti .bar{height:8px;background:#eee2e2;border-radius:8px;overflow:hidden;margin:8px 0 4px}
+.ti .bar i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.ti small{font-size:11px;color:var(--mut)}
+/* ===== v3 POD ===== */
+.podwrap{display:flex;flex-direction:column;gap:12px}
+.chk{display:flex;flex-wrap:wrap;gap:7px}
+.chk .it{display:flex;align-items:center;gap:5px;font-size:11.5px;border:1px solid var(--line);border-radius:20px;padding:4px 10px;background:#faf6f6}
+.chk .it .material-symbols-outlined{font-size:15px}
+.chk .it.ok{color:#b91c1c;border-color:#f8b4b4;background:#fef2f2}
+.sig{border:2px dashed var(--accent);border-radius:12px;padding:16px;text-align:center;background:linear-gradient(135deg,#fef2f2,#fff7ed)}
+.sigpad{font-family:"Noto Sans TC";font-size:34px;color:#b91c1c;transform:rotate(-4deg);padding:8px 0;font-weight:700}
+.photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.photos>*{min-width:0}
+.ph2{aspect-ratio:4/3;border-radius:10px;background:linear-gradient(135deg,#efe2e2,#e3d0d0);display:grid;place-content:center;color:#7c6f71;position:relative;overflow:hidden}
+.ph2 .material-symbols-outlined{font-size:26px}
+.ph2 span.cap{position:absolute;left:0;right:0;bottom:0;background:rgba(28,21,23,.72);color:#fff;font-size:9.5px;padding:2px 5px;text-align:center}
+.podq{display:flex;flex-direction:column;gap:8px}
+.qi{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:11px;padding:9px 11px;cursor:pointer}
+.qi.on{border-color:var(--accent);background:#fef2f2}
+.qi .no{font-weight:800;color:var(--accent);font-family:Inter;font-size:12px}
+.qi b{font-size:12.5px;font-family:"Noto Sans TC"}
+.qi small{display:block;color:var(--mut);font-size:11px}
+/* tables */
+.scroll{overflow-x:auto}
+table.data{width:100%;border-collapse:collapse;font-size:12.5px}
+table.data th,table.data td{padding:9px 11px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+table.data th{color:var(--mut);font-weight:800;font-size:11px;background:#faf4f4;text-transform:uppercase}
+table.data td b{font-family:Inter}
+table.data tr:hover td{background:#fdf8f8}
+.bar2{height:9px;background:#eee2e2;border-radius:8px;overflow:hidden;min-width:70px;display:inline-block;vertical-align:middle}
+.bar2 i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+/* ===== v5 exceptions ===== */
+.exc{display:flex;flex-direction:column;gap:11px}
+.ex{display:flex;gap:12px;border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:12px;padding:12px 14px}
+.ex.bad{border-left-color:var(--bad)}.ex.cool{border-left-color:var(--blue)}.ex.done{border-left-color:var(--ok);opacity:.78}
+.ex .ic{width:38px;height:38px;border-radius:11px;display:grid;place-content:center;color:#fff;flex:none;background:var(--warn)}
+.ex.bad .ic{background:var(--bad)}.ex.cool .ic{background:var(--blue)}.ex.done .ic{background:var(--ok)}
+.ex .bd{flex:1;min-width:0}
+.ex .bd b{font-size:13px;font-family:"Noto Sans TC"}
+.ex .bd p{margin:3px 0 0;font-size:11.5px;color:var(--mut);line-height:1.55}
+.ex .bd .meta{margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;font-size:10.5px;color:var(--mut)}
+.ex .act{align-self:center;text-align:right}
+.ex .act .tag{margin-bottom:6px}
+.ex .act button{background:var(--accent);color:#fff;border:0;padding:6px 12px;border-radius:8px;font:inherit;font-weight:700;font-size:11px;cursor:pointer;white-space:nowrap}
+/* ===== responsive ===== */
+@media(max-width:1080px){.kpis{grid-template-columns:repeat(2,1fr)}.mini{grid-template-columns:repeat(2,1fr)}.fleet{grid-template-columns:repeat(2,1fr)}.board{grid-template-columns:repeat(2,1fr)}.g2,.g11,.two{grid-template-columns:1fr}}
+@media(max-width:860px){.shell{flex-direction:column}.side{width:100%;height:auto;position:sticky;top:0;z-index:1000;flex-direction:row;flex-wrap:wrap;align-items:center}.side .brand{padding:12px 16px}.live{margin:0 12px 0 auto}.side .nav{flex-direction:row;flex-wrap:wrap;flex:1 0 100%;padding:8px 12px;overflow:visible}.side .nav button{flex:none}.side .nav button.on{box-shadow:inset 0 -3px 0 var(--accent2)}.side .foot{display:none}}
+@media(max-width:820px){.two,.g2,.g11{grid-template-columns:1fr}}
+@media(max-width:560px){.wrap{padding:16px 14px 30px}.side .nav button .lbl{display:none}.side .nav button{padding:11px 12px}.board{grid-template-columns:1fr}.fleet{grid-template-columns:1fr}#lmap{height:400px}.live .txt{display:none}}
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">車</div>
+      <div><b>車聯網營運平台</b><small>FLEET · TMS</small></div>
+    </div>
+    <span class="live"><span class="dot"></span><span class="txt">車隊即時連線中</span></span>
+    <nav class="nav" id="nav"></nav>
+    <div class="foot">
+      <div class="ava">昱</div>
+      <div class="who"><b>昱翔車聯物流</b><small>調度中心 · 北北基區</small></div>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="wrap">
+      <div class="ph">
+        <div><h1 id="vt">車隊戰情</h1><p id="vs"></p></div>
+        <div class="pill"><span class="material-symbols-outlined" style="font-size:16px">directions_car</span><span id="fleetp">在勤 14 車 · 待派 5 單</span></div>
+      </div>
+
+      <!-- v0 車隊戰情 -->
+      <section class="view on" id="v0">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="material-symbols-outlined">directions_car</span>在勤車輛</div><div class="v">14<small> / 18</small></div><div class="d up">▲ 出車率 78%</div></div>
+          <div class="kpi"><div class="l"><span class="material-symbols-outlined">receipt_long</span>今日託運單</div><div class="v">86</div><div class="d up">▲ 已派車 68</div></div>
+          <div class="kpi"><div class="l"><span class="material-symbols-outlined">schedule</span>準時配送率</div><div class="v">91<small>%</small></div><div class="d up">▲ 4.6%</div></div>
+          <div class="kpi"><div class="l"><span class="material-symbols-outlined">local_gas_station</span>平均油耗</div><div class="v">6.8<small>km/L</small></div><div class="d dn">▼ 較昨 6.5</div></div>
+        </div>
+        <div class="grid g2">
+          <div class="card">
+            <h3><span class="material-symbols-outlined">grid_view</span>車隊即時狀態牆<span class="r">18 車 · 依載重與連線狀態排列</span></h3>
+            <div class="fleet" id="fleet"></div>
+          </div>
+          <div class="card">
+            <h3><span class="material-symbols-outlined">show_chart</span>今日出車與準點趨勢</h3>
+            <div class="chart" style="height:230px"><canvas id="c_over"></canvas></div>
+            <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px" id="feed"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- v1 派車調度 -->
+      <section class="view" id="v1">
+        <div class="ai">
+          <div class="ic"><span class="material-symbols-outlined">bolt</span></div>
+          <div><b>AI 派車媒合建議</b><p>#TC2308-052（文山區・文件 12 箱）與 TC-08 現有信義線車趟可併載，僅增 4.2km 里程即可 15:20 前完成；併載後全隊裝載率提升至 87%、空車率降至 8%。</p></div>
+          <button class="go">套用併載</button>
+        </div>
+        <div class="card">
+          <h3><span class="material-symbols-outlined">view_kanban</span>派車看板 · 託運單即時狀態<span class="r">拖曳指派 · 依時窗與車型自動建議</span></h3>
+          <div class="scroll"><div class="board" id="board"></div></div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3><span class="material-symbols-outlined">rule</span>待調度託運單 · 派車建議<span class="r">依收貨時窗與車型媒合</span></h3>
+          <div class="scroll"><table class="data" id="dsp"></table></div>
+        </div>
+      </section>
+
+      <!-- v2 即時追蹤 (map) -->
+      <section class="view" id="v2">
+        <div class="grid g2">
+          <div class="card">
+            <h3><span class="material-symbols-outlined">map</span>車輛定位與行駛路線<span class="r">北北基 · 8 配送點 · 3 車趟</span></h3>
+            <div style="overflow-x:auto"><div id="lmap"></div></div>
+            <div class="legend">
+              <span><i class="dot" style="background:#dc2626"></i>TC-03 內科線</span>
+              <span><i class="dot" style="background:#8b5cf6"></i>TC-05 板橋線</span>
+              <span><i class="dot" style="background:#f97316"></i>TC-06 基隆線</span>
+              <span><i class="dot" style="background:#3b82f6"></i>冷鏈車</span>
+              <span><i class="dot" style="background:#ef4444"></i>逾時/異常</span>
+            </div>
+          </div>
+          <div class="card">
+            <h3><span class="material-symbols-outlined">near_me</span>在途車趟即時追蹤</h3>
+            <div class="trk" id="trk"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- v3 電子簽收 POD -->
+      <section class="view" id="v3">
+        <div class="grid g11">
+          <div class="card">
+            <h3><span class="material-symbols-outlined">draw</span>電子簽收回單 POD<span class="r">A02 松山區民生東路 · 王記食品行</span></h3>
+            <div class="podwrap">
+              <div class="chk" id="podchk"></div>
+              <div class="sig"><div class="sigpad">王大 明</div><small style="color:var(--mut);font-size:11.5px">08/13 14:26 · 收件人（王大明 店長）已簽收確認</small></div>
+              <div>
+                <div style="font-size:12px;color:var(--mut);font-weight:700;margin-bottom:7px">送達照片存證</div>
+                <div class="photos" id="podphotos"></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card" style="margin-bottom:16px">
+              <h3><span class="material-symbols-outlined">list_alt</span>待簽收 / 已回單</h3>
+              <div class="podq" id="podq"></div>
+            </div>
+            <div class="card">
+              <h3><span class="material-symbols-outlined">inventory_2</span>本單託運明細</h3>
+              <table class="data" style="font-size:12px"><tbody id="podmeta"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- v4 油耗成本 -->
+      <section class="view" id="v4">
+        <div class="mini" id="cstat"></div>
+        <div class="two">
+          <div class="card"><h3><span class="material-symbols-outlined">stacked_bar_chart</span>近 7 日運費與成本結構</h3><div class="chart"><canvas id="c_cost"></canvas></div></div>
+          <div class="card"><h3><span class="material-symbols-outlined">local_gas_station</span>各車里程 vs 油耗</h3><div class="chart"><canvas id="c_fuel"></canvas></div></div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3><span class="material-symbols-outlined">table_chart</span>車趟運費成本明細</h3>
+          <div class="scroll"><table class="data" id="cost"></table></div>
+        </div>
+      </section>
+
+      <!-- v5 異常告警 -->
+      <section class="view" id="v5">
+        <div class="kpis" id="estat"></div>
+        <div class="grid g11">
+          <div class="card">
+            <h3><span class="material-symbols-outlined">report_problem</span>配送異常事件<span class="r">今日 12 件 · 待處理 5 件</span></h3>
+            <div class="exc" id="exc"></div>
+          </div>
+          <div class="card">
+            <h3><span class="material-symbols-outlined">speed</span>駕駛行為評分</h3>
+            <div class="chart" style="height:250px"><canvas id="c_drive"></canvas></div>
+            <table class="data" style="margin-top:10px;font-size:12px" id="mainttbl"></table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<script>
+var NAV=[["車隊戰情","space_dashboard","車隊戰情","在勤車輛、託運單與車隊即時狀態總覽"],
+["派車調度","assignment","派車調度","託運單媒合、車趟指派與派車看板"],
+["即時追蹤","map","即時追蹤","GPS 車輛定位、行駛路線與到站進度"],
+["電子簽收","task_alt","電子簽收 POD","到府簽名、照片存證與回單狀態"],
+["油耗成本","local_gas_station","油耗成本分析","里程油耗、運費與路線毛利分析"],
+["異常告警","notification_important","異常告警","延誤、拒收、駕駛行為與保養提醒"]];
+var nav=document.getElementById('nav');
+NAV.forEach(function(n,i){var b=document.createElement('button');b.className=i===0?'on':'';b.setAttribute('data-i',i);b.innerHTML='<span class="material-symbols-outlined">'+n[1]+'</span><span class="lbl">'+n[0]+'</span>';b.onclick=function(){show(i);};nav.appendChild(b);});
+
+/* ===== v0 fleet wall ===== */
+var FLEET=[
+ ["TC-03","王大明 · 3.5噸廂","run","配送中","#dc2626",83,"內科線","第3站/5"],
+ ["TC-05","李國豪 · 5噸尾門","run","配送中","#8b5cf6",67,"板橋線","第2站/4"],
+ ["TC-06","張志豪 · 冷凍車","cold","冷鏈中","#3b82f6",91,"基隆線","-18.2°C"],
+ ["TC-08","陳建宏 · 3.5噸廂","run","即將完成","#f97316",44,"信義線","第4站/4"],
+ ["TC-11","林承翰 · 冷藏車","cold","冷鏈中","#3b82f6",58,"三重線","4.1°C"],
+ ["TC-14","黃俊傑 · 5噸尾門","idle","待派","#7c6f71",0,"待命","轉運中心"],
+ ["TC-17","吳孟哲 · 小貨車","idle","待派","#7c6f71",0,"待命","轉運中心"],
+ ["TC-21","蔡宗霖 · 3.5噸廂","stop","保養中","#ef4444",0,"進廠","定保 5,000km"]
+];
+var fe=document.getElementById('fleet');
+FLEET.forEach(function(v){
+ var stt=v[2]==='run'?'t-run':v[2]==='cold'?'t-cold':v[2]==='stop'?'t-hold':'t-plan';
+ var bc=v[5]>85?'#ef4444':v[5]>65?'#f97316':v[5]>0?'#dc2626':'#cbb';
+ fe.innerHTML+='<div class="vcar"><span class="st tag '+stt+'">'+v[3]+'</span><div class="top"><div class="ic" style="background:'+v[4]+'"><span class="material-symbols-outlined" style="font-size:18px">'+(v[2]==='cold'?'ac_unit':v[2]==='stop'?'build':'local_shipping')+'</span></div><div style="min-width:0"><b>'+v[0]+'</b><small>'+v[1]+'</small></div></div><div class="bar"><i style="width:'+(v[5]||3)+'%;background:'+bc+'"></i></div><div class="foot"><span>載重 '+v[5]+'%</span><span>'+v[6]+' · '+v[7]+'</span></div></div>';
+});
+var FEED=[
+ ["#dc2626","local_shipping","TC-03 抵達 A02 松山民生","14:26"],
+ ["#16a34a","task_alt","TC-05 完成 A07 信義簽收","14:12"],
+ ["#f59e0b","warning","TC-06 開門溫度短暫回升","12:41"],
+ ["#3b82f6","route","TC-11 三重線車趟已建立","11:50"]
+];
+document.getElementById('feed').innerHTML=FEED.map(function(f){return '<div style="display:flex;align-items:center;gap:9px;font-size:12px;border:1px solid var(--line);border-radius:10px;padding:8px 11px"><span class="material-symbols-outlined" style="font-size:18px;color:'+f[0]+'">'+f[1]+'</span><span style="flex:1;min-width:0">'+f[2]+'</span><span style="color:var(--mut);font-size:11px">'+f[3]+'</span></div>';}).join('');
+
+/* ===== v1 board + dispatch ===== */
+var BOARD=[
+ ["待調度","inbox",[["#TC2308-041 · 大同區","家電 3 板 · 時窗 13:00","priority","急件","3.5噸廂"],["#TC2308-047 · 中山區","生鮮 8 箱 · 時窗 14:30","cold","冷鏈","冷藏車"]]],
+ ["已派車","assignment_ind",[["#TC2308-032 · 內湖區","電商包裹 42 件","","TC-03 王大明","3.5噸"],["#TC2308-038 · 板橋區","建材棧板 5 板","","TC-05 李國豪","5噸尾門"]]],
+ ["配送中","directions_car",[["#TC2308-025 · 南港區","飲料 120 箱 · 到站中","run","TC-03 王大明","第3站/5"],["#TC2308-029 · 基隆市","冷凍水產 · -18°C","run","TC-06 張志豪","冷凍車"]]],
+ ["待簽收","draw",[["#TC2308-019 · 松山區","乾貨 24 箱 · 已抵達","","TC-05 李國豪","POD 待簽"],["#TC2308-014 · 信義區","辦公家具 · 已抵達","","TC-08 陳建宏","需驗收"]]]
+];
+var be=document.getElementById('board');
+BOARD.forEach(function(c){var h='<div class="col"><div class="ch"><span class="material-symbols-outlined">'+c[1]+'</span>'+c[0]+'<span class="n">'+c[2].length+'</span></div>';c[2].forEach(function(t){var bl=t[2]==='run'?'#f97316':t[2]==='priority'?'#ef4444':t[2]==='cold'?'#3b82f6':'#dc2626';var tg=t[2]==='run'?'t-run':t[2]==='priority'?'t-hold':t[2]==='cold'?'t-cold':'t-plan';h+='<div class="tk" style="border-left-color:'+bl+'"><b>'+t[0]+'</b><small>'+t[1]+'</small><div class="m"><span class="av" style="background:'+bl+'">'+t[3].slice(0,1)+'</span><span>'+t[3]+'</span><span style="margin-left:auto" class="tag '+tg+'">'+t[4]+'</span></div></div>';});h+='</div>';be.innerHTML+=h;});
+var DSP=[
+ ["#TC2308-041","大同區承德路","家電 3 板 / 620kg","13:00","3.5噸廂車","TC-08 陳建宏","急件","t-hold"],
+ ["#TC2308-047","中山區林森北路","生鮮 8 箱 / 96kg","14:30","冷藏車","TC-06 張志豪","冷鏈","t-cold"],
+ ["#TC2308-052","文山區羅斯福路","文件 12 箱 / 48kg","16:00","小貨車","建議 TC-08","可併","t-plan"],
+ ["#TC2308-055","三重區重新路","五金棧板 4 板","15:00","5噸尾門","建議 TC-05","待確認","t-wait"],
+ ["#TC2308-058","新莊區中正路","電商包裹 36 件","17:30","3.5噸廂車","建議 TC-03","可併","t-plan"]
+];
+var dh='<tr><th>託運單號</th><th>收貨地址</th><th>貨物 / 重量</th><th>時窗</th><th>需求車型</th><th>建議派車</th><th>媒合</th></tr>';
+DSP.forEach(function(r){dh+='<tr><td><b>'+r[0]+'</b></td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td>'+r[4]+'</td><td>'+r[5]+'</td><td><span class="tag '+r[7]+'">'+r[6]+'</span></td></tr>';});
+document.getElementById('dsp').innerHTML=dh;
+
+/* ===== v2 map data ===== */
+var POINTS=[
+ ["A01","內湖區瑞光路","電商倉配 42 件","#dc2626",25.079,121.575,"TC-03 王大明","已送達"],
+ ["A02","松山區民生東路","王記食品行 · 乾貨","#dc2626",25.058,121.556,"TC-03 王大明","配送中"],
+ ["A03","內湖科技園區","科技公司 · 時窗 15:30","#ef4444",25.083,121.567,"TC-03 王大明","逾時風險"],
+ ["A04","板橋區文化路","建材棧板 5 板","#8b5cf6",25.017,121.462,"TC-05 李國豪","配送中"],
+ ["A05","南港軟體園區","飲料 120 箱","#dc2626",25.058,121.616,"TC-03 王大明","待送達"],
+ ["A06","基隆市仁一路","冷凍水產 · -18°C","#3b82f6",25.128,121.741,"TC-06 張志豪","配送中"],
+ ["A07","信義區松仁路","辦公家具 · 驗收","#8b5cf6",25.036,121.567,"TC-05 李國豪","已送達"],
+ ["A08","汐止區大同路","電商包裹 28 件","#f97316",25.063,121.658,"TC-06 張志豪","待送達"]
+];
+var ROUTES=[
+ [[25.079,121.575],[25.058,121.556],[25.083,121.567],[25.058,121.616],"#dc2626",""],
+ [[25.036,121.567],[25.017,121.462],"#8b5cf6","6 6"],
+ [[25.128,121.741],[25.063,121.658],"#f97316","6 6"]
+];
+var TRK=[
+ ["TC-03 · 王大明","3.5噸廂式 · 內科線","run","配送中",62,"第3站/5 · A02松山民生","下一站 15:12 抵達"],
+ ["TC-05 · 李國豪","5噸尾門車 · 板橋線","run","配送中",48,"第2站/4 · A04板橋文化","下一站 15:05 抵達"],
+ ["TC-06 · 張志豪","冷凍車 -18°C · 基隆線","cold","冷鏈配送",70,"第3站/4 · A06基隆仁一","溫度 -18.2°C 正常"],
+ ["TC-08 · 陳建宏","3.5噸廂式 · 信義線","done","即將完成",92,"第4站/4 · A07信義松仁","POD 待簽收"]
+];
+var te=document.getElementById('trk');
+TRK.forEach(function(t){var col=t[2]==='cold'?'#3b82f6':t[2]==='done'?'#16a34a':'#dc2626';var tg=t[2]==='cold'?'t-cold':t[2]==='done'?'t-done':'t-run';te.innerHTML+='<div class="ti"><div class="hd"><span class="av" style="background:'+col+'">'+t[0].slice(3,4)+'</span><b>'+t[0]+'</b><span class="tag '+tg+'">'+t[3]+'</span></div><small>'+t[1]+'</small><div class="bar"><i style="width:'+t[4]+'%;background:'+(t[2]==='cold'?'linear-gradient(90deg,#3b82f6,#93c5fd)':'linear-gradient(90deg,#dc2626,#f97316)')+'"></i></div><small><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">place</span> '+t[5]+' · '+t[6]+'</small></div>';});
+
+/* ===== v3 POD ===== */
+var PODCHK=[["貨件數量核對",1],["外觀無破損",1],["收件人身分確認",1],["溫層確認 (常溫)",1],["棧板/籠車回收",0]];
+document.getElementById('podchk').innerHTML=PODCHK.map(function(s){return '<span class="it'+(s[1]?' ok':'')+'"><span class="material-symbols-outlined">'+(s[1]?'check_circle':'radio_button_unchecked')+'</span>'+s[0]+'</span>';}).join('');
+var PHOTOS=[["前門送達","local_shipping"],["貨件堆疊","inventory_2"],["簽收單據","receipt_long"]];
+document.getElementById('podphotos').innerHTML=PHOTOS.map(function(p){return '<div class="ph2"><span class="material-symbols-outlined">'+p[1]+'</span><span class="cap">'+p[0]+' 14:26</span></div>';}).join('');
+var PODQ=[
+ ["#TC2308-019","松山區 · 王記食品行","待簽收 · 已抵達","on"],
+ ["#TC2308-014","信義區 · 辦公家具","待驗收簽核",""],
+ ["#TC2308-025","南港區 · 飲料配送","已回單 14:02",""],
+ ["#TC2308-032","內湖區 · 電商倉配","已回單 13:40",""],
+ ["#TC2308-029","基隆市 · 冷凍水產","已回單 12:55",""]
+];
+document.getElementById('podq').innerHTML=PODQ.map(function(q){return '<div class="qi'+(q[3]?' on':'')+'"><span class="no">'+q[0].slice(-3)+'</span><div style="flex:1;min-width:0"><b>'+q[0]+'</b><small>'+q[1]+' · '+q[2]+'</small></div><span class="material-symbols-outlined" style="color:'+(q[3]?'#dc2626':'#94a3b8')+'">'+(q[3]?'edit_note':'check_circle')+'</span></div>';}).join('');
+var PODMETA=[["託運單號","#TC2308-019"],["收件人","王記食品行 · 王大明"],["貨物","乾貨 24 箱 · 312 kg"],["溫層","常溫"],["運費","NT$ 1,850"],["簽收方式","電子簽名 + 照片"],["回單時間","08/13 14:26"]];
+document.getElementById('podmeta').innerHTML=PODMETA.map(function(v){return '<tr><td style="color:var(--mut);width:38%">'+v[0]+'</td><td><b style="font-family:Noto Sans TC;font-weight:700">'+v[1]+'</b></td></tr>';}).join('');
+
+/* ===== v4 cost ===== */
+var CSTAT=[["今日運費收入","NT$ 128,400","payments"],["油料成本","NT$ 21,860","local_gas_station"],["每公里成本","NT$ 18.4","straighten"],["毛利率","62.3%","trending_up"]];
+document.getElementById('cstat').innerHTML=CSTAT.map(function(s){return '<div class="mc"><div class="l"><span class="material-symbols-outlined" style="font-size:15px;color:#dc2626;vertical-align:-3px">'+s[2]+'</span> '+s[0]+'</div><div class="v">'+s[1]+'</div></div>';}).join('');
+var COST=[
+ ["TC-03","王大明","內科線",5,486,142,"NT$ 32,400","NT$ 5,880","NT$ 21,300"],
+ ["TC-05","李國豪","板橋線",4,318,98,"NT$ 28,600","NT$ 4,910","NT$ 19,100"],
+ ["TC-06","張志豪","基隆冷鏈",4,402,156,"NT$ 41,200","NT$ 7,240","NT$ 26,800"],
+ ["TC-08","陳建宏","信義線",4,264,72,"NT$ 26,200","NT$ 3,830","NT$ 18,600"]
+];
+var ch='<tr><th>車號</th><th>駕駛</th><th>路線</th><th>站數</th><th>里程 km</th><th>油耗 L</th><th>運費</th><th>油料成本</th><th>毛利</th></tr>';
+COST.forEach(function(r){ch+='<tr><td><b>'+r[0]+'</b></td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td>'+r[4]+'</td><td>'+r[5]+'</td><td><b>'+r[6]+'</b></td><td>'+r[7]+'</td><td style="color:#b91c1c;font-weight:700">'+r[8]+'</td></tr>';});
+document.getElementById('cost').innerHTML=ch;
+
+/* ===== v5 exceptions ===== */
+var ESTAT=[
+ ["report_problem","異常事件(今日)","12","dn","▼ 較昨 17"],
+ ["schedule","延誤配送","4","dn","▼ 準時改善"],
+ ["do_not_disturb_on","拒收/退貨","2","up","● 待安排補送"],
+ ["build","保養告警","1","up","● TC-21 進廠中"]
+];
+document.getElementById('estat').innerHTML=ESTAT.map(function(s){return '<div class="kpi"><div class="l"><span class="material-symbols-outlined">'+s[0]+'</span>'+s[1]+'</div><div class="v">'+s[2]+'</div><div class="d '+s[3]+'">'+s[4]+'</div></div>';}).join('');
+var EXC=[
+ ["cool","ac_unit","冷鏈溫度短暫超標 · TC-06 冷凍車","基隆線開門卸貨時箱內回升至 -12°C（設定 -18°C），持續 4 分鐘後恢復；系統已記錄溫度曲線並通知品保。","已恢復","t-cold",["#TC2308-029","08/13 12:41","張志豪"]],
+ ["bad","do_not_disturb_on","收件人拒收 · 辦公家具驗收不符","A07 信義松仁路客戶反映沙發顏色與訂單不符，現場拒收 1 件；需退回倉庫並重新安排出貨。","待改派","t-hold",["#TC2308-014","08/13 15:10","李國豪"]],
+ ["","schedule","時窗逾時風險 · A03 內湖科技園區","TC-03 因市民大道壅塞預估延誤 12 分鐘，15:30 時窗恐逾時；AI 建議改由 TC-06 支援。","處理中","t-wait",["#TC2308-032","08/13 15:24","王大明"]],
+ ["bad","broken_image","貨件破損回報 · 家電面板","A01 內湖客戶開箱發現液晶面板邊角壓損，已拍照回報並開立理賠單，待客服跟進。","待理賠","t-hold",["#TC2308-041","08/13 13:52","陳建宏"]],
+ ["done","task_alt","簽收缺漏補正完成","A05 南港飲料配送初次未取得收件人簽名，駕駛已於 14:20 補簽並上傳 POD。","已結案","t-done",["#TC2308-025","08/13 14:20","王大明"]]
+];
+var ee=document.getElementById('exc');
+EXC.forEach(function(x){ee.innerHTML+='<div class="ex '+x[0]+'"><div class="ic"><span class="material-symbols-outlined">'+x[1]+'</span></div><div class="bd"><b>'+x[2]+'</b><p>'+x[3]+'</p><div class="meta"><span><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">tag</span>'+x[6][0]+'</span><span><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">schedule</span>'+x[6][1]+'</span><span><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">person</span>'+x[6][2]+'</span></div></div><div class="act"><span class="tag '+x[5]+'">'+x[4]+'</span><br><button>處理</button></div></div>';});
+var MAINT=[["TC-21 · 蔡宗霖","定保 5,000km","已進廠","#f59e0b"],["TC-06 · 張志豪","冷媒檢測","7 天內","#3b82f6"],["TC-05 · 李國豪","輪胎胎紋","正常","#16a34a"],["TC-03 · 王大明","急煞偏高","關注","#ef4444"]];
+document.getElementById('mainttbl').innerHTML='<tr><th>車輛/駕駛</th><th>項目</th><th>狀態</th></tr>'+MAINT.map(function(c){return '<tr><td>'+c[0]+'</td><td>'+c[1]+'</td><td><span class="dot" style="background:'+c[3]+';margin-right:6px"></span>'+c[2]+'</td></tr>';}).join('');
+
+/* ===== Leaflet map (v2) ===== */
+var lmap=null;
+function initMap(){
+  var el=document.getElementById('lmap');if(!el)return;
+  if(lmap){lmap.remove();lmap=null;}
+  lmap=L.map('lmap',{zoomControl:true,attributionControl:false,scrollWheelZoom:false}).setView([25.06,121.58],11);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(lmap);
+  ROUTES.forEach(function(r){var pts=r.slice(0,r.length-2);var col=r[r.length-2].trim();var dash=r[r.length-1];L.polyline(pts,{color:col,weight:4,opacity:.75,dashArray:dash||null}).addTo(lmap);});
+  POINTS.forEach(function(p){
+    var icon=L.divIcon({className:'',iconSize:[30,30],iconAnchor:[15,15],html:'<div style="background:'+p[3]+';width:30px;height:30px;border-radius:10px 10px 10px 2px;display:grid;place-content:center;color:#fff;font-weight:800;font-family:Inter;font-size:11px;box-shadow:0 3px 8px rgba(0,0,0,.35)">'+p[0]+'</div>'});
+    L.marker([p[4],p[5]],{icon:icon}).addTo(lmap).bindPopup('<b>'+p[0]+' · '+p[1]+'</b><br/>'+p[2]+'<br/>車趟：'+p[6]+'<br/>狀態：'+p[7]);
+  });
+  requestAnimationFrame(function(){try{lmap.invalidateSize();}catch(e){}});
+}
+
+/* ===== Chart.js ===== */
+var CJS={};
+function killChart(id){if(CJS[id]){try{CJS[id].destroy();}catch(e){}CJS[id]=null;}}
+function mkChart(id,cfg){var el=document.getElementById(id);if(!el)return;killChart(id);CJS[id]=new Chart(el.getContext('2d'),cfg);}
+Chart.defaults.font.family='Inter, "Noto Sans TC", sans-serif';
+Chart.defaults.font.size=11;
+Chart.defaults.color='#7c6f71';
+function drawOver(){mkChart('c_over',{type:'bar',data:{labels:['09時','10時','11時','12時','13時','14時','15時'],datasets:[{type:'bar',label:'出車數',data:[8,12,14,13,14,14,13],backgroundColor:'rgba(220,38,38,.75)',borderRadius:5,yAxisID:'y'},{type:'line',label:'準點率 %',data:[86,88,90,89,91,92,91],borderColor:'#f97316',backgroundColor:'#f97316',borderWidth:3,tension:.35,pointRadius:3,yAxisID:'y1'}]},options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{labels:{boxWidth:12,padding:12}}},scales:{y:{beginAtZero:true,max:20,grid:{color:'#f0e8e8'}},y1:{position:'right',min:70,max:100,grid:{display:false},ticks:{callback:function(v){return v+'%';}}}}}});}
+function drawCost(){mkChart('c_cost',{type:'bar',data:{labels:['8/7','8/8','8/9','8/10','8/11','8/12','8/13'],datasets:[{label:'運費收入',data:[112,118,109,124,131,126,128],backgroundColor:'#dc2626',stack:'s',borderRadius:4},{label:'油料成本',data:[19,20,18,21,23,22,22],backgroundColor:'#f97316',stack:'s'},{label:'其他成本',data:[24,25,23,26,28,27,26],backgroundColor:'#fbbf87',stack:'s',borderRadius:4}]},options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{labels:{boxWidth:12,padding:12}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+c.parsed.y+'k';}}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#f0e8e8'},ticks:{callback:function(v){return v+'k';}}}}}});}
+function drawFuel(){mkChart('c_fuel',{type:'bar',data:{labels:['TC-03','TC-05','TC-06','TC-08','TC-11'],datasets:[{type:'bar',label:'里程 km',data:[486,318,402,264,356],backgroundColor:'rgba(220,38,38,.8)',borderRadius:5,yAxisID:'y'},{type:'line',label:'油耗 L',data:[142,98,156,72,118],borderColor:'#f97316',backgroundColor:'#f97316',borderWidth:3,tension:.3,pointRadius:4,yAxisID:'y1'}]},options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{labels:{boxWidth:12,padding:12}}},scales:{y:{beginAtZero:true,grid:{color:'#f0e8e8'},title:{display:true,text:'里程 km'}},y1:{position:'right',beginAtZero:true,grid:{display:false},title:{display:true,text:'油耗 L'}}}}});}
+function drawDrive(){mkChart('c_drive',{type:'radar',data:{labels:['準點','平穩駕駛','油耗效率','急煞控制','怠速控制','路線遵循'],datasets:[{label:'車隊平均',data:[88,82,79,74,85,90],borderColor:'#f97316',backgroundColor:'rgba(249,115,22,.15)',borderWidth:2,pointBackgroundColor:'#f97316'},{label:'TC-03 王大明',data:[92,76,84,62,80,94],borderColor:'#dc2626',backgroundColor:'rgba(220,38,38,.18)',borderWidth:2,pointBackgroundColor:'#dc2626'}]},options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{labels:{boxWidth:12,padding:12}}},scales:{r:{min:40,max:100,grid:{color:'#eaddde'},angleLines:{color:'#eaddde'},pointLabels:{font:{size:11}},ticks:{display:false}}}}});}
+
+/* ===== navigation ===== */
+function show(i){
+  document.querySelectorAll('.nav button').forEach(function(b,j){b.classList.toggle('on',i===j);});
+  var views=document.querySelectorAll('.view');
+  views.forEach(function(v,j){v.classList.toggle('on',i===j);});
+  document.getElementById('vt').textContent=NAV[i][2];
+  document.getElementById('vs').textContent=NAV[i][3];
+  var view=views[i];if(view){void view.offsetHeight;}
+  if(i===2){initMap();}else if(lmap){lmap.remove();lmap=null;}
+  if(i===0){drawOver();}
+  if(i===4){drawCost();drawFuel();}
+  if(i===5){drawDrive();}
+}
+show(0);
+
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>

@@ -1,18 +1,553 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>多代理流程自動艙｜Jvision 系統 Demo</title>
-  <meta name="description" content="任務、專案、知識到流程自動化的團隊協作" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>多代理流程自動艙 · AI Workflow｜Jvision 系統 Demo</title>
+<meta name="description" content="多個 AI 代理人協作編排、派工、工具檢索到品質成本評測的流程自動化平台（純 UI 展示）。" />
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --pink:#db2777; --pink2:#f472b6; --pink-d:#9d174d;
+    --ink:#3a0b23; --body:#4b3a44; --muted:#8b7480; --line:#f0dbe6; --bg:#fbf4f8;
+    --green:#16a34a; --amber:#f59e0b; --red:#dc2626; --sky:#0ea5e9; --indigo:#4f46e5;
+  }
+  *{ box-sizing:border-box; } html,body{ margin:0; max-width:100%; overflow-x:hidden; }
+  body{ font-family:Inter,"Noto Sans TC","Microsoft JhengHei",sans-serif; background:var(--bg); color:var(--body); -webkit-font-smoothing:antialiased; }
+  .material-symbols-outlined{ font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; line-height:1; }
+  /* ===== top nav bar ===== */
+  .topbar{ position:sticky; top:0; z-index:40; background:linear-gradient(120deg,#4a0c2b,#7a1146); color:#fff; box-shadow:0 4px 20px rgba(157,23,77,.28); }
+  .tb-in{ display:flex; align-items:center; gap:16px; padding:11px 22px; flex-wrap:wrap; }
+  .brand{ display:flex; align-items:center; gap:11px; min-width:0; flex:none; }
+  .brand .logo{ width:42px; height:42px; border-radius:13px; background:linear-gradient(135deg,var(--pink),var(--pink2)); display:grid; place-content:center; color:#fff; flex:none; box-shadow:0 6px 18px rgba(219,39,119,.5); }
+  .brand .logo .material-symbols-outlined{ font-size:25px; }
+  .brand b{ font-size:16px; font-weight:900; color:#fff; display:block; letter-spacing:.5px; white-space:nowrap; }
+  .brand span{ font-size:10.5px; color:#f5b8d3; font-weight:700; }
+  .nav{ display:flex; gap:5px; flex-wrap:wrap; min-width:0; flex:1; }
+  .nav button{ display:inline-flex; align-items:center; gap:8px; padding:9px 13px; border:0; background:rgba(255,255,255,.08); color:#f2c9dd; border-radius:11px; font:inherit; font-size:13px; font-weight:700; cursor:pointer; flex:none; white-space:nowrap; }
+  .nav button .material-symbols-outlined{ font-size:19px; flex:none; }
+  .nav button:hover{ background:rgba(255,255,255,.18); color:#fff; }
+  .nav button.on{ background:linear-gradient(135deg,var(--pink),var(--pink2)); color:#fff; box-shadow:0 5px 14px rgba(219,39,119,.5); }
+  .tb-r{ display:flex; align-items:center; gap:10px; flex:none; }
+  .live{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:800; color:#fff; background:rgba(255,255,255,.12); border-radius:999px; padding:5px 11px; }
+  .live .dot{ width:7px; height:7px; border-radius:50%; background:#4ade80; animation:pulse 2s infinite; } @keyframes pulse{50%{opacity:.25;}}
+  .tb-u{ display:flex; align-items:center; gap:8px; }
+  .tb-u .av{ width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--pink2),#fff); color:var(--pink-d); font-weight:900; display:grid; place-content:center; flex:none; font-size:13px; }
+  .tb-u b{ color:#fff; font-size:12.5px; display:block; line-height:1.2; } .tb-u span{ font-size:10px; color:#f5b8d3; }
+  /* ===== main ===== */
+  .body{ padding:22px 26px 52px; min-width:0; max-width:1440px; margin:0 auto; }
+  .vh{ display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:18px; flex-wrap:wrap; }
+  .vh h2{ margin:0; font-size:21px; font-weight:900; color:var(--ink); display:flex; align-items:center; gap:9px; } .vh h2 .material-symbols-outlined{ color:var(--pink); }
+  .vh p{ margin:5px 0 0; font-size:13px; color:var(--muted); max-width:680px; line-height:1.5; }
+  .btn{ display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 15px; border-radius:10px; border:0; background:linear-gradient(135deg,var(--pink),var(--pink2)); color:#fff; font:inherit; font-weight:800; font-size:12.5px; cursor:pointer; }
+  .btn.ghost{ background:#fff; color:var(--pink); border:1px solid var(--line); }
+  .btn .material-symbols-outlined{ font-size:18px; }
+  /* kpis */
+  .kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+  .kpi{ background:#fff; border:1px solid var(--line); border-radius:16px; padding:15px 17px; border-left:4px solid var(--pink); min-width:0; }
+  .kpi .l{ font-size:12px; font-weight:700; color:var(--muted); display:flex; gap:6px; align-items:center; } .kpi .l .material-symbols-outlined{ font-size:18px; color:var(--pink); }
+  .kpi .v{ font-size:25px; font-weight:900; color:var(--ink); margin-top:6px; } .kpi .v small{ font-size:13px; color:var(--muted); font-weight:700; }
+  .kpi .d{ font-size:11.5px; font-weight:800; margin-top:4px; } .up{ color:var(--green); } .dn{ color:var(--red); } .fl{ color:var(--muted); }
+  .grid{ display:grid; gap:18px; } .grid>*{ min-width:0; }
+  .g2{ grid-template-columns:1.5fr 1fr; } .g2b{ grid-template-columns:1fr 1fr; } .g3{ grid-template-columns:repeat(3,1fr); }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:18px 20px; min-width:0; }
+  .card>h3{ margin:0 0 14px; font-size:15px; font-weight:800; color:var(--ink); display:flex; align-items:center; gap:8px; }
+  .card>h3 .material-symbols-outlined{ color:var(--pink); font-size:20px; } .card>h3 .grow{ margin-left:auto; font-size:12px; font-weight:700; color:var(--pink); }
+  .chart-box{ position:relative; width:100%; }
+  /* table */
+  .tblwrap{ overflow-x:auto; }
+  .tbl{ width:100%; border-collapse:collapse; font-size:13px; }
+  .tbl th{ text-align:left; font-size:11px; color:var(--muted); font-weight:800; padding:11px 12px; border-bottom:2px solid var(--line); background:#fdf2f8; white-space:nowrap; }
+  .tbl td{ padding:11px 12px; border-bottom:1px solid var(--line); white-space:nowrap; } .tbl tr:hover td{ background:#fdf2f8; }
+  .tbl td b{ color:var(--ink); }
+  .tag{ font-size:11px; font-weight:800; border-radius:999px; padding:2px 9px; display:inline-block; }
+  .t-ok{ background:#dcfce7; color:#166534; } .t-warn{ background:#fef3c7; color:#92400e; } .t-bad{ background:#fee2e2; color:#991b1b; } .t-info{ background:#dbeafe; color:#1e40af; } .t-pink{ background:#fce7f0; color:var(--pink-d); } .t-grey{ background:#f1f5f9; color:#64748b; } .t-indigo{ background:#e0e7ff; color:#3730a3; }
+  .bar{ height:7px; border-radius:999px; background:#f0e0e8; overflow:hidden; min-width:70px; } .bar span{ display:block; height:100%; border-radius:999px; }
+  .mini{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+  .stat{ background:#fdf2f8; border-radius:12px; padding:13px 14px; } .stat .l{ font-size:11.5px; color:var(--muted); font-weight:700; } .stat .v{ font-size:22px; font-weight:900; color:var(--pink-d); margin-top:3px; }
+  /* ===== SCREEN 0 : agent roster cards ===== */
+  .agents{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .ac{ background:#fdf7fb; border:1px solid var(--line); border-radius:16px; padding:15px; min-width:0; position:relative; overflow:hidden; }
+  .ac::before{ content:""; position:absolute; inset:0 0 auto 0; height:4px; background:linear-gradient(90deg,var(--pink),var(--pink2)); }
+  .ac-h{ display:flex; align-items:center; gap:11px; } .ac-h .av{ width:44px; height:44px; border-radius:13px; background:linear-gradient(135deg,var(--pink),var(--pink2)); color:#fff; display:grid; place-content:center; flex:none; } .ac-h .av .material-symbols-outlined{ font-size:24px; }
+  .ac-h b{ font-size:14.5px; color:var(--ink); display:block; } .ac-h span{ font-size:11px; color:var(--muted); font-weight:700; }
+  .ac-h .st{ margin-left:auto; }
+  .ac p{ font-size:11.5px; color:var(--body); margin:11px 0 0; line-height:1.5; min-height:34px; }
+  .ac-stats{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:11px; }
+  .ac-stats div{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:7px; text-align:center; } .ac-stats b{ font-size:15px; color:var(--pink-d); display:block; } .ac-stats small{ font-size:9.5px; color:var(--muted); font-weight:700; }
+  .ac-tags{ display:flex; gap:5px; flex-wrap:wrap; margin-top:10px; }
+  .pulse{ display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:800; }
+  .pulse i{ width:7px; height:7px; border-radius:50%; display:inline-block; }
+  .pulse.run i{ background:var(--green); animation:pulse 1.6s infinite; } .pulse.idle i{ background:#94a3b8; } .pulse.wait i{ background:var(--amber); animation:pulse 1.6s infinite; }
+  .pulse.run{ color:var(--green); } .pulse.idle{ color:#64748b; } .pulse.wait{ color:#b45309; }
+  /* ===== SCREEN 1 : DAG pipeline (signature) ===== */
+  .dag{ overflow-x:auto; }
+  .dag-inner{ min-width:820px; padding:8px 4px; }
+  .dag-row{ display:flex; align-items:stretch; gap:0; margin-bottom:18px; }
+  .dnode{ background:#fff; border:2px solid var(--line); border-radius:14px; padding:11px 13px; min-width:150px; flex:none; }
+  .dnode.act{ border-color:var(--pink); box-shadow:0 6px 16px rgba(219,39,119,.18); }
+  .dnode.done{ border-color:#bbf7d0; background:#f6fef9; }
+  .dnode .dh{ display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:900; color:var(--ink); }
+  .dnode .dh .material-symbols-outlined{ font-size:18px; color:var(--pink); }
+  .dnode .role{ font-size:10.5px; color:var(--muted); font-weight:700; margin-top:3px; }
+  .dnode .meta{ font-size:10px; margin-top:7px; display:flex; gap:6px; flex-wrap:wrap; }
+  .arrow{ flex:none; align-self:center; display:flex; align-items:center; color:var(--pink2); font-size:22px; padding:0 4px; }
+  .dbranch{ display:flex; flex-direction:column; gap:12px; justify-content:center; }
+  /* ===== SCREEN 2 : kanban ===== */
+  .board{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .col{ background:#fdf2f8; border:1px solid var(--line); border-radius:14px; padding:12px; min-width:0; }
+  .col>h4{ margin:0 0 10px; font-size:12.5px; font-weight:900; color:var(--ink); display:flex; align-items:center; gap:6px; }
+  .col>h4 .n{ margin-left:auto; background:var(--pink); color:#fff; font-size:11px; border-radius:999px; padding:1px 8px; }
+  .tk{ background:#fff; border:1px solid var(--line); border-radius:11px; padding:11px 12px; margin-bottom:10px; box-shadow:0 1px 3px rgba(157,23,77,.06); }
+  .tk b{ font-size:12.5px; color:var(--ink); display:block; } .tk .meta{ font-size:10.5px; color:var(--muted); margin-top:5px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .tk .who{ display:flex; align-items:center; gap:6px; margin-top:9px; font-size:11px; font-weight:700; color:var(--body); } .tk .av{ width:22px; height:22px; border-radius:7px; background:var(--pink2); color:#fff; display:grid; place-content:center; flex:none; } .tk .av .material-symbols-outlined{ font-size:14px; }
+  /* ===== SCREEN 3 : tool list + kb cards ===== */
+  .toolrow{ display:flex; align-items:center; gap:10px; padding:11px 0; border-top:1px solid var(--line); } .toolrow:first-child{ border-top:0; }
+  .tool-ic{ width:36px; height:36px; border-radius:10px; display:grid; place-content:center; flex:none; background:#fce7f0; color:var(--pink); } .tool-ic .material-symbols-outlined{ font-size:20px; }
+  .toolrow .ti{ flex:1; min-width:0; } .toolrow .ti b{ font-size:13px; color:var(--ink); display:block; } .toolrow .ti small{ font-size:11px; color:var(--muted); }
+  .kbcard{ background:#fdf7fb; border:1px solid var(--line); border-left:3px solid var(--pink); border-radius:12px; padding:12px 14px; margin-bottom:11px; }
+  .kbcard .kh{ display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:800; color:var(--ink); } .kbcard .kh .grow{ margin-left:auto; }
+  .kbcard p{ margin:7px 0 0; font-size:11.5px; color:var(--body); line-height:1.55; }
+  .kbcard .src{ margin-top:8px; font-size:10.5px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  /* ===== SCREEN 4 : trace timeline (signature) ===== */
+  .trace{ position:relative; padding-left:2px; }
+  .trace .tr{ display:flex; gap:13px; position:relative; padding-bottom:16px; }
+  .trace .tr::before{ content:""; position:absolute; left:15px; top:30px; bottom:-2px; width:2px; background:var(--line); }
+  .trace .tr:last-child::before{ display:none; }
+  .tr-ic{ width:32px; height:32px; border-radius:10px; display:grid; place-content:center; flex:none; z-index:1; } .tr-ic .material-symbols-outlined{ font-size:18px; }
+  .tr-body{ flex:1; min-width:0; background:#fdf7fb; border:1px solid var(--line); border-radius:12px; padding:10px 13px; }
+  .tr-body .th{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; } .tr-body b{ font-size:13px; color:var(--ink); } .tr-body .t{ margin-left:auto; font-size:10.5px; color:var(--muted); font-weight:700; }
+  .tr-body p{ margin:5px 0 0; font-size:11.5px; color:var(--body); line-height:1.5; }
+  .tr-body .kv{ margin-top:7px; display:flex; gap:6px; flex-wrap:wrap; font-size:10px; }
+  .chip{ background:#fff; border:1px solid var(--line); border-radius:999px; padding:2px 8px; font-weight:700; color:var(--muted); }
+  .a-pink{ background:#fce7f0; color:#db2777; } .a-info{ background:#dbeafe; color:#1e40af; } .a-amber{ background:#fef3c7; color:#d97706; } .a-red{ background:#fee2e2; color:#dc2626; } .a-ok{ background:#dcfce7; color:#16a34a; }
+  /* handoff chain */
+  .hf{ overflow-x:auto; }
+  .hf-inner{ min-width:640px; display:flex; align-items:flex-start; gap:0; padding:6px 0; }
+  .hf-node{ flex:1; text-align:center; min-width:90px; }
+  .hf-node .b{ width:38px; height:38px; border-radius:12px; margin:0 auto 6px; display:grid; place-content:center; color:#fff; } .hf-node .b .material-symbols-outlined{ font-size:20px; }
+  .hf-node small{ font-size:10.5px; font-weight:800; color:var(--ink); display:block; } .hf-node span{ font-size:9.5px; color:var(--muted); }
+  .hf-line{ flex:none; width:34px; height:2px; background:var(--pink2); margin-top:18px; }
+  /* ===== SCREEN 5 : eval matrix ===== */
+  .mtx{ overflow-x:auto; }
+  .mtx table{ border-collapse:collapse; width:100%; min-width:620px; font-size:12.5px; }
+  .mtx th{ padding:9px 8px; font-size:11px; font-weight:800; color:var(--muted); border-bottom:2px solid var(--line); text-align:center; } .mtx th:first-child{ text-align:left; }
+  .mtx td{ padding:9px 8px; border-bottom:1px solid var(--line); text-align:center; } .mtx td:first-child{ text-align:left; font-weight:800; color:var(--ink); }
+  .score{ display:inline-grid; place-content:center; min-width:44px; height:26px; border-radius:8px; font-weight:800; font-size:12px; padding:0 6px; }
+  .sc-hi{ background:#dcfce7; color:#166534; } .sc-mid{ background:#fef3c7; color:#92400e; } .sc-lo{ background:#fee2e2; color:#991b1b; }
+  @media (max-width:1100px){ .g2,.g2b,.g3{ grid-template-columns:1fr; } .board{ grid-template-columns:1fr 1fr; } .agents{ grid-template-columns:1fr 1fr; } }
+  @media (max-width:820px){
+    .kpis{ grid-template-columns:1fr 1fr; }
+    .agents,.board{ grid-template-columns:1fr; }
+    .body{ padding:16px 14px 40px; }
+  }
+  @media (max-width:560px){
+    .nav button .txt{ display:none; }
+    .nav button{ padding:9px; }
+    .tb-u b,.tb-u span{ display:none; }
+    .kpis{ grid-template-columns:1fr 1fr; }
+  }
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<header class="topbar">
+  <div class="tb-in">
+    <div class="brand">
+      <div class="logo"><span class="material-symbols-outlined">hub</span></div>
+      <div><b>多代理流程自動艙</b><span>AI Multi-Agent Workflow</span></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="tb-r">
+      <span class="live"><span class="dot"></span>3 個工作流運行中</span>
+      <div class="tb-u"><div class="av">許</div><div><b>許庭安</b><span>營運長</span></div></div>
+    </div>
+  </div>
+</header>
+<main class="body" id="view"></main>
+
+<script>
+"use strict";
+var MODS=[
+  {i:"smart_toy",n:"代理團隊",d:"AI 代理人角色與職能編組"},
+  {i:"account_tree",n:"流程編排",d:"多代理協作流程 DAG 設計"},
+  {i:"playlist_add_check",n:"任務派工",d:"子任務分派與佇列調度"},
+  {i:"handyman",n:"工具與知識",d:"工具呼叫與知識庫檢索"},
+  {i:"timeline",n:"執行追蹤",d:"運行軌跡與交接紀錄"},
+  {i:"fact_check",n:"品質成本",d:"產出評測與 Token 成本"}
+];
+var PINK="#db2777", PINK2="#f472b6", INDIGO="#4f46e5", SKY="#0ea5e9";
+
+/* ---------- helpers ---------- */
+function esc(s){ return String(s==null?"":s); }
+function kpi(l,ic,v,u,d,cls){ return '<div class="kpi"><div class="l"><span class="material-symbols-outlined">'+ic+'</span>'+l+'</div><div class="v">'+v+(u?' <small>'+u+'</small>':'')+'</div><div class="d '+(cls||'fl')+'">'+esc(d)+'</div></div>'; }
+function barrow(pct,color){ var p=Math.max(0,Math.min(100,pct)); return '<div class="bar"><span style="width:'+p+'%;background:'+color+'"></span></div>'; }
+function cbox(id,h){ return '<div class="chart-box" style="height:'+h+'px"><canvas id="'+id+'"></canvas></div>'; }
+
+var _charts=[];
+function killCharts(){ for(var k=0;k<_charts.length;k++){ try{ _charts[k].destroy(); }catch(e){} } _charts=[]; }
+Chart.defaults.font.family='Inter,"Noto Sans TC",sans-serif';
+Chart.defaults.animation=false;
+Chart.defaults.plugins.legend.labels.boxWidth=12;
+function mkChart(id,cfg){ var el=document.getElementById(id); if(!el) return; try{ var c=new Chart(el.getContext("2d"),cfg); _charts.push(c); }catch(e){} }
+
+/* =================== SCREEN 0 : 代理團隊 =================== */
+function v0(){
+  var agents=[
+    {ic:"account_tree",n:"編排代理",role:"Orchestrator",st:"run",p:"解析使用者目標、拆解子任務並規劃多代理協作 DAG。",stat:[["128","本日流程"],["1.9s","規劃"],["99.2","成功%"]],tags:['<span class="tag t-pink">規劃</span>','<span class="tag t-info">DAG</span>']},
+    {ic:"alt_route",n:"調度代理",role:"Dispatcher",st:"run",p:"依角色職能與負載將子任務推入佇列並分派給專責代理。",stat:[["412","已派工"],["6","佇列"],["98.6","準確%"]],tags:['<span class="tag t-pink">派工</span>','<span class="tag t-indigo">負載均衡</span>']},
+    {ic:"search",n:"檢索代理",role:"Retriever",st:"run",p:"從知識庫與向量索引檢索相關片段，供執行代理引用。",stat:[["1.2k","檢索次"],["0.4s","延遲"],["94.1","命中%"]],tags:['<span class="tag t-pink">RAG</span>','<span class="tag t-info">向量庫</span>']},
+    {ic:"handyman",n:"工具代理",role:"Tool Worker",st:"wait",p:"呼叫外部 API 與工具，整合回傳結果為中間產物。",stat:[["867","工具呼叫"],["3","重試中"],["96.8","成功%"]],tags:['<span class="tag t-pink">工具</span>','<span class="tag t-warn">待回應</span>']},
+    {ic:"shield_person",n:"監督代理",role:"Supervisor",st:"run",p:"監控交接軌跡、偵測卡關與逾時並升級人工介入。",stat:[["37","攔截"],["4","升級"],["100","覆蓋%"]],tags:['<span class="tag t-pink">監督</span>','<span class="tag t-bad">護欄</span>']},
+    {ic:"fact_check",n:"評測代理",role:"Evaluator",st:"idle",p:"對最終產出評分、比對事實並核算 Token 成本後放行。",stat:[["298","已評測"],["4.6","均分"],["0.9%","駁回"]],tags:['<span class="tag t-pink">評測</span>','<span class="tag t-indigo">成本</span>']}
+  ];
+  var stlbl={run:["run","運行中"],wait:["wait","等待中"],idle:["idle","待機"]};
+  var cards="";
+  for(var i=0;i<agents.length;i++){ var a=agents[i]; var st=stlbl[a.st]||stlbl.idle; var ss="";
+    for(var s=0;s<a.stat.length;s++){ ss+='<div><b>'+a.stat[s][0]+'</b><small>'+a.stat[s][1]+'</small></div>'; }
+    cards+='<div class="ac"><div class="ac-h"><div class="av"><span class="material-symbols-outlined">'+a.ic+'</span></div>'+
+      '<div><b>'+a.n+'</b><span>'+a.role+'</span></div>'+
+      '<div class="st"><span class="pulse '+st[0]+'"><i></i>'+st[1]+'</span></div></div>'+
+      '<p>'+a.p+'</p><div class="ac-stats">'+ss+'</div><div class="ac-tags">'+a.tags.join("")+'</div></div>';
+  }
+  return ''+
+  '<div class="vh"><div><h2><span class="material-symbols-outlined">smart_toy</span>代理團隊編組</h2>'+
+  '<p>6 個具備不同職能的 AI 代理人組成協作團隊，各自負責規劃、派工、檢索、工具、監督與評測，即時顯示運行狀態與產能。</p></div>'+
+  '<div><button class="btn ghost"><span class="material-symbols-outlined">tune</span>角色設定</button> <button class="btn"><span class="material-symbols-outlined">add</span>新增代理</button></div></div>'+
+  '<div class="kpis">'+
+    kpi("在編代理","groups",'6',"個","運行 4 · 待命 2","fl")+
+    kpi("本日任務量","bolt",'1,842',"","較昨 +12%","up")+
+    kpi("團隊成功率","verified",'98.4',"%","目標 99%","dn")+
+    kpi("平均延遲","timer",'2.3',"s","端到端","up")+
+  '</div>'+
+  '<div class="grid g2">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">groups</span>代理名冊與即時狀態</h3><div class="agents">'+cards+'</div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">radar</span>各代理能力雷達</h3>'+cbox("c0a",300)+
+      '<div class="mini"><div class="stat"><div class="l">協作交接次數</div><div class="v">3,271</div></div><div class="stat"><div class="l">零人工介入率</div><div class="v">91.5%</div></div></div>'+
+    '</div>'+
+  '</div>';
+}
+function v0init(){
+  mkChart("c0a",{type:"radar",
+    data:{labels:["規劃力","檢索力","工具整合","協作交接","品質把關","成本控制"],
+      datasets:[
+        {label:"編排代理",data:[95,70,60,92,80,75],borderColor:PINK,backgroundColor:"rgba(219,39,119,.18)",borderWidth:2,pointRadius:3},
+        {label:"工具代理",data:[62,80,96,74,68,82],borderColor:INDIGO,backgroundColor:"rgba(79,70,229,.14)",borderWidth:2,pointRadius:3}
+      ]},
+    options:{maintainAspectRatio:false,plugins:{legend:{position:"top"}},scales:{r:{min:0,max:100,ticks:{display:false},grid:{color:"#f0dbe6"},angleLines:{color:"#f0dbe6"},pointLabels:{font:{size:11}}}}}
+  });
+}
+
+/* =================== SCREEN 1 : 流程編排 (DAG) =================== */
+function v1(){
+  function node(cls,ic,n,role,meta){ return '<div class="dnode '+cls+'"><div class="dh"><span class="material-symbols-outlined">'+ic+'</span>'+n+'</div><div class="role">'+role+'</div><div class="meta">'+meta+'</div></div>'; }
+  var arr='<div class="arrow"><span class="material-symbols-outlined">arrow_forward</span></div>';
+  var dag=''+
+    '<div class="dag-row">'+
+      node("done","flag","意圖解析","編排代理",'<span class="tag t-ok">完成</span>')+arr+
+      node("done","account_tree","流程編排","編排代理",'<span class="tag t-ok">完成</span>')+arr+
+      node("act","call_split","任務分派","調度代理",'<span class="tag t-pink">進行中</span>')+
+    '</div>'+
+    '<div class="dag-row" style="padding-left:200px">'+
+      '<div class="dbranch">'+
+        node("act","search","知識檢索","檢索代理",'<span class="tag t-pink">進行中</span>')+
+        node("","handyman","工具呼叫","工具代理",'<span class="tag t-warn">待入</span>')+
+      '</div>'+
+      '<div class="arrow"><span class="material-symbols-outlined">merge</span></div>'+
+      node("","layers","結果彙整","監督代理",'<span class="tag t-grey">未開始</span>')+arr+
+      node("","fact_check","評測輸出","評測代理",'<span class="tag t-grey">未開始</span>')+
+    '</div>';
+  var wfs=[
+    {n:"市場競品分析報告",st:"run",prog:62,nodes:9,agents:5,eta:"3.4 分"},
+    {n:"客服工單自動分類",st:"run",prog:88,nodes:6,agents:4,eta:"0.8 分"},
+    {n:"合約條款風險摘要",st:"run",prog:41,nodes:11,agents:6,eta:"5.1 分"},
+    {n:"每週營運數據週報",st:"queue",prog:0,nodes:8,agents:5,eta:"排隊中"},
+    {n:"多語系商品文案生成",st:"done",prog:100,nodes:7,agents:4,eta:"已完成"}
+  ];
+  var stmap={run:['<span class="tag t-pink">運行中</span>',PINK],queue:['<span class="tag t-grey">佇列</span>',"#94a3b8"],done:['<span class="tag t-ok">完成</span>',"#16a34a"]};
+  var wr="";
+  for(var i=0;i<wfs.length;i++){ var w=wfs[i]; var m=stmap[w.st]||stmap.run;
+    wr+='<tr><td><b>'+w.n+'</b></td><td>'+w.nodes+' 節點</td><td>'+w.agents+' 代理</td>'+
+      '<td style="display:flex;align-items:center;gap:8px">'+barrow(w.prog,m[1])+'<span style="font-weight:800;color:'+m[1]+'">'+w.prog+'%</span></td>'+
+      '<td>'+w.eta+'</td><td>'+m[0]+'</td></tr>';
+  }
+  return ''+
+  '<div class="vh"><div><h2><span class="material-symbols-outlined">account_tree</span>多代理流程編排</h2>'+
+  '<p>編排代理將使用者目標拆解為子任務並設計協作 DAG，視覺化每個節點的負責代理、分支與匯合，可即時追蹤各工作流進度。</p></div>'+
+  '<div><button class="btn ghost"><span class="material-symbols-outlined">bolt</span>套用範本</button> <button class="btn"><span class="material-symbols-outlined">play_arrow</span>啟動流程</button></div></div>'+
+  '<div class="kpis">'+
+    kpi("編排範本","account_tree",'24',"套","啟用 18","fl")+
+    kpi("進行中流程","conversion_path",'3',"","佇列 1","up")+
+    kpi("平均節點數","hub",'8.2',"","每流程","fl")+
+    kpi("編排耗時","timer",'1.9',"s","目標流程","up")+
+  '</div>'+
+  '<div class="card"><h3><span class="material-symbols-outlined">schema</span>「市場競品分析報告」流程圖<span class="grow">節點 9 · 代理 5</span></h3>'+
+    '<div class="dag"><div class="dag-inner">'+dag+'</div></div></div>'+
+  '<div class="grid g2" style="margin-top:18px">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">table_rows</span>工作流佇列</h3><div class="tblwrap"><table class="tbl"><thead><tr><th>工作流</th><th>節點</th><th>代理</th><th>進度</th><th>預估</th><th>狀態</th></tr></thead><tbody>'+wr+'</tbody></table></div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">show_chart</span>近 8 小時流程吞吐</h3>'+cbox("c1a",250)+'</div>'+
+  '</div>';
+}
+function v1init(){
+  mkChart("c1a",{type:"line",
+    data:{labels:["09","10","11","12","13","14","15","16"],
+      datasets:[
+        {label:"啟動流程",data:[42,58,71,49,66,84,92,78],borderColor:PINK,backgroundColor:"rgba(219,39,119,.12)",borderWidth:3,tension:.4,fill:true,pointRadius:3},
+        {label:"完成流程",data:[38,52,64,47,60,79,88,74],borderColor:PINK2,borderWidth:2,tension:.4,pointRadius:2}
+      ]},
+    options:{maintainAspectRatio:false,plugins:{legend:{position:"top"}},scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:"#f0dbe6"},ticks:{font:{size:11}}}}}
+  });
+}
+
+/* =================== SCREEN 2 : 任務派工 (kanban + queue) =================== */
+function v2(){
+  var cols=[
+    {t:"待派工",ic:"inbox",n:3,cards:[
+      {ttl:"擷取競品定價頁",meta:["競品分析","P1"],who:"待分派",ic:"pending",tag:'<span class="tag t-warn">高優先</span>'},
+      {ttl:"客訴情緒分類",meta:["工單分類","P2"],who:"待分派",ic:"pending",tag:'<span class="tag t-info">批次</span>'},
+      {ttl:"合約條款切分",meta:["風險摘要","P1"],who:"待分派",ic:"pending",tag:'<span class="tag t-warn">高優先</span>'}
+    ]},
+    {t:"派工中",ic:"alt_route",n:2,cards:[
+      {ttl:"檢索產業報告",meta:["競品分析","P1"],who:"檢索代理",ic:"search",tag:'<span class="tag t-pink">配對</span>'},
+      {ttl:"呼叫翻譯 API",meta:["文案生成","P3"],who:"工具代理",ic:"handyman",tag:'<span class="tag t-indigo">工具</span>'}
+    ]},
+    {t:"執行中",ic:"bolt",n:3,cards:[
+      {ttl:"競品功能矩陣生成",meta:["競品分析","P1"],who:"執行代理 A",ic:"smart_toy",tag:'<span class="tag t-ok">運行</span>'},
+      {ttl:"營運指標彙整",meta:["營運週報","P2"],who:"執行代理 B",ic:"smart_toy",tag:'<span class="tag t-ok">運行</span>'},
+      {ttl:"多語系文案改寫",meta:["文案生成","P3"],who:"執行代理 C",ic:"smart_toy",tag:'<span class="tag t-ok">運行</span>'}
+    ]},
+    {t:"待交付",ic:"task_alt",n:2,cards:[
+      {ttl:"工單分類結果",meta:["工單分類","P2"],who:"評測代理",ic:"fact_check",tag:'<span class="tag t-grey">評測中</span>'},
+      {ttl:"競品分析初稿",meta:["競品分析","P1"],who:"監督代理",ic:"shield_person",tag:'<span class="tag t-grey">複核</span>'}
+    ]}
+  ];
+  var board="";
+  for(var i=0;i<cols.length;i++){ var col=cols[i]; var cc="";
+    for(var j=0;j<col.cards.length;j++){ var c=col.cards[j];
+      cc+='<div class="tk"><b>'+c.ttl+'</b><div class="meta">'+c.tag+'<span>'+c.meta.join(" · ")+'</span></div><div class="who"><span class="av"><span class="material-symbols-outlined">'+c.ic+'</span></span>'+c.who+'</div></div>';
+    }
+    board+='<div class="col"><h4><span class="material-symbols-outlined" style="font-size:18px;color:var(--pink)">'+col.ic+'</span>'+col.t+'<span class="n">'+col.n+'</span></h4>'+cc+'</div>';
+  }
+  var q=[
+    {id:"TQ-4821",task:"擷取競品定價頁",agent:"檢索代理",pri:"P1",wait:"12s",st:"ok"},
+    {id:"TQ-4822",task:"客訴情緒分類",agent:"執行代理 A",pri:"P2",wait:"48s",st:"ok"},
+    {id:"TQ-4823",task:"合約條款切分",agent:"執行代理 B",pri:"P1",wait:"1m 04s",st:"warn"},
+    {id:"TQ-4824",task:"呼叫翻譯 API",agent:"工具代理",pri:"P3",wait:"2m 31s",st:"bad"},
+    {id:"TQ-4825",task:"營運指標彙整",agent:"執行代理 C",pri:"P2",wait:"22s",st:"ok"}
+  ];
+  var qr="";
+  for(var k=0;k<q.length;k++){ var r=q[k];
+    var tag=r.st==="bad"?'<span class="tag t-bad">逾時</span>':r.st==="warn"?'<span class="tag t-warn">偏長</span>':'<span class="tag t-ok">正常</span>';
+    var pt=r.pri==="P1"?'<span class="tag t-bad">'+r.pri+'</span>':r.pri==="P2"?'<span class="tag t-warn">'+r.pri+'</span>':'<span class="tag t-grey">'+r.pri+'</span>';
+    qr+='<tr><td><b>'+r.id+'</b></td><td>'+r.task+'</td><td>'+r.agent+'</td><td>'+pt+'</td><td>'+r.wait+'</td><td>'+tag+'</td></tr>';
+  }
+  return ''+
+  '<div class="vh"><div><h2><span class="material-symbols-outlined">playlist_add_check</span>子任務派工調度</h2>'+
+  '<p>調度代理依角色職能與即時負載，將流程拆出的子任務推入佇列並分派給對應代理，看板呈現每項任務的負責代理與流轉狀態。</p></div>'+
+  '<div><button class="btn ghost"><span class="material-symbols-outlined">balance</span>負載均衡</button> <button class="btn"><span class="material-symbols-outlined">bolt</span>手動派工</button></div></div>'+
+  '<div class="kpis">'+
+    kpi("待派工任務","inbox",'3',"","高優先 2","dn")+
+    kpi("執行中任務","bolt",'8',"","3 代理承載","up")+
+    kpi("平均等待","timer",'34',"s","目標 <60s","up")+
+    kpi("派工成功率","verified",'98.6',"%","重試 3 筆","fl")+
+  '</div>'+
+  '<div class="card"><h3><span class="material-symbols-outlined">view_kanban</span>任務派工看板</h3><div style="overflow-x:auto"><div class="board" style="min-width:680px">'+board+'</div></div></div>'+
+  '<div class="grid g2" style="margin-top:18px">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">receipt_long</span>佇列即時明細</h3><div class="tblwrap"><table class="tbl"><thead><tr><th>任務 ID</th><th>子任務</th><th>派給</th><th>優先</th><th>等待</th><th>狀態</th></tr></thead><tbody>'+qr+'</tbody></table></div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>各代理承載任務數</h3>'+cbox("c2a",250)+'</div>'+
+  '</div>';
+}
+function v2init(){
+  mkChart("c2a",{type:"bar",
+    data:{labels:["執行A","執行B","執行C","檢索","工具","監督"],
+      datasets:[
+        {label:"執行中",data:[3,2,3,2,1,1],backgroundColor:PINK,borderRadius:4,barPercentage:.6},
+        {label:"排隊",data:[2,3,1,4,3,0],backgroundColor:PINK2,borderRadius:4,barPercentage:.6}
+      ]},
+    options:{maintainAspectRatio:false,plugins:{legend:{position:"top"}},scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:11}}},y:{stacked:true,grid:{color:"#f0dbe6"},ticks:{font:{size:11}}}}}
+  });
+}
+
+/* =================== SCREEN 3 : 工具與知識 =================== */
+function v3(){
+  var tools=[
+    {ic:"language",n:"Web 搜尋 API",s:"外部搜尋 · 428 次呼叫",st:"ok"},
+    {ic:"database",n:"SQL 查詢器",s:"營運資料庫 · 213 次",st:"ok"},
+    {ic:"translate",n:"翻譯服務",s:"多語系 · 96 次 · 3 重試",st:"warn"},
+    {ic:"calculate",n:"程式碼執行沙箱",s:"數值運算 · 74 次",st:"ok"},
+    {ic:"mail",n:"通知寄送",s:"報告派送 · 41 次",st:"ok"},
+    {ic:"picture_as_pdf",n:"文件解析器",s:"PDF 擷取 · 15 次 · 逾時",st:"bad"}
+  ];
+  var tr="";
+  for(var i=0;i<tools.length;i++){ var t=tools[i];
+    var tag=t.st==="bad"?'<span class="tag t-bad">異常</span>':t.st==="warn"?'<span class="tag t-warn">重試</span>':'<span class="tag t-ok">正常</span>';
+    tr+='<div class="toolrow"><div class="tool-ic"><span class="material-symbols-outlined">'+t.ic+'</span></div><div class="ti"><b>'+t.n+'</b><small>'+t.s+'</small></div>'+tag+'</div>';
+  }
+  var kbs=[
+    {t:"競品定價策略 2024 白皮書",score:"0.94",src:["產業知識庫","第 12 頁"]},
+    {t:"客服工單分類標準作業流程",score:"0.91",src:["內部 SOP","段落 3.2"]},
+    {t:"合約風險條款判例彙編",score:"0.88",src:["法務知識庫","案例 A-207"]}
+  ];
+  var kr="";
+  for(var j=0;j<kbs.length;j++){ var k=kbs[j];
+    kr+='<div class="kbcard"><div class="kh"><span class="material-symbols-outlined" style="color:var(--pink);font-size:18px">article</span>'+k.t+'<span class="grow tag t-pink">相似 '+k.score+'</span></div>'+
+      '<p>已由檢索代理擷取並注入執行代理的提示脈絡，作為引用來源與事實依據。</p>'+
+      '<div class="src"><span class="material-symbols-outlined" style="font-size:14px">folder</span>'+k.src.join(" · ")+'</div></div>';
+  }
+  return ''+
+  '<div class="vh"><div><h2><span class="material-symbols-outlined">handyman</span>工具呼叫與知識檢索</h2>'+
+  '<p>執行代理透過工具集呼叫外部 API，並由檢索代理從向量知識庫取回相關片段，將工具回傳與檢索結果整合為可用的中間產物。</p></div>'+
+  '<div><button class="btn ghost"><span class="material-symbols-outlined">extension</span>工具管理</button> <button class="btn"><span class="material-symbols-outlined">upload_file</span>匯入知識</button></div></div>'+
+  '<div class="kpis">'+
+    kpi("已註冊工具","extension",'18',"個","啟用 15","fl")+
+    kpi("本日工具呼叫","api",'867',"","成功 96.8%","up")+
+    kpi("知識庫命中","search",'94.1',"%","向量檢索","up")+
+    kpi("平均檢索延遲","bolt",'0.4',"s","目標 <1s","up")+
+  '</div>'+
+  '<div class="grid g2">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">handyman</span>工具呼叫統計</h3>'+tr+'</div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">bookmark</span>本次流程引用來源</h3>'+kr+
+      '<div class="mini"><div class="stat"><div class="l">注入脈絡片段</div><div class="v">12</div></div><div class="stat"><div class="l">引用可溯源率</div><div class="v">100%</div></div></div>'+
+    '</div>'+
+  '</div>'+
+  '<div class="card" style="margin-top:18px"><h3><span class="material-symbols-outlined">stacked_bar_chart</span>各工具呼叫量與成功／失敗</h3>'+cbox("c3a",260)+'</div>';
+}
+function v3init(){
+  mkChart("c3a",{type:"bar",
+    data:{labels:["Web 搜尋","SQL 查詢","翻譯","沙箱","通知","文件解析"],
+      datasets:[
+        {label:"成功",data:[421,213,93,74,41,11],backgroundColor:PINK,borderRadius:4,barPercentage:.55},
+        {label:"失敗/重試",data:[7,0,3,0,0,4],backgroundColor:"#dc2626",borderRadius:4,barPercentage:.55}
+      ]},
+    options:{maintainAspectRatio:false,indexAxis:"y",plugins:{legend:{position:"top"}},scales:{x:{stacked:true,grid:{color:"#f0dbe6"},ticks:{font:{size:11}}},y:{stacked:true,grid:{display:false},ticks:{font:{size:11}}}}}
+  });
+}
+
+/* =================== SCREEN 4 : 執行追蹤 (trace timeline) =================== */
+function v4(){
+  var trace=[
+    {c:"a-pink",ic:"flag",b:"編排代理 · 意圖解析",t:"14:02:11",p:"接收目標「產出主要競品的功能與定價比較報告」，拆解為 9 個子任務並生成協作 DAG。",kv:["耗時 1.8s","Token 3,120","模型 opus"]},
+    {c:"a-info",ic:"alt_route",b:"調度代理 · 任務分派",t:"14:02:13",p:"將檢索、工具呼叫、彙整等子任務推入佇列，依負載分派給 5 個專責代理。",kv:["派工 9 筆","佇列 34s"]},
+    {c:"a-pink",ic:"search",b:"檢索代理 · 知識檢索",t:"14:02:20",p:"從產業知識庫取回 12 段相關片段，最高相似度 0.94，注入執行代理脈絡。",kv:["命中 12 段","延遲 0.4s"]},
+    {c:"a-amber",ic:"handyman",b:"工具代理 · Web 搜尋",t:"14:02:41",p:"呼叫搜尋與 SQL 工具取得競品即時定價，翻譯工具首次逾時，第 2 次重試成功。",kv:["工具 3 次","重試 1 次"]},
+    {c:"a-info",ic:"smart_toy",b:"執行代理 · 產出彙整",t:"14:03:16",p:"整合檢索片段與工具回傳，生成競品功能矩陣與定價比較初稿。",kv:["Token 8,940","段落 6"]},
+    {c:"a-red",ic:"shield_person",b:"監督代理 · 護欄攔截",t:"14:03:28",p:"偵測初稿引用了無來源的定價數字，退回執行代理補上可溯源引用後放行。",kv:["攔截 1 筆","已修正"]},
+    {c:"a-ok",ic:"fact_check",b:"評測代理 · 品質放行",t:"14:03:52",p:"事實一致性與完整度評分 4.6／5 通過門檻，輸出最終報告與完整運行軌跡。",kv:["評分 4.6","成本 $0.21"]}
+  ];
+  var tl="";
+  for(var i=0;i<trace.length;i++){ var e=trace[i]; var kv="";
+    for(var k=0;k<e.kv.length;k++){ kv+='<span class="chip">'+e.kv[k]+'</span>'; }
+    tl+='<div class="tr"><div class="tr-ic '+e.c+'"><span class="material-symbols-outlined">'+e.ic+'</span></div>'+
+      '<div class="tr-body"><div class="th"><b>'+e.b+'</b><span class="t">'+e.t+'</span></div><p>'+e.p+'</p><div class="kv">'+kv+'</div></div></div>';
+  }
+  var hops=[
+    {ic:"flag",n:"意圖解析",s:"編排",col:PINK},
+    {ic:"alt_route",n:"分派",s:"調度",col:INDIGO},
+    {ic:"search",n:"檢索",s:"檢索",col:SKY},
+    {ic:"handyman",n:"工具",s:"工具",col:"#f59e0b"},
+    {ic:"shield_person",n:"護欄",s:"監督",col:"#dc2626"},
+    {ic:"fact_check",n:"評測",s:"評測",col:"#16a34a"}
+  ];
+  var hf="";
+  for(var h=0;h<hops.length;h++){ var hp=hops[h];
+    hf+='<div class="hf-node"><div class="b" style="background:'+hp.col+'"><span class="material-symbols-outlined">'+hp.ic+'</span></div><small>'+hp.n+'</small><span>'+hp.s+'代理</span></div>';
+    if(h<hops.length-1) hf+='<div class="hf-line"></div>';
+  }
+  return ''+
+  '<div class="vh"><div><h2><span class="material-symbols-outlined">timeline</span>執行追蹤與代理交接</h2>'+
+  '<p>完整記錄一次工作流的運行軌跡，逐步呈現每個代理的動作、耗時、Token 與交接關係，護欄攔截與升級皆可稽核回溯。</p></div>'+
+  '<div><button class="btn ghost"><span class="material-symbols-outlined">download</span>匯出軌跡</button> <button class="btn"><span class="material-symbols-outlined">replay</span>重播</button></div></div>'+
+  '<div class="kpis">'+
+    kpi("追蹤步驟","footprint",'7',"步","單次流程","fl")+
+    kpi("端到端耗時","timer",'1m 41s','',"含 1 次重試","fl")+
+    kpi("代理交接","swap_horiz",'6',"次","零遺漏","up")+
+    kpi("護欄攔截","shield",'1',"次","已修正","dn")+
+  '</div>'+
+  '<div class="card"><h3><span class="material-symbols-outlined">route</span>代理交接鏈</h3><div class="hf"><div class="hf-inner">'+hf+'</div></div></div>'+
+  '<div class="grid g2" style="margin-top:18px">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">manage_history</span>運行軌跡 · 競品分析報告</h3><div class="trace">'+tl+'</div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">donut_large</span>各步驟耗時佔比</h3>'+cbox("c4a",260)+
+      '<div class="mini"><div class="stat"><div class="l">總 Token</div><div class="v">21,540</div></div><div class="stat"><div class="l">升級人工</div><div class="v">0 次</div></div></div>'+
+    '</div>'+
+  '</div>';
+}
+function v4init(){
+  mkChart("c4a",{type:"doughnut",
+    data:{labels:["意圖解析","檢索","工具呼叫","產出彙整","評測複核"],
+      datasets:[{data:[8,14,32,38,8],backgroundColor:[PINK,PINK2,INDIGO,SKY,"#16a34a"],borderWidth:2,borderColor:"#fff"}]},
+    options:{maintainAspectRatio:false,cutout:"58%",plugins:{legend:{position:"bottom",labels:{font:{size:11}}}}}
+  });
+}
+
+/* =================== SCREEN 5 : 品質成本 (eval matrix + cost) =================== */
+function v5(){
+  var rows=[
+    {n:"競品分析報告",acc:4.7,comp:4.6,cite:4.8,cost:0.21,tok:"21.5k"},
+    {n:"客服工單分類",acc:4.9,comp:4.5,cite:4.2,cost:0.04,tok:"3.8k"},
+    {n:"合約風險摘要",acc:4.3,comp:4.7,cite:4.9,cost:0.33,tok:"34.2k"},
+    {n:"營運數據週報",acc:4.6,comp:4.8,cite:4.4,cost:0.18,tok:"18.1k"},
+    {n:"多語系文案生成",acc:3.9,comp:4.2,cite:3.6,cost:0.09,tok:"9.4k"}
+  ];
+  function sc(v){ var cls=v>=4.5?"sc-hi":v>=4.0?"sc-mid":"sc-lo"; return '<span class="score '+cls+'">'+v.toFixed(1)+'</span>'; }
+  var mb="";
+  for(var i=0;i<rows.length;i++){ var r=rows[i];
+    mb+='<tr><td>'+r.n+'</td><td>'+sc(r.acc)+'</td><td>'+sc(r.comp)+'</td><td>'+sc(r.cite)+'</td><td>$'+r.cost.toFixed(2)+'</td><td>'+r.tok+'</td></tr>';
+  }
+  return ''+
+  '<div class="vh"><div><h2><span class="material-symbols-outlined">fact_check</span>品質評測與成本核算</h2>'+
+  '<p>評測代理對每個工作流產出進行事實準確、完整度與可溯源評分，並核算 Token 用量與成本，未達門檻者自動駁回重跑。</p></div>'+
+  '<div><button class="btn ghost"><span class="material-symbols-outlined">rule</span>評測標準</button> <button class="btn"><span class="material-symbols-outlined">download</span>成本報表</button></div></div>'+
+  '<div class="kpis">'+
+    kpi("平均品質分","grade",'4.6',"/5","通過門檻 4.0","up")+
+    kpi("本日產出","inventory_2",'298',"件","駁回 3 件","fl")+
+    kpi("Token 用量","token",'2.14',"M","較昨 -8%","up")+
+    kpi("本日成本","payments",'$62.4',"","單件 $0.21","up")+
+  '</div>'+
+  '<div class="card"><h3><span class="material-symbols-outlined">grading</span>各工作流評測矩陣<span class="grow">準確 · 完整 · 可溯源</span></h3>'+
+    '<div class="mtx"><table><thead><tr><th>工作流</th><th>事實準確</th><th>完整度</th><th>可溯源</th><th>成本</th><th>Token</th></tr></thead><tbody>'+mb+'</tbody></table></div></div>'+
+  '<div class="grid g2b" style="margin-top:18px">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">trending_up</span>近 7 日品質分趨勢</h3>'+cbox("c5a",240)+'</div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">savings</span>各工作流成本佔比</h3>'+cbox("c5b",240)+'</div>'+
+  '</div>';
+}
+function v5init(){
+  mkChart("c5a",{type:"line",
+    data:{labels:["8/7","8/8","8/9","8/10","8/11","8/12","8/13"],
+      datasets:[
+        {label:"平均品質分",data:[4.2,4.3,4.4,4.4,4.5,4.5,4.6],borderColor:PINK,backgroundColor:"rgba(219,39,119,.12)",borderWidth:3,tension:.4,fill:true,pointRadius:3},
+        {label:"通過門檻",data:[4,4,4,4,4,4,4],borderColor:"#94a3b8",borderWidth:1.5,borderDash:[5,4],pointRadius:0}
+      ]},
+    options:{maintainAspectRatio:false,plugins:{legend:{position:"top"}},scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{min:3.5,max:5,grid:{color:"#f0dbe6"},ticks:{font:{size:11}}}}}
+  });
+  mkChart("c5b",{type:"doughnut",
+    data:{labels:["合約風險摘要","競品分析","營運週報","文案生成","工單分類"],
+      datasets:[{data:[33,25,19,14,9],backgroundColor:[PINK,PINK2,INDIGO,SKY,"#fbcfe8"],borderWidth:2,borderColor:"#fff"}]},
+    options:{maintainAspectRatio:false,cutout:"58%",plugins:{legend:{position:"bottom",labels:{font:{size:11}}}}}
+  });
+}
+
+/* ---------- router ---------- */
+var SCREENS=[{r:v0,i:v0init},{r:v1,i:v1init},{r:v2,i:v2init},{r:v3,i:v3init},{r:v4,i:v4init},{r:v5,i:v5init}];
+function buildNav(){
+  var nav=document.getElementById("nav"), h="";
+  for(var i=0;i<MODS.length;i++){ h+='<button data-i="'+i+'" onclick="show('+i+')"><span class="material-symbols-outlined">'+MODS[i].i+'</span><span class="txt">'+MODS[i].n+'</span></button>'; }
+  nav.innerHTML=h;
+}
+function show(i){
+  i=Math.max(0,Math.min(SCREENS.length-1,i|0));
+  killCharts();
+  var btns=document.querySelectorAll("[data-i]");
+  for(var b=0;b<btns.length;b++){ btns[b].classList.toggle("on", +btns[b].getAttribute("data-i")===i); }
+  var container=document.getElementById("view");
+  container.innerHTML=SCREENS[i].r();
+  void container.offsetHeight;
+  SCREENS[i].i();
+}
+buildNav();
+show(0);
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m)return;var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>
