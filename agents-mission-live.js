@@ -473,126 +473,41 @@
     if (window.requestAnimationFrame) requestAnimationFrame(doScroll); else doScroll();
   }
 
-  // 串流收尾用：不重新揭示（區塊已逐一長出），只加「可點選 + 一次全頁掃描」
-  var SELECT_SWEEP = [
-    '<style>[data-jvrx]:hover{outline:1.5px dashed rgba(99,102,241,.55);outline-offset:3px;cursor:pointer}',
-    '.jvrx-sel{outline:2px solid #6366f1!important;outline-offset:3px}',
-    '#jvrx-sweep{position:fixed;left:0;right:0;height:140px;pointer-events:none;z-index:99999;',
-    'background:linear-gradient(180deg,transparent,rgba(99,102,241,.16),rgba(99,102,241,.03),transparent);transform:translateY(-160px)}</style>',
-    '<script>(function(){function f(n){return n.nodeType===1&&!/^(SCRIPT|STYLE|LINK|BR)$/.test(n.tagName);}',
-    'var k=[].filter.call(document.body.children,f);if(k.length<=1&&k[0]){var i2=[].filter.call(k[0].children,f);if(i2.length>=2)k=i2;}',
-    'k.forEach(function(el,i){el.setAttribute("data-jvrx",i);el.addEventListener("click",function(ev){ev.stopPropagation();',
-    'var was=el.classList.contains("jvrx-sel");k.forEach(function(x){x.classList.remove("jvrx-sel");});if(!was)el.classList.add("jvrx-sel");',
-    'try{parent.postMessage({jvrx:"select",index:i+1,total:k.length,selected:!was},"*");}catch(e){}});});',
-    'var s=document.createElement("div");s.id="jvrx-sweep";document.body.appendChild(s);',
-    'var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight),t0=null;',
-    'function a(ts){if(t0===null)t0=ts;var p=(ts-t0)/950;s.style.transform="translateY("+(-160+p*(h+200))+"px)";',
-    'if(p<1)requestAnimationFrame(a);else s.remove();}requestAnimationFrame(a);',
-    'try{parent.postMessage({jvrx:"ready"},"*");}catch(e){}})();<\/script>'
+  // 生成中的骨架動畫（遮蔽 繪境 尚在生成的過程，避免「卡在一個區塊」讓人以為壞掉）
+  var SKELETON_HTML = [
+    '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>',
+    'body{margin:0;font-family:system-ui,"Noto Sans TC";background:#f6f8fb;padding:22px}',
+    '.sk{background:linear-gradient(90deg,#e7edf5 25%,#f3f7fb 37%,#e7edf5 63%);background-size:400% 100%;animation:sh 1.3s ease infinite;border-radius:14px}',
+    '@keyframes sh{0%{background-position:100% 0}100%{background-position:-100% 0}}@keyframes bl{0%,100%{opacity:.25}50%{opacity:1}}',
+    '.h{height:118px;margin-bottom:18px}.row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}',
+    '.c{height:112px}.big{height:250px;margin-bottom:18px}',
+    '.lbl{display:flex;gap:8px;align-items:center;justify-content:center;color:#64748b;font-size:13px;font-weight:700;margin-top:6px}',
+    '.dot{width:9px;height:9px;border-radius:50%;background:#6366f1;animation:bl 1s infinite}',
+    '@media(max-width:640px){.row{grid-template-columns:1fr 1fr}}</style></head><body>',
+    '<div class="sk h"></div>',
+    '<div class="row"><div class="sk c"></div><div class="sk c"></div><div class="sk c"></div></div>',
+    '<div class="sk big"></div>',
+    '<div class="row"><div class="sk c"></div><div class="sk c"></div><div class="sk c"></div></div>',
+    '<div class="lbl"><span class="dot"></span> 繪境正在設計報告，稍候整頁會一起呈現…</div>',
+    '</body></html>'
   ].join("");
 
-  // 掃描出可安全寫入的結尾索引：優先在「內容同層」的完整區塊邊界斷開（避免半個標籤 → 不閃不卡）。
-  // 從 0 全掃以正確計算巢狀深度；last[d]=在深度 d 收尾的最後位置。頁面常把整份包在單一外層 <div> 內，
-  // 此時 last[0] 一直停在 0，就改用 last[1]（外層的子區塊）→ 才能一塊一塊長出來。
-  function completeBlocksEnd(s, from) {
-    var VOID = { br: 1, img: 1, meta: 1, link: 1, input: 1, hr: 1, area: 1, base: 1, col: 1, embed: 1, source: 1, track: 1, wbr: 1 };
-    var depth = 0, i = 0, n = s.length, last = [0, 0, 0];
-    function mark(pos) { if (depth <= 2) last[depth] = pos; }
-    while (i < n) {
-      var lt = s.indexOf("<", i);
-      if (lt < 0) break;
-      if (s.substr(lt, 4) === "<!--") { var ce = s.indexOf("-->", lt + 4); if (ce < 0) break; i = ce + 3; mark(i); continue; }
-      var gt = s.indexOf(">", lt + 1);
-      if (gt < 0) break; // 標籤還沒收完
-      var tag = s.slice(lt + 1, gt);
-      if (tag.charAt(0) === "/") {
-        var cn = (tag.match(/^\/\s*([a-zA-Z][\w-]*)/) || [])[1];
-        if (cn && /^(body|html)$/i.test(cn)) { last[0] = Math.max(last[0], lt); break; }
-        depth = Math.max(0, depth - 1); i = gt + 1; mark(i); continue;
-      }
-      var name = ((tag.match(/^([a-zA-Z][\w-]*)/) || [])[1] || "").toLowerCase();
-      if (name === "script" || name === "style") {
-        var m = new RegExp("</" + name + "\\s*>", "i").exec(s.slice(gt + 1));
-        if (!m) break; // script/style 還沒結束
-        i = gt + 1 + m.index + m[0].length; mark(i); continue;
-      }
-      if (/\/$/.test(tag) || VOID[name]) { i = gt + 1; mark(i); continue; }
-      depth++; i = gt + 1;
-    }
-    // 挑「最淺、且比已寫入更前面」的邊界：頂層有完整區塊就用頂層；否則降一層（單一外層包裹）、再降一層
-    if (last[0] > from) return last[0];
-    if (last[0] === 0) {
-      if (last[1] > from) return last[1];
-      if (last[1] === 0 && last[2] > from) return last[2];
-    }
-    return from;
-  }
-
-  function scrollIframeBottom() {
-    try {
-      var w = $("#resultFrame").contentWindow, d = w.document;
-      var el = d.scrollingElement || d.documentElement || d.body;
-      w.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    } catch (e) { }
-  }
-
-  // 區塊化串流：只把「已完整的頂層區塊」寫進 iframe（樣式在 shell 就位 → 邊生成邊順順長出真實內容）
+  // 生成中：只顯示一次骨架（不逐塊串流，避免卡住看起來壞掉）。定稿後由 renderPage 一次揭示（區塊逐一淡入 + 掃描）。
   function renderPageStream(chunk) {
-    if (state.streamDone) return;
+    if (state.streamDone || state.skelShown) return;
     var f = $("#resultFrame"); if (!f) return;
-    state.pageAccum = (state.pageAccum || "") + chunk;
-    if (!state.streamStarted) {
-      state.streamStarted = true;
-      var lr = $("#liveResult"); if (lr) lr.style.display = "none";
-      f.style.display = ""; f.style.width = "100%"; f.style.height = "620px"; f.style.border = "0";
-      f.removeAttribute("src"); f.removeAttribute("srcdoc");
-      if ($("#resultKind")) $("#resultKind").textContent = "AI 設計中";
-      if ($("#frameLive")) $("#frameLive").innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400" style="animation:jvb 1s infinite"></span> 設計中…';
-      scrollToResult();
-    }
-    // shell（<head> 樣式 + echarts CDN + <body ...>）一到齊就先寫入，讓樣式從頭就穩定
-    if (!state.shellDone) {
-      var bm = /<body[^>]*>/i.exec(state.pageAccum);
-      if (!bm) return;
-      try {
-        var d0 = f.contentDocument || (f.contentWindow && f.contentWindow.document);
-        d0.open(); d0.write(state.pageAccum.slice(0, bm.index + bm[0].length));
-        state.streamDoc = d0;
-      } catch (e) { state.streamDoc = null; }
-      state.shellDone = true;
-      state.bodyStart = bm.index + bm[0].length;
-      state.flushedBodyLen = 0;
-    }
-    if (!state.streamDoc) return;
-    var body = state.pageAccum.slice(state.bodyStart);
-    var end = completeBlocksEnd(body, state.flushedBodyLen);
-    if (end > state.flushedBodyLen) {
-      try { state.streamDoc.write(body.slice(state.flushedBodyLen, end)); } catch (e) { }
-      state.flushedBodyLen = end;
-      scrollIframeBottom(); // iframe 內部自動往下跟著目前長出的區塊
-    }
+    state.skelShown = true;
+    var lr = $("#liveResult"); if (lr) lr.style.display = "none";
+    f.style.display = ""; f.style.width = "100%"; f.style.height = "620px"; f.style.border = "0";
+    f.removeAttribute("src"); f.setAttribute("srcdoc", SKELETON_HTML);
+    if ($("#resultKind")) $("#resultKind").textContent = "AI 設計中";
+    if ($("#frameLive")) $("#frameLive").innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400" style="animation:jvb 1s infinite"></span> 設計中…';
+    scrollToResult();
   }
 
-  // 串流收尾：補齊剩餘 + 加可點選/掃描 + 收尾；若串流沒成功則整頁換乾淨版
+  // 定稿：換成乾淨完整頁，並用 injectReveal 做「區塊逐一淡入 + 掃描 + 可點選」（在完整 DOM 上揭示，能正確處理外層包裹）
   function finalizeStream(e) {
-    if (state.shellDone && state.streamDoc && /<\/html>/i.test(state.pageAccum || "")) {
-      try {
-        var body = state.pageAccum.slice(state.bodyStart);
-        var rest = body.slice(state.flushedBodyLen);
-        var m = /<\/body\s*>/i.exec(rest);
-        state.streamDoc.write(m ? rest.slice(0, m.index) : rest);
-        state.streamDoc.write(SELECT_SWEEP);
-        state.streamDoc.write("</body></html>");
-        state.streamDoc.close();
-      } catch (err) { }
-      state.dash = { title: e.title, sub: e.sub, pageHtml: e.html };
-      if ($("#resultTitle")) $("#resultTitle").textContent = e.title || "報告";
-      if ($("#resultKind")) $("#resultKind").textContent = "AI 產出";
-      if ($("#frameLive")) $("#frameLive").innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-success"></span> 已完成';
-      scrollToResult();
-    } else {
-      renderPage(e.title, e.sub, e.html); scrollToResult();
-    }
+    renderPage(e.title, e.sub, e.html); scrollToResult();
   }
 
   // ===== 文字報告模式（Markdown + 內嵌圖表 + 重點標色 + 可放大 + 連結）=====
@@ -877,8 +792,7 @@
   async function runMission(question, mode) {
     if (state.running) return;
     setBusy(true); state.mode = mode || "task"; state.bubbles = {}; state.done = 0; state.total = 0; state.dash = null;
-    state.streamDone = false; state.streamStarted = false; state.shellDone = false;
-    state.streamDoc = null; state.pageAccum = ""; state.bodyStart = 0; state.flushedBodyLen = 0;
+    state.streamDone = false; state.skelShown = false;
     state.output = "html"; state.reportAccum = ""; state.reportStarted = false; state.reportDone = false; state._rPaint = 0;
     try { reportCharts.forEach(function (c) { try { c.dispose(); } catch (e) { } }); } catch (e) { } reportCharts = [];
     var _op = $("#resultOpen"); if (_op) _op.style.display = "";
