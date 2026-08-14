@@ -9,27 +9,120 @@
   var DM = { "internal-sim": ["內部系統", "#2563eb"], "external-real": ["外部查證", "#0d9488"], "reasoning": ["推理彙整", "#7c3aed"] };
 
   var state = { mode: "task", running: false, total: 0, done: 0, bubbles: {} };
+  var DESIGN_CSS = "";
   (function injectCss() {
     var s = document.createElement("style");
-    s.textContent = [
+    DESIGN_CSS = [
       "@keyframes jvb{0%,100%{opacity:.3}50%{opacity:1}}@keyframes jvspin{to{transform:rotate(360deg)}}@keyframes jvfade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}",
       // ── 結果畫面設計系統（比照 demo：卡片 / KPI / 圖表 / 表格 / 提示；RWD）──
       "#liveResult .jv-h{font-size:15px;font-weight:800;color:#0f172a;margin:0 0 10px;display:flex;align-items:center;gap:6px}",
       "#liveResult .jv-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}",
-      "#liveResult .jv-kpi{background:#f8fafc;border:1px solid #e8eef5;border-radius:14px;padding:14px}",
-      "#liveResult .jv-kpi .v{font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-.5px;line-height:1.1}",
+      "#liveResult .jv-kpi{background:var(--jvbg,#f8fafc);border:1px solid #e8eef5;border-left:3px solid var(--jvaccent,#2563eb);border-radius:14px;padding:14px}",
+      "#liveResult .jv-kpi .v{font-size:26px;font-weight:800;color:var(--jvaccent,#0f172a);letter-spacing:-.5px;line-height:1.1}",
       "#liveResult .jv-kpi .l{font-size:12px;color:#64748b;font-weight:600;margin-top:4px}",
       "#liveResult .jv-chart{width:100%;height:230px;margin:6px 0 14px}",
       "#liveResult table.jv-table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0 14px}",
       "#liveResult .jv-table th{background:#f4f8fb;color:#64748b;font-size:11.5px;font-weight:700;text-align:left;padding:8px 10px;border-bottom:1px solid #e2e8f0}",
       "#liveResult .jv-table td{padding:8px 10px;border-bottom:1px solid #eef2f7;color:#334155}",
-      "#liveResult .jv-note{background:#f5f8ff;border:1px solid #dbe6f5;border-left:3px solid #2563eb;border-radius:10px;padding:10px 12px;font-size:13px;color:#334155;line-height:1.7}",
-      "#liveResult .jv-note a{color:#2563eb;text-decoration:underline;word-break:break-all}",
+      "#liveResult .jv-note{background:var(--jvbg,#f5f8ff);border:1px solid #dbe6f5;border-left:3px solid var(--jvaccent,#2563eb);border-radius:10px;padding:10px 12px;font-size:13px;color:#334155;line-height:1.7}",
+      "#liveResult .jv-note a{color:var(--jvaccent,#2563eb);text-decoration:underline;word-break:break-all}",
       "#liveResult .jvsec{background:#fff;border:1px solid #e6ebf2;border-radius:16px;padding:16px;box-shadow:0 1px 2px rgba(15,23,42,.04)}",
-      "@media(max-width:520px){#liveResult .jv-kpis{grid-template-columns:repeat(2,1fr)}}"
+      // ── 統一儀表板骨架 ──
+      "#liveResult .jvdash-h{margin-bottom:14px}",
+      "#liveResult .jvdash-t{font-size:18px;font-weight:800;color:var(--jvaccent,#0f172a);letter-spacing:-.3px}",
+      "#liveResult .jvdash-s{font-size:12px;color:#64748b;margin-top:3px}",
+      "#liveResult .jvdash-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;align-items:start}",
+      "#liveResult .jvblk{min-width:0;transition:box-shadow .5s}",
+      // 圖表/表格 = 主次面板（白卡）；KPI/結論 = 整條帶（透明，內容自帶樣式）
+      "#liveResult .jvblk-chart,#liveResult .jvblk-table,#liveResult .jvblk-timeline{background:#fff;border:1px solid #e6ebf2;border-top:3px solid var(--jvaccent,#2563eb);border-radius:16px;padding:16px;box-shadow:0 1px 2px rgba(15,23,42,.05)}",
+      "#liveResult .jvblk-kpi,#liveResult .jvblk-note{background:transparent;padding:0}",
+      "#liveResult .jvblk-ph{font-size:12px;font-weight:700;color:#94a3b8;margin-bottom:8px}",
+      "#liveResult .jvskel{height:14px;background:linear-gradient(90deg,#f1f5f9,#e5ebf2,#f1f5f9);background-size:200% 100%;animation:jvshim 1.2s infinite;border-radius:6px;margin:9px 0}",
+      "@keyframes jvshim{0%{background-position:200% 0}100%{background-position:-200% 0}}",
+      // ── 報告渲染器（demo 級版型：header / KPI / 圖表面板 / 表格 / 結論帶）──
+      "#liveResult .rhead{margin-bottom:16px}",
+      "#liveResult .rt{font-size:20px;font-weight:800;color:var(--jvaccent,#0369a1);letter-spacing:-.3px}",
+      "#liveResult .rs{font-size:12px;color:#64748b;margin-top:2px}",
+      "#liveResult .rsum{font-size:13px;color:#334155;margin-top:10px;background:#f8fafc;border-radius:10px;padding:10px 12px;border-left:3px solid var(--jvaccent,#0369a1);line-height:1.7}",
+      "#liveResult .rkpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}",
+      "#liveResult .rkpi{background:#fff;border:1px solid #e6ebf2;border-radius:14px;padding:15px 16px;box-shadow:0 1px 2px rgba(15,23,42,.05);position:relative;overflow:hidden}",
+      "#liveResult .rkpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--jvaccent,#0369a1)}",
+      "#liveResult .rkpi .l{font-size:12px;color:#64748b;font-weight:600}",
+      "#liveResult .rkpi .v{font-size:28px;font-weight:800;color:#0f172a;margin:5px 0 2px;letter-spacing:-.5px;line-height:1.05}",
+      "#liveResult .rkpi .v small{font-size:13px;color:#94a3b8;font-weight:700}",
+      "#liveResult .rkpi .d{font-size:12px;font-weight:700}",
+      "#liveResult .rkpi .d.up{color:#16a34a}#liveResult .rkpi .d.down{color:#dc2626}#liveResult .rkpi .d.flat{color:#94a3b8}",
+      "#liveResult .rmid{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-bottom:16px;align-items:start}",
+      "#liveResult .rpanel{background:#fff;border:1px solid #e6ebf2;border-radius:16px;padding:16px;box-shadow:0 1px 2px rgba(15,23,42,.05);min-width:0}",
+      "#liveResult .rph{font-size:14px;font-weight:800;color:#0f172a;margin-bottom:10px;display:flex;align-items:center;gap:6px}",
+      "#liveResult .rph::before{content:'';width:8px;height:8px;border-radius:2px;background:var(--jvaccent,#0369a1)}",
+      "#liveResult .rchart{width:100%;height:230px}",
+      "#liveResult .rtable{width:100%;border-collapse:collapse;font-size:13px}",
+      "#liveResult .rtable th{background:#f4f8fb;color:#64748b;font-size:11.5px;font-weight:700;text-align:left;padding:9px 10px;border-bottom:1px solid #e2e8f0}",
+      "#liveResult .rtable td{padding:9px 10px;border-bottom:1px solid #eef2f7;color:#334155}",
+      "#liveResult .rconcl{background:#fff;border:1px solid #e6ebf2;border-left:4px solid var(--jvaccent,#0369a1);border-radius:14px;padding:16px}",
+      "#liveResult .rconcl .rv{font-size:15px;font-weight:800;color:var(--jvaccent,#0369a1);margin-bottom:8px}",
+      "#liveResult .rconcl ul{margin:0;padding-left:18px;color:#334155;font-size:13px;line-height:1.9}",
+      "@media(max-width:640px){#liveResult .jv-kpis{grid-template-columns:repeat(2,1fr)}#liveResult .jvdash-grid{grid-template-columns:1fr}#liveResult .jvblk{grid-column:auto!important}#liveResult .rmid{grid-template-columns:1fr}#liveResult .rkpis{grid-template-columns:repeat(2,1fr)}}"
     ].join("");
+    s.textContent = DESIGN_CSS;
     document.head.appendChild(s);
   })();
+
+  // 新分頁：把報告 spec 輸出成獨立 HTML（含 ECharts + 設計系統 + 圖表渲染腳本）
+  function buildExportDoc() {
+    if (state.dash && state.dash.pageHtml) return state.dash.pageHtml;
+    if (state.dash && state.dash.spec) {
+      var s = state.dash.spec, acc = s.accent || "#0369a1";
+      var kpis = (s.kpis || []).map(function (k) { var dir = k.dir || "up", ar = dir === "down" ? "▼" : dir === "flat" ? "—" : "▲"; return '<div class="rkpi"><div class="l">' + esc(k.label) + '</div><div class="v">' + esc(k.value) + (k.unit ? '<small> ' + esc(k.unit) + '</small>' : '') + '</div>' + (k.delta ? '<div class="d ' + esc(dir) + '">' + ar + ' ' + esc(k.delta) + '</div>' : '') + '</div>'; }).join("");
+      var charts = (s.charts || []).map(function (c, i) { return '<div class="rpanel"><div class="rph">' + esc(c.title || "圖表") + '</div><div class="rchart" data-ci="' + i + '"></div></div>'; }).join("");
+      var tb = s.table, table = tb ? '<div class="rpanel"><div class="rph">' + esc(tb.title || "明細") + '</div><div style="overflow-x:auto"><table class="rtable"><thead><tr>' + (tb.headers || []).map(function (x) { return '<th>' + esc(x) + '</th>'; }).join("") + '</tr></thead><tbody>' + (tb.rows || []).map(function (r) { return '<tr>' + (r || []).map(function (c) { return '<td>' + esc(c) + '</td>'; }).join("") + '</tr>'; }).join("") + '</tbody></table></div></div>' : "";
+      var cc = s.conclusion, concl = cc ? '<div class="rconcl"><div class="rv">' + esc(cc.verdict || "結論") + '</div><ul>' + (cc.points || []).map(function (p) { return '<li>' + esc(p) + '</li>'; }).join("") + '</ul></div>' : "";
+      var body = '<div id="liveResult" style="--jvaccent:' + acc + ';max-width:1080px;margin:0 auto;padding:24px">' +
+        '<div class="rhead"><div class="rt">' + esc(state.dash.title) + '</div><div class="rs">' + esc(state.dash.sub || "") + '</div>' + (s.summary ? '<div class="rsum">' + esc(s.summary) + '</div>' : '') + '</div>' +
+        '<div class="rkpis">' + kpis + '</div>' + (charts || table ? '<div class="rmid">' + charts + table + '</div>' : '') + concl + '</div>';
+      return '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(state.dash.title) + '｜JVision Agents</title>' +
+        '<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"><\/script>' +
+        '<style>body{font-family:system-ui,"Noto Sans TC",sans-serif;margin:0;background:#eef3f8;color:#0f172a}' + DESIGN_CSS + '</style></head><body>' + body +
+        '<script>var SPEC=' + JSON.stringify(s) + ';var acc=SPEC.accent||"#0369a1";var COL=[acc,"#38bdf8","#7c3aed","#0d9488","#f59e0b"];(SPEC.charts||[]).forEach(function(c,i){var el=document.querySelector(".rchart[data-ci=\'"+i+"\']");if(!el)return;el.style.height="230px";var cats=c.cats||[],series=(c.series||[]).map(Number);var ch=echarts.init(el),opt;if(c.type==="doughnut"||c.type==="pie"){opt={tooltip:{},legend:{bottom:0},series:[{type:"pie",radius:["45%","72%"],center:["50%","44%"],data:cats.map(function(x,j){return{name:x,value:series[j],itemStyle:{color:COL[j%COL.length]}}})}]}}else if(c.type==="line"){opt={grid:{left:42,right:14,top:20,bottom:26},tooltip:{trigger:"axis"},xAxis:{type:"category",data:cats},yAxis:{type:"value"},series:[{type:"line",smooth:true,data:series,areaStyle:{color:acc+"1a"},lineStyle:{color:acc,width:2.5},itemStyle:{color:acc}}]}}else{opt={grid:{left:42,right:14,top:20,bottom:26},tooltip:{trigger:"axis"},xAxis:{type:"category",data:cats},yAxis:{type:"value"},series:[{type:"bar",barMaxWidth:42,data:series.map(function(v,j){return{value:v,itemStyle:{color:COL[j%COL.length],borderRadius:[5,5,0,0]}}})}]}}ch.setOption(opt)});<\/script></body></html>';
+    }
+    if (!state.dash) return "";
+    var th = state.dash.theme || {};
+    var blocks = (state.dash.blocks || []).map(function (b) {
+      var d = state.dash.html[b.id];
+      var inner = d ? d.html : "";
+      var span = Math.max(3, Math.min(12, b.span || 6));
+      return '<div class="jvblk jvblk-' + (b.type || "") + '" style="grid-column:span ' + span + '"><div class="jvblk-body">' + sanitize(inner) + '</div></div>';
+    }).join("");
+    var vars = "--jvaccent:" + (th.accent || "#2563eb") + ";--jvaccent2:" + (th.accent2 || "#38bdf8") + ";--jvbg:" + (th.bg || "#f8fafc") + ";";
+    return '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+      '<title>' + esc(state.dash.title) + '｜JVision Agents 產出</title>' +
+      '<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"><\/script>' +
+      '<style>body{font-family:system-ui,"Noto Sans TC",sans-serif;margin:0;background:#eef3f8;color:#0f172a}' +
+      '#liveResult{max-width:1100px;margin:0 auto;padding:24px;' + vars + '}' + DESIGN_CSS + '</style></head><body>' +
+      '<div id="liveResult"><div class="jvdash-h"><div class="jvdash-t">' + esc(state.dash.title) + '</div><div class="jvdash-s">' + esc(state.dash.sub) + '</div></div>' +
+      '<div class="jvdash-grid">' + blocks + '</div></div>' +
+      '<script>(function(){var COL=["' + (th.accent || "#2563eb") + '","' + (th.accent2 || "#38bdf8") + '","#7c3aed","#0d9488","#f59e0b","#e11d48"];' +
+      'document.querySelectorAll(".jv-chart").forEach(function(el){var type=el.getAttribute("data-type")||"bar";' +
+      'var cats=(el.getAttribute("data-cats")||"").split(",").map(function(s){return s.trim()}).filter(Boolean);' +
+      'var series=(el.getAttribute("data-series")||"").split(",").map(parseFloat).filter(function(n){return !isNaN(n)});' +
+      'if(!series.length)return;var c=echarts.init(el);var opt;' +
+      'if(type==="doughnut"||type==="pie"){opt={tooltip:{},legend:{bottom:0},series:[{type:"pie",radius:["45%","72%"],center:["50%","44%"],data:cats.map(function(x,i){return{name:x,value:series[i],itemStyle:{color:COL[i%COL.length]}}})}]}}' +
+      'else if(type==="line"){opt={grid:{left:42,right:14,top:20,bottom:26},tooltip:{trigger:"axis"},xAxis:{type:"category",data:cats},yAxis:{type:"value"},series:[{type:"line",smooth:true,data:series,areaStyle:{color:"rgba(37,99,235,.1)"},lineStyle:{color:"#2563eb",width:2.5},itemStyle:{color:"#2563eb"}}]}}' +
+      'else{opt={grid:{left:42,right:14,top:20,bottom:26},tooltip:{trigger:"axis"},xAxis:{type:"category",data:cats},yAxis:{type:"value"},series:[{type:"bar",barMaxWidth:40,data:series.map(function(v,i){return{value:v,itemStyle:{color:COL[i%COL.length],borderRadius:[5,5,0,0]}}})}]}}' +
+      'c.setOption(opt);});})();<\/script></body></html>';
+  }
+  function enableExport() {
+    var btn = $("#resultOpen");
+    if (!btn) return;
+    btn.onclick = function (ev) {
+      ev.preventDefault();
+      var doc = buildExportDoc();
+      if (!doc) return;
+      var blob = new Blob([doc], { type: "text/html" });
+      window.open(URL.createObjectURL(blob), "_blank");
+    };
+  }
 
   function feed() { return $("#logFeed"); }
   function narr(msg) { var s = $("#runStatus"); if (s) s.textContent = msg; }
@@ -141,14 +234,50 @@
       '<div style="width:34px;height:34px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:jvspin 1s linear infinite"></div>' +
       '<div>' + esc(msg) + '</div></div>';
   }
-  function resultStart(title, sub) {
+  var TYPE_LABEL = { kpi: "指標", chart: "圖表", table: "表格", note: "結論", timeline: "時程" };
+  function renderLayout(title, sub, blocks, theme) {
     if ($("#resultTitle")) $("#resultTitle").textContent = title || "結果畫面";
     if ($("#resultKind")) $("#resultKind").textContent = "AI 產出";
     var h = resultHost();
-    h.innerHTML = '<div style="margin-bottom:12px"><div style="font-size:16px;font-weight:800">' + esc(title) + '</div>' +
-      '<div style="font-size:12px;color:#64748b;margin-top:2px">' + esc(sub || "") + '</div></div>' +
-      '<div id="lrSections"></div>' +
-      '<div id="lrWait" style="color:#94a3b8;font-size:12px;display:flex;align-items:center;gap:6px;padding:8px 0"><span style="width:12px;height:12px;border:2px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;display:inline-block;animation:jvspin .9s linear infinite"></span> Agent 陸續產出區塊中…</div>';
+    h.style.maxHeight = "600px"; h.style.overflowY = "auto";
+    theme = theme || {};
+    // 每份報告套用繪境挑的主題色（配色/風格都不同）
+    h.style.setProperty("--jvaccent", theme.accent || "#2563eb");
+    h.style.setProperty("--jvaccent2", theme.accent2 || "#38bdf8");
+    h.style.setProperty("--jvbg", theme.bg || "#f8fafc");
+    h.style.background = "linear-gradient(180deg," + (theme.bg || "#fbfdff") + ",#ffffff 120px)";
+    h.style.borderRadius = "14px";
+    state.dash = { title: title, sub: sub, blocks: blocks || [], html: {}, theme: theme };
+    var cells = (blocks || []).map(function (b) {
+      var span = Math.max(3, Math.min(12, b.span || 6));
+      return '<div class="jvblk jvblk-' + (b.type || "") + '" id="blk-' + b.id + '" style="grid-column:span ' + span + '">' +
+        '<div class="jvblk-body"><div class="jvblk-ph">◆ ' + esc(b.title) + '</div>' +
+        '<div class="jvskel"></div><div class="jvskel"></div><div class="jvskel" style="width:55%"></div></div></div>';
+    }).join("");
+    h.innerHTML = '<div class="jvdash-h"><div class="jvdash-t">' + esc(title) + '</div><div class="jvdash-s">' + esc(sub || "") + '</div></div>' +
+      '<div class="jvdash-grid" id="lrGrid">' + cells + '</div>';
+  }
+  function blockStatus(id, msg) {
+    var blk = $("#blk-" + id); if (!blk) return;
+    var body = blk.querySelector(".jvblk-body");
+    if (body && body.querySelector(".jvskel")) body.innerHTML = '<div style="color:#94a3b8;font-size:12px;display:flex;align-items:center;gap:6px;padding:6px 0"><span style="width:12px;height:12px;border:2px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;display:inline-block;animation:jvspin .9s linear infinite"></span>' + esc(msg) + '</div>';
+  }
+  function fillBlock(e) {
+    var blk = $("#blk-" + e.id);
+    if (!blk) { // 沒有對應骨架就補一格
+      var g = $("#lrGrid") || resultHost();
+      blk = document.createElement("div"); blk.className = "jvblk"; blk.id = "blk-" + e.id; g.appendChild(blk);
+      blk.innerHTML = '<div class="jvblk-h">' + esc(e.title || e.name) + '</div><div class="jvblk-body"></div>';
+    }
+    if (state.dash) state.dash.html[e.id] = { title: e.title || e.name, name: e.name, html: e.html };
+    var body = blk.querySelector(".jvblk-body");
+    body.innerHTML = sanitize(e.html);
+    body.style.animation = "jvfade .5s ease";
+    renderCharts(blk);
+    var col = (state.dash && state.dash.theme && state.dash.theme.accent) || "#2563eb";
+    blk.style.boxShadow = "0 0 0 2px " + col + "44";
+    setTimeout(function () { blk.style.boxShadow = ""; }, 600);
+    blk.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
   function sanitize(html) { return String(html || "").replace(/<(script|style|iframe)[\s\S]*?<\/\1>/gi, ""); }
   function renderCharts(root) {
@@ -160,7 +289,10 @@
       var cats = (el.getAttribute("data-cats") || "").split(",").map(function (s) { return s.trim(); }).filter(Boolean);
       var series = (el.getAttribute("data-series") || "").split(",").map(function (s) { return parseFloat(s); }).filter(function (n) { return !isNaN(n); });
       if (!series.length) { el.style.display = "none"; return; }
-      var COL = ["#2563eb", "#38bdf8", "#7c3aed", "#0d9488", "#f59e0b", "#e11d48"];
+      if (!el.style.height) el.style.height = "230px";
+      el.style.width = "100%";
+      var accent = el.getAttribute("data-color") || (el.closest("[data-accent]") && el.closest("[data-accent]").getAttribute("data-accent")) || "#2563eb";
+      var COL = [accent, "#38bdf8", "#7c3aed", "#0d9488", "#f59e0b", "#e11d48"];
       var c = window.echarts.init(el);
       var opt;
       if (type === "doughnut" || type === "pie") {
@@ -193,6 +325,76 @@
     wrap.scrollIntoView({ behavior: "smooth", block: "end" });
   }
 
+  function chartFor(el, c, accent) {
+    if (!window.echarts) return;
+    el.style.height = "230px"; el.style.width = "100%";
+    var COL = [accent, "#38bdf8", "#7c3aed", "#0d9488", "#f59e0b", "#e11d48"];
+    var cats = c.cats || [], series = (c.series || []).map(Number);
+    var ch = window.echarts.init(el), opt;
+    if (c.type === "doughnut" || c.type === "pie") {
+      opt = { tooltip: { trigger: "item" }, legend: { bottom: 0, textStyle: { fontSize: 11 } },
+        series: [{ type: "pie", radius: ["45%", "72%"], center: ["50%", "44%"], label: { fontSize: 11 },
+          data: cats.map(function (x, i) { return { name: x, value: series[i], itemStyle: { color: COL[i % COL.length] } }; }) }] };
+    } else if (c.type === "line") {
+      opt = { grid: { left: 42, right: 14, top: 20, bottom: 26 }, tooltip: { trigger: "axis" },
+        xAxis: { type: "category", data: cats, axisLabel: { fontSize: 11 } }, yAxis: { type: "value" },
+        series: [{ type: "line", smooth: true, data: series, lineStyle: { width: 2.5, color: accent }, itemStyle: { color: accent }, areaStyle: { color: accent + "1a" } }] };
+    } else {
+      opt = { grid: { left: 42, right: 14, top: 20, bottom: 26 }, tooltip: { trigger: "axis" },
+        xAxis: { type: "category", data: cats, axisLabel: { fontSize: 11 } }, yAxis: { type: "value" },
+        series: [{ type: "bar", barMaxWidth: 42, data: series.map(function (v, i) { return { value: v, itemStyle: { color: COL[i % COL.length], borderRadius: [5, 5, 0, 0] } }; }) }] };
+    }
+    ch.setOption(opt);
+  }
+  function renderReport(title, sub, spec) {
+    spec = spec || {};
+    var acc = spec.accent || "#0369a1";
+    if ($("#resultTitle")) $("#resultTitle").textContent = title || "報告";
+    if ($("#resultKind")) $("#resultKind").textContent = "AI 產出";
+    var h = resultHost(); h.style.maxHeight = "600px"; h.style.overflowY = "auto";
+    h.style.setProperty("--jvaccent", acc);
+    h.style.background = ""; h.style.padding = "18px";
+    var kpis = (spec.kpis || []).map(function (k) {
+      var dir = k.dir || "up", ar = dir === "down" ? "▼" : dir === "flat" ? "—" : "▲";
+      return '<div class="rkpi"><div class="l">' + esc(k.label) + '</div><div class="v">' + esc(k.value) +
+        (k.unit ? '<small> ' + esc(k.unit) + '</small>' : '') + '</div>' +
+        (k.delta ? '<div class="d ' + esc(dir) + '">' + ar + ' ' + esc(k.delta) + '</div>' : '') + '</div>';
+    }).join("");
+    var charts = (spec.charts || []).map(function (c, i) {
+      return '<div class="rpanel"><div class="rph">' + esc(c.title || "圖表") + '</div><div class="rchart" data-ci="' + i + '"></div></div>';
+    }).join("");
+    var tb = spec.table;
+    var table = tb ? '<div class="rpanel"><div class="rph">' + esc(tb.title || "明細") + '</div><div style="overflow-x:auto"><table class="rtable"><thead><tr>' +
+      (tb.headers || []).map(function (x) { return '<th>' + esc(x) + '</th>'; }).join("") + '</tr></thead><tbody>' +
+      (tb.rows || []).map(function (r) { return '<tr>' + (r || []).map(function (c) { return '<td>' + esc(c) + '</td>'; }).join("") + '</tr>'; }).join("") + '</tbody></table></div></div>' : "";
+    var cc = spec.conclusion;
+    var concl = cc ? '<div class="rconcl"><div class="rv">' + esc(cc.verdict || "結論") + '</div><ul>' +
+      (cc.points || []).map(function (p) { return '<li>' + esc(p) + '</li>'; }).join("") + '</ul></div>' : "";
+    h.innerHTML = '<div class="rrep">' +
+      '<div class="rhead"><div class="rt">' + esc(title) + '</div><div class="rs">' + esc(sub || "") + '</div>' +
+      (spec.summary ? '<div class="rsum">' + esc(spec.summary) + '</div>' : '') + '</div>' +
+      '<div class="rkpis">' + kpis + '</div>' +
+      (charts || table ? '<div class="rmid">' + charts + table + '</div>' : '') + concl + '</div>';
+    (spec.charts || []).forEach(function (c, i) {
+      var el = h.querySelector('.rchart[data-ci="' + i + '"]'); if (el) chartFor(el, c, acc);
+    });
+    state.dash = { title: title, sub: sub, spec: spec, accent: acc };
+    // 逐塊淡入（generating 感）
+    var kids = h.querySelector(".rrep").children;
+    for (var i = 0; i < kids.length; i++) {
+      (function (el, idx) { el.style.opacity = "0"; el.style.transform = "translateY(8px)"; el.style.transition = "opacity .4s,transform .4s"; setTimeout(function () { el.style.opacity = "1"; el.style.transform = "none"; }, 110 * idx + 60); })(kids[i], i);
+    }
+  }
+
+  function renderPage(title, sub, html) {
+    if ($("#resultTitle")) $("#resultTitle").textContent = title || "報告";
+    if ($("#resultKind")) $("#resultKind").textContent = "AI 產出";
+    var lr = $("#liveResult"); if (lr) lr.style.display = "none";
+    var f = $("#resultFrame");
+    if (f) { f.style.display = ""; f.style.width = "100%"; f.style.height = "620px"; f.style.border = "0"; f.removeAttribute("src"); f.setAttribute("srcdoc", html); }
+    state.dash = { title: title, sub: sub, pageHtml: html };
+  }
+
   function handle(e) {
     var t = e.type;
     if (t === "status") narr(e.message);
@@ -217,10 +419,14 @@
       if (dl) { var el = document.createElement("div"); el.className = "flex items-start gap-2 bg-soft rounded-lg px-2.5 py-2"; el.innerHTML = '<span class="material-symbols-outlined text-[17px] text-success shrink-0">check_circle</span><span class="text-[13px] text-ink">' + esc(e.text) + '</span>'; dl.appendChild(el); }
       if ($("#statDone")) $("#statDone").textContent = state.done;
     }
-    else if (t === "result_start") resultStart(e.title, e.sub);
-    else if (t === "section") renderSection(e);
+    else if (t === "page_pending") { if ($("#resultTitle")) $("#resultTitle").textContent = e.title || "結果畫面"; placeholder("團隊查各系統資料中，稍後彙整成報告…"); }
+    else if (t === "report") renderReport(e.title, e.sub, e.spec);
+    else if (t === "page") renderPage(e.title, e.sub, e.html);
+    else if (t === "layout") renderLayout(e.title, e.sub, e.blocks, e.theme);
+    else if (t === "block_status") blockStatus(e.id, e.message);
+    else if (t === "block") fillBlock(e);
     else if (t === "html") { var h = resultHost(); h.innerHTML = sanitize(e.html); }
-    else if (t === "final") { narr("完成"); state.done = state.total + 1; progress(); var w = $("#lrWait"); if (w) w.remove(); var lv = $("#frameLive"); if (lv) lv.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-success"></span> 已完成'; if ($("#resultTitle")) $("#resultTitle").textContent = ($("#resultTitle").textContent || "").replace("（產生中）", ""); setBusy(false); }
+    else if (t === "final") { narr("完成"); state.done = state.total + 1; progress(); var lv = $("#frameLive"); if (lv) lv.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-success"></span> 已完成'; if ($("#resultTitle")) $("#resultTitle").textContent = ($("#resultTitle").textContent || "").replace("（產生中）", ""); enableExport(); setBusy(false); }
     else if (t === "error") { narr("發生問題"); addBubble("_err", "系統", "", "reasoning", '<span class="text-danger">' + esc(e.message) + '</span>'); setBusy(false); }
   }
 

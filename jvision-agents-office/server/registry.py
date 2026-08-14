@@ -140,6 +140,23 @@ def compact(a: dict) -> dict:
             "dataMode": a.get("dataMode"), "tagline": a.get("tagline")}
 
 
+def light_prompt(aid: str) -> str:
+    """輕量人設（給 gather/design 用，比 system_prompt 短很多 → 更快）。"""
+    a = get(aid)
+    if not a:
+        return ""
+    dm = a.get("dataMode", "reasoning")
+    d = domains_kb().get(a.get("domain", ""), {})
+    kpis = "；".join(f"{k[0]} {k[1]}" for k in d.get("kpis", [])[:5])
+    sysd = "、".join(d.get("systems", [])[:4])
+    rule = {
+        "internal-sim": f"你從內部系統（{sysd}）取數，數字要落合理級距（{kpis}）、像真儀表板自然呈現、**不要出現「模擬」字樣**。",
+        "external-real": "你用 web search 查真實公開資料並附來源連結；查不到標「待查證」、不杜撰數字或來源。",
+        "reasoning": "你只用他人提供的數字推理與設計，不自行編造事實。",
+    }.get(dm, "")
+    return f"你是 JVision AI 團隊的「{a.get('role','')}」（{a.get('domain','')}）。{rule} 全程繁體中文、精簡務實。"
+
+
 def detect_domains(question: str, top: int = 2) -> list:
     """從問題偵測最相關的功能領域（比對領域名 + 系統 + KPI + 風險關鍵字）。"""
     kb = domains_kb()
