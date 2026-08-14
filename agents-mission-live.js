@@ -416,7 +416,7 @@
     else if (t === "done_item") {
       state.done++; progress();
       var dl = $("#doneList");
-      if (dl) { var el = document.createElement("div"); el.className = "flex items-start gap-2 bg-soft rounded-lg px-2.5 py-2"; el.innerHTML = '<span class="material-symbols-outlined text-[17px] text-success shrink-0">check_circle</span><span class="text-[13px] text-ink">' + esc(e.text) + '</span>'; dl.appendChild(el); }
+      if (dl) { var el = document.createElement("div"); el.className = "flex items-start gap-2 bg-soft rounded-lg px-2.5 py-2"; el.innerHTML = '<span class="material-symbols-outlined text-[17px] text-success shrink-0">check_circle</span><span class="text-[13px] text-ink">' + mdToHtml(e.text) + '</span>'; dl.appendChild(el); }
       if ($("#statDone")) $("#statDone").textContent = state.done;
     }
     else if (t === "page_pending") { if ($("#resultTitle")) $("#resultTitle").textContent = e.title || "結果畫面"; placeholder("團隊查各系統資料中，稍後彙整成報告…"); }
@@ -443,8 +443,17 @@
     if ($("#resultTitle")) $("#resultTitle").textContent = "結果畫面（產生中）";
     placeholder("團隊協作中，稍候右側會長出結果畫面…");
     narr("送出需求…"); progress();
+    // 連線重試：後端短暫重啟/忙碌時自動重連，最多 5 次
+    var resp = null;
+    for (var attempt = 0; attempt < 5 && !resp; attempt++) {
+      try {
+        var r0 = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: question, mode: state.mode }) });
+        if (r0 && r0.ok && r0.body) { resp = r0; break; }
+      } catch (err) {}
+      if (attempt < 4) { narr("連線後端中，重試 " + (attempt + 1) + "/5…"); await new Promise(function (rs) { setTimeout(rs, 1500); }); }
+    }
+    if (!resp) { handle({ type: "error", message: "暫時連不上後端，請稍候再按啟動重試。" }); setBusy(false); return; }
     try {
-      var resp = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: question, mode: state.mode }) });
       var reader = resp.body.getReader(), dec = new TextDecoder(), buf = "";
       while (true) {
         var r = await reader.read(); if (r.done) break;
@@ -456,7 +465,7 @@
         }
       }
     } catch (err) {
-      handle({ type: "error", message: "無法連線後端（請確認 python app.py 已啟動於 :4610）" });
+      handle({ type: "error", message: "連線中斷了，請再按啟動重試（後端可能正在重啟）。" });
     }
     setBusy(false);
   }

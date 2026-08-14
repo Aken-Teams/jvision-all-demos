@@ -10,11 +10,17 @@ import llm, registry
 
 FAST = "haiku"
 SMART = "sonnet"
-EXTERNAL_SIGNALS = ["市場", "標竿", "法規", "趨勢", "競爭", "產業", "對手", "政策", "補助", "benchmark", "外部", "行情", "同業"]
+EXTERNAL_SIGNALS = ["市場", "標竿", "法規", "趨勢", "競爭", "產業", "對手", "政策", "補助", "benchmark", "外部", "行情", "同業",
+                    "網路", "上網", "搜尋", "查詢網", "新聞", "最新", "google", "國際", "全球", "報導", "消息", "現況趨勢", "研究"]
 DATA_CATS = ["analyze", "datagen", "monitor", "schedule"]
 
 
 def _esc(s): return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+def _clean_line(s):
+    s = (s or "").split("\n")[0]
+    s = re.sub(r"^\**\s*(SUMMARY|NOTE)\s*[:：]\s*", "", s, flags=re.I)
+    s = re.sub(r"[*`#]+", "", s)
+    return s.strip()[:72]
 def _sysname(domain):
     d = registry.domains_kb().get(domain, {}); ss = d.get("systems", [])
     return ss[0] if ss else "內部系統"
@@ -35,9 +41,10 @@ def pick_data_team(question):
     if not any(t["agent"]["dataMode"] == "internal-sim" for t in team):
         add(registry.flagship_of_cat("analyze"), f"查 {doms[0]} 內部系統現況數據")
     if any(s in question.lower() for s in EXTERNAL_SIGNALS):
-        a = registry.by_cat_in_domain(doms[0], "expert") or registry.by_cat_in_domain(doms[0], "strategy")
+        a = (registry.by_cat_in_domain(doms[0], "expert") or registry.by_cat_in_domain(doms[0], "strategy")
+             or registry.flagship_of_cat("expert"))  # 保底：一定有一個 external-real 真查
         if a and a["dataMode"] == "external-real":
-            add(a, f"上網查 {doms[0]} 的外部標竿/法規，附真實來源")
+            add(a, f"上網查『{question[:20]}』相關的產業趨勢/標竿/最新資料，附真實來源連結")
     return doms, team[:3]
 
 
@@ -83,15 +90,22 @@ async def _gather(t, emit):
         task = ("\n\n# 任務：用 web search 查真實外部資料回報，附來源連結；查不到標「待查證」。\n"
                 "回兩段：\n`SUMMARY: <一句話重點>`\n`DATA:`（幾條「事實: 內容(來源連結)」）")
     sysp = registry.light_prompt(a["id"]) + task
+    searches = []
+    def _e(ev):
+        if ev.get("type") == "step" and "搜尋" in (ev.get("message") or ""):
+            q = ev["message"].split("：", 1)[-1].strip()
+            if q and q not in searches:
+                searches.append(q)
+        emit({**ev, "id": a["id"]})
     try:
         ans = await llm.stream_answer(sysp, f"面向：{t['subtask']}\n（整體需求：{t['q']}）",
-                                      emit=lambda e: emit({**e, "id": a["id"]}), search=search, model=FAST, timeout=130)
+                                      emit=_e, search=search, model=FAST, timeout=130)
     except Exception:
         ans = ""
-    sm = re.search(r"SUMMARY:\s*(.+)", ans)
-    dm2 = re.search(r"DATA:\s*([\s\S]+)", ans)
-    data = (dm2.group(1).strip() if dm2 else re.sub(r"SUMMARY:.*", "", ans).strip())[:800]
-    summary = (sm.group(1).strip() if sm else "").split("\n")[0].strip("* ")[:60]
+    sm = re.search(r"SUMMARY\s*[:：]\s*(.+)", ans)
+    dm2 = re.search(r"DATA\s*[:：]\s*([\s\S]+)", ans)
+    data = (dm2.group(1).strip() if dm2 else re.sub(r"[\s\S]*SUMMARY.*", "", ans).strip())[:800]
+    summary = _clean_line(sm.group(1) if sm else "")
     # 保底：偵測到拒絕/空 → 直接用領域級距生數據
     if dm == "internal-sim" and (any(w in ans for w in _REFUSE) or len(data) < 30 or not re.search(r"\d", data)):
         data = _sim_data(dom)
@@ -99,20 +113,29 @@ async def _gather(t, emit):
     if not summary:
         first = next((l.strip("-• ").strip() for l in data.split("\n") if l.strip()), "")
         summary = first[:60] or (a["name"] + " 已彙整現況數據")
+    if search and searches:  # 外部真查：對話列出查了什麼
+        summary = summary + f"（上網查了：{'、'.join(searches[:3])}）"
+        emit({"type": "done_item", "text": "上網查了：" + "、".join(searches[:4])})
     emit({"type": "message", "id": a["id"], "name": a["name"], "role": a["role"], "dataMode": dm, "text": summary})
     emit({"type": "done_item", "text": summary})
-    return {"name": a["name"], "role": a["role"], "domain": a.get("domain", ""), "data": data}
+    return {"name": a["name"], "role": a["role"], "domain": a.get("domain", ""), "data": data, "external": search}
 
 
 PAGE_SPEC = (
-    "# 任務：做一份『給客戶看的營運報告網頁』——像一個真實、精美、專業的儀表板產品畫面（不是把資料塞進等大卡片）。\n"
+    "# 任務：做一份『給客戶看的營運報告網頁』——精美、專業、資訊豐富，像真實產品的儀表板畫面。\n"
     "依團隊查到的資料，輸出**一份完整、自成一體的 HTML 文件**（<!doctype html> 到 </html>）。\n"
-    "必含：\n"
-    "1. <head> 內：ECharts CDN `<script src=\"https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js\"></script>`；一段 <style> 自訂**一組有記憶點的配色**（主色依主題挑：製造科技藍#0369a1/青#0d9488、財務靛紫#4f46e5、品質綠#16a34a、安全橙#ea580c…每次不同），設計卡片/KPI/表格樣式，**RWD：grid/flex + min-width:0 + 可 wrap + @media，390/768/1360px 都不可水平溢出**，body 用系統字。\n"
-    "2. <body>：頁首標題列（報告主題＋一句總結）；KPI 重點帶（4 個大字數值＋漲跌）；主圖區放 **2 個 ECharts 圖**（各一個 <div id> ＋ <script> echarts.init 畫 bar/line/doughnut，資料用團隊數字）；一個資料表（現況/判斷）；一條結論建議帶（結論＋3 點建議）。\n"
-    "3. 版面要有主次層次、留白、陰影，專業精美、資訊豐富，像真的營運報告。\n"
-    "4. 數字全部取自下方團隊資料、要具體一致；**內部數字自然呈現、不要出現「模擬」字樣；不要說『無法取得資料』**。\n"
-    "先寫一行 `NOTE: <這份報告的設計/結論說明，一句話>`，再輸出完整 HTML。**不要 markdown、不要 ``` 圍欄、不要任何多餘說明。**"
+    "## 硬性要求\n"
+    "- <head> 放 ECharts CDN `<script src=\"https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js\"></script>` 與一段 <style>。\n"
+    "- **RWD**：grid/flex 子項加 min-width:0、可 wrap、含 @media；390/768/1360px 都不可水平溢出；圖表容器 width:100%。\n"
+    "- 數字全部取自下方團隊資料、具體一致；**內部數字自然呈現、不要出現「模擬」；不要說『無法取得資料』**。全程繁體中文（台灣用語）。\n"
+    "- **若團隊資料含外部來源連結（http…），報告底部必附一個『資料來源』區塊，用可點的 <a href target=_blank> 列出這些真實連結。**\n"
+    "## 要豐富、每次都要不一樣（重點！）\n"
+    "- **版面不要每次都長一樣**：從這些版型擇一或混搭，依主題選最合適的 —— 儀表板網格 / 左欄指標+右側主圖 / 上方 KPI 帶+下方雙欄 / 卡片瀑布 / 雜誌式分欄 / 左側敘事+右側數據。\n"
+    "- **配色每次不同**：依主題挑一組有記憶點的色系（製造科技藍/青、財務靛紫、品質綠、安全橙、能源黃綠、人資粉紫…），可用漸層 header。\n"
+    "- **圖表要多元**（至少 2 個、盡量 3 個不同種）：ECharts 支援 bar / line / pie/doughnut / **radar 雷達** / **gauge 儀表** / scatter / funnel 漏斗 / **stacked bar 堆疊** / **heatmap** / 折線面積圖，依資料選最貼切的。\n"
+    "- **多元元件**：KPI 大字帶（含漲跌徽章）、進度條、狀態徽章（達標/警示）、時間軸、排名榜、比較表、警示框、迷你統計卡、圓環進度… 盡量豐富。\n"
+    "- 版面要有主次層次、留白、陰影、圓角，專業精美；內容資訊量要足。\n"
+    "先寫一行 `NOTE: <這份報告的設計重點/結論，一句話>`，再輸出完整 HTML。**不要 markdown、不要 ``` 圍欄、不要多餘說明。**"
 )
 
 
@@ -132,7 +155,7 @@ async def _build_page(designer, question, doms, combined, emit):
     except Exception:
         ans = ""
     nm = re.search(r"NOTE:\s*(.+)", ans)
-    note = (nm.group(1).strip() if nm else "我依大家的資料設計了一份報告。").split("\n")[0].strip("* ")[:80]
+    note = _clean_line(nm.group(1) if nm else "") or "我依大家的資料設計了一份報告。"
     html = ans.replace("```html", "").replace("```", "")
     mi = re.search(r"<(!doctype|html|head|body|div|style)\b", html, re.I)
     if mi:
