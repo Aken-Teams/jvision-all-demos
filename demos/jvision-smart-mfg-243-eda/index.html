@@ -4,15 +4,608 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EDA整合管理系統（電子電路設計整合平台）｜Jvision 系統 Demo</title>
-  <meta name="description" content="訂單到入庫的製造現場全流程數位化" />
+  <meta name="description" content="電路原理圖與 Layout 版本管理、元件庫集中維護、DRC 流程整合的單一平台" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --accent:#be185d;
+      --accent2:#fb7185;
+      --bg:#0b0e17;
+      --panel:#121826;
+      --panel2:#182033;
+      --line:#243049;
+      --txt:#e7ecf5;
+      --muted:#93a0bd;
+      --ok:#34d399;
+      --warn:#fbbf24;
+      --bad:#f87171;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;}
+    body{
+      font-family:"Inter","Noto Sans TC",sans-serif;
+      background:radial-gradient(1200px 600px at 80% -10%,rgba(190,24,93,.18),transparent 60%),var(--bg);
+      color:var(--txt);
+      min-height:100vh;
+      -webkit-font-smoothing:antialiased;
+    }
+    .msi{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+    /* nav */
+    .topnav{
+      position:sticky;top:0;z-index:30;
+      background:rgba(11,14,23,.92);
+      backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--line);
+    }
+    .nav-inner{max-width:1360px;margin:0 auto;padding:10px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+    .brand{display:flex;align-items:center;gap:10px;min-width:0;}
+    .brand-logo{
+      width:38px;height:38px;border-radius:10px;flex:0 0 auto;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:flex;align-items:center;justify-content:center;color:#fff;
+      box-shadow:0 4px 16px rgba(190,24,93,.5);
+    }
+    .brand-logo .msi{font-size:22px;}
+    .brand-txt{min-width:0;}
+    .brand-txt b{display:block;font-size:15px;font-weight:800;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .brand-txt span{display:block;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .nav-btns{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;min-width:0;}
+    .nbtn{
+      display:inline-flex;align-items:center;gap:7px;
+      padding:8px 13px;border-radius:9px;cursor:pointer;
+      background:transparent;border:1px solid transparent;color:var(--muted);
+      font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap;
+      transition:.15s;
+    }
+    .nbtn .msi{font-size:18px;}
+    .nbtn:hover{color:var(--txt);background:var(--panel2);}
+    .nbtn.active{color:#fff;background:linear-gradient(135deg,var(--accent),#9d174d);border-color:var(--accent);box-shadow:0 4px 14px rgba(190,24,93,.4);}
+    .live-dot{margin-left:6px;display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);}
+    .live-dot i{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(52,211,153,.2);display:inline-block;}
+    /* layout */
+    .wrap{max-width:1360px;margin:0 auto;padding:22px 18px 60px;}
+    .screen-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;flex-wrap:wrap;}
+    .sh-icon{
+      width:46px;height:46px;border-radius:12px;flex:0 0 auto;
+      background:var(--panel2);border:1px solid var(--line);
+      display:flex;align-items:center;justify-content:center;color:var(--accent2);
+    }
+    .sh-icon .msi{font-size:26px;}
+    .sh-txt{min-width:0;}
+    .sh-txt h1{margin:0;font-size:20px;font-weight:800;letter-spacing:.3px;}
+    .sh-txt p{margin:3px 0 0;font-size:13px;color:var(--muted);}
+    .sh-tag{margin-left:auto;align-self:center;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:6px 12px;background:var(--panel);}
+    /* grids */
+    .grid{display:grid;gap:14px;}
+    .g-kpi{grid-template-columns:repeat(4,1fr);}
+    .g-2{grid-template-columns:1.6fr 1fr;}
+    .g-2e{grid-template-columns:1fr 1fr;}
+    .g-3{grid-template-columns:repeat(3,1fr);}
+    .g-side{grid-template-columns:240px 1fr;}
+    @media(max-width:820px){
+      .g-kpi{grid-template-columns:repeat(2,1fr);}
+      .g-2,.g-2e,.g-3,.g-side{grid-template-columns:1fr;}
+    }
+    @media(max-width:560px){
+      .g-kpi{grid-template-columns:1fr;}
+      .nbtn span.lbl{display:none;}
+      .nbtn{padding:8px 10px;}
+    }
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0;}
+    .card.pad0{padding:0;overflow:hidden;}
+    .card-h{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+    .card-h h3{margin:0;font-size:14px;font-weight:700;}
+    .card-h .msi{font-size:18px;color:var(--accent2);}
+    .card-h .sub{font-size:12px;color:var(--muted);margin-left:auto;}
+    /* kpi */
+    .kpi{position:relative;overflow:hidden;}
+    .kpi .lab{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;}
+    .kpi .lab .msi{font-size:16px;color:var(--accent2);}
+    .kpi .val{font-size:28px;font-weight:900;margin-top:8px;letter-spacing:.5px;}
+    .kpi .val small{font-size:14px;font-weight:600;color:var(--muted);margin-left:3px;}
+    .kpi .delta{font-size:12px;margin-top:6px;display:inline-flex;align-items:center;gap:4px;font-weight:600;}
+    .kpi .delta.up{color:var(--ok);}
+    .kpi .delta.down{color:var(--bad);}
+    .kpi::after{content:"";position:absolute;right:-20px;top:-20px;width:80px;height:80px;border-radius:50%;background:radial-gradient(circle,rgba(251,113,133,.14),transparent 70%);}
+    /* chart */
+    .chartbox{position:relative;width:100%;overflow:hidden;}
+    /* table */
+    .tbl-scroll{overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    thead th{text-align:left;font-size:11px;letter-spacing:.5px;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;text-transform:uppercase;}
+    tbody td{padding:11px 12px;border-bottom:1px solid rgba(36,48,73,.5);white-space:nowrap;}
+    tbody tr:hover{background:var(--panel2);}
+    .mono{font-family:"Inter",monospace;letter-spacing:.5px;}
+    /* pill */
+    .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+    .pill .msi{font-size:14px;}
+    .p-ok{background:rgba(52,211,153,.15);color:var(--ok);}
+    .p-warn{background:rgba(251,191,36,.15);color:var(--warn);}
+    .p-bad{background:rgba(248,113,113,.15);color:var(--bad);}
+    .p-info{background:rgba(251,113,133,.15);color:var(--accent2);}
+    .p-mute{background:var(--panel2);color:var(--muted);}
+    /* progress */
+    .bar{height:7px;border-radius:6px;background:var(--panel2);overflow:hidden;min-width:70px;}
+    .bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+    /* board / kanban */
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+    @media(max-width:820px){.board{grid-template-columns:1fr;}}
+    .col{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;}
+    .col-h{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin-bottom:10px;color:var(--muted);}
+    .col-h .n{margin-left:auto;background:var(--panel);border-radius:20px;padding:1px 8px;font-size:11px;}
+    .tick{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:9px;min-width:0;}
+    .tick b{font-size:12.5px;display:block;}
+    .tick .m{font-size:11px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+    /* timeline */
+    .tl{position:relative;padding-left:22px;}
+    .tl::before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--line);}
+    .tl-item{position:relative;padding:0 0 16px 4px;}
+    .tl-item::before{content:"";position:absolute;left:-19px;top:3px;width:11px;height:11px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 3px rgba(251,113,133,.2);}
+    .tl-item.done::before{background:var(--ok);box-shadow:0 0 0 3px rgba(52,211,153,.2);}
+    .tl-item .t{font-size:13px;font-weight:700;}
+    .tl-item .d{font-size:11.5px;color:var(--muted);margin-top:3px;}
+    .tl-item .ts{font-size:11px;color:var(--accent2);}
+    /* lib tree */
+    .libitem{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);margin-bottom:9px;min-width:0;}
+    .libitem .ic{width:34px;height:34px;border-radius:9px;background:var(--panel);display:flex;align-items:center;justify-content:center;color:var(--accent2);flex:0 0 auto;}
+    .libitem .info{min-width:0;flex:1;}
+    .libitem .info b{font-size:13px;display:block;}
+    .libitem .info span{font-size:11px;color:var(--muted);}
+    /* stat row */
+    .stat-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(36,48,73,.5);font-size:13px;gap:10px;}
+    .stat-row:last-child{border-bottom:none;}
+    .stat-row .k{color:var(--muted);min-width:0;}
+    .stat-row .v{font-weight:700;white-space:nowrap;}
+    /* donut center */
+    .donut-wrap{position:relative;}
+    .donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+    .donut-center b{font-size:26px;font-weight:900;}
+    .donut-center span{font-size:11px;color:var(--muted);}
+    /* diff */
+    .diffline{font-family:"Inter",monospace;font-size:12px;padding:5px 10px;border-radius:6px;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .diff-add{background:rgba(52,211,153,.12);color:#7ee2bd;border-left:3px solid var(--ok);}
+    .diff-del{background:rgba(248,113,113,.12);color:#f4a7a7;border-left:3px solid var(--bad);}
+    .diff-mod{background:rgba(251,191,36,.1);color:#f5d489;border-left:3px solid var(--warn);}
+    /* footer note */
+    .note{font-size:11.5px;color:var(--muted);margin-top:10px;display:flex;align-items:center;gap:6px;}
+    .note .msi{font-size:15px;}
+    .flow-strip{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+    .flow-strip .fs{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:6px 11px;}
+    .flow-strip .fs.on{color:#fff;border-color:var(--accent);background:linear-gradient(135deg,rgba(190,24,93,.4),rgba(157,23,77,.3));}
+    .flow-strip .fs .msi{font-size:15px;color:var(--accent2);}
+    .gauge-list .gl{margin-bottom:14px;}
+    .gauge-list .gl .top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;}
+    .gauge-list .gl .top b{font-weight:700;}
+    .gauge-list .gl .top span{color:var(--muted);}
+    .layerbar{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(36,48,73,.5);font-size:12.5px;}
+    .layerbar:last-child{border-bottom:none;}
+    .layerbar .lc{width:16px;height:16px;border-radius:4px;flex:0 0 auto;}
+    .layerbar .ln{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <nav class="topnav">
+    <div class="nav-inner">
+      <div class="brand">
+        <div class="brand-logo"><span class="msi">memory</span></div>
+        <div class="brand-txt">
+          <b>EDA 整合管理系統</b>
+          <span>電子電路設計整合平台 · Control Room</span>
+        </div>
+      </div>
+      <div class="nav-btns" id="navBtns"></div>
+    </div>
+  </nav>
+  <div class="wrap"><div id="view"></div></div>
+
+  <script>
+  (function(){
+    "use strict";
+    var C = document.getElementById("view");
+    var charts = {};
+    var accent = "#be185d", accent2 = "#fb7185";
+    var gridColor = "rgba(148,160,189,.15)";
+    var tickColor = "#93a0bd";
+
+    var SCREENS = [
+      {icon:"account_tree", name:"原理圖版本", title:"原理圖版本管理", desc:"Schematic 版本控管、分支與差異比對"},
+      {icon:"precision_manufacturing", name:"Layout 佈局", title:"Layout 佈局管理", desc:"PCB 佈局版次、疊層與變更追蹤"},
+      {icon:"inventory_2", name:"元件庫", title:"元件庫集中維護", desc:"Library 符號封裝集中維護與版本同步"},
+      {icon:"rule", name:"DRC 檢查", title:"DRC 設計規則檢查", desc:"設計規則檢查違規清單與判定"},
+      {icon:"fact_check", name:"審查放行", title:"設計審查放行", desc:"設計凍結審查、簽核與 Tape-out 放行"},
+      {icon:"insights", name:"洞察站", title:"EDA 洞察站", desc:"版本、違規與專案準時率整合洞察"}
+    ];
+
+    // ---------- helpers ----------
+    function el(html){var d=document.createElement("div");d.innerHTML=html;return d;}
+    function esc(s){return String(s).replace(/[&<>]/g,function(c){return c==="&"?"&amp;":c==="<"?"&lt;":"&gt;";});}
+    function chartCommon(){
+      return {
+        maintainAspectRatio:false,
+        responsive:true,
+        plugins:{legend:{labels:{color:tickColor,font:{size:11},boxWidth:12}}},
+        scales:{
+          x:{ticks:{color:tickColor,font:{size:11}},grid:{color:gridColor}},
+          y:{ticks:{color:tickColor,font:{size:11}},grid:{color:gridColor}}
+        }
+      };
+    }
+    function mkChart(id,cfg){
+      var cv = document.getElementById(id);
+      if(!cv) return;
+      if(charts[id]){try{charts[id].destroy();}catch(e){}charts[id]=null;}
+      charts[id] = new Chart(cv.getContext("2d"), cfg);
+    }
+    function destroyAll(){
+      for(var k in charts){if(charts[k]){try{charts[k].destroy();}catch(e){}}}
+      charts={};
+    }
+    function head(i){
+      var s=SCREENS[i];
+      var strip = SCREENS.map(function(x,idx){
+        return '<span class="fs'+(idx===i?' on':'')+'"><span class="msi">'+x.icon+'</span>'+x.name+'</span>';
+      }).join('');
+      return '<div class="screen-head">'
+        + '<div class="sh-icon"><span class="msi">'+s.icon+'</span></div>'
+        + '<div class="sh-txt"><h1>'+s.title+'</h1><p>'+s.desc+'</p></div>'
+        + '<div class="sh-tag">v'+i+' · 即時終端</div>'
+        + '</div>'
+        + '<div class="flow-strip">'+strip+'</div>';
+    }
+    function kpi(lab,ic,val,unit,delta,dir){
+      return '<div class="card kpi"><div class="lab"><span class="msi">'+ic+'</span>'+lab+'</div>'
+        +'<div class="val">'+val+(unit?'<small>'+unit+'</small>':'')+'</div>'
+        +(delta?'<div class="delta '+dir+'"><span class="msi">'+(dir==="up"?"trending_up":"trending_down")+'</span>'+delta+'</div>':'')
+        +'</div>';
+    }
+
+    // ================= SCREEN 0 : 原理圖版本管理 =================
+    function s0(){
+      var rows=[
+        {p:"PWR-CTRL 電源控管板",ver:"v4.2",br:"main",eng:"林昀珊",st:"進行中",stc:"p-info",chg:18,pct:72},
+        {p:"RF-FE 射頻前端模組",ver:"v2.7",br:"feat/lna",eng:"陳柏叡",st:"待審查",stc:"p-warn",chg:9,pct:55},
+        {p:"MCU-Core 主控板",ver:"v6.1",br:"main",eng:"黃詩涵",st:"已凍結",stc:"p-ok",chg:3,pct:100},
+        {p:"SENS-HUB 感測集線板",ver:"v1.9",br:"feat/i2c",eng:"吳承翰",st:"進行中",stc:"p-info",chg:24,pct:41},
+        {p:"PWR-CTRL 電源控管板",ver:"v4.1",br:"hotfix",eng:"林昀珊",st:"衝突",stc:"p-bad",chg:6,pct:88}
+      ];
+      var diff=[
+        {t:"add",x:"+ 新增 U12 LDO 穩壓器 (TPS7A47)"},
+        {t:"mod",x:"~ R33 阻值 10k → 4.7k（分壓調整）"},
+        {t:"del",x:"- 移除 C21 旁路電容（DRC 建議）"},
+        {t:"add",x:"+ 新增 TP7/TP8 測試點"},
+        {t:"mod",x:"~ NET_VBUS 重新命名為 NET_5V0"}
+      ];
+      var html = head(0)
+        + '<div class="grid g-kpi" style="margin-bottom:14px;">'
+        + kpi("進行中版本","account_tree","12","版本","本週 +3","up")
+        + kpi("待審查","pending_actions","4","件","2 件逾時","down")
+        + kpi("已凍結版本","lock","7","版本","+1","up")
+        + kpi("版本衝突","merge_type","1","件","需人工合併","down")
+        + '</div>'
+        + '<div class="grid g-2" style="margin-bottom:14px;">'
+        + '<div class="card pad0"><div class="card-h" style="padding:16px 16px 0;"><span class="msi">rule_folder</span><h3>原理圖版本清單</h3><span class="sub">共 5 筆</span></div>'
+        + '<div class="tbl-scroll"><table><thead><tr><th>專案 / 圖檔</th><th>版次</th><th>分支</th><th>負責人</th><th>狀態</th><th>變更</th><th>完成度</th></tr></thead><tbody>'
+        + rows.map(function(r){
+            return '<tr><td>'+esc(r.p)+'</td><td class="mono">'+r.ver+'</td><td><span class="pill p-mute">'+r.br+'</span></td><td>'+r.eng+'</td>'
+              +'<td><span class="pill '+r.stc+'">'+r.st+'</span></td><td class="mono">'+r.chg+'</td>'
+              +'<td><div style="display:flex;align-items:center;gap:8px;"><div class="bar"><i style="width:'+r.pct+'%"></i></div><span style="font-size:11px;color:var(--muted)">'+r.pct+'%</span></div></td></tr>';
+          }).join('')
+        + '</tbody></table></div></div>'
+        + '<div class="card"><div class="card-h"><span class="msi">difference</span><h3>版本差異比對</h3><span class="sub">v4.1 → v4.2</span></div>'
+        + diff.map(function(d){return '<div class="diffline diff-'+d.t+'">'+esc(d.x)+'</div>';}).join('')
+        + '<div class="note"><span class="msi">info</span>共 5 項變更，其中 2 項由 DRC 觸發</div></div>'
+        + '</div>'
+        + '<div class="card"><div class="card-h"><span class="msi">show_chart</span><h3>近 8 週原理圖提交量</h3><span class="sub">建版 / 審查</span></div>'
+        + '<div class="chartbox" style="height:260px"><canvas id="c0a"></canvas></div></div>';
+      C.innerHTML = html;
+      void C.offsetHeight;
+      mkChart("c0a",{type:"bar",data:{labels:["W1","W2","W3","W4","W5","W6","W7","W8"],
+        datasets:[
+          {label:"建版",data:[6,8,7,11,9,13,12,14],backgroundColor:accent,borderRadius:5},
+          {label:"審查通過",data:[4,5,6,8,7,10,9,12],backgroundColor:accent2,borderRadius:5}
+        ]},options:chartCommon()});
+    }
+
+    // ================= SCREEN 1 : Layout 佈局管理 =================
+    function s1(){
+      var layers=[
+        {n:"Top Copper (訊號)",c:"#fb7185",pct:82},
+        {n:"GND Plane (接地)",c:"#34d399",pct:96},
+        {n:"PWR Plane (電源)",c:"#fbbf24",pct:71},
+        {n:"Inner Signal 1",c:"#60a5fa",pct:64},
+        {n:"Inner Signal 2",c:"#a78bfa",pct:58},
+        {n:"Bottom Copper",c:"#be185d",pct:77}
+      ];
+      var rows=[
+        {b:"PWR-CTRL",lv:"L4.2",layer:"6 層",area:"88×62mm",via:342,rt:"92%",st:"佈線中",stc:"p-info"},
+        {b:"RF-FE",lv:"L2.7",layer:"4 層",area:"45×40mm",via:118,rt:"78%",st:"阻抗調整",stc:"p-warn"},
+        {b:"MCU-Core",lv:"L6.1",layer:"8 層",area:"120×90mm",via:986,rt:"100%",st:"完成",stc:"p-ok"},
+        {b:"SENS-HUB",lv:"L1.9",layer:"4 層",area:"52×36mm",via:204,rt:"41%",st:"擺件中",stc:"p-info"}
+      ];
+      var html = head(1)
+        + '<div class="grid g-kpi" style="margin-bottom:14px;">'
+        + kpi("佈局中板卡","dashboard","8","塊","3 塊高優先","up")
+        + kpi("平均佈線完成","timeline","78","%","週 +6%","up")
+        + kpi("Via 總數","adjust","1,650","顆","","")
+        + kpi("阻抗違規","warning","5","段","2 段待修","down")
+        + '</div>'
+        + '<div class="grid g-2" style="margin-bottom:14px;">'
+        + '<div class="card"><div class="card-h"><span class="msi">layers</span><h3>疊層佈線完成度</h3><span class="sub">6 層板</span></div>'
+        + '<div style="margin-top:4px;">'
+        + layers.map(function(l){
+            return '<div class="layerbar"><span class="lc" style="background:'+l.c+'"></span><span class="ln">'+esc(l.n)+'</span>'
+              +'<div class="bar" style="width:120px"><i style="width:'+l.pct+'%;background:'+l.c+'"></i></div>'
+              +'<b style="width:38px;text-align:right;font-size:12px">'+l.pct+'%</b></div>';
+          }).join('')
+        + '</div></div>'
+        + '<div class="card"><div class="card-h"><span class="msi">donut_small</span><h3>佈局工時分佈</h3></div>'
+        + '<div class="chartbox donut-wrap" style="height:230px"><canvas id="c1b"></canvas>'
+        + '<div class="donut-center"><b>214h</b><span>本版累計工時</span></div></div></div>'
+        + '</div>'
+        + '<div class="card pad0"><div class="card-h" style="padding:16px 16px 0;"><span class="msi">grid_view</span><h3>佈局版次追蹤</h3></div>'
+        + '<div class="tbl-scroll"><table><thead><tr><th>板卡</th><th>佈局版次</th><th>疊層</th><th>板尺寸</th><th>Via 數</th><th>佈線率</th><th>狀態</th></tr></thead><tbody>'
+        + rows.map(function(r){
+            return '<tr><td>'+esc(r.b)+'</td><td class="mono">'+r.lv+'</td><td>'+r.layer+'</td><td class="mono">'+r.area+'</td><td class="mono">'+r.via+'</td><td>'+r.rt+'</td><td><span class="pill '+r.stc+'">'+r.st+'</span></td></tr>';
+          }).join('')
+        + '</tbody></table></div></div>';
+      C.innerHTML = html;
+      void C.offsetHeight;
+      mkChart("c1b",{type:"doughnut",data:{labels:["擺件","佈線","阻抗調整","覆銅/清理"],
+        datasets:[{data:[46,98,42,28],backgroundColor:[accent2,accent,"#fbbf24","#60a5fa"],borderColor:"#121826",borderWidth:3}]},
+        options:{maintainAspectRatio:false,responsive:true,cutout:"66%",plugins:{legend:{position:"bottom",labels:{color:tickColor,font:{size:11},boxWidth:12,padding:10}}}}});
+    }
+
+    // ================= SCREEN 2 : 元件庫集中維護 =================
+    function s2(){
+      var libs=[
+        {n:"Passives 被動元件庫",v:"lib-2026.03",cnt:"4,820 符號",sync:"已同步",stc:"p-ok"},
+        {n:"MCU / Processor 庫",v:"lib-2026.02",cnt:"612 符號",sync:"已同步",stc:"p-ok"},
+        {n:"Power / LDO 電源庫",v:"lib-2026.03",cnt:"388 符號",sync:"待更新",stc:"p-warn"},
+        {n:"Connector 連接器庫",v:"lib-2025.11",cnt:"1,204 符號",sync:"版本落後",stc:"p-bad"},
+        {n:"RF / 射頻元件庫",v:"lib-2026.01",cnt:"276 符號",sync:"已同步",stc:"p-ok"}
+      ];
+      var rows=[
+        {pn:"TPS7A4700",cat:"LDO",fp:"VQFN-20",used:14,lib:"Power",st:"最新",stc:"p-ok"},
+        {pn:"STM32H743",cat:"MCU",fp:"LQFP-176",used:6,lib:"MCU",st:"最新",stc:"p-ok"},
+        {pn:"GRM155R61A",cat:"MLCC",fp:"0402",used:212,lib:"Passives",st:"最新",stc:"p-ok"},
+        {pn:"USB4085-GF",cat:"Connector",fp:"USB-C",used:9,lib:"Connector",st:"版本不一致",stc:"p-bad"},
+        {pn:"BGA2803",cat:"LNA",fp:"SOT-343",used:4,lib:"RF",st:"待審核",stc:"p-warn"}
+      ];
+      var html = head(2)
+        + '<div class="grid g-kpi" style="margin-bottom:14px;">'
+        + kpi("元件庫數","inventory_2","5","庫","集中維護","")
+        + kpi("符號總數","category","7,300","個","+120","up")
+        + kpi("版本一致率","verified","93","%","目標 98%","up")
+        + kpi("不一致告警","priority_high","2","項","阻擋放行","down")
+        + '</div>'
+        + '<div class="grid g-2" style="margin-bottom:14px;">'
+        + '<div class="card"><div class="card-h"><span class="msi">folder_managed</span><h3>元件庫同步狀態</h3><span class="sub">中央 Library</span></div>'
+        + libs.map(function(l){
+            return '<div class="libitem"><div class="ic"><span class="msi">database</span></div>'
+              +'<div class="info"><b>'+esc(l.n)+'</b><span class="mono">'+l.v+' · '+l.cnt+'</span></div>'
+              +'<span class="pill '+l.stc+'">'+l.sync+'</span></div>';
+          }).join('')
+        + '</div>'
+        + '<div class="card"><div class="card-h"><span class="msi">bar_chart</span><h3>各庫元件使用熱度</h3></div>'
+        + '<div class="chartbox" style="height:240px"><canvas id="c2b"></canvas></div>'
+        + '<div class="note"><span class="msi">bolt</span>Passives 庫使用率最高，優先維護版本一致性</div></div>'
+        + '</div>'
+        + '<div class="card pad0"><div class="card-h" style="padding:16px 16px 0;"><span class="msi">memory</span><h3>元件主檔（Part Master）</h3><span class="sub">5 筆</span></div>'
+        + '<div class="tbl-scroll"><table><thead><tr><th>料號</th><th>類別</th><th>封裝</th><th>使用次數</th><th>所屬庫</th><th>狀態</th></tr></thead><tbody>'
+        + rows.map(function(r){
+            return '<tr><td class="mono">'+r.pn+'</td><td>'+r.cat+'</td><td class="mono">'+r.fp+'</td><td class="mono">'+r.used+'</td><td>'+r.lib+'</td><td><span class="pill '+r.stc+'">'+r.st+'</span></td></tr>';
+          }).join('')
+        + '</tbody></table></div></div>';
+      C.innerHTML = html;
+      void C.offsetHeight;
+      mkChart("c2b",{type:"bar",data:{labels:["Passives","MCU","Power","Connector","RF"],
+        datasets:[{label:"引用次數",data:[212,58,71,42,26],backgroundColor:[accent,accent2,"#fbbf24","#f87171","#60a5fa"],borderRadius:6}]},
+        options:(function(){var o=chartCommon();o.indexAxis="y";o.plugins.legend.display=false;return o;})()});
+    }
+
+    // ================= SCREEN 3 : DRC 設計規則檢查 =================
+    function s3(){
+      var rules=[
+        {id:"RULE-01",n:"最小線寬 / 間距",v:8,sev:"高"},
+        {id:"RULE-02",n:"鑽孔 / Via 環寬",v:3,sev:"中"},
+        {id:"RULE-03",n:"銅箔至板邊間距",v:0,sev:"低"},
+        {id:"RULE-04",n:"差分對阻抗",v:2,sev:"高"},
+        {id:"RULE-05",n:"絲印重疊 / 焊盤",v:5,sev:"低"}
+      ];
+      var viol=[
+        {id:"DRC-3182",r:"最小線寬",loc:"Top / U12 附近",net:"NET_5V0",sev:"高",stc:"p-bad",act:"阻擋放行"},
+        {id:"DRC-3179",r:"差分對阻抗",loc:"L2 / USB_D±",net:"USB_DP/DM",sev:"高",stc:"p-bad",act:"待修正"},
+        {id:"DRC-3175",r:"Via 環寬",loc:"L3 / J4 焊盤",net:"GND",sev:"中",stc:"p-warn",act:"評估中"},
+        {id:"DRC-3170",r:"絲印重疊",loc:"Top / R33",net:"—",sev:"低",stc:"p-info",act:"可放行"},
+        {id:"DRC-3166",r:"焊盤間距",loc:"Bottom / C21",net:"NET_VBAT",sev:"中",stc:"p-warn",act:"評估中"}
+      ];
+      var html = head(3)
+        + '<div class="grid g-kpi" style="margin-bottom:14px;">'
+        + kpi("本次違規","rule","18","項","上版 31","up")
+        + kpi("高風險","dangerous","5","項","阻擋放行","down")
+        + kpi("已修正","task_alt","13","項","72%","up")
+        + kpi("規則通過率","verified_user","89","%","目標 95%","up")
+        + '</div>'
+        + '<div class="grid g-2e" style="margin-bottom:14px;">'
+        + '<div class="card"><div class="card-h"><span class="msi">radar</span><h3>違規類型分佈</h3><span class="sub">依規則群</span></div>'
+        + '<div class="chartbox" style="height:250px"><canvas id="c3a"></canvas></div></div>'
+        + '<div class="card"><div class="card-h"><span class="msi">checklist</span><h3>DRC 規則集</h3><span class="sub">5 條</span></div>'
+        + '<div class="gauge-list" style="margin-top:4px;">'
+        + rules.map(function(r){
+            var mx=8; var pct=Math.round((r.v/mx)*100); if(pct>100)pct=100;
+            var sc=r.sev==="高"?"p-bad":r.sev==="中"?"p-warn":"p-ok";
+            return '<div class="gl"><div class="top"><b>'+r.id+' · '+esc(r.n)+'</b><span><span class="pill '+sc+'">'+r.sev+'</span> '+r.v+' 違規</span></div>'
+              +'<div class="bar"><i style="width:'+pct+'%"></i></div></div>';
+          }).join('')
+        + '</div></div>'
+        + '</div>'
+        + '<div class="card pad0"><div class="card-h" style="padding:16px 16px 0;"><span class="msi">error_outline</span><h3>違規清單與判定</h3><span class="sub">RULE 依風險排序</span></div>'
+        + '<div class="tbl-scroll"><table><thead><tr><th>編號</th><th>違反規則</th><th>位置</th><th>網路</th><th>風險</th><th>判定</th></tr></thead><tbody>'
+        + viol.map(function(v){
+            var sc=v.sev==="高"?"p-bad":v.sev==="中"?"p-warn":"p-info";
+            return '<tr><td class="mono">'+v.id+'</td><td>'+esc(v.r)+'</td><td>'+esc(v.loc)+'</td><td class="mono">'+esc(v.net)+'</td>'
+              +'<td><span class="pill '+sc+'">'+v.sev+'</span></td><td><span class="pill '+v.stc+'">'+v.act+'</span></td></tr>';
+          }).join('')
+        + '</tbody></table></div>'
+        + '<div class="note" style="padding:0 16px 14px;"><span class="msi">gavel</span>RULE-01：會影響設計凍結或試產日期的失敗項目優先處理</div></div>';
+      C.innerHTML = html;
+      void C.offsetHeight;
+      mkChart("c3a",{type:"radar",data:{labels:["線寬/間距","Via 環寬","板邊間距","差分阻抗","絲印/焊盤","鑽孔"],
+        datasets:[
+          {label:"本版",data:[8,3,0,2,5,3],borderColor:accent2,backgroundColor:"rgba(251,113,133,.25)",pointBackgroundColor:accent2},
+          {label:"上版",data:[14,6,2,4,8,5],borderColor:"#60a5fa",backgroundColor:"rgba(96,165,250,.15)",pointBackgroundColor:"#60a5fa"}
+        ]},
+        options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{labels:{color:tickColor,font:{size:11},boxWidth:12}}},
+          scales:{r:{angleLines:{color:gridColor},grid:{color:gridColor},pointLabels:{color:tickColor,font:{size:10}},ticks:{color:tickColor,backdropColor:"transparent",font:{size:9}}}}}});
+    }
+
+    // ================= SCREEN 4 : 設計審查放行（Kanban + timeline） =================
+    function s4(){
+      var board={
+        submit:[{t:"PWR-CTRL v4.2",m:"林昀珊 · DRC 通過",p:"p-info"},{t:"SENS-HUB v1.9",m:"吳承翰 · 佈局完成",p:"p-mute"}],
+        review:[{t:"RF-FE v2.7",m:"陳柏叡 · 阻抗複核",p:"p-warn"}],
+        signoff:[{t:"MCU-Core v6.1",m:"研發經理 簽核中",p:"p-info"}],
+        release:[{t:"BMS v3.4",m:"技術長 已放行 Tape-out",p:"p-ok"},{t:"IO-EXP v2.0",m:"已凍結發布",p:"p-ok"}]
+      };
+      var tl=[
+        {done:true,ts:"08/12 09:20",t:"DRC 全數通過",d:"PWR-CTRL v4.2 違規清零，進入審查佇列"},
+        {done:true,ts:"08/13 14:05",t:"研發經理審查",d:"元件庫版本核對一致，簽核第一關通過"},
+        {done:false,ts:"08/14 10:30",t:"技術長設計凍結審查",d:"確認 BOM 與 Tape-out 檔案，等待最終簽核"},
+        {done:false,ts:"—",t:"Tape-out 放行",d:"產生製造檔（Gerber / IPC-2581）並歸檔"}
+      ];
+      var cols=[
+        {k:"submit",n:"送審佇列",ic:"outbox"},
+        {k:"review",n:"審查中",ic:"reviews"},
+        {k:"signoff",n:"簽核中",ic:"approval"},
+        {k:"release",n:"已放行",ic:"verified"}
+      ];
+      var html = head(4)
+        + '<div class="grid g-kpi" style="margin-bottom:14px;">'
+        + kpi("待簽核","approval","3","件","1 件今日到期","down")
+        + kpi("本月放行","verified","9","版","+2","up")
+        + kpi("平均審查時長","schedule","1.8","天","縮短 0.6","up")
+        + kpi("退回重工","undo","2","件","版次不符","down")
+        + '</div>'
+        + '<div class="card" style="margin-bottom:14px;"><div class="card-h"><span class="msi">view_kanban</span><h3>審查放行看板</h3><span class="sub">送審 → 放行</span></div>'
+        + '<div class="board">'
+        + cols.map(function(c){
+            var list=board[c.k]||[];
+            return '<div class="col"><div class="col-h"><span class="msi" style="font-size:16px;color:var(--accent2)">'+c.ic+'</span>'+c.n+'<span class="n">'+list.length+'</span></div>'
+              + list.map(function(x){return '<div class="tick"><b>'+esc(x.t)+'</b><div class="m"><span class="pill '+x.p+'">'+esc(x.m)+'</span></div></div>';}).join('')
+              + '</div>';
+          }).join('')
+        + '</div></div>'
+        + '<div class="grid g-2">'
+        + '<div class="card"><div class="card-h"><span class="msi">history</span><h3>審查放行歷程</h3><span class="sub">PWR-CTRL v4.2</span></div>'
+        + '<div class="tl">'
+        + tl.map(function(t){return '<div class="tl-item'+(t.done?' done':'')+'"><div class="ts">'+t.ts+'</div><div class="t">'+esc(t.t)+'</div><div class="d">'+esc(t.d)+'</div></div>';}).join('')
+        + '</div></div>'
+        + '<div class="card"><div class="card-h"><span class="msi">fact_check</span><h3>放行檢核清單</h3></div>'
+        + [["DRC 違規清零","done"],["元件庫版本一致","done"],["BOM 與原理圖對齊","done"],["設計凍結審查簽核","doing"],["Tape-out 製造檔歸檔","wait"]].map(function(x){
+            var pill = x[1]==="done"?'<span class="pill p-ok"><span class="msi">check</span>完成</span>'
+              : x[1]==="doing"?'<span class="pill p-warn">進行中</span>'
+              : '<span class="pill p-mute">待辦</span>';
+            return '<div class="stat-row"><span class="k">'+esc(x[0])+'</span><span class="v">'+pill+'</span></div>';
+          }).join('')
+        + '<div class="note"><span class="msi">gavel</span>RULE-03：共享設備排程衝突時，依量產承諾日排序放行</div></div>'
+        + '</div>';
+      C.innerHTML = html;
+      void C.offsetHeight;
+    }
+
+    // ================= SCREEN 5 : EDA 洞察站 =================
+    function s5(){
+      var kpis=[
+        {label:"設計變更工時",before:8.3,after:2,unit:"小時"},
+        {label:"文件版本錯誤",before:6.1,after:1,unit:"件/月"},
+        {label:"專案準時率",before:70,after:86,unit:"%"},
+        {label:"資料查找時間",before:29,after:5.3,unit:"分鐘"}
+      ];
+      var html = head(5)
+        + '<div class="grid g-kpi" style="margin-bottom:14px;">'
+        + kpi("在管專案","folder_special","16","案","4 案凍結中","")
+        + kpi("專案準時率","trending_up","86","%","+16pt","up")
+        + kpi("版本一致率","verified","93","%","+9pt","up")
+        + kpi("待處理告警","notifications_active","6","件","2 高風險","down")
+        + '</div>'
+        + '<div class="grid g-2" style="margin-bottom:14px;">'
+        + '<div class="card"><div class="card-h"><span class="msi">insights</span><h3>專案準時率趨勢</h3><span class="sub">近 6 週</span></div>'
+        + '<div class="chartbox" style="height:250px"><canvas id="c5a"></canvas></div></div>'
+        + '<div class="card"><div class="card-h"><span class="msi">query_stats</span><h3>導入前後對比</h3><span class="sub">關鍵指標</span></div>'
+        + '<div style="margin-top:4px;">'
+        + kpis.map(function(k){
+            var imp;
+            if(k.label==="專案準時率"){imp="+"+(k.after-k.before).toFixed(0)+" pt";}
+            else{imp="-"+Math.round((1-k.after/k.before)*100)+"%";}
+            return '<div class="stat-row"><span class="k">'+esc(k.label)+'</span>'
+              +'<span class="v"><span style="color:var(--muted);text-decoration:line-through;font-weight:500">'+k.before+'</span>'
+              +' <span class="msi" style="font-size:14px;color:var(--accent2)">arrow_forward</span> '
+              +'<span style="color:var(--ok)">'+k.after+k.unit+'</span> '
+              +'<span class="pill p-info" style="margin-left:6px">'+imp+'</span></span></div>';
+          }).join('')
+        + '</div></div>'
+        + '</div>'
+        + '<div class="grid g-2e">'
+        + '<div class="card"><div class="card-h"><span class="msi">stacked_bar_chart</span><h3>各專案版本 / 違規量</h3></div>'
+        + '<div class="chartbox" style="height:250px"><canvas id="c5b"></canvas></div></div>'
+        + '<div class="card"><div class="card-h"><span class="msi">lightbulb</span><h3>AI 洞察與建議</h3></div>'
+        + [["priority_high","p-bad","USB-C 連接器庫版本落後 2 版，已造成 1 件放行阻擋，建議立即同步 lib-2026.03。"],
+           ["schedule","p-warn","RF-FE 阻抗調整占用最多工時，建議導入預設疊層模板縮短返工。"],
+           ["trending_up","p-ok","原理圖建版審查週期較上月縮短 22%，版本控管流程收斂良好。"]].map(function(x){
+            return '<div class="libitem"><div class="ic"><span class="msi">'+x[0]+'</span></div><div class="info"><span style="font-size:12.5px;color:var(--txt);line-height:1.55">'+esc(x[2])+'</span></div></div>';
+          }).join('')
+        + '<div class="note"><span class="msi">bolt</span>洞察每日依版本、違規與準時率自動彙整</div></div>'
+        + '</div>';
+      C.innerHTML = html;
+      void C.offsetHeight;
+      mkChart("c5a",{type:"line",data:{labels:["第1週","第2週","第3週","第4週","第5週","第6週"],
+        datasets:[{label:"專案準時率 %",data:[70,73,76,80,83,86],borderColor:accent2,backgroundColor:"rgba(251,113,133,.18)",fill:true,tension:.35,pointBackgroundColor:accent,pointRadius:4,borderWidth:2}]},
+        options:(function(){var o=chartCommon();o.scales.y.min=60;o.scales.y.max=100;return o;})()});
+      mkChart("c5b",{type:"bar",data:{labels:["PWR-CTRL","RF-FE","MCU-Core","SENS-HUB","BMS"],
+        datasets:[
+          {label:"版本數",data:[12,7,18,5,9],backgroundColor:accent,borderRadius:5,stack:"a"},
+          {label:"未結違規",data:[3,5,0,8,2],backgroundColor:accent2,borderRadius:5,stack:"a"}
+        ]},options:(function(){var o=chartCommon();o.scales.x.stacked=true;o.scales.y.stacked=true;return o;})()});
+    }
+
+    var RENDER=[s0,s1,s2,s3,s4,s5];
+
+    function show(i){
+      i = Math.max(0, Math.min(i, RENDER.length-1));
+      destroyAll();
+      var btns = document.querySelectorAll("[data-i]");
+      for(var b=0;b<btns.length;b++){
+        if(+btns[b].getAttribute("data-i")===i) btns[b].classList.add("active");
+        else btns[b].classList.remove("active");
+      }
+      RENDER[i]();
+    }
+
+    // build nav
+    var nav = document.getElementById("navBtns");
+    nav.innerHTML = SCREENS.map(function(s,i){
+      return '<button class="nbtn" data-i="'+i+'"><span class="msi">'+s.icon+'</span><span class="lbl">'+s.name+'</span></button>';
+    }).join('') + '<span class="live-dot"><i></i>Live</span>';
+    var nb = document.querySelectorAll("[data-i]");
+    for(var q=0;q<nb.length;q++){
+      (function(btn){
+        btn.addEventListener("click",function(){
+          var idx=+btn.getAttribute("data-i");
+          if(location.hash!=="#v"+idx){location.hash="v"+idx;} else {show(idx);}
+        });
+      })(nb[q]);
+    }
+
+    window.show = show;
+
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+    window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>

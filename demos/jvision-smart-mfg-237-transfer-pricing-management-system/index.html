@@ -1,18 +1,572 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>移轉訂價管理系統（Transfer Pricing Management System）｜Jvision 系統 Demo</title>
-  <meta name="description" content="應收付、現金流到預算的財務即時掌握" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移轉訂價管理系統（Transfer Pricing Management System）｜Jvision 系統 Demo</title>
+<meta name="description" content="關係人交易彙整、訂價政策模擬到常規區間比對的移轉訂價一站式管理" />
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --accent:#16a34a;--accent2:#4ade80;--accent-dark:#15803d;
+  --bg:#f1f5f4;--panel:#ffffff;--ink:#0f2a1e;--muted:#6b8578;
+  --line:#e3ece7;--soft:#f6faf8;--warn:#e0632c;--danger:#dc2626;--amber:#d99a15;
+  --shadow:0 1px 2px rgba(16,60,40,.05),0 8px 26px rgba(16,60,40,.07);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:"Inter","Noto Sans TC",system-ui,sans-serif;
+  background:var(--bg);color:var(--ink);
+  -webkit-font-smoothing:antialiased;line-height:1.5;
+}
+.material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:400;font-style:normal;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;direction:ltr;vertical-align:middle}
+.shell{max-width:1360px;margin:0 auto;padding:0 18px 60px}
+/* Top bar */
+.topbar{display:flex;align-items:center;gap:14px;padding:16px 4px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.brand .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 6px 16px rgba(22,163,74,.3);flex:0 0 auto}
+.brand .logo .material-symbols-outlined{font-size:24px}
+.brand h1{font-size:16px;margin:0;font-weight:800;letter-spacing:.2px}
+.brand p{font-size:11.5px;margin:2px 0 0;color:var(--muted);font-weight:500}
+.badge{margin-left:auto;display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;color:var(--accent-dark);box-shadow:var(--shadow)}
+.badge .dot{width:8px;height:8px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 3px rgba(74,222,128,.25)}
+/* Nav */
+nav{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 20px}
+.navbtn{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-family:inherit;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:.16s;min-width:0}
+.navbtn .material-symbols-outlined{font-size:19px}
+.navbtn .idx{font-size:10px;font-weight:800;background:var(--soft);color:var(--muted);border-radius:6px;padding:1px 6px}
+.navbtn:hover{border-color:var(--accent2);color:var(--accent-dark)}
+.navbtn.on{background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;border-color:transparent;box-shadow:0 8px 20px rgba(22,163,74,.28)}
+.navbtn.on .idx{background:rgba(255,255,255,.22);color:#fff}
+/* Split workspace signature */
+.screen{animation:fade .3s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.split{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start}
+.pane{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);min-width:0}
+.pane-hd{display:flex;align-items:center;gap:9px;padding:15px 18px;border-bottom:1px solid var(--line)}
+.pane-hd .material-symbols-outlined{font-size:20px;color:var(--accent)}
+.pane-hd h2{font-size:14.5px;margin:0;font-weight:800}
+.pane-hd .sub{font-size:11px;color:var(--muted);font-weight:500;margin-top:1px}
+.pane-hd .spacer{margin-left:auto}
+.pane-bd{padding:16px 18px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+.chip.g{background:#e7f6ee;color:var(--accent-dark)}
+.chip.a{background:#fdf3dc;color:#8a6410}
+.chip.r{background:#fdeaea;color:#b42121}
+.chip.b{background:#e8f0fb;color:#28558f}
+/* List (left pane) */
+.listitem{display:flex;gap:11px;padding:12px 18px;border-bottom:1px solid var(--line);cursor:pointer;transition:.15s;min-width:0}
+.listitem:hover{background:var(--soft)}
+.listitem.sel{background:#eaf7f0;box-shadow:inset 3px 0 0 var(--accent)}
+.listitem .av{width:36px;height:36px;border-radius:10px;background:var(--soft);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-weight:800;font-size:12px;color:var(--accent-dark)}
+.listitem .mn{min-width:0;flex:1}
+.listitem .mn .t{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.listitem .mn .d{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.listitem .amt{text-align:right;flex:0 0 auto;font-size:12px;font-weight:800}
+.listitem .amt small{display:block;font-size:10px;color:var(--muted);font-weight:600;margin-top:2px}
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kpi{background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+.kpi .k-t{font-size:11px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:5px}
+.kpi .k-t .material-symbols-outlined{font-size:16px;color:var(--accent)}
+.kpi .k-v{font-size:23px;font-weight:900;margin-top:7px;letter-spacing:-.5px}
+.kpi .k-v small{font-size:12px;font-weight:700;color:var(--muted)}
+.kpi .k-s{font-size:11px;font-weight:700;margin-top:4px;display:flex;align-items:center;gap:3px}
+.kpi .k-s .material-symbols-outlined{font-size:14px}
+.up{color:var(--accent-dark)}.down{color:var(--danger)}
+/* Tables */
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{text-align:left;font-size:11px;color:var(--muted);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--soft)}
+.tbl td{padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--soft)}
+.mono{font-variant-numeric:tabular-nums;font-weight:700}
+.bar{height:6px;border-radius:4px;background:var(--line);overflow:hidden;min-width:60px}
+.bar>i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+/* charts */
+.cwrap{position:relative;width:100%;overflow:hidden}
+/* grids */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);min-width:0}
+.card .hd{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.card .hd .material-symbols-outlined{font-size:18px;color:var(--accent)}
+.card .hd h3{font-size:13px;margin:0;font-weight:800}
+.card .hd .spacer{margin-left:auto}
+.card .bd{padding:15px 16px}
+/* board */
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start}
+.col{background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:11px;min-width:0}
+.col .ch{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:800;margin-bottom:9px;padding:0 2px}
+.col .ch .cnt{background:#fff;border:1px solid var(--line);border-radius:999px;font-size:10px;padding:1px 7px;color:var(--muted)}
+.tk{background:#fff;border:1px solid var(--line);border-radius:11px;padding:10px;margin-bottom:9px;box-shadow:0 1px 2px rgba(16,60,40,.04)}
+.tk:last-child{margin-bottom:0}
+.tk .tt{font-size:12px;font-weight:700;line-height:1.35}
+.tk .tm{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:10.5px;color:var(--muted);flex-wrap:wrap}
+.tk .tm .who{margin-left:auto;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800}
+/* timeline */
+.tl{position:relative;padding-left:26px}
+.tl:before{content:"";position:absolute;left:8px;top:4px;bottom:4px;width:2px;background:var(--line)}
+.tl .ev{position:relative;padding:0 0 18px 0}
+.tl .ev:last-child{padding-bottom:0}
+.tl .ev .dot{position:absolute;left:-24px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 0 0 3px #eaf7f0}
+.tl .ev.a .dot{border-color:var(--amber);box-shadow:0 0 0 3px #fdf3dc}
+.tl .ev.r .dot{border-color:var(--danger);box-shadow:0 0 0 3px #fdeaea}
+.tl .ev .et{font-size:12.5px;font-weight:700}
+.tl .ev .ed{font-size:11.5px;color:var(--muted);margin-top:2px}
+.tl .ev .ex{font-size:10.5px;color:var(--accent-dark);font-weight:700;margin-top:3px}
+/* misc rows */
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+.stat-row:last-child{border-bottom:none}
+.stat-row b{font-weight:800}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:var(--soft);color:var(--muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);font-weight:600;margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:middle}
+.quart{position:relative;height:38px;background:var(--soft);border:1px solid var(--line);border-radius:10px;margin:12px 0}
+.quart .rng{position:absolute;top:0;bottom:0;background:rgba(22,163,74,.16);border-left:2px dashed var(--accent);border-right:2px dashed var(--accent)}
+.quart .med{position:absolute;top:0;bottom:0;width:2px;background:var(--accent-dark)}
+.quart .mk{position:absolute;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--warn);box-shadow:0 2px 6px rgba(0,0,0,.15)}
+.quart .lbl{position:absolute;top:-2px;font-size:9.5px;color:var(--muted);transform:translateX(-50%)}
+.notice{display:flex;gap:10px;background:#fdf3dc;border:1px solid #f0dca6;border-radius:12px;padding:12px 14px;font-size:12px;color:#7a5a0f;align-items:flex-start}
+.notice .material-symbols-outlined{font-size:19px;color:var(--amber);flex:0 0 auto}
+.doc-row{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
+.doc-row:last-child{border-bottom:none}
+.doc-row .di{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:var(--soft);border:1px solid var(--line);color:var(--accent);flex:0 0 auto}
+.doc-row .dn{flex:1;min-width:0}
+.doc-row .dn .t{font-size:12.5px;font-weight:700}
+.doc-row .dn .d{font-size:11px;color:var(--muted);margin-top:1px}
+.ring{position:relative;width:120px;height:120px;margin:0 auto}
+.foot{margin-top:22px;text-align:center;font-size:11px;color:var(--muted)}
+@media(max-width:860px){
+  .split{grid-template-columns:1fr}
+  .board{grid-template-columns:1fr 1fr}
+}
+@media(max-width:820px){
+  .kpis{grid-template-columns:1fr 1fr}
+  .g2{grid-template-columns:1fr}
+  .g3{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .navbtn .lbl{display:none}
+  .board{grid-template-columns:1fr}
+  .kpis{grid-template-columns:1fr 1fr}
+}
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"><span class="material-symbols-outlined">account_tree</span></div>
+      <div>
+        <h1>移轉訂價管理系統</h1>
+        <p>Transfer Pricing Management System · 集團關係人交易與常規區間治理</p>
+      </div>
+    </div>
+    <div class="badge"><span class="dot"></span>FY2025 · 12 個集團實體</div>
+  </div>
+  <nav id="nav"></nav>
+  <div id="screen"></div>
+  <div class="foot">Jvision 系統 Demo · 純前端展示，資料為模擬數據</div>
+</div>
+
+<script>
+"use strict";
+var MODS=[
+  {icon:"account_tree",name:"關係人與交易架構",desc:"集團實體與功能風險畫像"},
+  {icon:"receipt_long",name:"關係人交易彙整",desc:"跨國交易紀錄集中勾稽"},
+  {icon:"rule",name:"訂價政策與模擬",desc:"訂價方法設定與利潤試算"},
+  {icon:"insights",name:"常規交易比對",desc:"四分位 Benchmarking 分析"},
+  {icon:"shield",name:"風險預警塔",desc:"偏離常規區間即時預警"},
+  {icon:"gavel",name:"文據與合規",desc:"三層文據與國別報告"}
+];
+var charts={};
+function destroyCharts(){for(var k in charts){if(charts[k]){try{charts[k].destroy();}catch(e){}charts[k]=null;}}}
+function el(id){return document.getElementById(id);}
+function esc(s){return String(s).replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+
+/* ---------- fake data ---------- */
+var ENTITIES=[
+  {code:"TW-HQ",name:"台灣總部（母公司）",role:"策略/研發/品牌",fn:"完整功能",risk:"高",cty:"台灣",tx:38},
+  {code:"CN-MFG",name:"中國製造子公司",role:"受託加工製造",fn:"製造/生產",risk:"低",cty:"中國",tx:52},
+  {code:"VN-MFG",name:"越南組裝廠",role:"契約組裝",fn:"組裝/加工",risk:"低",cty:"越南",tx:29},
+  {code:"US-DIST",name:"美國銷售子公司",role:"經銷/售後",fn:"行銷/配銷",risk:"中",cty:"美國",tx:44},
+  {code:"NL-IP",name:"荷蘭 IP 控股",role:"無形資產持有",fn:"IP 授權",risk:"高",cty:"荷蘭",tx:17},
+  {code:"SG-HUB",name:"新加坡採購中心",role:"區域採購/物流",fn:"採購/協調",risk:"中",cty:"新加坡",tx:33}
+];
+var TXROWS=[
+  {id:"IC-1042",from:"TW-HQ",to:"CN-MFG",type:"有形貨物",method:"CPM 成本加成",amt:"NT$ 128.4M",st:"已勾稽",cls:"g"},
+  {id:"IC-1043",from:"CN-MFG",to:"US-DIST",type:"製成品銷售",method:"TNMM 交易淨利",amt:"NT$ 264.0M",st:"已勾稽",cls:"g"},
+  {id:"IC-1051",from:"NL-IP",to:"TW-HQ",type:"權利金授權",method:"CUP 可比未受控",amt:"NT$ 42.6M",st:"待補件",cls:"a"},
+  {id:"IC-1058",from:"TW-HQ",to:"SG-HUB",type:"服務費/管理費",method:"成本加成 5%",amt:"NT$ 18.9M",st:"已勾稽",cls:"g"},
+  {id:"IC-1063",from:"SG-HUB",to:"VN-MFG",type:"原料採購",method:"CUP 可比未受控",amt:"NT$ 76.2M",st:"待勾稽",cls:"a"},
+  {id:"IC-1071",from:"TW-HQ",to:"NL-IP",type:"研發成本分攤",method:"CCA 成本分攤",amt:"NT$ 33.1M",st:"異常",cls:"r"},
+  {id:"IC-1077",from:"VN-MFG",to:"US-DIST",type:"製成品銷售",method:"TNMM 交易淨利",amt:"NT$ 91.5M",st:"已勾稽",cls:"g"}
+];
+var COMPARABLES=[
+  {name:"可比公司 A（電子代工）",npm:3.8},
+  {name:"可比公司 B（精密組裝）",npm:4.6},
+  {name:"可比公司 C（EMS）",npm:5.1},
+  {name:"可比公司 D（機電製造）",npm:5.9},
+  {name:"可比公司 E（零件製造）",npm:6.4},
+  {name:"可比公司 F（消費電子）",npm:7.2},
+  {name:"可比公司 G（工業製造）",npm:8.1}
+];
+var ALERTS=[
+  {sev:"r",t:"CN-MFG 營業淨利率 2.9% 低於常規區間下限 4.0%",who:"財務經理",tag:"偏離下限",time:"今日 09:12",act:"建議提列年度調整 NT$ 21.4M"},
+  {sev:"r",t:"IC-1071 研發成本分攤缺少功能分析佐證文件",who:"會計專員",tag:"文據缺件",time:"今日 08:40",act:"補齊 CCA 分攤基礎與受益分析"},
+  {sev:"a",t:"US-DIST 銷售毛利率接近常規區間上緣（第 74 百分位）",who:"財務經理",tag:"接近邊界",time:"昨日 17:20",act:"觀察季度趨勢，暫不調整"},
+  {sev:"a",t:"NL-IP 權利金費率 4.5% 待與 CUP 樣本重新驗證",who:"會計專員",tag:"待驗證",time:"昨日 14:05",act:"更新可比授權合約樣本"},
+  {sev:"g",t:"VN-MFG 加工利潤率 5.3% 落於常規區間內",who:"系統",tag:"符合常規",time:"昨日 11:30",act:"維持現行加成率"}
+];
+var DOCS=[
+  {icon:"public",t:"集團主檔 Master File",d:"集團架構、無形資產與融資政策 · v3.2",st:"已核定",cls:"g"},
+  {icon:"description",t:"當地檔 Local File（TW-HQ）",d:"受測交易、功能分析與比對結果",st:"編製中",cls:"a"},
+  {icon:"description",t:"當地檔 Local File（CN-MFG）",d:"含年度調整說明附件",st:"待覆核",cls:"a"},
+  {icon:"assessment",t:"國別報告 CbCR",d:"12 個管轄區收入/稅負/員工彙總",st:"已提交",cls:"g"},
+  {icon:"gavel",t:"預先訂價協議 APA 追蹤",d:"台灣—美國雙邊 APA 申請進度",st:"審核中",cls:"b"}
+];
+
+/* ---------- nav ---------- */
+function buildNav(){
+  var n=el("nav"),h="";
+  for(var i=0;i<MODS.length;i++){
+    h+='<button class="navbtn" data-i="'+i+'" onclick="show('+i+')">'+
+       '<span class="idx">'+i+'</span>'+
+       '<span class="material-symbols-outlined">'+MODS[i].icon+'</span>'+
+       '<span class="lbl">'+esc(MODS[i].name)+'</span></button>';
+  }
+  n.innerHTML=h;
+}
+
+/* ---------- screens ---------- */
+function scr0(){
+  var rows="";
+  for(var i=0;i<ENTITIES.length;i++){
+    var e=ENTITIES[i],rc=e.risk==="高"?"r":(e.risk==="中"?"a":"g");
+    rows+='<div class="listitem'+(i===0?" sel":"")+'" onclick="selEntity('+i+')" id="ent'+i+'">'+
+      '<div class="av">'+esc(e.code.split("-")[0])+'</div>'+
+      '<div class="mn"><div class="t">'+esc(e.name)+'</div>'+
+      '<div class="d">'+esc(e.role)+' · '+esc(e.cty)+'</div></div>'+
+      '<div class="amt">'+e.tx+'<small>筆交易</small></div></div>';
+  }
+  return '<div class="split">'+
+    '<div class="pane"><div class="pane-hd"><span class="material-symbols-outlined">account_tree</span>'+
+      '<div><h2>集團實體</h2><div class="sub">點選檢視功能風險畫像</div></div></div>'+
+      '<div>'+rows+'</div></div>'+
+    '<div class="pane"><div class="pane-hd"><span class="material-symbols-outlined">hub</span>'+
+      '<div><h2 id="e-name">實體功能風險畫像</h2><div class="sub" id="e-sub">受測方判定基礎</div></div>'+
+      '<div class="spacer"></div><span class="chip g" id="e-risk">—</span></div>'+
+      '<div class="pane-bd">'+
+        '<div class="kpis">'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">apartment</span>集團實體</div><div class="k-v">12</div><div class="k-s up"><span class="material-symbols-outlined">check</span>6 個受測</div></div>'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">swap_horiz</span>關係人交易</div><div class="k-v">213<small> 筆</small></div><div class="k-s up"><span class="material-symbols-outlined">trending_up</span>本季 +18</div></div>'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">payments</span>交易總額</div><div class="k-v">1.8<small> 億</small></div><div class="k-s"><span class="pill">NT$/季</span></div></div>'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">public</span>涉及管轄區</div><div class="k-v">6</div><div class="k-s up"><span class="material-symbols-outlined">verified</span>全數建檔</div></div>'+
+        '</div>'+
+        '<div class="g2" style="margin-top:16px">'+
+          '<div class="card"><div class="hd"><span class="material-symbols-outlined">donut_large</span><h3>交易型態分佈</h3></div><div class="bd"><div class="cwrap" style="height:210px"><canvas id="c0a"></canvas></div></div></div>'+
+          '<div class="card"><div class="hd"><span class="material-symbols-outlined">psychology</span><h3 id="fr-title">功能・資產・風險</h3></div><div class="bd" id="fr-body"></div></div>'+
+        '</div>'+
+      '</div></div></div>';
+}
+function selEntity(i){
+  for(var k=0;k<ENTITIES.length;k++){var n=el("ent"+k);if(n)n.className="listitem";}
+  var s=el("ent"+i);if(s)s.className="listitem sel";
+  var e=ENTITIES[i],rc=e.risk==="高"?"r":(e.risk==="中"?"a":"g");
+  el("e-name").textContent=e.name;
+  el("e-sub").textContent=e.role+" · "+e.cty+" · "+e.code;
+  var rk=el("e-risk");rk.textContent="風險 "+e.risk;rk.className="chip "+rc;
+  var funcs=[
+    {l:"執行功能",v:e.fn},
+    {l:"承擔風險",v:e.risk==="高"?"市場/研發/存貨風險":(e.risk==="中"?"市場/信用風險":"有限（受託方）")},
+    {l:"持有資產",v:e.role.indexOf("IP")>=0||e.code==="NL-IP"?"無形資產（IP）":"營運資產"},
+    {l:"訂價受測方",v:e.risk==="低"?"是（單純功能方）":"否（複雜功能方）"},
+    {l:"建議訂價方法",v:e.code==="NL-IP"?"CUP / 剩餘利潤分割":(e.risk==="低"?"TNMM / 成本加成":"殘值分析")}
+  ];
+  var h="";for(var j=0;j<funcs.length;j++){h+='<div class="stat-row"><span>'+esc(funcs[j].l)+'</span><b>'+esc(funcs[j].v)+'</b></div>';}
+  el("fr-body").innerHTML=h;
+}
+function initScr0(){
+  var ctx=el("c0a");if(!ctx)return;
+  charts.c0a=new Chart(ctx,{type:"doughnut",data:{labels:["有形貨物","製成品銷售","權利金授權","服務/管理費","研發分攤","原料採購"],
+    datasets:[{data:[38,26,11,9,7,9],backgroundColor:["#16a34a","#4ade80","#86efac","#15803d","#bbf7d0","#22c55e"],borderWidth:2,borderColor:"#fff"}]},
+    options:{maintainAspectRatio:false,responsive:true,cutout:"58%",plugins:{legend:{position:"right",labels:{boxWidth:11,font:{size:11},padding:8}}}}});
+}
+
+function scr1(){
+  var rows="";
+  for(var i=0;i<TXROWS.length;i++){
+    var t=TXROWS[i];
+    rows+='<tr><td class="mono">'+t.id+'</td><td>'+esc(t.from)+' → '+esc(t.to)+'</td><td>'+esc(t.type)+'</td>'+
+      '<td>'+esc(t.method)+'</td><td class="mono">'+t.amt+'</td>'+
+      '<td><span class="chip '+t.cls+'">'+esc(t.st)+'</span></td></tr>';
+  }
+  var picks="";var names=["有形貨物交易","權利金/無形資產","集團內服務","研發成本分攤"];
+  var pv=[62,17,12,9];
+  for(var j=0;j<names.length;j++){
+    picks+='<div class="stat-row"><span>'+esc(names[j])+'</span><b>'+pv[j]+' 筆</b></div>';
+  }
+  return '<div class="split">'+
+    '<div class="pane"><div class="pane-hd"><span class="material-symbols-outlined">filter_alt</span>'+
+      '<div><h2>彙整概況</h2><div class="sub">本期關係人交易勾稽狀態</div></div></div>'+
+      '<div class="pane-bd">'+
+        '<div class="stat-row"><span>已勾稽</span><b class="up">168 筆 / 79%</b></div>'+
+        '<div class="stat-row"><span>待勾稽</span><b>31 筆</b></div>'+
+        '<div class="stat-row"><span>待補件</span><b style="color:var(--amber)">9 筆</b></div>'+
+        '<div class="stat-row"><span>異常需覆核</span><b style="color:var(--danger)">5 筆</b></div>'+
+        '<div style="margin-top:14px;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:6px">交易型態</div>'+picks+
+        '<div class="notice" style="margin-top:14px"><span class="material-symbols-outlined">info</span><div>依 RULE-01，跨國關係人交易須逐筆登錄交易類型、金額與流向並完成雙邊勾稽後方可進入比對。</div></div>'+
+      '</div></div>'+
+    '<div class="pane"><div class="pane-hd"><span class="material-symbols-outlined">receipt_long</span>'+
+      '<div><h2>關係人交易明細</h2><div class="sub">Intercompany Transaction Ledger</div></div>'+
+      '<div class="spacer"></div><span class="chip b">7 筆 / 共 213</span></div>'+
+      '<div class="pane-bd">'+
+        '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>交易編號</th><th>交易流向</th><th>類型</th><th>訂價方法</th><th>金額</th><th>狀態</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+        '<div class="card" style="margin-top:16px"><div class="hd"><span class="material-symbols-outlined">stacked_bar_chart</span><h3>各實體交易金額（NT$ 百萬）</h3></div>'+
+        '<div class="bd"><div class="cwrap" style="height:220px"><canvas id="c1a"></canvas></div></div></div>'+
+      '</div></div></div>';
+}
+function initScr1(){
+  var ctx=el("c1a");if(!ctx)return;
+  charts.c1a=new Chart(ctx,{type:"bar",data:{labels:["TW-HQ","CN-MFG","US-DIST","SG-HUB","NL-IP","VN-MFG"],
+    datasets:[
+      {label:"銷貨/服務",data:[147,264,0,19,43,92],backgroundColor:"#16a34a",borderRadius:5,stack:"s"},
+      {label:"採購/授權",data:[76,128,355,76,0,0],backgroundColor:"#86efac",borderRadius:5,stack:"s"}
+    ]},
+    options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{position:"top",labels:{boxWidth:12,font:{size:11}}}},
+    scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:11}}},y:{stacked:true,grid:{color:"#eef4f1"},ticks:{font:{size:10}}}}}});
+}
+
+function scr2(){
+  var methods=[
+    {m:"CUP 可比未受控價格",u:"權利金 / 原料採購",fit:"高"},
+    {m:"CPM / 成本加成法",u:"受託製造 / 服務",fit:"高"},
+    {m:"TNMM 交易淨利法",u:"經銷 / 組裝",fit:"最常用"},
+    {m:"利潤分割法 PSM",u:"共同無形資產",fit:"IP 相關"}
+  ];
+  var mh="";
+  for(var i=0;i<methods.length;i++){
+    mh+='<div class="listitem'+(i===2?" sel":"")+'"><div class="av"><span class="material-symbols-outlined" style="font-size:18px">rule</span></div>'+
+      '<div class="mn"><div class="t">'+esc(methods[i].m)+'</div><div class="d">適用：'+esc(methods[i].u)+'</div></div>'+
+      '<div class="amt"><span class="chip g" style="font-size:10px">'+esc(methods[i].fit)+'</span></div></div>';
+  }
+  return '<div class="split">'+
+    '<div class="pane"><div class="pane-hd"><span class="material-symbols-outlined">rule</span>'+
+      '<div><h2>訂價方法庫</h2><div class="sub">OECD 五大方法</div></div></div>'+
+      '<div>'+mh+'</div>'+
+      '<div class="pane-bd" style="border-top:1px solid var(--line)">'+
+        '<div class="notice"><span class="material-symbols-outlined">gavel</span><div>RULE-02：付款/授權超過部門授權額度之訂價變更須由財務經理覆核。</div></div>'+
+      '</div></div>'+
+    '<div class="pane"><div class="pane-hd"><span class="material-symbols-outlined">tune</span>'+
+      '<div><h2>訂價政策模擬 — CN-MFG（TNMM）</h2><div class="sub">受測方營業淨利率 情境試算</div></div>'+
+      '<div class="spacer"></div><span class="chip a">未落區間</span></div>'+
+      '<div class="pane-bd">'+
+        '<div class="kpis">'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">percent</span>目前 NPM</div><div class="k-v">2.9<small>%</small></div><div class="k-s down"><span class="material-symbols-outlined">south</span>低於下限</div></div>'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">flag</span>常規下限 Q1</div><div class="k-v">4.0<small>%</small></div><div class="k-s"><span class="pill">四分位</span></div></div>'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">adjust</span>中位數</div><div class="k-v">5.9<small>%</small></div><div class="k-s"><span class="pill">目標值</span></div></div>'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">savings</span>建議調整</div><div class="k-v">+21<small>M</small></div><div class="k-s up"><span class="material-symbols-outlined">check</span>達中位</div></div>'+
+        '</div>'+
+        '<div class="g2" style="margin-top:16px">'+
+          '<div class="card"><div class="hd"><span class="material-symbols-outlined">show_chart</span><h3>加成率 vs 利潤率模擬</h3></div><div class="bd"><div class="cwrap" style="height:210px"><canvas id="c2a"></canvas></div></div></div>'+
+          '<div class="card"><div class="hd"><span class="material-symbols-outlined">calculate</span><h3>情境參數</h3></div><div class="bd">'+
+            '<div class="stat-row"><span>製造成本基礎</span><b>NT$ 742M</b></div>'+
+            '<div class="stat-row"><span>目前成本加成率</span><b>3.0%</b></div>'+
+            '<div class="stat-row"><span>建議加成率</span><b class="up">5.9%</b></div>'+
+            '<div class="stat-row"><span>模擬營業利益</span><b>NT$ 43.8M</b></div>'+
+            '<div class="stat-row"><span>對應 NPM</span><b>5.9%（達中位）</b></div>'+
+            '<div class="stat-row"><span>覆核狀態</span><b><span class="chip a">待財務經理覆核</span></b></div>'+
+          '</div></div>'+
+        '</div>'+
+      '</div></div></div>';
+}
+function initScr2(){
+  var ctx=el("c2a");if(!ctx)return;
+  charts.c2a=new Chart(ctx,{type:"line",data:{labels:["2%","3%","4%","5%","6%","7%","8%"],
+    datasets:[
+      {label:"對應營業淨利率 %",data:[1.9,2.9,3.8,4.8,5.9,6.9,7.9],borderColor:"#16a34a",backgroundColor:"rgba(22,163,74,.12)",fill:true,tension:.3,pointRadius:3},
+      {label:"常規區間下限",data:[4,4,4,4,4,4,4],borderColor:"#d99a15",borderDash:[6,4],pointRadius:0},
+      {label:"常規區間上限",data:[7.4,7.4,7.4,7.4,7.4,7.4,7.4],borderColor:"#4ade80",borderDash:[6,4],pointRadius:0}
+    ]},
+    options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{position:"top",labels:{boxWidth:12,font:{size:10}}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:10}},title:{display:true,text:"成本加成率",font:{size:10}}},y:{grid:{color:"#eef4f1"},ticks:{font:{size:10}}}}}});
+}
+
+function scr3(){
+  var rows="";
+  for(var i=0;i<COMPARABLES.length;i++){
+    var c=COMPARABLES[i],w=Math.round((c.npm/9)*100);
+    rows+='<tr><td>'+esc(c.name)+'</td><td class="mono">'+c.npm.toFixed(1)+'%</td>'+
+      '<td><div class="bar"><i style="width:'+w+'%"></i></div></td></tr>';
+  }
+  // quartile range 4.0 (Q1) to 7.4 (Q3), median 5.9, tested 2.9 across scale 0-10
+  function pos(v){return (v/10*100);}
+  return '<div class="split">'+
+    '<div class="pane"><div class="pane-hd"><span class="material-symbols-outlined">database</span>'+
+      '<div><h2>可比公司樣本</h2><div class="sub">Benchmarking Set · 7 家</div></div></div>'+
+      '<div class="pane-bd">'+
+        '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>可比公司</th><th>營業淨利率</th><th>分佈</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+        '<div class="stat-row" style="margin-top:10px"><span>樣本篩選</span><b>初選 42 → 拒絕 35</b></div>'+
+        '<div class="stat-row"><span>可比年度</span><b>三年加權平均</b></div>'+
+      '</div></div>'+
+    '<div class="pane"><div class="pane-hd"><span class="material-symbols-outlined">insights</span>'+
+      '<div><h2>常規交易區間比對</h2><div class="sub">四分位區間 Interquartile Range</div></div>'+
+      '<div class="spacer"></div><span class="chip r">CN-MFG 未落區間</span></div>'+
+      '<div class="pane-bd">'+
+        '<div class="kpis">'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">south_west</span>下四分位 Q1</div><div class="k-v">4.0<small>%</small></div></div>'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">horizontal_rule</span>中位數 Q2</div><div class="k-v">5.9<small>%</small></div></div>'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">north_east</span>上四分位 Q3</div><div class="k-v">7.4<small>%</small></div></div>'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">my_location</span>受測 NPM</div><div class="k-v down">2.9<small>%</small></div></div>'+
+        '</div>'+
+        '<div style="margin-top:16px;font-size:12px;font-weight:700">受測方在常規區間的位置</div>'+
+        '<div class="quart">'+
+          '<div class="rng" style="left:'+pos(4)+'%;right:'+(100-pos(7.4))+'%"></div>'+
+          '<div class="med" style="left:'+pos(5.9)+'%"></div>'+
+          '<div class="mk" style="left:'+pos(2.9)+'%"></div>'+
+          '<div class="lbl" style="left:'+pos(4)+'%">Q1 4.0%</div>'+
+          '<div class="lbl" style="left:'+pos(5.9)+'%;top:auto;bottom:-16px">中位 5.9%</div>'+
+          '<div class="lbl" style="left:'+pos(7.4)+'%">Q3 7.4%</div>'+
+          '<div class="lbl" style="left:'+pos(2.9)+'%;top:auto;bottom:-16px;color:var(--warn);font-weight:800">受測 2.9%</div>'+
+        '</div>'+
+        '<div class="legend"><span><i style="background:rgba(22,163,74,.4)"></i>常規區間</span><span><i style="background:#15803d"></i>中位數</span><span><i style="background:#e0632c"></i>受測實體</span></div>'+
+        '<div class="card" style="margin-top:16px"><div class="hd"><span class="material-symbols-outlined">bar_chart</span><h3>各受測實體 vs 常規區間</h3></div>'+
+        '<div class="bd"><div class="cwrap" style="height:210px"><canvas id="c3a"></canvas></div></div></div>'+
+      '</div></div></div>';
+}
+function initScr3(){
+  var ctx=el("c3a");if(!ctx)return;
+  charts.c3a=new Chart(ctx,{type:"bar",data:{labels:["CN-MFG","VN-MFG","US-DIST","SG-HUB"],
+    datasets:[
+      {label:"受測利潤率 %",data:[2.9,5.3,6.1,5.0],backgroundColor:["#dc2626","#16a34a","#16a34a","#16a34a"],borderRadius:5},
+      {label:"常規下限 Q1",type:"line",data:[4,4.5,3.2,4.0],borderColor:"#d99a15",borderDash:[5,4],pointRadius:0},
+      {label:"常規上限 Q3",type:"line",data:[7.4,8.1,7.0,7.6],borderColor:"#4ade80",borderDash:[5,4],pointRadius:0}
+    ]},
+    options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{position:"top",labels:{boxWidth:12,font:{size:10}}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:"#eef4f1"},ticks:{font:{size:10}}}}}});
+}
+
+function scr4(){
+  var rows="";
+  for(var i=0;i<ALERTS.length;i++){
+    var a=ALERTS[i];
+    rows+='<div class="listitem'+(i===0?" sel":"")+'" onclick="selAlert('+i+')" id="al'+i+'">'+
+      '<div class="av" style="background:'+(a.sev==="r"?"#fdeaea":a.sev==="a"?"#fdf3dc":"#e7f6ee")+';color:'+(a.sev==="r"?"#b42121":a.sev==="a"?"#8a6410":"#15803d")+'"><span class="material-symbols-outlined" style="font-size:18px">'+(a.sev==="r"?"priority_high":a.sev==="a"?"warning":"check")+'</span></div>'+
+      '<div class="mn"><div class="t" style="white-space:normal">'+esc(a.t)+'</div>'+
+      '<div class="d">'+esc(a.tag)+' · '+esc(a.who)+' · '+esc(a.time)+'</div></div></div>';
+  }
+  return '<div class="split">'+
+    '<div class="pane"><div class="pane-hd"><span class="material-symbols-outlined">shield</span>'+
+      '<div><h2>風險預警塔</h2><div class="sub">依嚴重度排序 · 5 則</div></div>'+
+      '<div class="spacer"></div><span class="chip r">2 高風險</span></div>'+
+      '<div>'+rows+'</div></div>'+
+    '<div class="pane"><div class="pane-hd"><span class="material-symbols-outlined">emergency</span>'+
+      '<div><h2 id="a-title">預警詳情</h2><div class="sub" id="a-sub">處置建議與依據</div></div>'+
+      '<div class="spacer"></div><span class="chip r" id="a-sev">高風險</span></div>'+
+      '<div class="pane-bd">'+
+        '<div class="kpis">'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">error</span>高風險</div><div class="k-v down">2</div><div class="k-s down"><span class="material-symbols-outlined">flag</span>需即處理</div></div>'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">warning</span>觀察中</div><div class="k-v" style="color:var(--amber)">2</div></div>'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">check_circle</span>符合常規</div><div class="k-v up">1</div></div>'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">savings</span>潛在調整</div><div class="k-v">21.4<small>M</small></div></div>'+
+        '</div>'+
+        '<div class="card" style="margin-top:16px"><div class="hd"><span class="material-symbols-outlined">fact_check</span><h3 id="a-body-t">處置與依據</h3></div><div class="bd" id="a-body"></div></div>'+
+        '<div class="card" style="margin-top:16px"><div class="hd"><span class="material-symbols-outlined">radar</span><h3>合規風險雷達</h3></div><div class="bd"><div class="cwrap" style="height:230px"><canvas id="c4a"></canvas></div></div></div>'+
+      '</div></div></div>';
+}
+function selAlert(i){
+  for(var k=0;k<ALERTS.length;k++){var n=el("al"+k);if(n)n.className="listitem";}
+  var s=el("al"+i);if(s)s.className="listitem sel";
+  var a=ALERTS[i];
+  el("a-title").textContent=a.tag;
+  el("a-sub").textContent=a.who+" · "+a.time;
+  var sv=el("a-sev");sv.textContent=a.sev==="r"?"高風險":a.sev==="a"?"觀察中":"符合常規";
+  sv.className="chip "+(a.sev==="r"?"r":a.sev==="a"?"a":"g");
+  el("a-body").innerHTML=
+    '<div class="stat-row"><span>預警內容</span><b style="max-width:60%;text-align:right;white-space:normal">'+esc(a.t)+'</b></div>'+
+    '<div class="stat-row"><span>負責角色</span><b>'+esc(a.who)+'</b></div>'+
+    '<div class="stat-row"><span>建議處置</span><b style="max-width:60%;text-align:right;white-space:normal;color:var(--accent-dark)">'+esc(a.act)+'</b></div>'+
+    '<div class="stat-row"><span>依據規則</span><b>'+(a.sev==="r"?"RULE-03 文據/區間門檻":"監控門檻")+'</b></div>';
+}
+function initScr4(){
+  var ctx=el("c4a");if(!ctx)return;
+  charts.c4a=new Chart(ctx,{type:"radar",data:{labels:["利潤區間","文據完整","交易勾稽","方法一致","權利金合理","國別揭露"],
+    datasets:[
+      {label:"目前分數",data:[62,78,90,85,70,88],borderColor:"#16a34a",backgroundColor:"rgba(22,163,74,.18)",pointBackgroundColor:"#16a34a"},
+      {label:"合規門檻",data:[80,80,80,80,80,80],borderColor:"#d99a15",backgroundColor:"rgba(217,154,21,.06)",borderDash:[5,4],pointRadius:0}
+    ]},
+    options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{position:"top",labels:{boxWidth:12,font:{size:10}}}},
+    scales:{r:{suggestedMin:0,suggestedMax:100,ticks:{display:false,stepSize:20},pointLabels:{font:{size:10}},grid:{color:"#e3ece7"}}}}});
+}
+
+function scr5(){
+  var rows="";
+  for(var i=0;i<DOCS.length;i++){
+    var d=DOCS[i];
+    rows+='<div class="listitem'+(i===0?" sel":"")+'"><div class="av"><span class="material-symbols-outlined" style="font-size:18px">'+d.icon+'</span></div>'+
+      '<div class="mn"><div class="t">'+esc(d.t)+'</div><div class="d">'+esc(d.d)+'</div></div>'+
+      '<div class="amt"><span class="chip '+d.cls+'" style="font-size:10px">'+esc(d.st)+'</span></div></div>';
+  }
+  return '<div class="split">'+
+    '<div class="pane"><div class="pane-hd"><span class="material-symbols-outlined">gavel</span>'+
+      '<div><h2>三層文據</h2><div class="sub">BEPS Action 13 合規包</div></div></div>'+
+      '<div>'+rows+'</div>'+
+      '<div class="pane-bd" style="border-top:1px solid var(--line)">'+
+        '<div class="notice" style="background:#e7f6ee;border-color:#b6e4c8;color:#166534"><span class="material-symbols-outlined" style="color:var(--accent)">verified</span><div>本期文據整體完成度 82%，國別報告 CbCR 已於期限前提交。</div></div>'+
+      '</div></div>'+
+    '<div class="pane"><div class="pane-hd"><span class="material-symbols-outlined">workspace_premium</span>'+
+      '<div><h2>文據合規進度</h2><div class="sub">產出與歸檔追蹤</div></div>'+
+      '<div class="spacer"></div><span class="chip g">82% 完成</span></div>'+
+      '<div class="pane-bd">'+
+        '<div class="g2">'+
+          '<div class="card"><div class="hd"><span class="material-symbols-outlined">donut_small</span><h3>各文據完成度</h3></div><div class="bd"><div class="cwrap" style="height:200px"><canvas id="c5a"></canvas></div></div></div>'+
+          '<div class="card"><div class="hd"><span class="material-symbols-outlined">event</span><h3>合規時程</h3></div><div class="bd">'+
+            '<div class="tl">'+
+              '<div class="ev"><div class="dot"></div><div class="et">交易彙整與勾稽完成</div><div class="ed">2025/09/30</div><div class="ex">213 筆全數建檔</div></div>'+
+              '<div class="ev"><div class="dot"></div><div class="et">Benchmarking 分析定案</div><div class="ed">2025/11/15</div><div class="ex">四分位區間更新</div></div>'+
+              '<div class="ev a"><div class="dot"></div><div class="et">當地檔編製中</div><div class="ed">2026/03/31（期限）</div><div class="ex">TW-HQ / CN-MFG 待覆核</div></div>'+
+              '<div class="ev"><div class="dot"></div><div class="et">國別報告 CbCR 提交</div><div class="ed">2025/12/31 已完成</div><div class="ex">12 管轄區彙總</div></div>'+
+              '<div class="ev r"><div class="dot"></div><div class="et">年度移轉訂價調整</div><div class="ed">2026/05/31（申報前）</div><div class="ex">CN-MFG 補提 NT$ 21.4M</div></div>'+
+            '</div>'+
+          '</div></div>'+
+        '</div>'+
+        '<div class="g3" style="margin-top:16px">'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">description</span>文據份數</div><div class="k-v">14</div><div class="k-s up"><span class="material-symbols-outlined">check</span>11 已核定</div></div>'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">public</span>涵蓋管轄區</div><div class="k-v">12</div></div>'+
+          '<div class="kpi"><div class="k-t"><span class="material-symbols-outlined">schedule</span>距申報期限</div><div class="k-v">108<small> 天</small></div><div class="k-s"><span class="pill">尚有餘裕</span></div></div>'+
+        '</div>'+
+      '</div></div></div>';
+}
+function initScr5(){
+  var ctx=el("c5a");if(!ctx)return;
+  charts.c5a=new Chart(ctx,{type:"bar",data:{labels:["主檔","TW 當地檔","CN 當地檔","CbCR","APA"],
+    datasets:[{label:"完成度 %",data:[100,70,60,100,45],backgroundColor:["#16a34a","#4ade80","#4ade80","#15803d","#86efac"],borderRadius:5}]},
+    options:{indexAxis:"y",maintainAspectRatio:false,responsive:true,plugins:{legend:{display:false}},
+    scales:{x:{max:100,grid:{color:"#eef4f1"},ticks:{font:{size:10}}},y:{grid:{display:false},ticks:{font:{size:11}}}}}});
+}
+
+/* ---------- router ---------- */
+var RENDER=[scr0,scr1,scr2,scr3,scr4,scr5];
+var INIT=[initScr0,initScr1,initScr2,initScr3,initScr4,initScr5];
+var POST=[function(){selEntity(0);},null,null,null,function(){selAlert(0);},null];
+function show(i){
+  i=Math.max(0,Math.min(i,RENDER.length-1));
+  destroyCharts();
+  var btns=document.querySelectorAll(".navbtn");
+  for(var b=0;b<btns.length;b++){btns[b].className="navbtn"+(+btns[b].getAttribute("data-i")===i?" on":"");}
+  var c=el("screen");
+  c.innerHTML='<div class="screen">'+RENDER[i]()+'</div>';
+  void c.offsetHeight;
+  if(POST[i])POST[i]();
+  if(INIT[i])INIT[i]();
+}
+buildNav();
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>

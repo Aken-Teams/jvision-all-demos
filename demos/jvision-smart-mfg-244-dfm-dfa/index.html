@@ -1,18 +1,439 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>DFM/DFA分析系統（可製造性/可組裝性分析）｜Jvision 系統 Demo</title>
-  <meta name="description" content="訂單到入庫的製造現場全流程數位化" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DFM/DFA分析系統（可製造性/可組裝性分析）｜Jvision Demo</title>
+<meta name="description" content="PCB 可製造性規則檢查、零件間距/公差分析、組裝流程模擬與良率預估的單一分析平台" />
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+<style>
+:root{--accent:#334155;--accent2:#64748b;--bg:#f1f5f9;--card:#ffffff;--line:#e2e8f0;--txt:#1e293b;--mut:#64748b;--good:#16a34a;--warn:#d97706;--bad:#dc2626;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{font-family:"Inter","Noto Sans TC",sans-serif;background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased;}
+.material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+.shell{display:flex;min-height:100vh;align-items:stretch;}
+.sidebar{width:250px;flex:0 0 250px;background:#fff;border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:6px;min-width:0;}
+.brand{display:flex;gap:11px;align-items:center;padding:4px 8px 16px;border-bottom:1px solid var(--line);margin-bottom:10px;}
+.brand .logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:flex;align-items:center;justify-content:center;flex:0 0 38px;}
+.brand .logo .material-symbols-outlined{font-size:22px;}
+.brand b{font-size:14.5px;font-weight:800;letter-spacing:.2px;display:block;}
+.brand span{font-size:11px;color:var(--mut);}
+.nav{display:flex;flex-direction:column;gap:4px;}
+.navbtn{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;border:none;background:transparent;color:var(--mut);font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;text-align:left;width:100%;min-width:0;transition:.12s;}
+.navbtn .material-symbols-outlined{font-size:20px;flex:0 0 auto;}
+.navbtn:hover{background:#f1f5f9;color:var(--txt);}
+.navbtn.on{background:var(--accent);color:#fff;box-shadow:0 4px 12px rgba(51,65,85,.28);}
+.navbtn .idx{margin-left:auto;font-size:10.5px;font-weight:700;opacity:.5;}
+.sidenote{margin-top:auto;padding:12px;border-radius:10px;background:#f8fafc;border:1px solid var(--line);font-size:11px;color:var(--mut);line-height:1.6;}
+.main{flex:1 1 auto;min-width:0;padding:24px 28px 40px;}
+.topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px;}
+.topbar h1{font-size:19px;margin:0;font-weight:800;}
+.topbar .sub{font-size:12.5px;color:var(--mut);}
+.pill{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.chip{font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:20px;background:#e2e8f0;color:#334155;display:inline-flex;align-items:center;gap:5px;}
+.chip .material-symbols-outlined{font-size:15px;}
+.grid{display:grid;gap:16px;min-width:0;}
+.g4{grid-template-columns:repeat(4,1fr);}
+.g3{grid-template-columns:repeat(3,1fr);}
+.g2{grid-template-columns:repeat(2,1fr);}
+.g23{grid-template-columns:2fr 1fr;}
+.g32{grid-template-columns:1fr 2fr;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0;}
+.card h3{margin:0 0 4px;font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px;}
+.card h3 .material-symbols-outlined{font-size:18px;color:var(--accent);}
+.card .csub{font-size:11.5px;color:var(--mut);margin:0 0 14px;}
+.kpi .lab{font-size:12px;color:var(--mut);font-weight:600;display:flex;align-items:center;gap:6px;}
+.kpi .lab .material-symbols-outlined{font-size:17px;color:var(--accent2);}
+.kpi .val{font-size:30px;font-weight:900;margin-top:8px;letter-spacing:-.5px;}
+.kpi .val small{font-size:13px;font-weight:700;color:var(--mut);margin-left:3px;}
+.kpi .delta{font-size:11.5px;font-weight:700;margin-top:6px;display:inline-flex;align-items:center;gap:3px;}
+.kpi .delta .material-symbols-outlined{font-size:15px;}
+.up{color:var(--good);}.down{color:var(--bad);}.flat{color:var(--mut);}
+table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px;}
+th{text-align:left;font-size:11px;color:var(--mut);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;text-transform:uppercase;letter-spacing:.4px;}
+td{padding:10px;border-bottom:1px solid #f1f5f9;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.tag{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;display:inline-block;}
+.t-red{background:#fef2f2;color:#dc2626;}
+.t-amb{background:#fffbeb;color:#d97706;}
+.t-grn{background:#f0fdf4;color:#16a34a;}
+.t-gry{background:#f1f5f9;color:#475569;}
+.t-blu{background:#eff6ff;color:#2563eb;}
+.bar{height:7px;border-radius:4px;background:#e2e8f0;overflow:hidden;min-width:60px;}
+.bar>i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent2),var(--accent));}
+.ovf{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.chartbox{overflow:hidden;min-width:0;}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--mut);margin-top:8px;}
+.legend b{display:inline-flex;align-items:center;gap:5px;font-weight:600;color:var(--txt);}
+.dot{width:9px;height:9px;border-radius:3px;display:inline-block;}
+/* board */
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;min-width:0;}
+.col{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;}
+.col h4{margin:0 0 10px;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:space-between;}
+.col h4 span{font-size:10.5px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:2px 8px;color:var(--mut);}
+.tk{background:#fff;border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:8px;border-left:3px solid var(--accent2);}
+.tk .id{font-size:10px;color:var(--mut);font-weight:700;letter-spacing:.4px;}
+.tk .ti{font-size:12.5px;font-weight:700;margin:3px 0 6px;}
+.tk .mt{font-size:10.5px;color:var(--mut);display:flex;gap:8px;flex-wrap:wrap;}
+/* timeline */
+.tl{position:relative;padding-left:8px;}
+.tl .row{display:flex;gap:14px;padding-bottom:16px;position:relative;}
+.tl .row:before{content:"";position:absolute;left:9px;top:22px;bottom:-4px;width:2px;background:var(--line);}
+.tl .row:last-child:before{display:none;}
+.tl .mk{width:20px;height:20px;border-radius:50%;flex:0 0 20px;display:flex;align-items:center;justify-content:center;color:#fff;z-index:1;}
+.tl .mk .material-symbols-outlined{font-size:13px;}
+.tl .bd{flex:1;min-width:0;}
+.tl .bd .h{font-size:12.5px;font-weight:700;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.tl .bd .t{font-size:11px;color:var(--mut);font-weight:600;}
+.tl .bd .d{font-size:11.5px;color:var(--mut);margin-top:3px;line-height:1.5;}
+/* heat grid */
+.heat{display:grid;grid-template-columns:auto repeat(6,1fr);gap:4px;min-width:420px;}
+.heat .hc{font-size:10px;color:var(--mut);font-weight:700;display:flex;align-items:center;justify-content:center;padding:4px 2px;text-align:center;}
+.heat .cell{aspect-ratio:1.6;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:#fff;}
+.stepflow{display:flex;flex-direction:column;gap:0;}
+.step{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px dashed var(--line);}
+.step:last-child{border-bottom:none;}
+.step .no{width:26px;height:26px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:0 0 26px;}
+.step .sb{flex:1;min-width:0;}
+.step .sb .st{font-size:12.5px;font-weight:700;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.step .sb .sd{font-size:11px;color:var(--mut);margin-top:2px;}
+.mini{font-size:10.5px;color:var(--mut);font-weight:600;}
+.gauge-wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.donut-c{min-width:0;}
+.reslist{display:flex;flex-direction:column;gap:10px;}
+.resitem{display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:10px;min-width:0;}
+.resitem .ic{width:34px;height:34px;border-radius:9px;background:#eef2ff;color:var(--accent);display:flex;align-items:center;justify-content:center;flex:0 0 34px;}
+.resitem .rb{flex:1;min-width:0;}
+.resitem .rb .rt{font-size:12.5px;font-weight:700;}
+.resitem .rb .rd{font-size:11px;color:var(--mut);margin-top:1px;}
+.sig{background:linear-gradient(135deg,#334155,#475569);color:#fff;border:none;}
+.sig h3{color:#fff;}
+.sig h3 .material-symbols-outlined{color:#cbd5e1;}
+.sig .big{font-size:44px;font-weight:900;letter-spacing:-1px;}
+.sig .lab{font-size:12px;color:#cbd5e1;font-weight:600;}
+.ring{position:relative;width:96px;height:96px;flex:0 0 96px;}
+@media(max-width:1100px){.g4{grid-template-columns:repeat(2,1fr);}.board{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:860px){
+  .shell{display:block;}
+  .sidebar{width:auto;flex:none;border-right:none;border-bottom:1px solid var(--line);flex-direction:row;flex-wrap:wrap;align-items:center;padding:12px;gap:8px;}
+  .brand{border-bottom:none;margin:0;padding:0 8px 0 0;}
+  .sidenote{display:none;}
+  .nav{flex-direction:row;flex-wrap:wrap;gap:6px;width:100%;}
+  .navbtn{width:auto;padding:8px 12px;}
+  .navbtn .idx{display:none;}
+}
+@media(max-width:820px){
+  .g4,.g3,.g2,.g23,.g32{grid-template-columns:1fr;}
+}
+@media(max-width:560px){
+  .navbtn span.lbl{display:none;}
+  .navbtn{padding:9px 11px;}
+  .main{padding:16px 14px 30px;}
+}
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo"><span class="material-symbols-outlined">precision_manufacturing</span></div>
+      <div><b>DFM / DFA 分析</b><span>可製造性・可組裝性平台</span></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="sidenote">Demo 示意資料，數據皆為模擬。適用角色：研發專案管理師、研發經理、技術長。</div>
+  </aside>
+  <main class="main">
+    <div id="screen"></div>
+  </main>
+</div>
+<script>
+(function(){
+"use strict";
+var MODS=[
+  {icon:"dashboard",name:"DFM/DFA 儀表板",short:"儀表板"},
+  {icon:"rule",name:"PCB 可製造性檢查",short:"可製造性"},
+  {icon:"precision_manufacturing",name:"間距與公差分析",short:"間距公差"},
+  {icon:"account_tree",name:"組裝流程模擬",short:"組裝模擬"},
+  {icon:"insights",name:"良率預估",short:"良率預估"},
+  {icon:"task_alt",name:"設計凍結與放行",short:"凍結放行"}
+];
+var charts=[];
+function destroyCharts(){for(var i=0;i<charts.length;i++){try{charts[i].destroy();}catch(e){}}charts=[];}
+function mkChart(id,opt){var el=document.getElementById(id);if(!el)return;var c=new ApexCharts(el,opt);c.render();charts.push(c);}
+var BASE={chart:{fontFamily:'Inter,"Noto Sans TC",sans-serif',redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},toolbar:{show:false}}};
+function merge(o){var c=JSON.parse(JSON.stringify(BASE));c.chart.height=o.height;c.chart.type=o.type;if(o.stacked)c.chart.stacked=true;for(var k in o){if(k==="height"||k==="type"||k==="stacked")continue;c[k]=o[k];}return c;}
+
+/* ---------- screen builders ---------- */
+function head(title,sub,chips){
+  var h='<div class="topbar"><div><h1>'+title+'</h1><div class="sub">'+sub+'</div></div><div class="pill">';
+  for(var i=0;i<chips.length;i++){h+='<span class="chip"><span class="material-symbols-outlined">'+chips[i][0]+'</span>'+chips[i][1]+'</span>';}
+  return h+'</div></div>';
+}
+function kpi(icon,lab,val,unit,delta,dir){
+  var da=delta?'<div class="delta '+dir+'"><span class="material-symbols-outlined">'+(dir==="up"?"trending_up":dir==="down"?"trending_down":"trending_flat")+'</span>'+delta+'</div>':'';
+  return '<div class="card kpi"><div class="lab"><span class="material-symbols-outlined">'+icon+'</span>'+lab+'</div><div class="val">'+val+(unit?'<small>'+unit+'</small>':'')+'</div>'+da+'</div>';
+}
+
+/* screen 0 : dashboard */
+function s0(){
+  var h=head("DFM/DFA 儀表板","專案可製造性總覽與待辦",[["folder_open","進行專案 6"],["schedule","更新 3 分鐘前"]]);
+  h+='<div class="grid g4">'
+    +kpi("verified","綜合可製造性評分","82","/100","+6 較上版","up")
+    +kpi("rule","未關閉 DFM 違規","23","項","-11 本週","up")
+    +kpi("insights","預估首件良率","91.4","%","+2.3%","up")
+    +kpi("history","累計改板次數","4","次","-2 vs 前案","up")
+    +'</div>';
+  h+='<div class="grid g23" style="margin-top:16px">';
+  h+='<div class="card chartbox"><h3><span class="material-symbols-outlined">monitoring</span>各專案可製造性評分趨勢</h3><p class="csub">近 6 版設計評審評分（越高越可製造）</p><div id="c0a"></div></div>';
+  h+='<div class="card"><h3><span class="material-symbols-outlined">warning</span>違規嚴重度分布</h3><p class="csub">目前開放中違規</p><div id="c0b"></div>'
+    +'<div class="legend"><b><span class="dot" style="background:#dc2626"></span>嚴重</b><b><span class="dot" style="background:#d97706"></span>次要</b><b><span class="dot" style="background:#64748b"></span>提示</b></div></div>';
+  h+='</div>';
+  h+='<div class="grid g2" style="margin-top:16px">';
+  h+='<div class="card"><h3><span class="material-symbols-outlined">folder_open</span>進行中分析專案</h3><p class="csub">依風險排序</p><div class="ovf"><table><thead><tr><th>專案</th><th>階段</th><th>評分</th><th>違規</th><th>狀態</th></tr></thead><tbody>';
+  var rows=[["PJ-3391 車載電源板","規則檢查","78",8,"t-amb","分析中"],["PJ-3384 感測模組","組裝模擬","85",3,"t-blu","模擬中"],["PJ-3378 主控板 v3","良率預估","91",1,"t-grn","待簽核"],["PJ-3402 快充轉板","規則檢查","64",11,"t-red","高風險"],["PJ-3369 IoT 閘道","凍結放行","96",0,"t-grn","已放行"]];
+  for(var i=0;i<rows.length;i++){var r=rows[i];h+='<tr><td><b>'+r[0]+'</b></td><td class="mini">'+r[1]+'</td><td><b>'+r[2]+'</b></td><td>'+r[3]+'</td><td><span class="tag '+r[4]+'">'+r[5]+'</span></td></tr>';}
+  h+='</tbody></table></div></div>';
+  h+='<div class="card sig"><h3><span class="material-symbols-outlined">insights</span>本週 AI 改善重點</h3><p class="csub" style="color:#cbd5e1">依違規密度與良率影響排序</p>'
+    +'<div class="reslist" style="margin-top:6px">'
+    +'<div class="resitem" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15)"><div class="ic" style="background:rgba(255,255,255,.14);color:#fff"><span class="material-symbols-outlined">bolt</span></div><div class="rb"><div class="rt" style="color:#fff">U7 周邊焊墊間距不足</div><div class="rd" style="color:#cbd5e1">影響回流焊良率約 -3.1%，建議加大 0.08mm</div></div></div>'
+    +'<div class="resitem" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15)"><div class="ic" style="background:rgba(255,255,255,.14);color:#fff"><span class="material-symbols-outlined">build</span></div><div class="rb"><div class="rt" style="color:#fff">J3 連接器貼裝方向受阻</div><div class="rd" style="color:#cbd5e1">DFA 模擬第 4 站治具干涉，建議翻轉封裝</div></div></div>'
+    +'<div class="resitem" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15)"><div class="ic" style="background:rgba(255,255,255,.14);color:#fff"><span class="material-symbols-outlined">rule</span></div><div class="rb"><div class="rt" style="color:#fff">Layer3 線寬低於製程下限</div><div class="rd" style="color:#cbd5e1">6 處 < 0.10mm，建議改走 0.12mm 或加銅</div></div></div>'
+    +'</div></div>';
+  h+='</div>';
+  document.getElementById("screen").innerHTML=h;
+  void document.getElementById("screen").offsetHeight;
+  mkChart("c0a",merge({type:"line",height:280,
+    series:[{name:"車載電源板",data:[58,64,66,72,75,78]},{name:"主控板 v3",data:[70,76,82,86,89,91]},{name:"快充轉板",data:[48,52,55,58,61,64]}],
+    colors:["#334155","#16a34a","#dc2626"],stroke:{width:3,curve:"smooth"},
+    xaxis:{categories:["v1","v2","v3","v4","v5","v6"],labels:{style:{fontSize:"11px"}}},
+    yaxis:{min:40,max:100,labels:{style:{fontSize:"11px"}}},
+    grid:{borderColor:"#eef2f6"},legend:{fontSize:"11px"},dataLabels:{enabled:false},markers:{size:3}}));
+  mkChart("c0b",merge({type:"donut",height:250,
+    series:[7,10,6],labels:["嚴重","次要","提示"],colors:["#dc2626","#d97706","#64748b"],
+    legend:{show:false},dataLabels:{enabled:true,style:{fontSize:"11px"}},
+    plotOptions:{pie:{donut:{size:"62%",labels:{show:true,total:{show:true,label:"開放違規",fontSize:"12px",formatter:function(){return "23 項";}}}}}}}));
+}
+
+/* screen 1 : PCB manufacturability check */
+function s1(){
+  var h=head("PCB 可製造性檢查","依製程規則庫自動檢出設計違規",[["memory","PJ-3391 車載電源板"],["rule","規則庫 IPC-A / 廠規 v4"]]);
+  h+='<div class="grid g4">'
+    +kpi("checklist","已檢核規則","148","項","涵蓋 6 層","flat")
+    +kpi("error","違規總數","19","處","嚴重 5","down")
+    +kpi("straighten","最小線寬","0.09","mm","低於下限 0.10","down")
+    +kpi("adjust","最小鑽孔孔環","0.11","mm","符合","flat")
+    +'</div>';
+  h+='<div class="grid g32" style="margin-top:16px">';
+  h+='<div class="card chartbox"><h3><span class="material-symbols-outlined">bar_chart</span>各類別違規數</h3><p class="csub">依規則類別統計</p><div id="c1a"></div></div>';
+  h+='<div class="card"><h3><span class="material-symbols-outlined">rule</span>違規明細（Top 8）</h3><p class="csub">點位、量測值與規則下限</p><div class="ovf"><table><thead><tr><th>編號</th><th>類別</th><th>位置</th><th>量測</th><th>下限</th><th>等級</th></tr></thead><tbody>';
+  var rows=[["DRC-101","線寬","Layer3 net_VCC","0.09mm","0.10mm","t-red","嚴重"],["DRC-102","焊墊間距","U7 pin12-13","0.11mm","0.13mm","t-red","嚴重"],["DRC-108","鑽孔對位","H221","偏移 0.06mm","0.05mm","t-amb","次要"],["DRC-115","銅箔到板邊","右下角","0.18mm","0.20mm","t-red","嚴重"],["DRC-121","絲印重疊","R44 標號","覆蓋焊墊","—","t-amb","次要"],["DRC-130","孔環","VIA_88","0.11mm","0.10mm","t-grn","通過"],["DRC-134","阻焊開窗","Q3","偏差 0.04mm","0.05mm","t-gry","提示"],["DRC-140","線距","net_D+/D-","0.12mm","0.13mm","t-amb","次要"]];
+  for(var i=0;i<rows.length;i++){var r=rows[i];h+='<tr><td class="mini"><b>'+r[0]+'</b></td><td>'+r[1]+'</td><td class="mini">'+r[2]+'</td><td>'+r[3]+'</td><td class="mini">'+r[4]+'</td><td><span class="tag '+r[5]+'">'+r[6]+'</span></td></tr>';}
+  h+='</tbody></table></div></div>';
+  h+='</div>';
+  h+='<div class="grid g2" style="margin-top:16px">';
+  h+='<div class="card chartbox"><h3><span class="material-symbols-outlined">layers</span>各層違規密度</h3><p class="csub">每層開放違規數（處）</p><div id="c1b"></div></div>';
+  h+='<div class="card"><h3><span class="material-symbols-outlined">checklist</span>規則庫檢核進度</h3><p class="csub">依製程規則群組</p>';
+  var grp=[["線路 / 線寬線距",96,"t-grn"],["焊墊 / 阻焊",88,"t-amb"],["鑽孔 / 孔環",100,"t-grn"],["板邊 / 拼板",74,"t-red"],["絲印 / 標記",92,"t-grn"]];
+  for(var j=0;j<grp.length;j++){var g=grp[j];h+='<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:5px"><span>'+g[0]+'</span><span class="mini">'+g[1]+'%</span></div><div class="bar"><i style="width:'+g[1]+'%"></i></div></div>';}
+  h+='</div>';
+  h+='</div>';
+  document.getElementById("screen").innerHTML=h;
+  void document.getElementById("screen").offsetHeight;
+  mkChart("c1a",merge({type:"bar",height:300,
+    series:[{name:"違規數",data:[5,4,3,3,2,2]}],colors:["#334155"],
+    plotOptions:{bar:{horizontal:true,borderRadius:4,barHeight:"58%",distributed:true}},
+    dataLabels:{enabled:true,style:{fontSize:"11px",colors:["#fff"]}},legend:{show:false},
+    colors:["#dc2626","#d97706","#64748b","#334155","#94a3b8","#cbd5e1"],
+    xaxis:{categories:["線寬/線距","焊墊間距","板邊淨空","鑽孔對位","絲印重疊","阻焊開窗"],labels:{style:{fontSize:"11px"}}},
+    grid:{borderColor:"#eef2f6"}}));
+  mkChart("c1b",merge({type:"bar",height:280,
+    series:[{name:"違規數",data:[2,3,6,4,3,1]}],colors:["#64748b"],
+    plotOptions:{bar:{borderRadius:5,columnWidth:"48%"}},dataLabels:{enabled:true,style:{fontSize:"11px"}},
+    xaxis:{categories:["L1","L2","L3","L4","L5","L6"],labels:{style:{fontSize:"11px"}}},
+    yaxis:{labels:{style:{fontSize:"11px"}}},grid:{borderColor:"#eef2f6"},legend:{show:false}}));
+}
+
+/* screen 2 : clearance & tolerance */
+function s2(){
+  var h=head("零件間距與公差分析","元件間距、焊墊公差與貼裝可行性熱區",[["precision_manufacturing","貼片元件 214"],["thermostat","製程 SMT 迴流"]]);
+  h+='<div class="grid g4">'
+    +kpi("space_bar","最小元件間距","0.28","mm","建議 ≥0.30","down")
+    +kpi("adjust","焊墊公差 Cpk","1.12","","略低 1.33","down")
+    +kpi("check_circle","可自動貼裝率","93.5","%","+1.8%","up")
+    +kpi("report","干涉/近距警示","12","處","嚴重 3","down")
+    +'</div>';
+  h+='<div class="grid g23" style="margin-top:16px">';
+  h+='<div class="card chartbox"><h3><span class="material-symbols-outlined">grid_on</span>間距風險熱區圖</h3><p class="csub">板面分區最小間距（顏色越紅越接近下限）</p><div class="ovf"><div class="heat" id="heat"></div></div>'
+    +'<div class="legend"><b><span class="dot" style="background:#16a34a"></span>充裕</b><b><span class="dot" style="background:#d97706"></span>接近下限</b><b><span class="dot" style="background:#dc2626"></span>違規</b></div></div>';
+  h+='<div class="card chartbox"><h3><span class="material-symbols-outlined">radar</span>貼裝可行性評估</h3><p class="csub">五軸綜合評分</p><div id="c2a"></div></div>';
+  h+='</div>';
+  h+='<div class="card" style="margin-top:16px"><h3><span class="material-symbols-outlined">straighten</span>近距元件清單</h3><p class="csub">間距不足或公差偏移之元件對</p><div class="ovf"><table><thead><tr><th>元件對</th><th>封裝</th><th>實際間距</th><th>建議下限</th><th>公差偏移</th><th>可貼裝</th><th>等級</th></tr></thead><tbody>';
+  var rows=[["U7 ↔ C31","QFN48 / 0402","0.28mm","0.30mm","+0.04mm","否","t-red","嚴重"],["J3 ↔ L2","連接器 / 電感","0.34mm","0.35mm","+0.02mm","需人工","t-amb","次要"],["R44 ↔ R45","0201 / 0201","0.22mm","0.25mm","+0.05mm","否","t-red","嚴重"],["Q3 ↔ D5","SOT23 / SOD","0.41mm","0.35mm","+0.01mm","是","t-grn","通過"],["U2 ↔ C10","BGA / 0402","0.31mm","0.30mm","+0.03mm","是","t-amb","次要"],["Y1 ↔ C7","晶振 / 0402","0.38mm","0.35mm","+0.00mm","是","t-grn","通過"]];
+  for(var i=0;i<rows.length;i++){var r=rows[i];h+='<tr><td><b>'+r[0]+'</b></td><td class="mini">'+r[1]+'</td><td><b>'+r[2]+'</b></td><td class="mini">'+r[3]+'</td><td>'+r[4]+'</td><td>'+r[5]+'</td><td><span class="tag '+r[6]+'">'+r[7]+'</span></td></tr>';}
+  h+='</tbody></table></div></div>';
+  document.getElementById("screen").innerHTML=h;
+  void document.getElementById("screen").offsetHeight;
+  // heat grid
+  var hc=document.getElementById("heat");
+  var cols=["A","B","C","D","E","F"];
+  var hh='<div class="hc"></div>';
+  for(var c=0;c<cols.length;c++)hh+='<div class="hc">'+cols[c]+'</div>';
+  var vals=[[0.42,0.38,0.31,0.28,0.36,0.44],[0.40,0.33,0.24,0.29,0.35,0.41],[0.45,0.36,0.30,0.22,0.31,0.39],[0.43,0.41,0.34,0.32,0.37,0.46]];
+  for(var rI=0;rI<vals.length;rI++){
+    hh+='<div class="hc">R'+(rI+1)+'</div>';
+    for(var cI=0;cI<vals[rI].length;cI++){
+      var v=vals[rI][cI];var col=v<0.28?"#dc2626":v<0.33?"#d97706":"#16a34a";
+      hh+='<div class="cell" style="background:'+col+'">'+v.toFixed(2)+'</div>';
+    }
+  }
+  hc.innerHTML=hh;
+  mkChart("c2a",merge({type:"radar",height:300,
+    series:[{name:"本設計",data:[72,88,65,80,58]},{name:"目標",data:[85,90,85,88,85]}],
+    colors:["#334155","#94a3b8"],stroke:{width:2},fill:{opacity:0.18},markers:{size:3},
+    labels:["間距充裕度","焊墊對位","貼裝方向","高度落差","公差裕度"],
+    yaxis:{show:false},legend:{fontSize:"11px"},dataLabels:{enabled:false}}));
+}
+
+/* screen 3 : assembly simulation */
+function s3(){
+  var h=head("組裝流程模擬","逐站組裝步驟、工時與治具可行性",[["account_tree","產線 SMT-A"],["timer","節拍 46 秒"]]);
+  h+='<div class="grid g4">'
+    +kpi("format_list_numbered","組裝站數","8","站","含 AOI","flat")
+    +kpi("timer","理論組裝工時","46.2","秒","-5.4 秒優化","up")
+    +kpi("handyman","治具干涉點","2","處","第4/6站","down")
+    +kpi("swap_horiz","翻板次數","1","次","建議 0 次","down")
+    +'</div>';
+  h+='<div class="grid g23" style="margin-top:16px">';
+  h+='<div class="card"><h3><span class="material-symbols-outlined">account_tree</span>逐站組裝步驟</h3><p class="csub">DFA 步驟模擬與可行性</p><div class="stepflow">';
+  var steps=[["錫膏印刷","鋼板對位良好，開窗匹配","4.2 秒","t-grn","可行"],["貼片 SMT-1","放置被動元件 128 顆","11.5 秒","t-grn","可行"],["貼片 SMT-2","放置 IC 與連接器","9.8 秒","t-amb","需調整"],["連接器插裝","J3 治具與 L2 干涉","6.4 秒","t-red","干涉"],["回流焊","溫區 8 段，峰值 245°C","7.0 秒","t-grn","可行"],["翻板 / 底面貼裝","翻板治具接觸高元件","5.1 秒","t-red","干涉"],["AOI 檢測","焊點與偏位自動判定","1.5 秒","t-grn","可行"],["ICT 測試","針床測點覆蓋 96%","0.7 秒","t-amb","需調整"]];
+  for(var i=0;i<steps.length;i++){var s=steps[i];h+='<div class="step"><div class="no">'+(i+1)+'</div><div class="sb"><div class="st"><span>'+s[0]+'</span><span class="tag '+s[3]+'">'+s[4]+'</span></div><div class="sd">'+s[1]+'</div><div class="mini" style="margin-top:3px">工時 '+s[2]+'</div></div></div>';}
+  h+='</div></div>';
+  h+='<div class="card chartbox"><h3><span class="material-symbols-outlined">timelapse</span>各站工時分布</h3><p class="csub">秒 / 站</p><div id="c3a"></div></div>';
+  h+='</div>';
+  h+='<div class="card chartbox" style="margin-top:16px"><h3><span class="material-symbols-outlined">tune</span>優化前後工時比較</h3><p class="csub">改板調整治具與貼裝順序後</p><div id="c3b"></div></div>';
+  document.getElementById("screen").innerHTML=h;
+  void document.getElementById("screen").offsetHeight;
+  mkChart("c3a",merge({type:"bar",height:340,
+    series:[{name:"工時(秒)",data:[4.2,11.5,9.8,6.4,7.0,5.1,1.5,0.7]}],colors:["#334155"],
+    plotOptions:{bar:{horizontal:true,borderRadius:4,barHeight:"55%"}},dataLabels:{enabled:true,style:{fontSize:"10.5px",colors:["#fff"]}},
+    xaxis:{categories:["錫膏印刷","貼片1","貼片2","連接器","回流焊","翻板貼裝","AOI","ICT"],labels:{style:{fontSize:"10.5px"}}},
+    grid:{borderColor:"#eef2f6"},legend:{show:false}}));
+  mkChart("c3b",merge({type:"bar",height:300,
+    series:[{name:"優化前",data:[5.0,12.8,11.2,7.5,7.0,6.6,1.5,0.9]},{name:"優化後",data:[4.2,11.5,9.8,6.4,7.0,5.1,1.5,0.7]}],
+    colors:["#94a3b8","#334155"],plotOptions:{bar:{borderRadius:4,columnWidth:"62%"}},dataLabels:{enabled:false},
+    xaxis:{categories:["印刷","貼片1","貼片2","連接器","回流焊","翻板","AOI","ICT"],labels:{style:{fontSize:"10.5px"}}},
+    yaxis:{labels:{style:{fontSize:"11px"}}},grid:{borderColor:"#eef2f6"},legend:{fontSize:"11px"},
+    tooltip:{shared:true,intersect:false}}));
+}
+
+/* screen 4 : yield prediction */
+function s4(){
+  var h=head("良率預估","以設計缺陷密度推估首件通過率與 DPMO",[["insights","蒙地卡羅 5,000 次"],["functions","模型 v2.3"]]);
+  h+='<div class="grid g4">'
+    +kpi("percent","預估首件良率","91.4","%","+2.3%","up")
+    +kpi("blur_on","DPMO","1,842","","-560","up")
+    +kpi("timeline","製程 Sigma","4.42","σ","+0.11","up")
+    +kpi("attach_money","單位不良成本","3.7","元","-1.1 元","up")
+    +'</div>';
+  h+='<div class="grid g32" style="margin-top:16px">';
+  h+='<div class="card sig"><h3><span class="material-symbols-outlined">verified</span>綜合良率預測</h3><p class="csub" style="color:#cbd5e1">量產 10k 片模擬</p>'
+    +'<div class="gauge-wrap" style="margin-top:8px"><div class="donut-c"><div id="c4a"></div></div>'
+    +'<div><div class="big">91.4%</div><div class="lab">首件通過率</div><div style="margin-top:10px;font-size:12px;color:#cbd5e1;line-height:1.7">預估報廢：<b style="color:#fff">860 片</b><br/>重工：<b style="color:#fff">1,420 片</b><br/>信賴區間：<b style="color:#fff">89.8% ~ 92.7%</b></div></div></div></div>';
+  h+='<div class="card chartbox"><h3><span class="material-symbols-outlined">stacked_bar_chart</span>各站良率損失來源</h3><p class="csub">損失百分點（pp）分解</p><div id="c4b"></div></div>';
+  h+='</div>';
+  h+='<div class="grid g2" style="margin-top:16px">';
+  h+='<div class="card chartbox"><h3><span class="material-symbols-outlined">trending_up</span>設計改版後良率提升</h3><p class="csub">歷次改板良率</p><div id="c4c"></div></div>';
+  h+='<div class="card"><h3><span class="material-symbols-outlined">priority_high</span>良率改善優先序</h3><p class="csub">依可回收良率排序</p><div class="ovf"><table><thead><tr><th>改善項</th><th>缺陷模式</th><th>可回收</th><th>難度</th></tr></thead><tbody>';
+  var rows=[["U7 焊墊間距加大","橋接/短路","+1.8pp","t-amb","中"],["R44/R45 重佈局","立碑","+0.9pp","t-grn","低"],["連接器改向","貼裝偏位","+0.7pp","t-amb","中"],["阻焊開窗校正","冷焊","+0.5pp","t-grn","低"],["翻板治具改設計","元件損傷","+0.4pp","t-red","高"]];
+  for(var i=0;i<rows.length;i++){var r=rows[i];h+='<tr><td><b>'+r[0]+'</b></td><td class="mini">'+r[1]+'</td><td><b style="color:#16a34a">'+r[2]+'</b></td><td><span class="tag '+r[3]+'">'+r[4]+'</span></td></tr>';}
+  h+='</tbody></table></div></div>';
+  h+='</div>';
+  document.getElementById("screen").innerHTML=h;
+  void document.getElementById("screen").offsetHeight;
+  mkChart("c4a",merge({type:"radialBar",height:220,
+    series:[91.4],colors:["#cbd5e1"],
+    plotOptions:{radialBar:{hollow:{size:"58%"},track:{background:"rgba(255,255,255,.15)"},dataLabels:{name:{show:false},value:{fontSize:"20px",color:"#fff",offsetY:6,formatter:function(v){return v+"%";}}}}}}));
+  mkChart("c4b",merge({type:"bar",height:300,stacked:true,
+    series:[{name:"焊接不良",data:[2.1,1.4,0.9,0.6,0.4]},{name:"貼裝偏位",data:[1.2,0.9,0.7,0.5,0.3]},{name:"元件損傷",data:[0.6,0.5,0.4,0.3,0.2]}],
+    colors:["#dc2626","#d97706","#64748b"],plotOptions:{bar:{borderRadius:3,columnWidth:"55%"}},dataLabels:{enabled:false},
+    xaxis:{categories:["貼片2","連接器","回流焊","翻板","ICT"],labels:{style:{fontSize:"10.5px"}}},
+    yaxis:{labels:{style:{fontSize:"11px"},formatter:function(v){return v.toFixed(1);}}},
+    grid:{borderColor:"#eef2f6"},legend:{fontSize:"11px",position:"top"},tooltip:{shared:true,intersect:false}}));
+  mkChart("c4c",merge({type:"line",height:280,
+    series:[{name:"預估良率 %",data:[83.1,85.6,87.9,89.5,91.4]}],colors:["#334155"],
+    stroke:{width:3,curve:"smooth"},markers:{size:4},dataLabels:{enabled:true,style:{fontSize:"11px"},background:{enabled:false},offsetY:-6},
+    xaxis:{categories:["v1","v2","v3","v4","v5"],labels:{style:{fontSize:"11px"}}},
+    yaxis:{min:80,max:95,labels:{style:{fontSize:"11px"}}},grid:{borderColor:"#eef2f6"},legend:{show:false}}));
+}
+
+/* screen 5 : design freeze & release */
+function s5(){
+  var h=head("設計凍結與量產放行","改板追蹤、簽核與量產放行檢核",[["task_alt","放行檢核 6/7"],["gavel","待技術長簽核"]]);
+  h+='<div class="grid g4">'
+    +kpi("check_circle","已關閉改板","18","/19","剩 1 項","up")
+    +kpi("pending_actions","待簽核關卡","1","關","技術長","flat")
+    +kpi("verified","放行檢核通過","6","/7","86%","up")
+    +kpi("event_available","預計凍結日","08/20","","距今 6 天","flat")
+    +'</div>';
+  h+='<div class="grid g2" style="margin-top:16px">';
+  h+='<div class="card"><h3><span class="material-symbols-outlined">view_kanban</span>改板追蹤看板</h3><p class="csub">改板項狀態流轉</p><div class="ovf"><div class="board" id="board"></div></div></div>';
+  h+='<div class="card"><h3><span class="material-symbols-outlined">history</span>放行簽核時間軸</h3><p class="csub">DFM/DFA 報告核簽紀錄</p><div class="tl">';
+  var tl=[["#16a34a","description","DFM 報告產出","完成 · 08/12 10:20","可製造性評分 82，違規 19→1"],["#16a34a","account_tree","DFA 組裝模擬複核","完成 · 08/13 14:05","治具干涉 2→0，翻板改為 0 次"],["#16a34a","insights","良率預估審查","完成 · 08/13 16:40","預估良率 91.4%，達放行門檻"],["#d97706","engineering","研發經理覆核","進行中 · 08/14","確認最後 1 項改板 DRC-102"],["#94a3b8","gavel","技術長放行簽核","待處理","核准後開立量產工單"]];
+  for(var i=0;i<tl.length;i++){var t=tl[i];h+='<div class="row"><div class="mk" style="background:'+t[0]+'"><span class="material-symbols-outlined">'+t[1]+'</span></div><div class="bd"><div class="h"><span>'+t[2]+'</span><span class="t">'+t[3]+'</span></div><div class="d">'+t[4]+'</div></div></div>';}
+  h+='</div></div>';
+  h+='</div>';
+  h+='<div class="card" style="margin-top:16px"><h3><span class="material-symbols-outlined">fact_check</span>量產放行檢核清單</h3><p class="csub">全數通過方可放行量產</p><div class="ovf"><table><thead><tr><th>檢核項</th><th>負責角色</th><th>依據規則</th><th>結果</th><th>狀態</th></tr></thead><tbody>';
+  var rows=[["嚴重 DFM 違規全數關閉","研發專案管理師","RULE-01","0 項未關","t-grn","通過"],["DFA 治具干涉為 0","研發經理","—","已消除","t-grn","通過"],["預估良率 ≥ 90%","研發經理","—","91.4%","t-grn","通過"],["變更申請影響評估完成","研發經理","RULE-02","已評估","t-grn","通過"],["共享設備排程無衝突","研發專案管理師","RULE-03","已排定","t-grn","通過"],["文件版本一致性","研發專案管理師","—","v5 對齊","t-grn","通過"],["技術長最終簽核","技術長","—","待簽核","t-amb","待處理"]];
+  for(var k=0;k<rows.length;k++){var r=rows[k];h+='<tr><td><b>'+r[0]+'</b></td><td class="mini">'+r[1]+'</td><td class="mini">'+r[2]+'</td><td>'+r[3]+'</td><td><span class="tag '+r[4]+'">'+r[5]+'</span></td></tr>';}
+  h+='</tbody></table></div></div>';
+  document.getElementById("screen").innerHTML=h;
+  void document.getElementById("screen").offsetHeight;
+  var bd=document.getElementById("board");
+  var cols=[["待改板","2"],["改板中","2"],["驗證中","1"],["已關閉","3"]];
+  var cards=[
+    [["ECR-221","DRC-102 焊墊間距不足","U7","嚴重","#dc2626"],["ECR-224","R44/R45 立碑風險","被動元件","次要","#d97706"]],
+    [["ECR-218","J3 連接器改向","組裝","次要","#d97706"],["ECR-219","翻板治具重設計","治具","嚴重","#dc2626"]],
+    [["ECR-215","Layer3 線寬加寬","線路","嚴重","#dc2626"]],
+    [["ECR-210","板邊淨空校正","板框","次要","#64748b"],["ECR-208","阻焊開窗校正","阻焊","提示","#64748b"],["ECR-205","絲印避讓焊墊","絲印","提示","#64748b"]]
+  ];
+  var bh="";
+  for(var ci=0;ci<cols.length;ci++){
+    bh+='<div class="col"><h4>'+cols[ci][0]+'<span>'+cols[ci][1]+'</span></h4>';
+    var cc=cards[ci];
+    for(var m=0;m<cc.length;m++){var x=cc[m];bh+='<div class="tk" style="border-left-color:'+x[4]+'"><div class="id">'+x[0]+'</div><div class="ti">'+x[1]+'</div><div class="mt"><span>'+x[2]+'</span><span>· '+x[3]+'</span></div></div>';}
+    bh+='</div>';
+  }
+  bd.innerHTML=bh;
+}
+
+var SCREENS=[s0,s1,s2,s3,s4,s5];
+
+/* nav */
+(function buildNav(){
+  var nav=document.getElementById("nav");var hh="";
+  for(var i=0;i<MODS.length;i++){
+    hh+='<button class="navbtn" data-i="'+i+'"><span class="material-symbols-outlined">'+MODS[i].icon+'</span><span class="lbl">'+MODS[i].name+'</span><span class="idx">0'+(i+1)+'</span></button>';
+  }
+  nav.innerHTML=hh;
+  var btns=nav.querySelectorAll("[data-i]");
+  for(var b=0;b<btns.length;b++){(function(btn){btn.addEventListener("click",function(){location.hash="v"+btn.getAttribute("data-i");});})(btns[b]);}
+})();
+
+function show(i){
+  destroyCharts();
+  var btns=document.querySelectorAll("[data-i]");
+  for(var b=0;b<btns.length;b++){btns[b].classList.toggle("on",+btns[b].getAttribute("data-i")===i);}
+  SCREENS[i]();
+}
+window.__show=show;
+
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+window.addEventListener("hashchange",fromHash);fromHash();
+})();
+</script>
 </body>
 </html>

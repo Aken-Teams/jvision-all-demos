@@ -4,15 +4,518 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>工程變更管理系統（ECN/ECR）｜Jvision 系統 Demo</title>
-  <meta name="description" content="訂單到入庫的製造現場全流程數位化" />
+  <meta name="description" content="ECR 變更申請、影響範圍分析、多部門簽核、ECN 發行與生效導入追蹤" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --accent:#1d4ed8; --accent2:#60a5fa;
+      --ink:#0f172a; --sub:#64748b; --line:#e2e8f0; --bg:#f1f5f9; --card:#ffffff;
+      --side:#0b1220; --side2:#111c33; --sideln:#1e2b45; --sideink:#cbd5e1;
+      --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --info:#2563eb;
+      --r:14px; --sh:0 1px 3px rgba(15,23,42,.08),0 1px 2px rgba(15,23,42,.04);
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;}
+    body{font-family:"Inter","Noto Sans TC",system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
+    .msi{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+    .layout{display:flex;min-height:100vh;}
+    /* sidebar */
+    .side{width:248px;flex:0 0 248px;background:linear-gradient(180deg,var(--side),var(--side2));color:var(--sideink);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;}
+    .brand{padding:22px 20px 16px;border-bottom:1px solid var(--sideln);}
+    .brand .logo{display:flex;align-items:center;gap:10px;}
+    .brand .logo .mk{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;flex:0 0 38px;}
+    .brand .logo .mk .msi{font-size:22px;}
+    .brand .tt{font-weight:800;font-size:15px;color:#fff;line-height:1.3;}
+    .brand .sb{font-size:11px;color:#94a3b8;margin-top:2px;letter-spacing:.5px;}
+    .navwrap{padding:12px 12px 20px;flex:1;}
+    .navlabel{font-size:11px;color:#64748b;letter-spacing:1px;padding:10px 10px 6px;font-weight:700;}
+    .nav{display:flex;flex-direction:column;gap:4px;}
+    .nav button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;background:transparent;color:var(--sideink);padding:11px 12px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;transition:.15s;min-width:0;}
+    .nav button .msi{font-size:20px;color:#93a5c4;flex:0 0 auto;}
+    .nav button .nx{min-width:0;overflow:hidden;}
+    .nav button .nx small{display:block;font-size:10.5px;font-weight:500;color:#7c8bab;margin-top:1px;}
+    .nav button:hover{background:#182741;color:#fff;}
+    .nav button.on{background:linear-gradient(135deg,var(--accent),#2563eb);color:#fff;box-shadow:0 4px 12px rgba(29,78,216,.4);}
+    .nav button.on .msi{color:#fff;}
+    .nav button.on small{color:#cfe0ff;}
+    .sidefoot{padding:14px 18px;border-top:1px solid var(--sideln);font-size:11px;color:#64748b;}
+    /* main */
+    .main{flex:1;min-width:0;display:flex;flex-direction:column;}
+    .topbar{background:var(--card);border-bottom:1px solid var(--line);padding:16px 26px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:20;}
+    .topbar .htitle{font-size:18px;font-weight:800;min-width:0;}
+    .topbar .hsub{font-size:12.5px;color:var(--sub);margin-top:2px;}
+    .topbar .spacer{flex:1;}
+    .pill{display:inline-flex;align-items:center;gap:6px;background:#eff4ff;color:var(--accent);border:1px solid #dbe6ff;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;}
+    .pill .msi{font-size:16px;}
+    .content{padding:24px 26px 48px;min-width:0;}
+    /* generic */
+    .grid{display:grid;gap:16px;min-width:0;}
+    .g4{grid-template-columns:repeat(4,1fr);}
+    .g3{grid-template-columns:repeat(3,1fr);}
+    .g2{grid-template-columns:repeat(2,1fr);}
+    .g23{grid-template-columns:2fr 1fr;}
+    .g32{grid-template-columns:1fr 2fr;}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:18px;min-width:0;}
+    .card h3{margin:0 0 3px;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:8px;}
+    .card h3 .msi{font-size:19px;color:var(--accent);}
+    .card .csub{font-size:12px;color:var(--sub);margin:0 0 14px;}
+    .kpi .lab{font-size:12.5px;color:var(--sub);font-weight:600;display:flex;align-items:center;gap:7px;}
+    .kpi .lab .ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:0 0 32px;}
+    .kpi .val{font-size:27px;font-weight:900;margin-top:9px;letter-spacing:-.5px;line-height:1;}
+    .kpi .val small{font-size:13px;font-weight:700;color:var(--sub);margin-left:3px;}
+    .kpi .dt{font-size:11.5px;margin-top:8px;font-weight:700;display:inline-flex;align-items:center;gap:3px;}
+    .up{color:var(--ok);} .down{color:var(--bad);} .flat{color:var(--sub);}
+    .chart{width:100%;height:280px;overflow:hidden;}
+    .chart.sm{height:220px;}
+    table{width:100%;border-collapse:collapse;font-size:13px;min-width:520px;}
+    th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+    th{font-size:11.5px;color:var(--sub);font-weight:700;letter-spacing:.4px;background:#f8fafc;}
+    tbody tr:hover{background:#f8faff;}
+    .tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;}
+    .t-ok{background:#dcfce7;color:#15803d;} .t-warn{background:#fef3c7;color:#b45309;}
+    .t-bad{background:#fee2e2;color:#b91c1c;} .t-info{background:#dbeafe;color:#1d4ed8;}
+    .t-grey{background:#e2e8f0;color:#475569;} .t-pur{background:#ede9fe;color:#6d28d9;}
+    .ovf{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px;}
+    .ovf table{min-width:560px;} .ovf th{background:#f8fafc;} .ovf td,.ovf th{border-bottom:1px solid var(--line);}
+    .ovf tr:last-child td{border-bottom:0;}
+    .bar{height:8px;border-radius:6px;background:#e2e8f0;overflow:hidden;min-width:60px;}
+    .bar>i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+    .mono{font-family:"Inter",monospace;font-weight:700;font-size:12.5px;letter-spacing:.3px;}
+    /* board */
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;min-width:0;}
+    .col{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0;}
+    .col .ch{font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid var(--line);}
+    .col .ch .n{background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:11px;color:var(--sub);}
+    .tk{background:#fff;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:9px;padding:10px 11px;margin-bottom:9px;box-shadow:var(--sh);}
+    .tk .id{font-size:11px;color:var(--accent);font-weight:800;}
+    .tk .ti{font-size:12.5px;font-weight:700;margin:3px 0 6px;line-height:1.35;}
+    .tk .mt{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--sub);}
+    .av{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;}
+    /* timeline */
+    .tl{position:relative;padding-left:26px;}
+    .tl:before{content:"";position:absolute;left:8px;top:4px;bottom:4px;width:2px;background:var(--line);}
+    .tli{position:relative;padding:0 0 20px 6px;}
+    .tli:last-child{padding-bottom:0;}
+    .tli .dot{position:absolute;left:-26px;top:1px;width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid var(--accent);display:flex;align-items:center;justify-content:center;}
+    .tli .dot.done{background:var(--accent);border-color:var(--accent);}
+    .tli .dot.done:after{content:"";width:6px;height:6px;border-radius:50%;background:#fff;}
+    .tli .tt{font-size:13px;font-weight:800;}
+    .tli .tm{font-size:11px;color:var(--sub);margin:2px 0 4px;}
+    .tli .td{font-size:12.5px;color:#334155;line-height:1.5;}
+    /* signoff chain */
+    .chain{display:flex;flex-direction:column;gap:0;}
+    .step{display:flex;gap:14px;align-items:flex-start;}
+    .step .rail{display:flex;flex-direction:column;align-items:center;flex:0 0 auto;}
+    .step .node{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;flex:0 0 40px;}
+    .step .line{width:2px;flex:1;min-height:22px;background:var(--line);}
+    .step:last-child .line{display:none;}
+    .step .body{padding-bottom:18px;flex:1;min-width:0;}
+    .step .r1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .step .r1 .nm{font-size:13.5px;font-weight:800;}
+    .step .r1 .rl{font-size:11.5px;color:var(--sub);}
+    .step .r2{font-size:12px;color:#475569;margin-top:5px;line-height:1.5;}
+    .step .r3{font-size:11px;color:var(--sub);margin-top:5px;}
+    /* misc */
+    .infoline{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#475569;padding:9px 0;border-bottom:1px dashed var(--line);}
+    .infoline:last-child{border-bottom:0;}
+    .infoline .k{color:var(--sub);min-width:88px;flex:0 0 auto;}
+    .infoline .v{font-weight:700;color:var(--ink);}
+    .alert{display:flex;gap:11px;padding:12px 14px;border-radius:11px;margin-bottom:11px;align-items:flex-start;}
+    .alert.hi{background:#fef2f2;border:1px solid #fecaca;} .alert.md{background:#fffbeb;border:1px solid #fde68a;}
+    .alert.lo{background:#eff6ff;border:1px solid #bfdbfe;}
+    .alert .msi{font-size:20px;flex:0 0 auto;}
+    .alert.hi .msi{color:var(--bad);} .alert.md .msi{color:var(--warn);} .alert.lo .msi{color:var(--info);}
+    .alert .at{font-size:13px;font-weight:800;}
+    .alert .ad{font-size:12px;color:#475569;margin-top:2px;line-height:1.5;}
+    .seg{display:inline-flex;background:#f1f5f9;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;}
+    .seg span{padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;color:var(--sub);}
+    .seg span.on{background:#fff;color:var(--accent);box-shadow:var(--sh);}
+    .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--sub);margin-top:8px;}
+    .legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:middle;}
+    .gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
+    .minirow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);}
+    .minirow:last-child{border-bottom:0;}
+    .minirow .nm{font-size:12.5px;font-weight:700;flex:0 0 92px;min-width:0;}
+    .minirow .txt{flex:1;min-width:0;font-size:11.5px;color:var(--sub);}
+    h2.sec{font-size:15px;font-weight:800;margin:6px 0 14px;display:flex;align-items:center;gap:8px;}
+    h2.sec .msi{color:var(--accent);font-size:20px;}
+    .mt16{margin-top:16px;} .mt20{margin-top:20px;}
+    /* responsive */
+    @media(max-width:1100px){ .g4{grid-template-columns:repeat(2,1fr);} .board{grid-template-columns:repeat(2,1fr);} }
+    @media(max-width:860px){
+      .layout{flex-direction:column;}
+      .side{width:100%;flex:none;height:auto;position:static;flex-direction:column;}
+      .brand{border-bottom:1px solid var(--sideln);}
+      .navwrap{padding:8px 10px;}
+      .navlabel{display:none;}
+      .nav{flex-direction:row;flex-wrap:wrap;gap:6px;}
+      .nav button{width:auto;flex:1 1 auto;justify-content:center;padding:9px 12px;}
+      .nav button .nx small{display:none;}
+      .sidefoot{display:none;}
+    }
+    @media(max-width:820px){
+      .g4,.g3,.g2,.g23,.g32{grid-template-columns:1fr;}
+      .board{grid-template-columns:1fr;}
+    }
+    @media(max-width:560px){
+      .content{padding:18px 14px 40px;}
+      .topbar{padding:13px 16px;}
+      .nav button .nx{display:none;}
+      .nav button{flex:0 0 auto;}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <div class="layout">
+    <aside class="side">
+      <div class="brand">
+        <div class="logo">
+          <div class="mk"><span class="msi">published_with_changes</span></div>
+          <div>
+            <div class="tt">工程變更管理</div>
+            <div class="sb">ECN / ECR PLATFORM</div>
+          </div>
+        </div>
+      </div>
+      <div class="navwrap">
+        <div class="navlabel">變更作業流程</div>
+        <div class="nav" id="nav"></div>
+      </div>
+      <div class="sidefoot">Jvision Smart MFG · Demo 245<br/>研發變更管理平台</div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div>
+          <div class="htitle" id="htitle">變更申請 ECR</div>
+          <div class="hsub" id="hsub">發起變更需求、填寫變更理由與期望效益</div>
+        </div>
+        <div class="spacer"></div>
+        <span class="pill"><span class="msi">verified_user</span> ISO 9001 受控流程</span>
+        <span class="pill"><span class="msi">calendar_today</span> 2026/08/14</span>
+      </div>
+      <div class="content" id="screen"></div>
+    </div>
+  </div>
+
+  <script>
+  var MODULES=[
+    {icon:"request_quote",name:"變更申請 ECR",sub:"發起變更需求",desc:"發起變更需求、填寫變更理由與期望效益"},
+    {icon:"account_tree",name:"影響範圍分析",sub:"BOM/庫存/客戶",desc:"自動盤點受影響 BOM、庫存與客戶專案"},
+    {icon:"rule",name:"審查簽核路徑",sub:"多部門會簽",desc:"依變更類別自動組多部門審查與簽核鏈"},
+    {icon:"description",name:"ECN 發行",sub:"版本與生效日",desc:"核定後產生變更通知、圖文版本與生效日"},
+    {icon:"task_alt",name:"生效導入追蹤",sub:"新舊料切換",desc:"追蹤舊料耗盡、新料切換與工單同步"},
+    {icon:"monitoring",name:"變更預警塔",sub:"風險即時預警",desc:"逾期簽核、新舊料混用風險即時預警"}
+  ];
+  var charts=[];
+  function disposeCharts(){for(var i=0;i<charts.length;i++){try{charts[i].dispose();}catch(e){}}charts=[];}
+  function mk(id,opt){var el=document.getElementById(id);if(!el)return;var c=echarts.init(el);c.setOption(opt);charts.push(c);}
+  var PAL=["#1d4ed8","#60a5fa","#93c5fd","#a5b4fc","#38bdf8","#818cf8"];
+
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  function tagCls(s){var m={"已核定":"t-ok","已發行":"t-ok","已生效":"t-ok","完成":"t-ok","通過":"t-ok","切換完成":"t-ok",
+    "審查中":"t-info","評估中":"t-info","簽核中":"t-info","導入中":"t-info","進行中":"t-info",
+    "待簽核":"t-warn","待評估":"t-warn","舊料耗用中":"t-warn","待確認":"t-warn","高":"t-bad","緊急":"t-bad",
+    "退回":"t-bad","風險":"t-bad","中":"t-warn","低":"t-grey","草稿":"t-grey","製程":"t-pur","設計":"t-info","料件":"t-warn"};
+    return m[s]||"t-grey";}
+  function tag(s){return '<span class="tag '+tagCls(s)+'">'+esc(s)+'</span>';}
+
+  /* ================= SCREEN 0 : ECR 變更申請 ================= */
+  function s0(){
+    var kpis=[
+      {ic:"request_quote",bg:"#eff4ff",cl:"#1d4ed8",lab:"本月新增 ECR",val:"38",u:"件",dt:"較上月 +6",cls:"up",di:"trending_up"},
+      {ic:"pending_actions",bg:"#fff7ed",cl:"#d97706",lab:"待評估",val:"9",u:"件",dt:"3 件逾 48hr",cls:"down",di:"error"},
+      {ic:"schedule",bg:"#f0f9ff",cl:"#0284c7",lab:"平均受理時間",val:"5.4",u:"hr",dt:"目標 8hr 內",cls:"up",di:"trending_down"},
+      {ic:"category",bg:"#f5f3ff",cl:"#7c3aed",lab:"設計類占比",val:"46",u:"%",dt:"製程 33% 料件 21%",cls:"flat",di:"remove"}
+    ];
+    var rows=[
+      ["ECR-2608-041","PCBA-A7 主板散熱片變更","設計","高","王思穎","2026/08/14","待評估"],
+      ["ECR-2608-039","外殼卡扣改射出成型","製程","中","陳柏宇","2026/08/13","評估中"],
+      ["ECR-2608-037","電容 C12 替代料導入","料件","高","林孟潔","2026/08/13","評估中"],
+      ["ECR-2608-034","絲印油墨環保替代","料件","低","張家豪","2026/08/12","待評估"],
+      ["ECR-2608-031","焊接治具定位孔位調整","製程","中","黃冠廷","2026/08/12","已核定"],
+      ["ECR-2608-028","端子鍍層由錫改鍍金","設計","高","吳雅筑","2026/08/11","已核定"]
+    ];
+    var trs=rows.map(function(r){return '<tr><td class="mono">'+r[0]+'</td><td>'+esc(r[1])+'</td><td>'+tag(r[2])+'</td><td>'+tag(r[3])+'</td><td>'+esc(r[4])+'</td><td>'+r[5]+'</td><td>'+tag(r[6])+'</td></tr>';}).join("");
+    var el=document.getElementById("screen");
+    el.innerHTML=''+
+    '<div class="grid g4">'+kpis.map(function(k){return '<div class="card kpi"><div class="lab"><span class="ic" style="background:'+k.bg+';color:'+k.cl+'"><span class="msi">'+k.ic+'</span></span>'+k.lab+'</div><div class="val">'+k.val+'<small>'+k.u+'</small></div><div class="dt '+k.cls+'"><span class="msi" style="font-size:15px">'+k.di+'</span>'+k.dt+'</div></div>';}).join("")+'</div>'+
+    '<div class="grid g23 mt16">'+
+      '<div class="card"><h3><span class="msi">list_alt</span>近期變更申請（ECR）清單</h3><p class="csub">依受理時間排序，可依變更類別、優先度篩選</p><div class="ovf"><table><thead><tr><th>ECR 單號</th><th>變更標的</th><th>類別</th><th>優先度</th><th>提出人</th><th>提出日</th><th>狀態</th></tr></thead><tbody>'+trs+'</tbody></table></div></div>'+
+      '<div class="card"><h3><span class="msi">edit_note</span>ECR 快速填單</h3><p class="csub">研發專員發起新變更申請</p>'+
+        '<div class="infoline"><span class="k">變更標的</span><span class="v mono">PCBA-A7 / DWG-10428</span></div>'+
+        '<div class="infoline"><span class="k">變更類別</span><span class="v">'+tag("設計")+'</span></div>'+
+        '<div class="infoline"><span class="k">變更原因</span><span class="v">散熱不足致溫升超標</span></div>'+
+        '<div class="infoline"><span class="k">期望效益</span><span class="v">溫升 −8℃、良率 +2%</span></div>'+
+        '<div class="infoline"><span class="k">期望生效日</span><span class="v">2026/09/01</span></div>'+
+        '<div class="infoline"><span class="k">影響評估</span><span class="v" style="color:var(--warn)">待系統展開</span></div>'+
+        '<div style="margin-top:14px;display:flex;gap:8px"><span class="pill" style="background:var(--accent);color:#fff;border-color:var(--accent)"><span class="msi">send</span>送出評估</span><span class="pill"><span class="msi">save</span>存草稿</span></div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="card mt16"><h3><span class="msi">insights</span>近 6 個月 ECR 提出趨勢（依類別）</h3><p class="csub">觀察變更來源結構，設計類變更持續為主要來源</p><div id="c0" class="chart"></div></div>';
+    void el.offsetHeight;
+    mk("c0",{tooltip:{trigger:"axis"},legend:{data:["設計","製程","料件"],bottom:0,textStyle:{color:"#64748b"}},grid:{left:8,right:16,top:20,bottom:36,containLabel:true},
+      xAxis:{type:"category",data:["3月","4月","5月","6月","7月","8月"],axisLine:{lineStyle:{color:"#cbd5e1"}},axisLabel:{color:"#64748b"}},
+      yAxis:{type:"value",splitLine:{lineStyle:{color:"#eef2f7"}},axisLabel:{color:"#94a3b8"}},
+      series:[
+        {name:"設計",type:"bar",stack:"a",data:[14,16,13,17,15,18],itemStyle:{color:"#1d4ed8"}},
+        {name:"製程",type:"bar",stack:"a",data:[9,11,8,10,12,13],itemStyle:{color:"#60a5fa"}},
+        {name:"料件",type:"bar",stack:"a",data:[6,5,7,6,8,7],itemStyle:{color:"#bfdbfe"}}
+      ]});
+  }
+
+  /* ================= SCREEN 1 : 影響範圍分析 ================= */
+  function s1(){
+    var bom=[
+      ["LV0","PCBA-A7 主板組件","-","受影響","版本升版"],
+      ["LV1","散熱片 HS-118","2","替換","改用 HS-220"],
+      ["LV1","導熱膠 TIM-03","1","不變","-"],
+      ["LV2","固定螺絲 M2.5×6","4","不變","-"],
+      ["LV2","絕緣墊片 IP-09","2","停用","隨散熱片淘汰"]
+    ];
+    var brows=bom.map(function(r){var t=r[3]==="替換"?"t-warn":r[3]==="停用"?"t-bad":r[3]==="受影響"?"t-info":"t-grey";
+      return '<tr><td class="mono">'+r[0]+'</td><td>'+esc(r[1])+'</td><td>'+r[2]+'</td><td><span class="tag '+t+'">'+r[3]+'</span></td><td>'+esc(r[4])+'</td></tr>';}).join("");
+    var cust=[
+      {nm:"宏達通訊 · 車載模組",qty:"在製 320 台",risk:"高",note:"9/1 前出貨，需趕在生效日前"},
+      {nm:"鼎新科技 · 工控主板",qty:"在製 145 台",risk:"中",note:"可於下批切換新版"},
+      {nm:"力昇電子 · 消費電子",qty:"庫存成品 60 台",risk:"低",note:"以現有版本出清"}
+    ];
+    var el=document.getElementById("screen");
+    el.innerHTML=''+
+    '<div class="grid g4">'+
+      [["account_tree","#eff4ff","#1d4ed8","受影響 BOM 節點","12","項","3 項需替換"],
+       ["inventory_2","#fff7ed","#d97706","關聯在庫料","1,840","pcs","呆滯風險 320pcs"],
+       ["precision_manufacturing","#f0f9ff","#0284c7","在製工單","5","張","2 張需趕生效日"],
+       ["groups","#f5f3ff","#7c3aed","關聯客戶專案","3","案","1 案高風險"]].map(function(k){
+        return '<div class="card kpi"><div class="lab"><span class="ic" style="background:'+k[1]+';color:'+k[2]+'"><span class="msi">'+k[0]+'</span></span>'+k[3]+'</div><div class="val">'+k[4]+'<small>'+k[5]+'</small></div><div class="dt flat"><span class="msi" style="font-size:15px">info</span>'+k[6]+'</div></div>';}).join("")+
+    '</div>'+
+    '<div class="grid g23 mt16">'+
+      '<div class="card"><h3><span class="msi">device_hub</span>BOM 展開與受影響節點</h3><p class="csub">ECR-2608-041 變更標的向下展開，標示替換/停用件</p><div class="ovf"><table><thead><tr><th>階層</th><th>料件名稱</th><th>用量</th><th>影響</th><th>處置</th></tr></thead><tbody>'+brows+'</tbody></table></div></div>'+
+      '<div class="card"><h3><span class="msi">donut_large</span>庫存處置成本占比</h3><p class="csub">切換成本 NT$ 186,400 · 呆滯風險 42%</p><div id="c1a" class="chart sm"></div></div>'+
+    '</div>'+
+    '<div class="grid g2 mt16">'+
+      '<div class="card"><h3><span class="msi">handshake</span>受影響客戶專案</h3><p class="csub">依切換風險排序，供業務同步告知客戶</p>'+
+        cust.map(function(c){return '<div class="minirow"><div class="nm">'+esc(c.nm)+'</div><div class="txt">'+esc(c.qty)+' · '+esc(c.note)+'</div>'+tag(c.risk)+'</div>';}).join("")+
+      '</div>'+
+      '<div class="card"><h3><span class="msi">radar</span>變更影響雷達</h3><p class="csub">五面向風險評分（0–100，越高風險越大）</p><div id="c1b" class="chart sm"></div></div>'+
+    '</div>';
+    void el.offsetHeight;
+    mk("c1a",{tooltip:{trigger:"item",formatter:"{b}: {c} 萬元 ({d}%)"},legend:{bottom:0,textStyle:{color:"#64748b"}},
+      series:[{type:"pie",radius:["45%","70%"],center:["50%","44%"],avoidLabelOverlap:true,label:{show:false},data:[
+        {name:"新料採購",value:8.4,itemStyle:{color:"#1d4ed8"}},
+        {name:"舊料呆滯報廢",value:6.2,itemStyle:{color:"#f59e0b"}},
+        {name:"重工/換線",value:2.8,itemStyle:{color:"#60a5fa"}},
+        {name:"文件更版",value:1.2,itemStyle:{color:"#bfdbfe"}}]}]});
+    mk("c1b",{tooltip:{},radar:{indicator:[{name:"BOM",max:100},{name:"庫存",max:100},{name:"客戶",max:100},{name:"製程",max:100},{name:"成本",max:100}],
+      radius:"62%",splitLine:{lineStyle:{color:"#e2e8f0"}},splitArea:{areaStyle:{color:["#f8fafc","#fff"]}},axisName:{color:"#64748b"}},
+      series:[{type:"radar",areaStyle:{color:"rgba(29,78,216,.18)"},lineStyle:{color:"#1d4ed8"},itemStyle:{color:"#1d4ed8"},data:[{value:[80,66,74,45,58]}]}]});
+  }
+
+  /* ================= SCREEN 2 : 審查簽核路徑 ================= */
+  function s2(){
+    var chain=[
+      {ic:"engineering",bg:"#1d4ed8",nm:"研發專員 · 王思穎",rl:"變更發起／技術說明",st:"通過",tm:"08/14 09:12",note:"已附散熱模擬報告與 3D 圖檔",done:true},
+      {ic:"science",bg:"#2563eb",nm:"品保 · 郭欣怡",rl:"可靠度與檢驗規格審查",st:"通過",tm:"08/14 11:40",note:"要求追加溫升 48hr 老化測試",done:true},
+      {ic:"inventory_2",bg:"#7c3aed",nm:"採購 · 李政勳",rl:"替代料供應與交期確認",st:"簽核中",tm:"進行中",note:"HS-220 需向兩家供應商詢價比對",done:false},
+      {ic:"calendar_month",bg:"#0891b2",nm:"生管 · 周佩璇",rl:"切換時點與工單影響評估",st:"待簽核",tm:"—",note:"待採購交期回覆後排定生效日",done:false},
+      {ic:"verified",bg:"#059669",nm:"研發管理主管 · 蔡宗翰",rl:"最終核定與 ECN 發行授權",st:"待簽核",tm:"—",note:"三關通過後核定",done:false}
+    ];
+    var pending=[
+      ["ECR-2608-039","外殼卡扣改射出成型","採購","停留 26hr","中"],
+      ["ECR-2608-037","電容 C12 替代料導入","品保","停留 8hr","高"],
+      ["ECR-2608-028","端子鍍層由錫改鍍金","生管","停留 4hr","高"]
+    ];
+    var prows=pending.map(function(r){return '<tr><td class="mono">'+r[0]+'</td><td>'+esc(r[1])+'</td><td>'+esc(r[2])+'</td><td style="color:var(--warn);font-weight:700">'+r[3]+'</td><td>'+tag(r[4])+'</td></tr>';}).join("");
+    var el=document.getElementById("screen");
+    el.innerHTML=''+
+    '<div class="grid g4">'+
+      [["fact_check","#eff4ff","#1d4ed8","進行中會簽","6","案"],
+       ["hourglass_top","#fff7ed","#d97706","逾時未簽","2","關"],
+       ["how_to_reg","#ecfdf5","#059669","本月已核定","24","件"],
+       ["undo","#fef2f2","#dc2626","退回重修","3","件"]].map(function(k){
+        return '<div class="card kpi"><div class="lab"><span class="ic" style="background:'+k[1]+';color:'+k[2]+'"><span class="msi">'+k[0]+'</span></span>'+k[3]+'</div><div class="val">'+k[4]+'<small>'+k[5]+'</small></div></div>';}).join("")+
+    '</div>'+
+    '<div class="grid g32 mt16">'+
+      '<div class="card"><h3><span class="msi">route</span>ECR-2608-041 簽核路徑</h3><p class="csub">依「設計類·高優先」自動組成 5 關會簽鏈</p><div class="chain">'+
+        chain.map(function(s){return '<div class="step"><div class="rail"><div class="node" style="background:'+s.bg+'"><span class="msi">'+s.ic+'</span></div><div class="line"></div></div><div class="body"><div class="r1"><span class="nm">'+esc(s.nm)+'</span>'+tag(s.st)+'</div><div class="r2">'+esc(s.rl)+' · '+esc(s.note)+'</div><div class="r3"><span class="msi" style="font-size:13px;color:#94a3b8">schedule</span> '+esc(s.tm)+'</div></div></div>';}).join("")+
+      '</div></div>'+
+      '<div class="card"><h3><span class="msi">notifications_active</span>逾時待簽提醒</h3><p class="csub">停留過久之簽核關卡，需主管催辦</p><div class="ovf"><table><thead><tr><th>ECR</th><th>標的</th><th>卡在</th><th>停留</th><th>優先</th></tr></thead><tbody>'+prows+'</tbody></table></div>'+
+        '<div class="alert md mt16"><span class="msi">timer</span><div><div class="at">SLA 提醒</div><div class="ad">高優先變更會簽 SLA 為每關 24hr，逾時將自動升級至部門主管。</div></div></div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="card mt16"><h3><span class="msi">timeline</span>各部門平均簽核工時（hr）</h3><p class="csub">識別流程瓶頸，採購與生管為主要停留點</p><div id="c2" class="chart sm"></div></div>';
+    void el.offsetHeight;
+    mk("c2",{tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},grid:{left:8,right:20,top:16,bottom:8,containLabel:true},
+      xAxis:{type:"value",splitLine:{lineStyle:{color:"#eef2f7"}},axisLabel:{color:"#94a3b8"}},
+      yAxis:{type:"category",data:["研發","品保","採購","生管","管理核定"],axisLine:{lineStyle:{color:"#cbd5e1"}},axisLabel:{color:"#64748b"}},
+      series:[{type:"bar",data:[3.2,5.8,11.4,7.6,2.1],barWidth:"52%",label:{show:true,position:"right",color:"#475569",formatter:"{c}h"},
+        itemStyle:{borderRadius:[0,6,6,0],color:function(p){return p.value>10?"#dc2626":p.value>6?"#f59e0b":"#1d4ed8";}}}]});
+  }
+
+  /* ================= SCREEN 3 : ECN 發行 ================= */
+  function s3(){
+    var docs=[
+      ["DWG-10428","主板散熱結構圖","Rev C","Rev D","已鎖版"],
+      ["BOM-A7-02","PCBA-A7 物料表","V4","V5","已鎖版"],
+      ["SPEC-TH-11","散熱驗收規範","Rev A","Rev B","已鎖版"],
+      ["WI-ASM-07","組裝作業指導書","V2","V3","更新中"]
+    ];
+    var drows=docs.map(function(r){var t=r[4]==="已鎖版"?"t-ok":"t-warn";return '<tr><td class="mono">'+r[0]+'</td><td>'+esc(r[1])+'</td><td><span class="tag t-grey">'+r[2]+'</span></td><td><span class="tag t-info">'+r[3]+'</span></td><td><span class="tag '+t+'">'+r[4]+'</span></td></tr>';}).join("");
+    var notify=[
+      {d:"研發部",m:"新版圖檔與 BOM 已發布，請更新設計基準"},
+      {d:"生產／生管",m:"9/1 生效，8/31 前完成舊工單清尾"},
+      {d:"採購",m:"啟動 HS-220 首批採購，舊件不再下單"},
+      {d:"倉儲",m:"舊散熱片 HS-118 標示鎖定、禁止領用"},
+      {d:"品保",m:"導入新版驗收規範 SPEC-TH-11 Rev B"}
+    ];
+    var el=document.getElementById("screen");
+    el.innerHTML=''+
+    '<div class="grid g32">'+
+      '<div class="card" style="border-top:4px solid var(--accent)"><h3><span class="msi">description</span>ECN-2608-017 變更通知</h3><p class="csub">由 ECR-2608-041 核定後發行</p>'+
+        '<div class="infoline"><span class="k">來源 ECR</span><span class="v mono">ECR-2608-041</span></div>'+
+        '<div class="infoline"><span class="k">變更標的</span><span class="v">PCBA-A7 散熱片 HS-118 → HS-220</span></div>'+
+        '<div class="infoline"><span class="k">變更類別</span><span class="v">'+tag("設計")+'</span></div>'+
+        '<div class="infoline"><span class="k">生效日</span><span class="v" style="color:var(--accent)">2026/09/01</span></div>'+
+        '<div class="infoline"><span class="k">舊料處置</span><span class="v">耗盡即止（Use-up）</span></div>'+
+        '<div class="infoline"><span class="k">核定人</span><span class="v">蔡宗翰（研發管理主管）</span></div>'+
+        '<div class="infoline"><span class="k">發行狀態</span><span class="v">'+tag("已發行")+'</span></div>'+
+        '<div class="alert lo mt16"><span class="msi">gpp_good</span><div><div class="at">受控文件已鎖版</div><div class="ad">3 份文件完成鎖版，1 份作業指導書更新中，全部完成後自動關閉發行任務。</div></div></div>'+
+      '</div>'+
+      '<div class="card"><h3><span class="msi">difference</span>受控文件版本異動</h3><p class="csub">ECN 發行同步鎖定新版圖文與規範</p><div class="ovf"><table><thead><tr><th>文件編號</th><th>名稱</th><th>舊版</th><th>新版</th><th>狀態</th></tr></thead><tbody>'+drows+'</tbody></table></div>'+
+        '<h3 class="mt20"><span class="msi">campaign</span>發行通報對象</h3><p class="csub">系統依影響範圍自動派送通知</p>'+
+        notify.map(function(n){return '<div class="minirow"><div class="nm">'+esc(n.d)+'</div><div class="txt">'+esc(n.m)+'</div><span class="tag t-ok">已送達</span></div>';}).join("")+
+      '</div>'+
+    '</div>'+
+    '<div class="card mt16"><h3><span class="msi">bar_chart</span>ECN 發行後導入完成率（依部門）</h3><p class="csub">通報已讀、任務接收與完成三階段追蹤</p><div id="c3" class="chart sm"></div>'+
+      '<div class="legend"><span><i style="background:#1d4ed8"></i>已讀</span><span><i style="background:#60a5fa"></i>已接收任務</span><span><i style="background:#bfdbfe"></i>已完成</span></div></div>';
+    void el.offsetHeight;
+    mk("c3",{tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},legend:{show:false},grid:{left:8,right:16,top:16,bottom:8,containLabel:true},
+      xAxis:{type:"category",data:["研發","生管","採購","倉儲","品保"],axisLine:{lineStyle:{color:"#cbd5e1"}},axisLabel:{color:"#64748b"}},
+      yAxis:{type:"value",max:100,splitLine:{lineStyle:{color:"#eef2f7"}},axisLabel:{color:"#94a3b8",formatter:"{value}%"}},
+      series:[
+        {name:"已讀",type:"bar",data:[100,100,100,100,100],barGap:"-100%",barWidth:"46%",itemStyle:{color:"#dbeafe",borderRadius:[5,5,0,0]}},
+        {name:"已接收",type:"bar",data:[100,90,80,100,90],barGap:"-100%",barWidth:"46%",itemStyle:{color:"#60a5fa",borderRadius:[5,5,0,0]}},
+        {name:"已完成",type:"bar",data:[100,60,45,80,70],barWidth:"46%",itemStyle:{color:"#1d4ed8",borderRadius:[5,5,0,0]}}
+      ]});
+  }
+
+  /* ================= SCREEN 4 : 生效導入追蹤（看板） ================= */
+  function s4(){
+    var cols=[
+      {t:"待切換",n:2,cl:"#94a3b8",items:[
+        {id:"WO-88214",ti:"車載模組批次 · 使用舊版 HS-118",p:"周佩璇",m:"舊料餘 90pcs"},
+        {id:"WO-88231",ti:"工控主板小批 · 待新料到貨",p:"周佩璇",m:"新料 9/2 到"}
+      ]},
+      {t:"舊料耗用中",n:2,cl:"#f59e0b",items:[
+        {id:"WO-88198",ti:"消費電子出清批 · Use-up",p:"周佩璇",m:"餘 40pcs"},
+        {id:"INV-HS118",ti:"倉儲 HS-118 鎖定領用",p:"倉儲",m:"禁補單"}
+      ]},
+      {t:"新料切換中",n:2,cl:"#2563eb",items:[
+        {id:"WO-88240",ti:"車載模組新批 · 首件 HS-220",p:"王思穎",m:"首件待判"},
+        {id:"WO-88245",ti:"工控主板 · 新版 BOM V5",p:"陳柏宇",m:"線上驗證"}
+      ]},
+      {t:"切換完成",n:2,cl:"#16a34a",items:[
+        {id:"WO-88180",ti:"樣機批 · HS-220 驗證通過",p:"郭欣怡",m:"溫升 −9℃"},
+        {id:"ECN-017",ti:"文件同步關閉 · 3/4 完成",p:"蔡宗翰",m:"WI 更新中"}
+      ]}
+    ];
+    var board=cols.map(function(c){return '<div class="col"><div class="ch"><span style="display:flex;align-items:center;gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:'+c.cl+';display:inline-block"></i>'+c.t+'</span><span class="n">'+c.n+'</span></div>'+
+      c.items.map(function(t){return '<div class="tk" style="border-left-color:'+c.cl+'"><div class="id">'+esc(t.id)+'</div><div class="ti">'+esc(t.ti)+'</div><div class="mt"><span><span class="av">'+esc(t.p.charAt(0))+'</span> '+esc(t.p)+'</span><span>'+esc(t.m)+'</span></div></div>';}).join("")+'</div>';}).join("");
+    var el=document.getElementById("screen");
+    el.innerHTML=''+
+    '<div class="grid g4">'+
+      [["swap_horiz","#eff4ff","#1d4ed8","導入中變更","4","件"],
+       ["inventory","#fff7ed","#d97706","舊料待耗盡","130","pcs"],
+       ["merge_type","#fef2f2","#dc2626","新舊料混用風險","0","件"],
+       ["done_all","#ecfdf5","#059669","本週切換完成","6","件"]].map(function(k){
+        return '<div class="card kpi"><div class="lab"><span class="ic" style="background:'+k[1]+';color:'+k[2]+'"><span class="msi">'+k[0]+'</span></span>'+k[3]+'</div><div class="val">'+k[4]+'<small>'+k[5]+'</small></div></div>';}).join("")+
+    '</div>'+
+    '<div class="card mt16"><h3><span class="msi">view_kanban</span>ECN-2608-017 生效導入看板</h3><p class="csub">追蹤舊料耗盡→新料切換全程，確保無新舊料混用</p><div class="ovf"><div class="board" style="min-width:640px">'+board+'</div></div></div>'+
+    '<div class="grid g2 mt16">'+
+      '<div class="card"><h3><span class="msi">inventory_2</span>舊料 HS-118 耗用曲線</h3><p class="csub">預估 8/31 前耗盡，與 9/1 生效日銜接</p><div id="c4" class="chart sm"></div></div>'+
+      '<div class="card"><h3><span class="msi">checklist</span>導入關閉檢核</h3><p class="csub">全數勾稽後 ECN 自動關閉</p>'+
+        [["新料首件驗證通過","done"],["舊料庫存標示鎖定","done"],["受影響工單全數改版","done"],["受控文件版本鎖定","doing"],["客戶端切換告知","doing"],["變更成效回報","todo"]].map(function(r){
+          var ic=r[1]==="done"?["check_circle","var(--ok)"]:r[1]==="doing"?["pending","var(--warn)"]:["radio_button_unchecked","#cbd5e1"];
+          return '<div class="minirow"><span class="msi" style="color:'+ic[1]+';font-size:20px;flex:0 0 auto">'+ic[0]+'</span><div class="txt" style="color:#334155;font-weight:600;font-size:12.5px">'+esc(r[0])+'</div></div>';}).join("")+
+      '</div>'+
+    '</div>';
+    void el.offsetHeight;
+    mk("c4",{tooltip:{trigger:"axis"},grid:{left:8,right:16,top:20,bottom:8,containLabel:true},
+      xAxis:{type:"category",boundaryGap:false,data:["8/14","8/18","8/22","8/26","8/30","9/1"],axisLine:{lineStyle:{color:"#cbd5e1"}},axisLabel:{color:"#64748b"}},
+      yAxis:{type:"value",splitLine:{lineStyle:{color:"#eef2f7"}},axisLabel:{color:"#94a3b8"}},
+      series:[{name:"舊料剩餘",type:"line",smooth:true,data:[540,410,300,190,80,0],symbolSize:7,lineStyle:{width:3,color:"#f59e0b"},itemStyle:{color:"#f59e0b"},
+        areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"rgba(245,158,11,.28)"},{offset:1,color:"rgba(245,158,11,.02)"}]}},
+        markLine:{silent:true,symbol:"none",data:[{xAxis:"9/1",label:{formatter:"生效日",color:"#1d4ed8"},lineStyle:{color:"#1d4ed8",type:"dashed"}}]}}]});
+  }
+
+  /* ================= SCREEN 5 : 變更預警塔 ================= */
+  function s5(){
+    var alerts=[
+      {lv:"hi",ic:"merge_type",t:"新舊料混用風險 · WO-88214",d:"該工單領用清單同時含 HS-118 與 HS-220，恐於 9/1 生效後混用，建議凍結領料重新配料。"},
+      {lv:"hi",ic:"hourglass_disabled",t:"會簽逾時升級 · ECR-2608-039",d:"採購關卡已停留 26hr 超過 SLA，已自動升級至部門主管催辦。"},
+      {lv:"md",ic:"inventory",t:"舊料呆滯預警 · IP-09 絕緣墊片",d:"隨散熱片淘汰之絕緣墊片尚有 210pcs，無其他用途，建議提報報廢。"},
+      {lv:"md",ic:"event_busy",t:"生效日逼近 · ECN-2608-017",d:"距生效日剩 18 天，仍有 1 份作業指導書未鎖版，需 8/28 前完成。"},
+      {lv:"lo",ic:"description",t:"文件版本待簽 · WI-ASM-07",d:"組裝作業指導書 V3 待品保覆核，屬低風險提醒。"}
+    ];
+    var el=document.getElementById("screen");
+    el.innerHTML=''+
+    '<div class="grid g4">'+
+      [["warning","#fef2f2","#dc2626","高風險預警","2","件"],
+       ["error","#fff7ed","#d97706","中風險預警","2","件"],
+       ["notifications","#eff6ff","#2563eb","低風險提醒","1","件"],
+       ["shield","#ecfdf5","#059669","本月攔截混用","5","次"]].map(function(k){
+        return '<div class="card kpi"><div class="lab"><span class="ic" style="background:'+k[1]+';color:'+k[2]+'"><span class="msi">'+k[0]+'</span></span>'+k[3]+'</div><div class="val">'+k[4]+'<small>'+k[5]+'</small></div></div>';}).join("")+
+    '</div>'+
+    '<div class="grid g23 mt16">'+
+      '<div class="card"><h3><span class="msi">crisis_alert</span>變更預警清單</h3><p class="csub">依風險等級排序，部門主管據此判斷是否介入</p>'+
+        alerts.map(function(a){return '<div class="alert '+a.lv+'"><span class="msi">'+a.ic+'</span><div><div class="at">'+esc(a.t)+'</div><div class="ad">'+esc(a.d)+'</div></div></div>';}).join("")+
+      '</div>'+
+      '<div class="card"><h3><span class="msi">speed</span>變更流程健康度</h3><p class="csub">整體流程準時與風險綜合分數</p><div id="c5a" class="chart sm"></div></div>'+
+    '</div>'+
+    '<div class="card mt16"><h3><span class="msi">stacked_line_chart</span>近 6 週變更 KPI 趨勢</h3><p class="csub">準時發行率提升、平均簽核工時下降</p><div id="c5b" class="chart"></div>'+
+      '<div class="legend"><span><i style="background:#1d4ed8"></i>ECN 準時發行率 %</span><span><i style="background:#f59e0b"></i>平均會簽工時 hr</span></div></div>';
+    void el.offsetHeight;
+    mk("c5a",{series:[{type:"gauge",startAngle:210,endAngle:-30,min:0,max:100,progress:{show:true,width:16,itemStyle:{color:"#1d4ed8"}},
+      axisLine:{lineStyle:{width:16,color:[[0.6,"#fecaca"],[0.8,"#fde68a"],[1,"#bbf7d0"]]}},
+      pointer:{width:5,length:"58%",itemStyle:{color:"#1d4ed8"}},axisTick:{show:false},splitLine:{length:10,lineStyle:{color:"#cbd5e1"}},
+      axisLabel:{distance:18,color:"#94a3b8",fontSize:10},anchor:{show:true,size:12,itemStyle:{color:"#1d4ed8"}},
+      title:{show:false},detail:{valueAnimation:false,offsetCenter:[0,"42%"],fontSize:26,fontWeight:800,color:"#0f172a",formatter:"{value}"},
+      data:[{value:88}]}]});
+    mk("c5b",{tooltip:{trigger:"axis"},grid:{left:8,right:24,top:24,bottom:12,containLabel:true},
+      xAxis:{type:"category",data:["W1","W2","W3","W4","W5","W6"],axisLine:{lineStyle:{color:"#cbd5e1"}},axisLabel:{color:"#64748b"}},
+      yAxis:[{type:"value",name:"準時率%",min:60,max:100,splitLine:{lineStyle:{color:"#eef2f7"}},axisLabel:{color:"#94a3b8"},nameTextStyle:{color:"#94a3b8"}},
+        {type:"value",name:"工時h",min:0,max:16,splitLine:{show:false},axisLabel:{color:"#94a3b8"},nameTextStyle:{color:"#94a3b8"}}],
+      series:[
+        {name:"ECN 準時發行率 %",type:"line",smooth:true,data:[71,74,79,82,85,88],symbolSize:7,lineStyle:{width:3,color:"#1d4ed8"},itemStyle:{color:"#1d4ed8"},
+          areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"rgba(29,78,216,.2)"},{offset:1,color:"rgba(29,78,216,.02)"}]}}},
+        {name:"平均會簽工時 hr",type:"line",yAxisIndex:1,smooth:true,data:[13.5,12.1,10.8,9.4,8.2,7.1],symbolSize:7,lineStyle:{width:3,color:"#f59e0b"},itemStyle:{color:"#f59e0b"}}
+      ]});
+  }
+
+  var SCREENS=[s0,s1,s2,s3,s4,s5];
+
+  function buildNav(){
+    var n=document.getElementById("nav");
+    n.innerHTML=MODULES.map(function(m,i){return '<button data-i="'+i+'"><span class="msi">'+m.icon+'</span><span class="nx">'+m.name+'<small>'+m.sub+'</small></span></button>';}).join("");
+    n.querySelectorAll("[data-i]").forEach(function(b){b.addEventListener("click",function(){location.hash="v"+b.getAttribute("data-i");});});
+  }
+
+  function show(i){
+    var m=MODULES[i]||MODULES[0];
+    document.getElementById("htitle").textContent=m.name;
+    document.getElementById("hsub").textContent=m.desc;
+    var btns=document.querySelectorAll("[data-i]");
+    for(var b=0;b<btns.length;b++){btns[b].classList.toggle("on",+btns[b].getAttribute("data-i")===i);}
+    disposeCharts();
+    (SCREENS[i]||s0)();
+  }
+
+  buildNav();
+  window.addEventListener("resize",function(){for(var i=0;i<charts.length;i++){try{charts[i].resize();}catch(e){}}});
+
+  function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+  </script>
 </body>
 </html>

@@ -3,16 +3,494 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>存貨成本與呆滯料提列系統（Inventory Costing & Obsolescence Provision System）｜Jvision 系統 Demo</title>
-  <meta name="description" content="應收付、現金流到預算的財務即時掌握" />
+  <title>存貨成本與呆滯料提列系統 Demo</title>
+  <meta name="description" content="存貨計價、呆滯料齡分析與呆滯/跌價損失提列的單一操作平台" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --accent:#ea580c; --accent2:#fb923c; --accent-soft:#fff3ec;
+      --ink:#1c1917; --muted:#78716c; --line:#eee6df; --bg:#f7f4f1; --card:#ffffff;
+      --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --info:#2563eb;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:"Inter","Noto Sans TC",system-ui,sans-serif;
+      background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased;
+      min-width:0;
+    }
+    .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:400;font-style:normal;line-height:1;vertical-align:middle;}
+    a{color:inherit;text-decoration:none}
+
+    /* top nav */
+    .topbar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);}
+    .topbar-in{max-width:1360px;margin:0 auto;padding:10px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;min-width:0;}
+    .brand{display:flex;align-items:center;gap:10px;min-width:0;}
+    .brand .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;flex:0 0 auto;box-shadow:0 4px 12px rgba(234,88,12,.32);}
+    .brand .logo .material-symbols-outlined{font-size:22px}
+    .brand b{font-size:15px;font-weight:800;display:block;line-height:1.2}
+    .brand span{font-size:11px;color:var(--muted)}
+    .nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto;min-width:0;}
+    .nav button{
+      display:flex;align-items:center;gap:7px;border:1px solid transparent;background:transparent;
+      color:var(--muted);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;
+      padding:8px 12px;border-radius:10px;white-space:nowrap;
+    }
+    .nav button .material-symbols-outlined{font-size:19px}
+    .nav button:hover{background:var(--accent-soft);color:var(--accent)}
+    .nav button.on{background:var(--accent);color:#fff;box-shadow:0 4px 12px rgba(234,88,12,.3)}
+
+    main{max-width:1360px;margin:0 auto;padding:20px 18px 60px;min-width:0;}
+    .screen-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;flex-wrap:wrap;}
+    .screen-head .ic{width:46px;height:46px;border-radius:13px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+    .screen-head .ic .material-symbols-outlined{font-size:26px}
+    .screen-head h1{margin:0;font-size:20px;font-weight:800;letter-spacing:-.02em}
+    .screen-head p{margin:3px 0 0;font-size:13px;color:var(--muted);max-width:640px}
+    .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent);margin-left:auto;white-space:nowrap}
+
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0;}
+    .card-t{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;margin:0 0 12px}
+    .card-t .material-symbols-outlined{font-size:19px;color:var(--accent)}
+    .card-t small{font-weight:500;color:var(--muted);font-size:11px;margin-left:auto}
+
+    /* grid helpers via classes (RWD) */
+    .grid{display:grid;gap:14px;min-width:0}
+    .g-kpi{grid-template-columns:repeat(4,1fr)}
+    .g-2{grid-template-columns:1fr 1fr}
+    .g-3{grid-template-columns:repeat(3,1fr)}
+    .g-2a{grid-template-columns:1.5fr 1fr}
+    .g-2b{grid-template-columns:1fr 1.3fr}
+    @media(max-width:820px){
+      .g-kpi{grid-template-columns:1fr 1fr}
+      .g-2,.g-3,.g-2a,.g-2b{grid-template-columns:1fr}
+    }
+
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+    .kpi .lab{font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+    .kpi .lab .material-symbols-outlined{font-size:16px;color:var(--accent)}
+    .kpi .val{font-size:24px;font-weight:900;letter-spacing:-.02em;margin-top:6px}
+    .kpi .val small{font-size:12px;font-weight:600;color:var(--muted)}
+    .kpi .delta{font-size:11px;font-weight:700;margin-top:4px}
+    .up{color:var(--bad)}.down{color:var(--ok)}
+
+    table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px}
+    th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+    th{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em;background:#fbf8f5}
+    td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+    tbody tr:hover{background:var(--accent-soft)}
+    .tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+    .t-ok{background:#e7f6ec;color:var(--ok)}
+    .t-warn{background:#fdf0dc;color:var(--warn)}
+    .t-bad{background:#fdeaea;color:var(--bad)}
+    .t-info{background:#e6effd;color:var(--info)}
+    .t-mute{background:#f0ece8;color:var(--muted)}
+
+    .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .chart{width:100%;height:280px;overflow:hidden}
+    .chart.sm{height:220px}
+
+    /* kanban board */
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;min-width:0}
+    @media(max-width:820px){.board{grid-template-columns:1fr 1fr}}
+    @media(max-width:520px){.board{grid-template-columns:1fr}}
+    .col{background:#faf7f4;border:1px solid var(--line);border-radius:14px;padding:10px;min-width:0}
+    .col-h{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;margin-bottom:10px}
+    .col-h .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+    .col-h .cnt{margin-left:auto;font-size:11px;font-weight:700;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 8px}
+    .kcard{background:#fff;border:1px solid var(--line);border-radius:11px;padding:10px;margin-bottom:9px;border-left:3px solid var(--accent)}
+    .kcard .sku{font-size:12px;font-weight:800}
+    .kcard .nm{font-size:11px;color:var(--muted);margin:2px 0 7px}
+    .kcard .row{display:flex;align-items:center;justify-content:space-between;font-size:11px}
+    .kcard .amt{font-weight:800;font-variant-numeric:tabular-nums}
+    .barmini{height:5px;border-radius:4px;background:#f0ece8;overflow:hidden;margin-top:7px}
+    .barmini i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+
+    /* timeline */
+    .tl{position:relative;padding-left:22px}
+    .tl:before{content:"";position:absolute;left:7px;top:4px;bottom:4px;width:2px;background:var(--line)}
+    .tl-i{position:relative;padding:0 0 16px 0}
+    .tl-i:before{content:"";position:absolute;left:-19px;top:3px;width:11px;height:11px;border-radius:50%;background:#fff;border:3px solid var(--accent)}
+    .tl-i.done:before{background:var(--accent)}
+    .tl-i .tt{font-size:13px;font-weight:800}
+    .tl-i .mt{font-size:11px;color:var(--muted);margin-top:2px}
+    .tl-i .dd{font-size:12px;margin-top:5px;color:#44403c}
+
+    .prog{height:8px;border-radius:6px;background:#f0ece8;overflow:hidden}
+    .prog i{display:block;height:100%;border-radius:6px}
+    .list{list-style:none;padding:0;margin:0}
+    .li{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+    .li:last-child{border-bottom:0}
+    .li .ib{width:32px;height:32px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+    .li .ib .material-symbols-outlined{font-size:18px}
+    .li b{font-size:12.5px}
+    .li .sub{font-size:11px;color:var(--muted)}
+    .li .end{margin-left:auto;text-align:right;font-variant-numeric:tabular-nums}
+
+    .seg{display:inline-flex;background:#faf7f4;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap}
+    .seg span{font-size:11.5px;font-weight:700;color:var(--muted);padding:5px 11px;border-radius:8px}
+    .seg span.on{background:#fff;color:var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.06)}
+
+    .note{font-size:11.5px;color:var(--muted);display:flex;align-items:flex-start;gap:7px;margin-top:10px}
+    .note .material-symbols-outlined{font-size:16px;color:var(--accent);flex:0 0 auto}
+    .mono{font-variant-numeric:tabular-nums;font-weight:700}
+
+    @media(max-width:560px){
+      .nav button span.txt{display:none}
+      .nav button{padding:8px 9px}
+      .brand span{display:none}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <header class="topbar">
+    <div class="topbar-in">
+      <div class="brand">
+        <div class="logo"><span class="material-symbols-outlined">inventory_2</span></div>
+        <div>
+          <b>存貨成本與呆滯料提列</b>
+          <span>Inventory Costing &amp; Obsolescence Provision</span>
+        </div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+    </div>
+  </header>
+  <main id="app"></main>
+
+  <script>
+  (function(){
+    var charts=[];
+    function disposeCharts(){for(var i=0;i<charts.length;i++){try{charts[i].dispose();}catch(e){}}charts=[];}
+    function mk(id,opt){var el=document.getElementById(id);if(!el)return;var c=echarts.init(el);c.setOption(opt);charts.push(c);}
+    function fmt(n){return n.toLocaleString("en-US");}
+
+    var SCREENS=[
+      {icon:"inventory_2",name:"存貨計價設定",txt:"計價設定"},
+      {icon:"history",name:"呆滯料齡分析",txt:"料齡分析"},
+      {icon:"trending_up",name:"跌價損失評估",txt:"跌價評估"},
+      {icon:"request_quote",name:"提列計算引擎",txt:"提列計算"},
+      {icon:"fact_check",name:"覆核與傳票",txt:"覆核傳票"},
+      {icon:"insights",name:"報表與稽核",txt:"報表稽核"}
+    ];
+
+    // ---------- shared fake data ----------
+    var accent="#ea580c",accent2="#fb923c";
+    var axis={axisLine:{lineStyle:{color:"#e7ddd4"}},axisLabel:{color:"#8a8078",fontSize:11},splitLine:{lineStyle:{color:"#f2ece6"}}};
+
+    function head(i,desc,pill){
+      return '<div class="screen-head"><div class="ic"><span class="material-symbols-outlined">'+SCREENS[i].icon+'</span></div>'+
+        '<div><h1>'+SCREENS[i].name+'</h1><p>'+desc+'</p></div>'+
+        (pill?'<span class="pill"><span class="material-symbols-outlined" style="font-size:15px">bolt</span>'+pill+'</span>':'')+'</div>';
+    }
+
+    // ================= SCREEN 0 : 存貨計價設定 =================
+    function s0(c){
+      var rows=[
+        ["RM-1042","冷軋鋼捲 SPCC 1.2mm","移動平均",2860,"公斤",4210,"NTD",1,"t-ok","已入帳"],
+        ["RM-2087","鋁合金錠 A6063","移動平均",1740,"公斤",5980,"NTD",1,"t-ok","已入帳"],
+        ["WIP-3310","沖壓半成品 F-220","先進先出",980,"件",128,"NTD",1,"t-warn","待結算"],
+        ["FG-5501","精密齒輪 G-88","移動平均",520,"件",1860,"NTD",1,"t-ok","已入帳"],
+        ["RM-1188","工程塑膠粒 PA66","先進先出",6200,"公斤",92,"NTD",1,"t-warn","待結算"],
+        ["FG-6620","伺服馬達殼 M-30","移動平均",310,"件",2440,"NTD",1,"t-ok","已入帳"]
+      ];
+      var tb="";for(var i=0;i<rows.length;i++){var r=rows[i];
+        tb+='<tr><td class="mono">'+r[0]+'</td><td>'+r[1]+'</td><td><span class="tag t-info">'+r[2]+'</span></td>'+
+          '<td class="num mono">'+fmt(r[3])+' '+r[4]+'</td><td class="num mono">'+r[6]+' '+fmt(r[5])+'</td>'+
+          '<td class="num mono">'+r[6]+' '+fmt(r[3]*r[5])+'</td><td><span class="tag '+r[7]+'">'+r[8]+'</span></td></tr>';
+      }
+      c.innerHTML=head(0,"設定各料號的存貨計價法（移動平均／先進先出），結算月末單位成本並完成成本入帳，作為呆滯與跌價評估的基礎。","本月 07/31 結算")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("account_tree","計價料號","1,284","+36 本月","up")+
+          kpi("payments","存貨帳面總值","NTD 4.82 億","+2.1%","up")+
+          kpi("rule","移動平均占比","68%","852 料號","")+
+          kpi("task_alt","已完成入帳","94.5%","71 筆待結","down")+
+        '</div>'+
+        '<div class="grid g-2b">'+
+          '<div class="card"><div class="card-t"><span class="material-symbols-outlined">payments</span>各料類存貨帳面值分佈<small>NTD 萬元</small></div><div id="c0a" class="chart sm"></div></div>'+
+          '<div class="card"><div class="card-t"><span class="material-symbols-outlined">rule</span>計價法設定比例</div><div id="c0b" class="chart sm"></div></div>'+
+        '</div>'+
+        '<div class="card" style="margin-top:14px"><div class="card-t"><span class="material-symbols-outlined">inventory_2</span>月末存貨結存與單位成本<small>2026/07 結算</small></div>'+
+          '<div class="scroll"><table><thead><tr><th>料號</th><th>品名</th><th>計價法</th><th class="num">結存數量</th><th class="num">單位成本</th><th class="num">帳面金額</th><th>狀態</th></tr></thead><tbody>'+tb+'</tbody></table></div>'+
+          '<div class="note"><span class="material-symbols-outlined">info</span>先進先出料號需依批次順序結算，系統自動帶入最舊批次成本；待結算料號將於月結批次一併入帳。</div></div>';
+      void c.offsetHeight;
+      mk("c0a",{grid:{left:44,right:12,top:16,bottom:26},tooltip:{trigger:"axis"},
+        xAxis:Object.assign({type:"category",data:["原物料","在製品","半成品","成品","備品"]},axis),
+        yAxis:Object.assign({type:"value"},axis),
+        series:[{type:"bar",data:[19800,8600,5400,12400,2200],itemStyle:{color:accent,borderRadius:[6,6,0,0]},barWidth:"52%"}]});
+      mk("c0b",{tooltip:{trigger:"item"},legend:{bottom:0,textStyle:{fontSize:11,color:"#8a8078"}},
+        series:[{type:"pie",radius:["46%","72%"],center:["50%","44%"],label:{show:false},
+          data:[{value:852,name:"移動平均",itemStyle:{color:accent}},{value:432,name:"先進先出",itemStyle:{color:accent2}}]}]});
+    }
+
+    // ================= SCREEN 1 : 呆滯料齡分析（KANBAN signature） =================
+    function s1(c){
+      var cols=[
+        {t:"0–90 天（正常）",clr:"#16a34a",cnt:842,cards:[
+          {sku:"RM-1042",nm:"冷軋鋼捲 SPCC",amt:"12.0M",age:"18 天",pct:20},
+          {sku:"FG-5501",nm:"精密齒輪 G-88",amt:"9.7M",age:"42 天",pct:47}
+        ]},
+        {t:"91–180 天（觀察）",clr:"#2563eb",cnt:214,cards:[
+          {sku:"WIP-3310",nm:"沖壓半成品 F-220",amt:"1.3M",age:"126 天",pct:70},
+          {sku:"RM-2087",nm:"鋁合金錠 A6063",amt:"4.4M",age:"152 天",pct:84}
+        ]},
+        {t:"181–365 天（呆滯）",clr:"#d97706",cnt:96,cards:[
+          {sku:"FG-4401","nm":"舊款控制器 C-15",amt:"2.8M",age:"288 天",pct:79},
+          {sku:"RM-1188",nm:"工程塑膠粒 PA66",amt:"0.57M",age:"333 天",pct:91}
+        ]},
+        {t:"逾 365 天（呆廢）",clr:"#dc2626",cnt:58,cards:[
+          {sku:"FG-2203",nm:"停產機殼 H-09",amt:"3.6M",age:"612 天",pct:100},
+          {sku:"WIP-1990",nm:"報廢治具 J-77",amt:"0.42M",age:"540 天",pct:100}
+        ]}
+      ];
+      var board="";
+      for(var i=0;i<cols.length;i++){var col=cols[i];var cc="";
+        for(var j=0;j<col.cards.length;j++){var k=col.cards[j];
+          cc+='<div class="kcard" style="border-left-color:'+col.clr+'"><div class="row"><span class="sku">'+k.sku+'</span><span class="amt">'+k.amt+'</span></div>'+
+            '<div class="nm">'+k.nm+'</div><div class="row"><span style="color:#8a8078">庫齡 '+k.age+'</span><span class="tag t-mute">占存 '+k.pct+'%</span></div>'+
+            '<div class="barmini"><i style="width:'+k.pct+'%;background:'+col.clr+'"></i></div></div>';
+        }
+        board+='<div class="col"><div class="col-h"><span class="dot" style="background:'+col.clr+'"></span>'+col.t+'<span class="cnt">'+col.cnt+'</span></div>'+cc+'</div>';
+      }
+      c.innerHTML=head(1,"依 SKU 統計庫齡分佈，將料號分佈於庫齡看板中，逾期未動用者依呆滯風險金額排序，鎖定需評估提列的品項。","看板視圖")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("history","平均庫齡","74 天","+6 天","up")+
+          kpi("warning","呆滯料號","154 項","占 12%","up")+
+          kpi("payments","呆滯庫存金額","NTD 3,940 萬","+8.2%","up")+
+          kpi("trending_up","逾一年占比","4.5%","58 料號","up")+
+        '</div>'+
+        '<div class="card" style="margin-bottom:14px"><div class="card-t"><span class="material-symbols-outlined">history</span>呆滯料齡看板<small>依庫齡級距分群 · 卡片依金額排序</small></div>'+
+          '<div class="scroll"><div class="board">'+board+'</div></div></div>'+
+        '<div class="grid g-2">'+
+          '<div class="card"><div class="card-t"><span class="material-symbols-outlined">insights</span>各庫齡級距金額分佈<small>NTD 萬元</small></div><div id="c1a" class="chart sm"></div></div>'+
+          '<div class="card"><div class="card-t"><span class="material-symbols-outlined">monitoring</span>呆滯庫存金額趨勢<small>近 6 月</small></div><div id="c1b" class="chart sm"></div></div>'+
+        '</div>';
+      void c.offsetHeight;
+      mk("c1a",{grid:{left:44,right:12,top:16,bottom:26},tooltip:{trigger:"axis"},
+        xAxis:Object.assign({type:"category",data:["0-90","91-180","181-365","逾365"]},axis),
+        yAxis:Object.assign({type:"value"},axis),
+        series:[{type:"bar",barWidth:"52%",data:[
+          {value:21700,itemStyle:{color:"#16a34a"}},{value:5800,itemStyle:{color:"#2563eb"}},
+          {value:3370,itemStyle:{color:"#d97706"}},{value:4020,itemStyle:{color:"#dc2626"}}],itemStyle:{borderRadius:[6,6,0,0]}}]});
+      mk("c1b",{grid:{left:46,right:14,top:16,bottom:26},tooltip:{trigger:"axis"},
+        xAxis:Object.assign({type:"category",data:["2月","3月","4月","5月","6月","7月"]},axis),
+        yAxis:Object.assign({type:"value"},axis),
+        series:[{type:"line",smooth:true,data:[3120,3260,3410,3550,3710,3940],areaStyle:{color:"rgba(234,88,12,.14)"},lineStyle:{color:accent,width:3},itemStyle:{color:accent},symbolSize:7}]});
+    }
+
+    // ================= SCREEN 2 : 跌價損失評估 =================
+    function s2(c){
+      var rows=[
+        ["FG-2203","停產機殼 H-09","成品",280,3600,"12,857","5,600","-7,257","-56.5%","t-bad"],
+        ["FG-4401","舊款控制器 C-15","成品",640,2800,"4,375","2,750","-1,625","-37.1%","t-bad"],
+        ["RM-1188","工程塑膠粒 PA66","原物料",6200,570,"92","78","-86.8萬","-15.2%","t-warn"],
+        ["RM-2087","鋁合金錠 A6063","原物料",1740,4400,"2,529","2,610","+141","+3.2%","t-ok"],
+        ["WIP-1990","報廢治具 J-77","在製品",40,420,"10,500","0","-42萬","-100%","t-bad"],
+        ["WIP-3310","沖壓半成品 F-220","在製品",980,1300,"1,327","1,410","+81","+6.3%","t-ok"]
+      ];
+      var tb="";for(var i=0;i<rows.length;i++){var r=rows[i];
+        tb+='<tr><td class="mono">'+r[0]+'</td><td>'+r[1]+'</td><td><span class="tag t-mute">'+r[2]+'</span></td>'+
+          '<td class="num mono">'+fmt(r[3])+'</td><td class="num mono">'+r[5]+'</td><td class="num mono">'+r[6]+'</td>'+
+          '<td class="num mono">'+r[7]+'</td><td class="num"><span class="tag '+r[9]+'">'+r[8]+'</span></td></tr>';
+      }
+      c.innerHTML=head(2,"以淨變現價值（NRV）比對帳面單位成本，逐項計算成本高於可回收金額的差額，判定是否需提列跌價損失。","成本 vs NRV")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("fact_check","已評估料號","154 項","呆滯全數","")+
+          kpi("trending_down","需提列跌價","92 項","占 60%","up")+
+          kpi("payments","跌價損失估算","NTD 1,286 萬","+11%","up")+
+          kpi("verified","NRV 高於成本","62 項","不需提列","down")+
+        '</div>'+
+        '<div class="grid g-2a" style="margin-bottom:14px">'+
+          '<div class="card"><div class="card-t"><span class="material-symbols-outlined">insights</span>帳面成本 vs 淨變現價值<small>單位成本 NTD</small></div><div id="c2a" class="chart"></div></div>'+
+          '<div class="card"><div class="card-t"><span class="material-symbols-outlined">rule</span>跌價幅度分佈</div>'+
+            band("停產／報廢品","-56% ~ -100%",42,"#dc2626")+
+            band("舊款／滯銷品","-15% ~ -55%",50,"#d97706")+
+            band("輕微跌價","-1% ~ -14%",30,"#2563eb")+
+            band("無跌價（NRV≥成本）","0%",62,"#16a34a")+
+            '<div class="note"><span class="material-symbols-outlined">calculate</span>跌價損失＝(帳面成本 − 淨變現價值) × 結存數量，僅於 NRV 低於成本時提列。</div></div>'+
+        '</div>'+
+        '<div class="card"><div class="card-t"><span class="material-symbols-outlined">trending_up</span>逐項跌價評估明細<small>依跌價幅度排序</small></div>'+
+          '<div class="scroll"><table><thead><tr><th>料號</th><th>品名</th><th>類別</th><th class="num">數量</th><th class="num">帳面成本</th><th class="num">NRV</th><th class="num">跌價損失</th><th class="num">跌價幅度</th></tr></thead><tbody>'+tb+'</tbody></table></div></div>';
+      void c.offsetHeight;
+      mk("c2a",{grid:{left:48,right:16,top:28,bottom:30},tooltip:{trigger:"axis"},
+        legend:{top:0,textStyle:{fontSize:11,color:"#8a8078"}},
+        xAxis:Object.assign({type:"category",data:["H-09","C-15","PA66","A6063","J-77","F-220"]},axis),
+        yAxis:Object.assign({type:"value"},axis),
+        series:[
+          {name:"帳面成本",type:"bar",data:[12857,4375,92,2529,10500,1327],itemStyle:{color:accent,borderRadius:[5,5,0,0]},barGap:0,barWidth:"34%"},
+          {name:"淨變現價值",type:"bar",data:[5600,2750,78,2610,0,1410],itemStyle:{color:accent2,borderRadius:[5,5,0,0]},barWidth:"34%"}]});
+    }
+
+    // ================= SCREEN 3 : 提列計算引擎 =================
+    function s3(c){
+      var rows=[
+        ["181–365 天","呆滯備抵",30,"NTD 3,370萬","1,011","t-warn"],
+        ["逾 365 天","呆滯備抵",50,"NTD 4,020萬","2,010","t-bad"],
+        ["跌價評估","跌價備抵",100,"NTD 1,286萬","1,286","t-bad"],
+        ["91–180 天","呆滯備抵",10,"NTD 5,800萬","580","t-info"]
+      ];
+      var tb="";for(var i=0;i<rows.length;i++){var r=rows[i];
+        tb+='<tr><td>'+r[0]+'</td><td><span class="tag '+r[5]+'">'+r[1]+'</span></td><td class="num mono">'+r[2]+'%</td>'+
+          '<td class="num mono">'+r[3]+'</td><td class="num mono">NTD '+r[4]+'萬</td></tr>';
+      }
+      c.innerHTML=head(3,"依庫齡級距與跌價幅度套用提列比率政策，彙算呆滯備抵與跌價備抵提列金額，並備妥待覆核傳票。","提列引擎 v3")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("request_quote","本月提列總額","NTD 4,887 萬","+9.4%","up")+
+          kpi("history","呆滯備抵","NTD 3,601 萬","3 級距","")+
+          kpi("trending_down","跌價備抵","NTD 1,286 萬","92 料號","up")+
+          kpi("account_balance","占存貨淨值","10.1%","+0.7pp","up")+
+        '</div>'+
+        '<div class="grid g-2b" style="margin-bottom:14px">'+
+          '<div class="card"><div class="card-t"><span class="material-symbols-outlined">insights</span>提列金額組成<small>NTD 萬元</small></div><div id="c3a" class="chart sm"></div></div>'+
+          '<div class="card"><div class="card-t"><span class="material-symbols-outlined">rule</span>提列政策級距<small>可由主管調整</small></div>'+
+            '<div class="scroll"><table><thead><tr><th>級距／依據</th><th>備抵科目</th><th class="num">提列率</th><th class="num">基礎金額</th><th class="num">提列金額</th></tr></thead><tbody>'+tb+'</tbody></table></div>'+
+            '<div class="note"><span class="material-symbols-outlined">policy</span>級距與提列率依會計政策設定；跌價備抵以逐項計算之損失全額提列。</div></div>'+
+        '</div>'+
+        '<div class="card"><div class="card-t"><span class="material-symbols-outlined">calculate</span>提列彙算結果</div>'+
+          calcrow("呆滯備抵（91–180 天 · 10%）","+ NTD 580 萬")+
+          calcrow("呆滯備抵（181–365 天 · 30%）","+ NTD 1,011 萬")+
+          calcrow("呆滯備抵（逾 365 天 · 50%）","+ NTD 2,010 萬")+
+          calcrow("跌價備抵（逐項 NRV · 全額）","+ NTD 1,286 萬")+
+          '<div class="li" style="border-top:2px solid var(--accent);margin-top:4px;padding-top:12px"><div class="ib" style="background:var(--accent);color:#fff"><span class="material-symbols-outlined">summarize</span></div>'+
+            '<div><b>本月合計提列金額</b><div class="sub">呆滯備抵 + 跌價備抵</div></div><div class="end"><b style="font-size:17px;color:var(--accent)">NTD 4,887 萬</b></div></div></div>';
+      void c.offsetHeight;
+      mk("c3a",{tooltip:{trigger:"item",formatter:"{b}: NTD {c} 萬"},legend:{bottom:0,textStyle:{fontSize:11,color:"#8a8078"}},
+        series:[{type:"pie",radius:["44%","72%"],center:["50%","42%"],label:{show:false},
+          data:[
+            {value:580,name:"91-180天",itemStyle:{color:"#2563eb"}},
+            {value:1011,name:"181-365天",itemStyle:{color:"#d97706"}},
+            {value:2010,name:"逾365天",itemStyle:{color:"#dc2626"}},
+            {value:1286,name:"跌價備抵",itemStyle:{color:accent}}]}]});
+    }
+
+    // ================= SCREEN 4 : 覆核與傳票 =================
+    function s4(c){
+      var q=[
+        {sku:"批次 PR-2607-A",nm:"逾365天呆滯備抵 · 58料號",amt:"NTD 2,010 萬",st:"待覆核",cl:"t-warn",who:"陳佩君"},
+        {sku:"批次 PR-2607-B",nm:"跌價備抵 · 92料號",amt:"NTD 1,286 萬",st:"待覆核",cl:"t-warn",who:"陳佩君"},
+        {sku:"批次 PR-2607-C",nm:"181-365天呆滯備抵",amt:"NTD 1,011 萬",st:"已核准",cl:"t-ok",who:"林志明"},
+        {sku:"批次 PR-2607-D",nm:"91-180天呆滯備抵",amt:"NTD 580 萬",st:"已拋轉",cl:"t-info",who:"林志明"}
+      ];
+      var ql="";for(var i=0;i<q.length;i++){var it=q[i];
+        ql+='<div class="li"><div class="ib"><span class="material-symbols-outlined">fact_check</span></div>'+
+          '<div><b>'+it.sku+'</b><div class="sub">'+it.nm+' · 提列人 '+it.who+'</div></div>'+
+          '<div class="end"><div class="mono">'+it.amt+'</div><span class="tag '+it.cl+'">'+it.st+'</span></div></div>';
+      }
+      var vt=[
+        ["1454","跌價損失（費用）","1,286萬","",""],
+        ["1454","　備抵存貨跌價損失","","1,286萬",""],
+        ["1455","呆滯損失（費用）","3,601萬","",""],
+        ["1455","　備抵呆滯存貨","","3,601萬",""]
+      ];
+      var vtb="";for(var i=0;i<vt.length;i++){var r=vt[i];
+        vtb+='<tr><td class="mono">'+r[0]+'</td><td>'+r[1]+'</td><td class="num mono">'+(r[2]?"NTD "+r[2]:"")+'</td><td class="num mono">'+(r[3]?"NTD "+r[3]:"")+'</td></tr>';
+      }
+      c.innerHTML=head(4,"主管覆核各提列批次的合理性後核准，系統自動產生會計傳票並拋轉總帳，全程留存操作與覆核稽核軌跡。","雙層覆核")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("checklist","待覆核批次","2 筆","NTD 3,296萬","up")+
+          kpi("verified","本月已核准","2 筆","NTD 1,591萬","")+
+          kpi("receipt_long","已拋轉傳票","1 筆","總帳同步","")+
+          kpi("schedule","平均覆核時效","3.4 小時","-1.2h","down")+
+        '</div>'+
+        '<div class="grid g-2b" style="margin-bottom:14px">'+
+          '<div class="card"><div class="card-t"><span class="material-symbols-outlined">checklist</span>提列覆核佇列</div>'+ql+
+            '<div class="note"><span class="material-symbols-outlined">verified_user</span>逾 500 萬提列須財務會計主管二次覆核方可拋轉。</div></div>'+
+          '<div class="card"><div class="card-t"><span class="material-symbols-outlined">receipt_long</span>會計傳票（自動產生）<small>JV-2026-0731-08</small></div>'+
+            '<div class="scroll"><table><thead><tr><th>科目代碼</th><th>會計科目</th><th class="num">借方</th><th class="num">貸方</th></tr></thead><tbody>'+vtb+
+            '<tr style="background:#fbf8f5"><td></td><td><b>合計</b></td><td class="num mono"><b>NTD 4,887萬</b></td><td class="num mono"><b>NTD 4,887萬</b></td></tr>'+
+            '</tbody></table></div><div class="note"><span class="material-symbols-outlined">check_circle</span>借貸平衡，核准後即拋轉至總帳系統。</div></div>'+
+        '</div>'+
+        '<div class="card"><div class="card-t"><span class="material-symbols-outlined">history</span>稽核軌跡</div>'+
+          '<div class="tl">'+
+            tli(true,"提列批次建立","2026/07/31 09:12 · 會計專員 陳佩君","4 筆提列批次自提列引擎產生，共 NTD 4,887 萬。")+
+            tli(true,"會計主管初核","2026/07/31 11:40 · 會計主管 林志明","181-365天／91-180天批次核准，逾500萬批次上呈。")+
+            tli(true,"財務主管複核","2026/07/31 14:05 · 財務會計主管 王淑芬","跌價備抵批次核准並產生傳票 JV-2026-0731-08。")+
+            tli(false,"傳票拋轉總帳","待處理 · 系統排程","2 筆待覆核批次核准後將自動拋轉。")+
+          '</div></div>';
+    }
+
+    // ================= SCREEN 5 : 報表與稽核 =================
+    function s5(c){
+      c.innerHTML=head(5,"彙總各月提列金額與備抵餘額，提供趨勢報表、料類分佈與稽核指標，供主管與稽核單位快速掌握存貨風險全貌。","儀表板")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("account_balance","備抵存貨餘額","NTD 1.42 億","累計","")+
+          kpi("trending_up","本月提列","NTD 4,887 萬","+9.4%","up")+
+          kpi("history","備抵覆蓋率","94%","呆滯庫存","")+
+          kpi("shield","稽核軌跡完整率","100%","472 筆","")+
+        '</div>'+
+        '<div class="grid g-2" style="margin-bottom:14px">'+
+          '<div class="card"><div class="card-t"><span class="material-symbols-outlined">monitoring</span>提列與備抵餘額趨勢<small>近 6 月 · NTD 萬元</small></div><div id="c5a" class="chart"></div></div>'+
+          '<div class="card"><div class="card-t"><span class="material-symbols-outlined">insights</span>各料類備抵金額<small>NTD 萬元</small></div><div id="c5b" class="chart"></div></div>'+
+        '</div>'+
+        '<div class="grid g-2">'+
+          '<div class="card"><div class="card-t"><span class="material-symbols-outlined">radar</span>存貨健康度雷達</div><div id="c5c" class="chart"></div></div>'+
+          '<div class="card"><div class="card-t"><span class="material-symbols-outlined">description</span>可產出報表</div>'+
+            repo("respond","月結呆滯與跌價提列彙總表","供財報附註揭露","已產出")+
+            repo("history","SKU 庫齡分析明細表","依料類／庫齡級距","已產出")+
+            repo("receipt_long","提列傳票拋轉清冊","JV-2026-0731 系列","已拋轉")+
+            repo("shield","提列覆核稽核軌跡報告","含操作人與時戳","可下載")+
+            '<div class="note"><span class="material-symbols-outlined">verified</span>所有報表資料源自同一提列引擎，確保財報揭露與稽核一致。</div></div>'+
+        '</div>';
+      void c.offsetHeight;
+      mk("c5a",{grid:{left:50,right:16,top:30,bottom:28},tooltip:{trigger:"axis"},legend:{top:0,textStyle:{fontSize:11,color:"#8a8078"}},
+        xAxis:Object.assign({type:"category",data:["2月","3月","4月","5月","6月","7月"]},axis),
+        yAxis:Object.assign({type:"value"},axis),
+        series:[
+          {name:"當月提列",type:"bar",data:[3820,3960,4180,4360,4470,4887],itemStyle:{color:accent2,borderRadius:[5,5,0,0]},barWidth:"46%"},
+          {name:"備抵餘額",type:"line",smooth:true,data:[11200,11900,12600,13300,13600,14200],lineStyle:{color:accent,width:3},itemStyle:{color:accent},symbolSize:6}]});
+      mk("c5b",{grid:{left:52,right:16,top:16,bottom:26},tooltip:{trigger:"axis"},
+        xAxis:Object.assign({type:"value"},axis),
+        yAxis:Object.assign({type:"category",data:["備品","半成品","在製品","成品","原物料"]},axis),
+        series:[{type:"bar",data:[220,540,860,3100,1660],itemStyle:{color:accent,borderRadius:[0,5,5,0]},barWidth:"56%"}]});
+      mk("c5c",{tooltip:{},radar:{indicator:[
+          {name:"周轉率",max:100},{name:"庫齡健康",max:100},{name:"備抵覆蓋",max:100},
+          {name:"呆滯控管",max:100},{name:"稽核完整",max:100}],
+          radius:"64%",splitLine:{lineStyle:{color:"#eee3d9"}},splitArea:{areaStyle:{color:["#fff","#faf5f0"]}},axisName:{color:"#8a8078",fontSize:11}},
+        series:[{type:"radar",data:[{value:[72,68,94,76,100],areaStyle:{color:"rgba(234,88,12,.18)"},lineStyle:{color:accent},itemStyle:{color:accent}}]}]});
+    }
+
+    // ---------- small builders ----------
+    function kpi(ic,lab,val,delta,dir){
+      var d=delta?'<div class="delta '+(dir||"")+'">'+(dir==="up"?"▲ ":dir==="down"?"▼ ":"")+delta+'</div>':'';
+      return '<div class="kpi"><div class="lab"><span class="material-symbols-outlined">'+ic+'</span>'+lab+'</div><div class="val">'+val+'</div>'+d+'</div>';
+    }
+    function band(name,rng,pct,clr){
+      return '<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:5px"><span>'+name+'</span><span style="color:#8a8078">'+rng+' · '+pct+' 項</span></div>'+
+        '<div class="prog"><i style="width:'+Math.min(pct,100)+'%;background:'+clr+'"></i></div></div>';
+    }
+    function calcrow(lab,amt){
+      return '<div class="li"><div class="ib"><span class="material-symbols-outlined">add</span></div><div><b>'+lab+'</b></div><div class="end mono">'+amt+'</div></div>';
+    }
+    function tli(done,tt,mt,dd){
+      return '<div class="tl-i'+(done?" done":"")+'"><div class="tt">'+tt+'</div><div class="mt">'+mt+'</div><div class="dd">'+dd+'</div></div>';
+    }
+    function repo(ic,tt,sub,st){
+      return '<div class="li"><div class="ib"><span class="material-symbols-outlined">description</span></div><div><b>'+tt+'</b><div class="sub">'+sub+'</div></div><div class="end"><span class="tag t-ok">'+st+'</span></div></div>';
+    }
+
+    var RENDER=[s0,s1,s2,s3,s4,s5];
+
+    // nav
+    var nav=document.getElementById("nav");
+    var nh="";for(var i=0;i<SCREENS.length;i++){
+      nh+='<button data-i="'+i+'"><span class="material-symbols-outlined">'+SCREENS[i].icon+'</span><span class="txt">'+SCREENS[i].txt+'</span></button>';
+    }
+    nav.innerHTML=nh;
+    var btns=nav.querySelectorAll("button");
+    for(var b=0;b<btns.length;b++){(function(bt){bt.addEventListener("click",function(){location.hash="v"+bt.getAttribute("data-i");});})(btns[b]);}
+
+    function show(i){
+      disposeCharts();
+      for(var k=0;k<btns.length;k++){btns[k].classList.toggle("on",+btns[k].getAttribute("data-i")===i);}
+      var app=document.getElementById("app");
+      RENDER[i](app);
+    }
+    window.addEventListener("resize",function(){for(var i=0;i<charts.length;i++){try{charts[i].resize();}catch(e){}}});
+
+    window.show=show;
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>
