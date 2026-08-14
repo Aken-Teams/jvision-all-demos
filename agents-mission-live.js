@@ -600,7 +600,9 @@
     var css = ".jvr-report{max-width:940px;margin:0 auto;padding:16px 20px;color:#1e293b;font-size:14.5px;line-height:1.78}" +
       ".jvr-report .jvr-h{font-weight:800;color:#0f172a;line-height:1.35;margin:20px 0 8px}" +
       ".jvr-h1{font-size:22px}.jvr-h2{font-size:18px;padding-bottom:6px;border-bottom:2px solid #eef2f7}.jvr-h3{font-size:15.5px}.jvr-h4{font-size:14.5px}" +
-      ".jvr-p{margin:8px 0}.jvr-list{margin:8px 0 8px 2px;padding-left:20px}.jvr-list li{margin:5px 0}" +
+      ".jvr-p{margin:8px 0}" +
+      "ul.jvr-list{list-style:disc;margin:8px 0;padding-left:24px}ol.jvr-list{list-style:decimal;margin:8px 0;padding-left:24px}" +
+      ".jvr-list li{margin:5px 0;display:list-item}.jvr-list li::marker{color:#2563eb;font-weight:700}" +
       ".jvr-hl{background:#fde68a;color:#854d0e;padding:1px 6px;border-radius:5px;font-weight:700;-webkit-box-decoration-break:clone;box-decoration-break:clone}" +
       ".jvr-a{color:#1d4ed8;text-decoration:underline;text-underline-offset:2px}" +
       ".jvr-code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}" +
@@ -620,10 +622,20 @@
     var s = document.createElement("style"); s.textContent = css; document.head.appendChild(s);
   })();
 
-  function unesc(s) { return String(s == null ? "" : s).replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&"); }
+  function escAttr(s) { return esc(s).replace(/"/g, "&quot;").replace(/'/g, "&#39;"); } // 屬性值：連引號都要跳脫，否則含 " 的 JSON 會截斷屬性
+  function unesc(s) { return String(s == null ? "" : s).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&"); }
   function looseJson(s) {
+    s = String(s == null ? "" : s).trim();
+    s = s.replace(/^```(?:json|chart|echart|echarts)?\s*/i, "").replace(/```\s*$/i, "").trim();
     try { return JSON.parse(s); } catch (e) { }
-    try { return JSON.parse(String(s).replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/,\s*([}\]])/g, "$1")); } catch (e) { }
+    // 抓出第一段平衡的 {...}（去掉前後雜訊）
+    var a = s.indexOf("{"), b = s.lastIndexOf("}");
+    if (a >= 0 && b > a) s = s.slice(a, b + 1);
+    var t = s.replace(/[“”„]/g, '"').replace(/[‘’]/g, "'")
+      .replace(/,\s*([}\]])/g, "$1")            // 尾逗號
+      .replace(/\bNaN\b|\bInfinity\b|\b-Infinity\b/g, "null")
+      .replace(/\/\/[^\n\r]*/g, "");             // // 註解
+    try { return JSON.parse(t); } catch (e) { }
     return null;
   }
   function mdInline(t) {
@@ -644,7 +656,7 @@
         var kind = fm[1].toLowerCase(); i++; var buf = [];
         while (i < lines.length && !/^```/.test(lines[i].trim())) { buf.push(lines[i]); i++; } i++;
         var k = kind.indexOf("echart") === 0 ? "echart" : (kind === "mermaid" ? "mermaid" : "chart");
-        out.push('<div class="jvr-chart" data-kind="' + k + '" data-raw="' + esc(buf.join("\n").trim()) + '"></div>'); continue;
+        out.push('<div class="jvr-chart" data-kind="' + k + '" data-raw="' + escAttr(buf.join("\n").trim()) + '"></div>'); continue;
       }
       if (/^```/.test(ln.trim())) { i++; var cb = []; while (i < lines.length && !/^```/.test(lines[i].trim())) { cb.push(lines[i]); i++; } i++; out.push('<pre class="jvr-pre"><code>' + esc(cb.join("\n")) + "</code></pre>"); continue; }
       var hm = /^(#{1,4})\s+(.*)$/.exec(ln);
@@ -673,8 +685,16 @@
   var COLZ = ["#2563eb", "#38bdf8", "#7c3aed", "#0d9488", "#f59e0b", "#e11d48"];
   function chartToOption(kind, raw) {
     var o = looseJson(raw); if (!o) return null;
-    if (kind === "echart") return o;
+    // 已經是 ECharts option（有 series 陣列）→ 直接用，並補上好看的預設
+    if (kind === "echart" || (o.series && o.series.length && !o.type && !o.data)) {
+      if (o.tooltip == null) o.tooltip = {};
+      (o.series || []).forEach(function (s, i) { if (s && s.itemStyle == null && s.type !== "gauge") s.itemStyle = { color: COLZ[i % COLZ.length] }; });
+      return o;
+    }
     var type = (o.type || "bar").toLowerCase();
+    // 相容 {type,labels:[],data:[數字]} 這種寫法
+    if (!Array.isArray(o.data) && o.labels && o.values) o.data = o.labels.map(function (n, i) { return { name: n, value: (o.values || [])[i] }; });
+    else if (Array.isArray(o.data) && typeof o.data[0] === "number" && o.labels) o.data = o.data.map(function (v, i) { return { name: o.labels[i], value: v }; });
     var title = o.title ? { text: o.title, left: "center", textStyle: { fontSize: 14, fontWeight: 800 } } : null;
     if (type === "pie" || type === "donut" || type === "doughnut") {
       return { title: title, tooltip: {}, legend: { bottom: 0 }, series: [{ type: "pie", radius: type === "pie" ? "64%" : ["42%", "66%"], center: ["50%", "46%"], data: (o.data || []).map(function (d, i) { return { name: d.name, value: d.value, itemStyle: { color: COLZ[i % COLZ.length] } }; }) }] };
@@ -703,19 +723,24 @@
     ov.querySelector(".jvr-lb-close").onclick = close;
   }
   var reportCharts = [];
+  if (!window.__jvrResizeBound) {
+    window.__jvrResizeBound = true;
+    window.addEventListener("resize", function () { reportCharts.forEach(function (c) { try { c.resize(); } catch (e) { } }); });
+  }
   function enhanceReport(root) {
     if (!root) return;
     root.querySelectorAll(".jvr-chart").forEach(function (el) {
       if (el.getAttribute("data-done")) return; el.setAttribute("data-done", "1");
-      var kind = el.getAttribute("data-kind"), raw = unesc(el.getAttribute("data-raw") || "");
+      var kind = el.getAttribute("data-kind"), raw = el.getAttribute("data-raw") || ""; // getAttribute 已解過實體
       if (kind === "mermaid") { el.innerHTML = '<pre class="jvr-pre">' + esc(raw) + "</pre>"; return; }
-      var opt = chartToOption(kind, raw);
-      if (!opt || !window.echarts) { el.style.display = "none"; return; }
+      var opt = window.echarts ? chartToOption(kind, raw) : null;
+      if (!opt) { el.style.minHeight = "0"; el.innerHTML = '<div style="padding:14px 16px;color:#94a3b8;font-size:12.5px">（此圖表資料未能解析）</div>'; return; }
       el.style.height = "300px";
       var inst = echarts.init(el); inst.setOption(opt); reportCharts.push(inst);
       var zb = document.createElement("button"); zb.className = "jvr-zoom"; zb.textContent = "⤢"; zb.title = "放大";
       zb.onclick = function (ev) { ev.stopPropagation(); openChartLightbox(opt); };
       el.appendChild(zb);
+      setTimeout(function () { try { inst.resize(); } catch (e) { } }, 60); // 版面穩定後再量一次寬度
     });
   }
   function renderTextReport(title, sub, md, streaming) {
@@ -797,6 +822,7 @@
     state.streamDone = false; state.streamStarted = false; state.shellDone = false;
     state.streamDoc = null; state.pageAccum = ""; state.bodyStart = 0; state.flushedBodyLen = 0;
     state.output = "html"; state.reportAccum = ""; state.reportStarted = false; state.reportDone = false; state._rPaint = 0;
+    try { reportCharts.forEach(function (c) { try { c.dispose(); } catch (e) { } }); } catch (e) { } reportCharts = [];
     var _op = $("#resultOpen"); if (_op) _op.style.display = "";
     if (feed()) feed().innerHTML = ""; if ($("#doneList")) $("#doneList").innerHTML = "";
     // 清掉上一份報告（右側）
