@@ -201,7 +201,8 @@ PAGE_SPEC = (
     "## 絕對規則\n"
     "- **無論團隊資料多寡，你一定要產出結構化的設計頁**（含 KPI 大字帶、至少 2 個圖表、表格、結論帶）。\n"
     "- **絕對不要只輸出純文字段落、不要反問使用者、不要說『需要澄清/需要更多資訊』**。資料不足就用手上的數字合理呈現。\n"
-    "先寫一行 `NOTE: <這份報告的設計重點/結論，一句話>`，再輸出完整 HTML。**不要 markdown、不要 ``` 圍欄、不要多餘說明。**"
+    "先寫一行 `NOTE: <這份報告的設計重點/結論，一句話>`，再輸出完整 HTML。**不要 markdown、不要 ``` 圍欄、不要多餘說明。**\n"
+    "**輸出 `</html>` 後就立刻停止，絕對不要再加任何文字**（不要「補充說明」「結論速覽」「另存為 .html」「檔案寫入工具」等旁白，也不要 ** 粗體符號）。"
 )
 
 
@@ -286,6 +287,14 @@ async def _build_page(designer, question, doms, combined, emit):
     if mi:
         html = html[mi.start():]
     html = re.sub(r"^[\s\S]*?NOTE:.*$", "", html, count=1, flags=re.M).strip() if "NOTE:" in html[:200] else html
+    # 砍掉 </html> 之後 AI 的閒聊/markdown 補充（「--- 補充說明…**結論速覽**…另存為 .html」等）
+    em = list(re.finditer(r"</html\s*>", html, re.I))
+    if em:
+        html = html[:em[-1].end()]
+    else:
+        eb = list(re.finditer(r"</body\s*>", html, re.I))
+        if eb:
+            html = html[:eb[-1].end()]
     # 判定繪境是否真的做出設計頁；否則（反問/echo/太短/沒圖表結構）→ 結構化保底頁，絕不吐純文字
     head = html[:600]
     bad = (len(html) < 800 or "<" not in html or html.count("<div") < 2

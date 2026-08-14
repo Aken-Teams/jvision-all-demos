@@ -395,22 +395,46 @@
     state.dash = { title: title, sub: sub, pageHtml: html };
   }
 
-  // pencils.dev 式：繪境一邊寫 HTML，一邊即時渲染（節流更新 srcdoc）
+  function scrollToResult() {
+    var f = $("#resultFrame");
+    if (!f) return;
+    // 捲到「瀏覽器外框」那層（含 mac 圓點列 + iframe），而不是整個 section 標題列
+    var target = (f.closest && f.closest(".rounded-xl")) || f.parentElement || f;
+    var doScroll = function () {
+      var rect = target.getBoundingClientRect();
+      var y = (window.pageYOffset || document.documentElement.scrollTop || 0) + rect.top - 72; // 留 72px 呼吸空間
+      try { window.scrollTo({ top: y, behavior: "smooth" }); } catch (e) { window.scrollTo(0, y); }
+    };
+    // 用 rAF 確保版面已更新再量測位置
+    if (window.requestAnimationFrame) requestAnimationFrame(doScroll); else doScroll();
+  }
+
+  // pencils.dev 式：繪境一邊寫 HTML，一邊即時渲染。
+  // 用 contentDocument.write()（像真實 HTTP 串流）逐段寫入，不重設 srcdoc → 不會整頁重載閃爍。
   function renderPageStream(chunk) {
-    if (state.streamDone) return;
+    if (state.streamDone || state.streamHalt) return;
+    var f = $("#resultFrame");
+    if (!f) return;
     if (state.pageBuf == null) {
       state.pageBuf = "";
       var lr = $("#liveResult"); if (lr) lr.style.display = "none";
-      var f0 = $("#resultFrame"); if (f0) { f0.style.display = ""; f0.style.width = "100%"; f0.style.height = "620px"; f0.style.border = "0"; f0.removeAttribute("src"); }
+      f.style.display = ""; f.style.width = "100%"; f.style.height = "620px"; f.style.border = "0";
+      f.removeAttribute("src"); f.removeAttribute("srcdoc");
       if ($("#resultKind")) $("#resultKind").textContent = "AI 即時產出";
       if ($("#frameLive")) $("#frameLive").innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400" style="animation:jvb 1s infinite"></span> 設計中…';
+      try {
+        var d = f.contentDocument || (f.contentWindow && f.contentWindow.document);
+        d.open(); state.streamDoc = d;   // 開一次串流文件，之後只 append
+      } catch (e) { state.streamDoc = null; }
+      scrollToResult();                  // 自動捲到結果區塊
     }
     state.pageBuf += chunk;
-    var now = (window.performance && performance.now) ? performance.now() : 0;
-    if (state._lastPaint && now - state._lastPaint < 220) return; // 節流 ~4.5fps
-    state._lastPaint = now;
-    var f = $("#resultFrame");
-    if (f) f.setAttribute("srcdoc", state.pageBuf); // 部分 HTML，瀏覽器邊收邊渲染
+    if (state.streamDoc) { try { state.streamDoc.write(chunk); } catch (e) { } }
+    // 收到 </html> 後就停止，之後 AI 的閒聊/markdown 補充一律不寫進畫面
+    if (/<\/html>/i.test(state.pageBuf)) {
+      if (state.streamDoc) { try { state.streamDoc.close(); } catch (e) { } }
+      state.streamHalt = true;
+    }
   }
 
   function handle(e) {
@@ -437,10 +461,10 @@
       if (dl) { var el = document.createElement("div"); el.className = "flex items-start gap-2 bg-soft rounded-lg px-2.5 py-2"; el.innerHTML = '<span class="material-symbols-outlined text-[17px] text-success shrink-0">check_circle</span><span class="text-[13px] text-ink">' + mdToHtml(e.text) + '</span>'; dl.appendChild(el); }
       if ($("#statDone")) $("#statDone").textContent = state.done;
     }
-    else if (t === "page_pending") { if ($("#resultTitle")) $("#resultTitle").textContent = e.title || "結果畫面"; placeholder("團隊查各系統資料中，稍後彙整成報告…"); }
+    else if (t === "page_pending") { if ($("#resultTitle")) $("#resultTitle").textContent = e.title || "結果畫面"; placeholder("團隊查各系統資料中，稍後彙整成報告…"); scrollToResult(); }
     else if (t === "report") renderReport(e.title, e.sub, e.spec);
     else if (t === "page_delta") renderPageStream(e.chunk);
-    else if (t === "page") { state.streamDone = true; state.pageBuf = null; renderPage(e.title, e.sub, e.html); }
+    else if (t === "page") { state.streamDone = true; state.streamHalt = true; state.pageBuf = null; state.streamDoc = null; renderPage(e.title, e.sub, e.html); scrollToResult(); }
     else if (t === "layout") renderLayout(e.title, e.sub, e.blocks, e.theme);
     else if (t === "block_status") blockStatus(e.id, e.message);
     else if (t === "block") fillBlock(e);
@@ -457,7 +481,7 @@
   async function runMission(question, mode) {
     if (state.running) return;
     setBusy(true); state.mode = mode || "task"; state.bubbles = {}; state.done = 0; state.total = 0; state.dash = null;
-    state.pageBuf = null; state.streamDone = false; state._lastPaint = 0;
+    state.pageBuf = null; state.streamDone = false; state.streamHalt = false; state.streamDoc = null; state._lastPaint = 0;
     if (feed()) feed().innerHTML = ""; if ($("#doneList")) $("#doneList").innerHTML = "";
     // 清掉上一份報告（右側）
     var f0 = $("#resultFrame"); if (f0) { f0.removeAttribute("srcdoc"); f0.removeAttribute("src"); f0.style.display = "none"; }
