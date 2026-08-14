@@ -5,7 +5,7 @@ role: 財務會計 · 財務效益 Agent
 domain: 財務會計
 category: finance
 dataMode: reasoning
-skills: ["效益估算", "成本結構分析", "回收期試算", "敏感度分析", "預算配置", "ROI 報表"]
+skills: ["財務會計效益估算", "財務會計成本分析", "回收期試算", "敏感度分析", "預算配置", "ROI 報表"]
 collaborators: [orchestrator, insighter, seer, scheduler, drafter]
 inherits:
   policy: ../../POLICY.md

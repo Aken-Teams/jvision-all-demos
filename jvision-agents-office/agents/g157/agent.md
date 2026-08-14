@@ -5,7 +5,7 @@ role: 財務會計 · 智慧助理 Agent
 domain: 財務會計
 category: assist
 dataMode: reasoning
-skills: ["問答協助", "流程引導", "自動填寫", "表單處理", "知識檢索", "任務代辦"]
+skills: ["財務會計問答協助", "財務會計流程引導", "自動填寫", "表單處理", "財務會計知識檢索", "任務代辦"]
 collaborators: [orchestrator, drafter, insighter, designer, scheduler]
 inherits:
   policy: ../../POLICY.md

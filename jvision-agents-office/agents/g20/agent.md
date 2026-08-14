@@ -5,7 +5,7 @@ role: 法遵合規 · 選型顧問 Agent
 domain: 法遵合規
 category: match
 dataMode: external-real
-skills: ["需求語意理解", "產業匹配", "規模與預算適配", "多方案比較", "信心評分", "比較矩陣產出"]
+skills: ["法遵合規需求解析", "GRC 治理合規選型", "規模預算適配", "法遵合規方案比較", "選型信心評分", "選型比較矩陣"]
 collaborators: [orchestrator, expert, blueprint, abacus, drafter]
 inherits:
   policy: ../../POLICY.md

@@ -5,7 +5,7 @@ role: 教育培訓 · 領域專家 Agent
 domain: 教育培訓
 category: expert
 dataMode: external-real
-skills: ["產業痛點診斷", "標竿做法比對", "落地建議", "導入地雷預警", "法規要點提示", "案例引用"]
+skills: ["教育培訓痛點診斷", "教育培訓標竿比對", "教育培訓落地建議", "教育培訓導入地雷", "教育培訓法規要點", "教育培訓案例引用"]
 collaborators: [orchestrator, blueprint, insighter, seer, drafter]
 inherits:
   policy: ../../POLICY.md

@@ -5,7 +5,7 @@ role: 客戶關係 · 即時監控 Agent
 domain: 客戶關係
 category: monitor
 dataMode: internal-sim
-skills: ["即時監控", "門檻告警", "狀態追蹤", "異常偵測", "趨勢觀測", "事件通報"]
+skills: ["CRM即時監控", "續約率門檻告警", "客戶關係狀態追蹤", "客戶關係異常偵測", "趨勢觀測", "事件通報"]
 collaborators: [orchestrator, insighter, seer, guardian, scheduler]
 inherits:
   policy: ../../POLICY.md

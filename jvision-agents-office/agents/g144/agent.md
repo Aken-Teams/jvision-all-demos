@@ -5,7 +5,7 @@ role: 設備維護 · 資料填充 Agent
 domain: 設備維護
 category: datagen
 dataMode: internal-sim
-skills: ["擬真資料生成", "情境樣本", "邊界案例", "空資料案例", "資料遮罩", "分布校準"]
+skills: ["設備維護擬真資料", "設備維護情境樣本", "邊界案例", "空資料案例", "資料遮罩", "分布校準"]
 collaborators: [orchestrator, insighter, designer, calibrator, watcher]
 inherits:
   policy: ../../POLICY.md

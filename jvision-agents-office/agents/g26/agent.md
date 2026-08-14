@@ -5,7 +5,7 @@ role: ESG 永續 · 領域專家 Agent
 domain: ESG 永續
 category: expert
 dataMode: external-real
-skills: ["產業痛點診斷", "標竿做法比對", "落地建議", "導入地雷預警", "法規要點提示", "案例引用"]
+skills: ["ESG 永續痛點診斷", "ESG 永續標竿比對", "ESG 永續落地建議", "ESG 永續導入地雷", "ESG 永續法規要點", "ESG 永續案例引用"]
 collaborators: [orchestrator, blueprint, insighter, seer, drafter]
 inherits:
   policy: ../../POLICY.md

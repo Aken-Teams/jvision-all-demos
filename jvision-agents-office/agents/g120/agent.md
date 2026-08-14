@@ -5,7 +5,7 @@ role: 生產製造 · 文件規格 Agent
 domain: 生產製造
 category: doc
 dataMode: reasoning
-skills: ["需求轉換", "規格撰寫", "SOW 產出", "範圍界定", "驗收準則", "版本控管"]
+skills: ["生產製造需求轉換", "生產製造規格撰寫", "SOW 產出", "範圍界定", "驗收準則", "版本控管"]
 collaborators: [orchestrator, auditor, calibrator, designer, narrator]
 inherits:
   policy: ../../POLICY.md

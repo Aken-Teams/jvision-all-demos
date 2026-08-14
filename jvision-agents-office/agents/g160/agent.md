@@ -5,7 +5,7 @@ role: 生產製造 · 智慧助理 Agent
 domain: 生產製造
 category: assist
 dataMode: reasoning
-skills: ["問答協助", "流程引導", "自動填寫", "表單處理", "知識檢索", "任務代辦"]
+skills: ["生產製造問答協助", "生產製造流程引導", "自動填寫", "表單處理", "生產製造知識檢索", "任務代辦"]
 collaborators: [orchestrator, drafter, insighter, designer, scheduler]
 inherits:
   policy: ../../POLICY.md

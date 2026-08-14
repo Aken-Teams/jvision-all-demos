@@ -5,7 +5,7 @@ role: ESG 永續 · 風險合規 Agent
 domain: ESG 永續
 category: compliance
 dataMode: reasoning
-skills: ["敏感決策偵測", "政策比對", "權限治理", "資料合規檢查", "風險分級", "人工覆核標記"]
+skills: ["ESG 永續敏感決策偵測", "ESG 永續政策比對", "ESG 永續權限治理", "ESG 永續資料合規", "風險分級", "人工覆核標記"]
 collaborators: [orchestrator, auditor, calibrator, drafter, watcher]
 inherits:
   policy: ../../POLICY.md

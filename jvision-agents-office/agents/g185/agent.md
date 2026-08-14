@@ -5,7 +5,7 @@ role: 行銷推廣 · 排程調度 Agent
 domain: 行銷推廣
 category: schedule
 dataMode: internal-sim
-skills: ["資源排程", "任務分派", "衝突偵測", "關鍵路徑", "甘特圖產出", "負載平衡"]
+skills: ["行銷推廣資源排程", "任務分派", "衝突偵測", "關鍵路徑", "甘特圖產出", "負載平衡"]
 collaborators: [orchestrator, watcher, insighter, abacus, narrator]
 inherits:
   policy: ../../POLICY.md

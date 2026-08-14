@@ -5,7 +5,7 @@ role: ESG 永續 · 資料填充 Agent
 domain: ESG 永續
 category: datagen
 dataMode: internal-sim
-skills: ["擬真資料生成", "情境樣本", "邊界案例", "空資料案例", "資料遮罩", "分布校準"]
+skills: ["ESG 永續擬真資料", "ESG 永續情境樣本", "邊界案例", "空資料案例", "資料遮罩", "分布校準"]
 collaborators: [orchestrator, insighter, designer, calibrator, watcher]
 inherits:
   policy: ../../POLICY.md

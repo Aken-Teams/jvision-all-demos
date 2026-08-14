@@ -5,7 +5,7 @@ role: 教育培訓 · 完整度稽核 Agent
 domain: 教育培訓
 category: audit
 dataMode: reasoning
-skills: ["完整度檢查", "缺口偵測", "證據標註", "流程盤點", "無障礙檢視", "改善建議"]
+skills: ["教育培訓完整度檢查", "教育培訓缺口偵測", "證據標註", "教育培訓流程盤點", "無障礙檢視", "改善建議"]
 collaborators: [orchestrator, calibrator, guardian, drafter, insighter]
 inherits:
   policy: ../../POLICY.md

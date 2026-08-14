@@ -5,7 +5,7 @@ role: 物流配送 · 領域專家 Agent
 domain: 物流配送
 category: expert
 dataMode: external-real
-skills: ["產業痛點診斷", "標竿做法比對", "落地建議", "導入地雷預警", "法規要點提示", "案例引用"]
+skills: ["物流配送痛點診斷", "物流配送標竿比對", "物流配送落地建議", "物流配送導入地雷", "物流配送法規要點", "物流配送案例引用"]
 collaborators: [orchestrator, blueprint, insighter, seer, drafter]
 inherits:
   policy: ../../POLICY.md

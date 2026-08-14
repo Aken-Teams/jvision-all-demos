@@ -5,7 +5,7 @@ role: 資產管理 · 策略規劃 Agent
 domain: 資產管理
 category: strategy
 dataMode: external-real
-skills: ["導入路線規劃", "階段拆解", "里程碑設定", "依賴與風險分析", "資源估算", "時程規劃"]
+skills: ["資產管理導入路線", "資產管理階段拆解", "里程碑設定", "依賴風險分析", "資源估算", "時程規劃"]
 collaborators: [orchestrator, expert, abacus, scheduler, drafter]
 inherits:
   policy: ../../POLICY.md

@@ -5,7 +5,7 @@ role: 行銷推廣 · 即時監控 Agent
 domain: 行銷推廣
 category: monitor
 dataMode: internal-sim
-skills: ["即時監控", "門檻告警", "狀態追蹤", "異常偵測", "趨勢觀測", "事件通報"]
+skills: ["行銷自動化 MA即時監控", "轉換率門檻告警", "行銷推廣狀態追蹤", "行銷推廣異常偵測", "趨勢觀測", "事件通報"]
 collaborators: [orchestrator, insighter, seer, guardian, scheduler]
 inherits:
   policy: ../../POLICY.md

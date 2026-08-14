@@ -5,7 +5,7 @@ role: 法遵合規 · 風險合規 Agent
 domain: 法遵合規
 category: compliance
 dataMode: reasoning
-skills: ["敏感決策偵測", "政策比對", "權限治理", "資料合規檢查", "風險分級", "人工覆核標記"]
+skills: ["法遵合規敏感決策偵測", "法遵合規政策比對", "法遵合規權限治理", "法遵合規資料合規", "風險分級", "人工覆核標記"]
 collaborators: [orchestrator, auditor, calibrator, drafter, watcher]
 inherits:
   policy: ../../POLICY.md

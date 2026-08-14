@@ -5,7 +5,7 @@ role: 行銷推廣 · 風險合規 Agent
 domain: 行銷推廣
 category: compliance
 dataMode: reasoning
-skills: ["敏感決策偵測", "政策比對", "權限治理", "資料合規檢查", "風險分級", "人工覆核標記"]
+skills: ["行銷推廣敏感決策偵測", "行銷推廣政策比對", "行銷推廣權限治理", "行銷推廣資料合規", "風險分級", "人工覆核標記"]
 collaborators: [orchestrator, auditor, calibrator, drafter, watcher]
 inherits:
   policy: ../../POLICY.md

@@ -5,7 +5,7 @@ role: 零售電商 · 財務效益 Agent
 domain: 零售電商
 category: finance
 dataMode: reasoning
-skills: ["效益估算", "成本結構分析", "回收期試算", "敏感度分析", "預算配置", "ROI 報表"]
+skills: ["零售電商效益估算", "零售電商成本分析", "回收期試算", "敏感度分析", "預算配置", "ROI 報表"]
 collaborators: [orchestrator, insighter, seer, scheduler, drafter]
 inherits:
   policy: ../../POLICY.md

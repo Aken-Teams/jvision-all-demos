@@ -5,7 +5,7 @@ role: ESG 永續 · 策略規劃 Agent
 domain: ESG 永續
 category: strategy
 dataMode: external-real
-skills: ["導入路線規劃", "階段拆解", "里程碑設定", "依賴與風險分析", "資源估算", "時程規劃"]
+skills: ["ESG 永續導入路線", "ESG 永續階段拆解", "里程碑設定", "依賴風險分析", "資源估算", "時程規劃"]
 collaborators: [orchestrator, expert, abacus, scheduler, drafter]
 inherits:
   policy: ../../POLICY.md

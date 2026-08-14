@@ -5,7 +5,7 @@ role: ESG 永續 · 排程調度 Agent
 domain: ESG 永續
 category: schedule
 dataMode: internal-sim
-skills: ["資源排程", "任務分派", "衝突偵測", "關鍵路徑", "甘特圖產出", "負載平衡"]
+skills: ["ESG 永續資源排程", "任務分派", "衝突偵測", "關鍵路徑", "甘特圖產出", "負載平衡"]
 collaborators: [orchestrator, watcher, insighter, abacus, narrator]
 inherits:
   policy: ../../POLICY.md

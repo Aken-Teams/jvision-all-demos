@@ -5,7 +5,7 @@ role: 客戶關係 · 領域專家 Agent
 domain: 客戶關係
 category: expert
 dataMode: external-real
-skills: ["產業痛點診斷", "標竿做法比對", "落地建議", "導入地雷預警", "法規要點提示", "案例引用"]
+skills: ["客戶關係痛點診斷", "客戶關係標竿比對", "客戶關係落地建議", "客戶關係導入地雷", "客戶關係法規要點", "客戶關係案例引用"]
 collaborators: [orchestrator, blueprint, insighter, seer, drafter]
 inherits:
   policy: ../../POLICY.md

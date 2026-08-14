@@ -5,7 +5,7 @@ role: 客戶關係 · 預測預警 Agent
 domain: 客戶關係
 category: forecast
 dataMode: external-real
-skills: ["需求預測", "風險預警", "情境模擬", "季節性分析", "信賴區間", "預警通知"]
+skills: ["客戶關係需求預測", "客戶關係風險預警", "情境模擬", "季節性分析", "信賴區間", "預警通知"]
 collaborators: [orchestrator, insighter, expert, watcher, abacus]
 inherits:
   policy: ../../POLICY.md

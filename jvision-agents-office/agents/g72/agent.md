@@ -5,7 +5,7 @@ role: 零售電商 · 完整度稽核 Agent
 domain: 零售電商
 category: audit
 dataMode: reasoning
-skills: ["完整度檢查", "缺口偵測", "證據標註", "流程盤點", "無障礙檢視", "改善建議"]
+skills: ["零售電商完整度檢查", "零售電商缺口偵測", "證據標註", "零售電商流程盤點", "無障礙檢視", "改善建議"]
 collaborators: [orchestrator, calibrator, guardian, drafter, insighter]
 inherits:
   policy: ../../POLICY.md

@@ -5,7 +5,7 @@ role: 採購供應鏈 · 預測預警 Agent
 domain: 採購供應鏈
 category: forecast
 dataMode: external-real
-skills: ["需求預測", "風險預警", "情境模擬", "季節性分析", "信賴區間", "預警通知"]
+skills: ["採購供應鏈需求預測", "採購供應鏈風險預警", "情境模擬", "季節性分析", "信賴區間", "預警通知"]
 collaborators: [orchestrator, insighter, expert, watcher, abacus]
 inherits:
   policy: ../../POLICY.md

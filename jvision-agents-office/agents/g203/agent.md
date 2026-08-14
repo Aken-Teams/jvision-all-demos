@@ -5,7 +5,7 @@ role: 能源管理 · 數據洞察 Agent
 domain: 能源管理
 category: analyze
 dataMode: internal-sim
-skills: ["指標分析", "趨勢解讀", "異常偵測", "分群洞察", "儀表板產出", "決策建議"]
+skills: ["能源管理指標分析", "能源管理趨勢解讀", "能源管理異常偵測", "分群洞察", "儀表板產出", "決策建議"]
 collaborators: [orchestrator, seer, watcher, abacus, expert]
 inherits:
   policy: ../../POLICY.md

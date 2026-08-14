@@ -5,7 +5,7 @@ role: 營建工程 · 品質稽核 Agent
 domain: 營建工程
 category: quality
 dataMode: reasoning
-skills: ["一致性檢查", "驗收基線", "回歸把關", "命名規範", "格式校對", "缺陷分級"]
+skills: ["營建工程一致性檢查", "營建工程驗收基線", "回歸把關", "命名規範", "格式校對", "缺陷分級"]
 collaborators: [orchestrator, auditor, guardian, watcher, drafter]
 inherits:
   policy: ../../POLICY.md

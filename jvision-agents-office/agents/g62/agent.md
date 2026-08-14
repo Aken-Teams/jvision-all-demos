@@ -5,7 +5,7 @@ role: 生產製造 · 預測預警 Agent
 domain: 生產製造
 category: forecast
 dataMode: external-real
-skills: ["需求預測", "風險預警", "情境模擬", "季節性分析", "信賴區間", "預警通知"]
+skills: ["生產製造需求預測", "生產製造風險預警", "情境模擬", "季節性分析", "信賴區間", "預警通知"]
 collaborators: [orchestrator, insighter, expert, watcher, abacus]
 inherits:
   policy: ../../POLICY.md

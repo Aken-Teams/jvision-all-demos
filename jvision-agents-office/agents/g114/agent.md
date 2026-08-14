@@ -5,7 +5,7 @@ role: 採購供應鏈 · 即時監控 Agent
 domain: 採購供應鏈
 category: monitor
 dataMode: internal-sim
-skills: ["即時監控", "門檻告警", "狀態追蹤", "異常偵測", "趨勢觀測", "事件通報"]
+skills: ["SRM 供應商管理即時監控", "準交率門檻告警", "採購供應鏈狀態追蹤", "採購供應鏈異常偵測", "趨勢觀測", "事件通報"]
 collaborators: [orchestrator, insighter, seer, guardian, scheduler]
 inherits:
   policy: ../../POLICY.md

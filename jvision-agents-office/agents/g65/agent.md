@@ -5,7 +5,7 @@ role: 行銷推廣 · 完整度稽核 Agent
 domain: 行銷推廣
 category: audit
 dataMode: reasoning
-skills: ["完整度檢查", "缺口偵測", "證據標註", "流程盤點", "無障礙檢視", "改善建議"]
+skills: ["行銷推廣完整度檢查", "行銷推廣缺口偵測", "證據標註", "行銷推廣流程盤點", "無障礙檢視", "改善建議"]
 collaborators: [orchestrator, calibrator, guardian, drafter, insighter]
 inherits:
   policy: ../../POLICY.md

@@ -5,7 +5,7 @@ role: 生產製造 · 數據洞察 Agent
 domain: 生產製造
 category: analyze
 dataMode: internal-sim
-skills: ["指標分析", "趨勢解讀", "異常偵測", "分群洞察", "儀表板產出", "決策建議"]
+skills: ["生產製造指標分析", "生產製造趨勢解讀", "生產製造異常偵測", "分群洞察", "儀表板產出", "決策建議"]
 collaborators: [orchestrator, seer, watcher, abacus, expert]
 inherits:
   policy: ../../POLICY.md

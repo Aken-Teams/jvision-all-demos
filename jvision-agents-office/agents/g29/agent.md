@@ -5,7 +5,7 @@ role: 倉儲物流 · 領域專家 Agent
 domain: 倉儲物流
 category: expert
 dataMode: external-real
-skills: ["產業痛點診斷", "標竿做法比對", "落地建議", "導入地雷預警", "法規要點提示", "案例引用"]
+skills: ["倉儲物流痛點診斷", "倉儲物流標竿比對", "倉儲物流落地建議", "倉儲物流導入地雷", "倉儲物流法規要點", "倉儲物流案例引用"]
 collaborators: [orchestrator, blueprint, insighter, seer, drafter]
 inherits:
   policy: ../../POLICY.md

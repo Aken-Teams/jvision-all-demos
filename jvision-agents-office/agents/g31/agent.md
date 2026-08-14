@@ -5,7 +5,7 @@ role: 專案管理 · 領域專家 Agent
 domain: 專案管理
 category: expert
 dataMode: external-real
-skills: ["產業痛點診斷", "標竿做法比對", "落地建議", "導入地雷預警", "法規要點提示", "案例引用"]
+skills: ["專案管理痛點診斷", "專案管理標竿比對", "專案管理落地建議", "專案管理導入地雷", "專案管理法規要點", "專案管理案例引用"]
 collaborators: [orchestrator, blueprint, insighter, seer, drafter]
 inherits:
   policy: ../../POLICY.md

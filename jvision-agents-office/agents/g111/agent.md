@@ -5,7 +5,7 @@ role: 專案管理 · 即時監控 Agent
 domain: 專案管理
 category: monitor
 dataMode: internal-sim
-skills: ["即時監控", "門檻告警", "狀態追蹤", "異常偵測", "趨勢觀測", "事件通報"]
+skills: ["PMIS 專案系統即時監控", "準時達成 OTD門檻告警", "專案管理狀態追蹤", "專案管理異常偵測", "趨勢觀測", "事件通報"]
 collaborators: [orchestrator, insighter, seer, guardian, scheduler]
 inherits:
   policy: ../../POLICY.md

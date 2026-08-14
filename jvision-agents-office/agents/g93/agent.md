@@ -5,7 +5,7 @@ role: 客戶關係 · 品質稽核 Agent
 domain: 客戶關係
 category: quality
 dataMode: reasoning
-skills: ["一致性檢查", "驗收基線", "回歸把關", "命名規範", "格式校對", "缺陷分級"]
+skills: ["客戶關係一致性檢查", "客戶關係驗收基線", "回歸把關", "命名規範", "格式校對", "缺陷分級"]
 collaborators: [orchestrator, auditor, guardian, watcher, drafter]
 inherits:
   policy: ../../POLICY.md

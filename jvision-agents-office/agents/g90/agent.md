@@ -5,7 +5,7 @@ role: 資產管理 · 風險合規 Agent
 domain: 資產管理
 category: compliance
 dataMode: reasoning
-skills: ["敏感決策偵測", "政策比對", "權限治理", "資料合規檢查", "風險分級", "人工覆核標記"]
+skills: ["資產管理敏感決策偵測", "資產管理政策比對", "資產管理權限治理", "資產管理資料合規", "風險分級", "人工覆核標記"]
 collaborators: [orchestrator, auditor, calibrator, drafter, watcher]
 inherits:
   policy: ../../POLICY.md

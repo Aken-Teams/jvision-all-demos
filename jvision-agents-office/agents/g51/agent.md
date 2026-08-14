@@ -5,7 +5,7 @@ role: 倉儲物流 · 策略規劃 Agent
 domain: 倉儲物流
 category: strategy
 dataMode: external-real
-skills: ["導入路線規劃", "階段拆解", "里程碑設定", "依賴與風險分析", "資源估算", "時程規劃"]
+skills: ["倉儲物流導入路線", "倉儲物流階段拆解", "里程碑設定", "依賴風險分析", "資源估算", "時程規劃"]
 collaborators: [orchestrator, expert, abacus, scheduler, drafter]
 inherits:
   policy: ../../POLICY.md

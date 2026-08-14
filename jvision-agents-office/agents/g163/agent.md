@@ -5,7 +5,7 @@ role: 能源管理 · 智慧助理 Agent
 domain: 能源管理
 category: assist
 dataMode: reasoning
-skills: ["問答協助", "流程引導", "自動填寫", "表單處理", "知識檢索", "任務代辦"]
+skills: ["能源管理問答協助", "能源管理流程引導", "自動填寫", "表單處理", "能源管理知識檢索", "任務代辦"]
 collaborators: [orchestrator, drafter, insighter, designer, scheduler]
 inherits:
   policy: ../../POLICY.md

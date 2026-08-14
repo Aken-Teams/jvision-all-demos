@@ -5,7 +5,7 @@ role: 業務銷售 · 品質稽核 Agent
 domain: 業務銷售
 category: quality
 dataMode: reasoning
-skills: ["一致性檢查", "驗收基線", "回歸把關", "命名規範", "格式校對", "缺陷分級"]
+skills: ["業務銷售一致性檢查", "業務銷售驗收基線", "回歸把關", "命名規範", "格式校對", "缺陷分級"]
 collaborators: [orchestrator, auditor, guardian, watcher, drafter]
 inherits:
   policy: ../../POLICY.md

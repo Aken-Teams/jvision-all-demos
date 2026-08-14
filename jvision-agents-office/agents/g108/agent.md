@@ -5,7 +5,7 @@ role: 資產管理 · 即時監控 Agent
 domain: 資產管理
 category: monitor
 dataMode: internal-sim
-skills: ["即時監控", "門檻告警", "狀態追蹤", "異常偵測", "趨勢觀測", "事件通報"]
+skills: ["EAM 資產管理即時監控", "資產利用率門檻告警", "資產管理狀態追蹤", "資產管理異常偵測", "趨勢觀測", "事件通報"]
 collaborators: [orchestrator, insighter, seer, guardian, scheduler]
 inherits:
   policy: ../../POLICY.md

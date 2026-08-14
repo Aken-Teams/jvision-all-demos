@@ -5,7 +5,7 @@ role: 行銷推廣 · 數據洞察 Agent
 domain: 行銷推廣
 category: analyze
 dataMode: internal-sim
-skills: ["指標分析", "趨勢解讀", "異常偵測", "分群洞察", "儀表板產出", "決策建議"]
+skills: ["行銷推廣指標分析", "行銷推廣趨勢解讀", "行銷推廣異常偵測", "分群洞察", "儀表板產出", "決策建議"]
 collaborators: [orchestrator, seer, watcher, abacus, expert]
 inherits:
   policy: ../../POLICY.md

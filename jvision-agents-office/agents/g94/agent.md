@@ -5,7 +5,7 @@ role: 經營管理 · 品質稽核 Agent
 domain: 經營管理
 category: quality
 dataMode: reasoning
-skills: ["一致性檢查", "驗收基線", "回歸把關", "命名規範", "格式校對", "缺陷分級"]
+skills: ["經營管理一致性檢查", "經營管理驗收基線", "回歸把關", "命名規範", "格式校對", "缺陷分級"]
 collaborators: [orchestrator, auditor, guardian, watcher, drafter]
 inherits:
   policy: ../../POLICY.md

@@ -5,7 +5,7 @@ role: 設備維護 · 數據洞察 Agent
 domain: 設備維護
 category: analyze
 dataMode: internal-sim
-skills: ["指標分析", "趨勢解讀", "異常偵測", "分群洞察", "儀表板產出", "決策建議"]
+skills: ["設備維護指標分析", "設備維護趨勢解讀", "設備維護異常偵測", "分群洞察", "儀表板產出", "決策建議"]
 collaborators: [orchestrator, seer, watcher, abacus, expert]
 inherits:
   policy: ../../POLICY.md

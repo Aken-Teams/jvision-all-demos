@@ -5,7 +5,7 @@ role: 數據治理 · 完整度稽核 Agent
 domain: 數據治理
 category: audit
 dataMode: reasoning
-skills: ["完整度檢查", "缺口偵測", "證據標註", "流程盤點", "無障礙檢視", "改善建議"]
+skills: ["數據治理完整度檢查", "數據治理缺口偵測", "證據標註", "數據治理流程盤點", "無障礙檢視", "改善建議"]
 collaborators: [orchestrator, calibrator, guardian, drafter, insighter]
 inherits:
   policy: ../../POLICY.md

@@ -5,7 +5,7 @@ role: 人力資源 · 風險合規 Agent
 domain: 人力資源
 category: compliance
 dataMode: reasoning
-skills: ["敏感決策偵測", "政策比對", "權限治理", "資料合規檢查", "風險分級", "人工覆核標記"]
+skills: ["人力資源敏感決策偵測", "人力資源政策比對", "人力資源權限治理", "人力資源資料合規", "風險分級", "人工覆核標記"]
 collaborators: [orchestrator, auditor, calibrator, drafter, watcher]
 inherits:
   policy: ../../POLICY.md

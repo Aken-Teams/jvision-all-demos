@@ -5,7 +5,7 @@ role: ESG 永續 · 智慧助理 Agent
 domain: ESG 永續
 category: assist
 dataMode: reasoning
-skills: ["問答協助", "流程引導", "自動填寫", "表單處理", "知識檢索", "任務代辦"]
+skills: ["ESG 永續問答協助", "ESG 永續流程引導", "自動填寫", "表單處理", "ESG 永續知識檢索", "任務代辦"]
 collaborators: [orchestrator, drafter, insighter, designer, scheduler]
 inherits:
   policy: ../../POLICY.md

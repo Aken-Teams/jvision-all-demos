@@ -5,7 +5,7 @@ role: 教育培訓 · 資料填充 Agent
 domain: 教育培訓
 category: datagen
 dataMode: internal-sim
-skills: ["擬真資料生成", "情境樣本", "邊界案例", "空資料案例", "資料遮罩", "分布校準"]
+skills: ["教育培訓擬真資料", "教育培訓情境樣本", "邊界案例", "空資料案例", "資料遮罩", "分布校準"]
 collaborators: [orchestrator, insighter, designer, calibrator, watcher]
 inherits:
   policy: ../../POLICY.md

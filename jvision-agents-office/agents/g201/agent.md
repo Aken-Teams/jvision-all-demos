@@ -5,7 +5,7 @@ role: 研發管理 · 數據洞察 Agent
 domain: 研發管理
 category: analyze
 dataMode: internal-sim
-skills: ["指標分析", "趨勢解讀", "異常偵測", "分群洞察", "儀表板產出", "決策建議"]
+skills: ["研發管理指標分析", "研發管理趨勢解讀", "研發管理異常偵測", "分群洞察", "儀表板產出", "決策建議"]
 collaborators: [orchestrator, seer, watcher, abacus, expert]
 inherits:
   policy: ../../POLICY.md

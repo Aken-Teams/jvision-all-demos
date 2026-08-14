@@ -5,7 +5,7 @@ role: 營建工程 · 介面設計 Agent
 domain: 營建工程
 category: design
 dataMode: reasoning
-skills: ["線框草稿", "介面設計", "設計 prompt", "元件規範", "設計 tokens", "可用性檢視"]
+skills: ["營建工程線框草稿", "營建工程介面設計", "設計 prompt", "元件規範", "設計 tokens", "可用性檢視"]
 collaborators: [orchestrator, drafter, narrator, calibrator, insighter]
 inherits:
   policy: ../../POLICY.md

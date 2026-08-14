@@ -5,7 +5,7 @@ role: 設備維護 · 即時監控 Agent
 domain: 設備維護
 category: monitor
 dataMode: internal-sim
-skills: ["即時監控", "門檻告警", "狀態追蹤", "異常偵測", "趨勢觀測", "事件通報"]
+skills: ["CMMS 維護管理即時監控", "MTBF門檻告警", "設備維護狀態追蹤", "設備維護異常偵測", "趨勢觀測", "事件通報"]
 collaborators: [orchestrator, insighter, seer, guardian, scheduler]
 inherits:
   policy: ../../POLICY.md

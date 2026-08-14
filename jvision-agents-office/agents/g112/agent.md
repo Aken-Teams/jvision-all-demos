@@ -5,7 +5,7 @@ role: 零售電商 · 即時監控 Agent
 domain: 零售電商
 category: monitor
 dataMode: internal-sim
-skills: ["即時監控", "門檻告警", "狀態追蹤", "異常偵測", "趨勢觀測", "事件通報"]
+skills: ["POS/OMS 訂單即時監控", "轉換率門檻告警", "零售電商狀態追蹤", "零售電商異常偵測", "趨勢觀測", "事件通報"]
 collaborators: [orchestrator, insighter, seer, guardian, scheduler]
 inherits:
   policy: ../../POLICY.md

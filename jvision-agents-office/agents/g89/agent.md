@@ -5,7 +5,7 @@ role: 教育培訓 · 風險合規 Agent
 domain: 教育培訓
 category: compliance
 dataMode: reasoning
-skills: ["敏感決策偵測", "政策比對", "權限治理", "資料合規檢查", "風險分級", "人工覆核標記"]
+skills: ["教育培訓敏感決策偵測", "教育培訓政策比對", "教育培訓權限治理", "教育培訓資料合規", "風險分級", "人工覆核標記"]
 collaborators: [orchestrator, auditor, calibrator, drafter, watcher]
 inherits:
   policy: ../../POLICY.md

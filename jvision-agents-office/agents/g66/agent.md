@@ -5,7 +5,7 @@ role: ESG 永續 · 完整度稽核 Agent
 domain: ESG 永續
 category: audit
 dataMode: reasoning
-skills: ["完整度檢查", "缺口偵測", "證據標註", "流程盤點", "無障礙檢視", "改善建議"]
+skills: ["ESG 永續完整度檢查", "ESG 永續缺口偵測", "證據標註", "ESG 永續流程盤點", "無障礙檢視", "改善建議"]
 collaborators: [orchestrator, calibrator, guardian, drafter, insighter]
 inherits:
   policy: ../../POLICY.md

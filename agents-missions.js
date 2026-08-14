@@ -127,7 +127,10 @@ function _doneHTML(d) {
 }
 
 function renderMission() {
-  const id = new URLSearchParams(location.search).get("case") || "1";
+  var _sp = new URLSearchParams(location.search);
+  // 即時模式（帶 ?q 或未指定 ?case）→ 不渲染罐頭 demo，交給 agents-mission-live.js
+  if (_sp.get("q") !== null || _sp.get("case") === null) return;
+  const id = _sp.get("case") || "1";
   const c = MISSION_CASES[id] || MISSION_CASES["1"];
   const $ = (s) => document.querySelector(s);
   const setText = (s, t) => { const e = $(s); if (e) e.textContent = t; };

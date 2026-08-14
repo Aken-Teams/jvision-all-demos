@@ -5,7 +5,7 @@ role: 倉儲物流 · 完整度稽核 Agent
 domain: 倉儲物流
 category: audit
 dataMode: reasoning
-skills: ["完整度檢查", "缺口偵測", "證據標註", "流程盤點", "無障礙檢視", "改善建議"]
+skills: ["倉儲物流完整度檢查", "倉儲物流缺口偵測", "證據標註", "倉儲物流流程盤點", "無障礙檢視", "改善建議"]
 collaborators: [orchestrator, calibrator, guardian, drafter, insighter]
 inherits:
   policy: ../../POLICY.md

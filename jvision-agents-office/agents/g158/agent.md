@@ -5,7 +5,7 @@ role: 法遵合規 · 智慧助理 Agent
 domain: 法遵合規
 category: assist
 dataMode: reasoning
-skills: ["問答協助", "流程引導", "自動填寫", "表單處理", "知識檢索", "任務代辦"]
+skills: ["法遵合規問答協助", "法遵合規流程引導", "自動填寫", "表單處理", "法遵合規知識檢索", "任務代辦"]
 collaborators: [orchestrator, drafter, insighter, designer, scheduler]
 inherits:
   policy: ../../POLICY.md

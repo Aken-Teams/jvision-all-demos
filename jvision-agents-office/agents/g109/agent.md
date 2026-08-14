@@ -5,7 +5,7 @@ role: 倉儲物流 · 即時監控 Agent
 domain: 倉儲物流
 category: monitor
 dataMode: internal-sim
-skills: ["即時監控", "門檻告警", "狀態追蹤", "異常偵測", "趨勢觀測", "事件通報"]
+skills: ["WMS 倉儲管理即時監控", "庫存週轉門檻告警", "倉儲物流狀態追蹤", "倉儲物流異常偵測", "趨勢觀測", "事件通報"]
 collaborators: [orchestrator, insighter, seer, guardian, scheduler]
 inherits:
   policy: ../../POLICY.md

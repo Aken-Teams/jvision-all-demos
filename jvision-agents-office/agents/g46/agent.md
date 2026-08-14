@@ -5,7 +5,7 @@ role: 設備維護 · 策略規劃 Agent
 domain: 設備維護
 category: strategy
 dataMode: external-real
-skills: ["導入路線規劃", "階段拆解", "里程碑設定", "依賴與風險分析", "資源估算", "時程規劃"]
+skills: ["設備維護導入路線", "設備維護階段拆解", "里程碑設定", "依賴風險分析", "資源估算", "時程規劃"]
 collaborators: [orchestrator, expert, abacus, scheduler, drafter]
 inherits:
   policy: ../../POLICY.md

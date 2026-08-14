@@ -5,7 +5,7 @@ role: 客服管理 · 即時監控 Agent
 domain: 客服管理
 category: monitor
 dataMode: internal-sim
-skills: ["即時監控", "門檻告警", "狀態追蹤", "異常偵測", "趨勢觀測", "事件通報"]
+skills: ["工單/Ticket即時監控", "首解率 FCR門檻告警", "客服管理狀態追蹤", "客服管理異常偵測", "趨勢觀測", "事件通報"]
 collaborators: [orchestrator, insighter, seer, guardian, scheduler]
 inherits:
   policy: ../../POLICY.md

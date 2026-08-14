@@ -222,9 +222,9 @@ AGENTS.forEach((a, i) => {
   a.icon = a.icon || c.icon;
   a.accentClass = BIG_ACCENT[big.color]; // 卡片/詳細頁 icon 依大分類上色
   if (!a.caps) a.caps = c.caps.slice();
-  // generated agent 從角色技能池輪選 3 個，讓同類卡片的標籤有變化（仍為該角色的真實技能）
-  if (/^g\d+$/.test(a.id) && CAT_SKILLS[a.cat]) {
-    const pool = CAT_SKILLS[a.cat], h = _hash(a.id);
+  // generated agent 從「領域特化技能」輪選 3 個當卡片標籤，讓每張卡連得上領域+角色
+  if (/^g\d+$/.test(a.id) && (a.skills || CAT_SKILLS[a.cat])) {
+    const pool = a.skills || CAT_SKILLS[a.cat], h = _hash(a.id);
     a.caps = [pool[h % pool.length], pool[(h + 2) % pool.length], pool[(h + 4) % pool.length]]
       .filter((v, idx, arr) => arr.indexOf(v) === idx);
   }
@@ -426,8 +426,8 @@ function renderProfile() {
   const _gsi = document.querySelector("#pfGraphSelfIcon"); if (_gsi) { _gsi.textContent = a.icon; _gsi.className = `material-symbols-outlined text-[22px] ${BIG_TEXT[big.color]}`; }
   const _gsr = document.querySelector("#pfGraphSelfRing"); if (_gsr) _gsr.className = `w-11 h-11 rounded-full bg-white ring-2 ${BIG_RING[big.color]} grid place-content-center mx-auto shadow-sm`;
 
-  // 技能 Skills：顯示該角色完整技能池，與 agent.md 的 skills 完全一致
-  const skills = (CAT_SKILLS[a.cat] || a.caps || []).slice(0, 6);
+  // 技能 Skills：顯示該 agent 的領域特化技能（與 agent.md 的 skills 完全一致）
+  const skills = (a.skills || CAT_SKILLS[a.cat] || a.caps || []).slice(0, 6);
   set("#pfCaps", skills.map((cap) => `
     <div class="bg-white border border-line rounded-lg p-3 flex items-center gap-2"><span class="material-symbols-outlined text-[20px] text-emerald-600 shrink-0">check_circle</span><h5 class="text-[13px] font-bold text-ink leading-tight">${cap}</h5></div>`).join(""));
 

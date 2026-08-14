@@ -5,7 +5,7 @@ role: 教育培訓 · 即時監控 Agent
 domain: 教育培訓
 category: monitor
 dataMode: internal-sim
-skills: ["即時監控", "門檻告警", "狀態追蹤", "異常偵測", "趨勢觀測", "事件通報"]
+skills: ["LMS 學習管理即時監控", "結訓率門檻告警", "教育培訓狀態追蹤", "教育培訓異常偵測", "趨勢觀測", "事件通報"]
 collaborators: [orchestrator, insighter, seer, guardian, scheduler]
 inherits:
   policy: ../../POLICY.md

@@ -5,7 +5,7 @@ role: 業務銷售 · 財務效益 Agent
 domain: 業務銷售
 category: finance
 dataMode: reasoning
-skills: ["效益估算", "成本結構分析", "回收期試算", "敏感度分析", "預算配置", "ROI 報表"]
+skills: ["業務銷售效益估算", "業務銷售成本分析", "回收期試算", "敏感度分析", "預算配置", "ROI 報表"]
 collaborators: [orchestrator, insighter, seer, scheduler, drafter]
 inherits:
   policy: ../../POLICY.md

@@ -5,7 +5,7 @@ role: 採購供應鏈 · 介面設計 Agent
 domain: 採購供應鏈
 category: design
 dataMode: reasoning
-skills: ["線框草稿", "介面設計", "設計 prompt", "元件規範", "設計 tokens", "可用性檢視"]
+skills: ["採購供應鏈線框草稿", "採購供應鏈介面設計", "設計 prompt", "元件規範", "設計 tokens", "可用性檢視"]
 collaborators: [orchestrator, drafter, narrator, calibrator, insighter]
 inherits:
   policy: ../../POLICY.md

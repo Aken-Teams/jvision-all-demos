@@ -5,7 +5,7 @@ role: 人力資源 · 智慧助理 Agent
 domain: 人力資源
 category: assist
 dataMode: reasoning
-skills: ["問答協助", "流程引導", "自動填寫", "表單處理", "知識檢索", "任務代辦"]
+skills: ["人力資源問答協助", "人力資源流程引導", "自動填寫", "表單處理", "人力資源知識檢索", "任務代辦"]
 collaborators: [orchestrator, drafter, insighter, designer, scheduler]
 inherits:
   policy: ../../POLICY.md

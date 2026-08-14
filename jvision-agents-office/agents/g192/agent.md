@@ -5,7 +5,7 @@ role: 零售電商 · 排程調度 Agent
 domain: 零售電商
 category: schedule
 dataMode: internal-sim
-skills: ["資源排程", "任務分派", "衝突偵測", "關鍵路徑", "甘特圖產出", "負載平衡"]
+skills: ["零售電商資源排程", "任務分派", "衝突偵測", "關鍵路徑", "甘特圖產出", "負載平衡"]
 collaborators: [orchestrator, watcher, insighter, abacus, narrator]
 inherits:
   policy: ../../POLICY.md
