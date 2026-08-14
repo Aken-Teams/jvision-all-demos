@@ -1,21 +1,34 @@
 # 技能實例（設備策略 專屬）
 
-> 規則見 POLICY.md 與 datamodes/external-real.md；以下為本 Agent 對各技能的領域特化。
+> 全域鐵則見 ../../POLICY.md；資料模式見 ../../datamodes/external-real.md；領域知識見 ../../knowledge/設備維護.md。
+> 以下每個技能 = 做什麼 + 在本領域怎麼用 + 資料規則。
 
 ## 導入路線規劃
-- 依 設備維護 情境運用「導入路線規劃」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+- 做什麼：把目標拆成試點→擴散→優化的導入路線，標出每階段目標。
+- 在「設備維護」：聚焦 MTBF、MTTR；常接觸 CMMS 維護管理、預測維護 PdM；當心 突發停機。
+- 資料規則：須以 web search 查證公開資料並附真實來源連結；查不到即標『待查證』，不杜撰數字或來源。
 
 ## 階段拆解
-- 依 設備維護 情境運用「階段拆解」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+- 做什麼：將路線拆成有先後關係的階段，每階段列可交付與退出條件。
+- 在「設備維護」：聚焦 MTBF、MTTR；常接觸 CMMS 維護管理、預測維護 PdM；當心 突發停機。
+- 資料規則：須以 web search 查證公開資料並附真實來源連結；查不到即標『待查證』，不杜撰數字或來源。
 
 ## 里程碑設定
-- 依 設備維護 情境運用「里程碑設定」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+- 做什麼：為每階段設可觀察的里程碑與驗收點（30–90 天可檢核）。
+- 在「設備維護」：聚焦 MTBF、MTTR；常接觸 CMMS 維護管理、預測維護 PdM；當心 突發停機。
+- 資料規則：須以 web search 查證公開資料並附真實來源連結；查不到即標『待查證』，不杜撰數字或來源。
 
 ## 依賴與風險分析
-- 依 設備維護 情境運用「依賴與風險分析」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+- 做什麼：標出階段間依賴、關鍵風險與對應緩解措施。
+- 在「設備維護」：聚焦 MTBF、MTTR；常接觸 CMMS 維護管理、預測維護 PdM；當心 突發停機。
+- 資料規則：須以 web search 查證公開資料並附真實來源連結；查不到即標『待查證』，不杜撰數字或來源。
 
 ## 資源估算
-- 依 設備維護 情境運用「資源估算」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+- 做什麼：估算各階段所需人力/系統/預算級距（標明為估計）。
+- 在「設備維護」：聚焦 MTBF、MTTR；常接觸 CMMS 維護管理、預測維護 PdM；當心 突發停機。
+- 資料規則：須以 web search 查證公開資料並附真實來源連結；查不到即標『待查證』，不杜撰數字或來源。
 
 ## 時程規劃
-- 依 設備維護 情境運用「時程規劃」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+- 做什麼：給出合理時程與關鍵路徑，標出可能延誤點。
+- 在「設備維護」：聚焦 MTBF、MTTR；常接觸 CMMS 維護管理、預測維護 PdM；當心 突發停機。
+- 資料規則：須以 web search 查證公開資料並附真實來源連結；查不到即標『待查證』，不杜撰數字或來源。

@@ -229,6 +229,7 @@ AGENTS.forEach((a, i) => {
       .filter((v, idx, arr) => arr.indexOf(v) === idx);
   }
   a.stats = a.stats || { tasks: 48 + ((i * 37) % 180), hit: 84 + ((i * 7) % 14), resp: 4 + ((i * 3) % 9), collab: 3 + ((i * 2) % 5) };
+  a.status = "active"; // 全部顯示綠燈（上線可用）
   // 卡片顯示：功能名（大）＋ 產業/說明（小），不用抽象暱稱
   const isGen = /^g\d+$/.test(a.id);
   a.dom = isGen ? (a.role.split(" · ")[0]) : "";

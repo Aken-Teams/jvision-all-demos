@@ -1,21 +1,34 @@
 # 技能實例（先知 專屬）
 
-> 規則見 POLICY.md 與 datamodes/external-real.md；以下為本 Agent 對各技能的領域特化。
+> 全域鐵則見 ../../POLICY.md；資料模式見 ../../datamodes/external-real.md。
+> 以下每個技能 = 做什麼 + 在本領域怎麼用 + 資料規則。
 
 ## 需求預測
-- 依 跨領域 情境運用「需求預測」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+- 做什麼：以歷史資料預測下期需求並給區間。
+- 跨領域運用；需要特定產業時交棒給該領域 Agent。
+- 資料規則：須以 web search 查證公開資料並附真實來源連結；查不到即標『待查證』，不杜撰數字或來源。
 
 ## 風險預警
-- 依 跨領域 情境運用「風險預警」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+- 做什麼：提前指出可能的風險與觸發條件。
+- 跨領域運用；需要特定產業時交棒給該領域 Agent。
+- 資料規則：須以 web search 查證公開資料並附真實來源連結；查不到即標『待查證』，不杜撰數字或來源。
 
 ## 情境模擬
-- 依 跨領域 情境運用「情境模擬」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+- 做什麼：模擬不同情境下的結果，比較差異。
+- 跨領域運用；需要特定產業時交棒給該領域 Agent。
+- 資料規則：須以 web search 查證公開資料並附真實來源連結；查不到即標『待查證』，不杜撰數字或來源。
 
 ## 季節性分析
-- 依 跨領域 情境運用「季節性分析」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+- 做什麼：找出資料的季節性與週期規律。
+- 跨領域運用；需要特定產業時交棒給該領域 Agent。
+- 資料規則：須以 web search 查證公開資料並附真實來源連結；查不到即標『待查證』，不杜撰數字或來源。
 
 ## 信賴區間
-- 依 跨領域 情境運用「信賴區間」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+- 做什麼：為預測值給出信賴區間，標明不確定性。
+- 跨領域運用；需要特定產業時交棒給該領域 Agent。
+- 資料規則：須以 web search 查證公開資料並附真實來源連結；查不到即標『待查證』，不杜撰數字或來源。
 
 ## 預警通知
-- 依 跨領域 情境運用「預警通知」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+- 做什麼：把達到預警條件的項目整理成通知。
+- 跨領域運用；需要特定產業時交棒給該領域 Agent。
+- 資料規則：須以 web search 查證公開資料並附真實來源連結；查不到即標『待查證』，不杜撰數字或來源。

@@ -1,21 +1,34 @@
 # 技能實例（設備助理 專屬）
 
-> 規則見 POLICY.md 與 datamodes/reasoning.md；以下為本 Agent 對各技能的領域特化。
+> 全域鐵則見 ../../POLICY.md；資料模式見 ../../datamodes/reasoning.md；領域知識見 ../../knowledge/設備維護.md。
+> 以下每個技能 = 做什麼 + 在本領域怎麼用 + 資料規則。
 
 ## 問答協助
-- 依 設備維護 情境運用「問答協助」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
+- 做什麼：針對提問給出直接、可執行的回答。
+- 在「設備維護」：聚焦 MTBF、MTTR；常接觸 CMMS 維護管理、預測維護 PdM；當心 突發停機。
+- 資料規則：只使用資料型 Agent 餵入的數字與使用者條件推理，不自行生成新事實或新數字。
 
 ## 流程引導
-- 依 設備維護 情境運用「流程引導」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
+- 做什麼：一步步引導使用者完成某個流程。
+- 在「設備維護」：聚焦 MTBF、MTTR；常接觸 CMMS 維護管理、預測維護 PdM；當心 突發停機。
+- 資料規則：只使用資料型 Agent 餵入的數字與使用者條件推理，不自行生成新事實或新數字。
 
 ## 自動填寫
-- 依 設備維護 情境運用「自動填寫」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
+- 做什麼：依已知資訊代填表單欄位並標出待確認項。
+- 在「設備維護」：聚焦 MTBF、MTTR；常接觸 CMMS 維護管理、預測維護 PdM；當心 突發停機。
+- 資料規則：只使用資料型 Agent 餵入的數字與使用者條件推理，不自行生成新事實或新數字。
 
 ## 表單處理
-- 依 設備維護 情境運用「表單處理」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
+- 做什麼：解析並整理表單資料，檢查缺漏。
+- 在「設備維護」：聚焦 MTBF、MTTR；常接觸 CMMS 維護管理、預測維護 PdM；當心 突發停機。
+- 資料規則：只使用資料型 Agent 餵入的數字與使用者條件推理，不自行生成新事實或新數字。
 
 ## 知識檢索
-- 依 設備維護 情境運用「知識檢索」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
+- 做什麼：從知識庫/公開來源找到相關內容並附出處。
+- 在「設備維護」：聚焦 MTBF、MTTR；常接觸 CMMS 維護管理、預測維護 PdM；當心 突發停機。
+- 資料規則：只使用資料型 Agent 餵入的數字與使用者條件推理，不自行生成新事實或新數字。
 
 ## 任務代辦
-- 依 設備維護 情境運用「任務代辦」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
+- 做什麼：把可代辦事項列成清單並標示狀態。
+- 在「設備維護」：聚焦 MTBF、MTTR；常接觸 CMMS 維護管理、預測維護 PdM；當心 突發停機。
+- 資料規則：只使用資料型 Agent 餵入的數字與使用者條件推理，不自行生成新事實或新數字。
