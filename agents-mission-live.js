@@ -473,39 +473,253 @@
     if (window.requestAnimationFrame) requestAnimationFrame(doScroll); else doScroll();
   }
 
-  // 生成中的骨架動畫（不逐字灌，避免卡頓；定稿後才用區塊揭示一次拼出）
-  var SKELETON_HTML = [
-    '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>',
-    'body{margin:0;font-family:system-ui,"Noto Sans TC";background:#f6f8fb;padding:22px}',
-    '.sk{background:linear-gradient(90deg,#e7edf5 25%,#f3f7fb 37%,#e7edf5 63%);background-size:400% 100%;animation:sh 1.3s ease infinite;border-radius:14px}',
-    '@keyframes sh{0%{background-position:100% 0}100%{background-position:-100% 0}}',
-    '@keyframes bl{0%,100%{opacity:.25}50%{opacity:1}}',
-    '.h{height:120px;margin-bottom:18px}.row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}',
-    '.c{height:112px}.big{height:250px;margin-bottom:18px}',
-    '.lbl{display:flex;gap:8px;align-items:center;justify-content:center;color:#64748b;font-size:13px;font-weight:700;margin-top:8px}',
-    '.dot{width:9px;height:9px;border-radius:50%;background:#6366f1;animation:bl 1s infinite}',
-    '@media(max-width:640px){.row{grid-template-columns:1fr 1fr}}',
-    '</style></head><body>',
-    '<div class="sk h"></div>',
-    '<div class="row"><div class="sk c"></div><div class="sk c"></div><div class="sk c"></div></div>',
-    '<div class="sk big"></div>',
-    '<div class="row"><div class="sk c"></div><div class="sk c"></div><div class="sk c"></div></div>',
-    '<div class="lbl"><span class="dot"></span> 繪境正在設計報告…</div>',
-    '</body></html>'
+  // 串流收尾用：不重新揭示（區塊已逐一長出），只加「可點選 + 一次全頁掃描」
+  var SELECT_SWEEP = [
+    '<style>[data-jvrx]:hover{outline:1.5px dashed rgba(99,102,241,.55);outline-offset:3px;cursor:pointer}',
+    '.jvrx-sel{outline:2px solid #6366f1!important;outline-offset:3px}',
+    '#jvrx-sweep{position:fixed;left:0;right:0;height:140px;pointer-events:none;z-index:99999;',
+    'background:linear-gradient(180deg,transparent,rgba(99,102,241,.16),rgba(99,102,241,.03),transparent);transform:translateY(-160px)}</style>',
+    '<script>(function(){function f(n){return n.nodeType===1&&!/^(SCRIPT|STYLE|LINK|BR)$/.test(n.tagName);}',
+    'var k=[].filter.call(document.body.children,f);if(k.length<=1&&k[0]){var i2=[].filter.call(k[0].children,f);if(i2.length>=2)k=i2;}',
+    'k.forEach(function(el,i){el.setAttribute("data-jvrx",i);el.addEventListener("click",function(ev){ev.stopPropagation();',
+    'var was=el.classList.contains("jvrx-sel");k.forEach(function(x){x.classList.remove("jvrx-sel");});if(!was)el.classList.add("jvrx-sel");',
+    'try{parent.postMessage({jvrx:"select",index:i+1,total:k.length,selected:!was},"*");}catch(e){}});});',
+    'var s=document.createElement("div");s.id="jvrx-sweep";document.body.appendChild(s);',
+    'var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight),t0=null;',
+    'function a(ts){if(t0===null)t0=ts;var p=(ts-t0)/950;s.style.transform="translateY("+(-160+p*(h+200))+"px)";',
+    'if(p<1)requestAnimationFrame(a);else s.remove();}requestAnimationFrame(a);',
+    'try{parent.postMessage({jvrx:"ready"},"*");}catch(e){}})();<\/script>'
   ].join("");
 
-  // 生成中：只顯示一次骨架動畫（不再逐 token 寫入 → 不卡）；定稿由 renderPage 做區塊揭示
+  // 掃描出「已完整結束的頂層區塊」的結尾索引（避免寫入半個標籤 → 不閃不卡）
+  function completeBlocksEnd(s, from) {
+    var VOID = { br: 1, img: 1, meta: 1, link: 1, input: 1, hr: 1, area: 1, base: 1, col: 1, embed: 1, source: 1, track: 1, wbr: 1 };
+    var depth = 0, i = from, last = from, n = s.length;
+    while (i < n) {
+      var lt = s.indexOf("<", i);
+      if (lt < 0) break;
+      if (s.substr(lt, 4) === "<!--") { var ce = s.indexOf("-->", lt + 4); if (ce < 0) break; i = ce + 3; if (depth === 0) last = i; continue; }
+      var gt = s.indexOf(">", lt + 1);
+      if (gt < 0) break; // 標籤還沒收完
+      var tag = s.slice(lt + 1, gt);
+      if (tag.charAt(0) === "/") {
+        var cn = (tag.match(/^\/\s*([a-zA-Z][\w-]*)/) || [])[1];
+        if (cn && /^(body|html)$/i.test(cn)) { last = Math.max(last, lt); break; }
+        depth = Math.max(0, depth - 1); i = gt + 1; if (depth === 0) last = i; continue;
+      }
+      var name = ((tag.match(/^([a-zA-Z][\w-]*)/) || [])[1] || "").toLowerCase();
+      if (name === "script" || name === "style") {
+        var m = new RegExp("</" + name + "\\s*>", "i").exec(s.slice(gt + 1));
+        if (!m) break; // script/style 還沒結束
+        i = gt + 1 + m.index + m[0].length; if (depth === 0) last = i; continue;
+      }
+      if (/\/$/.test(tag) || VOID[name]) { i = gt + 1; if (depth === 0) last = i; continue; }
+      depth++; i = gt + 1;
+    }
+    return last;
+  }
+
+  function scrollIframeBottom() {
+    try {
+      var w = $("#resultFrame").contentWindow, d = w.document;
+      var el = d.scrollingElement || d.documentElement || d.body;
+      w.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    } catch (e) { }
+  }
+
+  // 區塊化串流：只把「已完整的頂層區塊」寫進 iframe（樣式在 shell 就位 → 邊生成邊順順長出真實內容）
   function renderPageStream(chunk) {
-    if (state.streamDone || state.skelShown) return;
-    var f = $("#resultFrame");
-    if (!f) return;
-    state.skelShown = true;
-    var lr = $("#liveResult"); if (lr) lr.style.display = "none";
-    f.style.display = ""; f.style.width = "100%"; f.style.height = "620px"; f.style.border = "0";
-    f.removeAttribute("src"); f.setAttribute("srcdoc", SKELETON_HTML);
-    if ($("#resultKind")) $("#resultKind").textContent = "AI 設計中";
-    if ($("#frameLive")) $("#frameLive").innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400" style="animation:jvb 1s infinite"></span> 設計中…';
-    scrollToResult();
+    if (state.streamDone) return;
+    var f = $("#resultFrame"); if (!f) return;
+    state.pageAccum = (state.pageAccum || "") + chunk;
+    if (!state.streamStarted) {
+      state.streamStarted = true;
+      var lr = $("#liveResult"); if (lr) lr.style.display = "none";
+      f.style.display = ""; f.style.width = "100%"; f.style.height = "620px"; f.style.border = "0";
+      f.removeAttribute("src"); f.removeAttribute("srcdoc");
+      if ($("#resultKind")) $("#resultKind").textContent = "AI 設計中";
+      if ($("#frameLive")) $("#frameLive").innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400" style="animation:jvb 1s infinite"></span> 設計中…';
+      scrollToResult();
+    }
+    // shell（<head> 樣式 + echarts CDN + <body ...>）一到齊就先寫入，讓樣式從頭就穩定
+    if (!state.shellDone) {
+      var bm = /<body[^>]*>/i.exec(state.pageAccum);
+      if (!bm) return;
+      try {
+        var d0 = f.contentDocument || (f.contentWindow && f.contentWindow.document);
+        d0.open(); d0.write(state.pageAccum.slice(0, bm.index + bm[0].length));
+        state.streamDoc = d0;
+      } catch (e) { state.streamDoc = null; }
+      state.shellDone = true;
+      state.bodyStart = bm.index + bm[0].length;
+      state.flushedBodyLen = 0;
+    }
+    if (!state.streamDoc) return;
+    var body = state.pageAccum.slice(state.bodyStart);
+    var end = completeBlocksEnd(body, state.flushedBodyLen);
+    if (end > state.flushedBodyLen) {
+      try { state.streamDoc.write(body.slice(state.flushedBodyLen, end)); } catch (e) { }
+      state.flushedBodyLen = end;
+      scrollIframeBottom(); // iframe 內部自動往下跟著目前長出的區塊
+    }
+  }
+
+  // 串流收尾：補齊剩餘 + 加可點選/掃描 + 收尾；若串流沒成功則整頁換乾淨版
+  function finalizeStream(e) {
+    if (state.shellDone && state.streamDoc && /<\/html>/i.test(state.pageAccum || "")) {
+      try {
+        var body = state.pageAccum.slice(state.bodyStart);
+        var rest = body.slice(state.flushedBodyLen);
+        var m = /<\/body\s*>/i.exec(rest);
+        state.streamDoc.write(m ? rest.slice(0, m.index) : rest);
+        state.streamDoc.write(SELECT_SWEEP);
+        state.streamDoc.write("</body></html>");
+        state.streamDoc.close();
+      } catch (err) { }
+      state.dash = { title: e.title, sub: e.sub, pageHtml: e.html };
+      if ($("#resultTitle")) $("#resultTitle").textContent = e.title || "報告";
+      if ($("#resultKind")) $("#resultKind").textContent = "AI 產出";
+      if ($("#frameLive")) $("#frameLive").innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-success"></span> 已完成';
+      scrollToResult();
+    } else {
+      renderPage(e.title, e.sub, e.html); scrollToResult();
+    }
+  }
+
+  // ===== 文字報告模式（Markdown + 內嵌圖表 + 重點標色 + 可放大 + 連結）=====
+  (function injectReportCss() {
+    var css = ".jvr-report{max-width:940px;margin:0 auto;padding:16px 20px;color:#1e293b;font-size:14.5px;line-height:1.78}" +
+      ".jvr-report .jvr-h{font-weight:800;color:#0f172a;line-height:1.35;margin:20px 0 8px}" +
+      ".jvr-h1{font-size:22px}.jvr-h2{font-size:18px;padding-bottom:6px;border-bottom:2px solid #eef2f7}.jvr-h3{font-size:15.5px}.jvr-h4{font-size:14.5px}" +
+      ".jvr-p{margin:8px 0}.jvr-list{margin:8px 0 8px 2px;padding-left:20px}.jvr-list li{margin:5px 0}" +
+      ".jvr-hl{background:#fde68a;color:#854d0e;padding:1px 6px;border-radius:5px;font-weight:700;-webkit-box-decoration-break:clone;box-decoration-break:clone}" +
+      ".jvr-a{color:#1d4ed8;text-decoration:underline;text-underline-offset:2px}" +
+      ".jvr-code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}" +
+      ".jvr-pre{background:#0f172a;color:#e2e8f0;padding:12px 14px;border-radius:10px;overflow:auto;font-size:12.5px}" +
+      ".jvr-quote{border-left:3px solid #93c5fd;background:#f0f7ff;padding:8px 14px;border-radius:0 8px 8px 0;color:#334155;margin:10px 0}" +
+      ".jvr-tablewrap{overflow-x:auto;margin:12px 0}.jvr-table{width:100%;border-collapse:collapse;font-size:13.5px}" +
+      ".jvr-table th{background:#f8fafc;text-align:left;padding:9px 12px;border-bottom:2px solid #e2e8f0;font-weight:800}" +
+      ".jvr-table td{padding:9px 12px;border-bottom:1px solid #eef2f7}.jvr-hr{border:0;border-top:1px solid #e2e8f0;margin:16px 0}" +
+      ".jvr-chart{position:relative;margin:14px 0;border:1px solid #e8eef5;border-radius:12px;background:#fff;box-shadow:0 1px 6px rgba(2,32,71,.05)}" +
+      ".jvr-chart:empty::before{content:'圖表產生中…';display:block;color:#94a3b8;font-size:13px;text-align:center;padding:38px 0}" +
+      ".jvr-zoom{position:absolute;top:8px;right:8px;z-index:5;width:26px;height:26px;border:1px solid #e2e8f0;background:#fff;border-radius:7px;cursor:pointer;color:#475569;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.08)}" +
+      ".jvr-zoom:hover{background:#f1f5f9}" +
+      ".jvr-lightbox{position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.72);display:flex;align-items:center;justify-content:center;padding:24px}" +
+      ".jvr-lightbox-body{position:relative;background:#fff;border-radius:16px;width:min(1040px,96vw);padding:20px}" +
+      ".jvr-lb-chart{width:100%;height:min(70vh,560px)}" +
+      ".jvr-lb-close{position:absolute;top:8px;right:12px;border:0;background:transparent;font-size:26px;line-height:1;cursor:pointer;color:#64748b}";
+    var s = document.createElement("style"); s.textContent = css; document.head.appendChild(s);
+  })();
+
+  function unesc(s) { return String(s == null ? "" : s).replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&"); }
+  function looseJson(s) {
+    try { return JSON.parse(s); } catch (e) { }
+    try { return JSON.parse(String(s).replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/,\s*([}\]])/g, "$1")); } catch (e) { }
+    return null;
+  }
+  function mdInline(t) {
+    t = esc(t);
+    t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="jvr-a">$1</a>');
+    t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    t = t.replace(/==([^=]+)==/g, function (_, s) { return s.trim().length <= 12 ? '<mark class="jvr-hl">' + s + "</mark>" : "<strong>" + s + "</strong>"; });
+    t = t.replace(/`([^`]+)`/g, '<code class="jvr-code">$1</code>');
+    return t;
+  }
+  function mdReport(md) {
+    var lines = String(md || "").split(/\r?\n/), out = [], i = 0;
+    function cells(r) { return r.replace(/^\||\|$/g, "").split("|").map(function (c) { return c.trim(); }); }
+    while (i < lines.length) {
+      var ln = lines[i];
+      var fm = /^```(chart|echart|echarts|mermaid)\s*$/i.exec(ln.trim());
+      if (fm) {
+        var kind = fm[1].toLowerCase(); i++; var buf = [];
+        while (i < lines.length && !/^```/.test(lines[i].trim())) { buf.push(lines[i]); i++; } i++;
+        var k = kind.indexOf("echart") === 0 ? "echart" : (kind === "mermaid" ? "mermaid" : "chart");
+        out.push('<div class="jvr-chart" data-kind="' + k + '" data-raw="' + esc(buf.join("\n").trim()) + '"></div>'); continue;
+      }
+      if (/^```/.test(ln.trim())) { i++; var cb = []; while (i < lines.length && !/^```/.test(lines[i].trim())) { cb.push(lines[i]); i++; } i++; out.push('<pre class="jvr-pre"><code>' + esc(cb.join("\n")) + "</code></pre>"); continue; }
+      var hm = /^(#{1,4})\s+(.*)$/.exec(ln);
+      if (hm) { var lv = hm[1].length; out.push("<h" + (lv + 1) + ' class="jvr-h jvr-h' + lv + '">' + mdInline(hm[2]) + "</h" + (lv + 1) + ">"); i++; continue; }
+      if (/\|/.test(ln) && i + 1 < lines.length && /^[\s|:-]+$/.test(lines[i + 1]) && /-/.test(lines[i + 1])) {
+        var header = ln; i += 2; var rows = [];
+        while (i < lines.length && /\|/.test(lines[i]) && lines[i].trim()) { rows.push(lines[i]); i++; }
+        out.push('<div class="jvr-tablewrap"><table class="jvr-table"><thead><tr>' + cells(header).map(function (c) { return "<th>" + mdInline(c) + "</th>"; }).join("") +
+          "</tr></thead><tbody>" + rows.map(function (r) { return "<tr>" + cells(r).map(function (c) { return "<td>" + mdInline(c) + "</td>"; }).join("") + "</tr>"; }).join("") + "</tbody></table></div>");
+        continue;
+      }
+      if (/^>\s?/.test(ln)) { var q = []; while (i < lines.length && /^>\s?/.test(lines[i])) { q.push(lines[i].replace(/^>\s?/, "")); i++; } out.push('<blockquote class="jvr-quote">' + mdInline(q.join(" ")) + "</blockquote>"); continue; }
+      if (/^\s*([-*]|\d+\.)\s+/.test(ln)) {
+        var ordered = /^\s*\d+\./.test(ln), items = [];
+        while (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(lines[i])) { items.push(lines[i].replace(/^\s*([-*]|\d+\.)\s+/, "")); i++; }
+        out.push("<" + (ordered ? "ol" : "ul") + ' class="jvr-list">' + items.map(function (it) { return "<li>" + mdInline(it) + "</li>"; }).join("") + "</" + (ordered ? "ol" : "ul") + ">"); continue;
+      }
+      if (/^---+$/.test(ln.trim())) { out.push('<hr class="jvr-hr">'); i++; continue; }
+      if (!ln.trim()) { i++; continue; }
+      var para = [ln]; i++;
+      while (i < lines.length && lines[i].trim() && !/^(#{1,4}\s|```|>\s?)/.test(lines[i]) && !/^\s*([-*]|\d+\.)\s+/.test(lines[i]) && !/^---+$/.test(lines[i].trim()) && lines[i].indexOf("|") < 0) { para.push(lines[i]); i++; }
+      out.push('<p class="jvr-p">' + mdInline(para.join(" ")) + "</p>");
+    }
+    return out.join("\n");
+  }
+  var COLZ = ["#2563eb", "#38bdf8", "#7c3aed", "#0d9488", "#f59e0b", "#e11d48"];
+  function chartToOption(kind, raw) {
+    var o = looseJson(raw); if (!o) return null;
+    if (kind === "echart") return o;
+    var type = (o.type || "bar").toLowerCase();
+    var title = o.title ? { text: o.title, left: "center", textStyle: { fontSize: 14, fontWeight: 800 } } : null;
+    if (type === "pie" || type === "donut" || type === "doughnut") {
+      return { title: title, tooltip: {}, legend: { bottom: 0 }, series: [{ type: "pie", radius: type === "pie" ? "64%" : ["42%", "66%"], center: ["50%", "46%"], data: (o.data || []).map(function (d, i) { return { name: d.name, value: d.value, itemStyle: { color: COLZ[i % COLZ.length] } }; }) }] };
+    }
+    if (type === "radar") {
+      var flat = []; (o.series || []).forEach(function (s) { (s.values || []).forEach(function (v) { flat.push(+v || 0); }); });
+      var mx = Math.max.apply(null, flat.concat([10]));
+      return { title: title, tooltip: {}, legend: { bottom: 0 }, radar: { indicator: (o.axes || []).map(function (a) { return { name: a, max: mx }; }) }, series: [{ type: "radar", data: (o.series || []).map(function (s, i) { return { name: s.name, value: s.values, itemStyle: { color: COLZ[i % COLZ.length] }, areaStyle: { opacity: .12 } }; }) }] };
+    }
+    var cats = (o.data || []).map(function (d) { return d.name; }), vals = (o.data || []).map(function (d) { return d.value; });
+    if (type === "line" || type === "area") {
+      return { title: title, grid: { left: 46, right: 16, top: title ? 42 : 20, bottom: 28 }, tooltip: { trigger: "axis" }, xAxis: { type: "category", data: cats }, yAxis: { type: "value" }, series: [{ type: "line", smooth: true, data: vals, areaStyle: type === "area" ? { color: "rgba(37,99,235,.12)" } : null, lineStyle: { color: "#2563eb", width: 2.5 }, itemStyle: { color: "#2563eb" } }] };
+    }
+    return { title: title, grid: { left: 46, right: 16, top: title ? 42 : 20, bottom: 28 }, tooltip: { trigger: "axis" }, xAxis: { type: "category", data: cats }, yAxis: { type: "value" }, series: [{ type: "bar", barMaxWidth: 44, data: vals.map(function (v, i) { return { value: v, itemStyle: { color: COLZ[i % COLZ.length], borderRadius: [5, 5, 0, 0] } }; }) }] };
+  }
+  function openChartLightbox(opt) {
+    if (!window.echarts) return;
+    var ov = document.createElement("div"); ov.className = "jvr-lightbox";
+    ov.innerHTML = '<div class="jvr-lightbox-body"><button class="jvr-lb-close" aria-label="關閉">×</button><div class="jvr-lb-chart"></div></div>';
+    document.body.appendChild(ov);
+    var inst = echarts.init(ov.querySelector(".jvr-lb-chart")); inst.setOption(opt); inst.resize();
+    var onR = function () { try { inst.resize(); } catch (e) { } };
+    function close() { window.removeEventListener("resize", onR); inst.dispose(); ov.remove(); }
+    window.addEventListener("resize", onR);
+    ov.onclick = function (e) { if (e.target === ov) close(); };
+    ov.querySelector(".jvr-lb-close").onclick = close;
+  }
+  var reportCharts = [];
+  function enhanceReport(root) {
+    if (!root) return;
+    root.querySelectorAll(".jvr-chart").forEach(function (el) {
+      if (el.getAttribute("data-done")) return; el.setAttribute("data-done", "1");
+      var kind = el.getAttribute("data-kind"), raw = unesc(el.getAttribute("data-raw") || "");
+      if (kind === "mermaid") { el.innerHTML = '<pre class="jvr-pre">' + esc(raw) + "</pre>"; return; }
+      var opt = chartToOption(kind, raw);
+      if (!opt || !window.echarts) { el.style.display = "none"; return; }
+      el.style.height = "300px";
+      var inst = echarts.init(el); inst.setOption(opt); reportCharts.push(inst);
+      var zb = document.createElement("button"); zb.className = "jvr-zoom"; zb.textContent = "⤢"; zb.title = "放大";
+      zb.onclick = function (ev) { ev.stopPropagation(); openChartLightbox(opt); };
+      el.appendChild(zb);
+    });
+  }
+  function renderTextReport(title, sub, md, streaming) {
+    if ($("#resultTitle")) $("#resultTitle").textContent = title || "報告";
+    if ($("#resultKind")) $("#resultKind").textContent = "AI 文字報告";
+    var op = $("#resultOpen"); if (op) op.style.display = "none"; // 文字報告不需要新分頁
+    var host = resultHost(); host.style.maxHeight = "600px"; host.style.overflowY = "auto"; host.style.background = "#fff";
+    host.innerHTML = '<div class="jvr-report">' + mdReport(md) + "</div>";
+    if (!streaming) {
+      enhanceReport(host);
+      if ($("#frameLive")) $("#frameLive").innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-success"></span> 已完成';
+      state.dash = { title: title, sub: sub, markdown: md };
+    }
   }
 
   function handle(e) {
@@ -535,7 +749,7 @@
     else if (t === "page_pending") { if ($("#resultTitle")) $("#resultTitle").textContent = e.title || "結果畫面"; placeholder("團隊查各系統資料中，稍後彙整成報告…"); scrollToResult(); }
     else if (t === "report") renderReport(e.title, e.sub, e.spec);
     else if (t === "page_delta") renderPageStream(e.chunk);
-    else if (t === "page") { state.streamDone = true; renderPage(e.title, e.sub, e.html); scrollToResult(); }
+    else if (t === "page") { state.streamDone = true; finalizeStream(e); }
     else if (t === "layout") renderLayout(e.title, e.sub, e.blocks, e.theme);
     else if (t === "block_status") blockStatus(e.id, e.message);
     else if (t === "block") fillBlock(e);
@@ -552,7 +766,8 @@
   async function runMission(question, mode) {
     if (state.running) return;
     setBusy(true); state.mode = mode || "task"; state.bubbles = {}; state.done = 0; state.total = 0; state.dash = null;
-    state.streamDone = false; state.skelShown = false;
+    state.streamDone = false; state.streamStarted = false; state.shellDone = false;
+    state.streamDoc = null; state.pageAccum = ""; state.bodyStart = 0; state.flushedBodyLen = 0;
     if (feed()) feed().innerHTML = ""; if ($("#doneList")) $("#doneList").innerHTML = "";
     // 清掉上一份報告（右側）
     var f0 = $("#resultFrame"); if (f0) { f0.removeAttribute("srcdoc"); f0.removeAttribute("src"); f0.style.display = "none"; }

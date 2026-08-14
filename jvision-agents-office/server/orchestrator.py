@@ -55,13 +55,16 @@ def _extract_json(text):
 async def plan(question):
     """指揮官(sonnet)智能判斷：領域、要不要內部資料、要不要上網查外部。"""
     doms_list = "、".join(registry.domains_kb().keys())
-    sysp = ("你是 AI 團隊總指揮。判斷這個需求要找哪些資料。全程繁體中文（台灣正體）。\n"
+    sysp = ("你是 AI 團隊總指揮。判斷這個需求要找哪些資料、以及要用哪種呈現。全程繁體中文（台灣正體）。\n"
             f"企業功能領域（擇 1-2 個最相關）：{doms_list}。\n"
-            "判斷兩個開關：\n"
+            "判斷三個項目：\n"
             "- internal（要不要查公司內部系統數據）：問公司內部現況/營運數據/系統狀態→true；純粹問外部市場/新聞/推薦/趨勢、跟公司內部無關→false。\n"
             "- external（要不要上網查外部公開資料）：問市場/趨勢/新聞/網路/競品/標竿/最新/推薦→true；只問內部現況→false。\n"
+            "- output（呈現方式）：\"html\"=做成一頁精美的視覺化報告網頁（有版面/圖表/儀表板）；\"text\"=一份圖文並茂的文字報告（Markdown、重點標色、內嵌圖表）。\n"
+            "  規則：需求有提到『做成報告/產生報告/儀表板/視覺化/簡報/網頁/dashboard』等 → \"html\"；\n"
+            "  明顯只是想『快速了解/簡短說明/摘要/口語問一個數字/給我建議』→ \"text\"；不確定時預設 \"html\"（示範時 html 較有感）。\n"
             "若需求跟企業營運無關（如美食、旅遊、生活推薦），選最接近領域（美食→零售電商）、internal=false、external=true。\n"
-            "只輸出 JSON：{\"domains\":[\"領域1\"],\"internal\":true/false,\"external\":true/false,\"external_query\":\"要上網查什麼\"}")
+            "只輸出 JSON：{\"domains\":[\"領域1\"],\"internal\":true/false,\"external\":true/false,\"external_query\":\"要上網查什麼\",\"output\":\"html\"或\"text\"}")
     try:
         ans = await llm.stream_answer(sysp, f"需求：{question}", search=False, model=SMART, timeout=45)
     except Exception:
@@ -74,7 +77,8 @@ async def plan(question):
     if not internal and not external:  # 至少要有一種資料來源
         internal = True
     exq = (data.get("external_query") or question)[:40]
-    return doms, internal, external, exq
+    output = "text" if str(data.get("output", "")).lower() == "text" else "html"
+    return doms, internal, external, exq, output
 
 
 def pick_data_team(question, doms, internal, external, exq):
@@ -308,34 +312,108 @@ async def _build_page(designer, question, doms, combined, emit):
     return html
 
 
+TEXT_SPEC = (
+    "# 任務：把團隊查到的資料，寫成一份『圖文並茂的文字報告』（給客戶看、專業有洞見）。\n"
+    "輸出**繁體中文 Markdown**，約 600–1000 字，**不要**用 HTML、不要 ``` 圍住整篇。\n"
+    "## 結構（用 ## 小標）\n"
+    "- 直接從 `## 結論` 開始（不要把使用者的問題原句當標題重複）。\n"
+    "- 接著針對重點面向逐一分析（每個當一個 ## 小標），每段要有具體數字與判斷。\n"
+    "- 若有外部真實來源連結，文末用 `## 參考資料` 列出（Markdown 連結 `[標題](http…)`）。\n"
+    "## 視覺化（必須，至少 2 個不同類型的圖表，實際輸出圍欄，不可只用文字）\n"
+    "- ```chart（單行 JSON，title 必填）：類別比較 {\"type\":\"bar\",\"title\":\"標題\",\"data\":[{\"name\":\"A\",\"value\":10}]}；"
+    "趨勢 {\"type\":\"line\",...}；佔比(≤6項) {\"type\":\"pie\",...}；多維評分 {\"type\":\"radar\",\"title\":\"標題\",\"axes\":[\"成本\",\"品質\",\"速度\"],\"series\":[{\"name\":\"現況\",\"values\":[8,6,7]}]}。\n"
+    "- ```echart（ECharts option JSON）：單一 KPI/達成率用 {\"series\":[{\"type\":\"gauge\",\"data\":[{\"value\":78}]}]}；漏斗用 funnel。\n"
+    "- 挑最貼切的型態（佔比別用長條、趨勢用折線、單一 KPI 用 gauge）；數字一律取自下方團隊資料，不可捏造。\n"
+    "## 標記與格式\n"
+    "- 只把 3–5 個**短關鍵詞**（每個 2–6 字，如 `==稼動率==`、`==可投產==`）用 `==重點==` 標色，分散在不同段落；**不要**標整句。\n"
+    "- 全文**不要**任何 emoji。內部數字自然呈現、不要說『模擬/無法取得』。全程繁體中文（台灣正體）。\n"
+    "先寫一行 `NOTE: <這份報告的一句話重點>`，再輸出報告 Markdown 本文。"
+)
+
+
+async def _build_text_report(writer, question, doms, combined, emit):
+    """文書 agent（擬稿）產出圖文並茂的 Markdown 報告，逐段串流。"""
+    emit({"type": "agent_start", "id": writer["id"], "name": writer["name"], "role": writer["role"], "dataMode": "reasoning"})
+    sysp = registry.light_prompt(writer["id"]) + "\n\n" + TEXT_SPEC
+    buf = {"s": "", "started": False}
+    def _on_delta(piece):
+        buf["s"] += piece
+        # 跳過開頭 NOTE 行，之後才開始吐報告本文
+        if not buf["started"]:
+            m = re.search(r"(?:^|\n)\s*##\s", buf["s"])
+            if m is None:
+                return
+            buf["started"] = True
+            buf["s"] = buf["s"][m.start():].lstrip("\n")
+        if len(buf["s"]) >= 90:
+            emit({"type": "report_delta", "chunk": buf["s"]})
+            buf["s"] = ""
+    ans = ""
+    try:
+        ans = await llm.stream_answer(sysp, f"需求：{question}\n領域：{'、'.join(doms)}\n\n團隊查到的資料：\n{combined}",
+                                      search=False, model=SMART, timeout=200, on_delta=_on_delta)
+    except Exception:
+        ans = ""
+    if buf["started"] and buf["s"]:
+        emit({"type": "report_delta", "chunk": buf["s"]})
+    nm = re.search(r"NOTE:\s*(.+)", ans)
+    note = _clean_line(nm.group(1) if nm else "") or "我把大家查到的資料寫成一份文字報告。"
+    md = re.sub(r"^[\s\S]*?NOTE:.*$", "", ans, count=1, flags=re.M) if "NOTE:" in ans[:200] else ans
+    md = md.strip()
+    # 去掉可能殘留的整篇 ``` 圍欄
+    md = re.sub(r"^```(?:markdown|md)?\s*", "", md).strip()
+    if md.endswith("```"):
+        md = md[:-3].strip()
+    if len(md) < 80 or "##" not in md:  # 保底：至少有結論 + 明細
+        rows = "\n".join("- " + l.strip("-•* ") for l in combined.split("\n") if l.strip() and "【" not in l)
+        md = f"## 結論\n\n依據團隊查到的資料，重點整理如下。\n\n## 重點數據\n\n{rows}"
+    md = _zh(md); note = _zh(note)
+    emit({"type": "message", "id": writer["id"], "name": writer["name"], "role": writer["role"], "dataMode": "reasoning", "text": note})
+    return md
+
+
 async def run(question: str, mode, emit):
     emit({"type": "status", "message": "指揮官分析需求、判斷領域…"})
-    doms, internal, external, exq = await plan(question)
+    doms, internal, external, exq, output = await plan(question)
     data_team = pick_data_team(question, doms, internal, external, exq)
     _used_ids = {t["agent"]["id"] for t in data_team}
-    synth = registry.flagship_of_cat("design")  # 繪境（介面設計）：把資料設計成報告，與查資料的 agent 區隔
-    if synth and synth["id"] in _used_ids:
-        synth = registry.flagship_of_cat("doc")
+    if output == "text":
+        synth = registry.flagship_of_cat("doc")  # 擬稿（文書）：寫文字報告
+        if synth and synth["id"] in _used_ids:
+            synth = registry.flagship_of_cat("design")
+        verb = "彙整成一份圖文報告"
+    else:
+        synth = registry.flagship_of_cat("design")  # 繪境（介面設計）：設計成報告網頁
+        if synth and synth["id"] in _used_ids:
+            synth = registry.flagship_of_cat("doc")
+        verb = "設計成一頁報告網頁"
     names = "、".join(t["agent"]["name"] for t in data_team)
     emit({"type": "message", "id": "orchestrator", "name": "智策", "role": "總指揮", "dataMode": "reasoning",
-          "text": f"這題屬於「{'、'.join(doms)}」。我請 {names} 去查各系統資料，交給 {synth['name']} 彙整成一份報告，我負責確認。"})
+          "text": f"這題屬於「{'、'.join(doms)}」。我請 {names} 去查各系統資料，交給 {synth['name']} {verb}，我負責確認。"})
     members = [{"id": t["agent"]["id"], "name": t["agent"]["name"], "role": t["agent"]["role"],
                "dataMode": t["agent"]["dataMode"], "subtask": t["subtask"]} for t in data_team]
-    members.append({"id": synth["id"], "name": synth["name"], "role": synth["role"], "dataMode": "reasoning", "subtask": "彙整成報告"})
+    members.append({"id": synth["id"], "name": synth["name"], "role": synth["role"], "dataMode": "reasoning", "subtask": verb})
     emit({"type": "team", "members": members})
-    emit({"type": "page_pending", "title": question, "sub": "領域：" + "、".join(doms) + f" · {synth['name']} 彙整中"})
+    emit({"type": "page_pending", "title": question, "sub": "領域：" + "、".join(doms) + f" · {synth['name']} 彙整中", "output": output})
 
     # ① 各系統查資料（生現況數據）
     emit({"type": "status", "message": "資料 Agent 查各系統現況…"})
     gathered = await asyncio.gather(*[_gather(t, emit) for t in data_team])
     combined = "\n".join(f"【{g['name']}·{g['domain']}】\n{g['data']}" for g in gathered)
 
-    # ② 繪境 設計並產出一份完整報告網頁（AI 認真做，非套版）
-    emit({"type": "status", "message": f"{synth['name']} 設計並產出報告網頁…"})
-    html = await _build_page(synth, question, doms, combined, emit)
-    emit({"type": "done_item", "text": f"{synth['name']} 產出報告網頁（含 KPI、圖表、結論）"})
-    emit({"type": "page", "title": question,
-          "sub": "領域：" + "、".join(doms) + f" · {synth['name']} 設計 · 資料來自 {len(gathered)} 個系統", "html": html})
+    # ② 產出報告（text=文字報告 / html=報告網頁）
+    if output == "text":
+        emit({"type": "status", "message": f"{synth['name']} 撰寫圖文報告…"})
+        md = await _build_text_report(synth, question, doms, combined, emit)
+        emit({"type": "done_item", "text": f"{synth['name']} 產出圖文報告（含重點標記、內嵌圖表）"})
+        emit({"type": "report", "title": question,
+              "sub": "領域：" + "、".join(doms) + f" · {synth['name']} 撰寫 · 資料來自 {len(gathered)} 個系統", "markdown": md})
+    else:
+        emit({"type": "status", "message": f"{synth['name']} 設計並產出報告網頁…"})
+        html = await _build_page(synth, question, doms, combined, emit)
+        emit({"type": "done_item", "text": f"{synth['name']} 產出報告網頁（含 KPI、圖表、結論）"})
+        emit({"type": "page", "title": question,
+              "sub": "領域：" + "、".join(doms) + f" · {synth['name']} 設計 · 資料來自 {len(gathered)} 個系統", "html": html})
 
     # ③ 指揮官確認
     emit({"type": "message", "id": "orchestrator", "name": "智策", "role": "總指揮", "dataMode": "reasoning",
