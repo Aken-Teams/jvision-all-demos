@@ -395,6 +395,24 @@
     state.dash = { title: title, sub: sub, pageHtml: html };
   }
 
+  // pencils.dev 式：繪境一邊寫 HTML，一邊即時渲染（節流更新 srcdoc）
+  function renderPageStream(chunk) {
+    if (state.streamDone) return;
+    if (state.pageBuf == null) {
+      state.pageBuf = "";
+      var lr = $("#liveResult"); if (lr) lr.style.display = "none";
+      var f0 = $("#resultFrame"); if (f0) { f0.style.display = ""; f0.style.width = "100%"; f0.style.height = "620px"; f0.style.border = "0"; f0.removeAttribute("src"); }
+      if ($("#resultKind")) $("#resultKind").textContent = "AI 即時產出";
+      if ($("#frameLive")) $("#frameLive").innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400" style="animation:jvb 1s infinite"></span> 設計中…';
+    }
+    state.pageBuf += chunk;
+    var now = (window.performance && performance.now) ? performance.now() : 0;
+    if (state._lastPaint && now - state._lastPaint < 220) return; // 節流 ~4.5fps
+    state._lastPaint = now;
+    var f = $("#resultFrame");
+    if (f) f.setAttribute("srcdoc", state.pageBuf); // 部分 HTML，瀏覽器邊收邊渲染
+  }
+
   function handle(e) {
     var t = e.type;
     if (t === "status") narr(e.message);
@@ -421,7 +439,8 @@
     }
     else if (t === "page_pending") { if ($("#resultTitle")) $("#resultTitle").textContent = e.title || "結果畫面"; placeholder("團隊查各系統資料中，稍後彙整成報告…"); }
     else if (t === "report") renderReport(e.title, e.sub, e.spec);
-    else if (t === "page") renderPage(e.title, e.sub, e.html);
+    else if (t === "page_delta") renderPageStream(e.chunk);
+    else if (t === "page") { state.streamDone = true; state.pageBuf = null; renderPage(e.title, e.sub, e.html); }
     else if (t === "layout") renderLayout(e.title, e.sub, e.blocks, e.theme);
     else if (t === "block_status") blockStatus(e.id, e.message);
     else if (t === "block") fillBlock(e);
@@ -438,6 +457,7 @@
   async function runMission(question, mode) {
     if (state.running) return;
     setBusy(true); state.mode = mode || "task"; state.bubbles = {}; state.done = 0; state.total = 0; state.dash = null;
+    state.pageBuf = null; state.streamDone = false; state._lastPaint = 0;
     if (feed()) feed().innerHTML = ""; if ($("#doneList")) $("#doneList").innerHTML = "";
     // 清掉上一份報告（右側）
     var f0 = $("#resultFrame"); if (f0) { f0.removeAttribute("srcdoc"); f0.removeAttribute("src"); f0.style.display = "none"; }

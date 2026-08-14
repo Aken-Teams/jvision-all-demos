@@ -15,6 +15,16 @@ EXTERNAL_SIGNALS = ["市場", "標竿", "法規", "趨勢", "競爭", "產業", 
 DATA_CATS = ["analyze", "datagen", "monitor", "schedule"]
 
 
+try:
+    import opencc as _opencc
+    _S2T = _opencc.OpenCC("s2twp")  # 簡體 → 繁體（台灣正體＋慣用詞）
+    def _zh(s):
+        try: return _S2T.convert(s) if s else s
+        except Exception: return s
+except Exception:
+    def _zh(s): return s
+
+
 def _esc(s): return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 def _clean_line(s):
     s = (s or "").split("\n")[0]
@@ -43,52 +53,60 @@ def _extract_json(text):
 
 
 async def plan(question):
-    """指揮官(sonnet)智能判斷：牽涉哪些企業功能領域、是否需要上網查外部。"""
+    """指揮官(sonnet)智能判斷：領域、要不要內部資料、要不要上網查外部。"""
     doms_list = "、".join(registry.domains_kb().keys())
-    sysp = ("你是 AI 團隊總指揮。判斷這個需求該找哪個『企業功能領域』的資料、以及是否需要上網查外部資料。全程繁體中文。\n"
-            f"企業功能領域（從這些擇 1-2 個最相關）：{doms_list}。\n"
-            "判斷外部：問內部現況/數據/系統→external=false；問市場/趨勢/新聞/網路/競品/標竿/最新/外部資訊→external=true。\n"
-            "若需求本身跟企業營運領域無關（例如美食、旅遊、生活），選『最接近的領域』（如美食→零售電商或食品，旅遊→零售電商）並 external=true（當作產業研究）。\n"
-            "只輸出 JSON：{\"domains\":[\"領域1\",\"領域2\"],\"external\":true/false,\"external_query\":\"若要上網查，一句話說查什麼\"}")
+    sysp = ("你是 AI 團隊總指揮。判斷這個需求要找哪些資料。全程繁體中文（台灣正體）。\n"
+            f"企業功能領域（擇 1-2 個最相關）：{doms_list}。\n"
+            "判斷兩個開關：\n"
+            "- internal（要不要查公司內部系統數據）：問公司內部現況/營運數據/系統狀態→true；純粹問外部市場/新聞/推薦/趨勢、跟公司內部無關→false。\n"
+            "- external（要不要上網查外部公開資料）：問市場/趨勢/新聞/網路/競品/標竿/最新/推薦→true；只問內部現況→false。\n"
+            "若需求跟企業營運無關（如美食、旅遊、生活推薦），選最接近領域（美食→零售電商）、internal=false、external=true。\n"
+            "只輸出 JSON：{\"domains\":[\"領域1\"],\"internal\":true/false,\"external\":true/false,\"external_query\":\"要上網查什麼\"}")
     try:
         ans = await llm.stream_answer(sysp, f"需求：{question}", search=False, model=SMART, timeout=45)
     except Exception:
         ans = ""
     data = _extract_json(ans) or {}
     kb = set(registry.domains_kb().keys())
-    doms = [d for d in (data.get("domains") or []) if d in kb][:2]
-    if not doms:
-        doms = registry.detect_domains(question, top=2)
+    doms = [d for d in (data.get("domains") or []) if d in kb][:2] or registry.detect_domains(question, top=2)
+    internal = data.get("internal", True) is not False
     external = bool(data.get("external"))
+    if not internal and not external:  # 至少要有一種資料來源
+        internal = True
     exq = (data.get("external_query") or question)[:40]
-    return doms, external, exq
+    return doms, internal, external, exq
 
 
-def pick_data_team(question, doms, external, exq):
+def pick_data_team(question, doms, internal, external, exq):
     team, used = [], set()
     def add(a, sub):
         if a and a["id"] not in used:
             used.add(a["id"]); team.append({"agent": a, "subtask": sub, "q": question})
-    for dom in doms:
-        for cat in DATA_CATS:
-            a = registry.by_cat_in_domain(dom, cat)
-            if a and a["dataMode"] == "internal-sim":
-                add(a, f"查 {dom} 內部系統（{_sysname(dom)}）的現況數據"); break
-        if sum(1 for t in team if t["agent"]["dataMode"] == "internal-sim") >= 2: break
-    if not external and not any(t["agent"]["dataMode"] == "internal-sim" for t in team):
-        add(registry.flagship_of_cat("analyze"), f"查 {doms[0]} 內部系統現況數據")
-    if external:  # 指揮官判定要上網查 → 保證派一個 external-real 真查
+    if internal:
+        for dom in doms:
+            for cat in DATA_CATS:
+                a = registry.by_cat_in_domain(dom, cat)
+                if a and a["dataMode"] == "internal-sim":
+                    add(a, f"查 {dom} 內部系統（{_sysname(dom)}）的現況數據"); break
+            if sum(1 for t in team if t["agent"]["dataMode"] == "internal-sim") >= 2: break
+        if not any(t["agent"]["dataMode"] == "internal-sim" for t in team):
+            add(registry.flagship_of_cat("analyze"), f"查 {doms[0]} 內部系統現況數據")
+    if external:
         a = (registry.by_cat_in_domain(doms[0], "expert") or registry.by_cat_in_domain(doms[0], "strategy")
              or registry.flagship_of_cat("expert"))
         if a and a["dataMode"] == "external-real":
-            add(a, f"上網查『{exq}』的最新資料/趨勢/標竿，附真實來源連結")
-    if not team:  # 保底
+            add(a, f"上網查『{exq}』的最新資料/趨勢/推薦/標竿，附真實來源連結")
+    if not team:  # 保底一定有人
         add(registry.flagship_of_cat("analyze"), f"查 {doms[0]} 現況數據")
     return team[:3]
 
 
 _REFUSE = ["無法連接", "無法連線", "無法存取", "無法取得", "需要提供", "沒有權限", "沒有能力", "Claude", "AI 助手",
-           "CLAUDE.md", "MCP", "API", "待補", "無法判斷", "無法讀取", "實際的", "真實系統", "請提供", "分享"]
+           "CLAUDE.md", "MCP", "API", "待補", "無法判斷", "無法讀取", "實際的", "真實系統", "請提供", "分享",
+           "澄清", "超出", "角色範圍", "我的角色", "無法完成", "你好", "我注意到", "兩部分", "幾種解讀",
+           "優先順序", "不是我的專長", "找錯", "不太相關", "請問", "請告訴我", "您好", "抱歉"]
+# 繪境（設計師）輸出若含這些 → 視為沒認真設計、echo/反問，改用結構化保底頁
+_PAGE_BAD = ["澄清", "超出", "我的角色", "無法完成", "我注意到", "兩部分", "需要更多", "請告訴我", "請提供", "抱歉", "無法取得"]
 
 
 def _sim_data(domain):
@@ -124,10 +142,13 @@ async def _gather(t, emit):
                 f"**請根據產業常識，生成一組合理、專業的『{dom}現況數據』**（就是這個系統儀表板會顯示的那種數字），供後續設計報告用。\n"
                 f"- 這是 demo，數字由你依常識合理生成即可（參考合理級距：{ranges}），像系統讀出來一樣自然。\n"
                 f"- **不要**提到「連線/存取真實系統」「無法取得」「需要提供資料」「權限」「你是 AI 助手」——直接給數字就好。\n"
+                "- **不要打招呼、不要反問、不要說『需要澄清/超出角色/兩部分/找錯人』。** 全程繁體中文（台灣正體）。\n"
+                "- 你的任務就是給數字，沒有做不到的問題，直接開始寫 SUMMARY。\n"
                 "回兩段：\n`SUMMARY: <一句話，含 2-3 個關鍵數字>`\n`DATA:`（6-8 條「名稱: 數值(含單位)」的具體數字）")
     else:
         task = ("\n\n# 任務：直接針對下面這個主題『上網查最新的真實公開資料』並回報。\n"
-                "**不要管你的人設是什麼領域、不要反問、不要說『超出專長/需要澄清』——就去查、附來源連結。** 查不到的標「待查證」。\n"
+                "**不要管你的人設是什麼領域、不要反問、不要打招呼、不要說『超出專長/需要澄清/找錯人』——就去查、附來源連結。** 查不到的標「待查證」。\n"
+                "- **全程繁體中文（台灣正體）；查到的內容若是簡體字，務必改寫成繁體中文再輸出。**\n"
                 "回兩段：\n`SUMMARY: <一句話重點>`\n`DATA:`（幾條「事實: 內容(來源連結 http)」）")
     sysp = registry.light_prompt(a["id"]) + task
     searches = []
@@ -153,7 +174,9 @@ async def _gather(t, emit):
     if not summary:
         first = next((l.strip("-• ").strip() for l in data.split("\n") if l.strip()), "")
         summary = first[:60] or (a["name"] + " 已彙整現況數據")
+    data = _zh(data); summary = _zh(summary)  # 繁體安全網（web 搜尋可能吐簡體）
     if search and searches:  # 外部真查：對話列出查了什麼
+        searches = [_zh(s) for s in searches]
         summary = summary + f"（上網查了：{'、'.join(searches[:3])}）"
         emit({"type": "done_item", "text": "上網查了：" + "、".join(searches[:4])})
     emit({"type": "message", "id": a["id"], "name": a["name"], "role": a["role"], "dataMode": dm, "text": summary})
@@ -182,21 +205,80 @@ PAGE_SPEC = (
 )
 
 
+def _parse_kpis(combined):
+    """從 combined 抓「名稱: 數值(單位)」配對，回 [(label, num, unit, raw)]。"""
+    out = []
+    for l in combined.split("\n"):
+        l = l.strip("-•*# ").strip()
+        m = re.match(r"^([^:：]{2,20})[:：]\s*([-+]?\d[\d,\.]*)\s*([%A-Za-z一-鿿/]{0,6})", l)
+        if m and "【" not in l:
+            label = m.group(1).strip()
+            if any(k in label for k in ("http", "來源", "連結", "事實", "注意風險")):
+                continue
+            try:
+                num = float(m.group(2).replace(",", ""))
+            except Exception:
+                continue
+            out.append((label, num, m.group(3).strip(), l))
+    return out[:8]
+
+
 def _fallback_page(question, combined):
-    rows = "".join(f'<tr><td style="padding:8px 12px;border-bottom:1px solid #eef">{_esc(l.strip("-• "))}</td></tr>' for l in combined.split("\n") if l.strip())
-    return (f'<!doctype html><meta charset="utf-8"><style>body{{font-family:system-ui;margin:0;padding:20px;color:#0f172a}}h2{{color:#0369a1}}table{{width:100%;border-collapse:collapse}}</style>'
-            f'<h2>{_esc(question)}</h2><table>{rows}</table>')
+    """結構化保底頁（KPI 大字帶 + ECharts 長條 + 明細表），永遠不是純文字。"""
+    kpis = _parse_kpis(combined)
+    acc = "#0369a1"
+    cards = "".join(
+        f'<div class="c"><div class="cl">{_esc(k[0])}</div><div class="cv">{_esc(str(int(k[1]) if k[1]==int(k[1]) else k[1]))}<span>{_esc(k[2])}</span></div></div>'
+        for k in kpis) or f'<div class="c"><div class="cl">項目</div><div class="cv">—</div></div>'
+    labels = _json.dumps([k[0] for k in kpis], ensure_ascii=False)
+    values = _json.dumps([k[1] for k in kpis])
+    rows = "".join(
+        f'<tr><td>{_esc(l.strip("-•* "))}</td></tr>'
+        for l in combined.split("\n") if l.strip() and "【" not in l and not l.strip().startswith("SUMMARY"))
+    chart = ("" if not kpis else
+             f'<div class="card"><h3>指標概覽</h3><div id="ch" style="height:320px"></div></div>'
+             '<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>'
+             '<script>var c=echarts.init(document.getElementById("ch"));c.setOption({grid:{left:60,right:20,top:20,bottom:60},'
+             f'xAxis:{{type:"category",data:{labels},axisLabel:{{interval:0,rotate:20}}}},yAxis:{{type:"value"}},'
+             f'series:[{{type:"bar",data:{values},itemStyle:{{color:"{acc}",borderRadius:[6,6,0,0]}},barMaxWidth:46}}]}});'
+             'addEventListener("resize",function(){c.resize()});</script>')
+    return (f'<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+            f'<style>*{{box-sizing:border-box}}body{{font-family:system-ui,"Noto Sans TC";margin:0;padding:24px;background:#f6f8fb;color:#0f172a}}'
+            f'h2{{margin:0 0 4px;color:{acc}}}.sub{{color:#64748b;margin:0 0 20px}}'
+            f'.kpis{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px}}'
+            f'.c{{background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 2px 10px rgba(2,32,71,.06);min-width:0}}'
+            f'.cl{{color:#64748b;font-size:13px;margin-bottom:6px}}.cv{{font-size:26px;font-weight:800;color:{acc}}}.cv span{{font-size:14px;margin-left:2px;color:#94a3b8}}'
+            f'.card{{background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 2px 10px rgba(2,32,71,.06);margin-bottom:20px}}'
+            f'.card h3{{margin:0 0 12px;font-size:16px}}table{{width:100%;border-collapse:collapse}}td{{padding:9px 12px;border-bottom:1px solid #eef2f7;font-size:14px}}</style>'
+            f'<h2>{_esc(question)}</h2><p class="sub">AI 團隊彙整報告</p>'
+            f'<div class="kpis">{cards}</div>{chart}'
+            f'<div class="card"><h3>資料明細</h3><table>{rows}</table></div></html>')
 
 
 async def _build_page(designer, question, doms, combined, emit):
     emit({"type": "agent_start", "id": designer["id"], "name": designer["name"], "role": designer["role"], "dataMode": "reasoning"})
     sysp = registry.light_prompt(designer["id"]) + "\n\n" + PAGE_SPEC
     ans = ""
+    # 逐字串流：繪境一邊寫 HTML，一邊把片段吐到前端（pencils.dev 式即時渲染）
+    buf = {"s": "", "started": False}
+    def _on_delta(piece):
+        buf["s"] += piece
+        if not buf["started"]:
+            mi = re.search(r"<(!doctype|html|head|body|div|style)", buf["s"], re.I)
+            if mi is None:
+                return  # 還在寫 NOTE 前言，先不吐
+            buf["started"] = True
+            buf["s"] = buf["s"][mi.start():]
+        if len(buf["s"]) >= 200:
+            emit({"type": "page_delta", "chunk": buf["s"]})
+            buf["s"] = ""
     try:
         ans = await llm.stream_answer(sysp, f"需求：{question}\n領域：{'、'.join(doms)}\n\n團隊查到的資料：\n{combined}",
-                                      search=False, model=SMART, timeout=200)
+                                      search=False, model=SMART, timeout=200, on_delta=_on_delta)
     except Exception:
         ans = ""
+    if buf["started"] and buf["s"]:
+        emit({"type": "page_delta", "chunk": buf["s"]})
     nm = re.search(r"NOTE:\s*(.+)", ans)
     note = _clean_line(nm.group(1) if nm else "") or "我依大家的資料設計了一份報告。"
     html = ans.replace("```html", "").replace("```", "")
@@ -204,8 +286,14 @@ async def _build_page(designer, question, doms, combined, emit):
     if mi:
         html = html[mi.start():]
     html = re.sub(r"^[\s\S]*?NOTE:.*$", "", html, count=1, flags=re.M).strip() if "NOTE:" in html[:200] else html
-    if len(html) < 200 or "<" not in html:
+    # 判定繪境是否真的做出設計頁；否則（反問/echo/太短/沒圖表結構）→ 結構化保底頁，絕不吐純文字
+    head = html[:600]
+    bad = (len(html) < 800 or "<" not in html or html.count("<div") < 2
+           or any(w in head for w in _PAGE_BAD) or "【" in head)
+    if bad:
         html = _fallback_page(question, combined)
+        note = "我把大家查到的數據整理成一份結構化報告頁。"
+    html = _zh(html); note = _zh(note)  # 繁體安全網
     emit({"type": "message", "id": designer["id"], "name": designer["name"], "role": designer["role"],
           "dataMode": "reasoning", "text": note})
     return html
@@ -213,8 +301,8 @@ async def _build_page(designer, question, doms, combined, emit):
 
 async def run(question: str, mode, emit):
     emit({"type": "status", "message": "指揮官分析需求、判斷領域…"})
-    doms, external, exq = await plan(question)
-    data_team = pick_data_team(question, doms, external, exq)
+    doms, internal, external, exq = await plan(question)
+    data_team = pick_data_team(question, doms, internal, external, exq)
     _used_ids = {t["agent"]["id"] for t in data_team}
     synth = registry.flagship_of_cat("design")  # 繪境（介面設計）：把資料設計成報告，與查資料的 agent 區隔
     if synth and synth["id"] in _used_ids:

@@ -23,8 +23,10 @@ def available() -> bool:
     return claude_command() is not None
 
 
-def _args(search: bool, model: Optional[str]) -> list[str]:
+def _args(search: bool, model: Optional[str], partial: bool = False) -> list[str]:
     args = ["-p", "--output-format", "stream-json", "--verbose", "--permission-mode", "dontAsk"]
+    if partial:
+        args += ["--include-partial-messages"]  # 吐 stream_event / content_block_delta（逐字串流）
     if search:
         args += ["--allowedTools", "WebSearch,WebFetch", "--disallowedTools", "Bash,Edit,Write,Task"]
     else:
@@ -48,8 +50,10 @@ def _tool_step(name: str, inp: dict) -> Optional[str]:
 async def stream_answer(system_prompt: str, user_message: str,
                         emit: Callable[[dict], None] = lambda e: None, *,
                         search: bool = False, model: Optional[str] = None,
-                        timeout: int = DEFAULT_TIMEOUT) -> str:
-    """跑一次 Claude，串流真實搜尋步驟，回傳最終答案文字。"""
+                        timeout: int = DEFAULT_TIMEOUT,
+                        on_delta: Optional[Callable[[str], None]] = None) -> str:
+    """跑一次 Claude，串流真實搜尋步驟，回傳最終答案文字。
+    on_delta 有給時，開 --include-partial-messages，逐 token 回吐（content_block_delta）。"""
     cmd = claude_command()
     if not cmd:
         raise RuntimeError("找不到 Claude CLI，請先安裝並登入 claude")
@@ -58,7 +62,7 @@ async def stream_answer(system_prompt: str, user_message: str,
         with open(os.path.join(workdir, "CLAUDE.md"), "w", encoding="utf-8") as fh:
             fh.write(system_prompt)
         proc = await asyncio.create_subprocess_exec(
-            cmd, *_args(search, model), cwd=workdir,
+            cmd, *_args(search, model, partial=on_delta is not None), cwd=workdir,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             creationflags=_NO_WINDOW,
         )
@@ -89,7 +93,15 @@ async def stream_answer(system_prompt: str, user_message: str,
                 except json.JSONDecodeError:
                     continue
                 etype = event.get("type")
-                if etype == "assistant":
+                if etype == "stream_event" and on_delta is not None:
+                    ev = event.get("event") or {}
+                    if ev.get("type") == "content_block_delta":
+                        d = ev.get("delta") or {}
+                        if d.get("type") == "text_delta":
+                            piece = d.get("text") or ""
+                            if piece:
+                                on_delta(piece)
+                elif etype == "assistant":
                     for block in (event.get("message", {}).get("content") or []):
                         if block.get("type") == "tool_use":
                             step = _tool_step(block.get("name", ""), block.get("input") or {})
