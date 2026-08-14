@@ -4,15 +4,762 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>原物料期貨避險管理系統｜Jvision 系統 Demo</title>
-  <meta name="description" content="受理、審核、風險到撥付的案件審查流程" />
+  <meta name="description" content="現貨曝險評估、避險策略、期貨建倉、損益監控到結算對帳的原物料避險管理平台" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --accent:#ea580c;
+      --accent2:#fb923c;
+      --bg:#f4f5f7;
+      --panel:#ffffff;
+      --ink:#1f2430;
+      --muted:#697086;
+      --line:#e6e8ee;
+      --side:#1a1f2b;
+      --side2:#232a39;
+      --side-ink:#c7ccd8;
+      --good:#16a34a;
+      --bad:#dc2626;
+      --warn:#d97706;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;}
+    body{
+      font-family:"Inter","Noto Sans TC",system-ui,-apple-system,sans-serif;
+      background:var(--bg);color:var(--ink);
+      -webkit-font-smoothing:antialiased;line-height:1.5;
+    }
+    .material-symbols-outlined{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+    .layout{display:flex;min-height:100vh;align-items:stretch;}
+    /* sidebar */
+    .side{
+      width:250px;flex:0 0 250px;background:var(--side);color:var(--side-ink);
+      display:flex;flex-direction:column;padding:20px 14px;gap:6px;min-width:0;
+      position:sticky;top:0;height:100vh;
+    }
+    .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 16px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:8px;}
+    .brand .logo{
+      width:40px;height:40px;border-radius:11px;flex:0 0 40px;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:flex;align-items:center;justify-content:center;color:#fff;
+    }
+    .brand .logo .material-symbols-outlined{font-size:24px;}
+    .brand .bt{min-width:0;}
+    .brand .bt b{display:block;color:#fff;font-weight:800;font-size:15px;letter-spacing:.2px;}
+    .brand .bt span{display:block;font-size:11px;color:#8890a4;}
+    .nav{display:flex;flex-direction:column;gap:4px;margin-top:6px;}
+    .navbtn{
+      display:flex;align-items:center;gap:12px;padding:11px 12px;border:0;border-radius:10px;
+      background:transparent;color:var(--side-ink);cursor:pointer;text-align:left;width:100%;
+      font-family:inherit;font-size:13.5px;font-weight:600;min-width:0;transition:.15s;
+    }
+    .navbtn .ic{width:22px;flex:0 0 22px;display:flex;justify-content:center;}
+    .navbtn .ic .material-symbols-outlined{font-size:21px;}
+    .navbtn .tx{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .navbtn .no{margin-left:auto;font-size:11px;color:#727a90;font-weight:700;}
+    .navbtn:hover{background:var(--side2);color:#fff;}
+    .navbtn.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 6px 16px rgba(234,88,12,.35);}
+    .navbtn.on .no{color:rgba(255,255,255,.85);}
+    .side .foot{margin-top:auto;padding:12px 10px 4px;border-top:1px solid rgba(255,255,255,.08);font-size:11px;color:#727a90;}
+    .side .foot b{color:#aeb4c4;font-weight:700;}
+    /* main */
+    .main{flex:1;min-width:0;display:flex;flex-direction:column;}
+    .topbar{
+      background:var(--panel);border-bottom:1px solid var(--line);
+      padding:16px 26px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    }
+    .topbar .htxt{min-width:0;}
+    .topbar h1{margin:0;font-size:18px;font-weight:800;letter-spacing:.2px;}
+    .topbar .sub{font-size:12.5px;color:var(--muted);margin-top:2px;}
+    .topbar .spacer{flex:1;}
+    .chip{
+      display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;
+      background:#fff4ec;color:var(--accent);font-size:12px;font-weight:700;border:1px solid #ffe0cc;
+    }
+    .chip .material-symbols-outlined{font-size:16px;}
+    .chip.live{background:#ecfdf3;color:var(--good);border-color:#c7f0d5;}
+    .chip.live .dot{width:8px;height:8px;border-radius:50%;background:var(--good);display:inline-block;box-shadow:0 0 0 3px rgba(22,163,74,.16);}
+    .wrap{padding:22px 26px 40px;min-width:0;}
+    .scr-h{margin:0 0 4px;font-size:16px;font-weight:800;}
+    .scr-d{margin:0 0 18px;font-size:13px;color:var(--muted);}
+    /* grids */
+    .grid{display:grid;gap:16px;min-width:0;}
+    .g-kpi{grid-template-columns:repeat(4,1fr);}
+    .g-2{grid-template-columns:1.6fr 1fr;}
+    .g-2e{grid-template-columns:1fr 1fr;}
+    .g-3{grid-template-columns:repeat(3,1fr);}
+    .g-side{grid-template-columns:1fr 320px;}
+    .card{
+      background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 17px;min-width:0;
+      box-shadow:0 1px 2px rgba(20,25,40,.03);
+    }
+    .card h3{margin:0 0 3px;font-size:13.5px;font-weight:800;display:flex;align-items:center;gap:8px;}
+    .card h3 .material-symbols-outlined{font-size:19px;color:var(--accent);}
+    .card .ch-sub{font-size:11.5px;color:var(--muted);margin-bottom:12px;}
+    /* kpi */
+    .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;min-width:0;position:relative;overflow:hidden;}
+    .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--accent),var(--accent2));}
+    .kpi .kl{font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px;}
+    .kpi .kl .material-symbols-outlined{font-size:16px;color:var(--accent);}
+    .kpi .kv{font-size:25px;font-weight:900;letter-spacing:-.5px;margin-top:7px;font-variant-numeric:tabular-nums;}
+    .kpi .kv small{font-size:13px;font-weight:700;color:var(--muted);margin-left:3px;}
+    .kpi .kd{font-size:11.5px;margin-top:5px;font-weight:700;display:flex;align-items:center;gap:3px;}
+    .kpi .kd .material-symbols-outlined{font-size:15px;}
+    .up{color:var(--good);}.down{color:var(--bad);}.flat{color:var(--muted);}
+    /* charts */
+    .chart-wrap{position:relative;width:100%;overflow:hidden;}
+    /* tables */
+    .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px;}
+    table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px;}
+    th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;}
+    th{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#fafbfc;position:sticky;top:0;}
+    td{font-weight:500;}
+    td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+    tbody tr:hover{background:#fff7f1;}
+    .tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;}
+    .t-green{background:#e7f6ec;color:#15803d;}
+    .t-red{background:#fdeaea;color:#c02626;}
+    .t-orange{background:#fff0e3;color:#c2560a;}
+    .t-blue{background:#e7effb;color:#2563a8;}
+    .t-gray{background:#eef0f4;color:#586074;}
+    .t-amber{background:#fdf3e0;color:#b26a04;}
+    .mono{font-variant-numeric:tabular-nums;font-weight:700;}
+    .pos{color:var(--good);font-weight:800;}
+    .neg{color:var(--bad);font-weight:800;}
+    /* progress bar */
+    .bar{height:8px;border-radius:6px;background:#eef0f4;overflow:hidden;min-width:70px;}
+    .bar>i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+    /* board */
+    .board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;min-width:0;}
+    .col{background:#f7f8fa;border:1px solid var(--line);border-radius:12px;padding:11px;min-width:0;}
+    .col .ct{font-size:12px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+    .col .ct span.n{background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-size:11px;color:var(--muted);}
+    .tk{background:#fff;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:9px;padding:9px 10px;margin-bottom:8px;}
+    .tk .tkh{font-size:12px;font-weight:800;display:flex;justify-content:space-between;gap:6px;}
+    .tk .tkm{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5;}
+    .tk:last-child{margin-bottom:0;}
+    /* timeline */
+    .tl{position:relative;padding-left:22px;}
+    .tl::before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--line);}
+    .tli{position:relative;padding:0 0 16px 4px;}
+    .tli:last-child{padding-bottom:0;}
+    .tli::before{content:"";position:absolute;left:-19px;top:3px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 0 0 2px var(--accent2);}
+    .tli.done::before{background:var(--good);box-shadow:0 0 0 2px #86d5a1;}
+    .tli.wait::before{background:#c5cad6;box-shadow:0 0 0 2px #e1e4ea;}
+    .tli .th{font-size:12.5px;font-weight:800;}
+    .tli .tm{font-size:11.5px;color:var(--muted);margin-top:2px;}
+    .tli .tt{font-size:10.5px;color:var(--accent);font-weight:700;margin-top:2px;}
+    /* meter big */
+    .gauge{display:flex;align-items:center;gap:16px;}
+    .donut-wrap{position:relative;width:150px;height:150px;flex:0 0 150px;}
+    .donut-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+    .donut-c b{font-size:26px;font-weight:900;line-height:1;}
+    .donut-c span{font-size:11px;color:var(--muted);margin-top:3px;}
+    .legend{display:flex;flex-direction:column;gap:9px;min-width:0;}
+    .legend .li{display:flex;align-items:center;gap:8px;font-size:12px;min-width:0;}
+    .legend .sw{width:11px;height:11px;border-radius:3px;flex:0 0 11px;}
+    .legend .lv{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums;}
+    /* strategy sliders */
+    .strat{display:flex;flex-direction:column;gap:14px;}
+    .srow{min-width:0;}
+    .srow .sh{display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:6px;}
+    .srow .sh .rv{color:var(--accent);font-weight:900;}
+    .alertbox{display:flex;gap:11px;padding:12px 13px;border-radius:11px;border:1px solid;margin-bottom:10px;align-items:flex-start;}
+    .alertbox .material-symbols-outlined{font-size:20px;flex:0 0 20px;margin-top:1px;}
+    .alertbox .abt{min-width:0;}
+    .alertbox .abt b{font-size:12.5px;display:block;}
+    .alertbox .abt span{font-size:11.5px;display:block;margin-top:2px;line-height:1.5;}
+    .a-red{background:#fef3f3;border-color:#f6cccc;color:#a01c1c;}
+    .a-amber{background:#fff8ec;border-color:#f3dcae;color:#8a5606;}
+    .a-blue{background:#eef4fc;border-color:#c9dcf3;color:#1d4e86;}
+    .a-green{background:#eefaf1;border-color:#c2ecce;color:#12703a;}
+    .mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+    .mgrid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .mini{background:#f7f8fa;border:1px solid var(--line);border-radius:11px;padding:11px 12px;min-width:0;}
+    .mini .ml{font-size:11px;color:var(--muted);font-weight:600;}
+    .mini .mv{font-size:19px;font-weight:900;margin-top:4px;font-variant-numeric:tabular-nums;}
+    .mini .ms{font-size:10.5px;margin-top:3px;font-weight:700;}
+    .steps{display:flex;gap:0;flex-wrap:wrap;margin-bottom:16px;}
+    .step{flex:1;min-width:80px;text-align:center;position:relative;padding:0 4px;}
+    .step .sc{width:30px;height:30px;border-radius:50%;background:#eef0f4;color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;margin:0 auto 6px;border:2px solid #eef0f4;}
+    .step.don .sc{background:var(--good);color:#fff;border-color:var(--good);}
+    .step.act .sc{background:var(--accent);color:#fff;border-color:var(--accent2);box-shadow:0 0 0 4px rgba(234,88,12,.16);}
+    .step .st{font-size:11.5px;font-weight:700;}
+    .step .ss{font-size:10.5px;color:var(--muted);margin-top:1px;}
+    .divider{height:1px;background:var(--line);margin:16px 0;}
+    .flex{display:flex;gap:10px;align-items:center;flex-wrap:wrap;min-width:0;}
+    .pill-row{display:flex;gap:8px;flex-wrap:wrap;}
+    .fld{background:#f7f8fa;border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0;}
+    .fld .fl{font-size:10.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+    .fld .fv{font-size:14px;font-weight:800;margin-top:3px;}
+    .btnrow{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px;}
+    .btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 15px;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+    .btn .material-symbols-outlined{font-size:17px;}
+    .btn.pri{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-color:transparent;box-shadow:0 4px 12px rgba(234,88,12,.28);}
+    /* responsive */
+    @media(max-width:1180px){ .g-side{grid-template-columns:1fr;} }
+    @media(max-width:860px){
+      .layout{flex-direction:column;}
+      .side{width:100%;flex:none;height:auto;position:static;flex-direction:column;padding:12px 14px;}
+      .side .foot{display:none;}
+      .brand{border-bottom:0;padding-bottom:8px;margin-bottom:4px;}
+      .nav{flex-direction:row;flex-wrap:wrap;gap:8px;}
+      .navbtn{width:auto;flex:0 0 auto;padding:9px 13px;}
+      .navbtn .no{display:none;}
+      .topbar{padding:14px 16px;}
+      .wrap{padding:18px 16px 34px;}
+    }
+    @media(max-width:820px){
+      .g-kpi{grid-template-columns:repeat(2,1fr);}
+      .g-2,.g-2e,.g-3,.g-side{grid-template-columns:1fr;}
+      .board{grid-template-columns:1fr 1fr;}
+      .mgrid{grid-template-columns:1fr;}
+      .mgrid2{grid-template-columns:1fr;}
+    }
+    @media(max-width:560px){
+      .navbtn .tx{display:none;}
+      .navbtn{padding:9px 11px;}
+      .g-kpi{grid-template-columns:1fr 1fr;}
+      .board{grid-template-columns:1fr;}
+      .gauge{flex-direction:column;align-items:stretch;}
+      .donut-wrap{margin:0 auto;}
+      .steps{gap:4px;}
+      .step{min-width:56px;}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <div class="layout">
+    <aside class="side">
+      <div class="brand">
+        <div class="logo"><span class="material-symbols-outlined">trending_up</span></div>
+        <div class="bt">
+          <b>HedgeCtrl</b>
+          <span>原物料期貨避險管理</span>
+        </div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="foot">
+        <b>資料截止</b> 2026/08/14 09:41<br/>資料為展示用途，非實際交易帳戶。
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div class="htxt">
+          <h1 id="scr-title">曝險部位總覽</h1>
+          <div class="sub" id="scr-sub">現貨採購曝險與敞口即時彙整</div>
+        </div>
+        <div class="spacer"></div>
+        <span class="chip live"><span class="dot"></span> 行情連線正常</span>
+        <span class="chip"><span class="material-symbols-outlined">account_balance_wallet</span> 避險帳戶 HDG-0088</span>
+      </header>
+      <div class="wrap" id="view"></div>
+    </main>
+  </div>
+
+  <script>
+  (function(){
+    "use strict";
+    var C={ac:"#ea580c",ac2:"#fb923c",good:"#16a34a",bad:"#dc2626",warn:"#d97706",blue:"#2563a8",gray:"#94a0b4",ink:"#1f2430",line:"#e6e8ee",muted:"#697086"};
+
+    var MODS=[
+      {icon:"monitoring",name:"曝險部位總覽",desc:"現貨採購曝險與敞口即時彙整"},
+      {icon:"account_tree",name:"避險策略擬定",desc:"避險比例、商品與到期月配置"},
+      {icon:"request_quote",name:"期貨部位建立",desc:"下單建倉、保證金與委託管理"},
+      {icon:"insights",name:"避險損益監控",desc:"現貨期貨損益即時試算與淨值"},
+      {icon:"warning",name:"風險與追繳預警",desc:"價格波動、保證金與基差警示"},
+      {icon:"fact_check",name:"到期結算對帳",desc:"平倉結算與避險成效稽核"}
+    ];
+
+    var charts={};
+    function destroyChart(id){ if(charts[id]){ try{charts[id].destroy();}catch(e){} charts[id]=null; } }
+    function mkChart(id,cfg){
+      var el=document.getElementById(id);
+      if(!el) return;
+      destroyChart(id);
+      charts[id]=new Chart(el.getContext("2d"),cfg);
+    }
+    function money(n){ return (n<0?"-":"")+"$"+Math.abs(n).toLocaleString("en-US"); }
+    function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+    /* ---------- data ---------- */
+    var EXPOS=[
+      {mat:"銅 (Copper)",spot:2860,unit:"噸",exp:41600000,hedged:78,risk:"高",bias:"+2.4%",cls:"high"},
+      {mat:"鋁 (Aluminum)",spot:1980,unit:"噸",exp:23800000,hedged:64,risk:"中",bias:"+0.9%",cls:"mid"},
+      {mat:"鎳 (Nickel)",spot:940,unit:"噸",exp:17200000,hedged:52,risk:"高",bias:"-1.7%",cls:"high"},
+      {mat:"熱軋鋼捲",spot:1220,unit:"噸",exp:15400000,hedged:71,risk:"中",bias:"+0.3%",cls:"mid"},
+      {mat:"原油 (WTI)",spot:3100,unit:"桶",exp:12800000,hedged:83,risk:"低",bias:"-0.5%",cls:"low"},
+      {mat:"天然橡膠",spot:640,unit:"噸",exp:8600000,hedged:45,risk:"高",bias:"+3.1%",cls:"high"}
+    ];
+
+    /* ============ SCREEN 0 : 曝險部位總覽 ============ */
+    function screen0(){
+      var totalExp=0,covWeighted=0;
+      EXPOS.forEach(function(r){ totalExp+=r.exp; covWeighted+=r.exp*r.hedged; });
+      var cov=Math.round(covWeighted/totalExp);
+      var rows=EXPOS.map(function(r){
+        var rt=r.risk==="高"?"t-red":r.risk==="中"?"t-amber":"t-green";
+        var bcls=r.bias.charAt(0)==="-"?"neg":"pos";
+        return '<tr><td><b>'+esc(r.mat)+'</b></td>'
+          +'<td class="num mono">'+money(r.spot)+'</td>'
+          +'<td class="num mono">'+money(r.exp)+'</td>'
+          +'<td><div class="flex" style="gap:8px"><div class="bar"><i style="width:'+r.hedged+'%"></i></div><b class="mono" style="font-size:12px">'+r.hedged+'%</b></div></td>'
+          +'<td class="'+bcls+' mono">'+esc(r.bias)+'</td>'
+          +'<td><span class="tag '+rt+'">'+esc(r.risk)+'</span></td></tr>';
+      }).join("");
+
+      document.getElementById("view").innerHTML=
+      '<h2 class="scr-h">現貨採購曝險部位總覽</h2>'
+      +'<p class="scr-d">彙整各原物料的現貨採購敞口、已避險比例與價格偏移，界定需優先建立避險部位的項目。</p>'
+      +'<div class="grid g-kpi" style="margin-bottom:16px">'
+        +kpi("account_balance","現貨曝險總額","$119.4M","exp","account_balance_wallet","跨 6 種原物料")
+        +kpi("shield","加權避險覆蓋率",cov+"%","up","trending_up","+6.2% 較上月","up")
+        +kpi("warning","未避險敞口","$28.6M","down","trending_down","-$4.1M 較上月","up")
+        +kpi("bolt","高風險品項","3 項","flat","priority_high","銅、鎳、天然橡膠","down")
+      +'</div>'
+      +'<div class="grid g-2" style="margin-bottom:16px">'
+        +'<div class="card"><h3><span class="material-symbols-outlined">table_chart</span>各原物料曝險明細</h3>'
+          +'<div class="ch-sub">依現貨曝險金額排序，避險比例低於 60% 建議優先擬定策略</div>'
+          +'<div class="tbl-scroll"><table><thead><tr><th>原物料</th><th class="num">現貨報價</th><th class="num">現貨曝險</th><th>已避險</th><th>價格偏移</th><th>風險</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'
+        +'<div class="card"><h3><span class="material-symbols-outlined">donut_large</span>曝險金額分布</h3>'
+          +'<div class="ch-sub">現貨採購曝險依原物料占比</div>'
+          +'<div class="chart-wrap" style="height:260px"><canvas id="c0pie"></canvas></div></div>'
+      +'</div>'
+      +'<div class="card"><h3><span class="material-symbols-outlined">show_chart</span>近 12 週原物料價格指數走勢</h3>'
+        +'<div class="ch-sub">以基期 100 標準化，觀察價格波動與避險需求</div>'
+        +'<div class="chart-wrap" style="height:280px"><canvas id="c0line"></canvas></div></div>';
+
+      void document.getElementById("view").offsetHeight;
+
+      mkChart("c0pie",{
+        type:"doughnut",
+        data:{labels:EXPOS.map(function(r){return r.mat.split(" ")[0];}),
+          datasets:[{data:EXPOS.map(function(r){return Math.round(r.exp/1000000);}),
+            backgroundColor:[C.ac,C.ac2,"#f6b17a","#fdd0a8","#c0562a","#8a3d1c"],borderWidth:2,borderColor:"#fff"}]},
+        options:{maintainAspectRatio:false,responsive:true,cutout:"58%",
+          plugins:{legend:{position:"right",labels:{boxWidth:12,font:{size:11},padding:9}}}}
+      });
+      var wk=["W1","W2","W3","W4","W5","W6","W7","W8","W9","W10","W11","W12"];
+      mkChart("c0line",{
+        type:"line",
+        data:{labels:wk,datasets:[
+          {label:"銅",data:[100,101,99,103,106,105,108,110,109,112,111,114],borderColor:C.ac,backgroundColor:"rgba(234,88,12,.08)",tension:.35,fill:true,borderWidth:2,pointRadius:0},
+          {label:"鋁",data:[100,100,101,99,100,102,101,103,102,101,103,104],borderColor:C.blue,tension:.35,borderWidth:2,pointRadius:0},
+          {label:"鎳",data:[100,98,97,99,96,94,92,95,93,90,92,89],borderColor:C.good,tension:.35,borderWidth:2,pointRadius:0}
+        ]},
+        options:{maintainAspectRatio:false,responsive:true,
+          plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}}},
+          scales:{y:{grid:{color:C.line}},x:{grid:{display:false}}}}
+      });
+    }
+
+    /* ============ SCREEN 1 : 避險策略擬定 ============ */
+    function screen1(){
+      var sims=[
+        {sc:"保守 (避險 90%)",cost:"$62,400",loss:"-$0.9M",prot:"96%",cls:"t-green"},
+        {sc:"平衡 (避險 75%)",cost:"$48,100",loss:"-$2.1M",prot:"88%",cls:"t-orange"},
+        {sc:"積極 (避險 55%)",cost:"$31,600",loss:"-$4.6M",prot:"71%",cls:"t-red"}
+      ];
+      var simrows=sims.map(function(s){
+        return '<tr><td><b>'+esc(s.sc)+'</b></td><td class="num mono">'+esc(s.cost)+'</td>'
+          +'<td class="num neg mono">'+esc(s.loss)+'</td><td><span class="tag '+s.cls+'">'+esc(s.prot)+'</span></td></tr>';
+      }).join("");
+
+      document.getElementById("view").innerHTML=
+      '<h2 class="scr-h">避險策略擬定 — 銅 (Copper)</h2>'
+      +'<p class="scr-d">依避險政策設定避險比例、選定期貨商品與到期月，並模擬不同情境下的避險成本與保護效果。</p>'
+      +'<div class="grid g-side" style="margin-bottom:16px">'
+        +'<div class="card"><h3><span class="material-symbols-outlined">tune</span>策略參數配置</h3>'
+          +'<div class="ch-sub">目前選定：銅期貨，現貨曝險 $41.6M，需避險部位 $9.2M</div>'
+          +'<div class="strat">'
+            +srow("避險比例","78%",78)
+            +srow("到期月配置：近月 (2026/09)","55%",55)
+            +srow("到期月配置：次月 (2026/10)","30%",30)
+            +srow("到期月配置：季月 (2026/12)","15%",15)
+          +'</div>'
+          +'<div class="divider"></div>'
+          +'<div class="mgrid">'
+            +mini("建議下單口數","74 口","近月 41 · 次月 22 · 季月 11","up")
+            +mini("預估避險成本","$62,400","含手續費與滑價","flat")
+            +mini("保證金需求","$1.88M","佔可用資金 34%","flat")
+          +'</div>'
+          +'<div class="btnrow"><button class="btn pri"><span class="material-symbols-outlined">check_circle</span>採用此策略</button>'
+            +'<button class="btn"><span class="material-symbols-outlined">science</span>重新模擬</button></div>'
+        +'</div>'
+        +'<div class="card"><h3><span class="material-symbols-outlined">rule</span>避險政策檢核</h3>'
+          +'<div class="ch-sub">依內部避險政策自動比對</div>'
+          +policy("green","check_circle","避險比例達標","目標區間 70%~90%，目前 78% 符合")
+          +policy("green","check_circle","單一商品限額","佔避險額度 34%，低於 50% 上限")
+          +policy("amber","warning","到期月集中度","近月占比 55%，建議分散至季月")
+          +policy("blue","info","基差風險","現貨-期貨基差 +2.4%，屬正常區間")
+        +'</div>'
+      +'</div>'
+      +'<div class="grid g-2e">'
+        +'<div class="card"><h3><span class="material-symbols-outlined">candlestick_chart</span>情境模擬：避險 vs 未避險損益</h3>'
+          +'<div class="ch-sub">價格下跌 10% 至上漲 10% 情境下的毛利影響</div>'
+          +'<div class="chart-wrap" style="height:260px"><canvas id="c1bar"></canvas></div></div>'
+        +'<div class="card"><h3><span class="material-symbols-outlined">balance</span>三種策略比較</h3>'
+          +'<div class="ch-sub">避險成本、最壞情境損失與價格保護率權衡</div>'
+          +'<div class="tbl-scroll"><table style="min-width:420px"><thead><tr><th>策略情境</th><th class="num">避險成本</th><th class="num">最壞損失</th><th>保護率</th></tr></thead><tbody>'+simrows+'</tbody></table></div>'
+          +'<div class="alertbox a-green" style="margin-top:14px"><span class="material-symbols-outlined">verified</span><div class="abt"><b>系統建議：平衡略偏保守</b><span>採用避險比例 78%，在成本 $62.4K 下可將最壞損失控制在 -$1.3M，符合毛利保護目標。</span></div></div></div>'
+      +'</div>';
+
+      void document.getElementById("view").offsetHeight;
+
+      mkChart("c1bar",{
+        type:"bar",
+        data:{labels:["-10%","-5%","0%","+5%","+10%"],datasets:[
+          {label:"未避險毛利影響 ($M)",data:[-4.2,-2.1,0,2.1,4.2],backgroundColor:C.gray,borderRadius:5},
+          {label:"避險後毛利影響 ($M)",data:[-1.3,-0.6,-0.06,0.5,1.0],backgroundColor:C.ac,borderRadius:5}
+        ]},
+        options:{maintainAspectRatio:false,responsive:true,
+          plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}}},
+          scales:{y:{grid:{color:C.line},title:{display:true,text:"毛利影響 ($M)"}},x:{grid:{display:false}}}}
+      });
+    }
+
+    /* ============ SCREEN 2 : 期貨部位建立 ============ */
+    function screen2(){
+      var orders=[
+        {id:"ORD-2609-0142",mat:"銅期貨",mon:"2026/09",side:"賣出",qty:41,px:"2,858",st:"已成交",cls:"t-green"},
+        {id:"ORD-2610-0143",mat:"銅期貨",mon:"2026/10",side:"賣出",qty:22,px:"2,871",st:"已成交",cls:"t-green"},
+        {id:"ORD-2612-0144",mat:"銅期貨",mon:"2026/12",side:"賣出",qty:8,px:"2,896",st:"部分成交",cls:"t-orange"},
+        {id:"ORD-2609-0145",mat:"鎳期貨",mon:"2026/09",side:"賣出",qty:18,px:"938",st:"委託中",cls:"t-blue"},
+        {id:"ORD-2610-0146",mat:"鋁期貨",mon:"2026/10",side:"賣出",qty:15,px:"1,982",st:"委託中",cls:"t-blue"}
+      ];
+      var orows=orders.map(function(o){
+        return '<tr><td class="mono">'+esc(o.id)+'</td><td><b>'+esc(o.mat)+'</b></td>'
+          +'<td>'+esc(o.mon)+'</td><td><span class="tag t-red">'+esc(o.side)+'</span></td>'
+          +'<td class="num mono">'+o.qty+'</td><td class="num mono">'+esc(o.px)+'</td>'
+          +'<td><span class="tag '+o.cls+'">'+esc(o.st)+'</span></td></tr>';
+      }).join("");
+
+      document.getElementById("view").innerHTML=
+      '<h2 class="scr-h">期貨部位建立與委託管理</h2>'
+      +'<p class="scr-d">送出建倉委託、配置保證金並確認成交口數，將避險策略落實為實際期貨部位。</p>'
+      +'<div class="steps">'
+        +stp("don","1","策略確認","已採用")
+        +stp("don","2","額度檢核","通過")
+        +stp("act","3","委託下單","進行中")
+        +stp("","4","成交回報","待回報")
+        +stp("","5","部位確認","待確認")
+      +'</div>'
+      +'<div class="grid g-kpi" style="margin-bottom:16px">'
+        +kpi("shopping_cart","本次委託口數","104 口","flat","list_alt","5 筆委託單")
+        +kpi("check_circle","已成交","71 口","up","done_all","成交率 68%","up")
+        +kpi("savings","已用保證金","$1.71M","flat","account_balance","佔可用 31%")
+        +kpi("schedule","委託中","33 口","flat","hourglass_top","3 筆待成交")
+      +'</div>'
+      +'<div class="grid g-2" style="margin-bottom:16px">'
+        +'<div class="card"><h3><span class="material-symbols-outlined">receipt_long</span>建倉委託單列表</h3>'
+          +'<div class="ch-sub">賣出期貨對沖現貨買進部位，以鎖定原物料採購成本</div>'
+          +'<div class="tbl-scroll"><table><thead><tr><th>委託單號</th><th>商品</th><th>到期月</th><th>方向</th><th class="num">口數</th><th class="num">成交價</th><th>狀態</th></tr></thead><tbody>'+orows+'</tbody></table></div></div>'
+        +'<div class="card"><h3><span class="material-symbols-outlined">savings</span>保證金使用</h3>'
+          +'<div class="ch-sub">帳戶 HDG-0088 保證金配置</div>'
+          +'<div class="gauge" style="margin-top:6px"><div class="donut-wrap"><canvas id="c2don"></canvas><div class="donut-c"><b>31%</b><span>使用率</span></div></div>'
+          +'<div class="legend">'
+            +lg(C.ac,"已用保證金","$1.71M")
+            +lg("#fdd0a8","預留追繳","$0.9M")
+            +lg("#eef0f4","可用餘額","$2.9M")
+          +'</div></div>'
+          +'<div class="divider"></div>'
+          +'<div class="alertbox a-blue"><span class="material-symbols-outlined">info</span><div class="abt"><b>保證金水位健康</b><span>維持率 285%，遠高於追繳門檻 130%。</span></div></div></div>'
+      +'</div>'
+      +'<div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>各到期月建倉口數分布</h3>'
+        +'<div class="ch-sub">依到期月分散避險部位，降低轉倉集中風險</div>'
+        +'<div class="chart-wrap" style="height:250px"><canvas id="c2bar"></canvas></div></div>';
+
+      void document.getElementById("view").offsetHeight;
+
+      mkChart("c2don",{
+        type:"doughnut",
+        data:{labels:["已用","預留","可用"],datasets:[{data:[1.71,0.9,2.9],backgroundColor:[C.ac,"#fdd0a8","#eef0f4"],borderWidth:0}]},
+        options:{maintainAspectRatio:false,responsive:true,cutout:"72%",plugins:{legend:{display:false}}}
+      });
+      mkChart("c2bar",{
+        type:"bar",
+        data:{labels:["2026/09 近月","2026/10 次月","2026/12 季月","2027/03 遠月"],datasets:[
+          {label:"已成交口數",data:[41,22,8,0],backgroundColor:C.ac,borderRadius:5,stack:"s"},
+          {label:"委託中口數",data:[18,15,0,0],backgroundColor:C.ac2,borderRadius:5,stack:"s"}
+        ]},
+        options:{maintainAspectRatio:false,responsive:true,
+          plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}}},
+          scales:{y:{grid:{color:C.line},stacked:true},x:{grid:{display:false},stacked:true}}}
+      });
+    }
+
+    /* ============ SCREEN 3 : 避險損益監控 (kanban board) ============ */
+    function screen3(){
+      document.getElementById("view").innerHTML=
+      '<h2 class="scr-h">避險部位損益監控看板</h2>'
+      +'<p class="scr-d">依部位狀態即時追蹤各避險組合的現貨、期貨兩端損益與淨效果。</p>'
+      +'<div class="grid g-kpi" style="margin-bottom:16px">'
+        +kpi("insights","期貨部位損益","+$3.24M","up","trending_up","賣出部位受益於下跌","up")
+        +kpi("inventory_2","現貨部位損益","-$3.61M","down","trending_down","採購成本上升","down")
+        +kpi("balance","避險後淨損益","-$0.37M","flat","remove","對沖後波動大幅收斂","up")
+        +kpi("percent","避險效率","91.2%","up","verified","風險抵減比率","up")
+      +'</div>'
+      +'<div class="card" style="margin-bottom:16px"><h3><span class="material-symbols-outlined">view_kanban</span>部位狀態看板</h3>'
+        +'<div class="ch-sub">依避險組合的部位生命週期分欄追蹤</div>'
+        +'<div style="overflow-x:auto"><div class="board" style="min-width:640px">'
+          +boardCol("建倉中",1,[
+            {t:"鎳期貨 2026/09",m:"目標 18 口 · 已成交 12 口",tag:"t-blue",tl:"委託中"}
+          ])
+          +boardCol("避險生效",3,[
+            {t:"銅期貨 2026/09",m:"期貨 +$1.82M / 現貨 -$2.01M",tag:"t-green",tl:"淨 -$0.19M"},
+            {t:"鋁期貨 2026/10",m:"期貨 +$0.41M / 現貨 -$0.38M",tag:"t-green",tl:"淨 +$0.03M"},
+            {t:"原油 2026/09",m:"期貨 +$0.63M / 現貨 -$0.71M",tag:"t-green",tl:"淨 -$0.08M"}
+          ])
+          +boardCol("預警關注",1,[
+            {t:"銅期貨 2026/12",m:"基差擴大至 +3.6%，追蹤中",tag:"t-amber",tl:"基差風險"}
+          ])
+          +boardCol("待結算",2,[
+            {t:"熱軋鋼捲 2026/08",m:"到期 D-3 · 預估實現 +$0.44M",tag:"t-orange",tl:"D-3"},
+            {t:"天然橡膠 2026/08",m:"到期 D-1 · 預估實現 -$0.12M",tag:"t-orange",tl:"D-1"}
+          ])
+        +'</div></div></div>'
+      +'<div class="grid g-2">'
+        +'<div class="card"><h3><span class="material-symbols-outlined">stacked_line_chart</span>避險前後毛利波動對比</h3>'
+          +'<div class="ch-sub">近 8 週未避險 vs 避險後的毛利波動 ($M)</div>'
+          +'<div class="chart-wrap" style="height:270px"><canvas id="c3line"></canvas></div></div>'
+        +'<div class="card"><h3><span class="material-symbols-outlined">summarize</span>部位損益彙總</h3>'
+          +'<div class="ch-sub">各避險組合現貨期貨兩端淨效果</div>'
+          +'<div class="tbl-scroll"><table style="min-width:440px"><thead><tr><th>避險組合</th><th class="num">期貨損益</th><th class="num">現貨損益</th><th class="num">淨損益</th></tr></thead><tbody>'
+            +plRow("銅 2026/09",1.82,-2.01)
+            +plRow("鋁 2026/10",0.41,-0.38)
+            +plRow("原油 2026/09",0.63,-0.71)
+            +plRow("鎳 2026/09",0.28,-0.33)
+            +plRow("鋼捲 2026/08",0.10,-0.18)
+          +'</tbody></table></div></div>'
+      +'</div>';
+
+      void document.getElementById("view").offsetHeight;
+
+      mkChart("c3line",{
+        type:"line",
+        data:{labels:["W1","W2","W3","W4","W5","W6","W7","W8"],datasets:[
+          {label:"未避險毛利波動",data:[0.2,-1.8,2.4,-2.9,1.6,-3.4,2.1,-2.6],borderColor:C.gray,backgroundColor:"rgba(148,160,180,.10)",tension:.3,fill:true,borderWidth:2,pointRadius:0},
+          {label:"避險後毛利波動",data:[0.05,-0.3,0.4,-0.5,0.2,-0.4,0.3,-0.37],borderColor:C.ac,backgroundColor:"rgba(234,88,12,.10)",tension:.3,fill:true,borderWidth:2.5,pointRadius:0}
+        ]},
+        options:{maintainAspectRatio:false,responsive:true,
+          plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}}},
+          scales:{y:{grid:{color:C.line},title:{display:true,text:"毛利波動 ($M)"}},x:{grid:{display:false}}}}
+      });
+    }
+
+    /* ============ SCREEN 4 : 風險與追繳預警 ============ */
+    function screen4(){
+      var alerts=[
+        {lv:"a-red",ic:"error",t:"鎳價單日波動 -1.7% 逾閾值","d":"鎳期貨 2026/09 部位當日波動觸發 1.5% 預警線，未避險敞口 $8.3M。","time":"09:32","act":"建議加碼避險 12 口"},
+        {lv:"a-amber",ic:"warning",t:"銅期貨基差擴大至 +3.6%","d":"現貨-期貨基差偏離常態區間，2026/12 部位轉倉成本上升。","time":"08:58","act":"評估提前平倉近月部位"},
+        {lv:"a-amber",ic:"account_balance","t":"天然橡膠避險覆蓋率偏低","d":"覆蓋率僅 45%，低於政策下限 60%，價格上行風險敞口偏高。","time":"08:41","act":"補建避險部位 20 口"},
+        {lv:"a-blue",ic:"info",t:"熱軋鋼捲部位即將到期","d":"2026/08 合約 D-3 到期，請確認轉倉或平倉指示。","time":"08:20","act":"排入到期結算作業"}
+      ];
+      var arows=alerts.map(function(a){
+        return '<div class="alertbox '+a.lv+'"><span class="material-symbols-outlined">'+a.ic+'</span>'
+          +'<div class="abt"><b>'+esc(a.t)+' <span style="font-weight:600;color:inherit;opacity:.7">· '+a.time+'</span></b>'
+          +'<span>'+esc(a.d)+'</span>'
+          +'<span style="margin-top:6px;font-weight:700"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">bolt</span> 處置建議：'+esc(a.act)+'</span></div></div>';
+      }).join("");
+
+      document.getElementById("view").innerHTML=
+      '<h2 class="scr-h">風險監控與保證金追繳預警</h2>'
+      +'<p class="scr-d">監控價格波動、保證金追繳與基差變動，於風險超限前主動提示採購與財務介入。</p>'
+      +'<div class="grid g-kpi" style="margin-bottom:16px">'
+        +kpi("crisis","今日觸發預警","4 件","flat","notifications_active","1 高 · 2 中 · 1 低","down")
+        +kpi("speed","保證金維持率","285%","up","trending_up","追繳門檻 130%","up")
+        +kpi("radar","VaR (95%,1日)","$1.42M","flat","analytics","佔淨值 6.8%")
+        +kpi("shield","避險覆蓋率","68%","up","verified","政策下限 60%","up")
+      +'</div>'
+      +'<div class="grid g-side" style="margin-bottom:16px">'
+        +'<div class="card"><h3><span class="material-symbols-outlined">notifications_active</span>即時風險預警</h3>'
+          +'<div class="ch-sub">依風險等級排序，附自動處置建議</div>'+arows+'</div>'
+        +'<div class="card"><h3><span class="material-symbols-outlined">warning</span>保證金追繳監控</h3>'
+          +'<div class="ch-sub">各帳戶維持率距追繳線距離</div>'
+          +marg("HDG-0088 主避險",285,"good")
+          +marg("HDG-0091 鎳專戶",168,"warn")
+          +marg("HDG-0093 能源戶",212,"good")
+          +marg("HDG-0095 金屬戶",142,"warn")
+          +'<div class="divider"></div>'
+          +'<div class="alertbox a-green"><span class="material-symbols-outlined">check_circle</span><div class="abt"><b>無帳戶觸及追繳線</b><span>最低維持率 142%，仍高於 130% 門檻。</span></div></div></div>'
+      +'</div>'
+      +'<div class="card"><h3><span class="material-symbols-outlined">show_chart</span>近 14 日 VaR 與保證金維持率趨勢</h3>'
+        +'<div class="ch-sub">左軸為 VaR ($M)，右軸為保證金維持率 (%)</div>'
+        +'<div class="chart-wrap" style="height:270px"><canvas id="c4mix"></canvas></div></div>';
+
+      void document.getElementById("view").offsetHeight;
+
+      var days=["D-13","D-12","D-11","D-10","D-9","D-8","D-7","D-6","D-5","D-4","D-3","D-2","D-1","今日"];
+      mkChart("c4mix",{
+        type:"bar",
+        data:{labels:days,datasets:[
+          {type:"bar",label:"VaR ($M)",data:[1.1,1.2,1.0,1.3,1.5,1.4,1.6,1.3,1.5,1.2,1.4,1.3,1.5,1.42],backgroundColor:C.ac2,borderRadius:4,yAxisID:"y"},
+          {type:"line",label:"保證金維持率 (%)",data:[320,310,305,290,270,278,255,268,250,272,258,280,262,285],borderColor:C.ac,backgroundColor:"rgba(234,88,12,.06)",tension:.3,fill:false,borderWidth:2.5,pointRadius:2,yAxisID:"y1"}
+        ]},
+        options:{maintainAspectRatio:false,responsive:true,
+          plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}}},
+          scales:{y:{position:"left",grid:{color:C.line},title:{display:true,text:"VaR ($M)"}},
+            y1:{position:"right",grid:{display:false},title:{display:true,text:"維持率 (%)"},suggestedMin:100},
+            x:{grid:{display:false}}}}
+      });
+    }
+
+    /* ============ SCREEN 5 : 到期結算對帳 (timeline + audit) ============ */
+    function screen5(){
+      var settle=[
+        {c:"銅期貨 2026/06",open:"2,742",close:"2,861",qty:38,pnl:452200,st:"已結算",cls:"t-green"},
+        {c:"鋁期貨 2026/06",open:"1,955",close:"1,988",qty:24,pnl:79200,st:"已結算",cls:"t-green"},
+        {c:"原油 2026/07",open:"3,180",close:"3,096",qty:20,pnl:-168000,st:"已結算",cls:"t-green"},
+        {c:"鎳期貨 2026/07",open:"902",close:"938",qty:16,pnl:57600,st:"對帳中",cls:"t-orange"},
+        {c:"熱軋鋼捲 2026/08",open:"1,196",close:"1,220",qty:18,pnl:43200,st:"待結算",cls:"t-blue"}
+      ];
+      var srows=settle.map(function(s){
+        var p=s.pnl>=0;
+        return '<tr><td><b>'+esc(s.c)+'</b></td><td class="num mono">'+esc(s.open)+'</td>'
+          +'<td class="num mono">'+esc(s.close)+'</td><td class="num mono">'+s.qty+'</td>'
+          +'<td class="num '+(p?"pos":"neg")+'">'+money(s.pnl)+'</td>'
+          +'<td><span class="tag '+s.cls+'">'+esc(s.st)+'</span></td></tr>';
+      }).join("");
+
+      document.getElementById("view").innerHTML=
+      '<h2 class="scr-h">到期結算與避險成效對帳</h2>'
+      +'<p class="scr-d">到期或平倉後結算實現損益，核對避險成效並產出稽核與對帳紀錄。</p>'
+      +'<div class="grid g-kpi" style="margin-bottom:16px">'
+        +kpi("payments","本季實現避險損益","+$464K","up","trending_up","6 檔合約結算","up")
+        +kpi("verified","避險損益達成率","94.3%","up","check_circle","目標 90%","up")
+        +kpi("fact_check","已對帳合約","5 / 6","flat","done_all","1 檔對帳中")
+        +kpi("shield","累計避險覆蓋率","72%","up","trending_up","+4% 較上季","up")
+      +'</div>'
+      +'<div class="grid g-2" style="margin-bottom:16px">'
+        +'<div class="card"><h3><span class="material-symbols-outlined">receipt_long</span>到期合約結算明細</h3>'
+          +'<div class="ch-sub">平倉價與建倉價差 × 口數 = 實現避險損益</div>'
+          +'<div class="tbl-scroll"><table><thead><tr><th>合約</th><th class="num">建倉價</th><th class="num">結算價</th><th class="num">口數</th><th class="num">實現損益</th><th>狀態</th></tr></thead><tbody>'+srows+'</tbody></table></div></div>'
+        +'<div class="card"><h3><span class="material-symbols-outlined">history</span>結算作業軌跡</h3>'
+          +'<div class="ch-sub">全程稽核紀錄，供財務與稽核追溯</div>'
+          +'<div class="tl">'
+            +tl("done","期貨部位到期通知","系統於 D-3 推播到期提醒","2026/08/12 08:00")
+            +tl("done","確認平倉指示","財務部核可平倉，鎖定結算價","2026/08/13 10:24")
+            +tl("done","實現損益計算","系統試算 +$464K 並產生傳票","2026/08/14 06:00")
+            +tl("wait","財務系統對帳","與總帳避險損益科目勾稽","進行中")
+            +tl("wait","避險成效歸檔","產出成效報告並封存稽核","待處理")
+          +'</div></div>'
+      +'</div>'
+      +'<div class="grid g-2e">'
+        +'<div class="card"><h3><span class="material-symbols-outlined">trending_up</span>近 6 季避險損益達成率</h3>'
+          +'<div class="ch-sub">實現避險損益 / 目標避險損益</div>'
+          +'<div class="chart-wrap" style="height:250px"><canvas id="c5bar"></canvas></div></div>'
+        +'<div class="card"><h3><span class="material-symbols-outlined">summarize</span>本季避險成效總結</h3>'
+          +'<div class="ch-sub">避險目標達成情況一覽</div>'
+          +'<div class="mgrid2">'
+            +mini("毛利保護金額","$4.28M","對沖現貨成本上升","up")
+            +mini("淨避險成本","$248K","佔保護金額 5.8%","flat")
+            +mini("最大回撤收斂","78%","波動較未避險大幅下降","up")
+            +mini("轉倉損失","$36K","控制於預算內","flat")
+          +'</div>'
+          +'<div class="alertbox a-green" style="margin-top:14px"><span class="material-symbols-outlined">verified</span><div class="abt"><b>本季避險目標達成</b><span>達成率 94.3% 超出 90% 目標，毛利保護 $4.28M，成本效益比 17.3 倍。</span></div></div>'
+          +'<div class="btnrow"><button class="btn pri"><span class="material-symbols-outlined">download</span>匯出對帳報告</button>'
+            +'<button class="btn"><span class="material-symbols-outlined">lock</span>封存稽核紀錄</button></div></div>'
+      +'</div>';
+
+      void document.getElementById("view").offsetHeight;
+
+      mkChart("c5bar",{
+        type:"bar",
+        data:{labels:["24Q3","24Q4","25Q1","25Q2","25Q3","26Q2"],datasets:[
+          {label:"達成率 (%)",data:[82,86,79,91,88,94.3],backgroundColor:function(ctx){return ctx.raw>=90?C.good:C.ac;},borderRadius:5}
+        ]},
+        options:{maintainAspectRatio:false,responsive:true,
+          plugins:{legend:{display:false}},
+          scales:{y:{grid:{color:C.line},suggestedMin:60,suggestedMax:100,title:{display:true,text:"達成率 (%)"}},x:{grid:{display:false}}}}
+      });
+    }
+
+    /* ---------- render helpers ---------- */
+    function kpi(icon,label,val,dcls,dic,dtxt,dir){
+      var cls=dir==="up"?"up":dir==="down"?"down":"flat";
+      var num=/^([+\-$0-9.,]+)([^0-9]*)$/.test(val);
+      return '<div class="kpi"><div class="kl"><span class="material-symbols-outlined">'+icon+'</span>'+esc(label)+'</div>'
+        +'<div class="kv">'+esc(val)+'</div>'
+        +'<div class="kd '+cls+'"><span class="material-symbols-outlined">'+dic+'</span>'+esc(dtxt)+'</div></div>';
+    }
+    function srow(label,rv,pct){
+      return '<div class="srow"><div class="sh"><span>'+esc(label)+'</span><span class="rv">'+esc(rv)+'</span></div>'
+        +'<div class="bar" style="min-width:0;width:100%"><i style="width:'+pct+'%"></i></div></div>';
+    }
+    function mini(label,val,sub,dir){
+      var cls=dir==="up"?"up":dir==="down"?"down":"flat";
+      return '<div class="mini"><div class="ml">'+esc(label)+'</div><div class="mv">'+esc(val)+'</div>'
+        +'<div class="ms '+cls+'">'+esc(sub)+'</div></div>';
+    }
+    function policy(clr,ic,t,d){
+      return '<div class="alertbox a-'+clr+'"><span class="material-symbols-outlined">'+ic+'</span>'
+        +'<div class="abt"><b>'+esc(t)+'</b><span>'+esc(d)+'</span></div></div>';
+    }
+    function stp(cls,n,t,s){
+      return '<div class="step '+cls+'"><div class="sc">'+(cls==="don"?'<span class="material-symbols-outlined" style="font-size:17px">check</span>':n)+'</div>'
+        +'<div class="st">'+esc(t)+'</div><div class="ss">'+esc(s)+'</div></div>';
+    }
+    function lg(color,label,val){
+      return '<div class="li"><span class="sw" style="background:'+color+'"></span><span>'+esc(label)+'</span><span class="lv">'+esc(val)+'</span></div>';
+    }
+    function boardCol(title,n,items){
+      var cards=items.map(function(it){
+        return '<div class="tk"><div class="tkh"><span>'+esc(it.t)+'</span><span class="tag '+it.tag+'" style="font-size:10px">'+esc(it.tl)+'</span></div>'
+          +'<div class="tkm">'+esc(it.m)+'</div></div>';
+      }).join("");
+      return '<div class="col"><div class="ct">'+esc(title)+'<span class="n">'+n+'</span></div>'+cards+'</div>';
+    }
+    function plRow(name,fut,spot){
+      var net=Math.round((fut+spot)*100)/100;
+      return '<tr><td><b>'+esc(name)+'</b></td>'
+        +'<td class="num pos">+$'+fut.toFixed(2)+'M</td>'
+        +'<td class="num neg">-$'+Math.abs(spot).toFixed(2)+'M</td>'
+        +'<td class="num '+(net>=0?"pos":"neg")+'">'+(net>=0?"+":"-")+'$'+Math.abs(net).toFixed(2)+'M</td></tr>';
+    }
+    function tl(cls,t,m,time){
+      return '<div class="tli '+cls+'"><div class="th">'+esc(t)+'</div><div class="tm">'+esc(m)+'</div><div class="tt">'+esc(time)+'</div></div>';
+    }
+    function marg(name,rate,cls){
+      var pct=Math.min(100,Math.round((rate/350)*100));
+      var col=cls==="good"?"linear-gradient(90deg,#16a34a,#4ade80)":"linear-gradient(90deg,#ea580c,#fb923c)";
+      return '<div class="srow" style="margin-bottom:12px"><div class="sh"><span>'+esc(name)+'</span><span class="rv" style="color:'+(cls==="good"?"#16a34a":"#ea580c")+'">'+rate+'%</span></div>'
+        +'<div class="bar" style="width:100%"><i style="width:'+pct+'%;background:'+col+'"></i></div></div>';
+    }
+
+    /* ---------- shell ---------- */
+    var SCREENS=[screen0,screen1,screen2,screen3,screen4,screen5];
+    function buildNav(){
+      var nav=document.getElementById("nav");
+      nav.innerHTML=MODS.map(function(m,i){
+        return '<button class="navbtn" data-i="'+i+'"><span class="ic"><span class="material-symbols-outlined">'+m.icon+'</span></span>'
+          +'<span class="tx">'+esc(m.name)+'</span><span class="no">0'+(i+1)+'</span></button>';
+      }).join("");
+      Array.prototype.forEach.call(nav.querySelectorAll("[data-i]"),function(b){
+        b.addEventListener("click",function(){ location.hash="go="+b.getAttribute("data-i"); });
+      });
+    }
+    function show(i){
+      i=Math.max(0,Math.min(i,SCREENS.length-1));
+      var m=MODS[i];
+      document.getElementById("scr-title").textContent=m.name;
+      document.getElementById("scr-sub").textContent=m.desc;
+      Array.prototype.forEach.call(document.querySelectorAll("[data-i]"),function(b){
+        b.classList.toggle("on",+b.getAttribute("data-i")===i);
+      });
+      var view=document.getElementById("view");
+      Object.keys(charts).forEach(function(k){ destroyChart(k); });
+      view.innerHTML="";
+      SCREENS[i]();
+    }
+    buildNav();
+
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>

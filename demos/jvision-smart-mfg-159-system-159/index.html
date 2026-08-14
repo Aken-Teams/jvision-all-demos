@@ -4,15 +4,481 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>原物料價格趨勢分析系統｜Jvision 系統 Demo</title>
-  <meta name="description" content="供應商協同、詢比議價到交期風險控管" />
+  <meta name="description" content="國際行情匯入、價格趨勢與預警、成本影響測算到採購時機建議" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+  <style>
+    :root{
+      --accent:#0369a1; --accent2:#38bdf8; --ink:#0f172a; --muted:#64748b;
+      --line:#e2e8f0; --bg:#f1f5f9; --card:#ffffff; --soft:#f0f9ff;
+      --up:#dc2626; --down:#16a34a; --warn:#d97706; --ok:#0891b2;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;}
+    body{font-family:"Inter","Noto Sans TC",sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
+    .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+    .layout{display:flex;min-height:100vh;align-items:stretch;}
+    .sidebar{width:248px;flex:0 0 248px;background:#ffffff;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+    .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 16px;border-bottom:1px solid var(--line);margin-bottom:14px;}
+    .brand .logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;flex:0 0 38px;}
+    .brand .logo .material-symbols-outlined{font-size:22px;}
+    .brand .btxt{min-width:0;}
+    .brand .btxt b{display:block;font-size:14px;font-weight:800;letter-spacing:.2px;line-height:1.3;}
+    .brand .btxt span{font-size:11px;color:var(--muted);}
+    nav{display:flex;flex-direction:column;gap:4px;min-width:0;}
+    .navbtn{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:10px;border:none;background:transparent;color:#475569;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;text-align:left;width:100%;min-width:0;transition:background .15s,color .15s;}
+    .navbtn .material-symbols-outlined{font-size:21px;flex:0 0 auto;color:#94a3b8;}
+    .navbtn .nlab{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .navbtn .nidx{margin-left:auto;font-size:11px;color:#cbd5e1;font-weight:700;flex:0 0 auto;}
+    .navbtn:hover{background:var(--soft);color:var(--accent);}
+    .navbtn.on{background:var(--accent);color:#fff;}
+    .navbtn.on .material-symbols-outlined,.navbtn.on .nidx{color:#e0f2fe;}
+    .sfoot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);line-height:1.6;}
+    .main{flex:1 1 auto;min-width:0;padding:24px 28px 48px;}
+    .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px;}
+    .topbar .ttl{min-width:0;}
+    .topbar h1{margin:0 0 4px;font-size:22px;font-weight:800;letter-spacing:.2px;}
+    .topbar .sub{margin:0;color:var(--muted);font-size:13px;}
+    .pill{display:inline-flex;align-items:center;gap:6px;background:var(--soft);color:var(--accent);border:1px solid #bae6fd;border-radius:999px;padding:6px 13px;font-size:12px;font-weight:700;}
+    .pill .material-symbols-outlined{font-size:16px;}
+    .grid{display:grid;gap:16px;min-width:0;}
+    .g4{grid-template-columns:repeat(4,1fr);}
+    .g3{grid-template-columns:repeat(3,1fr);}
+    .g2{grid-template-columns:repeat(2,1fr);}
+    .g21{grid-template-columns:1.6fr 1fr;}
+    .g12{grid-template-columns:1fr 1.6fr;}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0;box-shadow:0 1px 2px rgba(15,23,42,.03);}
+    .card h3{margin:0 0 3px;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:8px;}
+    .card h3 .material-symbols-outlined{font-size:19px;color:var(--accent);}
+    .card .chint{margin:0 0 14px;font-size:12px;color:var(--muted);}
+    .kpi .klab{font-size:12.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:7px;}
+    .kpi .klab .material-symbols-outlined{font-size:18px;color:var(--accent2);}
+    .kpi .kval{font-size:27px;font-weight:900;letter-spacing:-.5px;margin:9px 0 5px;}
+    .kpi .kval small{font-size:14px;font-weight:700;color:var(--muted);margin-left:3px;}
+    .delta{font-size:12px;font-weight:800;display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;}
+    .delta .material-symbols-outlined{font-size:15px;}
+    .delta.up{color:var(--up);background:#fef2f2;}
+    .delta.down{color:var(--down);background:#f0fdf4;}
+    .delta.flat{color:var(--muted);background:#f1f5f9;}
+    .chart{width:100%;overflow:hidden;min-width:0;}
+    table{width:100%;border-collapse:collapse;font-size:13px;min-width:520px;}
+    thead th{text-align:left;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;padding:9px 12px;border-bottom:2px solid var(--line);white-space:nowrap;}
+    tbody td{padding:11px 12px;border-bottom:1px solid #f1f5f9;white-space:nowrap;}
+    tbody tr:hover{background:var(--soft);}
+    .tnum{font-variant-numeric:tabular-nums;font-weight:700;}
+    .tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;padding:3px 9px;border-radius:6px;}
+    .tag .material-symbols-outlined{font-size:14px;}
+    .t-up{background:#fef2f2;color:var(--up);}
+    .t-down{background:#f0fdf4;color:var(--down);}
+    .t-warn{background:#fffbeb;color:var(--warn);}
+    .t-ok{background:#ecfeff;color:var(--ok);}
+    .t-info{background:#eef2ff;color:#4f46e5;}
+    .t-gray{background:#f1f5f9;color:#475569;}
+    .bar-wrap{background:#eef2f6;border-radius:999px;height:8px;overflow:hidden;min-width:64px;}
+    .bar-in{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+    .stack{display:flex;flex-direction:column;gap:12px;}
+    .alert-row{display:flex;gap:12px;align-items:flex-start;padding:13px;border-radius:11px;border:1px solid var(--line);background:#fff;min-width:0;}
+    .alert-row .aic{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:0 0 36px;}
+    .alert-row .aic .material-symbols-outlined{font-size:20px;}
+    .alert-row .abody{min-width:0;flex:1;}
+    .alert-row .abody b{font-size:13.5px;font-weight:800;}
+    .alert-row .abody p{margin:3px 0 0;font-size:12px;color:var(--muted);}
+    .sev-h{border-left:4px solid var(--up);} .sev-h .aic{background:#fef2f2;color:var(--up);}
+    .sev-m{border-left:4px solid var(--warn);} .sev-m .aic{background:#fffbeb;color:var(--warn);}
+    .sev-l{border-left:4px solid var(--ok);} .sev-l .aic{background:#ecfeff;color:var(--ok);}
+    .tl{position:relative;padding-left:26px;}
+    .tl::before{content:"";position:absolute;left:8px;top:4px;bottom:4px;width:2px;background:var(--line);}
+    .tl-item{position:relative;padding:0 0 18px 4px;}
+    .tl-item:last-child{padding-bottom:0;}
+    .tl-item::before{content:"";position:absolute;left:-22px;top:3px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 0 0 2px var(--accent2);}
+    .tl-item .tlt{font-size:13px;font-weight:800;}
+    .tl-item .tmeta{font-size:11.5px;color:var(--muted);margin:2px 0 4px;}
+    .tl-item .tdesc{font-size:12.5px;color:#475569;}
+    .segrow{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+    .seg{font-size:12px;font-weight:700;padding:6px 13px;border-radius:999px;border:1px solid var(--line);background:#fff;color:#475569;}
+    .seg.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+    .mini{display:flex;flex-direction:column;gap:2px;}
+    .mini b{font-size:19px;font-weight:900;}
+    .mini span{font-size:11px;color:var(--muted);}
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;min-width:720px;}
+    .bcol{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0;}
+    .bcol .bhead{font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+    .bcol .bhead .cnt{background:#e2e8f0;color:#475569;border-radius:999px;font-size:11px;padding:1px 8px;}
+    .bcard{background:#fff;border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:9px;box-shadow:0 1px 2px rgba(15,23,42,.04);}
+    .bcard:last-child{margin-bottom:0;}
+    .bcard b{font-size:12.5px;font-weight:800;display:block;}
+    .bcard .bm{font-size:11px;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between;gap:6px;}
+    .costbar{display:flex;height:26px;border-radius:7px;overflow:hidden;min-width:260px;}
+    .costbar span{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;min-width:0;overflow:hidden;white-space:nowrap;}
+    .legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12px;color:#475569;}
+    .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:middle;}
+    .gauge-note{font-size:12px;color:var(--muted);text-align:center;margin-top:6px;}
+    .rec{display:flex;gap:12px;padding:14px;border-radius:12px;border:1px solid var(--line);background:#fff;align-items:center;min-width:0;}
+    .rec .ric{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:0 0 44px;color:#fff;}
+    .rec .ric .material-symbols-outlined{font-size:24px;}
+    .rec .rb{min-width:0;flex:1;}
+    .rec .rb .rtag{font-size:11px;font-weight:800;letter-spacing:.3px;}
+    .rec .rb b{font-size:15px;font-weight:900;display:block;margin:2px 0;}
+    .rec .rb p{margin:0;font-size:12px;color:var(--muted);}
+    .buy{background:linear-gradient(135deg,#16a34a,#4ade80);} .rbuy{color:var(--down);}
+    .hold{background:linear-gradient(135deg,#d97706,#fbbf24);} .rhold{color:var(--warn);}
+    .wait{background:linear-gradient(135deg,#0369a1,#38bdf8);} .rwait{color:var(--accent);}
+    .stepline{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
+    .step{flex:1 1 120px;min-width:0;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:11px;}
+    .step .sn{font-size:10px;font-weight:800;color:var(--accent2);}
+    .step b{display:block;font-size:12.5px;font-weight:800;margin:3px 0;}
+    .step span{font-size:11px;color:var(--muted);}
+    .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle;}
+    @media(max-width:1180px){.g4{grid-template-columns:repeat(2,1fr);}}
+    @media(max-width:860px){
+      .layout{display:block;}
+      .sidebar{position:static;width:auto;height:auto;flex:none;flex-direction:row;flex-wrap:wrap;align-items:center;border-right:none;border-bottom:1px solid var(--line);padding:12px 14px;gap:8px;}
+      .brand{border-bottom:none;margin:0;padding:0 12px 0 0;}
+      nav{flex-direction:row;flex-wrap:wrap;gap:6px;}
+      .navbtn{width:auto;padding:8px 12px;}
+      .navbtn .nidx{display:none;}
+      .sfoot{display:none;}
+      .main{padding:18px 16px 40px;}
+    }
+    @media(max-width:820px){
+      .g4,.g3,.g2,.g21,.g12{grid-template-columns:1fr;}
+    }
+    @media(max-width:560px){
+      .navbtn .nlab{display:none;}
+      .navbtn{padding:9px;}
+      .topbar h1{font-size:19px;}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo"><span class="material-symbols-outlined">trending_up</span></div>
+        <div class="btxt"><b>原物料價格趨勢</b><span>Material Price Intelligence</span></div>
+      </div>
+      <nav id="nav"></nav>
+      <div class="sfoot">
+        Jvision Demo · 純前端展示<br/>資料為模擬示意<br/>v159 · 採購供應鏈
+      </div>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <div class="ttl">
+          <h1 id="scr-title">—</h1>
+          <p class="sub" id="scr-sub">—</p>
+        </div>
+        <div class="pill"><span class="material-symbols-outlined">bolt</span><span id="scr-pill">即時</span></div>
+      </div>
+      <div id="screen"></div>
+    </main>
+  </div>
+
+  <script>
+  (function(){
+    var charts=[];
+    function destroyCharts(){for(var i=0;i<charts.length;i++){try{charts[i].destroy();}catch(e){}}charts=[];}
+    function mk(id,opt){
+      var el=document.getElementById(id);
+      if(!el)return;
+      opt.chart=opt.chart||{};
+      opt.chart.redrawOnParentResize=false;
+      opt.chart.redrawOnWindowResize=false;
+      opt.chart.animations={enabled:false};
+      opt.chart.fontFamily='Inter,"Noto Sans TC",sans-serif';
+      opt.chart.toolbar={show:false};
+      try{var c=new ApexCharts(el,opt);c.render();charts.push(c);}catch(e){}
+    }
+    var A="#0369a1",B="#38bdf8",UP="#dc2626",DN="#16a34a",WN="#d97706";
+
+    var MODS=[
+      {icon:"monitoring",name:"行情資料匯入",sub:"國際現貨與期貨行情即時匯入與校驗",pill:"每日 06:00 匯入"},
+      {icon:"trending_up",name:"價格趨勢分析",sub:"多品項走勢、移動平均與波動率分析",pill:"12 個月視窗"},
+      {icon:"warning",name:"價格預警",sub:"突破區間與異常波動門檻自動告警",pill:"即時監控"},
+      {icon:"request_quote",name:"成本影響測算",sub:"價格連動 BOM 成本模型即時試算",pill:"BOM 連動"},
+      {icon:"insights",name:"採購時機建議",sub:"趨勢預測與最佳採購時點建議",pill:"AI 建議"},
+      {icon:"fact_check",name:"決策執行追蹤",sub:"採購決策紀錄與預測準確度稽核",pill:"稽核追蹤"}
+    ];
+
+    function up(v){return v>=0?'<span class="delta up"><span class="material-symbols-outlined">north_east</span>'+v.toFixed(1)+'%</span>':'<span class="delta down"><span class="material-symbols-outlined">south_east</span>'+Math.abs(v).toFixed(1)+'%</span>';}
+    function esc(s){return String(s);}
+
+    // ---------- SCREEN 0 : 行情資料匯入 ----------
+    function s0(){
+      var feeds=[
+        {m:"銅 (LME Copper)",p:"9,428",u:"USD/噸",d:1.8,src:"LME",st:"ok",t:"06:02"},
+        {m:"鋁 (LME Aluminium)",p:"2,356",u:"USD/噸",d:-0.6,src:"LME",st:"ok",t:"06:02"},
+        {m:"熱軋鋼卷",p:"18,650",u:"CNY/噸",d:2.4,src:"上期所",st:"ok",t:"06:05"},
+        {m:"聚丙烯 PP",p:"7,820",u:"CNY/噸",d:0.4,src:"大商所",st:"ok",t:"06:05"},
+        {m:"天然橡膠",p:"1,742",u:"USD/噸",d:-1.2,src:"SICOM",st:"ok",t:"06:07"},
+        {m:"原油 Brent",p:"82.6",u:"USD/桶",d:0.9,src:"ICE",st:"delay",t:"05:41"},
+        {m:"錫 (LME Tin)",p:"31,120",u:"USD/噸",d:3.1,src:"LME",st:"ok",t:"06:02"},
+        {m:"鎳 (LME Nickel)",p:"16,480",u:"USD/噸",d:-0.3,src:"LME",st:"miss",t:"—"}
+      ];
+      var rows="";
+      for(var i=0;i<feeds.length;i++){var f=feeds[i];
+        var stt=f.st==="ok"?'<span class="tag t-ok"><span class="material-symbols-outlined">check_circle</span>已入庫</span>':f.st==="delay"?'<span class="tag t-warn"><span class="material-symbols-outlined">schedule</span>延遲</span>':'<span class="tag t-up"><span class="material-symbols-outlined">error</span>缺漏補抓</span>';
+        rows+='<tr><td><b>'+f.m+'</b></td><td class="tnum">'+f.p+'</td><td>'+f.u+'</td><td>'+(f.d>=0?up(f.d):up(f.d))+'</td><td><span class="tag t-gray">'+f.src+'</span></td><td>'+f.t+'</td><td>'+stt+'</td></tr>';
+      }
+      return ''+
+      '<div class="grid g4">'+
+        kpi("inventory_2","已匯入品項","42","項",5.0,"down")+
+        kpi("check_circle","校驗通過率","96.4","%",2.1,"up")+
+        kpi("schedule","延遲來源","2","源",0,"flat")+
+        kpi("update","最後同步","06:07","",0,"flat")+
+      '</div>'+
+      '<div class="grid g21" style="margin-top:16px;">'+
+        '<div class="card"><h3><span class="material-symbols-outlined">table_rows</span>今日行情匯入明細</h3><p class="chint">來源：LME / 上期所 / 大商所 / ICE / SICOM — 每日 06:00 排程匯入並校驗缺漏</p><div style="overflow-x:auto"><table><thead><tr><th>原物料</th><th>最新報價</th><th>單位</th><th>日變動</th><th>來源</th><th>時間</th><th>狀態</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">donut_small</span>來源匯入狀態</h3><p class="chint">各行情來源今日資料完整度</p><div id="c0a" class="chart"></div></div>'+
+      '</div>'+
+      '<div class="grid g2" style="margin-top:16px;">'+
+        '<div class="card"><h3><span class="material-symbols-outlined">schedule</span>匯入時序</h3><p class="chint">今日排程與人工補抓紀錄</p>'+
+        '<div class="tl">'+
+          tl("06:00 排程啟動","系統排程 · 自動","啟動每日行情匯入，掃描 5 個來源共 42 項原物料。")+
+          tl("06:05 上期所/大商所入庫","資料管道 · 自動","熱軋鋼卷、PP 等 14 項國內期貨報價校驗通過。")+
+          tl("06:07 原油來源延遲","監控 · 告警","ICE Brent 回應延遲，採前一交易日收盤價暫代。")+
+          tl("06:12 鎳報價缺漏補抓","採購專員 · 人工","LME Nickel 缺漏，手動觸發重抓並標記待覆核。")+
+        '</div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">data_check</span>資料品質檢核</h3><p class="chint">匯入後自動校驗規則</p>'+
+        qc("欄位完整性","41 / 42 品項欄位齊備",97,"t-ok")+
+        qc("重複值檢查","無重複交易日報價",100,"t-ok")+
+        qc("跳點偵測","2 筆日變動 >5% 已標記覆核",92,"t-warn")+
+        qc("來源時效","1 源逾時採替代來源",83,"t-warn")+
+        '</div>'+
+      '</div>';
+    }
+
+    // ---------- SCREEN 1 : 價格趨勢分析 ----------
+    function s1(){
+      return ''+
+      '<div class="segrow"><span class="seg on">銅 LME</span><span class="seg">鋁</span><span class="seg">熱軋鋼卷</span><span class="seg">原油 Brent</span></div>'+
+      '<div class="grid g4">'+
+        kpi("payments","現價 USD/噸","9,428","",1.8,"up")+
+        kpi("show_chart","30 日均線","9,182","",2.7,"up")+
+        kpi("waves","年化波動率","24.6","%",3.4,"up")+
+        kpi("expand","52 週區間位置","78","%",0,"flat")+
+      '</div>'+
+      '<div class="card" style="margin-top:16px;"><h3><span class="material-symbols-outlined">trending_up</span>銅價走勢與移動平均</h3><p class="chint">近 12 個月現貨價、MA30 與 MA90 移動平均，辨識趨勢與轉折</p><div id="c1a" class="chart"></div></div>'+
+      '<div class="grid g2" style="margin-top:16px;">'+
+        '<div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>各原物料月變動率</h3><p class="chint">關鍵原物料本月相對上月漲跌幅</p><div id="c1b" class="chart"></div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">insights</span>波動率雷達</h3><p class="chint">六大原物料年化波動率相對水位</p><div id="c1c" class="chart"></div></div>'+
+      '</div>';
+    }
+
+    // ---------- SCREEN 2 : 價格預警 ----------
+    function s2(){
+      var al=[
+        {sev:"h",ic:"trending_up",t:"錫 LME 突破上緣區間","d":"單日 +3.1%，突破 52 週高點 30,800，觸發 RULE-02 需說明採購原因。","tag":"價格異常"},
+        {sev:"h",ic:"warning",t:"熱軋鋼卷連五日上漲","d":"累計漲幅 +8.4%，已達成本影響門檻，建議即刻試算毛利衝擊。","tag":"趨勢告警"},
+        {sev:"m",ic:"bolt",t:"銅波動率升高","d":"年化波動率由 21% 升至 24.6%，區間震盪加大，採購時點不確定性提高。","tag":"波動告警"},
+        {sev:"m",ic:"schedule",t:"原油來源延遲","d":"ICE Brent 連續 2 日回應逾時，改採替代來源，資料時效待覆核。","tag":"資料告警"},
+        {sev:"l",ic:"south_east","t":"鋁價回落至均線下","d":"跌破 MA30，短線走弱，可觀望等待更佳採購時點。","tag":"觀望提示"}
+      ];
+      var rows="";
+      for(var i=0;i<al.length;i++){var a=al[i];
+        rows+='<div class="alert-row sev-'+a.sev+'"><div class="aic"><span class="material-symbols-outlined">'+a.ic+'</span></div><div class="abody"><b>'+a.t+'</b> <span class="tag '+(a.sev==="h"?"t-up":a.sev==="m"?"t-warn":"t-ok")+'">'+a.tag+'</span><p>'+a.d+'</p></div></div>';
+      }
+      var thr=[
+        {m:"銅 LME",lo:"8,400",hi:"9,600",now:9428,pct:87,st:"t-warn"},
+        {m:"鋁 LME",lo:"2,200",hi:"2,600",now:2356,pct:39,st:"t-ok"},
+        {m:"熱軋鋼卷",lo:"16,000",hi:"18,400",now:18650,pct:100,st:"t-up"},
+        {m:"錫 LME",lo:"27,000",hi:"30,800",now:31120,pct:100,st:"t-up"},
+        {m:"聚丙烯 PP",lo:"7,200",hi:"8,300",now:7820,pct:56,st:"t-ok"}
+      ];
+      var trow="";
+      for(var j=0;j<thr.length;j++){var t=thr[j];
+        trow+='<tr><td><b>'+t.m+'</b></td><td class="tnum">'+t.lo+'</td><td class="tnum">'+t.hi+'</td><td class="tnum">'+t.now.toLocaleString()+'</td><td style="min-width:120px"><div class="bar-wrap"><div class="bar-in" style="width:'+t.pct+'%"></div></div></td><td><span class="tag '+t.st+'">'+(t.pct>=100?"突破":t.pct>=80?"逼近":"區間內")+'</span></td></tr>';
+      }
+      return ''+
+      '<div class="grid g4">'+
+        kpi("notification_important","今日告警","5","則",25.0,"up")+
+        kpi("priority_high","高風險","2","則",0,"flat")+
+        kpi("check_circle","已處理","3","則",0,"flat")+
+        kpi("timer","平均反應","1.4","小時",18.0,"down")+
+      '</div>'+
+      '<div class="grid g21" style="margin-top:16px;">'+
+        '<div class="card"><h3><span class="material-symbols-outlined">notifications_active</span>即時預警清單</h3><p class="chint">依嚴重度排序 · 突破區間、異常波動與資料時效告警</p><div class="stack">'+rows+'</div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">stacked_line_chart</span>七日告警趨勢</h3><p class="chint">各嚴重度告警數量</p><div id="c2a" class="chart"></div></div>'+
+      '</div>'+
+      '<div class="card" style="margin-top:16px;"><h3><span class="material-symbols-outlined">rule</span>價格區間門檻監控</h3><p class="chint">各原物料現價於設定區間 [下緣~上緣] 之位置</p><div style="overflow-x:auto"><table><thead><tr><th>原物料</th><th>下緣</th><th>上緣</th><th>現價</th><th>區間位置</th><th>狀態</th></tr></thead><tbody>'+trow+'</tbody></table></div></div>';
+    }
+
+    // ---------- SCREEN 3 : 成本影響測算 ----------
+    function s3(){
+      var bom=[
+        {p:"控制箱體 CB-200",mat:"鋼/鋁",base:"1,240",now:"1,318",d:6.3,gm:22.1,st:"t-up"},
+        {p:"馬達組件 MT-55",mat:"銅/鋼",base:"2,880",now:"2,972",d:3.2,gm:28.4,st:"t-up"},
+        {p:"外殼件 HS-12",mat:"PP/鋁",base:"640",now:"636",d:-0.6,gm:34.0,st:"t-down"},
+        {p:"連接線束 WH-08",mat:"銅",base:"430",now:"451",d:4.9,gm:19.6,st:"t-up"},
+        {p:"密封件 SL-30",mat:"橡膠",base:"185",now:"182",d:-1.6,gm:41.2,st:"t-down"}
+      ];
+      var rows="";
+      for(var i=0;i<bom.length;i++){var b=bom[i];
+        rows+='<tr><td><b>'+b.p+'</b></td><td><span class="tag t-gray">'+b.mat+'</span></td><td class="tnum">'+b.base+'</td><td class="tnum">'+b.now+'</td><td>'+up(b.d)+'</td><td class="tnum">'+b.gm.toFixed(1)+'%</td><td><span class="tag '+b.st+'">'+(b.d>=0?"成本上升":"成本下降")+'</span></td></tr>';
+      }
+      return ''+
+      '<div class="grid g4">'+
+        kpi("request_quote","加權成本指數","104.8","",3.2,"up")+
+        kpi("percent","平均毛利率","27.6","%",1.4,"down")+
+        kpi("crisis_alert","毛利受壓品項","3","項",0,"flat")+
+        kpi("savings","可節省採購額","2.4","M",0,"flat")+
+      '</div>'+
+      '<div class="grid g12" style="margin-top:16px;">'+
+        '<div class="card"><h3><span class="material-symbols-outlined">pie_chart</span>控制箱體成本結構</h3><p class="chint">CB-200 原物料成本占比</p>'+
+          '<div class="costbar" style="margin-top:8px;"><span style="background:#0369a1;width:38%">鋼 38%</span><span style="background:#38bdf8;width:27%">鋁 27%</span><span style="background:#0891b2;width:18%">銅 18%</span><span style="background:#94a3b8;width:17%">其他 17%</span></div>'+
+          '<div class="legend"><span><i style="background:#0369a1"></i>鋼材</span><span><i style="background:#38bdf8"></i>鋁材</span><span><i style="background:#0891b2"></i>銅材</span><span><i style="background:#94a3b8"></i>其他</span></div>'+
+          '<div id="c3a" class="chart" style="margin-top:8px;"></div>'+
+        '</div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">fact_check</span>BOM 成本連動試算</h3><p class="chint">以最新行情連動基準成本，計算變動與毛利影響</p><div style="overflow-x:auto"><table><thead><tr><th>產品</th><th>主要原料</th><th>基準成本</th><th>連動後</th><th>變動</th><th>毛利率</th><th>影響</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+      '</div>'+
+      '<div class="card" style="margin-top:16px;"><h3><span class="material-symbols-outlined">query_stats</span>價格情境對毛利敏感度</h3><p class="chint">主要產品在原物料 -10% ~ +10% 情境下之毛利率變化</p><div id="c3b" class="chart"></div></div>';
+    }
+
+    // ---------- SCREEN 4 : 採購時機建議 ----------
+    function s4(){
+      var recs=[
+        {k:"buy",ic:"shopping_cart",tag:"建議提前備料",t:"熱軋鋼卷 · 分批採購",p:"趨勢確立上行且波動加大，建議 2 週內鎖定 60% 用量，其餘觀望。",cl:"rbuy"},
+        {k:"wait",ic:"visibility",tag:"建議觀望",t:"鋁 · 等待回檔",p:"跌破 MA30 短線走弱，預測未來 3 週有回檔空間，暫緩下單。",cl:"rwait"},
+        {k:"hold",ic:"pause_circle",tag:"維持既有節奏",t:"聚丙烯 PP · 按計畫採購",p:"價格於區間中段震盪，趨勢不明，維持既有月度採購節奏。",cl:"rhold"}
+      ];
+      var rr="";
+      for(var i=0;i<recs.length;i++){var r=recs[i];
+        rr+='<div class="rec"><div class="ric '+r.k+'"><span class="material-symbols-outlined">'+r.ic+'</span></div><div class="rb"><span class="rtag '+r.cl+'">'+r.tag+'</span><b>'+r.t+'</b><p>'+r.p+'</p></div></div>';
+      }
+      return ''+
+      '<div class="grid g4">'+
+        kpi("target","預測準確度","82.5","%",4.2,"up")+
+        kpi("shopping_cart","建議提前備料","3","項",0,"flat")+
+        kpi("visibility","建議觀望","2","項",0,"flat")+
+        kpi("savings","預估避險節省","1.8","M",6.0,"up")+
+      '</div>'+
+      '<div class="grid g21" style="margin-top:16px;">'+
+        '<div class="card"><h3><span class="material-symbols-outlined">timeline</span>銅價預測區間（未來 8 週）</h3><p class="chint">實際價、預測中位數與 80% 信賴區間；建議採購窗口以低點標記</p><div id="c4a" class="chart"></div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">recommend</span>採購時機建議</h3><p class="chint">依趨勢預測產生</p><div class="stack">'+rr+'</div></div>'+
+      '</div>'+
+      '<div class="card" style="margin-top:16px;"><h3><span class="material-symbols-outlined">route</span>建議採購決策路徑</h3><p class="chint">系統依趨勢、波動率與交期產生的行動建議</p>'+
+        '<div class="stepline">'+
+          step("01","趨勢判定","銅價 MA30 上穿 MA90，確立上行趨勢")+
+          step("02","波動評估","年化波動率 24.6%，區間震盪加大")+
+          step("03","時點建議","2 週內為相對低點窗口，建議分批鎖定")+
+          step("04","交期比對","供應商標準交期 5 週，提前備料避免缺料")+
+          step("05","風險提示","單一來源需供應鏈經理核准 (RULE-03)")+
+        '</div>'+
+      '</div>';
+    }
+
+    // ---------- SCREEN 5 : 決策執行追蹤 ----------
+    function s5(){
+      var log=[
+        {d:"2026-08-12",p:"熱軋鋼卷",act:"提前備料 60%",who:"採購經理",res:"採納",acc:"命中",cl:"t-down"},
+        {d:"2026-08-08",p:"銅 LME",act:"分批鎖定 40%",who:"採購經理",res:"採納",acc:"命中",cl:"t-down"},
+        {d:"2026-08-05",p:"鋁",act:"觀望等待回檔",who:"成本工程師",res:"採納",acc:"命中",cl:"t-down"},
+        {d:"2026-07-30",p:"錫 LME",act:"暫緩採購",who:"採購經理",res:"未採納",acc:"偏差",cl:"t-up"},
+        {d:"2026-07-24",p:"聚丙烯 PP",act:"維持既有節奏",who:"採購專員",res:"採納",acc:"命中",cl:"t-down"}
+      ];
+      var rows="";
+      for(var i=0;i<log.length;i++){var l=log[i];
+        rows+='<tr><td>'+l.d+'</td><td><b>'+l.p+'</b></td><td>'+l.act+'</td><td>'+l.who+'</td><td><span class="tag '+(l.res==="採納"?"t-ok":"t-gray")+'">'+l.res+'</span></td><td><span class="tag '+l.cl+'">'+l.acc+'</span></td></tr>';
+      }
+      return ''+
+      '<div class="grid g4">'+
+        kpi("verified","預測準確度","82.5","%",4.2,"up")+
+        kpi("task_alt","決策採納率","88","%",3.0,"up")+
+        kpi("trending_down","關鍵成本波動率","6.1","%",2.2,"down")+
+        kpi("savings","累計避險節省","5.2","M",0,"flat")+
+      '</div>'+
+      '<div class="grid g2" style="margin-top:16px;">'+
+        '<div class="card"><h3><span class="material-symbols-outlined">monitoring</span>預測準確度與成本波動率</h3><p class="chint">近 6 個月預測命中率與關鍵原物料成本波動率</p><div id="c5a" class="chart"></div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">donut_large</span>決策結果分布</h3><p class="chint">近期採購決策採納與命中情形</p><div id="c5b" class="chart"></div></div>'+
+      '</div>'+
+      '<div class="card" style="margin-top:16px;"><h3><span class="material-symbols-outlined">history</span>決策執行紀錄（稽核追蹤）</h3><p class="chint">每筆採購決策留存負責人、結果與預測命中，供財務部覆核</p><div style="overflow-x:auto"><table><thead><tr><th>日期</th><th>原物料</th><th>採購決策</th><th>負責人</th><th>執行</th><th>預測結果</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+    }
+
+    // ---------- helpers ----------
+    function kpi(ic,lab,val,unit,d,dir){
+      var dd=dir==="flat"?'<span class="delta flat">持平</span>':dir==="up"?'<span class="delta up"><span class="material-symbols-outlined">north_east</span>'+d+'%</span>':'<span class="delta down"><span class="material-symbols-outlined">south_east</span>'+d+'%</span>';
+      return '<div class="card kpi"><div class="klab"><span class="material-symbols-outlined">'+ic+'</span>'+lab+'</div><div class="kval">'+val+(unit?'<small>'+unit+'</small>':'')+'</div>'+dd+'</div>';
+    }
+    function tl(t,m,d){return '<div class="tl-item"><div class="tlt">'+t+'</div><div class="tmeta">'+m+'</div><div class="tdesc">'+d+'</div></div>';}
+    function qc(t,d,pct,cl){return '<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:13px">'+t+'</b><span class="tag '+cl+'">'+pct+'%</span></div><div class="bar-wrap"><div class="bar-in" style="width:'+pct+'%"></div></div><p style="margin:5px 0 0;font-size:11.5px;color:var(--muted)">'+d+'</p></div>';}
+    function step(n,t,d){return '<div class="step"><div class="sn">STEP '+n+'</div><b>'+t+'</b><span>'+d+'</span></div>';}
+
+    // ---------- chart initializers per screen ----------
+    function charts0(){
+      mk("c0a",{chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"donut",height:270},labels:["LME","上期所","大商所","ICE","SICOM"],series:[16,10,8,4,4],colors:[A,B,"#0891b2","#d97706","#94a3b8"],dataLabels:{enabled:true},legend:{position:"bottom"},stroke:{width:2},plotOptions:{pie:{donut:{size:"62%",labels:{show:true,total:{show:true,label:"品項",fontSize:"13px"}}}}}});
+    }
+    function charts1(){
+      var mo=["9月","10月","11月","12月","1月","2月","3月","4月","5月","6月","7月","8月"];
+      var px=[8420,8510,8380,8620,8790,8710,8930,9080,9010,9260,9350,9428];
+      var ma30=[8300,8420,8470,8500,8560,8650,8710,8800,8900,8990,9120,9182];
+      var ma90=[8250,8300,8350,8400,8450,8520,8580,8650,8720,8810,8920,9010];
+      mk("c1a",{chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"line",height:320},series:[{name:"現貨價",data:px},{name:"MA30",data:ma30},{name:"MA90",data:ma90}],colors:[A,B,"#94a3b8"],xaxis:{categories:mo,labels:{style:{fontSize:"11px"}}},yaxis:{labels:{formatter:function(v){return (v/1000).toFixed(1)+"k";}}},stroke:{width:[3,2,2],curve:"smooth",dashArray:[0,0,4]},grid:{borderColor:"#eef2f6"},legend:{position:"top"},dataLabels:{enabled:false},tooltip:{shared:true,intersect:false}});
+      mk("c1b",{chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"bar",height:300},series:[{name:"月變動率 %",data:[2.4,-0.6,3.8,0.4,-1.2,3.1]}],colors:[B],xaxis:{categories:["銅","鋁","鋼卷","PP","橡膠","錫"]},plotOptions:{bar:{distributed:false,borderRadius:5,columnWidth:"52%",colors:{ranges:[{from:-100,to:0,color:DN},{from:0,to:100,color:UP}]}}},dataLabels:{enabled:true,formatter:function(v){return v+"%";},style:{fontSize:"10px"}},grid:{borderColor:"#eef2f6"},legend:{show:false}});
+      mk("c1c",{chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"radar",height:300},series:[{name:"年化波動率 %",data:[24.6,18.2,29.4,15.1,26.8,31.2]}],colors:[A],xaxis:{categories:["銅","鋁","鋼卷","PP","橡膠","錫"]},stroke:{width:2},fill:{opacity:.25},markers:{size:3},dataLabels:{enabled:false},yaxis:{show:false}});
+    }
+    function charts2(){
+      var dd=["8/6","8/7","8/8","8/9","8/10","8/11","8/12"];
+      mk("c2a",{chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"bar",height:320,stacked:true},series:[{name:"高",data:[1,0,2,1,2,1,2]},{name:"中",data:[2,1,1,2,1,2,2]},{name:"低",data:[1,2,1,1,2,1,1]}],colors:[UP,WN,B],xaxis:{categories:dd},plotOptions:{bar:{columnWidth:"55%",borderRadius:3}},dataLabels:{enabled:false},grid:{borderColor:"#eef2f6"},legend:{position:"top"},tooltip:{shared:true,intersect:false}});
+    }
+    function charts3(){
+      mk("c3a",{chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"pie",height:230},series:[38,27,18,17],labels:["鋼","鋁","銅","其他"],colors:[A,B,"#0891b2","#94a3b8"],stroke:{width:2},legend:{show:false},dataLabels:{enabled:true,formatter:function(v){return v.toFixed(0)+"%";}}});
+      var sc=["-10%","-5%","基準","+5%","+10%"];
+      mk("c3b",{chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"line",height:320},series:[{name:"CB-200",data:[27.4,24.8,22.1,19.3,16.4]},{name:"MT-55",data:[33.1,30.8,28.4,25.9,23.3]},{name:"WH-08",data:[25.2,22.5,19.6,16.6,13.4]}],colors:[A,B,WN],xaxis:{categories:sc},yaxis:{labels:{formatter:function(v){return v+"%";}}},stroke:{width:3,curve:"straight"},markers:{size:4},grid:{borderColor:"#eef2f6"},legend:{position:"top"},dataLabels:{enabled:false},tooltip:{shared:true,intersect:false}});
+    }
+    function charts4(){
+      var wk=["現在","+1週","+2週","+3週","+4週","+5週","+6週","+7週","+8週"];
+      mk("c4a",{chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"line",height:330},series:[
+        {name:"上緣 (80%)",data:[9428,9520,9610,9560,9480,9420,9500,9580,9660]},
+        {name:"預測中位",data:[9428,9380,9300,9260,9210,9260,9340,9420,9500]},
+        {name:"下緣 (80%)",data:[9428,9240,9080,8960,8940,9100,9180,9260,9340]}
+      ],colors:[B,A,B],xaxis:{categories:wk,labels:{style:{fontSize:"11px"}}},yaxis:{labels:{formatter:function(v){return (v/1000).toFixed(1)+"k";}}},stroke:{width:[1,3,1],curve:"smooth",dashArray:[5,0,5]},fill:{type:["solid","solid","solid"]},markers:{size:0},grid:{borderColor:"#eef2f6"},legend:{position:"top"},dataLabels:{enabled:false},annotations:{xaxis:[{x:"+2週",borderColor:DN,label:{text:"建議採購窗口",style:{background:DN,color:"#fff",fontSize:"10px"}}}]},tooltip:{shared:true,intersect:false}});
+    }
+    function charts5(){
+      var mo=["3月","4月","5月","6月","7月","8月"];
+      mk("c5a",{chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"line",height:320},series:[{name:"預測準確度 %",data:[74,76,79,80,81,82.5]},{name:"成本波動率 %",data:[9.2,8.6,7.8,7.1,6.6,6.1]}],colors:[A,UP],xaxis:{categories:mo},yaxis:[{labels:{formatter:function(v){return v+"%";}}},{opposite:true,labels:{formatter:function(v){return v+"%";}}}],stroke:{width:3,curve:"smooth"},markers:{size:4},grid:{borderColor:"#eef2f6"},legend:{position:"top"},dataLabels:{enabled:false},tooltip:{shared:true,intersect:false}});
+      mk("c5b",{chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"donut",height:300},series:[3,1,1],labels:["採納且命中","採納偏差","未採納"],colors:[DN,WN,"#94a3b8"],stroke:{width:2},legend:{position:"bottom"},dataLabels:{enabled:true,formatter:function(v){return v.toFixed(0)+"%";}},plotOptions:{pie:{donut:{size:"62%"}}}});
+    }
+
+    var SCREENS=[
+      {r:s0,c:charts0},
+      {r:s1,c:charts1},
+      {r:s2,c:charts2},
+      {r:s3,c:charts3},
+      {r:s4,c:charts4},
+      {r:s5,c:charts5}
+    ];
+
+    function buildNav(){
+      var nav=document.getElementById("nav");var h="";
+      for(var i=0;i<MODS.length;i++){h+='<button class="navbtn" data-i="'+i+'"><span class="material-symbols-outlined">'+MODS[i].icon+'</span><span class="nlab">'+MODS[i].name+'</span><span class="nidx">0'+(i+1)+'</span></button>';}
+      nav.innerHTML=h;
+      var btns=nav.querySelectorAll("[data-i]");
+      for(var j=0;j<btns.length;j++){(function(b){b.addEventListener("click",function(){location.hash="go="+b.getAttribute("data-i");});})(btns[j]);}
+    }
+
+    function show(i){
+      destroyCharts();
+      var m=MODS[i];
+      document.getElementById("scr-title").textContent=m.name;
+      document.getElementById("scr-sub").textContent=m.sub;
+      document.getElementById("scr-pill").textContent=m.pill;
+      var btns=document.querySelectorAll("[data-i]");
+      for(var k=0;k<btns.length;k++){btns[k].classList.toggle("on",+btns[k].getAttribute("data-i")===i);}
+      var cont=document.getElementById("screen");
+      cont.innerHTML=SCREENS[i].r();
+      void cont.offsetHeight;
+      SCREENS[i].c();
+    }
+
+    buildNav();
+    window.show=show;
+
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+    window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>

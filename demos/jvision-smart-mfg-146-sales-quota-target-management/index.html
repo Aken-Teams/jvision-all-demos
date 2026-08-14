@@ -3,16 +3,568 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>業務目標配額管理 Sales Quota & Target Management｜Jvision 系統 Demo</title>
-  <meta name="description" content="從名單到成交的完整客戶生命週期管理" />
+  <title>業務目標配額管理 Sales Quota &amp; Target Management｜Jvision 系統 Demo</title>
+  <meta name="description" content="年度目標制定、配額分攤看板、達成追蹤、調整審核與年終結算的單一平台" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --accent:#15803d; --accent2:#4ade80; --accent-soft:#dcfce7;
+      --ink:#0f2417; --ink2:#4b5c52; --muted:#7a8a80;
+      --bg:#f2f6f3; --card:#ffffff; --line:#e2ebe4;
+      --warn:#c2410c; --warn-bg:#ffedd5; --danger:#b91c1c; --danger-bg:#fee2e2;
+      --ok:#15803d; --ok-bg:#dcfce7; --blue:#1d4ed8; --blue-bg:#dbeafe;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;}
+    body{
+      font-family:"Inter","Noto Sans TC",system-ui,sans-serif;
+      background:var(--bg); color:var(--ink);
+      -webkit-font-smoothing:antialiased; line-height:1.6;
+    }
+    .msym{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+    .topbar{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,#ffffff,#f7fbf8);border-bottom:1px solid var(--line);}
+    .topbar-inner{max-width:1360px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+    .brand{display:flex;align-items:center;gap:10px;min-width:0;}
+    .brand-logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;flex:none;box-shadow:0 4px 12px rgba(21,128,61,.28);}
+    .brand-logo .msym{font-size:22px;}
+    .brand-txt{min-width:0;}
+    .brand-txt b{display:block;font-size:15px;font-weight:800;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .brand-txt span{display:block;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .topnav{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;min-width:0;}
+    .navbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;color:var(--ink2);padding:7px 12px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;transition:.15s;}
+    .navbtn .msym{font-size:18px;}
+    .navbtn:hover{border-color:var(--accent2);color:var(--accent);}
+    .navbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 12px rgba(21,128,61,.25);}
+    .wrap{max-width:1360px;margin:0 auto;padding:22px 20px 60px;}
+    .screen-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:20px;flex-wrap:wrap;}
+    .screen-head .ic{width:44px;height:44px;border-radius:13px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none;}
+    .screen-head .ic .msym{font-size:26px;}
+    .screen-head h1{font-size:21px;margin:0;font-weight:800;}
+    .screen-head p{margin:2px 0 0;color:var(--ink2);font-size:13px;}
+    .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;}
+    .chip .msym{font-size:15px;}
+    .chip.ok{background:var(--ok-bg);color:var(--ok);}
+    .chip.warn{background:var(--warn-bg);color:var(--warn);}
+    .chip.danger{background:var(--danger-bg);color:var(--danger);}
+    .chip.blue{background:var(--blue-bg);color:var(--blue);}
+    .chip.grey{background:#eef2ef;color:var(--ink2);}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;min-width:0;}
+    .card h3{margin:0 0 12px;font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;}
+    .card h3 .msym{font-size:19px;color:var(--accent);}
+    .sub{color:var(--muted);font-size:12px;font-weight:600;}
+    .g2,.g3,.g4{display:grid;gap:16px;}
+    .g2{grid-template-columns:repeat(2,1fr);}
+    .g3{grid-template-columns:repeat(3,1fr);}
+    .g4{grid-template-columns:repeat(4,1fr);}
+    .split{display:grid;gap:16px;grid-template-columns:1.55fr 1fr;}
+    .split-r{display:grid;gap:16px;grid-template-columns:1fr 1.4fr;}
+    @media(max-width:820px){
+      .g2,.g3,.g4,.split,.split-r{grid-template-columns:1fr;}
+    }
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0;position:relative;overflow:hidden;}
+    .kpi .lbl{font-size:12px;color:var(--muted);font-weight:700;display:flex;align-items:center;gap:6px;}
+    .kpi .lbl .msym{font-size:17px;color:var(--accent);}
+    .kpi .val{font-size:27px;font-weight:900;margin-top:6px;letter-spacing:-.5px;}
+    .kpi .val small{font-size:13px;font-weight:700;color:var(--muted);margin-left:3px;}
+    .kpi .foot{font-size:12px;margin-top:6px;font-weight:600;}
+    .up{color:var(--ok);} .down{color:var(--danger);}
+    .kpi .bar{position:absolute;left:0;bottom:0;height:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+    table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px;}
+    th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+    th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:800;background:#fafcfb;}
+    tbody tr:hover{background:#f6fbf7;}
+    td.num{font-variant-numeric:tabular-nums;font-weight:700;}
+    .scrollx{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px;border:1px solid var(--line);}
+    .scrollx table{min-width:600px;}
+    .scrollx th:first-child,.scrollx td:first-child{white-space:normal;}
+    .pb{height:8px;border-radius:999px;background:#eef2ef;overflow:hidden;min-width:80px;}
+    .pb>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+    .pb.warn>i{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
+    .pb.danger>i{background:linear-gradient(90deg,#dc2626,#f87171);}
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+    @media(max-width:980px){.board{grid-template-columns:repeat(2,1fr);}}
+    @media(max-width:560px){.board{grid-template-columns:1fr;}}
+    .col{background:#f7faf8;border:1px solid var(--line);border-radius:14px;padding:12px;min-width:0;}
+    .col-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-weight:800;font-size:13px;}
+    .col-h .cnt{font-size:11px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 8px;color:var(--ink2);}
+    .kcard{background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:10px;border-left:4px solid var(--accent2);}
+    .kcard:last-child{margin-bottom:0;}
+    .kcard .kt{font-weight:800;font-size:13px;display:flex;justify-content:space-between;gap:8px;align-items:center;}
+    .kcard .km{font-size:11px;color:var(--muted);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;}
+    .kcard .kq{font-size:12px;margin-top:8px;font-weight:700;}
+    .kcard.hot{border-left-color:var(--danger);}
+    .kcard.warn{border-left-color:#f59e0b;}
+    .av{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+    .tl{position:relative;padding-left:26px;}
+    .tl::before{content:"";position:absolute;left:9px;top:4px;bottom:4px;width:2px;background:var(--line);}
+    .tl-item{position:relative;padding:0 0 16px;}
+    .tl-item:last-child{padding-bottom:0;}
+    .tl-item .dot{position:absolute;left:-22px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid var(--accent);}
+    .tl-item.done .dot{background:var(--accent);}
+    .tl-item .tt{font-weight:800;font-size:13px;}
+    .tl-item .td{font-size:12px;color:var(--ink2);}
+    .tl-item .tm{font-size:11px;color:var(--muted);}
+    .chartbox{position:relative;width:100%;overflow:hidden;}
+    .row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);min-width:0;}
+    .row:last-child{border-bottom:none;}
+    .row .grow{flex:1;min-width:0;}
+    .row .t{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .row .s{font-size:12px;color:var(--muted);}
+    .seg{display:inline-flex;background:#eef2ef;border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap;}
+    .seg span{padding:5px 11px;border-radius:8px;font-size:12px;font-weight:700;color:var(--ink2);}
+    .seg span.on{background:#fff;color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+    .flexbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+    .btn{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;}
+    .btn .msym{font-size:17px;}
+    .btn.ghost{background:#fff;color:var(--ink2);border:1px solid var(--line);}
+    .stat-line{display:flex;gap:18px;flex-wrap:wrap;}
+    .stat-line .s{min-width:0;}
+    .stat-line .s b{display:block;font-size:20px;font-weight:900;}
+    .stat-line .s span{font-size:11px;color:var(--muted);font-weight:700;}
+    .donut-cap{display:flex;flex-direction:column;gap:8px;}
+    .lg{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;}
+    .lg .sw{width:11px;height:11px;border-radius:3px;flex:none;}
+    .note{background:var(--accent-soft);border:1px solid #bbf7d0;border-radius:12px;padding:12px 14px;font-size:12.5px;color:#14532d;display:flex;gap:10px;align-items:flex-start;}
+    .note .msym{color:var(--accent);font-size:20px;flex:none;}
+    .mt16{margin-top:16px;} .mt12{margin-top:12px;}
+    .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:#eef2ef;color:var(--ink2);}
+    .hbar{display:flex;flex-direction:column;gap:12px;}
+    .hbar .hrow{display:grid;grid-template-columns:96px 1fr 54px;gap:10px;align-items:center;min-width:0;}
+    @media(max-width:560px){.hbar .hrow{grid-template-columns:80px 1fr 46px;}}
+    .hbar .hn{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .hbar .hv{font-size:12px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;}
+    @media(max-width:560px){
+      .navtxt{display:none;}
+      .navbtn{padding:8px;}
+      .navbtn .msym{font-size:20px;}
+    }
+    .footer{max-width:1360px;margin:0 auto;padding:0 20px 30px;color:var(--muted);font-size:12px;}
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-logo"><span class="msym">trending_up</span></div>
+        <div class="brand-txt">
+          <b>業務目標配額管理</b>
+          <span>Sales Quota &amp; Target Management</span>
+        </div>
+      </div>
+      <nav class="topnav" id="nav"></nav>
+    </div>
+  </header>
+  <main class="wrap"><div id="screen"></div></main>
+  <div class="footer">Jvision Demo · 純前端展示 · 假資料僅供介面示意</div>
+
+  <script>
+  (function(){
+    "use strict";
+    var accent="#15803d", accent2="#4ade80";
+    var NAV=[
+      {i:0,ic:"trending_up",t:"年度目標制定"},
+      {i:1,ic:"account_tree",t:"配額分攤看板"},
+      {i:2,ic:"monitoring",t:"達成進度追蹤"},
+      {i:3,ic:"gavel",t:"配額調整審核"},
+      {i:4,ic:"insights",t:"業績預測分析"},
+      {i:5,ic:"receipt_long",t:"年終績效結算"}
+    ];
+    var charts=[];
+
+    function el(id){return document.getElementById(id);}
+    function destroyCharts(){for(var k=0;k<charts.length;k++){try{charts[k].destroy();}catch(e){}}charts=[];}
+
+    function head(ic,title,desc,chips){
+      var c="";
+      if(chips){for(var i=0;i<chips.length;i++){c+='<span class="chip '+chips[i].c+'"><span class="msym">'+chips[i].ic+'</span>'+chips[i].t+'</span>';}}
+      return '<div class="screen-head"><div class="ic"><span class="msym">'+ic+'</span></div>'+
+        '<div style="min-width:0"><h1>'+title+'</h1><p>'+desc+'</p></div>'+
+        '<div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">'+c+'</div></div>';
+    }
+    function pb(v,cls){cls=cls||"";return '<div class="pb '+cls+'"><i style="width:'+Math.max(2,Math.min(100,v))+'%"></i></div>';}
+    function kpi(lbl,ic,val,unit,foot,footcls){
+      return '<div class="kpi"><div class="lbl"><span class="msym">'+ic+'</span>'+lbl+'</div>'+
+        '<div class="val">'+val+(unit?'<small>'+unit+'</small>':'')+'</div>'+
+        (foot?'<div class="foot '+(footcls||'')+'">'+foot+'</div>':'')+
+        '<div class="bar" style="width:100%"></div></div>';
+    }
+
+    /* ===================== SCREEN 0 : 年度目標制定 ===================== */
+    function s0(c){
+      c.innerHTML=head("trending_up","年度目標制定","依歷史業績與市場成長率設定 2026 年度營收目標基準",
+        [{c:"grey",ic:"calendar_month",t:"FY2026"},{c:"ok",ic:"verified",t:"已核定"}])+
+        '<div class="g4">'+
+          kpi("年度營收目標","flag","4.80","億元","較 FY2025 +12.5%","up")+
+          kpi("市場成長率基準","query_stats","6.8","%","產業預估中位","")+
+          kpi("既有客戶續約","autorenew","2.65","億元","佔目標 55.2%","")+
+          kpi("新客開發目標","person_add","2.15","億元","佔目標 44.8%","")+
+        '</div>'+
+        '<div class="split mt16">'+
+          '<div class="card"><h3><span class="msym">bar_chart</span>五年營收與目標趨勢</h3>'+
+            '<div class="chartbox" style="height:300px"><canvas id="c0a"></canvas></div>'+
+            '<div class="note mt12"><span class="msym">lightbulb</span>目標線採「三年複合成長率 9.2% + 市場成長率權重 6.8%」計算，避免主觀拍板。</div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="msym">tune</span>目標組成權重</h3>'+
+            '<div class="chartbox" style="height:210px"><canvas id="c0b"></canvas></div>'+
+            '<div class="donut-cap mt12">'+
+              '<div class="lg"><span class="sw" style="background:'+accent+'"></span>既有客戶續約 · 2.65 億</div>'+
+              '<div class="lg"><span class="sw" style="background:'+accent2+'"></span>新客開發 · 2.15 億</div>'+
+              '<div class="lg"><span class="sw" style="background:#a7f3d0"></span>交叉銷售增購 · 0.62 億</div>'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="card mt16"><h3><span class="msym">table_chart</span>各事業處目標基準拆解</h3>'+
+          '<div class="scrollx"><table><thead><tr><th>事業處</th><th>FY2025 實績</th><th>市場成長率</th><th>策略權重</th><th>FY2026 目標</th><th>年增率</th></tr></thead><tbody>'+
+          bizRows()+
+          '</tbody></table></div>'+
+        '</div>';
+      void c.offsetHeight;
+      var line=new Chart(el("c0a"),{type:"bar",data:{
+        labels:["FY2022","FY2023","FY2024","FY2025","FY2026(目標)"],
+        datasets:[
+          {label:"實績營收(億)",data:[3.12,3.48,3.86,4.27,null],backgroundColor:accent,borderRadius:6,maxBarThickness:46},
+          {type:"line",label:"目標(億)",data:[3.10,3.45,3.90,4.30,4.80],borderColor:"#065f46",backgroundColor:"transparent",borderWidth:2,tension:.3,pointRadius:4,pointBackgroundColor:"#065f46"}
+        ]},options:baseOpts({yUnit:"億"})});
+      charts.push(line);
+      var d=new Chart(el("c0b"),{type:"doughnut",data:{
+        labels:["既有客戶續約","新客開發","交叉銷售增購"],
+        datasets:[{data:[2.65,2.15,0.62],backgroundColor:[accent,accent2,"#a7f3d0"],borderWidth:2,borderColor:"#fff"}]},
+        options:{maintainAspectRatio:false,responsive:true,cutout:"62%",plugins:{legend:{display:false}}}});
+      charts.push(d);
+    }
+    function bizRows(){
+      var r=[
+        ["北區事業處","1.42","6.5%","1.08","1.62","+14.1%"],
+        ["中區事業處","0.98","7.2%","1.02","1.12","+14.3%"],
+        ["南區事業處","0.86","6.0%","0.98","0.94","+9.3%"],
+        ["海外事業處","0.61","9.1%","1.15","0.78","+27.9%"],
+        ["策略客戶處","0.40","5.5%","0.90","0.34","-15.0%"]
+      ],o="";
+      for(var i=0;i<r.length;i++){var neg=r[i][5].indexOf("-")===0;
+        o+='<tr><td>'+r[i][0]+'</td><td class="num">'+r[i][1]+' 億</td><td class="num">'+r[i][2]+'</td><td class="num">×'+r[i][3]+'</td><td class="num">'+r[i][4]+' 億</td>'+
+          '<td><span class="chip '+(neg?"danger":"ok")+'">'+r[i][5]+'</span></td></tr>';}
+      return o;
+    }
+
+    /* ===================== SCREEN 1 : 配額分攤看板 (signature kanban) ===================== */
+    function s1(c){
+      c.innerHTML=head("account_tree","配額分攤看板","將 4.80 億年度目標拖曳分攤至區域、產品線與各業務個人",
+        [{c:"ok",ic:"check_circle",t:"已分攤 92%"},{c:"warn",ic:"pending",t:"待確認 0.38 億"}])+
+        '<div class="flexbar">'+
+          '<div class="seg"><span class="on">依團隊</span><span>依產品線</span><span>依區域</span></div>'+
+          '<div class="stat-line"><div class="s"><b>4.80億</b><span>總配額</span></div><div class="s"><b>4.42億</b><span>已分攤</span></div><div class="s"><b>0.38億</b><span>未分攤</span></div></div>'+
+        '</div>'+
+        '<div class="board">'+
+          kol("北區團隊","1.62","hot",[
+            {n:"陳建宏",r:"資深業務",q:"0.52 億",t:"HOT",cls:"hot",m:["重點客戶 8","續約 3"]},
+            {n:"林雅婷",r:"業務專員",q:"0.44 億",t:"",cls:"",m:["新客 6"]},
+            {n:"王志明",r:"業務專員",q:"0.38 億",t:"",cls:"",m:["交叉銷售 4"]},
+            {n:"待分攤",r:"缺口",q:"0.28 億",t:"待補",cls:"warn",m:["需指派"]}
+          ])+
+          kol("中區團隊","1.12","",[
+            {n:"張淑芬",r:"團隊長",q:"0.46 億",t:"",cls:"",m:["重點客戶 5"]},
+            {n:"李國榮",r:"業務專員",q:"0.36 億",t:"",cls:"",m:["新客 5"]},
+            {n:"吳佩珊",r:"業務專員",q:"0.30 億",t:"",cls:"",m:["續約 2"]}
+          ])+
+          kol("南區團隊","0.94","warn",[
+            {n:"黃俊傑",r:"團隊長",q:"0.40 億",t:"",cls:"",m:["重點客戶 4"]},
+            {n:"周庭瑋",r:"業務專員",q:"0.34 億",t:"",cls:"",m:["新客 4"]},
+            {n:"待分攤",r:"缺口",q:"0.20 億",t:"待補",cls:"warn",m:["需指派"]}
+          ])+
+          kol("海外／策略","1.12","",[
+            {n:"Kevin",r:"海外主任",q:"0.48 億",t:"HOT",cls:"hot",m:["東南亞 3"]},
+            {n:"Amy",r:"策略客戶",q:"0.42 億",t:"",cls:"",m:["大型專案 2"]},
+            {n:"待分攤",r:"缺口",q:"0.22 億",t:"待補",cls:"warn",m:["需指派"]}
+          ])+
+        '</div>'+
+        '<div class="split-r mt16">'+
+          '<div class="card"><h3><span class="msym">balance</span>分攤合理性檢核</h3>'+
+            '<div class="row"><span class="chip ok"><span class="msym">check</span>OK</span><div class="grow"><div class="t">人均負荷差異</div><div class="s">最高/最低 = 1.37 倍，於 1.5 倍門檻內</div></div></div>'+
+            '<div class="row"><span class="chip warn"><span class="msym">priority_high</span>注意</span><div class="grow"><div class="t">南區缺口</div><div class="s">0.20 億尚未指派，建議自海外調撥</div></div></div>'+
+            '<div class="row"><span class="chip ok"><span class="msym">check</span>OK</span><div class="grow"><div class="t">產品線覆蓋</div><div class="s">四大產品線皆有負責業務</div></div></div>'+
+            '<div class="row"><span class="chip danger"><span class="msym">error</span>過載</span><div class="grow"><div class="t">陳建宏配額</div><div class="s">0.52 億高於團隊均值 26%，留意離職風險</div></div></div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="msym">stacked_bar_chart</span>各團隊配額 vs 上年實績</h3>'+
+            '<div class="chartbox" style="height:290px"><canvas id="c1a"></canvas></div>'+
+          '</div>'+
+        '</div>';
+      void c.offsetHeight;
+      var ch=new Chart(el("c1a"),{type:"bar",data:{
+        labels:["北區","中區","南區","海外","策略"],
+        datasets:[
+          {label:"FY2026 配額(億)",data:[1.62,1.12,0.94,0.60,0.52],backgroundColor:accent,borderRadius:5,maxBarThickness:30},
+          {label:"FY2025 實績(億)",data:[1.42,0.98,0.86,0.36,0.25],backgroundColor:"#bbf7d0",borderRadius:5,maxBarThickness:30}
+        ]},options:baseOpts({yUnit:"億"})});
+      charts.push(ch);
+    }
+    function kol(title,total,flag,cards){
+      var chip=flag==="hot"?'<span class="cnt" style="color:#b91c1c">滿載</span>':flag==="warn"?'<span class="cnt" style="color:#c2410c">缺口</span>':'<span class="cnt">'+cards.length+'</span>';
+      var o='<div class="col"><div class="col-h"><span>'+title+' · '+total+'億</span>'+chip+'</div>';
+      for(var i=0;i<cards.length;i++){var k=cards[i];
+        var badgeStyle=k.cls==="hot"?"#fee2e2;color:#b91c1c":k.cls==="warn"?"#ffedd5;color:#c2410c":"#dcfce7;color:#15803d";
+        var badge=k.t?'<span class="tag" style="background:'+badgeStyle+'">'+k.t+'</span>':'';
+        var mm="";for(var j=0;j<k.m.length;j++){mm+='<span>'+k.m[j]+'</span>';}
+        o+='<div class="kcard '+(k.cls||"")+'"><div class="kt"><span style="display:flex;align-items:center;gap:7px;min-width:0"><span class="av">'+k.n.charAt(0)+'</span>'+k.n+'</span>'+badge+'</div>'+
+          '<div class="km"><span>'+k.r+'</span>'+mm+'</div><div class="kq">配額 '+k.q+'</div></div>';
+      }
+      return o+'</div>';
+    }
+
+    /* ===================== SCREEN 2 : 達成進度追蹤 ===================== */
+    function s2(c){
+      c.innerHTML=head("monitoring","達成進度追蹤","即時追蹤各團隊與業務配額達成率，標示落後缺口供介入",
+        [{c:"blue",ic:"schedule",t:"Q3 進行中"},{c:"ok",ic:"trending_up",t:"整體 71.4%"}])+
+        '<div class="g4">'+
+          kpi("整體達成率","donut_large","71.4","%","YTD 應達 66.7%","up")+
+          kpi("已實現營收","payments","3.43","億元","距目標 1.37 億","")+
+          kpi("達標團隊","groups","3","/5","南區、策略落後","down")+
+          kpi("預估季末缺口","running_with_errors","-0.21","億元","需加速回收","down")+
+        '</div>'+
+        '<div class="split mt16">'+
+          '<div class="card"><h3><span class="msym">show_chart</span>累計達成 vs 進度基準</h3>'+
+            '<div class="chartbox" style="height:300px"><canvas id="c2a"></canvas></div></div>'+
+          '<div class="card"><h3><span class="msym">leaderboard</span>團隊達成率排名</h3>'+
+            '<div class="hbar mt12">'+hbars()+'</div></div>'+
+        '</div>'+
+        '<div class="card mt16"><h3><span class="msym">groups_2</span>業務個人配額達成明細</h3>'+
+          '<div class="scrollx"><table><thead><tr><th>業務</th><th>團隊</th><th>個人配額</th><th>已達成</th><th>達成率</th><th>進度</th><th>狀態</th></tr></thead><tbody>'+
+          repRows()+
+          '</tbody></table></div></div>';
+      void c.offsetHeight;
+      var lbl=["1月","2月","3月","4月","5月","6月","7月","8月"];
+      var ch=new Chart(el("c2a"),{type:"line",data:{labels:lbl,
+        datasets:[
+          {label:"累計達成率 %",data:[9,19,29,38,47,58,66,71.4],borderColor:accent,backgroundColor:"rgba(21,128,61,.12)",fill:true,tension:.35,pointRadius:3,borderWidth:2.5},
+          {label:"進度基準 %",data:[8.3,16.7,25,33.3,41.7,50,58.3,66.7],borderColor:"#94a3b8",borderDash:[6,5],backgroundColor:"transparent",tension:.2,pointRadius:0,borderWidth:2}
+        ]},options:baseOpts({yUnit:"%",max:100})});
+      charts.push(ch);
+    }
+    function hbars(){
+      var r=[["策略客戶處",58,"danger"],["南區團隊",63,"warn"],["中區團隊",72,""],["北區團隊",78,""],["海外事業處",86,""]];
+      r.sort(function(a,b){return b[1]-a[1];});
+      var o="";for(var i=0;i<r.length;i++){o+='<div class="hrow"><span class="hn">'+r[i][0]+'</span>'+pb(r[i][1],r[i][2])+'<span class="hv">'+r[i][1]+'%</span></div>';}
+      return o;
+    }
+    function repRows(){
+      var r=[
+        ["陳建宏","北區","0.52 億","0.43 億",83,""],
+        ["林雅婷","北區","0.44 億","0.33 億",75,""],
+        ["張淑芬","中區","0.46 億","0.34 億",74,""],
+        ["Kevin Lin","海外","0.48 億","0.42 億",88,""],
+        ["黃俊傑","南區","0.40 億","0.24 億",60,"warn"],
+        ["Amy Chen","策略","0.42 億","0.23 億",55,"danger"],
+        ["吳佩珊","中區","0.30 億","0.25 億",83,""]
+      ],o="";
+      for(var i=0;i<r.length;i++){var st=r[i][4]>=70?["ok","達標中","check_circle"]:r[i][4]>=60?["warn","需追趕","pending"]:["danger","落後","priority_high"];
+        o+='<tr><td>'+r[i][0]+'</td><td>'+r[i][1]+'</td><td class="num">'+r[i][2]+'</td><td class="num">'+r[i][3]+'</td>'+
+          '<td class="num">'+r[i][4]+'%</td><td style="min-width:120px">'+pb(r[i][4],r[i][5])+'</td>'+
+          '<td><span class="chip '+st[0]+'"><span class="msym">'+st[2]+'</span>'+st[1]+'</span></td></tr>';}
+      return o;
+    }
+
+    /* ===================== SCREEN 3 : 配額調整審核 ===================== */
+    function s3(c){
+      c.innerHTML=head("gavel","配額調整審核","配額異動申請、連動影響試算與主管簽核",
+        [{c:"warn",ic:"hourglass_top",t:"待審 3 件"},{c:"grey",ic:"history",t:"本季 11 件"}])+
+        '<div class="split-r">'+
+          '<div class="card"><h3><span class="msym">inbox</span>審核佇列</h3>'+
+            '<div class="mt12">'+adjRows()+'</div></div>'+
+          '<div class="card"><h3><span class="msym">calculate</span>調整影響試算 · REQ-2026-038</h3>'+
+            '<div class="note"><span class="msym">gavel</span>南區黃俊傑因客戶專案延後，申請下修配額 0.06 億並轉移至海外 Kevin Lin。</div>'+
+            '<div class="g2 mt16">'+
+              miniStat("原配額","0.40 億","")+miniStat("調整後","0.34 億","down")+
+              miniStat("團隊目標影響","0.00 億","")+miniStat("整體達成率","+0.4%","up")+
+            '</div>'+
+            '<div class="chartbox mt16" style="height:210px"><canvas id="c3a"></canvas></div>'+
+            '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">'+
+              '<button class="btn"><span class="msym">check</span>核准調整</button>'+
+              '<button class="btn ghost"><span class="msym">edit</span>退回補件</button>'+
+              '<button class="btn ghost"><span class="msym">forum</span>加註意見</button>'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="card mt16"><h3><span class="msym">rule</span>配額異動決策規則</h3>'+
+          '<div class="scrollx"><table><thead><tr><th>規則</th><th>條件</th><th>簽核層級</th><th>依據</th></tr></thead><tbody>'+
+          '<tr><td><span class="tag">RULE-01</span></td><td>下修幅度 ≤ 5%</td><td>團隊長</td><td>市場異動佐證</td></tr>'+
+          '<tr><td><span class="tag">RULE-02</span></td><td>調整金額 &gt; 100 萬</td><td>業務經理協審</td><td>影響範圍試算</td></tr>'+
+          '<tr><td><span class="tag">RULE-03</span></td><td>跨團隊配額轉移</td><td>業務主管核定</td><td>雙方同意紀錄</td></tr>'+
+          '<tr><td><span class="tag">RULE-04</span></td><td>總目標受影響 &gt; 0</td><td>需重新分攤</td><td>目標保護原則</td></tr>'+
+          '</tbody></table></div></div>';
+      void c.offsetHeight;
+      var ch=new Chart(el("c3a"),{type:"bar",data:{
+        labels:["黃俊傑","Kevin Lin","南區合計","海外合計"],
+        datasets:[
+          {label:"調整前(億)",data:[0.40,0.48,0.94,0.60],backgroundColor:"#bbf7d0",borderRadius:5,maxBarThickness:34},
+          {label:"調整後(億)",data:[0.34,0.54,0.88,0.66],backgroundColor:accent,borderRadius:5,maxBarThickness:34}
+        ]},options:baseOpts({yUnit:"億"})});
+      charts.push(ch);
+    }
+    function miniStat(l,v,cls){return '<div class="kpi"><div class="lbl">'+l+'</div><div class="val '+(cls||"")+'" style="font-size:22px">'+v+'</div></div>';}
+    function adjRows(){
+      var r=[
+        {id:"REQ-2026-038",who:"黃俊傑 · 南區",t:"下修配額 0.06 億",why:"客戶專案延後",st:"待審",cls:"warn"},
+        {id:"REQ-2026-037",who:"林雅婷 · 北區",t:"上修配額 0.03 億",why:"新增大型續約",st:"待審",cls:"warn"},
+        {id:"REQ-2026-036",who:"策略客戶處",t:"跨團隊轉移 0.05 億",why:"人力調整",st:"待審",cls:"warn"},
+        {id:"REQ-2026-035",who:"Kevin Lin · 海外",t:"上修配額 0.06 億",why:"接手南區客戶",st:"已核准",cls:"ok"},
+        {id:"REQ-2026-034",who:"吳佩珊 · 中區",t:"下修配額 0.02 億",why:"育嬰假",st:"已核准",cls:"ok"}
+      ],o="";
+      for(var i=0;i<r.length;i++){var k=r[i];
+        o+='<div class="row"><span class="chip '+k.cls+'"><span class="msym">'+(k.cls==="ok"?"task_alt":"pending")+'</span>'+k.st+'</span>'+
+          '<div class="grow"><div class="t">'+k.t+' · '+k.who+'</div><div class="s">'+k.id+' · '+k.why+'</div></div>'+
+          '<span class="msym" style="color:#94a3b8">chevron_right</span></div>';}
+      return o;
+    }
+
+    /* ===================== SCREEN 4 : 業績預測分析 ===================== */
+    function s4(c){
+      c.innerHTML=head("insights","業績預測分析","彙整銷售管線與趨勢，預測季末與年度達成率",
+        [{c:"blue",ic:"auto_graph",t:"預測模型"},{c:"ok",ic:"target",t:"年度信心 84%"}])+
+        '<div class="g4">'+
+          kpi("季末預測達成","target","96.2","%","距 100% 缺 0.21 億","down")+
+          kpi("年度預測達成","flag","101.3","%","可超標 0.06 億","up")+
+          kpi("加權管線金額","filter_alt","2.18","億元","含成交機率權重","")+
+          kpi("預測信心指數","psychology","84","%","模型信賴區間","")+
+        '</div>'+
+        '<div class="split mt16">'+
+          '<div class="card"><h3><span class="msym">insights</span>年度達成率預測走勢</h3>'+
+            '<div class="chartbox" style="height:300px"><canvas id="c4a"></canvas></div>'+
+            '<div class="note mt12"><span class="msym">psychology</span>樂觀/保守情境區間依歷史管線轉化率 ±標準差推估，供主管情境決策。</div></div>'+
+          '<div class="card"><h3><span class="msym">filter_alt</span>銷售管線加權漏斗</h3>'+
+            '<div class="chartbox" style="height:230px"><canvas id="c4b"></canvas></div>'+
+            '<div class="stat-line mt12"><div class="s"><b>128</b><span>商機件數</span></div><div class="s"><b>3.42億</b><span>管線總額</span></div><div class="s"><b>2.18億</b><span>加權金額</span></div></div></div>'+
+        '</div>'+
+        '<div class="card mt16"><h3><span class="msym">query_stats</span>各團隊預測 vs 配額</h3>'+
+          '<div class="scrollx"><table><thead><tr><th>團隊</th><th>配額</th><th>加權管線</th><th>預測達成</th><th>達成率</th><th>風險</th></tr></thead><tbody>'+
+          fcRows()+'</tbody></table></div></div>';
+      void c.offsetHeight;
+      var lbl=["Q1","Q2","Q3","Q4"];
+      var ch=new Chart(el("c4a"),{type:"line",data:{labels:lbl,
+        datasets:[
+          {label:"預測達成率 %",data:[92,95,96.2,101.3],borderColor:accent,backgroundColor:"rgba(21,128,61,.12)",fill:true,tension:.35,borderWidth:2.5,pointRadius:4},
+          {label:"樂觀情境",data:[95,99,102,107],borderColor:accent2,borderDash:[5,4],backgroundColor:"transparent",tension:.3,pointRadius:0,borderWidth:2},
+          {label:"保守情境",data:[88,90,91,95],borderColor:"#f59e0b",borderDash:[5,4],backgroundColor:"transparent",tension:.3,pointRadius:0,borderWidth:2}
+        ]},options:baseOpts({yUnit:"%"})});
+      charts.push(ch);
+      var f=new Chart(el("c4b"),{type:"bar",data:{
+        labels:["接觸","需求確認","方案評估","報價議合","即將成交"],
+        datasets:[{label:"加權金額(億)",data:[0.42,0.55,0.48,0.41,0.32],backgroundColor:[accent2,"#34d399",accent,"#15803d","#065f46"],borderRadius:5}]},
+        options:{maintainAspectRatio:false,responsive:true,indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{grid:{color:"#eef2ef"}},y:{grid:{display:false}}}}});
+      charts.push(f);
+    }
+    function fcRows(){
+      var r=[
+        ["北區","1.62 億","0.86 億",101,""],
+        ["中區","1.12 億","0.58 億",98,""],
+        ["南區","0.94 億","0.41 億",92,"warn"],
+        ["海外","0.60 億","0.22 億",105,""],
+        ["策略","0.52 億","0.11 億",86,"danger"]
+      ],o="";
+      for(var i=0;i<r.length;i++){var rk=r[i][3]>=100?["ok","低","shield"]:r[i][3]>=95?["warn","中","warning"]:["danger","高","priority_high"];
+        o+='<tr><td>'+r[i][0]+'</td><td class="num">'+r[i][1]+'</td><td class="num">'+r[i][2]+'</td><td class="num">'+r[i][3]+'%</td>'+
+          '<td style="min-width:120px">'+pb(r[i][3],r[i][4])+'</td><td><span class="chip '+rk[0]+'"><span class="msym">'+rk[2]+'</span>'+rk[1]+'</span></td></tr>';}
+      return o;
+    }
+
+    /* ===================== SCREEN 5 : 年終績效結算 ===================== */
+    function s5(c){
+      c.innerHTML=head("receipt_long","年終績效結算","依最終配額達成率結算績效評等與獎金級距",
+        [{c:"ok",ic:"verified",t:"FY2025 已結算"},{c:"grey",ic:"payments",t:"獎金池 1,850 萬"}])+
+        '<div class="g4">'+
+          kpi("整體達成率","donut_large","103.5","%","超標 0.16 億","up")+
+          kpi("達標人數","emoji_events","18","/24","佔 75%","")+
+          kpi("獎金發放總額","payments","1,742","萬元","佔獎金池 94.2%","")+
+          kpi("平均績效評等","military_tech","A-","","中位偏優","")+
+        '</div>'+
+        '<div class="split-r mt16">'+
+          '<div class="card"><h3><span class="msym">pie_chart</span>績效評等分布</h3>'+
+            '<div class="chartbox" style="height:220px"><canvas id="c5a"></canvas></div>'+
+            '<div class="donut-cap mt12">'+
+              '<div class="lg"><span class="sw" style="background:#065f46"></span>S 級 (≥120%) · 3 人</div>'+
+              '<div class="lg"><span class="sw" style="background:'+accent+'"></span>A 級 (100-119%) · 9 人</div>'+
+              '<div class="lg"><span class="sw" style="background:'+accent2+'"></span>B 級 (80-99%) · 8 人</div>'+
+              '<div class="lg"><span class="sw" style="background:#fca5a5"></span>C 級 (&lt;80%) · 4 人</div>'+
+            '</div></div>'+
+          '<div class="card"><h3><span class="msym">military_tech</span>年終績效結算明細</h3>'+
+            '<div class="scrollx"><table><thead><tr><th>業務</th><th>配額</th><th>實績</th><th>達成率</th><th>評等</th><th>獎金(萬)</th></tr></thead><tbody>'+
+            settleRows()+'</tbody></table></div></div>'+
+        '</div>'+
+        '<div class="split mt16">'+
+          '<div class="card"><h3><span class="msym">bar_chart</span>獎金級距與達成率對應</h3>'+
+            '<div class="chartbox" style="height:250px"><canvas id="c5b"></canvas></div></div>'+
+          '<div class="card"><h3><span class="msym">timeline</span>結算作業里程碑</h3>'+
+            '<div class="tl mt12">'+
+              tl("配額最終確認","2025-12-31","各團隊配額凍結，鎖定結算基準",true)+
+              tl("實績資料勾稽","2026-01-08","與 Sales Dashboard、財務營收對帳",true)+
+              tl("達成率計算","2026-01-12","系統套用級距規則自動評等",true)+
+              tl("獎金試算簽核","2026-01-18","業務主管與人資部雙簽核定",true)+
+              tl("績效面談發放","2026-01-25","面談回饋並發放獎金",false)+
+            '</div></div>'+
+        '</div>';
+      void c.offsetHeight;
+      var d=new Chart(el("c5a"),{type:"doughnut",data:{labels:["S 級","A 級","B 級","C 級"],
+        datasets:[{data:[3,9,8,4],backgroundColor:["#065f46",accent,accent2,"#fca5a5"],borderWidth:2,borderColor:"#fff"}]},
+        options:{maintainAspectRatio:false,responsive:true,cutout:"60%",plugins:{legend:{display:false}}}});
+      charts.push(d);
+      var b=new Chart(el("c5b"),{type:"bar",data:{labels:["<80%","80-89%","90-99%","100-109%","110-119%","≥120%"],
+        datasets:[
+          {label:"人數",data:[4,3,5,6,3,3],backgroundColor:accent2,borderRadius:5,yAxisID:"y",maxBarThickness:38},
+          {type:"line",label:"獎金係數",data:[0,0.4,0.7,1.0,1.4,2.0],borderColor:"#065f46",backgroundColor:"transparent",tension:.3,borderWidth:2.5,pointRadius:4,yAxisID:"y1"}
+        ]},options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{family:"Inter"}}}},
+          scales:{y:{position:"left",beginAtZero:true,grid:{color:"#eef2ef"},title:{display:true,text:"人數"}},y1:{position:"right",beginAtZero:true,grid:{display:false},title:{display:true,text:"係數"}}}}});
+      charts.push(b);
+    }
+    function tl(t,d,desc,done){
+      return '<div class="tl-item '+(done?"done":"")+'"><div class="dot"></div><div class="tt">'+t+'</div><div class="tm">'+d+'</div><div class="td">'+desc+'</div></div>';
+    }
+    function settleRows(){
+      var r=[
+        ["Kevin Lin","0.45 億","0.58 億",129,"S",68],
+        ["陳建宏","0.50 億","0.56 億",112,"A",42],
+        ["張淑芬","0.44 億","0.47 億",107,"A",31],
+        ["林雅婷","0.42 億","0.42 億",100,"A",22],
+        ["黃俊傑","0.38 億","0.33 億",87,"B",9],
+        ["Amy Chen","0.40 億","0.29 億",73,"C",0]
+      ],o="";
+      for(var i=0;i<r.length;i++){var g=r[i][4],cls=g==="S"?"blue":g==="A"?"ok":g==="B"?"grey":"danger";
+        o+='<tr><td>'+r[i][0]+'</td><td class="num">'+r[i][1]+'</td><td class="num">'+r[i][2]+'</td><td class="num">'+r[i][3]+'%</td>'+
+          '<td><span class="chip '+cls+'">'+g+' 級</span></td><td class="num">'+r[i][5]+'</td></tr>';}
+      return o;
+    }
+
+    /* ===================== chart base options ===================== */
+    function baseOpts(o){o=o||{};
+      return {maintainAspectRatio:false,responsive:true,
+        plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{family:"Inter, Noto Sans TC"}}}},
+        scales:{
+          x:{grid:{display:false},ticks:{font:{family:"Inter"}}},
+          y:{beginAtZero:true,max:o.max,grid:{color:"#eef2ef"},ticks:{font:{family:"Inter"},callback:function(v){return v+(o.yUnit||"");}}}
+        }};
+    }
+
+    /* ===================== router ===================== */
+    var RENDER=[s0,s1,s2,s3,s4,s5];
+    function buildNav(){
+      var n=el("nav"),o="";
+      for(var i=0;i<NAV.length;i++){o+='<button class="navbtn" data-i="'+NAV[i].i+'"><span class="msym">'+NAV[i].ic+'</span><span class="navtxt">'+NAV[i].t+'</span></button>';}
+      n.innerHTML=o;
+      var btns=n.querySelectorAll("[data-i]");
+      for(var j=0;j<btns.length;j++){(function(b){b.addEventListener("click",function(){location.hash="go="+(+b.getAttribute("data-i"));});})(btns[j]);}
+    }
+    function show(i){
+      destroyCharts();
+      var btns=document.querySelectorAll("[data-i]");
+      for(var j=0;j<btns.length;j++){btns[j].classList.toggle("on",+btns[j].getAttribute("data-i")===i);}
+      var c=el("screen");
+      (RENDER[i]||s0)(c);
+    }
+    buildNav();
+
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+    window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>
