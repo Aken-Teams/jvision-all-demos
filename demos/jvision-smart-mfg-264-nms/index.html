@@ -4,15 +4,665 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>網路監控系統（NMS）｜Jvision 系統 Demo</title>
-  <meta name="description" content="服務工單、資產到即時監控的 IT 維運" />
+  <meta name="description" content="設備可用性與效能監控、頻寬流量分析、拓樸圖自動繪製、告警分級到可用率稽核的網路監控平台" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+  <style>
+    :root{
+      --accent:#a16207;
+      --accent2:#eab308;
+      --bg:#f6f5f1;
+      --panel:#ffffff;
+      --ink:#211d13;
+      --muted:#7a7263;
+      --line:#e8e4d9;
+      --nav:#2a2418;
+      --nav2:#3a3222;
+      --nav-ink:#d6cdb8;
+      --good:#15803d;
+      --bad:#dc2626;
+      --warn:#d97706;
+      --info:#0369a1;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden;}
+    body{
+      font-family:"Inter","Noto Sans TC",system-ui,-apple-system,sans-serif;
+      background:var(--bg);color:var(--ink);
+      -webkit-font-smoothing:antialiased;line-height:1.5;
+    }
+    .material-symbols-outlined{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+    /* top nav */
+    .topnav{
+      position:sticky;top:0;z-index:50;background:var(--nav);color:var(--nav-ink);
+      border-bottom:3px solid var(--accent);
+      display:flex;align-items:center;gap:14px;padding:10px 20px;flex-wrap:wrap;min-width:0;
+    }
+    .brand{display:flex;align-items:center;gap:11px;min-width:0;padding-right:6px;}
+    .brand .logo{
+      width:38px;height:38px;border-radius:10px;flex:0 0 38px;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:flex;align-items:center;justify-content:center;color:#fff;
+    }
+    .brand .logo .material-symbols-outlined{font-size:23px;}
+    .brand .bt{min-width:0;}
+    .brand .bt b{display:block;color:#fff;font-weight:800;font-size:15px;letter-spacing:.2px;white-space:nowrap;}
+    .brand .bt span{display:block;font-size:11px;color:#a89b7e;white-space:nowrap;}
+    .navwrap{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0;flex:1;}
+    .navbtn{
+      display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border:0;border-radius:9px;
+      background:transparent;color:var(--nav-ink);cursor:pointer;
+      font-family:inherit;font-size:13px;font-weight:600;min-width:0;transition:.15s;white-space:nowrap;
+    }
+    .navbtn .material-symbols-outlined{font-size:19px;}
+    .navbtn:hover{background:var(--nav2);color:#fff;}
+    .navbtn.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 4px 12px rgba(161,98,7,.4);}
+    .navlive{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;background:rgba(21,128,61,.16);color:#7ee6a5;font-size:12px;font-weight:700;white-space:nowrap;}
+    .navlive .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;box-shadow:0 0 0 3px rgba(34,197,94,.2);}
+    /* wrap */
+    .wrap{padding:22px 24px 46px;min-width:0;max-width:1440px;margin:0 auto;}
+    .scr-head{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:18px;min-width:0;}
+    .scr-head .ic{
+      width:44px;height:44px;flex:0 0 44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;
+    }
+    .scr-head .ic .material-symbols-outlined{font-size:25px;}
+    .scr-head .ht{min-width:0;}
+    .scr-h{margin:0;font-size:19px;font-weight:900;letter-spacing:.2px;}
+    .scr-d{margin:2px 0 0;font-size:13px;color:var(--muted);}
+    .scr-head .spacer{flex:1;}
+    .tag{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:8px;background:#fbf6e8;color:var(--accent);font-size:12px;font-weight:700;border:1px solid #f0e4c2;white-space:nowrap;}
+    .tag .material-symbols-outlined{font-size:16px;}
+    /* grids */
+    .grid{display:grid;gap:15px;min-width:0;}
+    .g-kpi{grid-template-columns:repeat(4,1fr);}
+    .g-2{grid-template-columns:1.55fr 1fr;}
+    .g-2e{grid-template-columns:1fr 1fr;}
+    .g-3{grid-template-columns:repeat(3,1fr);}
+    .g-topo{grid-template-columns:1fr 300px;}
+    @media(max-width:820px){
+      .g-kpi,.g-2,.g-2e,.g-3,.g-topo{grid-template-columns:1fr;}
+    }
+    @media(min-width:521px) and (max-width:820px){
+      .g-kpi{grid-template-columns:1fr 1fr;}
+    }
+    .card{
+      background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 17px;min-width:0;
+      box-shadow:0 1px 2px rgba(60,50,20,.03);
+    }
+    .card h3{margin:0 0 3px;font-size:13.5px;font-weight:800;display:flex;align-items:center;gap:8px;}
+    .card h3 .material-symbols-outlined{font-size:19px;color:var(--accent);}
+    .card .ch-sub{font-size:11.5px;color:var(--muted);margin-bottom:12px;}
+    /* kpi */
+    .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;min-width:0;position:relative;overflow:hidden;}
+    .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--accent),var(--accent2));}
+    .kpi .kl{font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px;}
+    .kpi .kl .material-symbols-outlined{font-size:16px;color:var(--accent);}
+    .kpi .kv{font-size:25px;font-weight:900;letter-spacing:-.5px;margin-top:7px;font-variant-numeric:tabular-nums;}
+    .kpi .kv small{font-size:13px;font-weight:700;color:var(--muted);margin-left:3px;}
+    .kpi .kd{font-size:11.5px;margin-top:5px;font-weight:700;display:flex;align-items:center;gap:3px;}
+    .kpi .kd .material-symbols-outlined{font-size:15px;}
+    .up{color:var(--good);}.down{color:var(--bad);}.flat{color:var(--muted);}
+    /* chart */
+    .chart-wrap{position:relative;width:100%;overflow:hidden;}
+    /* tables */
+    .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px;}
+    table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:540px;}
+    th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;}
+    th{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#faf8f2;}
+    tbody tr:hover{background:#fbf9f3;}
+    td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+    .mono{font-family:"Inter",monospace;font-variant-numeric:tabular-nums;}
+    /* pills */
+    .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;}
+    .pill .material-symbols-outlined{font-size:14px;}
+    .p-up{background:#e7f6ec;color:var(--good);}
+    .p-down{background:#fdeaea;color:var(--bad);}
+    .p-warn{background:#fdf1e0;color:var(--warn);}
+    .p-info{background:#e6f2fa;color:var(--info);}
+    .p-mut{background:#f0ede4;color:var(--muted);}
+    .p-acc{background:#fbf6e8;color:var(--accent);}
+    .dotb{width:8px;height:8px;border-radius:50%;display:inline-block;}
+    .bar{height:7px;border-radius:99px;background:#eee7d6;overflow:hidden;min-width:60px;}
+    .bar>span{display:block;height:100%;border-radius:99px;}
+    /* topology */
+    .topo-box{position:relative;width:100%;overflow:hidden;border-radius:12px;background:radial-gradient(circle at 50% 30%,#fdfbf5,#f4f0e6);border:1px solid var(--line);}
+    .topo-box svg{display:block;width:100%;height:auto;}
+    .leg{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--muted);}
+    .leg span{display:inline-flex;align-items:center;gap:5px;}
+    /* alert board */
+    .board{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;min-width:0;}
+    @media(max-width:820px){.board{grid-template-columns:1fr;}}
+    .col{background:#faf8f2;border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0;}
+    .col h4{margin:0 0 10px;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:7px;}
+    .col h4 .cnt{margin-left:auto;font-size:11px;background:#fff;border:1px solid var(--line);border-radius:99px;padding:1px 8px;color:var(--muted);}
+    .acard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 11px;margin-bottom:9px;min-width:0;border-left:3px solid var(--muted);}
+    .acard.sev1{border-left-color:var(--bad);}
+    .acard.sev2{border-left-color:var(--warn);}
+    .acard.sev3{border-left-color:var(--info);}
+    .acard .at{font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:6px;}
+    .acard .an{font-size:11px;color:var(--muted);margin-top:3px;}
+    .acard .am{display:flex;align-items:center;gap:8px;margin-top:7px;font-size:10.5px;color:var(--muted);flex-wrap:wrap;}
+    /* timeline */
+    .tl{position:relative;padding-left:22px;}
+    .tl::before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--line);}
+    .tl-item{position:relative;padding:0 0 16px 4px;}
+    .tl-item::before{content:"";position:absolute;left:-19px;top:3px;width:11px;height:11px;border-radius:50%;background:#fff;border:2px solid var(--accent);}
+    .tl-item.done::before{background:var(--accent);}
+    .tl-t{font-size:12.5px;font-weight:800;}
+    .tl-s{font-size:11.5px;color:var(--muted);margin-top:2px;}
+    /* health row */
+    .health-row{display:flex;align-items:center;gap:11px;padding:9px 4px;border-bottom:1px solid var(--line);min-width:0;}
+    .health-row:last-child{border-bottom:0;}
+    .health-row .nm{font-size:12.5px;font-weight:700;min-width:0;flex:0 0 110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .health-row .bar{flex:1;}
+    .health-row .vv{font-size:12px;font-weight:800;flex:0 0 46px;text-align:right;font-variant-numeric:tabular-nums;}
+    /* misc */
+    .note{font-size:11.5px;color:var(--muted);margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);}
+    .statrow{display:flex;gap:10px;flex-wrap:wrap;}
+    .stat{flex:1;min-width:80px;background:#faf8f2;border:1px solid var(--line);border-radius:10px;padding:11px 12px;}
+    .stat .sl{font-size:11px;color:var(--muted);font-weight:600;}
+    .stat .sv{font-size:20px;font-weight:900;margin-top:4px;font-variant-numeric:tabular-nums;}
+    .foot{text-align:center;color:var(--muted);font-size:11.5px;margin-top:30px;padding-top:16px;border-top:1px solid var(--line);}
+    @media(max-width:560px){
+      .navbtn .tx{display:none;}
+      .navbtn{padding:9px 11px;}
+      .navlive .tx{display:none;}
+      .wrap{padding:18px 14px 40px;}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <nav class="topnav">
+    <div class="brand">
+      <div class="logo"><span class="material-symbols-outlined">lan</span></div>
+      <div class="bt"><b>NetWatch NMS</b><span>網路監控系統</span></div>
+    </div>
+    <div class="navwrap" id="nav"></div>
+    <div class="navlive"><span class="dot"></span><span class="tx">輪詢中 · 60s</span></div>
+  </nav>
+  <div class="wrap"><div id="app"></div>
+    <div class="foot">網路監控系統（NMS）· 純前端展示原型 · 假資料僅供介面示意 · Jvision Demo</div>
+  </div>
+
+  <script>
+  "use strict";
+  var charts=[];
+  function killCharts(){for(var i=0;i<charts.length;i++){try{charts[i].destroy();}catch(e){}}charts=[];}
+  function mk(id,opt){
+    var el=document.getElementById(id);
+    if(!el)return;
+    opt.chart=opt.chart||{};
+    opt.chart.redrawOnParentResize=false;
+    opt.chart.redrawOnWindowResize=false;
+    opt.chart.animations={enabled:false};
+    opt.chart.fontFamily='Inter,"Noto Sans TC",sans-serif';
+    opt.chart.toolbar={show:false};
+    try{var c=new ApexCharts(el,opt);c.render();charts.push(c);}catch(e){}
+  }
+  var ACC="#a16207",ACC2="#eab308";
+
+  var SCREENS=[
+    {icon:"monitoring",name:"監控總覽",tx:"總覽",title:"監控總覽",desc:"全網設備可用率、健康度與即時效能指標儀表板"},
+    {icon:"account_tree",name:"拓樸圖",tx:"拓樸圖",title:"網路拓樸圖",desc:"自動繪製核心到接取層拓樸，即時標示鏈路與節點狀態"},
+    {icon:"trending_up",name:"頻寬流量",tx:"頻寬流量",title:"頻寬流量分析",desc:"上下行流量趨勢、介面使用率與 Top Talkers"},
+    {icon:"warning",name:"告警管理",tx:"告警",title:"告警管理",desc:"門檻告警彙整、嚴重度分級與通知網管排除"},
+    {icon:"dns",name:"設備納管",tx:"設備",title:"設備納管",desc:"SNMP／ICMP 節點納管、輪詢設定與探索狀態"},
+    {icon:"insights",name:"可用率報表",tx:"報表",title:"可用率與 SLA 報表",desc:"網路可用率、MTTR 與 SLA 達成率稽核報表"}
+  ];
+
+  /* ---------- data ---------- */
+  var HEALTH=[
+    {nm:"核心交換器",v:99.8,c:ACC},
+    {nm:"分佈層交換",v:99.2,c:ACC2},
+    {nm:"防火牆",v:98.6,c:"#0369a1"},
+    {nm:"無線 AP",v:96.4,c:"#15803d"},
+    {nm:"WAN 路由",v:94.1,c:"#d97706"}
+  ];
+  var DEVROWS=[
+    {name:"CORE-SW-01",ip:"10.0.0.1",type:"核心交換器",loc:"機房 A",poll:"60s",cpu:34,mem:52,st:"up"},
+    {name:"CORE-SW-02",ip:"10.0.0.2",type:"核心交換器",loc:"機房 A",poll:"60s",cpu:41,mem:48,st:"up"},
+    {name:"DIST-SW-A1",ip:"10.0.1.11",type:"分佈層交換",loc:"廠區一",poll:"120s",cpu:28,mem:39,st:"up"},
+    {name:"DIST-SW-B2",ip:"10.0.2.12",type:"分佈層交換",loc:"廠區二",poll:"120s",cpu:88,mem:71,st:"warn"},
+    {name:"FW-EDGE-01",ip:"10.0.0.254",type:"防火牆",loc:"機房 A",poll:"60s",cpu:63,mem:66,st:"up"},
+    {name:"AP-FLOOR3-07",ip:"10.0.5.37",type:"無線 AP",loc:"三樓辦公",poll:"300s",cpu:0,mem:0,st:"down"},
+    {name:"WAN-RT-HQ",ip:"10.0.0.9",type:"WAN 路由",loc:"機房 A",poll:"60s",cpu:57,mem:60,st:"up"},
+    {name:"ACC-SW-L2-19",ip:"10.0.3.19",type:"接取交換",loc:"倉儲區",poll:"300s",cpu:22,mem:31,st:"up"}
+  ];
+  var ALERTS={
+    sev1:[
+      {t:"AP-FLOOR3-07 無回應",n:"ICMP 逾時 · 節點離線",dev:"10.0.5.37",age:"8 分鐘",rule:"可用性中斷"},
+      {t:"DIST-SW-B2 CPU 88%",n:"連續 3 次輪詢超門檻",dev:"10.0.2.12",age:"14 分鐘",rule:"CPU>85%"}
+    ],
+    sev2:[
+      {t:"FW-EDGE-01 連線數偏高",n:"Session 82% 上限",dev:"10.0.0.254",age:"22 分鐘",rule:"容量>80%"},
+      {t:"WAN-RT-HQ 延遲上升",n:"RTT 78ms 高於基準",dev:"10.0.0.9",age:"35 分鐘",rule:"延遲>60ms"},
+      {t:"Gi0/24 丟包",n:"丟包率 1.9%",dev:"10.0.1.11",age:"41 分鐘",rule:"丟包>1%"}
+    ],
+    sev3:[
+      {t:"AP 韌體版本落後",n:"12 台建議升級",dev:"多節點",age:"2 小時",rule:"組態偏移"},
+      {t:"UPS 電池將屆更換",n:"機房 A UPS-2",dev:"10.0.0.240",age:"1 天",rule:"預防維護"}
+    ]
+  };
+  var IFACE=[
+    {port:"CORE-SW-01 Te1/1",util:74,inm:6800,outm:5200,err:0,st:"up"},
+    {port:"WAN-RT-HQ Gi0/0",util:61,inm:940,outm:1120,err:2,st:"up"},
+    {port:"DIST-SW-A1 Gi0/24",util:88,inm:420,outm:380,err:14,st:"warn"},
+    {port:"FW-EDGE-01 Po1",util:52,inm:3100,outm:2700,err:0,st:"up"},
+    {port:"CORE-SW-02 Te1/2",util:39,inm:2200,outm:1900,err:0,st:"up"}
+  ];
+  var TALKERS=[
+    {ip:"10.0.4.51 檔案伺服器",v:2140},
+    {ip:"10.0.4.20 影像備份",v:1680},
+    {ip:"10.0.6.12 ERP 主機",v:1120},
+    {ip:"10.0.5.88 視訊會議",v:860},
+    {ip:"10.0.3.44 MES 終端",v:540}
+  ];
+
+  /* ---------- screens ---------- */
+  function s0(){return ''
+    +grid('g-kpi',[
+      kpi("device_hub","納管設備數","248","台","up","arrow_upward","+6 本月新增")
+      ,kpi("wifi","網路可用率","99.4","%","up","trending_up","+0.4 vs 上月")
+      ,kpi("timer","平均 MTTR","29","分","up","arrow_downward","-11 分改善")
+      ,kpi("crisis_alert","未結告警","7","件","down","priority_high","2 件重大")
+    ])
+    +'<div style="height:15px"></div>'
+    +grid('g-2',[
+      card("show_chart","全網可用率趨勢","近 12 小時 · 每 5 分鐘輪詢彙整",'<div class="chart-wrap"><div id="c0a"></div></div>')
+      ,card("device_thermostat","設備類別健康度","可用率 % · 依設備族群",healthRows())
+    ])
+    +'<div style="height:15px"></div>'
+    +grid('g-3',[
+      card("donut_small","設備即時狀態","248 台輪詢結果分佈",'<div class="chart-wrap"><div id="c0b"></div></div>')
+      ,card("speed","關鍵鏈路延遲","核心與 WAN 節點 RTT (ms)",'<div class="chart-wrap"><div id="c0c"></div></div>')
+      ,statCard()
+    ]);
+  }
+  function s1(){return ''
+    +grid('g-topo',[
+      card("account_tree","自動拓樸圖","核心 → 分佈 → 接取層即時鏈路狀態",topoSvg())
+      ,card("hub","節點摘要","LLDP／SNMP 鄰接偵測",topoSide())
+    ]);
+  }
+  function s2(){return ''
+    +grid('g-kpi',[
+      kpi("swap_vert","總流量","18.4","Gbps","flat","remove","上下行合計尖峰")
+      ,kpi("north_east","上行","8.1","Gbps","up","arrow_upward","+12% 週增")
+      ,kpi("south_west","下行","10.3","Gbps","flat","remove","持平")
+      ,kpi("error","介面錯誤","16","次","down","arrow_downward","集中於 Gi0/24")
+    ])
+    +'<div style="height:15px"></div>'
+    +grid('g-2',[
+      card("area_chart","上下行流量趨勢","近 24 小時 · Mbps",'<div class="chart-wrap"><div id="c2a"></div></div>')
+      ,card("leaderboard","Top Talkers","流量前五主機 · MB/5min",'<div class="chart-wrap"><div id="c2b"></div></div>')
+    ])
+    +'<div style="height:15px"></div>'
+    +card("cable","介面使用率明細","埠級頻寬使用率與錯誤統計",ifaceTable());
+  }
+  function s3(){return ''
+    +grid('g-kpi',[
+      kpi("crisis_alert","嚴重 P1","2","件","down","priority_high","需立即處理")
+      ,kpi("warning","警告 P2","3","件","flat","remove","觀察中")
+      ,kpi("info","提示 P3","2","件","flat","remove","可排程處理")
+      ,kpi("task_alt","今日已結","19","件","up","arrow_upward","MTTR 29 分")
+    ])
+    +'<div style="height:15px"></div>'
+    +grid('g-2',[
+      card("dashboard","告警看板","依嚴重度分級 · 去重後彙整",alertBoard())
+      ,card("notifications_active","派送與處理歷程","重大告警通知網管時序",dispatchTl())
+    ]);
+  }
+  function s4(){return ''
+    +grid('g-3',[
+      kpi("dns","已納管","248","台","up","arrow_upward","SNMP 231 · ICMP 17")
+      ,kpi("radar","本輪探索","3","台","up","arrow_upward","待確認納管")
+      ,kpi("sync","輪詢成功率","98.9","%","up","trending_up","逾時 2 台")
+    ])
+    +'<div style="height:15px"></div>'
+    +grid('g-2',[
+      card("router","納管設備清冊","SNMP／ICMP 節點與即時效能",devTable())
+      ,card("tune","輪詢與門檻設定","分級輪詢間隔與告警門檻",pollCfg())
+    ]);
+  }
+  function s5(){return ''
+    +grid('g-kpi',[
+      kpi("verified","網路可用率","99.42","%","up","trending_up","SLA 目標 99.0%")
+      ,kpi("timer","平均 MTTR","29","分","up","arrow_downward","-96 分 vs 導入前")
+      ,kpi("event_available","SLA 達成率","92","%","up","arrow_upward","+7 個百分點")
+      ,kpi("history","本月事件","41","件","down","arrow_downward","-18% 環比")
+    ])
+    +'<div style="height:15px"></div>'
+    +grid('g-2',[
+      card("stacked_line_chart","可用率 vs SLA 目標","近 6 週 · %",'<div class="chart-wrap"><div id="c5a"></div></div>')
+      ,card("timelapse","MTTR 改善趨勢","平均故障排除時間 · 分鐘",'<div class="chart-wrap"><div id="c5b"></div></div>')
+    ])
+    +'<div style="height:15px"></div>'
+    +grid('g-2e',[
+      card("pie_chart","事件根因分佈","本季歸檔事件分類",'<div class="chart-wrap"><div id="c5c"></div></div>')
+      ,card("fact_check","站點 SLA 達成","各廠區可用率達標情形",siteSla())
+    ]);
+  }
+
+  /* ---------- builders ---------- */
+  function grid(cls,cards){return '<div class="grid '+cls+'">'+cards.join('')+'</div>';}
+  function card(icon,title,sub,body){
+    return '<div class="card"><h3><span class="material-symbols-outlined">'+icon+'</span>'+title+'</h3>'
+      +(sub?'<div class="ch-sub">'+sub+'</div>':'')+body+'</div>';
+  }
+  function kpi(icon,label,val,unit,dir,dic,dtx){
+    return '<div class="kpi"><div class="kl"><span class="material-symbols-outlined">'+icon+'</span>'+label+'</div>'
+      +'<div class="kv">'+val+'<small>'+unit+'</small></div>'
+      +'<div class="kd '+dir+'"><span class="material-symbols-outlined">'+dic+'</span>'+dtx+'</div></div>';
+  }
+  function healthRows(){
+    var h='';
+    for(var i=0;i<HEALTH.length;i++){var r=HEALTH[i];
+      h+='<div class="health-row"><div class="nm">'+r.nm+'</div>'
+        +'<div class="bar"><span style="width:'+r.v+'%;background:'+r.c+'"></span></div>'
+        +'<div class="vv">'+r.v+'%</div></div>';
+    }
+    return h;
+  }
+  function statCard(){
+    return '<div class="card"><h3><span class="material-symbols-outlined">insights</span>今日維運快照</h3>'
+      +'<div class="ch-sub">輪詢與告警即時統計</div>'
+      +'<div class="statrow"><div class="stat"><div class="sl">輪詢次數</div><div class="sv">14,208</div></div>'
+      +'<div class="stat"><div class="sl">觸發告警</div><div class="sv">31</div></div></div>'
+      +'<div style="height:10px"></div>'
+      +'<div class="statrow"><div class="stat"><div class="sl">現場派工</div><div class="sv">4</div></div>'
+      +'<div class="stat"><div class="sl">同步 ITSM</div><div class="sv">已連線</div></div></div>'
+      +'<div class="note">與 SIEM／ITSM／OT 資安管理系統同步，事件歸檔可追溯稽核。</div></div>';
+  }
+  function topoSvg(){
+    function nd(x,y,r,fill,label,sub,st){
+      var col=st==='down'?'#dc2626':(st==='warn'?'#d97706':'#15803d');
+      return '<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+fill+'" stroke="'+col+'" stroke-width="3"/>'
+        +'<circle cx="'+(x+r-4)+'" cy="'+(y-r+4)+'" r="5" fill="'+col+'"/>'
+        +'<text x="'+x+'" y="'+(y+4)+'" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">'+label+'</text>'
+        +'<text x="'+x+'" y="'+(y+r+15)+'" text-anchor="middle" font-size="10" fill="#7a7263">'+sub+'</text>';
+    }
+    function ln(x1,y1,x2,y2,st){
+      var col=st==='down'?'#dc2626':(st==='warn'?'#d97706':'#c9c0a8');
+      var da=st==='down'?'6 5':'0';
+      return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+col+'" stroke-width="'+(st==='up'?2:2.5)+'" stroke-dasharray="'+da+'"/>';
+    }
+    var s='<div class="topo-box"><svg viewBox="0 0 640 380" preserveAspectRatio="xMidYMid meet">';
+    s+=ln(320,60,320,140,'up');
+    s+=ln(320,140,160,220,'up');s+=ln(320,140,480,220,'up');
+    s+=ln(160,220,90,310,'up');s+=ln(160,220,240,310,'up');
+    s+=ln(480,220,410,310,'warn');s+=ln(480,220,560,310,'down');
+    s+=nd(320,60,26,'#0369a1','WAN','WAN-RT-HQ','up');
+    s+=nd(320,140,30,ACC,'CORE','核心交換 x2','up');
+    s+=nd(160,220,26,ACC2,'D-A1','分佈層 A','up');
+    s+=nd(480,220,26,'#d97706','D-B2','分佈層 B','warn');
+    s+=nd(90,310,20,'#15803d','ACC','接取 L2','up');
+    s+=nd(240,310,20,'#15803d','SRV','伺服器區','up');
+    s+=nd(410,310,20,'#15803d','WH','倉儲區','up');
+    s+=nd(560,310,20,'#dc2626','AP','AP-07','down');
+    s+='</svg></div>';
+    s+='<div class="leg"><span><span class="dotb" style="background:#15803d"></span>正常</span>'
+      +'<span><span class="dotb" style="background:#d97706"></span>負載偏高</span>'
+      +'<span><span class="dotb" style="background:#dc2626"></span>離線／中斷</span>'
+      +'<span>虛線＝鏈路異常</span></div>';
+    return s;
+  }
+  function topoSide(){
+    var items=[
+      {nm:"CORE 核心交換",st:"up",d:"雙機備援 · 可用率 99.8%"},
+      {nm:"WAN-RT-HQ",st:"up",d:"RTT 78ms 略高於基準"},
+      {nm:"分佈層 B2",st:"warn",d:"CPU 88% · 建議查看"},
+      {nm:"AP-FLOOR3-07",st:"down",d:"ICMP 逾時 · 已派工"}
+    ];
+    var h='';
+    for(var i=0;i<items.length;i++){var it=items[i];
+      var cls=it.st==='down'?'p-down':(it.st==='warn'?'p-warn':'p-up');
+      var ic=it.st==='down'?'cancel':(it.st==='warn'?'warning':'check_circle');
+      h+='<div style="padding:11px 4px;border-bottom:1px solid var(--line)">'
+        +'<div style="display:flex;align-items:center;gap:8px;justify-content:space-between">'
+        +'<b style="font-size:12.5px">'+it.nm+'</b>'
+        +'<span class="pill '+cls+'"><span class="material-symbols-outlined">'+ic+'</span></span></div>'
+        +'<div style="font-size:11.5px;color:var(--muted);margin-top:4px">'+it.d+'</div></div>';
+    }
+    h+='<div class="note">拓樸圖依 LLDP／CDP 鄰接與 SNMP 探索自動繪製，鏈路異常即時上色。</div>';
+    return h;
+  }
+  function ifaceTable(){
+    var h='<div class="tbl-scroll"><table><thead><tr><th>介面 / 埠</th><th class="num">使用率</th><th class="num">入 Mbps</th><th class="num">出 Mbps</th><th class="num">錯誤</th><th>狀態</th></tr></thead><tbody>';
+    for(var i=0;i<IFACE.length;i++){var r=IFACE[i];
+      var bc=r.util>=80?'#dc2626':(r.util>=60?'#d97706':ACC);
+      var st=r.st==='warn'?'<span class="pill p-warn"><span class="material-symbols-outlined">warning</span>壅塞</span>':'<span class="pill p-up"><span class="material-symbols-outlined">check_circle</span>正常</span>';
+      h+='<tr><td><b>'+r.port+'</b></td>'
+        +'<td class="num"><div style="display:flex;align-items:center;gap:8px;justify-content:flex-end"><div class="bar" style="width:70px"><span style="width:'+r.util+'%;background:'+bc+'"></span></div><b>'+r.util+'%</b></div></td>'
+        +'<td class="num">'+r.inm+'</td><td class="num">'+r.outm+'</td>'
+        +'<td class="num">'+(r.err?'<b style="color:#dc2626">'+r.err+'</b>':'0')+'</td><td>'+st+'</td></tr>';
+    }
+    h+='</tbody></table></div>';
+    return h;
+  }
+  function alertBoard(){
+    var cols=[
+      {k:'sev1',t:'嚴重 P1',ic:'crisis_alert',cn:'sev1'},
+      {k:'sev2',t:'警告 P2',ic:'warning',cn:'sev2'},
+      {k:'sev3',t:'提示 P3',ic:'info',cn:'sev3'}
+    ];
+    var h='<div class="board">';
+    for(var c=0;c<cols.length;c++){var col=cols[c];var arr=ALERTS[col.k]||[];
+      h+='<div class="col"><h4><span class="material-symbols-outlined" style="font-size:17px;color:var(--accent)">'+col.ic+'</span>'+col.t+'<span class="cnt">'+arr.length+'</span></h4>';
+      for(var i=0;i<arr.length;i++){var a=arr[i];
+        h+='<div class="acard '+col.cn+'"><div class="at">'+a.t+'</div>'
+          +'<div class="an">'+a.n+'</div>'
+          +'<div class="am"><span class="pill p-mut">'+a.dev+'</span><span class="pill p-acc">'+a.rule+'</span><span style="margin-left:auto"><span class="material-symbols-outlined" style="font-size:13px">schedule</span> '+a.age+'</span></div></div>';
+      }
+      h+='</div>';
+    }
+    h+='</div>';
+    return h;
+  }
+  function dispatchTl(){
+    var st=[
+      {t:"觸發告警 · AP-FLOOR3-07 離線",s:"NMS 平台 · 21:04 · ICMP 逾時",done:true},
+      {t:"去重分級為 P1 重大事件",s:"套用規則：可用性中斷 · 21:04",done:true},
+      {t:"通知網管人員（王工）",s:"派送 App 推播＋ITSM 建單 · 21:05",done:true},
+      {t:"現場排除中",s:"確認 PoE 供電異常，更換交換埠 · 21:12",done:false},
+      {t:"事件歸檔 · 統計 MTTR",s:"待處理完成後自動歸檔稽核",done:false}
+    ];
+    var h='<div class="tl">';
+    for(var i=0;i<st.length;i++){var it=st[i];
+      h+='<div class="tl-item'+(it.done?' done':'')+'"><div class="tl-t">'+it.t+'</div><div class="tl-s">'+it.s+'</div></div>';
+    }
+    h+='</div><div class="note">重大告警自動建 ITSM 工單並推播責任網管，全程記錄以計算 MTTR。</div>';
+    return h;
+  }
+  function devTable(){
+    var h='<div class="tbl-scroll"><table><thead><tr><th>設備名稱</th><th>IP</th><th>類別</th><th>輪詢</th><th class="num">CPU</th><th class="num">記憶體</th><th>狀態</th></tr></thead><tbody>';
+    for(var i=0;i<DEVROWS.length;i++){var r=DEVROWS[i];
+      var st,cls;
+      if(r.st==='down'){st='離線';cls='p-down';}
+      else if(r.st==='warn'){st='負載高';cls='p-warn';}
+      else{st='正常';cls='p-up';}
+      var cpuc=r.cpu>=80?'#dc2626':(r.cpu>=60?'#d97706':'var(--ink)');
+      h+='<tr><td><b>'+r.name+'</b><div style="font-size:10.5px;color:var(--muted)">'+r.loc+'</div></td>'
+        +'<td class="mono">'+r.ip+'</td><td>'+r.type+'</td><td class="mono">'+r.poll+'</td>'
+        +'<td class="num" style="color:'+cpuc+';font-weight:700">'+(r.st==='down'?'—':r.cpu+'%')+'</td>'
+        +'<td class="num">'+(r.st==='down'?'—':r.mem+'%')+'</td>'
+        +'<td><span class="pill '+cls+'">'+st+'</span></td></tr>';
+    }
+    h+='</tbody></table></div>';
+    return h;
+  }
+  function pollCfg(){
+    var rows=[
+      {lv:"核心／防火牆",iv:"60 秒",thr:"CPU 85% · RTT 60ms",c:ACC},
+      {lv:"分佈層交換",iv:"120 秒",thr:"CPU 85% · 丟包 1%",c:ACC2},
+      {lv:"接取／無線",iv:"300 秒",thr:"可用性 · 錯誤率",c:"#0369a1"}
+    ];
+    var h='';
+    for(var i=0;i<rows.length;i++){var r=rows[i];
+      h+='<div style="padding:12px 4px;border-bottom:1px solid var(--line)">'
+        +'<div style="display:flex;align-items:center;gap:8px;justify-content:space-between">'
+        +'<b style="font-size:13px"><span class="dotb" style="background:'+r.c+';margin-right:7px"></span>'+r.lv+'</b>'
+        +'<span class="pill p-acc"><span class="material-symbols-outlined">sync</span>'+r.iv+'</span></div>'
+        +'<div style="font-size:11.5px;color:var(--muted);margin-top:6px">告警門檻：'+r.thr+'</div></div>';
+    }
+    h+='<div class="note">分級輪詢兼顧即時性與網路負載；超門檻連續 3 次才觸發，避免抖動誤報。</div>';
+    return h;
+  }
+  function siteSla(){
+    var rows=[
+      {nm:"總部機房",v:99.8,t:99.0},
+      {nm:"廠區一",v:99.4,t:99.0},
+      {nm:"廠區二",v:98.2,t:99.0},
+      {nm:"倉儲物流",v:99.6,t:99.0}
+    ];
+    var h='';
+    for(var i=0;i<rows.length;i++){var r=rows[i];
+      var ok=r.v>=r.t;
+      var bc=ok?'#15803d':'#dc2626';
+      h+='<div class="health-row"><div class="nm">'+r.nm+'</div>'
+        +'<div class="bar"><span style="width:'+r.v+'%;background:'+bc+'"></span></div>'
+        +'<div class="vv" style="color:'+bc+'">'+r.v+'%</div>'
+        +'<span class="pill '+(ok?'p-up':'p-down')+'" style="flex:0 0 auto"><span class="material-symbols-outlined">'+(ok?'check_circle':'cancel')+'</span></span></div>';
+    }
+    h+='<div class="note">SLA 目標 99.0%；未達標站點自動列入月檢討並產生改善任務。</div>';
+    return h;
+  }
+
+  /* ---------- charts per screen ---------- */
+  function initCharts(i){
+    if(i===0){
+      mk("c0a",{
+        chart:{type:'area',height:260},
+        series:[{name:'可用率 %',data:[99.1,99.3,99.0,98.6,99.2,99.4,99.5,99.3,99.4,99.6,99.4,99.4]}],
+        colors:[ACC],
+        stroke:{curve:'smooth',width:2.5},
+        fill:{type:'gradient',gradient:{shadeIntensity:.4,opacityFrom:.35,opacityTo:.05}},
+        dataLabels:{enabled:false},
+        yaxis:{min:98,max:100,labels:{formatter:function(v){return v.toFixed(1);}}},
+        xaxis:{categories:['00','01','02','03','04','05','06','07','08','09','10','11'],labels:{style:{fontSize:'10px'}}},
+        grid:{borderColor:'#efe9db'},
+        tooltip:{y:{formatter:function(v){return v+' %';}}}
+      });
+      mk("c0b",{
+        chart:{type:'donut',height:250},
+        series:[236,5,7],
+        labels:['正常','負載偏高','離線／告警'],
+        colors:['#15803d','#d97706','#dc2626'],
+        legend:{position:'bottom',fontSize:'12px'},
+        dataLabels:{enabled:false},
+        plotOptions:{pie:{donut:{size:'66%',labels:{show:true,total:{show:true,label:'納管',fontSize:'12px',formatter:function(){return '248 台';}}}}}}
+      });
+      mk("c0c",{
+        chart:{type:'bar',height:250},
+        series:[{name:'RTT (ms)',data:[4,6,12,78,9]}],
+        plotOptions:{bar:{borderRadius:5,columnWidth:'52%',distributed:true}},
+        dataLabels:{enabled:true,style:{fontSize:'10px',colors:['#211d13']},offsetY:-16},
+        legend:{show:false},
+        xaxis:{categories:['CORE','FW','D-B2','WAN','ACC'],labels:{style:{fontSize:'10px'}}},
+        yaxis:{labels:{formatter:function(v){return v|0;}}},
+        colors:['#a16207','#a16207','#d97706','#dc2626','#a16207'],
+        grid:{borderColor:'#efe9db'},
+        tooltip:{y:{formatter:function(v){return v+' ms';}}}
+      });
+    } else if(i===2){
+      mk("c2a",{
+        chart:{type:'area',height:270,stacked:false},
+        series:[
+          {name:'下行 Mbps',data:[3200,3600,4100,5200,6800,7400,8100,7600,6900,5800,4600,3900]},
+          {name:'上行 Mbps',data:[2100,2400,2800,3600,4800,5200,5600,5100,4700,3900,3100,2600]}
+        ],
+        colors:[ACC,ACC2],
+        stroke:{curve:'smooth',width:2},
+        fill:{type:'gradient',gradient:{opacityFrom:.3,opacityTo:.04}},
+        dataLabels:{enabled:false},
+        xaxis:{categories:['00','02','04','06','08','10','12','14','16','18','20','22'],labels:{style:{fontSize:'10px'}}},
+        yaxis:{labels:{formatter:function(v){return (v/1000).toFixed(1)+'G';}}},
+        legend:{position:'top',fontSize:'12px'},
+        grid:{borderColor:'#efe9db'},
+        tooltip:{shared:true,intersect:false}
+      });
+      var tn=[],td=[];
+      for(var k=0;k<TALKERS.length;k++){tn.push(TALKERS[k].ip);td.push(TALKERS[k].v);}
+      mk("c2b",{
+        chart:{type:'bar',height:270},
+        series:[{name:'流量 MB',data:td}],
+        colors:[ACC],
+        plotOptions:{bar:{borderRadius:5,horizontal:true,barHeight:'58%'}},
+        dataLabels:{enabled:true,style:{fontSize:'10px',colors:['#fff']}},
+        xaxis:{categories:tn,labels:{style:{fontSize:'10px'}}},
+        grid:{borderColor:'#efe9db'},
+        tooltip:{y:{formatter:function(v){return v+' MB';}}}
+      });
+    } else if(i===5){
+      mk("c5a",{
+        chart:{type:'line',height:260},
+        series:[
+          {name:'實際可用率 %',data:[98.9,99.0,99.1,99.2,99.3,99.42]},
+          {name:'SLA 目標 %',data:[99,99,99,99,99,99]}
+        ],
+        colors:[ACC,'#94a3b8'],
+        stroke:{curve:'smooth',width:[3,2],dashArray:[0,5]},
+        dataLabels:{enabled:false},
+        xaxis:{categories:['第1週','第2週','第3週','第4週','第5週','第6週'],labels:{style:{fontSize:'10px'}}},
+        yaxis:{min:98.5,max:100,labels:{formatter:function(v){return v.toFixed(1);}}},
+        legend:{position:'top',fontSize:'12px'},
+        grid:{borderColor:'#efe9db'},
+        tooltip:{shared:true,intersect:false}
+      });
+      mk("c5b",{
+        chart:{type:'bar',height:260},
+        series:[{name:'MTTR 分鐘',data:[125,96,74,52,38,29]}],
+        colors:[ACC2],
+        plotOptions:{bar:{borderRadius:5,columnWidth:'52%'}},
+        dataLabels:{enabled:true,style:{fontSize:'10px',colors:['#211d13']},offsetY:-16},
+        xaxis:{categories:['第1週','第2週','第3週','第4週','第5週','第6週'],labels:{style:{fontSize:'10px'}}},
+        yaxis:{labels:{formatter:function(v){return v|0;}}},
+        grid:{borderColor:'#efe9db'},
+        tooltip:{y:{formatter:function(v){return v+' 分';}}}
+      });
+      mk("c5c",{
+        chart:{type:'pie',height:250},
+        series:[38,22,18,12,10],
+        labels:['鏈路／實體','設備故障','容量壅塞','組態異動','外部電力'],
+        colors:['#a16207','#eab308','#0369a1','#15803d','#d97706'],
+        legend:{position:'bottom',fontSize:'11px'},
+        dataLabels:{enabled:true,style:{fontSize:'10px'}}
+      });
+    }
+  }
+
+  var RENDER=[s0,s1,s2,s3,s4,s5];
+  function show(i){
+    killCharts();
+    var app=document.getElementById("app");
+    if(!app)return;
+    var sc=SCREENS[i];
+    var head='<div class="scr-head"><div class="ic"><span class="material-symbols-outlined">'+sc.icon+'</span></div>'
+      +'<div class="ht"><h2 class="scr-h">'+sc.title+'</h2><p class="scr-d">'+sc.desc+'</p></div>'
+      +'<div class="spacer"></div><span class="tag"><span class="material-symbols-outlined">schedule</span>更新於 60 秒前</span></div>';
+    app.innerHTML=head+RENDER[i]();
+    var btns=document.querySelectorAll("[data-i]");
+    for(var b=0;b<btns.length;b++){btns[b].classList.toggle("on",+btns[b].getAttribute("data-i")===i);}
+    void app.offsetHeight;
+    initCharts(i);
+  }
+  (function(){
+    var nav=document.getElementById("nav");var h='';
+    for(var i=0;i<SCREENS.length;i++){
+      h+='<button class="navbtn" data-i="'+i+'"><span class="material-symbols-outlined">'+SCREENS[i].icon+'</span><span class="tx">'+SCREENS[i].name+'</span></button>';
+    }
+    nav.innerHTML=h;
+    var btns=nav.querySelectorAll("[data-i]");
+    for(var j=0;j<btns.length;j++){
+      btns[j].addEventListener("click",function(){location.hash='v'+this.getAttribute("data-i");});
+    }
+  })();
+
+  function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+  </script>
 </body>
 </html>

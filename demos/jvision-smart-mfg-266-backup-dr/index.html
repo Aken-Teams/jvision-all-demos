@@ -4,15 +4,520 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>備份與災難復原系統（Backup & DR）｜Jvision 系統 Demo</title>
-  <meta name="description" content="告警分流、事件應變到弱點與合規治理" />
+  <meta name="description" content="排程備份、完整性檢核、異地複製到 DR 演練與 RTO/RPO 治理的單一操作平台" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --accent:#e11d48; --accent2:#fb7185; --ink:#1f2937; --muted:#64748b;
+      --line:#e9edf3; --bg:#f5f6f9; --card:#ffffff; --soft:#fff1f3;
+      --ok:#16a34a; --warn:#f59e0b; --bad:#dc2626; --info:#2563eb;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;}
+    body{
+      font-family:"Inter","Noto Sans TC",system-ui,-apple-system,sans-serif;
+      background:var(--bg); color:var(--ink); font-size:14px; line-height:1.55;
+      -webkit-font-smoothing:antialiased;
+    }
+    .msi{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;direction:ltr;vertical-align:middle;}
+    .app{display:flex;min-height:100vh;flex-direction:column;}
+    .topbar{
+      display:flex;align-items:center;gap:14px;padding:12px 22px;
+      background:linear-gradient(100deg,#9f1239,#e11d48 55%,#fb7185);
+      color:#fff;position:sticky;top:0;z-index:30;flex-wrap:wrap;
+    }
+    .brand{display:flex;align-items:center;gap:11px;min-width:0;}
+    .brand .logo{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto;}
+    .brand h1{font-size:16px;margin:0;font-weight:800;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .brand span{display:block;font-size:11px;opacity:.85;font-weight:500;}
+    .topbar .spacer{flex:1 1 auto;}
+    .badge-live{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;background:rgba(255,255,255,.16);padding:6px 12px;border-radius:20px;}
+    .dot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.28);}
+    nav.nav{
+      display:flex;gap:7px;padding:11px 18px;background:var(--card);
+      border-bottom:1px solid var(--line);position:sticky;top:62px;z-index:20;
+      flex-wrap:wrap;
+    }
+    .nav button{
+      display:flex;align-items:center;gap:8px;border:1px solid var(--line);
+      background:#fff;color:var(--muted);padding:8px 14px;border-radius:10px;
+      font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;min-width:0;
+      transition:all .15s;
+    }
+    .nav button .msi{font-size:19px;}
+    .nav button .idx{font-size:11px;font-weight:800;background:var(--bg);border-radius:6px;padding:1px 7px;color:var(--muted);}
+    .nav button:hover{border-color:var(--accent2);color:var(--accent);}
+    .nav button.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(225,29,72,.28);}
+    .nav button.active .idx{background:rgba(255,255,255,.22);color:#fff;}
+    main{padding:20px 22px 40px;max-width:1360px;margin:0 auto;width:100%;}
+    .screen-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;flex-wrap:wrap;}
+    .screen-head .ico{width:46px;height:46px;border-radius:13px;background:var(--soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:26px;flex:0 0 auto;}
+    .screen-head h2{margin:0;font-size:20px;font-weight:800;}
+    .screen-head p{margin:3px 0 0;color:var(--muted);font-size:13px;}
+    .screen-head .tag{margin-left:auto;font-size:12px;font-weight:700;color:var(--accent);background:var(--soft);padding:6px 13px;border-radius:20px;align-self:center;}
+
+    /* split workspace signature */
+    .split{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start;}
+    .pane{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;min-width:0;}
+    .pane-h{padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px;font-weight:800;font-size:14px;}
+    .pane-h .msi{font-size:20px;color:var(--accent);}
+    .pane-h .count{margin-left:auto;font-size:11px;font-weight:700;color:var(--muted);background:var(--bg);border-radius:14px;padding:2px 10px;}
+    .pane-b{padding:14px 16px;}
+
+    .list-item{display:flex;gap:11px;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;align-items:flex-start;transition:background .12s;min-width:0;}
+    .list-item:last-child{border-bottom:none;}
+    .list-item:hover{background:#fafbfd;}
+    .list-item.sel{background:var(--soft);border-left:3px solid var(--accent);padding-left:11px;}
+    .li-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto;background:var(--bg);color:var(--muted);}
+    .li-main{min-width:0;flex:1;}
+    .li-title{font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .li-sub{font-size:11.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:16px;}
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 15px;min-width:0;position:relative;overflow:hidden;}
+    .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent);}
+    .kpi .lab{font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px;}
+    .kpi .lab .msi{font-size:17px;color:var(--accent2);}
+    .kpi .val{font-size:25px;font-weight:900;margin-top:6px;letter-spacing:-.5px;}
+    .kpi .val small{font-size:13px;font-weight:700;color:var(--muted);}
+    .kpi .delta{font-size:11.5px;font-weight:700;margin-top:3px;}
+    .up{color:var(--ok);} .down{color:var(--bad);} .flat{color:var(--muted);}
+
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0;}
+    .card h3{margin:0 0 12px;font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px;}
+    .card h3 .msi{font-size:19px;color:var(--accent);}
+    .chart-wrap{position:relative;width:100%;overflow:hidden;}
+
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th,td{text-align:left;padding:10px 11px;border-bottom:1px solid var(--line);white-space:nowrap;}
+    th{font-size:11.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;background:#fbfcfe;}
+    tbody tr:hover{background:#fafbfd;}
+    td.num{font-variant-numeric:tabular-nums;font-weight:700;}
+
+    .pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:20px;}
+    .p-ok{background:#eafaf0;color:var(--ok);}
+    .p-warn{background:#fef6e7;color:#b45309;}
+    .p-bad{background:#fdecec;color:var(--bad);}
+    .p-info{background:#eaf1fe;color:var(--info);}
+    .p-mut{background:var(--bg);color:var(--muted);}
+
+    .bar-track{height:8px;border-radius:6px;background:var(--bg);overflow:hidden;min-width:80px;}
+    .bar-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent2),var(--accent));}
+
+    .tier{display:flex;flex-direction:column;gap:11px;}
+    .tier-row{display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--line);border-radius:13px;min-width:0;}
+    .tier-badge{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff;flex:0 0 auto;}
+    .tier-info{min-width:0;flex:1;}
+    .tier-info .t{font-weight:800;font-size:14px;}
+    .tier-info .d{font-size:12px;color:var(--muted);margin-top:2px;}
+    .tier-metrics{display:flex;gap:16px;flex:0 0 auto;flex-wrap:wrap;}
+    .tier-metrics div{text-align:right;}
+    .tier-metrics .m{font-size:16px;font-weight:900;font-variant-numeric:tabular-nums;}
+    .tier-metrics .l{font-size:10.5px;color:var(--muted);font-weight:600;}
+
+    .timeline{position:relative;padding-left:26px;}
+    .timeline::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:var(--line);}
+    .tl-item{position:relative;padding:0 0 16px 0;}
+    .tl-item:last-child{padding-bottom:0;}
+    .tl-dot{position:absolute;left:-22px;top:2px;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px var(--line);background:var(--muted);}
+    .tl-dot.ok{background:var(--ok);box-shadow:0 0 0 2px #bbf7d0;}
+    .tl-dot.run{background:var(--accent);box-shadow:0 0 0 2px var(--accent2);}
+    .tl-dot.wait{background:#cbd5e1;}
+    .tl-t{font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .tl-time{font-size:11px;color:var(--muted);font-weight:600;}
+    .tl-d{font-size:12px;color:var(--muted);margin-top:3px;}
+
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;}
+    .col{background:#fbfcfe;border:1px solid var(--line);border-radius:13px;padding:11px;min-width:0;}
+    .col-h{font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:0 3px;}
+    .col-h .n{background:#fff;border:1px solid var(--line);border-radius:12px;padding:1px 9px;font-size:11px;color:var(--muted);}
+    .task{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 11px;margin-bottom:9px;min-width:0;}
+    .task:last-child{margin-bottom:0;}
+    .task .tt{font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .task .ts{font-size:11px;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between;gap:6px;}
+
+    .repl-node{display:flex;align-items:center;gap:12px;padding:12px 13px;border:1px solid var(--line);border-radius:12px;margin-bottom:11px;min-width:0;}
+    .repl-node:last-child{margin-bottom:0;}
+    .repl-ico{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto;}
+    .repl-main{min-width:0;flex:1;}
+    .repl-main .rt{font-weight:800;font-size:13.5px;}
+    .repl-main .rs{font-size:11.5px;color:var(--muted);margin-top:2px;}
+    .repl-lag{text-align:right;flex:0 0 auto;}
+    .repl-lag .v{font-weight:900;font-size:15px;font-variant-numeric:tabular-nums;}
+    .repl-lag .l{font-size:10.5px;color:var(--muted);}
+
+    .miniflow{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;}
+    .mf{flex:1 1 130px;background:#fbfcfe;border:1px solid var(--line);border-radius:11px;padding:11px;min-width:0;}
+    .mf .n{font-size:11px;color:var(--muted);font-weight:700;}
+    .mf .v{font-weight:800;font-size:13.5px;margin-top:4px;}
+
+    .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:10px;}
+    .legend span{display:inline-flex;align-items:center;gap:6px;}
+    .lg-dot{width:10px;height:10px;border-radius:3px;}
+
+    .footer{color:var(--muted);font-size:11.5px;text-align:center;padding:22px 12px 8px;}
+
+    @media(max-width:820px){
+      .split{grid-template-columns:1fr;}
+      .kpis{grid-template-columns:1fr 1fr;}
+      .grid2{grid-template-columns:1fr;}
+      .grid3{grid-template-columns:1fr;}
+      .board{grid-template-columns:1fr 1fr;}
+    }
+    @media(max-width:560px){
+      main{padding:16px 13px 34px;}
+      .topbar{padding:11px 14px;}
+      nav.nav{padding:10px 12px;}
+      .nav button .btxt{display:none;}
+      .nav button{padding:8px 11px;}
+      .kpis{grid-template-columns:1fr 1fr;}
+      .board{grid-template-columns:1fr;}
+      .screen-head .tag{display:none;}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo"><span class="msi">shield</span></div>
+        <div>
+          <h1>備份與災難復原系統 · Backup &amp; DR</h1>
+          <span>排程備份 · 完整性檢核 · 異地複製 · DR 演練 · RTO/RPO 治理</span>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <div class="badge-live"><span class="dot"></span>所有備援站點正常</div>
+    </header>
+    <nav class="nav" id="nav"></nav>
+    <main><div id="screen"></div>
+      <div class="footer">Jvision 系統 Demo · 純前端展示（模擬資料，無後端）· 資訊部 / 資訊安全部 / 稽核室</div>
+    </main>
+  </div>
+
+  <script>
+  (function(){
+    "use strict";
+    var C={accent:"#e11d48",accent2:"#fb7185",ok:"#16a34a",warn:"#f59e0b",bad:"#dc2626",info:"#2563eb",grid:"#eef1f6",mut:"#94a3b8"};
+    var charts=[];
+    function killCharts(){for(var i=0;i<charts.length;i++){try{charts[i].destroy();}catch(e){}}charts=[];}
+    function mk(id,cfg){var el=document.getElementById(id);if(!el)return;var ch=new Chart(el.getContext("2d"),cfg);charts.push(ch);return ch;}
+    function esc(s){return String(s).replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+
+    var MODS=[
+      {icon:"shield",name:"備援策略",sub:"保護分級與 RTO/RPO 目標"},
+      {icon:"calendar_month",name:"排程備份",sub:"全量／增量排程與版本保留"},
+      {icon:"fact_check",name:"完整性檢核",sub:"校驗與可還原性驗證"},
+      {icon:"account_tree",name:"異地複製",sub:"異地／雲端備援複製監控"},
+      {icon:"history",name:"災難復原",sub:"DR 演練與一鍵復原"},
+      {icon:"monitoring",name:"RTO/RPO 治理",sub:"達成率追蹤與稽核報表"}
+    ];
+
+    function head(i,tag){
+      var m=MODS[i];
+      return '<div class="screen-head"><div class="ico"><span class="msi">'+m.icon+'</span></div>'+
+        '<div><h2>'+esc(m.name)+'</h2><p>'+esc(m.sub)+'</p></div>'+
+        '<div class="tag">'+tag+'</div></div>';
+    }
+
+    /* ============ SCREEN 0 : 備援策略 ============ */
+    var TIERS=[
+      {sys:"核心 ERP / 訂單資料庫",tier:"Tier 0",color:"#e11d48",rto:"15 分",rpo:"5 分",freq:"連續複寫 + 每時增量",retain:"90 天 / 12 月",crit:"最高"},
+      {sys:"MES 生產執行系統",tier:"Tier 1",color:"#fb7185",rto:"1 小時",rpo:"30 分",freq:"每 30 分增量",retain:"60 天 / 6 月",crit:"高"},
+      {sys:"檔案伺服器 / 共享磁碟",tier:"Tier 2",color:"#f59e0b",rto:"4 小時",rpo:"4 小時",freq:"每 4 小時增量",retain:"30 天",crit:"中"},
+      {sys:"郵件與協作平台",tier:"Tier 2",color:"#f59e0b",rto:"4 小時",rpo:"2 小時",freq:"每 2 小時增量",retain:"45 天",crit:"中"},
+      {sys:"開發測試環境",tier:"Tier 3",color:"#94a3b8",rto:"24 小時",rpo:"24 小時",freq:"每日全量",retain:"14 天",crit:"低"},
+      {sys:"歸檔冷資料",tier:"Tier 3",color:"#94a3b8",rto:"48 小時",rpo:"7 天",freq:"每週全量",retain:"7 年",crit:"低"}
+    ];
+    function s0(){
+      var items=TIERS.map(function(t,idx){
+        return '<div class="list-item'+(idx===0?" sel":"")+'"><div class="li-icon" style="background:'+t.color+'22;color:'+t.color+'"><span class="msi">dns</span></div>'+
+          '<div class="li-main"><div class="li-title">'+esc(t.sys)+'</div><div class="li-sub">'+t.tier+' · RTO '+t.rto+' / RPO '+t.rpo+'</div></div></div>';
+      }).join("");
+      var rows=TIERS.map(function(t){
+        return '<div class="tier-row"><div class="tier-badge" style="background:'+t.color+'">'+t.tier.replace("Tier ","T")+'</div>'+
+          '<div class="tier-info"><div class="t">'+esc(t.sys)+'</div><div class="d">'+esc(t.freq)+' · 保留 '+esc(t.retain)+' · 重要性：'+t.crit+'</div></div>'+
+          '<div class="tier-metrics"><div><div class="m" style="color:'+C.accent+'">'+t.rto+'</div><div class="l">RTO 目標</div></div>'+
+          '<div><div class="m" style="color:'+C.info+'">'+t.rpo+'</div><div class="l">RPO 目標</div></div></div></div>';
+      }).join("");
+      return head(0,"步驟 v0 · 資訊部架構師")+
+      '<div class="split">'+
+        '<div class="pane"><div class="pane-h"><span class="msi">dns</span>受保護系統<span class="count">'+TIERS.length+' 項</span></div>'+items+'</div>'+
+        '<div style="min-width:0">'+
+          '<div class="miniflow" style="margin-bottom:16px">'+
+            '<div class="mf"><div class="n">受保護資產</div><div class="v">128 套系統</div></div>'+
+            '<div class="mf"><div class="n">受保護資料量</div><div class="v">86.4 TB</div></div>'+
+            '<div class="mf"><div class="n">Tier 0 系統</div><div class="v" style="color:'+C.accent+'">6 套</div></div>'+
+            '<div class="mf"><div class="n">策略覆蓋率</div><div class="v" style="color:'+C.ok+'">100%</div></div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="msi">shield</span>保護分級與 RTO/RPO 目標</h3><div class="tier">'+rows+'</div></div>'+
+        '</div>'+
+      '</div>';
+    }
+
+    /* ============ SCREEN 1 : 排程備份 ============ */
+    var JOBS=[
+      {name:"ERP-DB 每時增量",type:"增量",tier:"T0",next:"14:30",last:"13:30 成功",size:"2.1 GB",st:"ok"},
+      {name:"MES 每半時增量",type:"增量",tier:"T1",next:"14:00",last:"13:30 成功",size:"640 MB",st:"ok"},
+      {name:"檔案伺服器每 4 時",type:"增量",tier:"T2",next:"16:00",last:"12:00 成功",size:"5.8 GB",st:"ok"},
+      {name:"郵件平台每 2 時",type:"增量",tier:"T2",next:"15:00",last:"13:00 執行中",size:"—",st:"run"},
+      {name:"ERP 每日全量",type:"全量",tier:"T0",next:"02:00",last:"昨日 成功",size:"420 GB",st:"ok"},
+      {name:"開發環境每日全量",type:"全量",tier:"T3",next:"03:00",last:"昨日 逾時重跑",size:"88 GB",st:"warn"},
+      {name:"歸檔冷資料每週",type:"全量",tier:"T3",next:"週日 04:00",last:"上週 成功",size:"1.2 TB",st:"ok"}
+    ];
+    function stPill(st){
+      if(st==="ok")return '<span class="pill p-ok">成功</span>';
+      if(st==="run")return '<span class="pill p-info">執行中</span>';
+      if(st==="warn")return '<span class="pill p-warn">重跑</span>';
+      return '<span class="pill p-bad">失敗</span>';
+    }
+    function s1(){
+      var items=JOBS.map(function(j,idx){
+        return '<div class="list-item'+(idx===3?" sel":"")+'"><div class="li-icon" style="background:'+(j.st==="run"?"#eaf1fe;color:#2563eb":"var(--soft);color:#e11d48")+'"><span class="msi">'+(j.type==="全量"?"backup":"difference")+'</span></div>'+
+          '<div class="li-main"><div class="li-title">'+esc(j.name)+'</div><div class="li-sub">'+j.tier+' · '+j.type+' · 下次 '+j.next+'</div></div></div>';
+      }).join("");
+      var rows=JOBS.map(function(j){
+        return '<tr><td style="white-space:normal">'+esc(j.name)+'</td><td><span class="pill p-mut">'+j.tier+'</span></td><td>'+j.type+'</td><td>'+j.next+'</td><td>'+esc(j.last)+'</td><td class="num">'+j.size+'</td><td>'+stPill(j.st)+'</td></tr>';
+      }).join("");
+      return head(1,"步驟 v1 · 維運工程師")+
+      '<div class="kpis">'+
+        '<div class="kpi"><div class="lab"><span class="msi">check_circle</span>今日備份成功率</div><div class="val">99.2<small>%</small></div><div class="delta up">▲ 較上週 +1.4%</div></div>'+
+        '<div class="kpi"><div class="lab"><span class="msi">task</span>已完成作業</div><div class="val">242<small> / 256</small></div><div class="delta flat">14 待執行</div></div>'+
+        '<div class="kpi"><div class="lab"><span class="msi">database</span>今日傳輸量</div><div class="val">1.86<small> TB</small></div><div class="delta up">▲ 增量壓縮 3.2x</div></div>'+
+        '<div class="kpi"><div class="lab"><span class="msi">schedule</span>平均備份時窗</div><div class="val">7.4<small> 分</small></div><div class="delta up">▼ 較目標快 22%</div></div>'+
+      '</div>'+
+      '<div class="split">'+
+        '<div class="pane"><div class="pane-h"><span class="msi">event_repeat</span>排程作業<span class="count">'+JOBS.length+' 條</span></div>'+items+'</div>'+
+        '<div style="min-width:0">'+
+          '<div class="card" style="margin-bottom:16px"><h3><span class="msi">monitoring</span>近 12 小時傳輸量與成功數</h3><div class="chart-wrap" style="height:250px"><canvas id="c1a"></canvas></div></div>'+
+          '<div class="card"><h3><span class="msi">list_alt</span>排程明細</h3><div style="overflow-x:auto"><table><thead><tr><th>作業</th><th>分級</th><th>類型</th><th>下次</th><th>最近執行</th><th>大小</th><th>狀態</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+        '</div>'+
+      '</div>';
+    }
+    function s1charts(){
+      var lb=["02","04","06","08","10","12","13","14"];
+      mk("c1a",{type:"bar",data:{labels:lb,datasets:[
+        {type:"bar",label:"傳輸量 GB",data:[430,120,98,110,640,180,95,72],backgroundColor:"#fb718599",borderColor:C.accent,borderWidth:1,borderRadius:5,yAxisID:"y"},
+        {type:"line",label:"成功作業數",data:[38,22,20,24,44,30,26,18],borderColor:C.info,backgroundColor:"#2563eb22",tension:.35,fill:false,pointRadius:3,yAxisID:"y1"}
+      ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}}},scales:{y:{position:"left",grid:{color:C.grid},title:{display:true,text:"GB"}},y1:{position:"right",grid:{drawOnChartArea:false},title:{display:true,text:"作業數"}},x:{grid:{display:false}}}}});
+    }
+
+    /* ============ SCREEN 2 : 完整性檢核 ============ */
+    var VER=[
+      {name:"ERP-DB 增量 #4821",method:"校驗和 + 試還原",when:"13:42",res:"通過",note:"還原點一致",st:"ok"},
+      {name:"MES 增量 #2210",method:"校驗和",when:"13:35",res:"通過",note:"SHA-256 相符",st:"ok"},
+      {name:"郵件平台 #1180",method:"試還原",when:"13:20",res:"警示",note:"還原耗時偏高",st:"warn"},
+      {name:"檔案伺服器 #905",method:"校驗和",when:"12:10",res:"通過",note:"—",st:"ok"},
+      {name:"開發環境全量 #77",method:"校驗和",when:"03:12",res:"失敗",note:"區塊校驗不符 · 已重跑",st:"bad"},
+      {name:"ERP 全量 #310",method:"完整試還原",when:"02:48",res:"通過",note:"沙箱掛載成功",st:"ok"}
+    ];
+    function s2(){
+      var items=VER.map(function(v,idx){
+        var col=v.st==="ok"?C.ok:v.st==="warn"?C.warn:C.bad;
+        return '<div class="list-item'+(idx===4?" sel":"")+'"><div class="li-icon" style="background:'+col+'1f;color:'+col+'"><span class="msi">'+(v.st==="ok"?"verified":v.st==="warn"?"error":"cancel")+'</span></div>'+
+          '<div class="li-main"><div class="li-title">'+esc(v.name)+'</div><div class="li-sub">'+esc(v.method)+' · '+v.when+'</div></div></div>';
+      }).join("");
+      var rows=VER.map(function(v){
+        var p=v.st==="ok"?'<span class="pill p-ok">通過</span>':v.st==="warn"?'<span class="pill p-warn">警示</span>':'<span class="pill p-bad">失敗</span>';
+        return '<tr><td style="white-space:normal">'+esc(v.name)+'</td><td>'+esc(v.method)+'</td><td>'+v.when+'</td><td>'+p+'</td><td style="white-space:normal">'+esc(v.note)+'</td></tr>';
+      }).join("");
+      return head(2,"步驟 v2 · 維運工程師")+
+      '<div class="split">'+
+        '<div class="pane"><div class="pane-h"><span class="msi">fact_check</span>檢核佇列<span class="count">'+VER.length+' 筆</span></div>'+items+'</div>'+
+        '<div style="min-width:0">'+
+          '<div class="grid2" style="margin-bottom:16px">'+
+            '<div class="card"><h3><span class="msi">donut_large</span>本日檢核結果分布</h3><div class="chart-wrap" style="height:210px"><canvas id="c2a"></canvas></div>'+
+              '<div class="legend"><span><i class="lg-dot" style="background:'+C.ok+'"></i>通過 91%</span><span><i class="lg-dot" style="background:'+C.warn+'"></i>警示 6%</span><span><i class="lg-dot" style="background:'+C.bad+'"></i>失敗 3%</span></div></div>'+
+            '<div class="card"><h3><span class="msi">insights</span>可還原性驗證率趨勢</h3><div class="chart-wrap" style="height:210px"><canvas id="c2b"></canvas></div></div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="msi">rule</span>檢核明細</h3><div style="overflow-x:auto"><table><thead><tr><th>備份點</th><th>方法</th><th>時間</th><th>結果</th><th>備註</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+        '</div>'+
+      '</div>';
+    }
+    function s2charts(){
+      mk("c2a",{type:"doughnut",data:{labels:["通過","警示","失敗"],datasets:[{data:[91,6,3],backgroundColor:[C.ok,C.warn,C.bad],borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"62%",plugins:{legend:{display:false}}}});
+      mk("c2b",{type:"line",data:{labels:["週一","週二","週三","週四","週五","週六","週日"],datasets:[{label:"可還原性驗證率 %",data:[94,95,93,96,97,98,97],borderColor:C.accent,backgroundColor:"#fb718533",fill:true,tension:.4,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:88,max:100,grid:{color:C.grid},ticks:{callback:function(v){return v+"%";}}},x:{grid:{display:false}}}}});
+    }
+
+    /* ============ SCREEN 3 : 異地複製 ============ */
+    var SITES=[
+      {name:"主資料中心 · 台北",role:"來源",ico:"dns",col:C.accent,lag:"—",state:"運行中",st:"ok",sub:"本地磁碟陣列 · 快照保留 7 天"},
+      {name:"異地機房 · 台中",role:"同步複製",ico:"sync_alt",col:C.info,lag:"0.8 秒",state:"同步中",st:"ok",sub:"專線同步 · 距離 148 km"},
+      {name:"雲端備援 · AWS S3",role:"非同步複製",ico:"cloud",col:C.info,lag:"42 秒",state:"同步中",st:"ok",sub:"跨區複寫 · 物件不可竄改鎖定"},
+      {name:"雲端備援 · Azure Blob",role:"非同步複製",ico:"cloud_sync",col:C.warn,lag:"3.4 分",state:"延遲偏高",st:"warn",sub:"頻寬節流中 · 已排入補傳"}
+    ];
+    function s3(){
+      var items=SITES.map(function(s,idx){
+        return '<div class="list-item'+(idx===3?" sel":"")+'"><div class="li-icon" style="background:'+s.col+'1f;color:'+s.col+'"><span class="msi">'+s.ico+'</span></div>'+
+          '<div class="li-main"><div class="li-title">'+esc(s.name)+'</div><div class="li-sub">'+s.role+' · 落後 '+s.lag+'</div></div></div>';
+      }).join("");
+      var nodes=SITES.map(function(s){
+        var p=s.st==="ok"?'<span class="pill p-ok">'+s.state+'</span>':'<span class="pill p-warn">'+s.state+'</span>';
+        return '<div class="repl-node"><div class="repl-ico" style="background:'+s.col+'1f;color:'+s.col+'"><span class="msi">'+s.ico+'</span></div>'+
+          '<div class="repl-main"><div class="rt">'+esc(s.name)+' '+p+'</div><div class="rs">'+esc(s.sub)+'</div></div>'+
+          '<div class="repl-lag"><div class="v" style="color:'+(s.st==="ok"?C.ok:C.warn)+'">'+s.lag+'</div><div class="l">複製落後</div></div></div>';
+      }).join("");
+      return head(3,"檢視 · 資訊部維運")+
+      '<div class="kpis">'+
+        '<div class="kpi"><div class="lab"><span class="msi">hub</span>備援站點</div><div class="val">4<small> 站</small></div><div class="delta flat">1 主 + 3 備</div></div>'+
+        '<div class="kpi"><div class="lab"><span class="msi">timer</span>最大複製落後</div><div class="val">3.4<small> 分</small></div><div class="delta down">▲ Azure 節流中</div></div>'+
+        '<div class="kpi"><div class="lab"><span class="msi">verified_user</span>副本一致性</div><div class="val">100<small>%</small></div><div class="delta up">校驗全數相符</div></div>'+
+        '<div class="kpi"><div class="lab"><span class="msi">swap_horiz</span>今日複寫量</div><div class="val">3.9<small> TB</small></div><div class="delta up">▲ 峰值 620 Mbps</div></div>'+
+      '</div>'+
+      '<div class="split">'+
+        '<div class="pane"><div class="pane-h"><span class="msi">account_tree</span>複製站點<span class="count">'+SITES.length+'</span></div>'+items+'</div>'+
+        '<div style="min-width:0">'+
+          '<div class="card" style="margin-bottom:16px"><h3><span class="msi">device_hub</span>複製拓撲與狀態</h3>'+nodes+'</div>'+
+          '<div class="card"><h3><span class="msi">show_chart</span>各站點複製落後（分鐘）近 24 小時</h3><div class="chart-wrap" style="height:240px"><canvas id="c3a"></canvas></div></div>'+
+        '</div>'+
+      '</div>';
+    }
+    function s3charts(){
+      var lb=["00","04","08","12","16","20","24"];
+      mk("c3a",{type:"line",data:{labels:lb,datasets:[
+        {label:"台中同步",data:[0.02,0.01,0.03,0.02,0.04,0.02,0.01],borderColor:C.ok,backgroundColor:"transparent",tension:.35,pointRadius:2},
+        {label:"AWS S3",data:[0.6,0.7,0.8,1.1,0.9,0.7,0.7],borderColor:C.info,backgroundColor:"transparent",tension:.35,pointRadius:2},
+        {label:"Azure Blob",data:[1.2,1.4,2.1,3.4,2.8,1.9,1.5],borderColor:C.warn,backgroundColor:"#f59e0b22",fill:true,tension:.35,pointRadius:2}
+      ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}}},scales:{y:{grid:{color:C.grid},title:{display:true,text:"分鐘"}},x:{grid:{display:false}}}}});
+    }
+
+    /* ============ SCREEN 4 : 災難復原 DR 演練 ============ */
+    var RUN=[
+      {t:"啟動演練 · 隔離環境就緒",time:"09:00",d:"於 DR 隔離環境掛載最新驗證備份，切斷正式網路。",st:"ok"},
+      {t:"還原 ERP 資料庫",time:"09:06",d:"自 Tier 0 最新還原點復原，量測還原耗時 14 分 32 秒。",st:"ok"},
+      {t:"還原 MES 與檔案服務",time:"09:24",d:"Tier 1／T2 平行復原，服務相依順序自動編排。",st:"ok"},
+      {t:"服務啟動與健康檢查",time:"09:41",d:"應用層冒煙測試進行中，18／20 項通過。",st:"run"},
+      {t:"資料一致性核對",time:"—",d:"待健康檢查完成後比對交易序號與筆數。",st:"wait"},
+      {t:"演練結案與缺失彙整",time:"—",d:"產出 RTO/RPO 量測與改善清單交資安部。",st:"wait"}
+    ];
+    function s4(){
+      var items=[
+        {n:"2026-Q3 全站切換演練",s:"進行中 · 6 系統",sel:true,st:"run"},
+        {n:"2026-Q2 ERP 復原演練",s:"已完成 · RTO 12 分",sel:false,st:"ok"},
+        {n:"2026-Q1 勒索軟體復原",s:"已完成 · RTO 38 分",sel:false,st:"ok"},
+        {n:"2025-Q4 異地切換演練",s:"已完成 · RTO 22 分",sel:false,st:"ok"}
+      ].map(function(x){
+        var col=x.st==="run"?C.accent:C.ok;
+        return '<div class="list-item'+(x.sel?" sel":"")+'"><div class="li-icon" style="background:'+col+'1f;color:'+col+'"><span class="msi">'+(x.st==="run"?"play_circle":"history")+'</span></div>'+
+          '<div class="li-main"><div class="li-title">'+esc(x.n)+'</div><div class="li-sub">'+esc(x.s)+'</div></div></div>';
+      }).join("");
+      var tl=RUN.map(function(r){
+        var cls=r.st==="ok"?"ok":r.st==="run"?"run":"wait";
+        return '<div class="tl-item"><div class="tl-dot '+cls+'"></div><div class="tl-t">'+esc(r.t)+' <span class="tl-time">'+r.time+'</span></div><div class="tl-d">'+esc(r.d)+'</div></div>';
+      }).join("");
+      return head(4,"步驟 v4 · 資訊安全部")+
+      '<div class="kpis">'+
+        '<div class="kpi"><div class="lab"><span class="msi">timer</span>本次量測 RTO</div><div class="val">14.5<small> 分</small></div><div class="delta up">▼ 優於目標 15 分</div></div>'+
+        '<div class="kpi"><div class="lab"><span class="msi">restore</span>本次量測 RPO</div><div class="val">3.2<small> 分</small></div><div class="delta up">▼ 優於目標 5 分</div></div>'+
+        '<div class="kpi"><div class="lab"><span class="msi">checklist</span>復原進度</div><div class="val">4<small> / 6 步</small></div><div class="delta flat">健康檢查中</div></div>'+
+        '<div class="kpi"><div class="lab"><span class="msi">task_alt</span>冒煙測試</div><div class="val">18<small> / 20</small></div><div class="delta up">90% 通過</div></div>'+
+      '</div>'+
+      '<div class="split">'+
+        '<div class="pane"><div class="pane-h"><span class="msi">history</span>演練計畫<span class="count">4</span></div>'+items+'</div>'+
+        '<div style="min-width:0">'+
+          '<div class="grid2" style="margin-bottom:16px">'+
+            '<div class="card"><h3><span class="msi">timeline</span>復原執行 Runbook</h3><div class="timeline">'+tl+'</div></div>'+
+            '<div class="card"><h3><span class="msi">bar_chart</span>各系統實測 RTO vs 目標（分鐘）</h3><div class="chart-wrap" style="height:250px"><canvas id="c4a"></canvas></div></div>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    }
+    function s4charts(){
+      mk("c4a",{type:"bar",data:{labels:["ERP","MES","檔案","郵件","AD","備援閘道"],datasets:[
+        {label:"實測 RTO",data:[14.5,11,9,7,5,4],backgroundColor:C.accent,borderRadius:5},
+        {label:"目標 RTO",data:[15,15,15,15,15,15],backgroundColor:"#cbd5e1",borderRadius:5}
+      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}}},scales:{y:{grid:{color:C.grid},title:{display:true,text:"分鐘"}},x:{grid:{display:false}}}}});
+    }
+
+    /* ============ SCREEN 5 : RTO/RPO 治理 ============ */
+    var AUD=[
+      {m:"備份成功率",v:"99.2%",tgt:"≥ 99%",pct:99,st:"ok"},
+      {m:"RTO 達成率",v:"96.4%",tgt:"≥ 95%",pct:96,st:"ok"},
+      {m:"RPO 達成率",v:"98.1%",tgt:"≥ 95%",pct:98,st:"ok"},
+      {m:"演練覆蓋率",v:"88%",tgt:"≥ 90%",pct:88,st:"warn"},
+      {m:"異地副本一致性",v:"100%",tgt:"100%",pct:100,st:"ok"}
+    ];
+    function s5(){
+      var items=[
+        {n:"2026-08 月度稽核報表",s:"待簽核 · 稽核室",sel:true},
+        {n:"2026-07 月度稽核報表",s:"已核准 · 08/03",sel:false},
+        {n:"2026-Q2 合規報告 (ISO 22301)",s:"已核准 · 07/10",sel:false},
+        {n:"2026-06 月度稽核報表",s:"已核准 · 07/02",sel:false}
+      ].map(function(x){
+        return '<div class="list-item'+(x.sel?" sel":"")+'"><div class="li-icon" style="background:var(--soft);color:#e11d48"><span class="msi">receipt_long</span></div>'+
+          '<div class="li-main"><div class="li-title">'+esc(x.n)+'</div><div class="li-sub">'+esc(x.s)+'</div></div></div>';
+      }).join("");
+      var rows=AUD.map(function(a){
+        var p=a.st==="ok"?'<span class="pill p-ok">達標</span>':'<span class="pill p-warn">待改善</span>';
+        var col=a.st==="ok"?C.ok:C.warn;
+        return '<tr><td style="white-space:normal">'+esc(a.m)+'</td><td class="num">'+a.v+'</td><td>'+a.tgt+'</td><td style="width:150px"><div class="bar-track"><div class="bar-fill" style="width:'+a.pct+'%;background:'+col+'"></div></div></td><td>'+p+'</td></tr>';
+      }).join("");
+      return head(5,"步驟 v5 · 稽核室")+
+      '<div class="kpis">'+
+        '<div class="kpi"><div class="lab"><span class="msi">check_circle</span>備份成功率</div><div class="val">99.2<small>%</small></div><div class="delta up">▲ 目標 99%</div></div>'+
+        '<div class="kpi"><div class="lab"><span class="msi">timer</span>RTO 達成率</div><div class="val">96.4<small>%</small></div><div class="delta up">▲ 目標 95%</div></div>'+
+        '<div class="kpi"><div class="lab"><span class="msi">restore</span>RPO 達成率</div><div class="val">98.1<small>%</small></div><div class="delta up">▲ 目標 95%</div></div>'+
+        '<div class="kpi"><div class="lab"><span class="msi">gavel</span>稽核未結案項</div><div class="val">2<small> 項</small></div><div class="delta down">演練覆蓋待補</div></div>'+
+      '</div>'+
+      '<div class="split">'+
+        '<div class="pane"><div class="pane-h"><span class="msi">receipt_long</span>稽核報表<span class="count">4</span></div>'+items+'</div>'+
+        '<div style="min-width:0">'+
+          '<div class="grid2" style="margin-bottom:16px">'+
+            '<div class="card"><h3><span class="msi">trending_up</span>RTO/RPO 達成率趨勢（6 個月）</h3><div class="chart-wrap" style="height:230px"><canvas id="c5a"></canvas></div></div>'+
+            '<div class="card"><h3><span class="msi">radar</span>治理成熟度雷達</h3><div class="chart-wrap" style="height:230px"><canvas id="c5b"></canvas></div></div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="msi">fact_check</span>合規指標核對表</h3><div style="overflow-x:auto"><table><thead><tr><th>指標</th><th>實績</th><th>目標</th><th>達成度</th><th>判定</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+        '</div>'+
+      '</div>';
+    }
+    function s5charts(){
+      var lb=["3月","4月","5月","6月","7月","8月"];
+      mk("c5a",{type:"line",data:{labels:lb,datasets:[
+        {label:"RTO 達成率",data:[89,91,93,94,95,96.4],borderColor:C.accent,backgroundColor:"#fb718522",fill:true,tension:.4,pointRadius:3},
+        {label:"RPO 達成率",data:[92,93,95,96,97,98.1],borderColor:C.info,backgroundColor:"transparent",tension:.4,pointRadius:3}
+      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}}},scales:{y:{min:82,max:100,grid:{color:C.grid},ticks:{callback:function(v){return v+"%";}}},x:{grid:{display:false}}}}});
+      mk("c5b",{type:"radar",data:{labels:["備份完整性","復原時效","異地備援","演練頻度","稽核合規","文件治理"],datasets:[{label:"目前",data:[95,92,98,80,90,85],borderColor:C.accent,backgroundColor:"#fb718533",pointBackgroundColor:C.accent},{label:"目標",data:[98,95,98,95,95,90],borderColor:"#cbd5e1",backgroundColor:"transparent",pointBackgroundColor:"#cbd5e1"}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:11}}}},scales:{r:{min:60,max:100,grid:{color:C.grid},pointLabels:{font:{size:10}},ticks:{display:false}}}}});
+    }
+
+    var SCREENS=[
+      {r:s0,c:null},
+      {r:s1,c:s1charts},
+      {r:s2,c:s2charts},
+      {r:s3,c:s3charts},
+      {r:s4,c:s4charts},
+      {r:s5,c:s5charts}
+    ];
+
+    var nav=document.getElementById("nav");
+    nav.innerHTML=MODS.map(function(m,i){
+      return '<button data-i="'+i+'"><span class="msi">'+m.icon+'</span><span class="idx">v'+i+'</span><span class="btxt">'+esc(m.name)+'</span></button>';
+    }).join("");
+
+    function show(i){
+      var box=document.getElementById("screen");
+      killCharts();
+      var s=SCREENS[i]||SCREENS[0];
+      box.innerHTML=s.r();
+      var btns=document.querySelectorAll("[data-i]");
+      for(var b=0;b<btns.length;b++){btns[b].classList.toggle("active",+btns[b].getAttribute("data-i")===i);}
+      void box.offsetHeight;
+      if(s.c)s.c();
+    }
+
+    nav.addEventListener("click",function(e){
+      var btn=e.target.closest("[data-i]");
+      if(!btn)return;
+      var i=+btn.getAttribute("data-i");
+      location.hash="v"+i;
+    });
+
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>

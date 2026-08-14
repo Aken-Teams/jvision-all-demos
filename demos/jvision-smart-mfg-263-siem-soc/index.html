@@ -1,18 +1,678 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>資訊安全事件管理平台（SIEM/SOC）｜Jvision 系統 Demo</title>
-  <meta name="description" content="告警分流、事件應變到弱點與合規治理" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>資訊安全事件管理平台（SIEM/SOC）</title>
+<link rel="icon" href="../../favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --teal:#0f766e; --teal2:#5eead4; --teal-dark:#134e4a;
+  --bg:#f1f5f4; --panel:#ffffff; --ink:#0f172a; --muted:#64748b;
+  --line:#e2e8f0; --soft:#f8fafc;
+  --red:#dc2626; --amber:#d97706; --green:#16a34a; --blue:#2563eb;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:"Inter","Noto Sans TC",sans-serif;
+  background:var(--bg); color:var(--ink);
+  -webkit-font-smoothing:antialiased; line-height:1.5;
+}
+.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; vertical-align:middle;}
+.app{display:flex; min-height:100vh; align-items:stretch;}
+/* Sidebar */
+.side{
+  width:250px; flex:0 0 250px; background:#ffffff; border-right:1px solid var(--line);
+  display:flex; flex-direction:column; padding:20px 14px; gap:6px; min-width:0;
+}
+.brand{display:flex; align-items:center; gap:11px; padding:4px 8px 18px;}
+.brand .logo{
+  width:42px; height:42px; border-radius:12px; flex:0 0 42px;
+  background:linear-gradient(135deg,var(--teal),var(--teal-dark));
+  display:flex; align-items:center; justify-content:center; color:#fff; box-shadow:0 6px 16px rgba(15,118,110,.3);
+}
+.brand .logo .material-symbols-outlined{font-size:24px;}
+.brand b{font-size:15px; font-weight:800; letter-spacing:.2px; display:block; line-height:1.25;}
+.brand span{font-size:11px; color:var(--muted); font-weight:500;}
+.navwrap{display:flex; flex-direction:column; gap:4px; min-width:0;}
+.navbtn{
+  display:flex; align-items:center; gap:12px; padding:11px 13px; border-radius:11px;
+  border:none; background:transparent; cursor:pointer; text-align:left; width:100%;
+  color:#475569; font-family:inherit; font-size:13.5px; font-weight:600; min-width:0; transition:.15s;
+}
+.navbtn .material-symbols-outlined{font-size:21px; color:#94a3b8; flex:0 0 auto;}
+.navbtn small{display:block; font-size:10.5px; font-weight:500; color:#94a3b8;}
+.navbtn .txt{min-width:0; overflow:hidden;}
+.navbtn .txt b{font-weight:700; font-size:13.5px; display:block; line-height:1.2;}
+.navbtn:hover{background:var(--soft); color:var(--teal-dark);}
+.navbtn.on{background:linear-gradient(135deg,rgba(15,118,110,.12),rgba(94,234,212,.16)); color:var(--teal-dark);}
+.navbtn.on .material-symbols-outlined{color:var(--teal);}
+.side-foot{margin-top:auto; padding:12px 10px 2px; border-top:1px solid var(--line); font-size:11px; color:var(--muted);}
+.side-foot .dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--green); margin-right:6px; box-shadow:0 0 0 3px rgba(22,163,74,.15);}
+/* Main */
+.main{flex:1 1 auto; min-width:0; padding:24px 30px 60px; display:flex; flex-direction:column;}
+.topbar{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:22px; flex-wrap:wrap;}
+.topbar h1{font-size:20px; font-weight:800; margin:0; display:flex; align-items:center; gap:10px;}
+.topbar h1 .material-symbols-outlined{color:var(--teal); font-size:24px;}
+.topbar .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+.chips{display:flex; gap:8px; flex-wrap:wrap;}
+.chip{font-size:11.5px; font-weight:600; padding:6px 12px; border-radius:999px; background:#fff; border:1px solid var(--line); color:#475569; display:flex; align-items:center; gap:6px;}
+.chip .material-symbols-outlined{font-size:16px; color:var(--teal);}
+.chip.live{background:linear-gradient(135deg,var(--teal),var(--teal-dark)); color:#fff; border:none;}
+.chip.live .material-symbols-outlined{color:var(--teal2);}
+/* Grid helpers */
+.grid{display:grid; gap:16px; min-width:0;}
+.g4{grid-template-columns:repeat(4,1fr);}
+.g3{grid-template-columns:repeat(3,1fr);}
+.g2{grid-template-columns:repeat(2,1fr);}
+.g23{grid-template-columns:2fr 1fr;}
+.g32{grid-template-columns:1.4fr 1fr;}
+.min0{min-width:0;}
+/* Card */
+.card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px; min-width:0; box-shadow:0 1px 2px rgba(15,23,42,.03);}
+.card h3{margin:0 0 3px; font-size:14px; font-weight:800; display:flex; align-items:center; gap:8px;}
+.card h3 .material-symbols-outlined{font-size:19px; color:var(--teal);}
+.card .cdesc{font-size:11.5px; color:var(--muted); margin:0 0 14px;}
+/* KPI */
+.kpi{position:relative; overflow:hidden;}
+.kpi .lbl{font-size:12px; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:6px;}
+.kpi .lbl .material-symbols-outlined{font-size:18px;}
+.kpi .val{font-size:27px; font-weight:800; margin:8px 0 2px; letter-spacing:-.5px;}
+.kpi .val small{font-size:13px; font-weight:600; color:var(--muted);}
+.kpi .delta{font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:3px;}
+.kpi .delta .material-symbols-outlined{font-size:15px;}
+.up{color:var(--green);} .down{color:var(--red);} .warn{color:var(--amber);}
+.kpi .bar{position:absolute; left:0; bottom:0; height:4px; background:linear-gradient(90deg,var(--teal),var(--teal2));}
+/* Chart */
+.chartbox{position:relative; width:100%; overflow:hidden;}
+/* Table */
+.tblwrap{overflow-x:auto;}
+table{width:100%; border-collapse:collapse; font-size:12.5px; min-width:520px;}
+th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:700; padding:10px 12px; border-bottom:2px solid var(--line); white-space:nowrap;}
+td{padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--soft);}
+.mono{font-family:"Inter",monospace; font-variant-numeric:tabular-nums; font-weight:600;}
+/* Badges */
+.tag{display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap;}
+.tag .material-symbols-outlined{font-size:14px;}
+.t-red{background:#fef2f2; color:var(--red);}
+.t-amber{background:#fffbeb; color:var(--amber);}
+.t-green{background:#f0fdf4; color:var(--green);}
+.t-blue{background:#eff6ff; color:var(--blue);}
+.t-teal{background:#f0fdfa; color:var(--teal);}
+.t-gray{background:#f1f5f9; color:#64748b;}
+/* Sev dot */
+.sev{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px; vertical-align:middle;}
+.s-crit{background:var(--red);} .s-high{background:var(--amber);} .s-med{background:var(--blue);} .s-low{background:#94a3b8;}
+/* Board / Kanban */
+.board{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; min-width:0;}
+.col{background:var(--soft); border:1px solid var(--line); border-radius:14px; padding:12px; min-width:0;}
+.col-h{font-size:12px; font-weight:800; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;}
+.col-h .cnt{font-size:11px; background:#fff; border:1px solid var(--line); border-radius:999px; padding:1px 8px; color:var(--muted);}
+.ticket{background:#fff; border:1px solid var(--line); border-radius:11px; padding:11px; margin-bottom:9px; box-shadow:0 1px 2px rgba(15,23,42,.04);}
+.ticket:last-child{margin-bottom:0;}
+.ticket .tt{font-size:12.5px; font-weight:700; margin-bottom:5px; line-height:1.35;}
+.ticket .tm{font-size:10.5px; color:var(--muted); display:flex; align-items:center; justify-content:space-between; margin-top:7px;}
+.ticket .who{display:inline-flex; align-items:center; gap:5px;}
+.ava{width:20px; height:20px; border-radius:50%; background:linear-gradient(135deg,var(--teal),var(--teal-dark)); color:#fff; font-size:9px; font-weight:700; display:inline-flex; align-items:center; justify-content:center;}
+/* Timeline */
+.tl{position:relative; padding-left:26px; margin:0;}
+.tl:before{content:""; position:absolute; left:8px; top:4px; bottom:4px; width:2px; background:var(--line);}
+.tl-item{position:relative; padding:0 0 18px;}
+.tl-item:last-child{padding-bottom:0;}
+.tl-item .dot{position:absolute; left:-24px; top:2px; width:16px; height:16px; border-radius:50%; background:#fff; border:3px solid var(--teal); display:flex; align-items:center; justify-content:center;}
+.tl-item.done .dot{background:var(--teal); border-color:var(--teal);}
+.tl-item .tl-t{font-size:12.5px; font-weight:700;}
+.tl-item .tl-time{font-size:10.5px; color:var(--muted); font-weight:600;}
+.tl-item .tl-d{font-size:11.5px; color:#475569; margin-top:3px;}
+/* progress */
+.prog{height:8px; border-radius:999px; background:#e2e8f0; overflow:hidden; min-width:60px;}
+.prog i{display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,var(--teal),var(--teal2));}
+/* meter bars */
+.meter{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+.meter:last-child{margin-bottom:0;}
+.meter .ml{width:120px; flex:0 0 120px; font-size:12px; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.meter .mb{flex:1 1 auto; min-width:0;}
+.meter .mv{width:44px; flex:0 0 44px; text-align:right; font-size:12px; font-weight:700; font-variant-numeric:tabular-nums;}
+/* attack path */
+.path{display:flex; flex-wrap:wrap; align-items:center; gap:8px;}
+.node{background:#fff; border:1.5px solid var(--line); border-radius:11px; padding:9px 13px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:7px; min-width:0;}
+.node .material-symbols-outlined{font-size:18px;}
+.node.attk{border-color:#fecaca; background:#fef2f2; color:var(--red);}
+.node.mid{border-color:#fed7aa; background:#fffbeb; color:var(--amber);}
+.node.tgt{border-color:#bbf7d0; background:#f0fdf4; color:var(--green);}
+.arrow{color:#cbd5e1; font-size:20px; flex:0 0 auto;}
+/* attck grid */
+.attck{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; min-width:0;}
+.tk{border:1px solid var(--line); border-radius:9px; padding:9px 8px; font-size:10.5px; text-align:center; background:var(--soft); font-weight:600; min-width:0;}
+.tk.hit{background:#fef2f2; border-color:#fecaca; color:var(--red);}
+.tk.hit b{display:block; font-size:15px; margin-top:2px;}
+.tk .th{font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px;}
+/* donut center */
+.donut-wrap{position:relative;}
+.donut-center{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none;}
+.donut-center b{font-size:24px; font-weight:800; display:block;}
+.donut-center span{font-size:11px; color:var(--muted);}
+/* list rows */
+.lrow{display:flex; align-items:center; gap:12px; padding:11px 2px; border-bottom:1px solid var(--line);}
+.lrow:last-child{border-bottom:none;}
+.lrow .li-ic{width:36px; height:36px; border-radius:10px; flex:0 0 36px; display:flex; align-items:center; justify-content:center; background:var(--soft);}
+.lrow .li-ic .material-symbols-outlined{font-size:20px; color:var(--teal);}
+.lrow .li-main{flex:1 1 auto; min-width:0;}
+.lrow .li-main b{font-size:13px; display:block; overflow:hidden; text-overflow:ellipsis;}
+.lrow .li-main small{font-size:11px; color:var(--muted);}
+.lrow .li-end{flex:0 0 auto; text-align:right;}
+.hl{color:var(--teal-dark); font-weight:800;}
+/* compliance */
+.compbar{display:flex; align-items:center; gap:12px; padding:12px; border:1px solid var(--line); border-radius:12px; margin-bottom:10px; background:#fff;}
+.compbar:last-child{margin-bottom:0;}
+.compbar .cn{flex:1 1 auto; min-width:0;}
+.compbar .cn b{font-size:13px; display:block;}
+.compbar .cn small{font-size:11px; color:var(--muted);}
+.ring{width:46px; height:46px; flex:0 0 46px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;}
+/* Responsive */
+@media(max-width:1100px){ .g4{grid-template-columns:repeat(2,1fr);} .attck{grid-template-columns:repeat(3,1fr);} }
+@media(max-width:960px){ .board{grid-template-columns:repeat(2,1fr);} }
+@media(max-width:860px){
+  .app{flex-direction:column;}
+  .side{width:auto; flex:none; flex-direction:row; align-items:center; flex-wrap:wrap; border-right:none; border-bottom:1px solid var(--line); padding:12px 14px; gap:8px;}
+  .brand{padding:0 10px 0 4px; margin-right:6px;}
+  .navwrap{flex-direction:row; flex-wrap:wrap; flex:1 1 auto;}
+  .navbtn{width:auto; padding:8px 12px;}
+  .navbtn small{display:none;}
+  .side-foot{display:none;}
+  .main{padding:18px 16px 50px;}
+}
+@media(max-width:820px){
+  .g4,.g3,.g2,.g23,.g32{grid-template-columns:1fr;}
+  .attck{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:560px){
+  .navbtn .txt{display:none;}
+  .navbtn{padding:9px 11px;}
+  .topbar h1{font-size:17px;}
+  .board{grid-template-columns:1fr;}
+}
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo"><span class="material-symbols-outlined">security</span></div>
+      <div class="min0">
+        <b>SecOps 中心</b>
+        <span>SIEM / SOC 平台</span>
+      </div>
+    </div>
+    <nav class="navwrap" id="nav"></nav>
+    <div class="side-foot"><span class="dot"></span>資料收容中 · 12 個來源在線</div>
+  </aside>
+  <main class="main">
+    <div id="screen"></div>
+  </main>
+</div>
+<script>
+(function(){
+"use strict";
+
+var MODULES=[
+  {icon:"monitoring",title:"監控總覽",sub:"即時態勢",desc:"日誌流量與告警即時態勢感知"},
+  {icon:"warning",title:"告警分流",sub:"分級研判",desc:"告警彙整、關聯與嚴重度分級"},
+  {icon:"shield",title:"事件應變",sub:"調查處置",desc:"事件調查、遏制與處置時間軸"},
+  {icon:"account_tree",title:"威脅獵捕",sub:"攻擊路徑",desc:"攻擊路徑還原與 MITRE ATT&CK 關聯"},
+  {icon:"biotech",title:"弱點管理",sub:"修補追蹤",desc:"弱點掃描與修補進度追蹤"},
+  {icon:"gavel",title:"合規治理",sub:"稽核報表",desc:"稽核紀錄、報表與 MTTD/MTTR"}
+];
+
+var charts={};
+function destroyCharts(){ for(var k in charts){ try{charts[k].destroy();}catch(e){} } charts={}; }
+
+var teal="#0f766e", teal2="#5eead4";
+function grad(ctx,c1,c2){ var g=ctx.createLinearGradient(0,0,0,240); g.addColorStop(0,c1); g.addColorStop(1,c2); return g; }
+function mkChart(id,cfg){
+  var el=document.getElementById(id);
+  if(!el) return;
+  charts[id]=new Chart(el.getContext("2d"),cfg);
+}
+
+// ---------- render building blocks ----------
+function kpi(lbl,ic,val,unit,delta,cls,dir){
+  var d=delta?('<div class="delta '+cls+'"><span class="material-symbols-outlined">'+(dir==="up"?"trending_up":(dir==="down"?"trending_down":"remove"))+'</span>'+delta+'</div>'):'';
+  return '<div class="card kpi"><div class="lbl"><span class="material-symbols-outlined">'+ic+'</span>'+lbl+'</div>'
+    +'<div class="val">'+val+' <small>'+(unit||'')+'</small></div>'+d+'<div class="bar" style="width:100%"></div></div>';
+}
+function sevDot(s){ var m={crit:"s-crit",high:"s-high",med:"s-med",low:"s-low"}; return '<span class="sev '+(m[s]||"s-low")+'"></span>'; }
+function tag(txt,cls,ic){ return '<span class="tag '+cls+'">'+(ic?'<span class="material-symbols-outlined">'+ic+'</span>':'')+txt+'</span>'; }
+
+// =========================================================
+// SCREEN 0 — 監控總覽
+// =========================================================
+function s0(){
+  var srcs=[
+    {n:"防火牆 / IPS",p:38,c:teal},
+    {n:"EDR 端點",p:27,c:"#2563eb"},
+    {n:"IAM 身分",p:14,c:"#d97706"},
+    {n:"伺服器 Syslog",p:12,c:"#7c3aed"},
+    {n:"雲端 / SaaS",p:9,c:"#94a3b8"}
+  ];
+  var meters=srcs.map(function(s){
+    return '<div class="meter"><div class="ml">'+s.n+'</div><div class="mb"><div class="prog"><i style="width:'+s.p+'%;background:'+s.c+'"></i></div></div><div class="mv">'+s.p+'%</div></div>';
+  }).join("");
+  var feed=[
+    {t:"04:02",m:"防火牆偵測連續 Port 掃描（TCP/445）",ic:"radar"},
+    {t:"03:51",m:"IAM：財務主管帳號自新加坡登入成功",ic:"vpn_key"},
+    {t:"03:44",m:"EDR 於 WKS-2210 命中可疑 PowerShell 執行",ic:"terminal"},
+    {t:"03:30",m:"弱點掃描完成，新增 6 項高風險",ic:"biotech"},
+    {t:"03:12",m:"規則 R-217 觸發：異常時段大量下載",ic:"warning"}
+  ];
+  var feedH=feed.map(function(f){
+    return '<div class="lrow"><div class="li-ic"><span class="material-symbols-outlined">'+f.ic+'</span></div>'
+      +'<div class="li-main"><b>'+f.m+'</b><small>'+f.t+' · 自動關聯</small></div>'
+      +'<div class="li-end">'+tag("查看","t-teal")+'</div></div>';
+  }).join("");
+
+  return head("monitoring","監控總覽","跨 12 個資料來源的即時安全態勢，含日誌流量、告警趨勢與收容健康度。")
+  + '<div class="grid g4" style="margin-bottom:16px">'
+    + kpi("每秒事件 EPS","bolt","18,240","events/s","+6.4% 對比昨日","up","up")
+    + kpi("待處理告警","notifications_active","<span class=\'hl\'>27</span>","件","-12 件","up","down")
+    + kpi("平均偵測 MTTD","timer","6.4","分鐘","-31%","up","down")
+    + kpi("收容健康度","monitor_heart","99.2","%","12/12 在線","up","up")
+  + '</div>'
+  + '<div class="grid g23" style="margin-bottom:16px">'
+    + '<div class="card min0"><h3><span class="material-symbols-outlined">show_chart</span>24 小時告警與事件流量</h3><p class="cdesc">依嚴重度堆疊，反映夜間掃描與登入異常的高峰。</p><div class="chartbox" style="height:260px"><canvas id="c0a"></canvas></div></div>'
+    + '<div class="card min0"><h3><span class="material-symbols-outlined">database</span>日誌來源占比</h3><p class="cdesc">正規化後各來源事件量分布。</p>'+meters+'</div>'
+  + '</div>'
+  + '<div class="grid g2">'
+    + '<div class="card min0"><h3><span class="material-symbols-outlined">notifications</span>即時事件流</h3><p class="cdesc">關聯引擎產生的最新告警。</p>'+feedH+'</div>'
+    + '<div class="card min0"><h3><span class="material-symbols-outlined">stacked_bar_chart</span>本週告警嚴重度分布</h3><p class="cdesc">高危與嚴重告警需優先分流。</p><div class="chartbox" style="height:240px"><canvas id="c0b"></canvas></div></div>'
+  + '</div>';
+}
+function s0charts(){
+  var el=document.getElementById("c0a"); if(!el) return;
+  var ctx=el.getContext("2d");
+  var hrs=["00","02","04","06","08","10","12","14","16","18","20","22"];
+  mkChart("c0a",{type:"line",data:{labels:hrs,datasets:[
+    {label:"嚴重",data:[3,5,7,2,1,2,2,3,2,1,2,4],borderColor:"#dc2626",backgroundColor:"rgba(220,38,38,.12)",fill:true,tension:.35,borderWidth:2,pointRadius:0},
+    {label:"高危",data:[8,12,15,9,6,7,8,10,9,7,9,11],borderColor:"#d97706",backgroundColor:"rgba(217,119,6,.10)",fill:true,tension:.35,borderWidth:2,pointRadius:0},
+    {label:"中低",data:[20,26,31,22,18,24,27,29,25,21,23,28],borderColor:teal,backgroundColor:grad(ctx,"rgba(15,118,110,.22)","rgba(15,118,110,0)"),fill:true,tension:.35,borderWidth:2,pointRadius:0}
+  ]},options:copts({stackY:true})});
+
+  mkChart("c0b",{type:"bar",data:{labels:["週一","週二","週三","週四","週五","週六","週日"],datasets:[
+    {label:"嚴重",data:[4,3,6,5,4,2,3],backgroundColor:"#dc2626",stack:"s",borderRadius:3},
+    {label:"高危",data:[11,9,14,12,10,7,8],backgroundColor:"#d97706",stack:"s",borderRadius:3},
+    {label:"中低",data:[28,24,31,27,25,18,20],backgroundColor:teal2,stack:"s",borderRadius:3}
+  ]},options:copts({stackX:true,stackY:true})});
+}
+
+// =========================================================
+// SCREEN 1 — 告警分流
+// =========================================================
+function s1(){
+  var rows=[
+    {id:"AL-4821",sev:"crit",name:"高權限帳號異常地區登入",src:"IAM",rule:"R-101",cnt:1,age:"3 分",st:"待研判",stc:"t-red"},
+    {id:"AL-4818",sev:"crit",name:"端點命中勒索軟體指標 IoC",src:"EDR",rule:"R-233",cnt:1,age:"11 分",st:"研判中",stc:"t-amber"},
+    {id:"AL-4809",sev:"high",name:"連續 SMB Port 掃描",src:"防火牆",rule:"R-217",cnt:34,age:"22 分",st:"待研判",stc:"t-red"},
+    {id:"AL-4802",sev:"high",name:"異常時段大量資料下載",src:"DLP",rule:"R-188",cnt:6,age:"41 分",st:"研判中",stc:"t-amber"},
+    {id:"AL-4791",sev:"med",name:"多次登入失敗後成功",src:"IAM",rule:"R-142",cnt:12,age:"1 小時",st:"研判中",stc:"t-amber"},
+    {id:"AL-4780",sev:"med",name:"雲端主控台新增管理員",src:"雲端",rule:"R-160",cnt:2,age:"2 小時",st:"已升級",stc:"t-blue"},
+    {id:"AL-4772",sev:"low",name:"過期憑證仍在使用",src:"伺服器",rule:"R-090",cnt:8,age:"3 小時",st:"已抑制",stc:"t-gray"}
+  ];
+  var body=rows.map(function(r){
+    return '<tr><td class="mono">'+r.id+'</td>'
+      +'<td>'+sevDot(r.sev)+'<b style="font-size:12.5px">'+r.name+'</b></td>'
+      +'<td>'+tag(r.src,"t-teal")+'</td>'
+      +'<td class="mono">'+r.rule+'</td>'
+      +'<td class="mono" style="text-align:center">'+r.cnt+'</td>'
+      +'<td style="color:#64748b">'+r.age+'</td>'
+      +'<td>'+tag(r.st,r.stc)+'</td></tr>';
+  }).join("");
+
+  return head("warning","告警分流","關聯引擎去重後的告警佇列，依嚴重度與資產重要性排序，供分析師分級研判。")
+  + '<div class="grid g4" style="margin-bottom:16px">'
+    + kpi("今日新增告警","add_alert","312","件","去重後 27 件","up","down")
+    + kpi("誤報抑制率","filter_alt","78","%","-1,940 噪音","up","up")
+    + kpi("嚴重告警","priority_high","<span class=\'hl\'>2</span>","件","需 15 分內處置","warn","")
+    + kpi("平均研判時間","hourglass","4.8","分鐘","-2.1 分","up","down")
+  + '</div>'
+  + '<div class="grid g32" style="margin-bottom:16px">'
+    + '<div class="card min0"><h3><span class="material-symbols-outlined">rule</span>觸發最多的關聯規則</h3><p class="cdesc">高頻規則反映當前主要威脅面向。</p><div class="chartbox" style="height:250px"><canvas id="c1a"></canvas></div></div>'
+    + '<div class="card min0"><h3><span class="material-symbols-outlined">donut_large</span>告警嚴重度占比</h3><p class="cdesc">佇列中待處理告警分布。</p><div class="chartbox donut-wrap" style="height:250px"><canvas id="c1b"></canvas><div class="donut-center"><b>27</b><span>待處理</span></div></div></div>'
+  + '</div>'
+  + '<div class="card min0"><h3><span class="material-symbols-outlined">inbox</span>告警佇列</h3><p class="cdesc">點選任一告警可展開原始日誌與關聯證據。</p>'
+    + '<div class="tblwrap"><table><thead><tr><th>告警編號</th><th>告警名稱</th><th>來源</th><th>規則</th><th>次數</th><th>時距</th><th>狀態</th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
+}
+function s1charts(){
+  if(document.getElementById("c1a")){
+    mkChart("c1a",{type:"bar",data:{labels:["R-217 埠掃描","R-101 異常登入","R-188 大量下載","R-142 暴力登入","R-233 惡意指標","R-160 權限變更"],datasets:[
+      {label:"觸發次數",data:[128,94,61,47,22,15],backgroundColor:[teal,"#0e6b63","#159d90","#3bbcae","#7fd8cc","#b8ebe3"],borderRadius:5}
+    ]},options:copts({horizontal:true})});
+  }
+  if(document.getElementById("c1b")){
+    mkChart("c1b",{type:"doughnut",data:{labels:["嚴重","高危","中","低"],datasets:[
+      {data:[2,9,11,5],backgroundColor:["#dc2626","#d97706","#2563eb","#94a3b8"],borderWidth:0}
+    ]},options:{maintainAspectRatio:false,responsive:true,cutout:"68%",plugins:{legend:{position:"bottom",labels:{boxWidth:10,font:{size:11},padding:12}}}}});
+  }
+}
+
+// =========================================================
+// SCREEN 2 — 事件應變
+// =========================================================
+function s2(){
+  var cols=[
+    {h:"已偵測",n:2,tk:[
+      {t:"WKS-2210 疑似勒索軟體",sev:"crit",who:"LC",tm:"11 分前"},
+      {t:"財務帳號境外登入",sev:"crit",who:"WY",tm:"3 分前"}
+    ]},
+    {h:"調查中",n:2,tk:[
+      {t:"連續 SMB 埠掃描來源追查",sev:"high",who:"HT",tm:"22 分前"},
+      {t:"DLP 大量下載事件",sev:"high",who:"LC",tm:"40 分前"}
+    ]},
+    {h:"遏制處置",n:2,tk:[
+      {t:"隔離受感染端點群組",sev:"high",who:"HT",tm:"1 小時前"},
+      {t:"重設外洩帳號憑證",sev:"med",who:"WY",tm:"1.5 小時"}
+    ]},
+    {h:"已關閉",n:2,tk:[
+      {t:"釣魚郵件夾帶巨集",sev:"med",who:"LC",tm:"今日 02:10"},
+      {t:"過期憑證更換",sev:"low",who:"HT",tm:"昨日"}
+    ]}
+  ];
+  var boardH=cols.map(function(c){
+    var tks=c.tk.map(function(k){
+      return '<div class="ticket"><div class="tt">'+sevDot(k.sev)+k.t+'</div>'
+        +'<div class="tm"><span class="who"><span class="ava">'+k.who+'</span>負責人</span><span>'+k.tm+'</span></div></div>';
+    }).join("");
+    return '<div class="col"><div class="col-h">'+c.h+'<span class="cnt">'+c.n+'</span></div>'+tks+'</div>';
+  }).join("");
+
+  var tl=[
+    {tm:"03:44",tt:"偵測",d:"EDR 於 WKS-2210 命中勒索軟體 IoC，告警 AL-4818 產生。",done:true},
+    {tm:"03:47",tt:"分派",d:"值班分析師 LC 接手，判定為真陽性，升級為 P1 事件。",done:true},
+    {tm:"03:52",tt:"遏制",d:"自動隔離端點網段，封鎖 C2 外連 IP 45.13.x.x。",done:true},
+    {tm:"04:05",tt:"調查",d:"取證主機記憶體與磁碟，比對橫向移動跡象（進行中）。",done:false},
+    {tm:"待辦",tt:"復原",d:"重建端點映像、重設相關帳號密碼，撰寫複盤報告。",done:false}
+  ];
+  var tlH=tl.map(function(x){
+    return '<div class="tl-item '+(x.done?"done":"")+'"><div class="dot">'+(x.done?'<span class="material-symbols-outlined" style="font-size:10px;color:#fff">check</span>':'')+'</div>'
+      +'<div class="tl-t">'+x.tt+' <span class="tl-time">'+x.tm+'</span></div><div class="tl-d">'+x.d+'</div></div>';
+  }).join("");
+
+  return head("shield","事件應變","以看板追蹤事件生命週期，並記錄 P1 事件 AL-4818 的完整調查與處置時間軸。")
+  + '<div class="grid g4" style="margin-bottom:16px">'
+    + kpi("進行中事件","pending_actions","<span class=\'hl\'>6</span>","件","P1 · 2 件","warn","")
+    + kpi("平均應變 MTTR","timer","2.9","小時","-4.1 小時","up","down")
+    + kpi("本月已結案","task_alt","41","件","結案率 87%","up","up")
+    + kpi("自動遏制動作","smart_toy","23","次","隔離 9 · 封鎖 14","up","up")
+  + '</div>'
+  + '<div class="card min0" style="margin-bottom:16px"><h3><span class="material-symbols-outlined">view_kanban</span>事件應變看板</h3><p class="cdesc">依處理程序流轉：偵測 → 調查 → 遏制 → 關閉。</p><div style="overflow-x:auto"><div class="board">'+boardH+'</div></div></div>'
+  + '<div class="grid g2">'
+    + '<div class="card min0"><h3><span class="material-symbols-outlined">timeline</span>P1 事件時間軸 · AL-4818 勒索軟體</h3><p class="cdesc">端點感染事件的完整應變紀錄。</p><div class="tl">'+tlH+'</div></div>'
+    + '<div class="card min0"><h3><span class="material-symbols-outlined">speed</span>近 6 週 MTTD / MTTR 趨勢</h3><p class="cdesc">偵測與應變時間持續下降。</p><div class="chartbox" style="height:250px"><canvas id="c2a"></canvas></div></div>'
+  + '</div>';
+}
+function s2charts(){
+  if(document.getElementById("c2a")){
+    mkChart("c2a",{type:"line",data:{labels:["W1","W2","W3","W4","W5","W6"],datasets:[
+      {label:"MTTD（分）",data:[14,12,10,9,7.5,6.4],borderColor:teal,backgroundColor:"rgba(15,118,110,.12)",fill:true,tension:.35,borderWidth:2.5,pointRadius:3,pointBackgroundColor:teal,yAxisID:"y"},
+      {label:"MTTR（時）",data:[7,6.1,5,4.2,3.4,2.9],borderColor:"#d97706",backgroundColor:"rgba(217,119,6,.10)",fill:true,tension:.35,borderWidth:2.5,pointRadius:3,pointBackgroundColor:"#d97706",yAxisID:"y1"}
+    ]},options:{maintainAspectRatio:false,responsive:true,interaction:{mode:"index",intersect:false},plugins:{legend:{position:"bottom",labels:{boxWidth:10,font:{size:11},padding:12}}},scales:{
+      y:{position:"left",beginAtZero:true,grid:{color:"#eef2f6"},ticks:{font:{size:10}}},
+      y1:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},ticks:{font:{size:10}}},
+      x:{grid:{display:false},ticks:{font:{size:10}}}
+    }}});
+  }
+}
+
+// =========================================================
+// SCREEN 3 — 威脅獵捕 (attack path + MITRE ATT&CK)
+// =========================================================
+function s3(){
+  var path='<div class="path">'
+    +'<div class="node attk"><span class="material-symbols-outlined">mail</span>釣魚郵件</div>'
+    +'<span class="arrow material-symbols-outlined">arrow_forward</span>'
+    +'<div class="node mid"><span class="material-symbols-outlined">terminal</span>惡意巨集執行</div>'
+    +'<span class="arrow material-symbols-outlined">arrow_forward</span>'
+    +'<div class="node mid"><span class="material-symbols-outlined">vpn_key</span>憑證竊取</div>'
+    +'<span class="arrow material-symbols-outlined">arrow_forward</span>'
+    +'<div class="node mid"><span class="material-symbols-outlined">lan</span>橫向移動</div>'
+    +'<span class="arrow material-symbols-outlined">arrow_forward</span>'
+    +'<div class="node tgt"><span class="material-symbols-outlined">database</span>資料伺服器</div>'
+    +'</div>';
+
+  var tks=[
+    {th:"Initial Access",n:"T1566",h:true,c:3},
+    {th:"Execution",n:"T1059",h:true,c:5},
+    {th:"Persistence",n:"T1547",h:false,c:0},
+    {th:"Priv Esc",n:"T1068",h:false,c:0},
+    {th:"Cred Access",n:"T1003",h:true,c:2},
+    {th:"Discovery",n:"T1046",h:true,c:8},
+    {th:"Lateral Move",n:"T1021",h:true,c:4},
+    {th:"Collection",n:"T1119",h:false,c:0},
+    {th:"Exfiltration",n:"T1041",h:true,c:1},
+    {th:"Impact",n:"T1486",h:false,c:0}
+  ];
+  var attckH=tks.map(function(t){
+    return '<div class="tk '+(t.h?"hit":"")+'"><div class="th">'+t.th+'</div><div class="mono">'+t.n+'</div>'+(t.h?'<b>'+t.c+'</b>':'<b style="color:#cbd5e1;font-size:13px;margin-top:2px">—</b>')+'</div>';
+  }).join("");
+
+  var ioc=[
+    {ty:"IP",v:"45.13.207.19",d:"C2 外連中繼",cls:"t-red",lab:"惡意"},
+    {ty:"Hash",v:"9f2a…c71e",d:"勒索軟體載荷",cls:"t-red",lab:"惡意"},
+    {ty:"Domain",v:"upd-secure[.]top",d:"釣魚下載站",cls:"t-amber",lab:"可疑"},
+    {ty:"Account",v:"svc_backup",d:"異常提權使用",cls:"t-amber",lab:"可疑"},
+    {ty:"File",v:"invoice.docm",d:"含惡意巨集",cls:"t-red",lab:"惡意"}
+  ];
+  var iocH=ioc.map(function(i){
+    return '<tr><td>'+tag(i.ty,"t-teal")+'</td><td class="mono">'+i.v+'</td><td style="color:#475569">'+i.d+'</td><td>'+tag(i.lab,i.cls)+'</td></tr>';
+  }).join("");
+
+  return head("account_tree","威脅獵捕","還原攻擊路徑並對照 MITRE ATT&CK 技術矩陣，確認事件範圍與涉及的入侵指標（IoC）。")
+  + '<div class="grid g4" style="margin-bottom:16px">'
+    + kpi("命中 ATT&CK 技術","account_tree","<span class=\'hl\'>6</span>","項","跨 6 個戰術","warn","")
+    + kpi("關聯 IoC","fingerprint","23","個","惡意 11 · 可疑 12","warn","")
+    + kpi("受影響資產","dns","14","台","已隔離 9 台","up","up")
+    + kpi("威脅情資命中","travel_explore","5","來源","比對 3 家情資","up","up")
+  + '</div>'
+  + '<div class="card min0" style="margin-bottom:16px"><h3><span class="material-symbols-outlined">route</span>攻擊路徑還原（Kill Chain）</h3><p class="cdesc">由關聯日誌重建的攻擊者行動序列。</p><div style="overflow-x:auto">'+path+'</div></div>'
+  + '<div class="grid g32" style="margin-bottom:16px">'
+    + '<div class="card min0"><h3><span class="material-symbols-outlined">grid_view</span>MITRE ATT&CK 覆蓋熱區</h3><p class="cdesc">紅色格為本次事件命中的技術，數字為關聯事件數。</p><div style="overflow-x:auto"><div class="attck">'+attckH+'</div></div></div>'
+    + '<div class="card min0"><h3><span class="material-symbols-outlined">radar</span>威脅面向雷達</h3><p class="cdesc">各戰術活躍程度評分。</p><div class="chartbox" style="height:250px"><canvas id="c3a"></canvas></div></div>'
+  + '</div>'
+  + '<div class="card min0"><h3><span class="material-symbols-outlined">fingerprint</span>入侵指標（IoC）清單</h3><p class="cdesc">已加入封鎖清單並同步至防火牆與 EDR。</p>'
+    + '<div class="tblwrap"><table><thead><tr><th>類型</th><th>指標值</th><th>說明</th><th>研判</th></tr></thead><tbody>'+iocH+'</tbody></table></div></div>';
+}
+function s3charts(){
+  if(document.getElementById("c3a")){
+    mkChart("c3a",{type:"radar",data:{labels:["初始存取","執行","憑證竊取","發現","橫向移動","外洩"],datasets:[
+      {label:"本次事件",data:[8,9,6,9,7,4],borderColor:"#dc2626",backgroundColor:"rgba(220,38,38,.15)",borderWidth:2,pointRadius:2},
+      {label:"基線",data:[3,4,2,5,3,2],borderColor:teal,backgroundColor:"rgba(15,118,110,.12)",borderWidth:2,pointRadius:2}
+    ]},options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{position:"bottom",labels:{boxWidth:10,font:{size:11},padding:10}}},scales:{r:{beginAtZero:true,suggestedMax:10,pointLabels:{font:{size:10}},ticks:{display:false},grid:{color:"#e2e8f0"}}}}});
+  }
+}
+
+// =========================================================
+// SCREEN 4 — 弱點管理
+// =========================================================
+function s4(){
+  var rows=[
+    {cve:"CVE-2024-3094",asset:"web-prod-01",cvss:9.8,sev:"crit",age:"逾期 2 天",fix:12,st:"修補中"},
+    {cve:"CVE-2024-1709",asset:"vpn-gw-02",cvss:9.1,sev:"crit",age:"剩 3 天",fix:60,st:"排程中"},
+    {cve:"CVE-2023-4863",asset:"WKS-群組 A",cvss:8.4,sev:"high",age:"剩 6 天",fix:35,st:"排程中"},
+    {cve:"CVE-2024-21413",asset:"mail-01",cvss:7.5,sev:"high",age:"剩 9 天",fix:0,st:"待評估"},
+    {cve:"CVE-2023-38831",asset:"file-srv-03",cvss:6.8,sev:"med",age:"剩 14 天",fix:80,st:"驗證中"},
+    {cve:"CVE-2022-30190",asset:"WKS-群組 B",cvss:5.4,sev:"med",age:"剩 20 天",fix:100,st:"已修補"}
+  ];
+  var body=rows.map(function(r){
+    return '<tr><td class="mono">'+r.cve+'</td>'
+      +'<td>'+tag(r.asset,"t-teal")+'</td>'
+      +'<td>'+sevDot(r.sev)+'<b class="mono">'+r.cvss.toFixed(1)+'</b></td>'
+      +'<td style="color:'+(r.age.indexOf("逾期")>=0?"#dc2626":"#64748b")+';font-weight:'+(r.age.indexOf("逾期")>=0?"700":"500")+'">'+r.age+'</td>'
+      +'<td><div style="display:flex;align-items:center;gap:8px"><div class="prog" style="flex:1"><i style="width:'+r.fix+'%"></i></div><span class="mono" style="font-size:11px">'+r.fix+'%</span></div></td>'
+      +'<td>'+tag(r.st,r.st==="已修補"?"t-green":(r.st==="待評估"?"t-gray":"t-amber"))+'</td></tr>';
+  }).join("");
+
+  return head("biotech","弱點管理","彙整掃描結果並依 CVSS 與資產重要性排序，追蹤 SLA 期限與修補進度。")
+  + '<div class="grid g4" style="margin-bottom:16px">'
+    + kpi("待修補弱點","bug_report","<span class=\'hl\'>148</span>","項","嚴重 6 · 高危 24","warn","")
+    + kpi("修補率","healing","90","%","+18% 對比季初","up","up")
+    + kpi("逾期 SLA","event_busy","3","項","需主管核可延期","down","up")
+    + kpi("平均修補天數","calendar_month","5.6","天","-3.2 天","up","down")
+  + '</div>'
+  + '<div class="grid g2" style="margin-bottom:16px">'
+    + '<div class="card min0"><h3><span class="material-symbols-outlined">trending_up</span>弱點修補率趨勢（6 週）</h3><p class="cdesc">修補進度穩定收斂至目標線 90%。</p><div class="chartbox" style="height:240px"><canvas id="c4a"></canvas></div></div>'
+    + '<div class="card min0"><h3><span class="material-symbols-outlined">pie_chart</span>弱點嚴重度分布</h3><p class="cdesc">依 CVSS 分級的未修補弱點。</p><div class="chartbox" style="height:240px"><canvas id="c4b"></canvas></div></div>'
+  + '</div>'
+  + '<div class="card min0"><h3><span class="material-symbols-outlined">format_list_numbered</span>優先修補清單</h3><p class="cdesc">依 CVSS 與資產暴露程度排序，紅字表示已逾 SLA。</p>'
+    + '<div class="tblwrap"><table><thead><tr><th>CVE 編號</th><th>資產</th><th>CVSS</th><th>SLA 期限</th><th>修補進度</th><th>狀態</th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
+}
+function s4charts(){
+  var el=document.getElementById("c4a");
+  if(el){
+    var ctx=el.getContext("2d");
+    mkChart("c4a",{type:"line",data:{labels:["第1週","第2週","第3週","第4週","第5週","第6週"],datasets:[
+      {label:"修補率 %",data:[72,76,79,83,86,90],borderColor:teal,backgroundColor:grad(ctx,"rgba(15,118,110,.25)","rgba(15,118,110,0)"),fill:true,tension:.35,borderWidth:2.5,pointRadius:3,pointBackgroundColor:teal},
+      {label:"目標 90%",data:[90,90,90,90,90,90],borderColor:"#cbd5e1",borderDash:[5,5],borderWidth:1.5,pointRadius:0,fill:false}
+    ]},options:copts({y100:true})});
+  }
+  if(document.getElementById("c4b")){
+    mkChart("c4b",{type:"polarArea",data:{labels:["嚴重","高危","中","低"],datasets:[
+      {data:[6,24,68,50],backgroundColor:["rgba(220,38,38,.75)","rgba(217,119,6,.75)","rgba(37,99,235,.7)","rgba(148,163,184,.7)"],borderWidth:1,borderColor:"#fff"}
+    ]},options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{position:"bottom",labels:{boxWidth:10,font:{size:11},padding:12}}},scales:{r:{ticks:{display:false},grid:{color:"#e2e8f0"}}}}});
+  }
+}
+
+// =========================================================
+// SCREEN 5 — 合規治理
+// =========================================================
+function s5(){
+  var comp=[
+    {n:"ISO 27001",d:"資訊安全管理系統",v:94,c:teal},
+    {n:"個資法 PIPA",d:"個人資料保護",v:88,c:"#2563eb"},
+    {n:"NIST CSF",d:"網路安全框架",v:82,c:"#d97706"},
+    {n:"CIS Controls",d:"關鍵安全控制",v:91,c:"#7c3aed"}
+  ];
+  var compH=comp.map(function(c){
+    return '<div class="compbar"><div class="ring" style="background:conic-gradient('+c.c+' '+(c.v*3.6)+'deg,#e2e8f0 0)"><span style="background:#fff;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:'+c.c+'">'+c.v+'</span></div>'
+      +'<div class="cn"><b>'+c.n+'</b><small>'+c.d+'</small></div>'
+      +tag(c.v>=90?"合規":"待改善",c.v>=90?"t-green":"t-amber",c.v>=90?"verified":"pending")+'</div>';
+  }).join("");
+
+  var audit=[
+    {t:"04:12",u:"WY",act:"封鎖惡意 IP 45.13.207.19",tgt:"防火牆規則",cls:"t-red"},
+    {t:"03:52",u:"LC",act:"隔離端點 WKS-2210",tgt:"EDR 主控台",cls:"t-amber"},
+    {t:"03:20",u:"系統",act:"自動抑制 1,940 筆誤報",tgt:"關聯引擎",cls:"t-teal"},
+    {t:"02:40",u:"HT",act:"核准弱點延期修補 VPN-GW",tgt:"弱點工單",cls:"t-blue"},
+    {t:"01:15",u:"WY",act:"匯出月度資安稽核報表",tgt:"報表中心",cls:"t-teal"}
+  ];
+  var auditH=audit.map(function(a){
+    return '<tr><td style="color:#64748b" class="mono">'+a.t+'</td>'
+      +'<td><span class="ava">'+a.u+'</span></td>'
+      +'<td><b style="font-size:12.5px">'+a.act+'</b></td>'
+      +'<td>'+tag(a.tgt,a.cls)+'</td></tr>';
+  }).join("");
+
+  return head("gavel","合規治理","彙整資安 KPI 與合規框架達成度，並保留完整稽核軌跡供稽核室查核。")
+  + '<div class="grid g4" style="margin-bottom:16px">'
+    + kpi("整體合規分數","verified","88.5","分","+6.5 分","up","up")
+    + kpi("MTTD 平均","timer","6.4","分鐘","目標 ≤ 10","up","up")
+    + kpi("MTTR 平均","timelapse","2.9","小時","目標 ≤ 4","up","up")
+    + kpi("本月結案率","task_alt","87","%","41 / 47 件","up","up")
+  + '</div>'
+  + '<div class="grid g23" style="margin-bottom:16px">'
+    + '<div class="card min0"><h3><span class="material-symbols-outlined">insights</span>近 6 個月資安關鍵指標</h3><p class="cdesc">事件量下降的同時，MTTD/MTTR 持續改善。</p><div class="chartbox" style="height:250px"><canvas id="c5a"></canvas></div></div>'
+    + '<div class="card min0"><h3><span class="material-symbols-outlined">verified_user</span>合規框架達成度</h3><p class="cdesc">各標準控制項自動化評分。</p>'+compH+'</div>'
+  + '</div>'
+  + '<div class="card min0"><h3><span class="material-symbols-outlined">history</span>稽核軌跡（不可竄改紀錄）</h3><p class="cdesc">所有處置動作皆留存操作者、時間與對象，供稽核室追溯。</p>'
+    + '<div class="tblwrap"><table><thead><tr><th>時間</th><th>操作者</th><th>動作</th><th>對象</th></tr></thead><tbody>'+auditH+'</tbody></table></div></div>';
+}
+function s5charts(){
+  if(document.getElementById("c5a")){
+    mkChart("c5a",{data:{labels:["3月","4月","5月","6月","7月","8月"],datasets:[
+      {type:"bar",label:"資安事件（件）",data:[58,52,47,44,39,34],backgroundColor:teal2,borderRadius:4,yAxisID:"y",order:2},
+      {type:"line",label:"MTTR（時）",data:[7,6.1,5,4.2,3.4,2.9],borderColor:"#d97706",backgroundColor:"rgba(217,119,6,.1)",borderWidth:2.5,tension:.35,pointRadius:3,pointBackgroundColor:"#d97706",yAxisID:"y1",order:1,fill:false}
+    ]},options:{maintainAspectRatio:false,responsive:true,interaction:{mode:"index",intersect:false},plugins:{legend:{position:"bottom",labels:{boxWidth:10,font:{size:11},padding:12}}},scales:{
+      y:{position:"left",beginAtZero:true,grid:{color:"#eef2f6"},ticks:{font:{size:10}}},
+      y1:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},ticks:{font:{size:10}}},
+      x:{grid:{display:false},ticks:{font:{size:10}}}
+    }}});
+  }
+}
+
+// ---------- shared chart options ----------
+function copts(o){
+  o=o||{};
+  var sc={
+    x:{grid:{display:false},ticks:{font:{size:10}},stacked:!!o.stackX},
+    y:{beginAtZero:true,grid:{color:"#eef2f6"},ticks:{font:{size:10}},stacked:!!o.stackY}
+  };
+  if(o.y100){ sc.y.max=100; }
+  var cfg={maintainAspectRatio:false,responsive:true,
+    plugins:{legend:{display:o.horizontal?false:true,position:"bottom",labels:{boxWidth:10,font:{size:11},padding:12}}},
+    scales:sc};
+  if(o.horizontal){ cfg.indexAxis="y"; }
+  return cfg;
+}
+
+// ---------- header ----------
+function head(ic,title,sub){
+  return '<div class="topbar"><div class="min0"><h1><span class="material-symbols-outlined">'+ic+'</span>'+title+'</h1><div class="sub">'+sub+'</div></div>'
+    +'<div class="chips">'
+    +'<div class="chip"><span class="material-symbols-outlined">schedule</span>2026-08-14 04:15</div>'
+    +'<div class="chip"><span class="material-symbols-outlined">location_on</span>SOC 值班室</div>'
+    +'<div class="chip live"><span class="material-symbols-outlined">sensors</span>即時監控中</div>'
+    +'</div></div>';
+}
+
+var SCREENS=[
+  {r:s0,c:s0charts},
+  {r:s1,c:s1charts},
+  {r:s2,c:s2charts},
+  {r:s3,c:s3charts},
+  {r:s4,c:s4charts},
+  {r:s5,c:s5charts}
+];
+
+// ---------- nav ----------
+function buildNav(){
+  var nav=document.getElementById("nav");
+  nav.innerHTML=MODULES.map(function(m,i){
+    return '<button class="navbtn" data-i="'+i+'"><span class="material-symbols-outlined">'+m.icon+'</span>'
+      +'<span class="txt"><b>'+m.title+'</b><small>'+m.sub+'</small></span></button>';
+  }).join("");
+  var btns=nav.querySelectorAll("[data-i]");
+  for(var i=0;i<btns.length;i++){
+    btns[i].addEventListener("click",function(){
+      var idx=+this.getAttribute("data-i");
+      location.hash="go="+idx;
+    });
+  }
+}
+
+function show(i){
+  destroyCharts();
+  var container=document.getElementById("screen");
+  var s=SCREENS[i]||SCREENS[0];
+  container.innerHTML=s.r();
+  var btns=document.querySelectorAll("[data-i]");
+  for(var b=0;b<btns.length;b++){
+    btns[b].classList.toggle("on",(+btns[b].getAttribute("data-i"))===i);
+  }
+  void container.offsetHeight;
+  s.c();
+}
+
+buildNav();
+
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+window.addEventListener("hashchange",fromHash);fromHash();
+})();
+</script>
 </body>
 </html>
