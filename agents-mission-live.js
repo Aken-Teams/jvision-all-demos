@@ -97,6 +97,23 @@
     var live = $("#frameLive"); if (live) live.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-success"></span> 已完成';
   }
 
+  function frameSet(srcdoc) {
+    var f = $("#resultFrame");
+    if (!f) return;
+    f.style.display = "";
+    f.removeAttribute("src");
+    f.setAttribute("srcdoc", srcdoc);
+  }
+  function renderHtml(html) {
+    if ($("#resultTitle")) $("#resultTitle").textContent = "結果畫面";
+    if ($("#resultKind")) $("#resultKind").textContent = "AI 產出";
+    // 包一層基本樣式，確保字體與寬度自適應
+    frameSet('<!doctype html><meta charset="utf-8"><style>body{font-family:system-ui,"Noto Sans TC",sans-serif;margin:0;padding:16px;color:#0f172a;font-size:14px;background:#fff}*{box-sizing:border-box;max-width:100%}table{width:100%;border-collapse:collapse}</style>' + html);
+  }
+  function placeholder(msg) {
+    frameSet('<!doctype html><meta charset="utf-8"><div style="font-family:system-ui,sans-serif;color:#64748b;display:flex;height:90vh;align-items:center;justify-content:center;flex-direction:column;gap:10px"><div style="width:34px;height:34px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:s 1s linear infinite"></div><div>' + msg + '</div><style>@keyframes s{to{transform:rotate(360deg)}}</style></div>');
+  }
+
   function handle(e) {
     var t = e.type;
     if (t === "status") narr(e.message);
@@ -121,8 +138,9 @@
       if (dl) { var el = document.createElement("div"); el.className = "flex items-start gap-2 bg-soft rounded-lg px-2.5 py-2"; el.innerHTML = '<span class="material-symbols-outlined text-[17px] text-success shrink-0">check_circle</span><span class="text-[13px] text-ink">' + esc(e.text) + '</span>'; dl.appendChild(el); }
       if ($("#statDone")) $("#statDone").textContent = state.done;
     }
+    else if (t === "html") renderHtml(e.html);
     else if (t === "panel") renderPanel(e.mode || state.mode, e.data);
-    else if (t === "final") { narr("完成"); state.done = state.total + 1; progress(); state.running = false; }
+    else if (t === "final") { narr("完成"); state.done = state.total + 1; progress(); var lv = $("#frameLive"); if (lv) lv.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-success"></span> 已完成'; state.running = false; }
     else if (t === "error") { narr("發生問題"); addBubble("_err", "系統", "", "reasoning", '<span class="text-danger">' + esc(e.message) + '</span>'); state.running = false; }
   }
 

@@ -112,7 +112,9 @@ const MISSION_CASES = {
 };
 
 /* ---------- render ---------- */
-function _agent(id) { return agentById(id) || { name: id, icon: "smart_toy" }; }
+// 罐頭 demo 用到、但新 roster 已不存在的舊 id → 別名（讓罐頭 demo 自包含、不受 roster 變動影響）
+var _LEGACY_AGENTS = { supervisor: { name: "督導", icon: "fact_check" } };
+function _agent(id) { return agentById(id) || _LEGACY_AGENTS[id] || { name: id, icon: "smart_toy" }; }
 
 function _stepHTML(step, state) {
   const a = _agent(step.agentId);

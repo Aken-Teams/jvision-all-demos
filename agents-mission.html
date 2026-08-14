@@ -55,21 +55,28 @@
       <span id="missCode" class="eyebrow text-[11px] font-bold text-muted uppercase">MISSION CONTROL</span>
       <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mt-2">
         <div class="max-w-2xl">
-          <p class="text-[11px] font-bold text-violet mb-2">你只需要問一句話</p>
-          <div id="modeTabs" class="inline-flex gap-1 bg-soft border border-line rounded-xl p-1 mb-3">
-            <button data-mode="task" class="mode-tab px-3 py-1.5 rounded-lg text-[13px] font-bold bg-brand text-white">完成任務</button>
-            <button data-mode="report" class="mode-tab px-3 py-1.5 rounded-lg text-[13px] font-bold text-body hover:bg-white">數據報告</button>
-            <button data-mode="doc" class="mode-tab px-3 py-1.5 rounded-lg text-[13px] font-bold text-body hover:bg-white">產出文件</button>
+          <!-- 即時模式輸入 -->
+          <div id="liveAsk">
+            <p class="text-[11px] font-bold text-violet mb-2">你只需要問一句話，指揮官會自己判斷該查什麼、產出什麼</p>
+            <div class="flex items-center gap-2 max-w-2xl">
+              <input id="missInput" class="flex-1 h-11 px-4 rounded-xl border border-line bg-white text-[14px] text-ink focus:outline-none focus:border-brand2" placeholder="描述你的目標，例如：幫我看一下目前 MES 狀況能不能做新產品" />
+              <button id="missRun" class="h-11 px-5 rounded-xl bg-brand text-white text-sm font-bold hover:bg-brand2 transition-colors shadow-sm inline-flex items-center gap-1.5 shrink-0"><span class="material-symbols-outlined text-[18px]">bolt</span> 啟動</button>
+            </div>
+            <p class="text-sm text-muted mt-3 flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px] text-violet">bolt</span> 團隊自動分工：資料 Agent 查內部系統／外部真查，推理 Agent 彙整，右側長出結果畫面。</p>
           </div>
-          <div class="flex items-center gap-2">
-            <input id="missInput" class="flex-1 h-11 px-4 rounded-xl border border-line bg-white text-[14px] text-ink focus:outline-none focus:border-brand2" placeholder="描述你的目標，例如：幫我把今天的訂單排成生產工單並派工" />
-            <button id="missRun" class="h-11 px-5 rounded-xl bg-brand text-white text-sm font-bold hover:bg-brand2 transition-colors shadow-sm inline-flex items-center gap-1.5 shrink-0"><span class="material-symbols-outlined text-[18px]">bolt</span> 啟動</button>
+          <!-- 罐頭 demo 題目（?case） -->
+          <div id="cannedAsk" hidden>
+            <p class="text-[11px] font-bold text-violet mb-2">你只需要問一句話</p>
+            <div class="flex items-start gap-3">
+              <span class="w-9 h-9 rounded-full bg-soft border border-line grid place-content-center shrink-0"><span class="material-symbols-outlined text-[20px] text-muted">person</span></span>
+              <div class="bg-soft border border-line rounded-2xl rounded-tl-sm px-4 py-3"><p id="demoQuestion" class="text-[15px] text-ink font-medium">—</p></div>
+            </div>
+            <p class="text-sm text-muted mt-3 flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px] text-violet">bolt</span> 團隊收到後自動分工，跑完整個流程並交出實際成果。</p>
           </div>
-          <p id="demoQuestion" class="sr-only">—</p>
           <h1 id="missObjective" class="sr-only">—</h1>
-          <p class="text-sm text-muted mt-3 flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px] text-violet">bolt</span> 團隊收到後自動分工、真的呼叫 Agent 跑完流程並交出成果（內部數據擬真、外部資料真查）。</p>
         </div>
-        <div class="flex items-center gap-3 flex-wrap">
+        <!-- 罐頭 demo 統計（?case） -->
+        <div id="cannedStats" class="flex items-center gap-3 flex-wrap" hidden>
           <div class="flex gap-1 border border-line rounded-xl p-2 bg-white shadow-sm">
             <div class="px-3 border-r border-line"><div class="text-[11px] text-muted font-semibold">參與 Agents</div><div id="statAgents" class="text-lg font-black text-ink">—</div></div>
             <div class="px-3 border-r border-line"><div class="text-[11px] text-muted font-semibold">流程步驟</div><div id="statSteps" class="text-lg font-black text-ink">—</div></div>
@@ -134,67 +141,46 @@
   <script>
   (function () {
     var $ = function (s) { return document.querySelector(s); };
-    var mode = "task";
-    // 清掉舊的罐頭 demo 內容，改為即時
-    var rb = $("#replayBtn"); if (rb) rb.style.display = "none";
+    var sp = new URLSearchParams(location.search);
+    var q = sp.get("q");
+    // 罐頭 demo 模式（?case 且無 ?q）→ 完全交給 agents-missions.js，本 live 腳本不介入
+    var isCanned = sp.get("case") !== null && q === null;
+    if (isCanned) {
+      if ($("#liveAsk")) $("#liveAsk").hidden = true;
+      if ($("#cannedAsk")) $("#cannedAsk").hidden = false;
+      if ($("#cannedStats")) $("#cannedStats").hidden = false;
+      return; // 不清對話、不動 iframe，讓罐頭 demo 正常播放
+    }
+    // 即時模式
+    if ($("#cannedAsk")) $("#cannedAsk").hidden = true;
+    if ($("#cannedStats")) $("#cannedStats").hidden = true;
+    if ($("#liveAsk")) $("#liveAsk").hidden = false;
     ["#logFeed", "#doneList", "#runAgents", "#summaryList"].forEach(function (s) { if ($(s)) $(s).innerHTML = ""; });
-    // 範例情境 → 填入輸入框
-    var EXAMPLES = {
-      task: ["幫我把今天進來的訂單排成生產工單並派工", "幫我盤點本週採購缺料並排出補貨優先序"],
-      report: ["分析我上季的品質良率與客訴趨勢", "幫我看這個月的設備稼動與故障狀況"],
-      doc: ["幫我寫一份導入智慧排程的評估報告", "幫我產出這季 ESG 碳盤查摘要文件"]
-    };
-    function fillExamples() {
-      var host = $("#caseTabs"); if (!host) return;
-      host.innerHTML = (EXAMPLES[mode] || []).map(function (q) {
-        return '<button class="ex-chip px-3 py-1.5 rounded-full border border-line bg-white text-[12px] font-semibold text-body hover:border-brand2 hover:text-brand">' + q + '</button>';
+    if ($("#missCode")) $("#missCode").textContent = "MISSION CONTROL · 即時協作";
+    var ifr = $("#resultFrame"); if (ifr) ifr.style.display = "none";
+    var EXAMPLES = ["幫我看一下目前 MES 狀況能不能做新產品", "幫我把今天進來的訂單排成生產工單並派工", "分析我上季的品質良率與客訴趨勢"];
+    var host = $("#caseTabs");
+    if (host) {
+      host.innerHTML = EXAMPLES.map(function (x) {
+        return '<button class="ex-chip px-3 py-1.5 rounded-full border border-line bg-white text-[12px] font-semibold text-body hover:border-brand2 hover:text-brand">' + x + '</button>';
       }).join("");
       host.querySelectorAll(".ex-chip").forEach(function (b) {
         b.addEventListener("click", function () { $("#missInput").value = b.textContent; $("#missInput").focus(); });
       });
     }
-    // 模式頁籤
-    document.querySelectorAll("#modeTabs .mode-tab").forEach(function (t) {
-      t.addEventListener("click", function () {
-        mode = t.getAttribute("data-mode");
-        document.querySelectorAll("#modeTabs .mode-tab").forEach(function (x) {
-          var on = x === t;
-          x.className = "mode-tab px-3 py-1.5 rounded-lg text-[13px] font-bold " + (on ? "bg-brand text-white" : "text-body hover:bg-white");
-        });
-        if (window.JVMission) window.JVMission.setMode(mode);
-        fillExamples();
-      });
-    });
     function go() {
-      var q = ($("#missInput").value || "").trim();
-      if (!q || !window.JVMission) return;
-      window.JVMission.run(q, mode);
+      var v = ($("#missInput").value || "").trim();
+      if (!v || !window.JVMission) return;
+      window.JVMission.run(v, "task");
     }
     if ($("#missRun")) $("#missRun").addEventListener("click", go);
     if ($("#missInput")) $("#missInput").addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
-    function setMode(m) {
-      mode = m;
-      document.querySelectorAll("#modeTabs .mode-tab").forEach(function (x) {
-        var on = x.getAttribute("data-mode") === m;
-        x.className = "mode-tab px-3 py-1.5 rounded-lg text-[13px] font-bold " + (on ? "bg-brand text-white" : "text-body hover:bg-white");
-      });
-      if (window.JVMission) window.JVMission.setMode(m);
-    }
-    // 從 /agents 帶過來的需求：讀 ?q & ?mode，預填並自動開跑
-    var sp = new URLSearchParams(location.search);
-    var q = sp.get("q"), m = sp.get("mode");
-    if (m && EXAMPLES[m]) setMode(m);
-    fillExamples();
-    // 隱藏罐頭 demo 的 iframe（即時面板會取代）
-    var ifr = $("#resultFrame"); if (ifr) ifr.style.display = "none";
-    if ($("#missCode")) $("#missCode").textContent = "MISSION CONTROL · 即時協作 · " + ({task:"完成任務",report:"數據報告",doc:"產出文件"}[mode] || "完成任務");
     if (q) {
       $("#missInput").value = q;
-      // 等 live runtime 載入後自動開跑
       var tries = 0;
       (function auto() {
-        if (window.JVMission) { window.JVMission.run(q, mode); }
-        else if (tries++ < 40) { setTimeout(auto, 100); }
+        if (window.JVMission) window.JVMission.run(q, "task");
+        else if (tries++ < 40) setTimeout(auto, 100);
       })();
     }
   })();

@@ -68,9 +68,11 @@ def system_prompt(aid: str, worker_output: bool = True) -> str:
     parts.append("# 你的技能 playbook\n" + skills_md)
     if worker_output:
         parts.append(
-            "# 輸出要求\n- 只做被指派的那一步，精簡務實。\n"
+            "# 輸出要求\n- 只做被指派的那一步，精簡務實，不要長篇大論。\n"
             "- internal 數據自然呈現、不要出現「模擬」字樣；external 事實必附真實來源連結。\n"
-            "- 結尾用一行 `RESULT:` 附上這一步的關鍵結論（給總指揮彙整用）。"
+            "- 正文最多 5 行重點。結尾固定兩行：\n"
+            "  `SUMMARY: <一句話口語摘要，≤30字，給對話框顯示>`\n"
+            "  `RESULT: <這一步的關鍵數據/結論，給總指揮彙整成畫面用，可含數字>`"
         )
     return "\n\n".join(p for p in parts if p.strip())
 
