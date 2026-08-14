@@ -613,6 +613,7 @@
       ".jvr-table td{padding:9px 12px;border-bottom:1px solid #eef2f7}.jvr-hr{border:0;border-top:1px solid #e2e8f0;margin:16px 0}" +
       ".jvr-chart{position:relative;margin:14px 0;border:1px solid #e8eef5;border-radius:12px;background:#fff;box-shadow:0 1px 6px rgba(2,32,71,.05)}" +
       ".jvr-chart:empty::before{content:'圖表產生中…';display:block;color:#94a3b8;font-size:13px;text-align:center;padding:38px 0}" +
+      ".jvr-mermaid{padding:12px;text-align:center;min-height:0!important}.jvr-mermaid svg{max-width:100%;height:auto}" +
       ".jvr-zoom{position:absolute;top:8px;right:8px;z-index:5;width:26px;height:26px;border:1px solid #e2e8f0;background:#fff;border-radius:7px;cursor:pointer;color:#475569;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.08)}" +
       ".jvr-zoom:hover{background:#f1f5f9}" +
       ".jvr-lightbox{position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.72);display:flex;align-items:center;justify-content:center;padding:24px}" +
@@ -722,6 +723,58 @@
     ov.onclick = function (e) { if (e.target === ov) close(); };
     ov.querySelector(".jvr-lb-close").onclick = close;
   }
+  function openSvgLightbox(svg) {
+    var ov = document.createElement("div"); ov.className = "jvr-lightbox";
+    ov.innerHTML = '<div class="jvr-lightbox-body"><button class="jvr-lb-close" aria-label="關閉">×</button><div class="jvr-lb-svg" style="width:100%;max-height:78vh;overflow:auto;text-align:center">' + svg + "</div></div>";
+    document.body.appendChild(ov);
+    var s = ov.querySelector(".jvr-lb-svg svg"); if (s) { s.removeAttribute("height"); s.style.maxWidth = "100%"; s.style.height = "auto"; }
+    function close() { ov.remove(); }
+    ov.onclick = function (e) { if (e.target === ov) close(); };
+    ov.querySelector(".jvr-lb-close").onclick = close;
+  }
+  // Mermaid：流程圖 / 心智圖(mindmap) / 循序圖 / 狀態圖…
+  var _mmSeq = 0, _mmReady = false;
+  function ensureMermaid() {
+    if (_mmReady || !window.mermaid) return _mmReady;
+    try { window.mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "default", mindmap: { padding: 10 } }); _mmReady = true; } catch (e) { }
+    return _mmReady;
+  }
+  function renderMermaid(el, code, tries) {
+    tries = tries || 0;
+    if (!window.mermaid) {  // CDN 檔大(~3.5MB)可能還在載 → 最多等 ~6 秒再放棄
+      if (tries < 30) { el.innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:12.5px">圖表載入中…</div>'; setTimeout(function () { renderMermaid(el, code, tries + 1); }, 200); return; }
+      el.innerHTML = '<pre class="jvr-pre">' + esc(code) + "</pre>"; return;
+    }
+    if (!ensureMermaid()) { el.innerHTML = '<pre class="jvr-pre">' + esc(code) + "</pre>"; return; }
+    var id = "jvmm" + (_mmSeq++);
+    try {
+      window.mermaid.render(id, code).then(function (r) {
+        el.innerHTML = r.svg; el.classList.add("jvr-mermaid"); el.style.position = "relative"; el.style.minHeight = "0";
+        var zb = document.createElement("button"); zb.className = "jvr-zoom"; zb.textContent = "⤢"; zb.title = "放大";
+        zb.onclick = function (ev) { ev.stopPropagation(); openSvgLightbox(el.innerHTML); };
+        el.appendChild(zb);
+      }).catch(function () { el.innerHTML = '<pre class="jvr-pre">' + esc(code) + "</pre>"; });
+    } catch (e) { el.innerHTML = '<pre class="jvr-pre">' + esc(code) + "</pre>"; }
+  }
+  // 地圖（世界 / 台灣 / 中國）：ECharts v5 需先註冊 GeoJSON，用到才動態抓
+  var MAP_SRC = {
+    world: "https://cdn.jsdelivr.net/npm/echarts@4.9.0/map/json/world.json",
+    taiwan: "https://geo.datav.aliyun.com/areas_v3/bound/geojson?code=710000",
+    china: "https://geo.datav.aliyun.com/areas_v3/bound/geojson?code=100000_full"
+  };
+  var MAP_ALIAS = { "世界": "world", "全球": "world", "台灣": "taiwan", "臺灣": "taiwan", "tw": "taiwan", "中國": "china", "大陸": "china" };
+  function mapNameOf(opt) {
+    var n = (opt.geo && opt.geo.map) || "";
+    if (!n && opt.series) opt.series.forEach(function (s) { if (!n && s && s.map) n = s.map; });
+    return n;
+  }
+  function ensureMap(name, cb) {
+    var key = MAP_ALIAS[name] || (name || "").toLowerCase();
+    if (!MAP_SRC[key]) { cb(key && window.echarts && echarts.getMap && echarts.getMap(key) ? key : false); return; }
+    if (window.echarts && echarts.getMap && echarts.getMap(key)) { cb(key); return; }
+    fetch(MAP_SRC[key]).then(function (r) { return r.json(); }).then(function (geo) { try { echarts.registerMap(key, geo); cb(key); } catch (e) { cb(false); } }).catch(function () { cb(false); });
+  }
+  function normMapName(opt, key) { if (opt.geo && opt.geo.map) opt.geo.map = key; (opt.series || []).forEach(function (s) { if (s && s.map) s.map = key; }); }
   var reportCharts = [];
   if (!window.__jvrResizeBound) {
     window.__jvrResizeBound = true;
@@ -732,15 +785,20 @@
     root.querySelectorAll(".jvr-chart").forEach(function (el) {
       if (el.getAttribute("data-done")) return; el.setAttribute("data-done", "1");
       var kind = el.getAttribute("data-kind"), raw = el.getAttribute("data-raw") || ""; // getAttribute 已解過實體
-      if (kind === "mermaid") { el.innerHTML = '<pre class="jvr-pre">' + esc(raw) + "</pre>"; return; }
+      if (kind === "mermaid") { renderMermaid(el, raw); return; }
       var opt = window.echarts ? chartToOption(kind, raw) : null;
       if (!opt) { el.style.minHeight = "0"; el.innerHTML = '<div style="padding:14px 16px;color:#94a3b8;font-size:12.5px">（此圖表資料未能解析）</div>'; return; }
-      el.style.height = "300px";
-      var inst = echarts.init(el); inst.setOption(opt); reportCharts.push(inst);
-      var zb = document.createElement("button"); zb.className = "jvr-zoom"; zb.textContent = "⤢"; zb.title = "放大";
-      zb.onclick = function (ev) { ev.stopPropagation(); openChartLightbox(opt); };
-      el.appendChild(zb);
-      setTimeout(function () { try { inst.resize(); } catch (e) { } }, 60); // 版面穩定後再量一次寬度
+      function draw() {
+        var inst = echarts.init(el); inst.setOption(opt); reportCharts.push(inst);
+        var zb = document.createElement("button"); zb.className = "jvr-zoom"; zb.textContent = "⤢"; zb.title = "放大";
+        zb.onclick = function (ev) { ev.stopPropagation(); openChartLightbox(opt); };
+        el.appendChild(zb);
+        setTimeout(function () { try { inst.resize(); } catch (e) { } }, 60);
+      }
+      var mn = mapNameOf(opt);
+      el.style.height = mn ? "380px" : "300px";
+      if (mn) { ensureMap(mn, function (key) { if (key) { normMapName(opt, key); draw(); } else { el.innerHTML = '<div style="padding:14px 16px;color:#94a3b8;font-size:12.5px">（地圖資料載入失敗，已略過）</div>'; } }); }
+      else draw();
     });
   }
   function renderTextReport(title, sub, md, streaming) {
