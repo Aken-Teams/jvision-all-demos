@@ -16,3 +16,6 @@
 
 ## 進度彙整
 - 依 教育培訓 情境運用「進度彙整」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
+
+## 交付彙總
+- 依 教育培訓 情境運用「交付彙總」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。

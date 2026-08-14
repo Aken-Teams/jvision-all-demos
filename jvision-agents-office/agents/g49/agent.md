@@ -5,7 +5,7 @@ role: 教育培訓 · 策略規劃 Agent
 domain: 教育培訓
 category: strategy
 dataMode: external-real
-skills: ["導入路線規劃", "階段拆解", "里程碑設定", "依賴與風險分析", "資源估算"]
+skills: ["導入路線規劃", "階段拆解", "里程碑設定", "依賴與風險分析", "資源估算", "時程規劃"]
 collaborators: [orchestrator, expert, abacus, scheduler, drafter]
 inherits:
   policy: ../../POLICY.md

@@ -11,6 +11,9 @@
 ## 異常偵測
 - 依 品質管理 情境運用「異常偵測」，遵守 dataMode：internal-sim（詳見 ../../datamodes/internal-sim.md）。
 
+## 分群洞察
+- 依 品質管理 情境運用「分群洞察」，遵守 dataMode：internal-sim（詳見 ../../datamodes/internal-sim.md）。
+
 ## 儀表板產出
 - 依 品質管理 情境運用「儀表板產出」，遵守 dataMode：internal-sim（詳見 ../../datamodes/internal-sim.md）。
 

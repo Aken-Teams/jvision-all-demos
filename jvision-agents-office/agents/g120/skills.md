@@ -8,6 +8,9 @@
 ## 規格撰寫
 - 依 生產製造 情境運用「規格撰寫」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
 
+## SOW 產出
+- 依 生產製造 情境運用「SOW 產出」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
+
 ## 範圍界定
 - 依 生產製造 情境運用「範圍界定」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
 

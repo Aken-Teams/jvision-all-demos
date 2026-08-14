@@ -5,7 +5,7 @@ role: 經營管理 · 介面設計 Agent
 domain: 經營管理
 category: design
 dataMode: reasoning
-skills: ["線框草稿", "介面設計", "元件規範", "設計 tokens", "可用性檢視"]
+skills: ["線框草稿", "介面設計", "設計 prompt", "元件規範", "設計 tokens", "可用性檢視"]
 collaborators: [orchestrator, drafter, narrator, calibrator, insighter]
 inherits:
   policy: ../../POLICY.md

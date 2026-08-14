@@ -14,5 +14,8 @@
 ## 關鍵路徑
 - 依 客服管理 情境運用「關鍵路徑」，遵守 dataMode：internal-sim（詳見 ../../datamodes/internal-sim.md）。
 
+## 甘特圖產出
+- 依 客服管理 情境運用「甘特圖產出」，遵守 dataMode：internal-sim（詳見 ../../datamodes/internal-sim.md）。
+
 ## 負載平衡
 - 依 客服管理 情境運用「負載平衡」，遵守 dataMode：internal-sim（詳見 ../../datamodes/internal-sim.md）。

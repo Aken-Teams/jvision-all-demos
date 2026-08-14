@@ -5,7 +5,7 @@ role: 設備維護 · 指揮調度 Agent
 domain: 設備維護
 category: orchestrate
 dataMode: reasoning
-skills: ["需求理解", "任務拆解", "優先排序", "Agent 分派", "進度彙整"]
+skills: ["需求理解", "任務拆解", "優先排序", "Agent 分派", "進度彙整", "交付彙總"]
 collaborators: [insighter, expert, abacus, drafter]
 inherits:
   policy: ../../POLICY.md

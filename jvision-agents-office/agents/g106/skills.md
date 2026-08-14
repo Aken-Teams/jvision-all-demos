@@ -14,5 +14,8 @@
 ## 異常偵測
 - 依 ESG 永續 情境運用「異常偵測」，遵守 dataMode：internal-sim（詳見 ../../datamodes/internal-sim.md）。
 
+## 趨勢觀測
+- 依 ESG 永續 情境運用「趨勢觀測」，遵守 dataMode：internal-sim（詳見 ../../datamodes/internal-sim.md）。
+
 ## 事件通報
 - 依 ESG 永續 情境運用「事件通報」，遵守 dataMode：internal-sim（詳見 ../../datamodes/internal-sim.md）。

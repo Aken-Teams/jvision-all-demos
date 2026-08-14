@@ -16,3 +16,6 @@
 
 ## 信心評分
 - 依 業務銷售 情境運用「信心評分」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+
+## 比較矩陣產出
+- 依 業務銷售 情境運用「比較矩陣產出」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。

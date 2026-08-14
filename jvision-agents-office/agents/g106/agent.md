@@ -5,7 +5,7 @@ role: ESG 永續 · 即時監控 Agent
 domain: ESG 永續
 category: monitor
 dataMode: internal-sim
-skills: ["即時監控", "門檻告警", "狀態追蹤", "異常偵測", "事件通報"]
+skills: ["即時監控", "門檻告警", "狀態追蹤", "異常偵測", "趨勢觀測", "事件通報"]
 collaborators: [orchestrator, insighter, seer, guardian, scheduler]
 inherits:
   policy: ../../POLICY.md

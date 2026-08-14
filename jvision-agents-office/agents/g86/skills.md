@@ -11,6 +11,9 @@
 ## 權限治理
 - 依 設備維護 情境運用「權限治理」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
 
+## 資料合規檢查
+- 依 設備維護 情境運用「資料合規檢查」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
+
 ## 風險分級
 - 依 設備維護 情境運用「風險分級」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
 

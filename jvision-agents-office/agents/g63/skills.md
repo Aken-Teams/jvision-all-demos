@@ -14,5 +14,8 @@
 ## 季節性分析
 - 依 研發管理 情境運用「季節性分析」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
 
+## 信賴區間
+- 依 研發管理 情境運用「信賴區間」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+
 ## 預警通知
 - 依 研發管理 情境運用「預警通知」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。

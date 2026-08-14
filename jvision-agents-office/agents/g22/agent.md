@@ -5,7 +5,7 @@ role: 生產製造 · 選型顧問 Agent
 domain: 生產製造
 category: match
 dataMode: external-real
-skills: ["需求語意理解", "產業匹配", "規模與預算適配", "多方案比較", "信心評分"]
+skills: ["需求語意理解", "產業匹配", "規模與預算適配", "多方案比較", "信心評分", "比較矩陣產出"]
 collaborators: [orchestrator, expert, blueprint, abacus, drafter]
 inherits:
   policy: ../../POLICY.md

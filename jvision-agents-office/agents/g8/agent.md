@@ -5,7 +5,7 @@ role: ESG 永續 · 指揮調度 Agent
 domain: ESG 永續
 category: orchestrate
 dataMode: reasoning
-skills: ["需求理解", "任務拆解", "優先排序", "Agent 分派", "進度彙整"]
+skills: ["需求理解", "任務拆解", "優先排序", "Agent 分派", "進度彙整", "交付彙總"]
 collaborators: [insighter, expert, abacus, drafter]
 inherits:
   policy: ../../POLICY.md

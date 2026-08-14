@@ -16,3 +16,6 @@
 
 ## 法規要點提示
 - 依 採購供應鏈 情境運用「法規要點提示」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+
+## 案例引用
+- 依 採購供應鏈 情境運用「案例引用」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。

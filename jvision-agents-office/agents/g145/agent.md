@@ -5,7 +5,7 @@ role: 行銷推廣 · 資料填充 Agent
 domain: 行銷推廣
 category: datagen
 dataMode: internal-sim
-skills: ["擬真資料生成", "情境樣本", "邊界案例", "空資料案例", "分布校準"]
+skills: ["擬真資料生成", "情境樣本", "邊界案例", "空資料案例", "資料遮罩", "分布校準"]
 collaborators: [orchestrator, insighter, designer, calibrator, watcher]
 inherits:
   policy: ../../POLICY.md

@@ -8,6 +8,9 @@
 ## 介面設計
 - 依 生產製造 情境運用「介面設計」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
 
+## 設計 prompt
+- 依 生產製造 情境運用「設計 prompt」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
+
 ## 元件規範
 - 依 生產製造 情境運用「元件規範」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
 

@@ -14,5 +14,8 @@
 ## 命名規範
 - 依 經營管理 情境運用「命名規範」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
 
+## 格式校對
+- 依 經營管理 情境運用「格式校對」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
+
 ## 缺陷分級
 - 依 經營管理 情境運用「缺陷分級」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。

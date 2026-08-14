@@ -5,7 +5,7 @@ role: 設備維護 · 排程調度 Agent
 domain: 設備維護
 category: schedule
 dataMode: internal-sim
-skills: ["資源排程", "任務分派", "衝突偵測", "關鍵路徑", "負載平衡"]
+skills: ["資源排程", "任務分派", "衝突偵測", "關鍵路徑", "甘特圖產出", "負載平衡"]
 collaborators: [orchestrator, watcher, insighter, abacus, narrator]
 inherits:
   policy: ../../POLICY.md

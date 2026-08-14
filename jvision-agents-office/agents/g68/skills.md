@@ -14,5 +14,8 @@
 ## 流程盤點
 - 依 資產管理 情境運用「流程盤點」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
 
+## 無障礙檢視
+- 依 資產管理 情境運用「無障礙檢視」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
+
 ## 改善建議
 - 依 資產管理 情境運用「改善建議」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。

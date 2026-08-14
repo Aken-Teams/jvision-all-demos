@@ -210,6 +210,11 @@ const _CAT_MAP = {}; CATS.forEach((c) => (_CAT_MAP[c.key] = c));
 const _BIG_MAP = {}; BIGS.forEach((b) => (_BIG_MAP[b.key] = b));
 function catOf(key) { return _CAT_MAP[key]; }
 function bigOf(catKey) { const c = _CAT_MAP[catKey]; return c ? _BIG_MAP[c.big] : null; }
+/* 若載入了生成的真資料（jvision-agents-office 產出），改用它；下方衍生欄位照常補完 */
+if (typeof window !== "undefined" && Array.isArray(window.__AGENTS_DATA) && window.__AGENTS_DATA.length) {
+  AGENTS.length = 0;
+  window.__AGENTS_DATA.forEach((o) => AGENTS.push(Object.assign({}, o)));
+}
 AGENTS.forEach((a, i) => {
   const c = _CAT_MAP[a.cat] || CATS[0];
   const big = _BIG_MAP[c.big];
@@ -217,12 +222,19 @@ AGENTS.forEach((a, i) => {
   a.icon = a.icon || c.icon;
   a.accentClass = BIG_ACCENT[big.color]; // 卡片/詳細頁 icon 依大分類上色
   if (!a.caps) a.caps = c.caps.slice();
+  // generated agent 從角色技能池輪選 3 個，讓同類卡片的標籤有變化（仍為該角色的真實技能）
+  if (/^g\d+$/.test(a.id) && CAT_SKILLS[a.cat]) {
+    const pool = CAT_SKILLS[a.cat], h = _hash(a.id);
+    a.caps = [pool[h % pool.length], pool[(h + 2) % pool.length], pool[(h + 4) % pool.length]]
+      .filter((v, idx, arr) => arr.indexOf(v) === idx);
+  }
   a.stats = a.stats || { tasks: 48 + ((i * 37) % 180), hit: 84 + ((i * 7) % 14), resp: 4 + ((i * 3) % 9), collab: 3 + ((i * 2) % 5) };
   // 卡片顯示：功能名（大）＋ 產業/說明（小），不用抽象暱稱
   const isGen = /^g\d+$/.test(a.id);
   a.dom = isGen ? (a.role.split(" · ")[0]) : "";
-  a.label = isGen ? c.name : (a.role || c.name).replace(/\s*Agent\s*$/, "").trim();
-  a.sub = isGen ? a.dom : big.name;
+  // 卡片大標：一般 agent 用「領域」當標題（才有區別，不會 14 張都叫選型顧問）；旗艦用角色名
+  a.label = isGen ? a.dom : (a.role || c.name).replace(/\s*Agent\s*$/, "").trim();
+  a.sub = isGen ? c.name : big.name;
 });
 
 /* 常用 / 必備 Agents（精選呈現於市集頂部） */
@@ -283,8 +295,8 @@ function agentCardHTML(a) {
         <p class="text-xs text-muted font-semibold truncate">${a.sub}</p>
       </div>
     </div>
-    <p class="text-[13px] text-body leading-snug line-clamp-2">${a.tagline}</p>
-    <div class="flex flex-wrap gap-1.5">${chips}</div>
+    <p class="text-[13px] text-body leading-snug line-clamp-2 min-h-[36px]">${a.tagline}</p>
+    <div class="flex flex-wrap gap-1.5 min-h-[26px] content-start">${chips}</div>
     <span class="mt-auto self-end text-xs font-bold text-brand2 inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">查看 Agent <span class="material-symbols-outlined text-[16px]">arrow_forward</span></span>
   </a>`;
 }
@@ -413,10 +425,8 @@ function renderProfile() {
   const _gsi = document.querySelector("#pfGraphSelfIcon"); if (_gsi) { _gsi.textContent = a.icon; _gsi.className = `material-symbols-outlined text-[22px] ${BIG_TEXT[big.color]}`; }
   const _gsr = document.querySelector("#pfGraphSelfRing"); if (_gsr) _gsr.className = `w-11 h-11 rounded-full bg-white ring-2 ${BIG_RING[big.color]} grid place-content-center mx-auto shadow-sm`;
 
-  // 技能 Skills：依 agent 顯示 4~6 個（不固定）
-  const pool = (CAT_SKILLS[a.cat] || a.caps || []).slice();
-  const nSkill = 4 + (_hash(a.id) % 3); // 4~6
-  const skills = pool.slice(0, Math.min(nSkill, 6));
+  // 技能 Skills：顯示該角色完整技能池，與 agent.md 的 skills 完全一致
+  const skills = (CAT_SKILLS[a.cat] || a.caps || []).slice(0, 6);
   set("#pfCaps", skills.map((cap) => `
     <div class="bg-white border border-line rounded-lg p-3 flex items-center gap-2"><span class="material-symbols-outlined text-[20px] text-emerald-600 shrink-0">check_circle</span><h5 class="text-[13px] font-bold text-ink leading-tight">${cap}</h5></div>`).join(""));
 

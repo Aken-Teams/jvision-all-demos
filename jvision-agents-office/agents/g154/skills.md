@@ -14,5 +14,8 @@
 ## 空資料案例
 - 依 採購供應鏈 情境運用「空資料案例」，遵守 dataMode：internal-sim（詳見 ../../datamodes/internal-sim.md）。
 
+## 資料遮罩
+- 依 採購供應鏈 情境運用「資料遮罩」，遵守 dataMode：internal-sim（詳見 ../../datamodes/internal-sim.md）。
+
 ## 分布校準
 - 依 採購供應鏈 情境運用「分布校準」，遵守 dataMode：internal-sim（詳見 ../../datamodes/internal-sim.md）。

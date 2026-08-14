@@ -5,7 +5,7 @@ role: 財務會計 · 數據洞察 Agent
 domain: 財務會計
 category: analyze
 dataMode: internal-sim
-skills: ["指標分析", "趨勢解讀", "異常偵測", "儀表板產出", "決策建議"]
+skills: ["指標分析", "趨勢解讀", "異常偵測", "分群洞察", "儀表板產出", "決策建議"]
 collaborators: [orchestrator, seer, watcher, abacus, expert]
 inherits:
   policy: ../../POLICY.md

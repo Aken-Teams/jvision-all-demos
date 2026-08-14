@@ -16,3 +16,6 @@
 
 ## 資源估算
 - 依 人力資源 情境運用「資源估算」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。
+
+## 時程規劃
+- 依 人力資源 情境運用「時程規劃」，遵守 dataMode：external-real（詳見 ../../datamodes/external-real.md）。

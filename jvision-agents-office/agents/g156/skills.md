@@ -11,6 +11,9 @@
 ## 自動填寫
 - 依 業務銷售 情境運用「自動填寫」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
 
+## 表單處理
+- 依 業務銷售 情境運用「表單處理」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
+
 ## 知識檢索
 - 依 業務銷售 情境運用「知識檢索」，遵守 dataMode：reasoning（詳見 ../../datamodes/reasoning.md）。
 
