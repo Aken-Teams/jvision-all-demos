@@ -437,8 +437,11 @@
   }
   async function runMission(question, mode) {
     if (state.running) return;
-    setBusy(true); state.mode = mode || "task"; state.bubbles = {}; state.done = 0; state.total = 0;
+    setBusy(true); state.mode = mode || "task"; state.bubbles = {}; state.done = 0; state.total = 0; state.dash = null;
     if (feed()) feed().innerHTML = ""; if ($("#doneList")) $("#doneList").innerHTML = "";
+    // 清掉上一份報告（右側）
+    var f0 = $("#resultFrame"); if (f0) { f0.removeAttribute("srcdoc"); f0.removeAttribute("src"); f0.style.display = "none"; }
+    var lr0 = $("#liveResult"); if (lr0) { lr0.style.display = ""; lr0.innerHTML = ""; }
     if ($("#demoQuestion")) $("#demoQuestion").textContent = question;
     if ($("#resultTitle")) $("#resultTitle").textContent = "結果畫面（產生中）";
     placeholder("團隊協作中，稍候右側會長出結果畫面…");

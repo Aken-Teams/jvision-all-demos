@@ -26,8 +26,45 @@ def _sysname(domain):
     return ss[0] if ss else "內部系統"
 
 
-def pick_data_team(question):
-    doms = registry.detect_domains(question, top=2)
+import json as _json
+def _extract_json(text):
+    text = (text or "").replace("```json", "").replace("```", "")
+    depth = 0; start = -1
+    for i, ch in enumerate(text):
+        if ch == "{":
+            if depth == 0: start = i
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0 and start >= 0:
+                try: return _json.loads(text[start:i+1])
+                except Exception: pass
+    return None
+
+
+async def plan(question):
+    """指揮官(sonnet)智能判斷：牽涉哪些企業功能領域、是否需要上網查外部。"""
+    doms_list = "、".join(registry.domains_kb().keys())
+    sysp = ("你是 AI 團隊總指揮。判斷這個需求該找哪個『企業功能領域』的資料、以及是否需要上網查外部資料。全程繁體中文。\n"
+            f"企業功能領域（從這些擇 1-2 個最相關）：{doms_list}。\n"
+            "判斷外部：問內部現況/數據/系統→external=false；問市場/趨勢/新聞/網路/競品/標竿/最新/外部資訊→external=true。\n"
+            "若需求本身跟企業營運領域無關（例如美食、旅遊、生活），選『最接近的領域』（如美食→零售電商或食品，旅遊→零售電商）並 external=true（當作產業研究）。\n"
+            "只輸出 JSON：{\"domains\":[\"領域1\",\"領域2\"],\"external\":true/false,\"external_query\":\"若要上網查，一句話說查什麼\"}")
+    try:
+        ans = await llm.stream_answer(sysp, f"需求：{question}", search=False, model=SMART, timeout=45)
+    except Exception:
+        ans = ""
+    data = _extract_json(ans) or {}
+    kb = set(registry.domains_kb().keys())
+    doms = [d for d in (data.get("domains") or []) if d in kb][:2]
+    if not doms:
+        doms = registry.detect_domains(question, top=2)
+    external = bool(data.get("external"))
+    exq = (data.get("external_query") or question)[:40]
+    return doms, external, exq
+
+
+def pick_data_team(question, doms, external, exq):
     team, used = [], set()
     def add(a, sub):
         if a and a["id"] not in used:
@@ -38,14 +75,16 @@ def pick_data_team(question):
             if a and a["dataMode"] == "internal-sim":
                 add(a, f"查 {dom} 內部系統（{_sysname(dom)}）的現況數據"); break
         if sum(1 for t in team if t["agent"]["dataMode"] == "internal-sim") >= 2: break
-    if not any(t["agent"]["dataMode"] == "internal-sim" for t in team):
+    if not external and not any(t["agent"]["dataMode"] == "internal-sim" for t in team):
         add(registry.flagship_of_cat("analyze"), f"查 {doms[0]} 內部系統現況數據")
-    if any(s in question.lower() for s in EXTERNAL_SIGNALS):
+    if external:  # 指揮官判定要上網查 → 保證派一個 external-real 真查
         a = (registry.by_cat_in_domain(doms[0], "expert") or registry.by_cat_in_domain(doms[0], "strategy")
-             or registry.flagship_of_cat("expert"))  # 保底：一定有一個 external-real 真查
+             or registry.flagship_of_cat("expert"))
         if a and a["dataMode"] == "external-real":
-            add(a, f"上網查『{question[:20]}』相關的產業趨勢/標竿/最新資料，附真實來源連結")
-    return doms, team[:3]
+            add(a, f"上網查『{exq}』的最新資料/趨勢/標竿，附真實來源連結")
+    if not team:  # 保底
+        add(registry.flagship_of_cat("analyze"), f"查 {doms[0]} 現況數據")
+    return team[:3]
 
 
 _REFUSE = ["無法連接", "無法連線", "無法存取", "無法取得", "需要提供", "沒有權限", "沒有能力", "Claude", "AI 助手",
@@ -87,8 +126,9 @@ async def _gather(t, emit):
                 f"- **不要**提到「連線/存取真實系統」「無法取得」「需要提供資料」「權限」「你是 AI 助手」——直接給數字就好。\n"
                 "回兩段：\n`SUMMARY: <一句話，含 2-3 個關鍵數字>`\n`DATA:`（6-8 條「名稱: 數值(含單位)」的具體數字）")
     else:
-        task = ("\n\n# 任務：用 web search 查真實外部資料回報，附來源連結；查不到標「待查證」。\n"
-                "回兩段：\n`SUMMARY: <一句話重點>`\n`DATA:`（幾條「事實: 內容(來源連結)」）")
+        task = ("\n\n# 任務：直接針對下面這個主題『上網查最新的真實公開資料』並回報。\n"
+                "**不要管你的人設是什麼領域、不要反問、不要說『超出專長/需要澄清』——就去查、附來源連結。** 查不到的標「待查證」。\n"
+                "回兩段：\n`SUMMARY: <一句話重點>`\n`DATA:`（幾條「事實: 內容(來源連結 http)」）")
     sysp = registry.light_prompt(a["id"]) + task
     searches = []
     def _e(ev):
@@ -135,6 +175,9 @@ PAGE_SPEC = (
     "- **圖表要多元**（至少 2 個、盡量 3 個不同種）：ECharts 支援 bar / line / pie/doughnut / **radar 雷達** / **gauge 儀表** / scatter / funnel 漏斗 / **stacked bar 堆疊** / **heatmap** / 折線面積圖，依資料選最貼切的。\n"
     "- **多元元件**：KPI 大字帶（含漲跌徽章）、進度條、狀態徽章（達標/警示）、時間軸、排名榜、比較表、警示框、迷你統計卡、圓環進度… 盡量豐富。\n"
     "- 版面要有主次層次、留白、陰影、圓角，專業精美；內容資訊量要足。\n"
+    "## 絕對規則\n"
+    "- **無論團隊資料多寡，你一定要產出結構化的設計頁**（含 KPI 大字帶、至少 2 個圖表、表格、結論帶）。\n"
+    "- **絕對不要只輸出純文字段落、不要反問使用者、不要說『需要澄清/需要更多資訊』**。資料不足就用手上的數字合理呈現。\n"
     "先寫一行 `NOTE: <這份報告的設計重點/結論，一句話>`，再輸出完整 HTML。**不要 markdown、不要 ``` 圍欄、不要多餘說明。**"
 )
 
@@ -169,8 +212,9 @@ async def _build_page(designer, question, doms, combined, emit):
 
 
 async def run(question: str, mode, emit):
-    emit({"type": "status", "message": "指揮官讀取需求，找對的 Agent…"})
-    doms, data_team = pick_data_team(question)
+    emit({"type": "status", "message": "指揮官分析需求、判斷領域…"})
+    doms, external, exq = await plan(question)
+    data_team = pick_data_team(question, doms, external, exq)
     _used_ids = {t["agent"]["id"] for t in data_team}
     synth = registry.flagship_of_cat("design")  # 繪境（介面設計）：把資料設計成報告，與查資料的 agent 區隔
     if synth and synth["id"] in _used_ids:
