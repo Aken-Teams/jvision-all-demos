@@ -491,32 +491,41 @@
     'try{parent.postMessage({jvrx:"ready"},"*");}catch(e){}})();<\/script>'
   ].join("");
 
-  // 掃描出「已完整結束的頂層區塊」的結尾索引（避免寫入半個標籤 → 不閃不卡）
+  // 掃描出可安全寫入的結尾索引：優先在「內容同層」的完整區塊邊界斷開（避免半個標籤 → 不閃不卡）。
+  // 從 0 全掃以正確計算巢狀深度；last[d]=在深度 d 收尾的最後位置。頁面常把整份包在單一外層 <div> 內，
+  // 此時 last[0] 一直停在 0，就改用 last[1]（外層的子區塊）→ 才能一塊一塊長出來。
   function completeBlocksEnd(s, from) {
     var VOID = { br: 1, img: 1, meta: 1, link: 1, input: 1, hr: 1, area: 1, base: 1, col: 1, embed: 1, source: 1, track: 1, wbr: 1 };
-    var depth = 0, i = from, last = from, n = s.length;
+    var depth = 0, i = 0, n = s.length, last = [0, 0, 0];
+    function mark(pos) { if (depth <= 2) last[depth] = pos; }
     while (i < n) {
       var lt = s.indexOf("<", i);
       if (lt < 0) break;
-      if (s.substr(lt, 4) === "<!--") { var ce = s.indexOf("-->", lt + 4); if (ce < 0) break; i = ce + 3; if (depth === 0) last = i; continue; }
+      if (s.substr(lt, 4) === "<!--") { var ce = s.indexOf("-->", lt + 4); if (ce < 0) break; i = ce + 3; mark(i); continue; }
       var gt = s.indexOf(">", lt + 1);
       if (gt < 0) break; // 標籤還沒收完
       var tag = s.slice(lt + 1, gt);
       if (tag.charAt(0) === "/") {
         var cn = (tag.match(/^\/\s*([a-zA-Z][\w-]*)/) || [])[1];
-        if (cn && /^(body|html)$/i.test(cn)) { last = Math.max(last, lt); break; }
-        depth = Math.max(0, depth - 1); i = gt + 1; if (depth === 0) last = i; continue;
+        if (cn && /^(body|html)$/i.test(cn)) { last[0] = Math.max(last[0], lt); break; }
+        depth = Math.max(0, depth - 1); i = gt + 1; mark(i); continue;
       }
       var name = ((tag.match(/^([a-zA-Z][\w-]*)/) || [])[1] || "").toLowerCase();
       if (name === "script" || name === "style") {
         var m = new RegExp("</" + name + "\\s*>", "i").exec(s.slice(gt + 1));
         if (!m) break; // script/style 還沒結束
-        i = gt + 1 + m.index + m[0].length; if (depth === 0) last = i; continue;
+        i = gt + 1 + m.index + m[0].length; mark(i); continue;
       }
-      if (/\/$/.test(tag) || VOID[name]) { i = gt + 1; if (depth === 0) last = i; continue; }
+      if (/\/$/.test(tag) || VOID[name]) { i = gt + 1; mark(i); continue; }
       depth++; i = gt + 1;
     }
-    return last;
+    // 挑「最淺、且比已寫入更前面」的邊界：頂層有完整區塊就用頂層；否則降一層（單一外層包裹）、再降一層
+    if (last[0] > from) return last[0];
+    if (last[0] === 0) {
+      if (last[1] > from) return last[1];
+      if (last[1] === 0 && last[2] > from) return last[2];
+    }
+    return from;
   }
 
   function scrollIframeBottom() {
@@ -746,15 +755,34 @@
       if (dl) { var el = document.createElement("div"); el.className = "flex items-start gap-2 bg-soft rounded-lg px-2.5 py-2"; el.innerHTML = '<span class="material-symbols-outlined text-[17px] text-success shrink-0">check_circle</span><span class="text-[13px] text-ink">' + mdToHtml(e.text) + '</span>'; dl.appendChild(el); }
       if ($("#statDone")) $("#statDone").textContent = state.done;
     }
-    else if (t === "page_pending") { if ($("#resultTitle")) $("#resultTitle").textContent = e.title || "結果畫面"; placeholder("團隊查各系統資料中，稍後彙整成報告…"); scrollToResult(); }
-    else if (t === "report") renderReport(e.title, e.sub, e.spec);
+    else if (t === "page_pending") {
+      state.output = e.output || "html";
+      state.reportTitle = e.title; state.reportSub = e.sub;
+      if ($("#resultTitle")) $("#resultTitle").textContent = e.title || "結果畫面";
+      var op = $("#resultOpen"); if (op) op.style.display = state.output === "text" ? "none" : "";
+      placeholder("團隊查各系統資料中，稍後彙整成報告…"); scrollToResult();
+    }
+    else if (t === "report_delta") {
+      state.reportAccum = (state.reportAccum || "") + e.chunk;
+      var nowr = (window.performance && performance.now) ? performance.now() : 0;
+      if (state._rPaint && nowr - state._rPaint < 140) return;
+      state._rPaint = nowr;
+      if (!state.reportStarted) { state.reportStarted = true; scrollToResult(); }
+      renderTextReport(state.reportTitle, state.reportSub, state.reportAccum, true);
+      var hr = $("#liveResult"); if (hr) hr.scrollTop = hr.scrollHeight;
+    }
+    else if (t === "report") {
+      state.reportDone = true;
+      if (e.markdown != null) { renderTextReport(e.title, e.sub, e.markdown, false); scrollToResult(); }
+      else renderReport(e.title, e.sub, e.spec); // 舊版 spec 相容
+    }
     else if (t === "page_delta") renderPageStream(e.chunk);
     else if (t === "page") { state.streamDone = true; finalizeStream(e); }
     else if (t === "layout") renderLayout(e.title, e.sub, e.blocks, e.theme);
     else if (t === "block_status") blockStatus(e.id, e.message);
     else if (t === "block") fillBlock(e);
     else if (t === "html") { var h = resultHost(); h.innerHTML = sanitize(e.html); }
-    else if (t === "final") { narr("完成"); state.done = state.total + 1; progress(); var lv = $("#frameLive"); if (lv) lv.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-success"></span> 已完成'; if ($("#resultTitle")) $("#resultTitle").textContent = ($("#resultTitle").textContent || "").replace("（產生中）", ""); enableExport(); setBusy(false); }
+    else if (t === "final") { narr("完成"); state.done = state.total + 1; progress(); var lv = $("#frameLive"); if (lv) lv.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-success"></span> 已完成'; if ($("#resultTitle")) $("#resultTitle").textContent = ($("#resultTitle").textContent || "").replace("（產生中）", ""); if (state.output !== "text") enableExport(); setBusy(false); }
     else if (t === "error") { narr("發生問題"); addBubble("_err", "系統", "", "reasoning", '<span class="text-danger">' + esc(e.message) + '</span>'); setBusy(false); }
   }
 
@@ -768,6 +796,8 @@
     setBusy(true); state.mode = mode || "task"; state.bubbles = {}; state.done = 0; state.total = 0; state.dash = null;
     state.streamDone = false; state.streamStarted = false; state.shellDone = false;
     state.streamDoc = null; state.pageAccum = ""; state.bodyStart = 0; state.flushedBodyLen = 0;
+    state.output = "html"; state.reportAccum = ""; state.reportStarted = false; state.reportDone = false; state._rPaint = 0;
+    var _op = $("#resultOpen"); if (_op) _op.style.display = "";
     if (feed()) feed().innerHTML = ""; if ($("#doneList")) $("#doneList").innerHTML = "";
     // 清掉上一份報告（右側）
     var f0 = $("#resultFrame"); if (f0) { f0.removeAttribute("srcdoc"); f0.removeAttribute("src"); f0.style.display = "none"; }

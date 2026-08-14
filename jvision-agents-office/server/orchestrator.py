@@ -265,8 +265,9 @@ async def _build_page(designer, question, doms, combined, emit):
     sysp = registry.light_prompt(designer["id"]) + "\n\n" + PAGE_SPEC
     ans = ""
     # 逐字串流：繪境一邊寫 HTML，一邊把片段吐到前端（pencils.dev 式即時渲染）
-    buf = {"s": "", "started": False}
+    buf = {"s": "", "started": False, "full": ""}
     def _on_delta(piece):
+        buf["full"] += piece  # 全量累積：逾時被砍時可救回半成品，不丟掉真實作品
         buf["s"] += piece
         if not buf["started"]:
             mi = re.search(r"<(!doctype|html|head|body|div|style)", buf["s"], re.I)
@@ -279,11 +280,13 @@ async def _build_page(designer, question, doms, combined, emit):
             buf["s"] = ""
     try:
         ans = await llm.stream_answer(sysp, f"需求：{question}\n領域：{'、'.join(doms)}\n\n團隊查到的資料：\n{combined}",
-                                      search=False, model=SMART, timeout=200, on_delta=_on_delta)
+                                      search=False, model=SMART, timeout=280, on_delta=_on_delta)
     except Exception:
         ans = ""
     if buf["started"] and buf["s"]:
         emit({"type": "page_delta", "chunk": buf["s"]})
+    if not ans.strip() and buf["full"].strip():  # 逾時/中斷 → 用已串流的半成品，不要退回純文字 dump
+        ans = buf["full"]
     nm = re.search(r"NOTE:\s*(.+)", ans)
     note = _clean_line(nm.group(1) if nm else "") or "我依大家的資料設計了一份報告。"
     html = ans.replace("```html", "").replace("```", "")
@@ -306,6 +309,9 @@ async def _build_page(designer, question, doms, combined, emit):
     if bad:
         html = _fallback_page(question, combined)
         note = "我把大家查到的數據整理成一份結構化報告頁。"
+    elif "</html>" not in html.lower():  # 半成品（逾時被砍）→ 補上收尾標籤讓它能正常呈現
+        html = html.rstrip() + "\n</body></html>"
+        note = note + "（已依現有進度呈現）"
     html = _zh(html); note = _zh(note)  # 繁體安全網
     emit({"type": "message", "id": designer["id"], "name": designer["name"], "role": designer["role"],
           "dataMode": "reasoning", "text": note})
