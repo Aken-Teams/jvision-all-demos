@@ -4,15 +4,585 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>組織圖與職位管理系統（Org Chart & Position Management）｜Jvision 系統 Demo</title>
-  <meta name="description" content="前台結帳、會員到進銷存的門市一體化" />
+  <meta name="description" content="動態組織圖視覺化、職位編制與員額管控、職位說明書（JD）管理與組織異動簽核" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --accent:#9333ea; --accent2:#c084fc; --accent-soft:#f3e8ff;
+      --bg:#f7f5fb; --panel:#ffffff; --ink:#1e1b2e; --muted:#7a7590;
+      --line:#eae6f2; --ok:#15803d; --warn:#b45309; --danger:#dc2626;
+      --ok-soft:#dcfce7; --warn-soft:#fef3c7; --danger-soft:#fee2e2; --info-soft:#e0f2fe; --info:#0369a1;
+      --radius:14px; --shadow:0 1px 2px rgba(30,27,46,.05),0 8px 24px rgba(30,27,46,.06);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden}
+    body{
+      font-family:"Inter","Noto Sans TC",system-ui,sans-serif;
+      background:var(--bg); color:var(--ink); line-height:1.55;
+      -webkit-font-smoothing:antialiased;
+    }
+    .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+    header.topbar{
+      position:sticky; top:0; z-index:30; background:var(--panel);
+      border-bottom:1px solid var(--line); box-shadow:0 1px 0 rgba(30,27,46,.04);
+    }
+    .topbar-inner{
+      max-width:1360px; margin:0 auto; padding:10px 18px;
+      display:flex; align-items:center; gap:16px; flex-wrap:wrap; min-width:0;
+    }
+    .brand{display:flex; align-items:center; gap:10px; min-width:0;}
+    .brand .logo{
+      width:38px; height:38px; border-radius:10px; flex:none;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:flex; align-items:center; justify-content:center; color:#fff;
+      box-shadow:0 4px 12px rgba(147,51,234,.35);
+    }
+    .brand .logo .material-symbols-outlined{font-size:22px}
+    .brand-txt{min-width:0}
+    .brand-txt b{display:block; font-size:15px; font-weight:800; letter-spacing:.2px; white-space:nowrap}
+    .brand-txt span{display:block; font-size:11px; color:var(--muted); white-space:nowrap}
+    nav.nav{display:flex; gap:6px; flex-wrap:wrap; min-width:0; margin-left:auto;}
+    nav.nav button{
+      display:inline-flex; align-items:center; gap:7px; cursor:pointer;
+      border:1px solid transparent; background:transparent; color:var(--muted);
+      font-family:inherit; font-size:13px; font-weight:600; padding:8px 12px;
+      border-radius:10px; white-space:nowrap; transition:.15s;
+    }
+    nav.nav button .material-symbols-outlined{font-size:19px}
+    nav.nav button:hover{background:var(--accent-soft); color:var(--accent)}
+    nav.nav button.active{background:var(--accent); color:#fff; box-shadow:0 4px 12px rgba(147,51,234,.28)}
+    main{max-width:1360px; margin:0 auto; padding:22px 18px 60px; min-width:0;}
+    .screen-head{margin:2px 0 18px}
+    .screen-head .eyebrow{
+      display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700;
+      color:var(--accent); background:var(--accent-soft); padding:4px 10px; border-radius:999px;
+    }
+    .screen-head h1{font-size:22px; font-weight:900; margin:10px 0 4px; letter-spacing:.3px}
+    .screen-head p{margin:0; color:var(--muted); font-size:13.5px}
+    .grid{display:grid; gap:14px; min-width:0}
+    .g-kpi{grid-template-columns:repeat(4,1fr)}
+    .g-2{grid-template-columns:1.6fr 1fr}
+    .g-2e{grid-template-columns:1fr 1fr}
+    .g-3{grid-template-columns:repeat(3,1fr)}
+    .g-side{grid-template-columns:1fr 320px}
+    @media(max-width:820px){
+      .g-kpi{grid-template-columns:repeat(2,1fr)}
+      .g-2,.g-2e,.g-3,.g-side{grid-template-columns:1fr}
+    }
+    @media(max-width:480px){ .g-kpi{grid-template-columns:1fr} }
+    .card{
+      background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+      padding:16px; box-shadow:var(--shadow); min-width:0;
+    }
+    .card h3{margin:0 0 12px; font-size:14px; font-weight:800; display:flex; align-items:center; gap:8px}
+    .card h3 .material-symbols-outlined{font-size:19px; color:var(--accent)}
+    .card .sub{font-size:12px; color:var(--muted); font-weight:500}
+    .kpi{position:relative; overflow:hidden}
+    .kpi .ico{
+      width:40px; height:40px; border-radius:11px; display:flex; align-items:center; justify-content:center;
+      background:var(--accent-soft); color:var(--accent); margin-bottom:10px;
+    }
+    .kpi .ico .material-symbols-outlined{font-size:22px}
+    .kpi .val{font-size:26px; font-weight:900; letter-spacing:.5px; line-height:1.1}
+    .kpi .lbl{font-size:12.5px; color:var(--muted); font-weight:600; margin-top:2px}
+    .kpi .delta{font-size:11.5px; font-weight:700; margin-top:6px; display:inline-flex; align-items:center; gap:3px}
+    .kpi .delta.up{color:var(--ok)} .kpi .delta.down{color:var(--danger)} .kpi .delta.warn{color:var(--warn)}
+    .kpi .delta .material-symbols-outlined{font-size:15px}
+    .chart-wrap{position:relative; width:100%; height:280px; overflow:hidden; min-width:0}
+    .chart-wrap.sm{height:220px}
+    .tbl-wrap{overflow-x:auto; border-radius:10px}
+    table{width:100%; border-collapse:collapse; font-size:13px; min-width:520px}
+    th,td{padding:10px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap}
+    th{font-size:11.5px; font-weight:700; color:var(--muted); background:#faf7fe; position:sticky; top:0}
+    tbody tr:hover{background:#fcfaff}
+    td.name{font-weight:700}
+    .pill{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:999px}
+    .pill .material-symbols-outlined{font-size:14px}
+    .p-ok{background:var(--ok-soft); color:var(--ok)}
+    .p-warn{background:var(--warn-soft); color:var(--warn)}
+    .p-danger{background:var(--danger-soft); color:var(--danger)}
+    .p-info{background:var(--info-soft); color:var(--info)}
+    .p-purple{background:var(--accent-soft); color:var(--accent)}
+    .p-gray{background:#f1eff6; color:var(--muted)}
+    .bar{height:7px; border-radius:99px; background:#efeaf7; overflow:hidden; min-width:80px}
+    .bar > i{display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    .board{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; min-width:0}
+    @media(max-width:820px){ .board{grid-template-columns:1fr 1fr} }
+    @media(max-width:480px){ .board{grid-template-columns:1fr} }
+    .col{background:#faf7fe; border:1px solid var(--line); border-radius:12px; padding:10px; min-width:0}
+    .col > .ch{font-size:12.5px; font-weight:800; display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; padding:0 2px}
+    .col > .ch .cnt{background:#fff; border:1px solid var(--line); border-radius:999px; padding:1px 8px; font-size:11px; color:var(--muted)}
+    .ticket{background:#fff; border:1px solid var(--line); border-left:3px solid var(--accent2); border-radius:9px; padding:9px 10px; margin-bottom:8px; box-shadow:0 1px 2px rgba(30,27,46,.04)}
+    .ticket b{font-size:12.5px; font-weight:700; display:block}
+    .ticket .meta{font-size:11px; color:var(--muted); margin-top:4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+    .tl{position:relative; padding-left:22px; min-width:0}
+    .tl::before{content:""; position:absolute; left:7px; top:4px; bottom:4px; width:2px; background:var(--line)}
+    .tl-item{position:relative; padding:0 0 16px 6px}
+    .tl-item::before{content:""; position:absolute; left:-19px; top:3px; width:12px; height:12px; border-radius:50%; background:#fff; border:3px solid var(--accent2)}
+    .tl-item.done::before{background:var(--accent2); border-color:var(--accent2)}
+    .tl-item .t{font-size:13px; font-weight:700}
+    .tl-item .d{font-size:11.5px; color:var(--muted)}
+    .lrow{display:flex; align-items:center; gap:11px; padding:11px 4px; border-bottom:1px solid var(--line); min-width:0}
+    .lrow:last-child{border-bottom:none}
+    .lrow .av{width:34px; height:34px; border-radius:9px; flex:none; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; color:#fff}
+    .lrow .info{min-width:0; flex:1}
+    .lrow .info b{font-size:13px; display:block}
+    .lrow .info span{font-size:11.5px; color:var(--muted)}
+    .lrow .rt{text-align:right; flex:none}
+    .mini{display:flex; gap:10px; flex-wrap:wrap}
+    .mini .m{flex:1; min-width:110px; background:#faf7fe; border:1px solid var(--line); border-radius:11px; padding:11px 13px}
+    .mini .m .v{font-size:19px; font-weight:900}
+    .mini .m .l{font-size:11.5px; color:var(--muted); font-weight:600}
+    .muted{color:var(--muted)}
+    .foot-note{font-size:11.5px; color:var(--muted); margin-top:10px; display:flex; align-items:center; gap:6px}
+    /* org chart signature */
+    .orgwrap{overflow-x:auto; padding:6px 2px 10px}
+    .orgtree{min-width:640px; display:flex; flex-direction:column; align-items:center; gap:0}
+    .orglvl{display:flex; justify-content:center; gap:14px; flex-wrap:wrap; position:relative; padding:14px 0}
+    .orglvl.connect::before{content:""; position:absolute; top:0; left:15%; right:15%; height:2px; background:var(--line)}
+    .onode{background:#fff; border:1.5px solid var(--line); border-top:4px solid var(--accent); border-radius:12px; padding:10px 14px; min-width:150px; box-shadow:0 2px 8px rgba(30,27,46,.05); text-align:center}
+    .onode.root{background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; border-color:transparent}
+    .onode.root .ot{color:#fff} .onode.root .om{color:rgba(255,255,255,.85)}
+    .onode .ot{font-size:13px; font-weight:800}
+    .onode .op{font-size:11px; color:var(--muted); margin-top:1px}
+    .onode .om{font-size:11px; color:var(--muted); margin-top:5px; display:flex; gap:6px; justify-content:center; flex-wrap:wrap; align-items:center}
+    .onode .fillbadge{font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:999px; color:#fff}
+    .legendrow{display:flex; gap:14px; flex-wrap:wrap; font-size:11.5px; color:var(--muted); margin-top:12px}
+    .legendrow .lg{display:flex; align-items:center; gap:5px}
+    .legendrow .sw{width:11px; height:11px; border-radius:3px; flex:none}
+    .jdgrid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; min-width:0}
+    @media(max-width:820px){ .jdgrid{grid-template-columns:1fr} }
+    .jdcard{background:#faf7fe; border:1px solid var(--line); border-radius:12px; padding:12px 13px; min-width:0}
+    .jdcard .jt{font-size:13px; font-weight:800; display:flex; align-items:center; gap:6px; justify-content:space-between}
+    .jdcard ul{margin:8px 0 0; padding-left:16px; font-size:12px; color:var(--muted)}
+    .jdcard ul li{margin:3px 0}
+    .chips{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
+    .chip{font-size:11px; font-weight:600; background:#fff; border:1px solid var(--line); color:var(--accent); padding:2px 9px; border-radius:999px}
+    @media(max-width:560px){ nav.nav button .txt{display:none} nav.nav button{padding:8px 10px} }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo"><span class="material-symbols-outlined">account_tree</span></div>
+        <div class="brand-txt">
+          <b>組織圖與職位管理平台</b>
+          <span>Org Chart &amp; Position Management</span>
+        </div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+    </div>
+  </header>
+  <main id="app"></main>
+
+  <script>
+  (function(){
+    "use strict";
+    var charts={};
+
+    var NAV=[
+      {i:0,ico:"account_tree",label:"動態組織圖"},
+      {i:1,ico:"groups",label:"職位編制"},
+      {i:2,ico:"description",label:"職位說明書"},
+      {i:3,ico:"rule",label:"組織調整簽核"},
+      {i:4,ico:"monitoring",label:"編制達成儀表"},
+      {i:5,ico:"history",label:"版本歷史"}
+    ];
+
+    function el(html){ var d=document.createElement("div"); d.innerHTML=html; return d; }
+    function esc(s){ return String(s).replace(/[&<>]/g,function(x){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[x];}); }
+
+    function destroyAll(){
+      for(var k in charts){ try{ charts[k].destroy(); }catch(e){} }
+      charts={};
+    }
+    function mk(id,cfg){
+      var node=document.getElementById(id);
+      if(!node) return;
+      charts[id]=new Chart(node.getContext("2d"),cfg);
+    }
+    Chart.defaults.font.family="'Inter','Noto Sans TC',sans-serif";
+    Chart.defaults.font.size=11;
+    Chart.defaults.color="#7a7590";
+
+    var UNITS=[
+      {code:"MFG", name:"製造處", head:"李國棟", plan:186, act:174, sub:"生產、品保、設備"},
+      {code:"ENG", name:"研發處", head:"張雅琪", plan:64, act:58, sub:"機構、韌體、測試"},
+      {code:"SCM", name:"供應鏈處", head:"王志明", plan:42, act:41, sub:"採購、物流、倉儲"},
+      {code:"QA",  name:"品質保證處", head:"陳美惠", plan:38, act:33, sub:"IQC、製程、客訴"},
+      {code:"FIN", name:"財會處", head:"林建宏", plan:22, act:22, sub:"總帳、成本、稅務"},
+      {code:"HR",  name:"人資處", head:"吳佩珊", plan:18, act:16, sub:"招募、教訓、薪酬"}
+    ];
+
+    // ============================================================
+    // Screen 0 — 動態組織圖 (signature)
+    // ============================================================
+    function screen0(){
+      function fillClr(r){ return r>=95?"var(--ok)":(r>=85?"var(--warn)":"var(--danger)"); }
+      function node(u){
+        var rate=Math.round(u.act/u.plan*100);
+        return '<div class="onode"><div class="ot">'+esc(u.name)+'</div>'+
+          '<div class="op">'+esc(u.head)+' · 處長</div>'+
+          '<div class="om"><span>編 '+u.plan+'</span><span>·</span><span>現 '+u.act+'</span>'+
+          '<span class="fillbadge" style="background:'+fillClr(rate)+'">'+rate+'%</span></div></div>';
+      }
+      var lvl2=UNITS.map(node).join("");
+      return el(
+        head("動態組織圖","account_tree","以多層級視覺化呈現全公司組織架構，即時反映異動生效後的層級與員額配置。")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("account_tree","6","一級單位","up","製造處最大")+
+          kpi("groups","370","編制總員額","warn","現員 344")+
+          kpi("verified","93.0%","整體編制達成","warn","缺額 26 人")+
+          kpi("bolt","2.4h","組織圖更新時效","up","-31h vs 導入前")+
+        '</div>'+
+        '<div class="grid g-2">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">hub</span>集團組織架構 <span class="sub">· 生效日 2026/08/01</span></h3>'+
+            '<div class="orgwrap"><div class="orgtree">'+
+              '<div class="orglvl"><div class="onode root"><div class="ot">總經理室</div><div class="op" style="color:rgba(255,255,255,.85)">陳志遠 · 總經理</div><div class="om"><span>直轄 6 處 · 22 部</span></div></div></div>'+
+              '<div class="orglvl connect">'+lvl2+'</div>'+
+            '</div></div>'+
+            '<div class="legendrow">'+
+              '<div class="lg"><span class="sw" style="background:var(--ok)"></span>達成 ≥95%</div>'+
+              '<div class="lg"><span class="sw" style="background:var(--warn)"></span>85–94%</div>'+
+              '<div class="lg"><span class="sw" style="background:var(--danger)"></span>&lt;85% 缺額偏高</div>'+
+            '</div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">donut_small</span>各處員額占比</h3>'+
+            '<div class="chart-wrap sm"><canvas id="c0pie"></canvas></div>'+
+            '<div class="mini" style="margin-top:12px">'+
+              mini("22","部級單位")+mini("58","課級單位")+mini("5.3","平均管理幅度")+
+            '</div>'+
+          '</div>'+
+        '</div>'
+      );
+    }
+    function draw0(){
+      mk("c0pie",{type:"doughnut",
+        data:{labels:UNITS.map(function(u){return u.name;}),
+          datasets:[{data:UNITS.map(function(u){return u.act;}),
+            backgroundColor:["#9333ea","#c084fc","#a855f7","#7c3aed","#d8b4fe","#6d28d9"],
+            borderColor:"#fff",borderWidth:2}]},
+        options:{responsive:true,maintainAspectRatio:false,cutout:"58%",
+          plugins:{legend:{position:"right",labels:{boxWidth:11,font:{size:11}}}}}
+      });
+    }
+
+    // ============================================================
+    // Screen 1 — 職位編制與員額管控
+    // ============================================================
+    function screen1(){
+      var rows=UNITS.map(function(u){
+        var rate=Math.round(u.act/u.plan*100);
+        var gap=u.plan-u.act;
+        var cls=rate>=95?"p-ok":(rate>=85?"p-warn":"p-danger");
+        return '<tr>'+
+          '<td class="name">'+esc(u.name)+'<div class="muted" style="font-weight:500;font-size:11px">'+esc(u.sub)+'</div></td>'+
+          '<td>'+u.plan+'</td>'+
+          '<td>'+u.act+'</td>'+
+          '<td style="'+(gap>0?"color:var(--danger);font-weight:800":"color:var(--muted)")+'">'+(gap>0?"-"+gap:"0")+'</td>'+
+          '<td style="min-width:140px"><div class="bar"><i style="width:'+rate+'%"></i></div></td>'+
+          '<td><span class="pill '+cls+'">'+rate+'%</span></td>'+
+        '</tr>';
+      }).join("");
+      return el(
+        head("職位編制與員額管控","groups","比對各單位核定編制與實際到位，鎖定缺額熱點並支援用人需求審核。")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("assignment_ind","370","核定編制","warn","本年凍結 8 缺")+
+          kpi("how_to_reg","344","實際到位","up","+11 本季")+
+          kpi("person_off","26","缺額待補","warn","品保處最多")+
+          kpi("trending_up","6","逾編待審","down","需編制審核")+
+        '</div>'+
+        '<div class="grid g-2">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">table_view</span>各處編制達成 <span class="sub">· 依核定編制排序</span></h3>'+
+            '<div class="tbl-wrap"><table><thead><tr><th>單位</th><th>編制</th><th>現員</th><th>缺額</th><th>達成進度</th><th>達成率</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+            '<div class="foot-note"><span class="material-symbols-outlined" style="font-size:15px">info</span>缺額超過 15% 之單位將自動觸發用人需求提醒。</div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>編制 vs 現員</h3>'+
+            '<div class="chart-wrap"><canvas id="c1bar"></canvas></div>'+
+          '</div>'+
+        '</div>'
+      );
+    }
+    function draw1(){
+      mk("c1bar",{type:"bar",
+        data:{labels:UNITS.map(function(u){return u.name;}),
+          datasets:[
+            {label:"核定編制",data:UNITS.map(function(u){return u.plan;}),backgroundColor:"#d8b4fe",borderRadius:4},
+            {label:"實際到位",data:UNITS.map(function(u){return u.act;}),backgroundColor:"#9333ea",borderRadius:4}
+          ]},
+        options:{responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{position:"top",labels:{boxWidth:12,font:{size:11}}}},
+          scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:"#efeaf7"},beginAtZero:true}}}
+      });
+    }
+
+    // ============================================================
+    // Screen 2 — 職位說明書 JD
+    // ============================================================
+    function screen2(){
+      var jds=[
+        {code:"MFG-M01",title:"製造課長",unit:"製造處",ver:"v3.2",upd:"2026-07-28",status:"最新",
+          duties:["排定日/週生產計畫與人力調度","主導異常停線之現場處置","課級 OEE 與良率目標達成"],skills:["生產排程","精實生產","TPM"]},
+        {code:"ENG-E04",title:"韌體工程師",unit:"研發處",ver:"v2.0",upd:"2026-06-15",status:"待覆核",
+          duties:["嵌入式韌體設計與除錯","與硬體團隊協同驗證","版本控管與技術文件維護"],skills:["C/C++","RTOS","單元測試"]},
+        {code:"QA-Q02",title:"品保工程師",unit:"品質保證處",ver:"v1.6",upd:"2026-05-30",status:"待更新",
+          duties:["進料與製程品質稽核","客訴 8D 分析與矯正","量測儀器校驗管理"],skills:["SPC","MSA","8D"]},
+        {code:"SCM-S03",title:"採購專員",unit:"供應鏈處",ver:"v2.4",upd:"2026-07-11",status:"最新",
+          duties:["供應商開發與詢比議價","交期追蹤與缺料協調","採購合約與價格維護"],skills:["ERP","成本分析","談判"]}
+      ];
+      var cards=jds.map(function(j){
+        var scls=j.status==="最新"?"p-ok":(j.status==="待覆核"?"p-info":"p-warn");
+        return '<div class="jdcard"><div class="jt"><span><span class="material-symbols-outlined" style="font-size:17px;color:var(--accent);vertical-align:-3px">badge</span> '+esc(j.title)+'</span>'+
+          '<span class="pill '+scls+'">'+esc(j.status)+'</span></div>'+
+          '<div class="muted" style="font-size:11px;margin-top:3px">'+esc(j.code)+' · '+esc(j.unit)+' · '+esc(j.ver)+' · 更新 '+esc(j.upd)+'</div>'+
+          '<ul>'+j.duties.map(function(d){return "<li>"+esc(d)+"</li>";}).join("")+'</ul>'+
+          '<div class="chips">'+j.skills.map(function(s){return '<span class="chip">'+esc(s)+'</span>';}).join("")+'</div></div>';
+      }).join("");
+      return el(
+        head("職位說明書（JD）管理","description","維護職位職責、任職資格與職能標準，並隨組織異動同步 JD 版本。")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("description","228","JD 總數","up","涵蓋 58 職級")+
+          kpi("task_alt","91.2%","JD 有效率","up","+4.1% 季增")+
+          kpi("edit_note","14","待更新 JD","warn","隨組織異動")+
+          kpi("verified","6","本月已覆核","up","主管簽署完成")+
+        '</div>'+
+        '<div class="grid g-2">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">menu_book</span>職位說明書清單</h3>'+
+            '<div class="jdgrid">'+cards+'</div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">insights</span>JD 更新狀態分布</h3>'+
+            '<div class="chart-wrap sm"><canvas id="c2pie"></canvas></div>'+
+            '<div class="foot-note"><span class="material-symbols-outlined" style="font-size:15px">tips_and_updates</span>組織異動核准後，受影響職位 JD 自動列入待更新。</div>'+
+          '</div>'+
+        '</div>'
+      );
+    }
+    function draw2(){
+      mk("c2pie",{type:"doughnut",
+        data:{labels:["最新有效","待覆核","待更新","停用歸檔"],
+          datasets:[{data:[208,14,20,12],
+            backgroundColor:["#9333ea","#0369a1","#f59e0b","#cbb6e0"],borderColor:"#fff",borderWidth:2}]},
+        options:{responsive:true,maintainAspectRatio:false,cutout:"58%",
+          plugins:{legend:{position:"right",labels:{boxWidth:11,font:{size:11}}}}}
+      });
+    }
+
+    // ============================================================
+    // Screen 3 — 組織調整簽核 (kanban board, signature v3)
+    // ============================================================
+    function screen3(){
+      var board={
+        apply:[
+          {t:"新增：AI 製造課",u:"製造處",by:"李國棟",d:"新增 1 課 + 8 員額"},
+          {t:"調整：測試組併入韌體部",u:"研發處",by:"張雅琪",d:"減 1 課，移轉 5 人"}
+        ],
+        review:[
+          {t:"新增：資安專員職位",u:"人資處",by:"吳佩珊",d:"編制 +1，待預算確認"},
+          {t:"裁撤：紙本文管課",u:"財會處",by:"林建宏",d:"移撥 2 人至總帳課"}
+        ],
+        chart:[
+          {t:"更新：品保處三課改組",u:"品質保證處",by:"陳美惠",d:"重繪層級 · 生效 08/15"}
+        ],
+        done:[
+          {t:"新增：供應鏈數據分析組",u:"供應鏈處",by:"王志明",d:"已公告 · 已同步 JD"}
+        ]
+      };
+      function col(title,ico,list,cls){
+        var t=list.map(function(x){
+          return '<div class="ticket"><b>'+esc(x.t)+'</b>'+
+            '<div class="meta"><span class="pill '+cls+'"><span class="material-symbols-outlined">'+ico+'</span>'+esc(x.u)+'</span></div>'+
+            '<div class="meta"><span class="material-symbols-outlined" style="font-size:14px">person</span>'+esc(x.by)+'</div>'+
+            '<div class="meta"><span class="material-symbols-outlined" style="font-size:14px">tune</span>'+esc(x.d)+'</div></div>';
+        }).join("");
+        return '<div class="col"><div class="ch">'+title+'<span class="cnt">'+list.length+'</span></div>'+t+'</div>';
+      }
+      return el(
+        head("組織調整簽核","rule","以看板追蹤組織異動申請，自申請、編制審核、組織圖更新到公告的每一步。")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("post_add","2","新申請","warn","待人資接件")+
+          kpi("fact_check","2","編制審核中","warn","平均 1.1 天")+
+          kpi("account_tree","1","組織圖更新中","up","即將生效")+
+          kpi("campaign","1","本週已公告","up","簽核時效 1 天")+
+        '</div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">view_kanban</span>組織異動看板 <span class="sub">· 申請 → 審核 → 更新 → 公告</span></h3>'+
+          '<div class="board">'+
+            col("組織調整申請","assignment",board.apply,"p-info")+
+            col("編制審核","fact_check",board.review,"p-warn")+
+            col("組織圖更新","account_tree",board.chart,"p-purple")+
+            col("公告發佈","campaign",board.done,"p-ok")+
+          '</div>'+
+          '<div class="foot-note"><span class="material-symbols-outlined" style="font-size:15px">gavel</span>逾編申請須經編制審核與預算確認方可進入組織圖更新。</div>'+
+        '</div>'
+      );
+    }
+    function draw3(){}
+
+    // ============================================================
+    // Screen 4 — 編制達成儀表
+    // ============================================================
+    function screen4(){
+      var indicators=[
+        {item:"編制達成率",val:93.0,tgt:95,ok:false},
+        {item:"組織圖更新時效",val:2.4,tgt:4,ok:true,unit:"小時"},
+        {item:"JD 有效率",val:91.2,tgt:90,ok:true},
+        {item:"異動簽核時效",val:1.0,tgt:2,ok:true,unit:"天"},
+        {item:"版本歸檔完整率",val:99.6,tgt:99,ok:true}
+      ];
+      var rows=indicators.map(function(c){
+        var isTime=c.unit==="小時"||c.unit==="天";
+        var pass=c.ok;
+        var pct=isTime?Math.max(6,Math.round((1-c.val/(c.tgt*2))*100)):Math.round(c.val);
+        var cls=pass?"p-ok":"p-warn";
+        var disp=isTime?(c.val+" "+c.unit):(c.val+"%");
+        return '<div class="lrow">'+
+          '<div class="av" style="background:'+(pass?"var(--ok)":"var(--warn)")+'"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">'+(pass?"check":"priority_high")+'</span></div>'+
+          '<div class="info"><b>'+esc(c.item)+'</b><span>目標 '+(isTime?("≤"+c.tgt+c.unit):("≥"+c.tgt+"%"))+'</span>'+
+            '<div class="bar" style="margin-top:6px"><i style="width:'+Math.min(100,pct)+'%"></i></div></div>'+
+          '<div class="rt"><span class="pill '+cls+'">'+disp+'</span></div>'+
+        '</div>';
+      }).join("");
+      return el(
+        head("編制達成儀表","monitoring","彙整編制達成率與組織圖更新時效等關鍵指標，供經營高層確認成果。")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("verified","93.0%","編制達成率","warn","距目標 2%")+
+          kpi("bolt","2.4h","平均更新時效","up","優於目標")+
+          kpi("published_with_changes","41","本季組織異動","up","全數如期")+
+          kpi("schedule","1.0天","簽核平均時效","up","-2.1 天")+
+        '</div>'+
+        '<div class="grid g-2e">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">insights</span>編制達成率趨勢（近 6 月）</h3>'+
+            '<div class="chart-wrap"><canvas id="c4line"></canvas></div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">fact_check</span>關鍵指標達標狀態</h3>'+rows+'</div>'+
+        '</div>'
+      );
+    }
+    function draw4(){
+      mk("c4line",{type:"line",
+        data:{labels:["3月","4月","5月","6月","7月","8月"],
+          datasets:[
+            {label:"編制達成率",data:[86,88,89,91,92,93],borderColor:"#9333ea",backgroundColor:"rgba(147,51,234,.12)",fill:true,tension:.35,borderWidth:3,pointRadius:3,pointBackgroundColor:"#9333ea"},
+            {label:"目標線",data:[95,95,95,95,95,95],borderColor:"#c084fc",borderDash:[6,4],fill:false,pointRadius:0,borderWidth:2}
+          ]},
+        options:{responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{position:"top",labels:{boxWidth:12,font:{size:11}}},
+            tooltip:{callbacks:{label:function(c){return c.dataset.label+": "+c.parsed.y+"%";}}}},
+          scales:{x:{grid:{display:false}},y:{min:80,max:100,grid:{color:"#efeaf7"},ticks:{callback:function(v){return v+"%";}}}}}
+      });
+    }
+
+    // ============================================================
+    // Screen 5 — 版本歷史歸檔
+    // ============================================================
+    function screen5(){
+      var versions=[
+        {ver:"v2026.08",date:"2026-08-01",by:"吳佩珊",chg:"品保處三課改組、新增供應鏈數據分析組",units:"6 處 22 部",cur:true},
+        {ver:"v2026.06",date:"2026-06-15",by:"吳佩珊",chg:"研發處測試組併入韌體部",units:"6 處 22 部",cur:false},
+        {ver:"v2026.04",date:"2026-04-02",by:"人資處",chg:"新增資安專員職位、財會處文管課裁撤",units:"6 處 21 部",cur:false},
+        {ver:"v2026.01",date:"2026-01-05",by:"人資處",chg:"年度組織改組、製造處增設 AI 製造課",units:"6 處 21 部",cur:false}
+      ];
+      var rows=versions.map(function(v){
+        return '<tr>'+
+          '<td class="name">'+esc(v.ver)+(v.cur?' <span class="pill p-ok" style="margin-left:4px">現行</span>':'')+'</td>'+
+          '<td>'+esc(v.date)+'</td>'+
+          '<td>'+esc(v.by)+'</td>'+
+          '<td style="white-space:normal;min-width:220px">'+esc(v.chg)+'</td>'+
+          '<td>'+esc(v.units)+'</td>'+
+        '</tr>';
+      }).join("");
+      var stages=[
+        {t:"組織調整申請",d:"部門主管提出異動申請與員額需求"},
+        {t:"編制審核",d:"人資審核編制與預算並核准"},
+        {t:"組織圖更新",d:"重繪層級並標記生效日"},
+        {t:"職位說明書同步",d:"更新受影響職位 JD 版本"},
+        {t:"公告發佈與歸檔",d:"發佈公告、封存前版供稽核"}
+      ];
+      var tl=stages.map(function(s,i){
+        var done=i<4;
+        return '<div class="tl-item '+(done?"done":"")+'"><div class="t">'+esc(s.t)+'</div><div class="d">'+esc(s.d)+'</div></div>';
+      }).join("");
+      return el(
+        head("版本歷史與歸檔","history","保存每一版組織圖與 JD 變更歷程，支援版本比對與稽核回溯。")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("inventory_2","48","歷史版本數","up","2 年完整留存")+
+          kpi("difference","12","本年異動次數","warn","含 4 次改組")+
+          kpi("verified","99.6%","歸檔完整率","up","稽核零缺失")+
+          kpi("schedule","365","無漏歸檔天數","up","連續達成")+
+        '</div>'+
+        '<div class="grid g-side">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">manage_history</span>組織圖版本歷程</h3>'+
+            '<div class="tbl-wrap"><table><thead><tr><th>版本</th><th>生效日</th><th>異動人</th><th>主要變更</th><th>規模</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+            '<h3 style="margin-top:18px"><span class="material-symbols-outlined">stacked_bar_chart</span>各年度異動次數</h3>'+
+            '<div class="chart-wrap sm"><canvas id="c5bar"></canvas></div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">timeline</span>異動作業流程</h3><div class="tl">'+tl+'</div></div>'+
+        '</div>'
+      );
+    }
+    function draw5(){
+      mk("c5bar",{type:"bar",
+        data:{labels:["2023","2024","2025","2026"],
+          datasets:[{label:"組織異動次數",data:[7,9,11,12],
+            backgroundColor:["#d8b4fe","#c084fc","#a855f7","#9333ea"],borderRadius:5}]},
+        options:{responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{display:false}},
+          scales:{x:{grid:{display:false}},y:{grid:{color:"#efeaf7"},beginAtZero:true}}}
+      });
+    }
+
+    // ---------- shared builders ----------
+    function head(title,ico,desc){
+      return '<div class="screen-head">'+
+        '<span class="eyebrow"><span class="material-symbols-outlined" style="font-size:15px">'+ico+'</span>組織與職位管理模組</span>'+
+        '<h1>'+esc(title)+'</h1><p>'+esc(desc)+'</p></div>';
+    }
+    function kpi(ico,val,lbl,dir,delta){
+      var dc=dir==="up"?"up":(dir==="down"?"down":"warn");
+      var di=dir==="up"?"trending_up":(dir==="down"?"trending_down":"info");
+      return '<div class="card kpi"><div class="ico"><span class="material-symbols-outlined">'+ico+'</span></div>'+
+        '<div class="val">'+esc(val)+'</div><div class="lbl">'+esc(lbl)+'</div>'+
+        '<div class="delta '+dc+'"><span class="material-symbols-outlined">'+di+'</span>'+esc(delta)+'</div></div>';
+    }
+    function mini(v,l){ return '<div class="m"><div class="v">'+esc(v)+'</div><div class="l">'+esc(l)+'</div></div>'; }
+
+    var SCREENS=[
+      {build:screen0,draw:draw0},
+      {build:screen1,draw:draw1},
+      {build:screen2,draw:draw2},
+      {build:screen3,draw:draw3},
+      {build:screen4,draw:draw4},
+      {build:screen5,draw:draw5}
+    ];
+
+    var navEl=document.getElementById("nav");
+    NAV.forEach(function(n){
+      var b=document.createElement("button");
+      b.setAttribute("data-i",n.i);
+      b.innerHTML='<span class="material-symbols-outlined">'+n.ico+'</span><span class="txt">'+n.label+'</span>';
+      b.addEventListener("click",function(){ location.hash="v"+n.i; });
+      navEl.appendChild(b);
+    });
+
+    function show(i){
+      var app=document.getElementById("app");
+      destroyAll();
+      var s=SCREENS[i]||SCREENS[0];
+      app.innerHTML="";
+      app.appendChild(s.build());
+      var btns=document.querySelectorAll("[data-i]");
+      for(var k=0;k<btns.length;k++){
+        btns[k].classList.toggle("active", (+btns[k].getAttribute("data-i"))===i);
+      }
+      void app.offsetHeight;
+      try{ s.draw(); }catch(e){}
+    }
+
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>

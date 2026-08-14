@@ -4,15 +4,546 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>出勤打卡管理系統（Attendance Management）｜Jvision 系統 Demo</title>
-  <meta name="description" content="出勤、薪資、招募到績效的人資全流程" />
+  <meta name="description" content="多廠區出勤打卡即時監控、代打卡攔截、異常稽核與薪傳鎖定" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+  <style>
+    :root{
+      --accent:#4f46e5; --accent2:#818cf8;
+      --bg:#0b0f1a; --panel:#111827; --panel2:#0f1626; --line:#1f2a3d;
+      --txt:#e5e9f2; --muted:#8a93a7; --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;}
+    body{
+      background:var(--bg); color:var(--txt);
+      font-family:"Inter","Noto Sans TC",system-ui,sans-serif;
+      -webkit-font-smoothing:antialiased; overflow-x:hidden;
+    }
+    .ms{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+    a{color:inherit;text-decoration:none;}
+
+    /* top nav */
+    .topbar{
+      position:sticky;top:0;z-index:50;
+      background:linear-gradient(180deg,#0e1424,#0b0f1a);
+      border-bottom:1px solid var(--line);
+      padding:10px 18px;
+    }
+    .topbar-in{display:flex;align-items:center;gap:14px;flex-wrap:wrap;min-width:0;}
+    .brand{display:flex;align-items:center;gap:10px;min-width:0;}
+    .brand .logo{
+      width:34px;height:34px;border-radius:9px;flex:0 0 auto;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:flex;align-items:center;justify-content:center;color:#fff;
+      box-shadow:0 0 14px rgba(79,70,229,.5);
+    }
+    .brand b{font-size:15px;letter-spacing:.3px;white-space:nowrap;}
+    .brand span{display:block;font-size:11px;color:var(--muted);font-weight:500;}
+    .live{
+      margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);
+      background:#0f1626;border:1px solid var(--line);padding:5px 11px;border-radius:20px;min-width:0;
+    }
+    .live .dot{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 8px var(--good);}
+    nav.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;min-width:0;}
+    nav.tabs button{
+      display:inline-flex;align-items:center;gap:7px;
+      background:#0f1626;color:var(--muted);border:1px solid var(--line);
+      padding:8px 13px;border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;
+      cursor:pointer;transition:.15s;min-width:0;
+    }
+    nav.tabs button .ms{font-size:19px;}
+    nav.tabs button:hover{color:var(--txt);border-color:#33415c;}
+    nav.tabs button.on{
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(79,70,229,.4);
+    }
+
+    main{padding:18px;max-width:1400px;margin:0 auto;}
+    .scr-head{display:flex;align-items:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap;min-width:0;}
+    .scr-head h1{font-size:20px;margin:0;font-weight:800;}
+    .scr-head p{margin:0;color:var(--muted);font-size:13px;}
+    .scr-head .tag{
+      margin-left:auto;font-size:12px;color:var(--accent2);
+      border:1px solid #2c3a5c;background:#131c30;padding:5px 11px;border-radius:8px;min-width:0;
+    }
+
+    .grid{display:grid;gap:14px;min-width:0;}
+    .g4{grid-template-columns:repeat(4,1fr);}
+    .g3{grid-template-columns:repeat(3,1fr);}
+    .g2{grid-template-columns:repeat(2,1fr);}
+    .g23{grid-template-columns:2fr 1fr;}
+    .g32{grid-template-columns:1.4fr 1fr;}
+    @media(max-width:820px){
+      .g4,.g3,.g2,.g23,.g32{grid-template-columns:1fr;}
+    }
+
+    .card{
+      background:linear-gradient(180deg,var(--panel),var(--panel2));
+      border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0;
+    }
+    .card h3{margin:0 0 3px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;}
+    .card h3 .ms{color:var(--accent2);font-size:19px;}
+    .card .sub{color:var(--muted);font-size:12px;margin:0 0 12px;}
+
+    .kpi .lbl{color:var(--muted);font-size:12.5px;display:flex;align-items:center;gap:7px;}
+    .kpi .lbl .ms{font-size:18px;color:var(--accent2);}
+    .kpi .val{font-size:30px;font-weight:800;margin-top:8px;line-height:1;letter-spacing:-.5px;}
+    .kpi .val small{font-size:13px;font-weight:600;color:var(--muted);margin-left:4px;}
+    .kpi .delta{font-size:12px;margin-top:8px;display:inline-flex;align-items:center;gap:4px;}
+    .kpi .delta.up{color:var(--good);} .kpi .delta.down{color:var(--bad);} .kpi .delta.flat{color:var(--warn);}
+
+    table{width:100%;border-collapse:collapse;font-size:13px;min-width:520px;}
+    th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;}
+    th{color:var(--muted);font-weight:600;font-size:12px;text-transform:none;}
+    tbody tr:hover{background:#0f1626;}
+    .scroll{overflow-x:auto;}
+
+    .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:700;}
+    .p-good{background:rgba(34,197,94,.14);color:#4ade80;}
+    .p-warn{background:rgba(245,158,11,.15);color:#fbbf24;}
+    .p-bad{background:rgba(239,68,68,.15);color:#f87171;}
+    .p-idle{background:rgba(138,147,167,.15);color:#a9b2c6;}
+    .p-info{background:rgba(129,140,248,.16);color:#a5b4fc;}
+
+    .chartbox{overflow:hidden;min-width:0;}
+
+    /* progress bar */
+    .bar{height:8px;background:#1a2436;border-radius:6px;overflow:hidden;min-width:0;}
+    .bar > i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+
+    /* clock tiles (signature: live punch monitor) */
+    .punchgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;min-width:0;}
+    @media(max-width:820px){.punchgrid{grid-template-columns:repeat(3,1fr);}}
+    @media(max-width:480px){.punchgrid{grid-template-columns:repeat(2,1fr);}}
+    .gate{
+      border:1px solid var(--line);border-radius:11px;padding:11px;background:#0f1626;
+      position:relative;overflow:hidden;min-width:0;
+    }
+    .gate .nm{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .gate .cnt{font-size:22px;font-weight:800;margin-top:6px;}
+    .gate .st{font-size:11px;color:var(--muted);margin-top:2px;}
+    .gate::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;}
+    .gate.ok::after{background:var(--good);}
+    .gate.busy::after{background:var(--accent2);}
+    .gate.alert::after{background:var(--bad);}
+
+    /* face-verify signature */
+    .facepanel{display:flex;flex-direction:column;gap:11px;min-width:0;}
+    .facerow{display:flex;align-items:center;gap:11px;padding:10px;border:1px solid var(--line);border-radius:11px;background:#0f1626;min-width:0;}
+    .facerow .av{width:42px;height:42px;border-radius:10px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;}
+    .facerow .meta{min-width:0;flex:1;}
+    .facerow .meta b{font-size:13px;} .facerow .meta div{font-size:11.5px;color:var(--muted);}
+    .facerow .score{font-size:12px;font-weight:800;text-align:right;flex:0 0 auto;}
+
+    /* timeline */
+    .tl{position:relative;padding-left:20px;min-width:0;}
+    .tl::before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--line);}
+    .tl .item{position:relative;padding:0 0 16px 6px;min-width:0;}
+    .tl .item::before{content:"";position:absolute;left:-17px;top:3px;width:11px;height:11px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 3px #0f1626;}
+    .tl .item.bad::before{background:var(--bad);}
+    .tl .item.good::before{background:var(--good);}
+    .tl .item .t{font-size:11px;color:var(--muted);}
+    .tl .item .m{font-size:13px;font-weight:600;margin-top:2px;}
+    .tl .item .d{font-size:12px;color:var(--muted);margin-top:2px;}
+
+    /* shift board */
+    .board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;min-width:0;}
+    @media(max-width:820px){.board{grid-template-columns:1fr;}}
+    .col{background:#0f1626;border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0;}
+    .col > .ch{font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+    .col .cnt{font-size:11px;color:var(--muted);background:#111c30;border:1px solid var(--line);padding:2px 8px;border-radius:12px;}
+    .ticket{background:#0c1322;border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:9px;min-width:0;}
+    .ticket b{font-size:12.5px;} .ticket .row{display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px;flex-wrap:wrap;}
+    .ticket .who{font-size:11px;color:var(--muted);}
+
+    /* steps for payroll lock */
+    .steps{display:flex;gap:10px;flex-wrap:wrap;min-width:0;}
+    .step{flex:1;min-width:130px;background:#0f1626;border:1px solid var(--line);border-radius:11px;padding:12px;min-width:0;position:relative;}
+    .step .n{width:26px;height:26px;border-radius:8px;background:#131c30;border:1px solid #2c3a5c;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:var(--accent2);}
+    .step.done .n{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-color:transparent;}
+    .step .st{font-size:12.5px;font-weight:700;margin-top:9px;}
+    .step .ds{font-size:11.5px;color:var(--muted);margin-top:3px;}
+    .step .badge{font-size:11px;margin-top:8px;}
+
+    .split{display:flex;gap:8px;flex-wrap:wrap;min-width:0;}
+    .chip{font-size:11.5px;color:var(--muted);border:1px solid var(--line);background:#0f1626;padding:5px 10px;border-radius:8px;min-width:0;}
+    .chip b{color:var(--txt);}
+    .foot{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 8px;}
+
+    @media(max-width:560px){
+      nav.tabs button .lab{display:none;}
+      nav.tabs button{padding:9px 12px;}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <header class="topbar">
+    <div class="topbar-in">
+      <div class="brand">
+        <div class="logo"><span class="ms">fingerprint</span></div>
+        <div style="min-width:0;">
+          <b>出勤打卡管理系統</b>
+          <span>Attendance Management · 智慧製造出勤控管平台</span>
+        </div>
+      </div>
+      <div class="live"><span class="dot"></span>即時連線 · 3 廠區 · 12 門禁裝置</div>
+    </div>
+    <nav class="tabs" id="tabs"></nav>
+  </header>
+  <main><div id="view"></div></main>
+  <div class="foot">Jvision Demo · 純前端展示 · 假資料，無後端連線</div>
+
+  <script>
+  (function(){
+    var NAV=[
+      {i:"monitoring",t:"即時打卡監控"},
+      {i:"shield",t:"代打卡攔截"},
+      {i:"rule",t:"異常出勤稽核"},
+      {i:"calendar_month",t:"請假加班簽核"},
+      {i:"account_tree",t:"班表工時控管"},
+      {i:"receipt_long",t:"資料鎖定薪傳"}
+    ];
+    var tabs=document.getElementById("tabs");
+    tabs.innerHTML=NAV.map(function(n,idx){
+      return '<button data-i="'+idx+'"><span class="ms">'+n.i+'</span><span class="lab">'+n.t+'</span></button>';
+    }).join("");
+    tabs.addEventListener("click",function(e){
+      var b=e.target.closest("[data-i]"); if(!b) return;
+      location.hash="v"+b.getAttribute("data-i");
+    });
+
+    var charts=[];
+    function killCharts(){for(var k=0;k<charts.length;k++){try{charts[k].destroy();}catch(e){}}charts=[];}
+    function mkChart(id,opt){
+      var el=document.getElementById(id); if(!el) return;
+      opt.chart=opt.chart||{};
+      opt.chart.redrawOnParentResize=false;
+      opt.chart.redrawOnWindowResize=false;
+      opt.chart.animations={enabled:false};
+      opt.chart.foreColor="#8a93a7";
+      opt.chart.toolbar={show:false};
+      var c=new ApexCharts(el,opt); c.render(); charts.push(c);
+    }
+    var AXIS={labels:{style:{colors:"#8a93a7"}}};
+    var GRID={borderColor:"#1f2a3d"};
+
+    function head(t,s,tag){
+      return '<div class="scr-head"><div style="min-width:0;"><h1>'+t+'</h1><p>'+s+'</p></div>'+
+        (tag?'<div class="tag">'+tag+'</div>':'')+'</div>';
+    }
+
+    /* ---------- SCREEN 0 : 即時打卡監控 ---------- */
+    function s0(){
+      var gates=[
+        {nm:"A廠·東門",cnt:412,st:"在崗 · 正常",c:"ok"},
+        {nm:"A廠·西門",cnt:288,st:"尖峰進場",c:"busy"},
+        {nm:"B廠·大門",cnt:356,st:"在崗 · 正常",c:"ok"},
+        {nm:"B廠·側門",cnt:97,st:"讀取延遲",c:"alert"},
+        {nm:"C廠·南門",cnt:203,st:"在崗 · 正常",c:"ok"},
+        {nm:"C廠·北門",cnt:144,st:"尖峰進場",c:"busy"}
+      ];
+      var v='';
+      v+=head("即時打卡監控","多廠區刷卡即時彙整 · 在崗人數與到勤率一眼掌握","更新於 08:32:14");
+      v+='<div class="grid g4" style="margin-bottom:14px;">'+
+        kpi("今日到勤","group","1,500","人 / 1,620","up","到勤率 92.6%")+
+        kpi("已刷卡","how_to_reg","1,500","筆","up","+38 近5分鐘")+
+        kpi("尚未打卡","schedule","120","人","flat","含請假 46 人")+
+        kpi("裝置在線","router","11","/ 12","down","側門讀卡機延遲")+
+        '</div>';
+      v+='<div class="grid g23">';
+      v+='<div class="card chartbox"><h3><span class="ms">show_chart</span>今日進場刷卡量（每小時）</h3><p class="sub">早班進場尖峰集中於 07:00–08:00</p><div id="c0a"></div></div>';
+      v+='<div class="card"><h3><span class="ms">donut_small</span>刷卡方式占比</h3><p class="sub">臉部辨識為主要驗證方式</p><div id="c0b"></div></div>';
+      v+='</div>';
+      v+='<div class="card" style="margin-top:14px;"><h3><span class="ms">sensor_door</span>各門禁裝置在崗看板</h3><p class="sub">綠=正常，藍=尖峰進場，紅=需關注</p>'+
+        '<div class="punchgrid">'+gates.map(function(g){
+          return '<div class="gate '+g.c+'"><div class="nm">'+g.nm+'</div><div class="cnt">'+g.cnt+'</div><div class="st">'+g.st+'</div></div>';
+        }).join("")+'</div></div>';
+      document.getElementById("view").innerHTML=v;
+      void document.getElementById("view").offsetHeight;
+      mkChart("c0a",{
+        chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"area",height:300},
+        series:[{name:"進場",data:[46,612,721,318,142,88,64,410,133,58,41,690]}],
+        xaxis:{categories:["06","07","08","09","10","11","12","13","14","15","16","17"],labels:AXIS.labels},
+        yaxis:AXIS,grid:GRID,dataLabels:{enabled:false},stroke:{curve:"smooth",width:2},
+        colors:["#818cf8"],fill:{type:"gradient",gradient:{opacityFrom:.45,opacityTo:.05}}
+      });
+      mkChart("c0b",{
+        chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"donut",height:300},
+        series:[64,22,14],labels:["臉部辨識","門禁卡","指紋"],
+        colors:["#4f46e5","#818cf8","#38bdf8"],
+        legend:{position:"bottom",labels:{colors:"#8a93a7"}},
+        dataLabels:{enabled:true},stroke:{width:0},
+        plotOptions:{pie:{donut:{labels:{show:true,total:{show:true,label:"總刷卡",color:"#8a93a7"}}}}}
+      });
+    }
+
+    /* ---------- SCREEN 1 : 代打卡攔截 ---------- */
+    function s1(){
+      var faces=[
+        {nm:"林建宏",id:"EMP-10241",gate:"B廠·側門",sc:41,st:"攔截",r:"bad",note:"臉部比對不符 · 疑代打卡"},
+        {nm:"陳彥廷",id:"EMP-10877",gate:"A廠·西門",sc:96,st:"通過",r:"good",note:"本人 · 高信度"},
+        {nm:"黃思妤",id:"EMP-11204",gate:"C廠·南門",sc:58,st:"複驗",r:"warn",note:"光線不足 · 轉人工"},
+        {nm:"吳孟哲",id:"EMP-10093",gate:"A廠·東門",sc:99,st:"通過",r:"good",note:"本人 · 高信度"},
+        {nm:"張雅涵",id:"EMP-11588",gate:"B廠·大門",sc:37,st:"攔截",r:"bad",note:"卡號與人臉不符"}
+      ];
+      var v='';
+      v+=head("代打卡攔截","臉部辨識比對持卡人身分 · 攔截代打卡事件","今日已攔截 14 起");
+      v+='<div class="grid g4" style="margin-bottom:14px;">'+
+        kpi("今日攔截","shield","14","起","up","+3 較昨日")+
+        kpi("辨識準確率","verified","99.2","%","up","誤攔 0.3%")+
+        kpi("平均比對","bolt","0.8","秒","up","-0.2s")+
+        kpi("轉人工複驗","support_agent","9","筆","flat","光線／口罩")+
+        '</div>';
+      v+='<div class="grid g32">';
+      v+='<div class="card"><h3><span class="ms">face</span>即時辨識佇列</h3><p class="sub">比對分數 &lt;60 自動攔截或轉複驗</p><div class="facepanel">'+
+        faces.map(function(f){
+          var col=f.r==="good"?"#22c55e":(f.r==="warn"?"#f59e0b":"#ef4444");
+          var pc=f.r==="good"?"p-good":(f.r==="warn"?"p-warn":"p-bad");
+          return '<div class="facerow"><div class="av" style="background:linear-gradient(135deg,'+col+',#0f1626);">'+f.nm.charAt(0)+
+            '</div><div class="meta"><b>'+f.nm+'</b> <span style="color:#8a93a7;font-size:11px;">'+f.id+'</span>'+
+            '<div>'+f.gate+' · '+f.note+'</div></div>'+
+            '<div class="score" style="color:'+col+'">'+f.sc+'分<br><span class="pill '+pc+'" style="margin-top:4px;">'+f.st+'</span></div></div>';
+        }).join("")+'</div></div>';
+      v+='<div class="card chartbox"><h3><span class="ms">insights</span>近 6 週攔截趨勢</h3><p class="sub">臉部辨識導入後代打卡逐週下降</p><div id="c1a"></div>'+
+        '<div class="split" style="margin-top:12px;"><span class="chip">攔截後複核率 <b>100%</b></span><span class="chip">誤攔申訴 <b>2 件</b></span><span class="chip">停用卡號 <b>5 張</b></span></div></div>';
+      v+='</div>';
+      document.getElementById("view").innerHTML=v;
+      void document.getElementById("view").offsetHeight;
+      mkChart("c1a",{
+        chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"bar",height:300},
+        series:[{name:"攔截起數",data:[41,33,27,22,18,14]}],
+        xaxis:{categories:["W1","W2","W3","W4","W5","W6"],labels:AXIS.labels},
+        yaxis:AXIS,grid:GRID,dataLabels:{enabled:false},
+        colors:["#4f46e5"],plotOptions:{bar:{borderRadius:5,columnWidth:"52%"}},
+        tooltip:{shared:false,intersect:true}
+      });
+    }
+
+    /* ---------- SCREEN 2 : 異常出勤稽核 ---------- */
+    function s2(){
+      var rows=[
+        {emp:"周子睿",id:"EMP-10415",dep:"沖壓一課",ty:"遲到",min:"+18 分",cls:"p-warn",st:"待處理",stc:"p-warn"},
+        {emp:"李欣怡",id:"EMP-10992",dep:"組裝二課",ty:"曠職",min:"整日",cls:"p-bad",st:"待處理",stc:"p-bad"},
+        {emp:"許博文",id:"EMP-11033",dep:"品保課",ty:"早退",min:"-42 分",cls:"p-warn",st:"已補登",stc:"p-good"},
+        {emp:"鄭家豪",id:"EMP-10588",dep:"包裝課",ty:"漏刷退",min:"—",cls:"p-info",st:"待處理",stc:"p-warn"},
+        {emp:"蔡宜庭",id:"EMP-11871",dep:"物料課",ty:"超時工時",min:"13.2 時",cls:"p-bad",st:"主管確認",stc:"p-info"},
+        {emp:"劉承翰",id:"EMP-10237",dep:"沖壓二課",ty:"遲到",min:"+7 分",cls:"p-warn",st:"已補登",stc:"p-good"}
+      ];
+      var v='';
+      v+=head("異常出勤稽核","刷卡與班表自動比對 · 遲到早退曠職即時標記","待處理 38 · 已補登 214");
+      v+='<div class="grid g4" style="margin-bottom:14px;">'+
+        kpi("今日異常","rule","64","筆","down","-11 較昨日")+
+        kpi("出勤異常率","percent","4.1","%","down","目標 &lt; 5%")+
+        kpi("平均處理","timer","5.3","分","up","-24.7 分")+
+        kpi("曠職筆數","person_off","6","筆","flat","含未請假")+
+        '</div>';
+      v+='<div class="grid g23">';
+      v+='<div class="card"><h3><span class="ms">fact_check</span>待稽核異常清單</h3><p class="sub">依規則自動標記，人資逐筆確認與補登</p><div class="scroll"><table>'+
+        '<thead><tr><th>員工</th><th>部門</th><th>異常類型</th><th>差異</th><th>狀態</th></tr></thead><tbody>'+
+        rows.map(function(r){
+          return '<tr><td><b>'+r.emp+'</b><div style="color:#8a93a7;font-size:11px;">'+r.id+'</div></td>'+
+            '<td>'+r.dep+'</td><td><span class="pill '+r.cls+'">'+r.ty+'</span></td><td>'+r.min+'</td>'+
+            '<td><span class="pill '+r.stc+'">'+r.st+'</span></td></tr>';
+        }).join("")+'</tbody></table></div></div>';
+      v+='<div class="card chartbox"><h3><span class="ms">stacked_bar_chart</span>異常類型分布（本週）</h3><p class="sub">遲到與漏刷退為主要異常來源</p><div id="c2a"></div></div>';
+      v+='</div>';
+      document.getElementById("view").innerHTML=v;
+      void document.getElementById("view").offsetHeight;
+      mkChart("c2a",{
+        chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"bar",height:320,stacked:true},
+        series:[
+          {name:"遲到",data:[22,18,25,20,17]},
+          {name:"早退",data:[8,6,9,7,5]},
+          {name:"漏刷",data:[14,12,16,11,9]},
+          {name:"曠職",data:[3,2,4,1,2]}
+        ],
+        xaxis:{categories:["週一","週二","週三","週四","週五"],labels:AXIS.labels},
+        yaxis:AXIS,grid:GRID,dataLabels:{enabled:false},
+        colors:["#4f46e5","#818cf8","#38bdf8","#ef4444"],
+        legend:{labels:{colors:"#8a93a7"}},
+        plotOptions:{bar:{borderRadius:4,columnWidth:"55%"}},
+        tooltip:{shared:true,intersect:false}
+      });
+    }
+
+    /* ---------- SCREEN 3 : 請假加班簽核 ---------- */
+    function s3(){
+      var cols=[
+        {h:"待送出",c:3,items:[
+          {t:"特休 1 日",who:"王思穎 · 組裝二課",p:"p-info",ps:"08/20"},
+          {t:"加班 3 小時",who:"陳冠宇 · 沖壓一課",p:"p-info",ps:"08/14 夜班"}
+        ]},
+        {h:"主管確認",c:2,items:[
+          {t:"病假 2 日",who:"林郁婷 · 品保課",p:"p-warn",ps:"待班長核"},
+          {t:"加班 4 小時",who:"黃俊傑 · 物料課",p:"p-warn",ps:"超時提醒"}
+        ]},
+        {h:"已核准",c:5,items:[
+          {t:"事假半日",who:"吳佩珊 · 包裝課",p:"p-good",ps:"08/12 核准"},
+          {t:"加班 2 小時",who:"張哲瑋 · 沖壓二課",p:"p-good",ps:"已入工時"}
+        ]}
+      ];
+      var v='';
+      v+=head("請假加班簽核","線上申請與主管簽核 · 超時工時自動提醒","本月申請 342 件");
+      v+='<div class="grid g4" style="margin-bottom:14px;">'+
+        kpi("待簽核","approval","10","件","flat","含超時 2 件")+
+        kpi("平均簽核","hourglass_top","1.0","天","up","-2.1 天")+
+        kpi("本月加班","more_time","1,284","小時","flat","占比 6.2%")+
+        kpi("超時預警","warning","2","人","down","逾 12 小時/日")+
+        '</div>';
+      v+='<div class="card" style="margin-bottom:14px;"><h3><span class="ms">view_kanban</span>簽核流程看板</h3><p class="sub">申請單依待送出 → 主管確認 → 已核准流轉</p>'+
+        '<div class="board">'+cols.map(function(c){
+          return '<div class="col"><div class="ch">'+c.h+'<span class="cnt">'+c.c+'</span></div>'+
+            c.items.map(function(it){
+              return '<div class="ticket"><b>'+it.t+'</b><div class="row"><span class="who">'+it.who+'</span><span class="pill '+it.p+'">'+it.ps+'</span></div></div>';
+            }).join("")+'</div>';
+        }).join("")+'</div></div>';
+      v+='<div class="grid g2">';
+      v+='<div class="card chartbox"><h3><span class="ms">event_available</span>近 6 月請假類型趨勢</h3><p class="sub">特休集中於連假前後</p><div id="c3a"></div></div>';
+      v+='<div class="card chartbox"><h3><span class="ms">more_time</span>各課別加班工時（本月）</h3><p class="sub">沖壓一課加班時數最高</p><div id="c3b"></div></div>';
+      v+='</div>';
+      document.getElementById("view").innerHTML=v;
+      void document.getElementById("view").offsetHeight;
+      mkChart("c3a",{
+        chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"line",height:300},
+        series:[
+          {name:"特休",data:[64,58,72,88,95,110]},
+          {name:"病假",data:[30,42,38,29,33,40]},
+          {name:"事假",data:[18,22,20,25,19,24]}
+        ],
+        xaxis:{categories:["3月","4月","5月","6月","7月","8月"],labels:AXIS.labels},
+        yaxis:AXIS,grid:GRID,dataLabels:{enabled:false},stroke:{curve:"smooth",width:2},
+        colors:["#4f46e5","#818cf8","#38bdf8"],legend:{labels:{colors:"#8a93a7"}}
+      });
+      mkChart("c3b",{
+        chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"bar",height:300},
+        series:[{name:"加班工時",data:[318,254,201,188,142,181]}],
+        xaxis:{categories:["沖壓一","沖壓二","組裝二","品保","包裝","物料"],labels:AXIS.labels},
+        yaxis:AXIS,grid:GRID,dataLabels:{enabled:false},
+        colors:["#818cf8"],plotOptions:{bar:{borderRadius:5,horizontal:true}},
+        tooltip:{shared:false,intersect:true}
+      });
+    }
+
+    /* ---------- SCREEN 4 : 班表工時控管 ---------- */
+    function s4(){
+      var shifts=[
+        {sh:"早班 A",time:"06:00–14:00",need:120,now:118,rate:98,c:"p-good"},
+        {sh:"中班 B",time:"14:00–22:00",need:110,now:96,rate:87,c:"p-warn"},
+        {sh:"夜班 C",time:"22:00–06:00",need:90,now:71,rate:79,c:"p-bad"},
+        {sh:"支援班",time:"彈性",need:40,now:44,rate:110,c:"p-info"}
+      ];
+      var v='';
+      v+=head("班表工時控管","排班配置與最低人力預警 · 缺口即時補班","夜班低於最低配置 19 人");
+      v+='<div class="grid g4" style="margin-bottom:14px;">'+
+        kpi("本週排班","calendar_month","4,860","人次","flat","3 廠區")+
+        kpi("最低配置達成","account_tree","2","/ 4","down","夜班／中班缺口")+
+        kpi("平均週工時","schedule","41.6","小時","flat","上限 48")+
+        kpi("待補班","person_add","19","人","up","夜班 C 優先")+
+        '</div>';
+      v+='<div class="card" style="margin-bottom:14px;"><h3><span class="ms">groups</span>各班別人力配置</h3><p class="sub">實到低於最低配置 90% 觸發補班提醒</p><div class="scroll"><table>'+
+        '<thead><tr><th>班別</th><th>時段</th><th>需求</th><th>實到</th><th>達成率</th><th>狀態</th></tr></thead><tbody>'+
+        shifts.map(function(s){
+          return '<tr><td><b>'+s.sh+'</b></td><td>'+s.time+'</td><td>'+s.need+'</td><td>'+s.now+'</td>'+
+            '<td><div class="bar" style="width:120px;"><i style="width:'+Math.min(s.rate,100)+'%;"></i></div><span style="font-size:11px;color:#8a93a7;">'+s.rate+'%</span></td>'+
+            '<td><span class="pill '+s.c+'">'+(s.rate>=95?"充足":(s.rate>=85?"注意":"缺口"))+'</span></td></tr>';
+        }).join("")+'</tbody></table></div></div>';
+      v+='<div class="grid g23">';
+      v+='<div class="card chartbox"><h3><span class="ms">bar_chart</span>各廠區每日工時利用（小時）</h3><p class="sub">實際工時 vs 排定工時</p><div id="c4a"></div></div>';
+      v+='<div class="card chartbox"><h3><span class="ms">radar</span>班別健康度評分</h3><p class="sub">綜合到勤、工時、缺口與加班</p><div id="c4b"></div></div>';
+      v+='</div>';
+      document.getElementById("view").innerHTML=v;
+      void document.getElementById("view").offsetHeight;
+      mkChart("c4a",{
+        chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"bar",height:310},
+        series:[
+          {name:"排定工時",data:[960,880,720]},
+          {name:"實際工時",data:[942,812,631]}
+        ],
+        xaxis:{categories:["A廠","B廠","C廠"],labels:AXIS.labels},
+        yaxis:AXIS,grid:GRID,dataLabels:{enabled:false},
+        colors:["#818cf8","#4f46e5"],plotOptions:{bar:{borderRadius:5,columnWidth:"55%"}},
+        legend:{labels:{colors:"#8a93a7"}},tooltip:{shared:true,intersect:false}
+      });
+      mkChart("c4b",{
+        chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"radar",height:310},
+        series:[{name:"健康度",data:[92,68,74,85,79]}],
+        labels:["早班","中班","夜班","支援","加班控管"],
+        stroke:{width:2},fill:{opacity:.25},colors:["#818cf8"],
+        yaxis:{show:false},markers:{size:3},
+        plotOptions:{radar:{polygons:{strokeColors:"#1f2a3d",connectorColors:"#1f2a3d"}}}
+      });
+    }
+
+    /* ---------- SCREEN 5 : 資料鎖定薪傳 ---------- */
+    function s5(){
+      var steps=[
+        {n:1,st:"出勤彙總",ds:"匯總 1,620 名員工月度刷卡工時",b:"p-good",bt:"完成",done:true},
+        {n:2,st:"異常清零",ds:"38 筆待處理異常已全數補登",b:"p-good",bt:"完成",done:true},
+        {n:3,st:"主管核可",ds:"各課主管確認工時與加班",b:"p-good",bt:"完成",done:true},
+        {n:4,st:"資料鎖定",ds:"鎖定後不可異動，留存稽核軌跡",b:"p-warn",bt:"進行中",done:false},
+        {n:5,st:"傳送薪資",ds:"對接薪資系統產出計薪檔",b:"p-idle",bt:"待執行",done:false}
+      ];
+      var log=[
+        {t:"08/13 17:20",m:"資料鎖定啟動",d:"人資經理 林珮如 · 08 月週期",g:""},
+        {t:"08/13 16:58",m:"主管核可完成",d:"6 課別工時確認 · 加班 1,284 小時",g:"good"},
+        {t:"08/13 15:12",m:"異常補登結案",d:"最後 4 筆漏刷退補登完成",g:"good"},
+        {t:"08/13 11:40",m:"曠職案退回複核",d:"EMP-10992 待人資確認未請假",g:"bad"},
+        {t:"08/13 09:05",m:"出勤彙總產出",d:"1,620 人 · 總工時 268,940 小時",g:""}
+      ];
+      var v='';
+      v+=head("資料鎖定薪傳","月結出勤鎖定 · 核可後傳送薪資系統計薪","08 月週期 · 鎖定進行中");
+      v+='<div class="grid g4" style="margin-bottom:14px;">'+
+        kpi("本期工時","schedule","268,940","小時","flat","1,620 人")+
+        kpi("薪資作業","payments","8.3","小時/月","up","-30.7 小時")+
+        kpi("異常清零","task_alt","100","%","up","38 → 0")+
+        kpi("鎖定進度","lock","3","/ 5","flat","步驟 4 進行中")+
+        '</div>';
+      v+='<div class="card" style="margin-bottom:14px;"><h3><span class="ms">checklist</span>月結鎖定流程</h3><p class="sub">全數異常清零並經主管核可後方可鎖定薪傳</p>'+
+        '<div class="steps">'+steps.map(function(s){
+          return '<div class="step '+(s.done?"done":"")+'"><div class="n">'+s.n+'</div><div class="st">'+s.st+'</div>'+
+            '<div class="ds">'+s.ds+'</div><span class="pill '+s.b+' badge">'+s.bt+'</span></div>';
+        }).join("")+'</div></div>';
+      v+='<div class="grid g32">';
+      v+='<div class="card chartbox"><h3><span class="ms">trending_down</span>薪資作業工時下降趨勢</h3><p class="sub">出勤自動化後每月薪資作業工時大幅縮短</p><div id="c5a"></div></div>';
+      v+='<div class="card"><h3><span class="ms">history</span>稽核軌跡</h3><p class="sub">鎖定與核可全程留痕，可回溯</p><div class="tl">'+
+        log.map(function(l){
+          return '<div class="item '+(l.g||"")+'"><div class="t">'+l.t+'</div><div class="m">'+l.m+'</div><div class="d">'+l.d+'</div></div>';
+        }).join("")+'</div></div>';
+      v+='</div>';
+      document.getElementById("view").innerHTML=v;
+      void document.getElementById("view").offsetHeight;
+      mkChart("c5a",{
+        chart:{redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},type:"area",height:320},
+        series:[{name:"薪資作業工時",data:[39,33,27,21,14,8.3]}],
+        xaxis:{categories:["第1週","第2週","第3週","第4週","第5週","第6週"],labels:AXIS.labels},
+        yaxis:AXIS,grid:GRID,dataLabels:{enabled:false},stroke:{curve:"smooth",width:2},
+        colors:["#4f46e5"],fill:{type:"gradient",gradient:{opacityFrom:.5,opacityTo:.05}}
+      });
+    }
+
+    function kpi(lbl,ic,val,unit,dir,note){
+      var cls=dir==="up"?"up":(dir==="down"?"down":"flat");
+      var arrow=dir==="up"?"trending_up":(dir==="down"?"trending_down":"trending_flat");
+      return '<div class="card kpi"><div class="lbl"><span class="ms">'+ic+'</span>'+lbl+'</div>'+
+        '<div class="val">'+val+'<small>'+unit+'</small></div>'+
+        '<div class="delta '+cls+'"><span class="ms" style="font-size:16px;">'+arrow+'</span>'+note+'</div></div>';
+    }
+
+    var SCREENS=[s0,s1,s2,s3,s4,s5];
+    function show(i){
+      killCharts();
+      var btns=document.querySelectorAll("[data-i]");
+      for(var k=0;k<btns.length;k++){btns[k].classList.toggle("on",+btns[k].getAttribute("data-i")===i);}
+      SCREENS[i]();
+    }
+    window.__show=show;
+
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+    window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>

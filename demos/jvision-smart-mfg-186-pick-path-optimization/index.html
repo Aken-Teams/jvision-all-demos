@@ -1,18 +1,663 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>揀貨路徑優化系統（Pick Path Optimization）｜Jvision 系統 Demo</title>
-  <meta name="description" content="收貨到出貨的倉內作業與庫存精準管理" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>揀貨路徑優化系統（Pick Path Optimization）</title>
+<link rel="icon" href="../../favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+:root{
+  --accent:#ea580c;--accent2:#fb923c;--ink:#1c1917;--sub:#78716c;
+  --line:#e7e5e4;--bg:#f5f5f4;--card:#ffffff;--soft:#fff7ed;
+  --ok:#16a34a;--warn:#d97706;--bad:#dc2626;--info:#2563eb;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:"Inter","Noto Sans TC",sans-serif;background:var(--bg);color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+}
+.material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+.topbar{position:sticky;top:0;z-index:50;background:#ffffff;border-bottom:1px solid var(--line);}
+.topbar-in{max-width:1280px;margin:0 auto;padding:10px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.brand{display:flex;align-items:center;gap:10px;min-width:0;}
+.brand .logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;flex:none;}
+.brand .logo .material-symbols-outlined{font-size:22px;}
+.brand h1{font-size:15px;margin:0;font-weight:800;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.brand .sub{font-size:11px;color:var(--sub);white-space:nowrap;}
+.nav{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;min-width:0;}
+.nav button{
+  display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;color:var(--sub);
+  padding:8px 12px;border-radius:999px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;
+  transition:all .15s;
+}
+.nav button .material-symbols-outlined{font-size:18px;}
+.nav button:hover{border-color:var(--accent2);color:var(--accent);}
+.nav button.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 12px rgba(234,88,12,.28);}
+main{max-width:1280px;margin:0 auto;padding:20px 18px 60px;}
+.shead{display:flex;align-items:flex-start;gap:12px;margin-bottom:18px;flex-wrap:wrap;}
+.shead .ic{width:44px;height:44px;border-radius:12px;background:var(--soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none;}
+.shead .ic .material-symbols-outlined{font-size:26px;}
+.shead h2{margin:0;font-size:19px;font-weight:800;}
+.shead p{margin:3px 0 0;font-size:13px;color:var(--sub);max-width:640px;}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--soft);color:var(--accent);}
+.grid{display:grid;gap:14px;}
+.g4{grid-template-columns:repeat(4,1fr);}
+.g3{grid-template-columns:repeat(3,1fr);}
+.g2{grid-template-columns:repeat(2,1fr);}
+.g23{grid-template-columns:2fr 1fr;}
+.g32{grid-template-columns:1.4fr 1fr;}
+.kanban{grid-template-columns:repeat(4,1fr);}
+.g4agv{grid-template-columns:1.3fr 1fr;}
+@media(max-width:820px){
+  .g4,.g3,.g2,.g23,.g32,.kanban,.g4agv{grid-template-columns:1fr;}
+}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0;}
+.card h3{margin:0 0 12px;font-size:14px;font-weight:800;display:flex;align-items:center;gap:7px;}
+.card h3 .material-symbols-outlined{font-size:18px;color:var(--accent);}
+.card .cap{font-size:11px;color:var(--sub);font-weight:600;margin-left:auto;}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px;min-width:0;position:relative;overflow:hidden;}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(var(--accent),var(--accent2));}
+.kpi .lab{font-size:12px;color:var(--sub);font-weight:600;display:flex;align-items:center;gap:6px;}
+.kpi .lab .material-symbols-outlined{font-size:17px;color:var(--accent);}
+.kpi .val{font-size:26px;font-weight:800;margin-top:6px;letter-spacing:-.5px;}
+.kpi .val small{font-size:13px;font-weight:600;color:var(--sub);}
+.kpi .delta{font-size:11px;font-weight:700;margin-top:4px;display:inline-flex;align-items:center;gap:3px;}
+.kpi .delta.up{color:var(--ok);}
+.kpi .delta.down{color:var(--bad);}
+.kpi .delta .material-symbols-outlined{font-size:15px;}
+.chart{width:100%;height:280px;overflow:hidden;}
+.chart.sm{height:220px;}
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:100%;}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
+th{font-size:11px;color:var(--sub);font-weight:700;text-transform:uppercase;letter-spacing:.4px;background:#fafaf9;}
+tbody tr:hover{background:var(--soft);}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;}
+.t-ok{background:#dcfce7;color:#166534;}
+.t-warn{background:#fef3c7;color:#92400e;}
+.t-bad{background:#fee2e2;color:#991b1b;}
+.t-info{background:#dbeafe;color:#1e40af;}
+.t-gray{background:#f5f5f4;color:#57534e;}
+.bar-mini{height:6px;border-radius:4px;background:#f0ede9;overflow:hidden;min-width:60px;}
+.bar-mini>span{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+.kcol{background:#faf9f8;border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;}
+.kcol .khd{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;margin-bottom:10px;padding:0 2px;}
+.kcol .khd .dot{width:9px;height:9px;border-radius:50%;flex:none;}
+.kcol .khd .cnt{margin-left:auto;font-size:11px;color:var(--sub);background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 8px;}
+.kcard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:9px;box-shadow:0 1px 2px rgba(0,0,0,.03);}
+.kcard:last-child{margin-bottom:0;}
+.kcard .kt{font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.kcard .km{font-size:11px;color:var(--sub);margin-top:5px;display:flex;flex-wrap:wrap;gap:8px;}
+.kcard .km b{color:var(--ink);}
+.kcard .kbar{margin-top:8px;}
+.opt{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff;position:relative;min-width:0;}
+.opt.sel{border-color:var(--accent);background:var(--soft);box-shadow:0 4px 14px rgba(234,88,12,.14);}
+.opt .ot{font-size:14px;font-weight:800;display:flex;align-items:center;gap:7px;}
+.opt .ot .material-symbols-outlined{color:var(--accent);font-size:20px;}
+.opt .od{font-size:12px;color:var(--sub);margin:6px 0 10px;line-height:1.55;}
+.opt .obadge{position:absolute;top:12px;right:12px;font-size:10px;font-weight:800;color:#fff;background:var(--accent);padding:2px 8px;border-radius:999px;}
+.opt ul{margin:0;padding-left:16px;font-size:12px;color:var(--sub);line-height:1.7;}
+.wh{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;}
+.cell{aspect-ratio:1/1;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--sub);margin-top:12px;align-items:center;}
+.legend .sw{display:inline-flex;align-items:center;gap:5px;}
+.legend .sw i{width:14px;height:14px;border-radius:3px;display:inline-block;}
+.wk{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);}
+.wk:last-child{border-bottom:none;}
+.av{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex:none;}
+.wk .wi{min-width:0;flex:1;}
+.wk .wi .n{font-size:13px;font-weight:800;}
+.wk .wi .z{font-size:11px;color:var(--sub);}
+.wk .load{width:120px;min-width:0;}
+.wk .load .bar-mini{margin-top:4px;}
+.wk .load .lv{font-size:11px;font-weight:700;text-align:right;}
+.tl{position:relative;padding-left:22px;}
+.tl::before{content:"";position:absolute;left:7px;top:4px;bottom:4px;width:2px;background:var(--line);}
+.tl .ev{position:relative;padding:0 0 16px;}
+.tl .ev:last-child{padding-bottom:0;}
+.tl .ev .dot{position:absolute;left:-19px;top:2px;width:14px;height:14px;border-radius:50%;border:3px solid #fff;background:var(--accent);box-shadow:0 0 0 1px var(--line);}
+.tl .ev .tt{font-size:13px;font-weight:800;}
+.tl .ev .td{font-size:12px;color:var(--sub);margin-top:2px;}
+.tl .ev .tm{font-size:11px;color:var(--accent);font-weight:700;}
+.rob{border:1px solid var(--line);border-radius:12px;padding:13px;background:#fff;min-width:0;}
+.rob .rh{display:flex;align-items:center;gap:9px;}
+.rob .rh .ri{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:none;}
+.rob .rh .ri .material-symbols-outlined{font-size:22px;}
+.rob .rh .rn{font-size:13px;font-weight:800;}
+.rob .rh .rs{font-size:11px;color:var(--sub);}
+.rob .rmeta{display:flex;gap:16px;margin-top:11px;flex-wrap:wrap;}
+.rob .rmeta .m{min-width:0;}
+.rob .rmeta .m .mk{font-size:10px;color:var(--sub);font-weight:600;}
+.rob .rmeta .m .mv{font-size:13px;font-weight:800;}
+.batt{height:7px;border-radius:5px;background:#f0ede9;overflow:hidden;margin-top:9px;}
+.batt>span{display:block;height:100%;}
+.flexbtwn{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.chips{display:flex;gap:7px;flex-wrap:wrap;}
+.chip{font-size:12px;font-weight:600;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--sub);}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.note{font-size:12px;color:var(--sub);line-height:1.6;background:var(--soft);border:1px solid #fed7aa;border-radius:10px;padding:11px 13px;}
+.note b{color:var(--accent);}
+.footer{max-width:1280px;margin:0 auto;padding:20px 18px 40px;color:var(--sub);font-size:12px;border-top:1px solid var(--line);}
+@media(max-width:560px){
+  .nav button span.lbl{display:none;}
+  .nav button{padding:8px;}
+  .brand .sub{display:none;}
+  .wh{grid-template-columns:repeat(8,1fr);}
+}
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<div class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <div class="logo"><span class="material-symbols-outlined">route</span></div>
+      <div style="min-width:0">
+        <h1>揀貨路徑優化系統</h1>
+        <div class="sub">Pick Path Optimization · WMS</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+  </div>
+</div>
+<main id="app"></main>
+<div class="footer">
+  本頁為純 UI 系統展示（無後端），畫面與資料皆為擬真示範。揀貨路徑優化系統（Pick Path Optimization）· 倉儲物流 / WMS 倉儲管理系統。
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var app=document.getElementById("app");
+  var nav=document.getElementById("nav");
+
+  var MODS=[
+    {icon:"receipt_long",name:"訂單匯入與波次規劃",short:"波次規劃",desc:"彙整當班出貨訂單，依出貨時段與訂單特性組成揀貨波次批次。"},
+    {icon:"account_tree",name:"揀貨策略引擎",short:"策略引擎",desc:"依訂單結構判斷採波次、批次或區域揀貨，設定揀貨模式與分區。"},
+    {icon:"insights",name:"路徑演算與熱區",short:"路徑演算",desc:"以最短行走距離為目標演算揀貨動線，並分析儲區壅塞熱點。"},
+    {icon:"groups",name:"任務動態派工",short:"動態派工",desc:"依人員位置與工作量即時分派揀貨任務，平衡各區負載。"},
+    {icon:"precision_manufacturing",name:"AGV／AMR 協同",short:"機具協同",desc:"貨到人與人到貨的搬運機具調度，與揀貨任務同步。"},
+    {icon:"monitoring",name:"揀貨績效看板",short:"績效看板",desc:"行走距離、單位時間揀貨件數與達成率即時回饋。"}
+  ];
+
+  var navHtml="";
+  for(var i=0;i<MODS.length;i++){
+    navHtml+='<button data-i="'+i+'"><span class="material-symbols-outlined">'+MODS[i].icon+'</span><span class="lbl">'+MODS[i].short+'</span></button>';
+  }
+  nav.innerHTML=navHtml;
+  nav.addEventListener("click",function(e){
+    var b=e.target.closest("[data-i]");
+    if(!b)return;
+    location.hash="v"+b.getAttribute("data-i");
+  });
+
+  var CHARTS=[];
+  function disposeCharts(){
+    for(var k=0;k<CHARTS.length;k++){try{CHARTS[k].dispose();}catch(e){}}
+    CHARTS=[];
+  }
+  function mk(id,opt){
+    var el=document.getElementById(id);
+    if(!el)return;
+    var c=echarts.init(el);
+    c.setOption(opt);
+    CHARTS.push(c);
+  }
+  window.addEventListener("resize",function(){
+    for(var k=0;k<CHARTS.length;k++){try{CHARTS[k].resize();}catch(e){}}
+  });
+
+  function head(m,role){
+    return '<div class="shead"><div class="ic"><span class="material-symbols-outlined">'+m.icon+'</span></div>'+
+      '<div style="min-width:0"><h2>'+m.name+'</h2><p>'+m.desc+'</p></div>'+
+      '<div style="margin-left:auto"><span class="pill"><span class="material-symbols-outlined" style="font-size:15px">person</span>'+role+'</span></div></div>';
+  }
+
+  // ---------- SCREEN 0 : 訂單匯入與波次規劃 (KANBAN signature) ----------
+  function s0(){
+    var kpi=[
+      {l:"待匯入訂單",v:"128",u:" 張",d:"+18 較昨日",up:false,ic:"upload_file"},
+      {l:"已組波次",v:"14",u:" 波",d:"覆蓋 92%",up:true,ic:"layers"},
+      {l:"預估揀貨行數",v:"3,472",u:" 行",d:"平均 24 行/單",up:true,ic:"format_list_numbered"},
+      {l:"急單 (2H 內)",v:"9",u:" 張",d:"已優先排入",up:true,ic:"bolt"}
+    ];
+    var kpiH="";
+    for(var i=0;i<kpi.length;i++){
+      var k=kpi[i];
+      kpiH+='<div class="kpi"><div class="lab"><span class="material-symbols-outlined">'+k.ic+'</span>'+k.l+'</div>'+
+        '<div class="val">'+k.v+'<small>'+k.u+'</small></div>'+
+        '<div class="delta '+(k.up?'up':'down')+'"><span class="material-symbols-outlined">'+(k.up?'trending_up':'priority_high')+'</span>'+k.d+'</div></div>';
+    }
+
+    var cols=[
+      {t:"待匯入",c:"#a8a29e",items:[
+        {id:"SO-24815",m:"通路A · 一般",lines:32,due:"14:30",fill:0,cls:"t-gray"},
+        {id:"SO-24816",m:"電商 · 小件",lines:11,due:"15:00",fill:0,cls:"t-gray"},
+        {id:"SO-24817",m:"門市補貨",lines:44,due:"16:20",fill:0,cls:"t-gray"}
+      ]},
+      {t:"波次組合",c:"#2563eb",items:[
+        {id:"WV-0912-A",m:"波次 · 12 單",lines:286,due:"13:40",fill:35,cls:"t-info"},
+        {id:"WV-0912-B",m:"波次 · 9 單",lines:198,due:"14:10",fill:20,cls:"t-info"}
+      ]},
+      {t:"演算待命",c:"#d97706",items:[
+        {id:"WV-0912-C",m:"批次 · 冷鏈",lines:132,due:"13:20",fill:70,cls:"t-warn"},
+        {id:"WV-0911-Z",m:"區域 · 重貨",lines:88,due:"13:05",fill:60,cls:"t-warn"},
+        {id:"SO-24790",m:"急單 · VIP",lines:6,due:"12:50",fill:80,cls:"t-bad"}
+      ]},
+      {t:"已派工",c:"#16a34a",items:[
+        {id:"WV-0912-D",m:"波次 · 15 單",lines:341,due:"12:30",fill:100,cls:"t-ok"},
+        {id:"WV-0911-Y",m:"批次 · 電商",lines:210,due:"12:15",fill:100,cls:"t-ok"}
+      ]}
+    ];
+    var board="";
+    for(var c=0;c<cols.length;c++){
+      var col=cols[c];
+      var ci="";
+      for(var j=0;j<col.items.length;j++){
+        var it=col.items[j];
+        ci+='<div class="kcard"><div class="kt">'+it.id+'<span class="tag '+it.cls+'">'+it.due+'</span></div>'+
+          '<div class="km"><span>'+it.m+'</span><span>揀貨 <b>'+it.lines+'</b> 行</span></div>'+
+          (it.fill>0?'<div class="kbar bar-mini"><span style="width:'+it.fill+'%"></span></div>':'')+'</div>';
+      }
+      board+='<div class="kcol"><div class="khd"><span class="dot" style="background:'+col.c+'"></span>'+col.t+
+        '<span class="cnt">'+col.items.length+'</span></div>'+ci+'</div>';
+    }
+
+    return head(MODS[0],"倉儲部")+
+      '<div class="grid g4" style="margin-bottom:16px">'+kpiH+'</div>'+
+      '<div class="card" style="margin-bottom:16px"><div class="flexbtwn" style="margin-bottom:12px">'+
+        '<h3 style="margin:0"><span class="material-symbols-outlined">view_kanban</span>波次組合看板</h3>'+
+        '<div class="chips"><span class="chip on">全部通路</span><span class="chip">冷鏈</span><span class="chip">急單</span></div></div>'+
+        '<div class="grid kanban">'+board+'</div></div>'+
+      '<div class="grid g2">'+
+        '<div class="card"><h3><span class="material-symbols-outlined">schedule</span>各出貨時段訂單量<span class="cap">今日</span></h3><div id="c0a" class="chart sm"></div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">donut_small</span>訂單型態占比<span class="cap">當班</span></h3><div id="c0b" class="chart sm"></div></div>'+
+      '</div>';
+  }
+  function d0(){
+    mk("c0a",{
+      grid:{left:38,right:12,top:22,bottom:26},
+      tooltip:{trigger:"axis"},
+      xAxis:{type:"category",data:["10時","11時","12時","13時","14時","15時","16時","17時"],axisLine:{lineStyle:{color:"#d6d3d1"}},axisLabel:{color:"#78716c",fontSize:11}},
+      yAxis:{type:"value",splitLine:{lineStyle:{color:"#f0ede9"}},axisLabel:{color:"#78716c",fontSize:11}},
+      series:[{type:"bar",data:[18,26,41,55,48,33,29,14],itemStyle:{color:"#ea580c",borderRadius:[4,4,0,0]},barWidth:"52%"}]
+    });
+    mk("c0b",{
+      tooltip:{trigger:"item"},
+      legend:{bottom:0,textStyle:{color:"#78716c",fontSize:11}},
+      series:[{type:"pie",radius:["45%","70%"],center:["50%","44%"],avoidLabelOverlap:false,
+        label:{show:false},itemStyle:{borderColor:"#fff",borderWidth:2},
+        data:[
+          {value:52,name:"電商小件",itemStyle:{color:"#ea580c"}},
+          {value:26,name:"門市補貨",itemStyle:{color:"#fb923c"}},
+          {value:14,name:"通路整箱",itemStyle:{color:"#fdba74"}},
+          {value:8,name:"冷鏈急單",itemStyle:{color:"#fed7aa"}}
+        ]}]
+    });
+  }
+
+  // ---------- SCREEN 1 : 揀貨策略引擎 ----------
+  function s1(){
+    var opts=[
+      {t:"波次揀貨 (Wave)",ic:"waves",sel:true,badge:"建議",d:"同時段訂單合併成波，一次動線揀多單，適合電商大量小件。",li:["合併 12~18 單/波","行走距離 ↓ 41%","需分揀二次分播"]},
+      {t:"批次揀貨 (Batch)",ic:"inventory_2",sel:false,badge:"",d:"依料號聚合跨單批揀，減少重複往返，適合暢銷 SKU 集中。",li:["同料號一次揀足","補位效率高","分播工序較長"]},
+      {t:"區域揀貨 (Zone)",ic:"grid_view",sel:false,badge:"",d:"人員固定分區接力揀取，適合大倉、重貨與冷鏈分區。",li:["人員不跨區","接力交棒","適合大坪數倉"]}
+    ];
+    var oh="";
+    for(var i=0;i<opts.length;i++){
+      var o=opts[i];
+      var lis="";for(var j=0;j<o.li.length;j++){lis+="<li>"+o.li[j]+"</li>";}
+      oh+='<div class="opt'+(o.sel?' sel':'')+'">'+(o.badge?'<span class="obadge">'+o.badge+'</span>':'')+
+        '<div class="ot"><span class="material-symbols-outlined">'+o.ic+'</span>'+o.t+'</div>'+
+        '<div class="od">'+o.d+'</div><ul>'+lis+'</ul></div>';
+    }
+
+    var rows=[
+      ["WV-0912-A","電商 · 小件","波次揀貨","12 單 / 286 行","高","t-ok","98%"],
+      ["WV-0912-B","門市補貨","批次揀貨","9 單 / 198 行","中","t-warn","91%"],
+      ["WV-0912-C","冷鏈整箱","區域揀貨","6 單 / 132 行","高","t-ok","95%"],
+      ["WV-0911-Z","重貨棧板","區域揀貨","5 單 / 88 行","低","t-bad","76%"],
+      ["SO-24790","VIP 急單","波次揀貨","1 單 / 6 行","高","t-ok","99%"]
+    ];
+    var tr="";
+    for(var r=0;r<rows.length;r++){
+      var x=rows[r];
+      tr+='<tr><td><b>'+x[0]+'</b></td><td>'+x[1]+'</td><td><span class="tag t-info">'+x[2]+'</span></td><td>'+x[3]+
+        '</td><td><span class="tag '+x[5]+'">'+x[4]+'</span></td><td>'+x[6]+'</td></tr>';
+    }
+
+    return head(MODS[1],"生管部")+
+      '<div class="grid g3" style="margin-bottom:16px">'+oh+'</div>'+
+      '<div class="grid g23">'+
+        '<div class="card"><h3><span class="material-symbols-outlined">rule</span>策略套用清單<span class="cap">當班波次</span></h3>'+
+          '<div class="tbl-wrap"><table><thead><tr><th>波次</th><th>型態</th><th>建議策略</th><th>規模</th><th>命中度</th><th>模擬效率</th></tr></thead><tbody>'+tr+'</tbody></table></div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">balance</span>三策略行走距離模擬<span class="cap">米/波</span></h3><div id="c1a" class="chart sm"></div>'+
+          '<div class="note" style="margin-top:12px"><b>決策規則</b>：訂單行數 > 240 且以小件為主 → 優先套用<b>波次揀貨</b>，可將平均行走距離壓至 <b>410m</b>。</div></div>'+
+      '</div>';
+  }
+  function d1(){
+    mk("c1a",{
+      grid:{left:44,right:14,top:24,bottom:28},
+      tooltip:{trigger:"axis"},
+      legend:{top:0,textStyle:{color:"#78716c",fontSize:11}},
+      xAxis:{type:"category",data:["A波","B波","C波","Z波"],axisLine:{lineStyle:{color:"#d6d3d1"}},axisLabel:{color:"#78716c",fontSize:11}},
+      yAxis:{type:"value",name:"m",splitLine:{lineStyle:{color:"#f0ede9"}},axisLabel:{color:"#78716c",fontSize:11}},
+      series:[
+        {name:"波次",type:"bar",data:[410,520,470,610],itemStyle:{color:"#ea580c",borderRadius:[3,3,0,0]}},
+        {name:"批次",type:"bar",data:[560,430,500,540],itemStyle:{color:"#fb923c",borderRadius:[3,3,0,0]}},
+        {name:"區域",type:"bar",data:[620,600,380,420],itemStyle:{color:"#fdba74",borderRadius:[3,3,0,0]}}
+      ]
+    });
+  }
+
+  // ---------- SCREEN 2 : 路徑演算與熱區 (warehouse heatmap signature) ----------
+  function s2(){
+    var heat=[3,1,0,2,4,4,1,0,1,3,2,0, 2,0,1,4,5,3,0,1,2,4,1,0, 0,1,3,2,1,0,2,3,4,2,0,1,
+              1,2,4,5,4,2,1,0,1,2,3,4, 0,0,1,2,3,4,3,1,0,1,2,1, 2,3,1,0,1,2,4,5,3,1,0,0,
+              1,0,2,3,4,3,2,1,0,1,2,3, 0,1,1,2,2,1,0,0,1,2,3,2];
+    var cols=["#f5f5f4","#fed7aa","#fdba74","#fb923c","#f97316","#ea580c"];
+    var cellH="";
+    for(var i=0;i<heat.length;i++){
+      var v=heat[i];
+      cellH+='<div class="cell" style="background:'+cols[v]+';color:'+(v>=3?"#fff":"#78716c")+'">'+(v>=4?"●":"")+'</div>';
+    }
+    var legend='<div class="legend"><span>壅塞低</span>';
+    for(var g=0;g<cols.length;g++){legend+='<span class="sw"><i style="background:'+cols[g]+'"></i></span>';}
+    legend+='<span>壅塞高</span></div>';
+
+    var kpi=[
+      {l:"優化前行走",v:"742",u:" m",ic:"directions_walk"},
+      {l:"優化後行走",v:"431",u:" m",ic:"route"},
+      {l:"距離縮短",v:"41.9",u:" %",ic:"trending_down"},
+      {l:"避開熱區數",v:"5",u:" 區",ic:"local_fire_department"}
+    ];
+    var kpiH="";
+    for(var k=0;k<kpi.length;k++){
+      kpiH+='<div class="kpi"><div class="lab"><span class="material-symbols-outlined">'+kpi[k].ic+'</span>'+kpi[k].l+
+        '</div><div class="val">'+kpi[k].v+'<small>'+kpi[k].u+'</small></div></div>';
+    }
+
+    var seq=[
+      {s:"起點 · 揀貨站 P1",z:"—",t:"0 m"},
+      {s:"A03-12 取 SKU-8841",z:"A區",t:"38 m"},
+      {s:"A07-04 取 SKU-2210",z:"A區",t:"71 m"},
+      {s:"C02-18 取 SKU-9930",z:"C區",t:"156 m"},
+      {s:"C05-33 取 SKU-1077",z:"C區",t:"210 m"},
+      {s:"F01-09 取 SKU-4402",z:"F區",t:"331 m"},
+      {s:"返回分播牆 W2",z:"分播",t:"431 m"}
+    ];
+    var seqH="";
+    for(var q=0;q<seq.length;q++){
+      seqH+='<div class="ev"><span class="dot"></span><div class="tt">'+seq[q].s+'</div>'+
+        '<div class="td">'+seq[q].z+'</div><div class="tm">累計 '+seq[q].t+'</div></div>';
+    }
+
+    return head(MODS[2],"系統演算")+
+      '<div class="grid g4" style="margin-bottom:16px">'+kpiH+'</div>'+
+      '<div class="grid g32">'+
+        '<div class="card"><div class="flexbtwn" style="margin-bottom:12px"><h3 style="margin:0"><span class="material-symbols-outlined">grid_on</span>倉區壅塞熱力圖</h3>'+
+          '<span class="cap">A~F 揀貨區 · 即時</span></div>'+
+          '<div class="wh">'+cellH+'</div>'+legend+
+          '<div class="note" style="margin-top:12px">演算已將 <b>C 區高峰</b>與 <b>F 區出口</b>納入避讓，動線改走外圈通道，降低交叉壅塞。</div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">alt_route</span>最短路徑揀取序<span class="cap">WV-0912-A</span></h3><div class="tl">'+seqH+'</div></div>'+
+      '</div>'+
+      '<div class="grid g2" style="margin-top:16px">'+
+        '<div class="card"><h3><span class="material-symbols-outlined">show_chart</span>優化前後行走距離收斂<span class="cap">每次迭代</span></h3><div id="c2a" class="chart sm"></div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">radar</span>路徑品質評估<span class="cap">演算指標</span></h3><div id="c2b" class="chart sm"></div></div>'+
+      '</div>';
+  }
+  function d2(){
+    mk("c2a",{
+      grid:{left:44,right:14,top:24,bottom:26},
+      tooltip:{trigger:"axis"},
+      legend:{top:0,textStyle:{color:"#78716c",fontSize:11}},
+      xAxis:{type:"category",data:["初始","迭代1","迭代2","迭代3","迭代4","收斂"],axisLine:{lineStyle:{color:"#d6d3d1"}},axisLabel:{color:"#78716c",fontSize:11}},
+      yAxis:{type:"value",name:"m",splitLine:{lineStyle:{color:"#f0ede9"}},axisLabel:{color:"#78716c",fontSize:11}},
+      series:[
+        {name:"最短路徑",type:"line",smooth:true,data:[742,640,556,489,448,431],lineStyle:{color:"#ea580c",width:3},itemStyle:{color:"#ea580c"},areaStyle:{color:"rgba(234,88,12,.10)"}},
+        {name:"貪婪基準",type:"line",smooth:true,data:[742,742,720,700,700,700],lineStyle:{color:"#d6d3d1",width:2,type:"dashed"},itemStyle:{color:"#d6d3d1"}}
+      ]
+    });
+    mk("c2b",{
+      tooltip:{},
+      radar:{indicator:[
+        {name:"距離最短",max:100},{name:"避壅塞",max:100},{name:"揀順連貫",max:100},
+        {name:"分播友善",max:100},{name:"運算速度",max:100}
+      ],radius:"62%",axisName:{color:"#78716c",fontSize:11},splitLine:{lineStyle:{color:"#f0ede9"}},splitArea:{show:false}},
+      series:[{type:"radar",data:[{value:[92,88,80,74,95],name:"本次演算",areaStyle:{color:"rgba(234,88,12,.18)"},lineStyle:{color:"#ea580c"},itemStyle:{color:"#ea580c"}}]}]
+    });
+  }
+
+  // ---------- SCREEN 3 : 任務動態派工 ----------
+  function s3(){
+    var wk=[
+      {n:"陳建宏",z:"A區 · P1 揀貨站",load:88,tasks:6},
+      {n:"林佩珊",z:"C區 · 冷鏈",load:64,tasks:4},
+      {n:"黃志豪",z:"F區 · 重貨",load:45,tasks:3},
+      {n:"吳雅婷",z:"B區 · 電商小件",load:92,tasks:7},
+      {n:"張家豪",z:"D區 · 分播牆",load:30,tasks:2}
+    ];
+    var wkH="";
+    for(var i=0;i<wk.length;i++){
+      var w=wk[i];
+      var lc=w.load>=85?"#dc2626":(w.load>=60?"#d97706":"#16a34a");
+      wkH+='<div class="wk"><div class="av">'+w.n.charAt(0)+'</div>'+
+        '<div class="wi"><div class="n">'+w.n+'</div><div class="z">'+w.z+' · '+w.tasks+' 項任務</div></div>'+
+        '<div class="load"><div class="lv" style="color:'+lc+'">負載 '+w.load+'%</div><div class="bar-mini"><span style="width:'+w.load+'%;background:'+lc+'"></span></div></div></div>';
+    }
+
+    var q=[
+      ["TK-7781","WV-0912-A","A區","陳建宏","急","t-bad","進行中","t-info"],
+      ["TK-7782","WV-0912-A","B區","吳雅婷","高","t-warn","進行中","t-info"],
+      ["TK-7783","WV-0912-C","C區","林佩珊","中","t-gray","待接單","t-warn"],
+      ["TK-7784","WV-0911-Z","F區","黃志豪","低","t-gray","待接單","t-warn"],
+      ["TK-7785","WV-0912-B","D區","—","中","t-gray","待派工","t-bad"],
+      ["TK-7786","SO-24790","A區","陳建宏","急","t-bad","已完成","t-ok"]
+    ];
+    var qr="";
+    for(var r=0;r<q.length;r++){
+      var x=q[r];
+      qr+='<tr><td><b>'+x[0]+'</b></td><td>'+x[1]+'</td><td>'+x[2]+'</td><td>'+x[3]+'</td>'+
+        '<td><span class="tag '+x[5]+'">'+x[4]+'</span></td><td><span class="tag '+x[7]+'">'+x[6]+'</span></td></tr>';
+    }
+
+    return head(MODS[3],"物流主管")+
+      '<div class="grid g32">'+
+        '<div class="card"><h3><span class="material-symbols-outlined">assignment_ind</span>揀貨任務佇列<span class="cap">即時</span></h3>'+
+          '<div class="tbl-wrap"><table><thead><tr><th>任務</th><th>波次</th><th>分區</th><th>負責人</th><th>優先</th><th>狀態</th></tr></thead><tbody>'+qr+'</tbody></table></div>'+
+          '<div class="note" style="margin-top:12px"><b>RULE-05</b>：任一人員負載 > 85% 時，新任務自動改派至同區最低負載者，避免瓶頸。</div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">groups</span>人員即時負載<span class="cap">5 人在線</span></h3>'+wkH+'</div>'+
+      '</div>'+
+      '<div class="grid g2" style="margin-top:16px">'+
+        '<div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>各分區任務積壓<span class="cap">件</span></h3><div id="c3a" class="chart sm"></div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">speed</span>派工後負載平衡<span class="cap">派工前後</span></h3><div id="c3b" class="chart sm"></div></div>'+
+      '</div>';
+  }
+  function d3(){
+    mk("c3a",{
+      grid:{left:44,right:14,top:16,bottom:26},
+      tooltip:{trigger:"axis"},
+      xAxis:{type:"category",data:["A區","B區","C區","D區","F區"],axisLine:{lineStyle:{color:"#d6d3d1"}},axisLabel:{color:"#78716c",fontSize:11}},
+      yAxis:{type:"value",splitLine:{lineStyle:{color:"#f0ede9"}},axisLabel:{color:"#78716c",fontSize:11}},
+      series:[{type:"bar",data:[
+        {value:12,itemStyle:{color:"#ea580c"}},{value:9,itemStyle:{color:"#fb923c"}},
+        {value:7,itemStyle:{color:"#fdba74"}},{value:4,itemStyle:{color:"#fed7aa"}},
+        {value:6,itemStyle:{color:"#fb923c"}}
+      ],barWidth:"50%",itemStyle:{borderRadius:[4,4,0,0]}}]
+    });
+    mk("c3b",{
+      grid:{left:44,right:14,top:24,bottom:26},
+      tooltip:{trigger:"axis"},
+      legend:{top:0,textStyle:{color:"#78716c",fontSize:11}},
+      xAxis:{type:"category",data:["陳","林","黃","吳","張"],axisLine:{lineStyle:{color:"#d6d3d1"}},axisLabel:{color:"#78716c",fontSize:11}},
+      yAxis:{type:"value",name:"%",max:100,splitLine:{lineStyle:{color:"#f0ede9"}},axisLabel:{color:"#78716c",fontSize:11}},
+      series:[
+        {name:"派工前",type:"bar",data:[97,62,40,99,18],itemStyle:{color:"#fed7aa",borderRadius:[3,3,0,0]}},
+        {name:"派工後",type:"bar",data:[88,64,45,92,30],itemStyle:{color:"#ea580c",borderRadius:[3,3,0,0]}}
+      ]
+    });
+  }
+
+  // ---------- SCREEN 4 : AGV / AMR 協同 ----------
+  function s4(){
+    var robs=[
+      {n:"AMR-01",s:"貨到人 · 搬運中",batt:82,ic:"precision_manufacturing",col:"#16a34a",task:"WV-0912-A",spd:"1.4 m/s",eta:"2 分"},
+      {n:"AMR-02",s:"待命 · 充電站",batt:34,ic:"ev_station",col:"#d97706",task:"—",spd:"0 m/s",eta:"充電中"},
+      {n:"AGV-07",s:"棧板搬運 · F區",batt:68,ic:"forklift",col:"#2563eb",task:"WV-0911-Z",spd:"0.9 m/s",eta:"5 分"},
+      {n:"AMR-04",s:"貨到人 · 返程",batt:91,ic:"precision_manufacturing",col:"#16a34a",task:"WV-0912-C",spd:"1.6 m/s",eta:"1 分"}
+    ];
+    var rh="";
+    for(var i=0;i<robs.length;i++){
+      var r=robs[i];
+      var bc=r.batt>=60?"#16a34a":(r.batt>=35?"#d97706":"#dc2626");
+      rh+='<div class="rob"><div class="rh"><div class="ri" style="background:'+r.col+'1a;color:'+r.col+'"><span class="material-symbols-outlined">'+r.ic+'</span></div>'+
+        '<div style="min-width:0"><div class="rn">'+r.n+'</div><div class="rs">'+r.s+'</div></div></div>'+
+        '<div class="rmeta"><div class="m"><div class="mk">綁定任務</div><div class="mv">'+r.task+'</div></div>'+
+        '<div class="m"><div class="mk">速度</div><div class="mv">'+r.spd+'</div></div>'+
+        '<div class="m"><div class="mk">預估抵達</div><div class="mv">'+r.eta+'</div></div></div>'+
+        '<div class="batt"><span style="width:'+r.batt+'%;background:'+bc+'"></span></div>'+
+        '<div class="rs" style="margin-top:5px;text-align:right;font-size:11px;color:var(--sub)">電量 '+r.batt+'%</div></div>';
+    }
+
+    var evs=[
+      {t:"AMR-01 取貨完成 A03",z:"送往 P1 揀貨站",tm:"12:41"},
+      {t:"AGV-07 棧板抵達 F 區暫存",z:"待人工上料",tm:"12:38"},
+      {t:"AMR-04 交貨分播牆 W2",z:"回充路徑重算",tm:"12:35"},
+      {t:"AMR-02 電量 34% 進站充電",z:"任務移轉 AMR-01",tm:"12:30"},
+      {t:"調度排程重算 · 4 台",z:"避碰路徑更新",tm:"12:28"}
+    ];
+    var eh="";
+    for(var e=0;e<evs.length;e++){
+      eh+='<div class="ev"><span class="dot"></span><div class="tt">'+evs[e].t+'</div><div class="td">'+evs[e].z+'</div><div class="tm">'+evs[e].tm+'</div></div>';
+    }
+
+    var kpi=[
+      {l:"在線機具",v:"4 / 6",u:"",ic:"smart_toy"},
+      {l:"平均搬運時距",v:"3.2",u:" 分",ic:"timer"},
+      {l:"人揀免走占比",v:"58",u:" %",ic:"directions_walk"},
+      {l:"避碰重算",v:"12",u:" 次/時",ic:"sync_problem"}
+    ];
+    var kh="";
+    for(var k=0;k<kpi.length;k++){
+      kh+='<div class="kpi"><div class="lab"><span class="material-symbols-outlined">'+kpi[k].ic+'</span>'+kpi[k].l+
+        '</div><div class="val">'+kpi[k].v+'<small>'+kpi[k].u+'</small></div></div>';
+    }
+
+    return head(MODS[4],"物流主管")+
+      '<div class="grid g4" style="margin-bottom:16px">'+kh+'</div>'+
+      '<div class="grid g4agv">'+
+        '<div class="card"><h3><span class="material-symbols-outlined">precision_manufacturing</span>機具即時狀態<span class="cap">AGV / AMR</span></h3>'+
+          '<div class="grid g2">'+rh+'</div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">history</span>調度事件流<span class="cap">近期</span></h3><div class="tl">'+eh+'</div></div>'+
+      '</div>'+
+      '<div class="card" style="margin-top:16px"><h3><span class="material-symbols-outlined">stacked_line_chart</span>人／機協同揀貨產能<span class="cap">件/時</span></h3><div id="c4a" class="chart"></div></div>';
+  }
+  function d4(){
+    mk("c4a",{
+      grid:{left:44,right:14,top:28,bottom:28},
+      tooltip:{trigger:"axis"},
+      legend:{top:0,textStyle:{color:"#78716c",fontSize:11}},
+      xAxis:{type:"category",data:["08時","09時","10時","11時","12時","13時","14時"],axisLine:{lineStyle:{color:"#d6d3d1"}},axisLabel:{color:"#78716c",fontSize:11}},
+      yAxis:{type:"value",splitLine:{lineStyle:{color:"#f0ede9"}},axisLabel:{color:"#78716c",fontSize:11}},
+      series:[
+        {name:"純人工揀貨",type:"line",smooth:true,data:[210,225,240,235,220,238,242],lineStyle:{color:"#fdba74",width:2},itemStyle:{color:"#fdba74"}},
+        {name:"人機協同揀貨",type:"line",smooth:true,data:[260,310,352,368,340,371,388],lineStyle:{color:"#ea580c",width:3},itemStyle:{color:"#ea580c"},areaStyle:{color:"rgba(234,88,12,.10)"}}
+      ]
+    });
+  }
+
+  // ---------- SCREEN 5 : 揀貨績效看板 ----------
+  function s5(){
+    var kpi=[
+      {l:"平均行走距離",v:"431",u:" m/波",d:"-41.9% 較優化前",ic:"route"},
+      {l:"單位時間揀貨件",v:"388",u:" 件/時",d:"+64 件",ic:"local_shipping"},
+      {l:"出貨準時率",v:"98.1",u:" %",d:"+6.2pt",ic:"schedule"},
+      {l:"揀錯率",v:"0.12",u:" %",d:"-0.31pt",ic:"error_outline"}
+    ];
+    var kh="";
+    for(var i=0;i<kpi.length;i++){
+      var k=kpi[i];
+      kh+='<div class="kpi"><div class="lab"><span class="material-symbols-outlined">'+k.ic+'</span>'+k.l+'</div>'+
+        '<div class="val">'+k.v+'<small>'+k.u+'</small></div>'+
+        '<div class="delta up"><span class="material-symbols-outlined">trending_up</span>'+k.d+'</div></div>';
+    }
+
+    var rank=[
+      ["1","吳雅婷","B區","512","0.05%",96],
+      ["2","陳建宏","A區","488","0.08%",92],
+      ["3","林佩珊","C區","401","0.11%",84],
+      ["4","黃志豪","F區","356","0.18%",73],
+      ["5","張家豪","D區","330","0.22%",66]
+    ];
+    var rr="";
+    for(var r=0;r<rank.length;r++){
+      var x=rank[r];
+      rr+='<tr><td><b>#'+x[0]+'</b></td><td>'+x[1]+'</td><td>'+x[2]+'</td><td><b>'+x[3]+'</b> 件/時</td><td>'+x[4]+
+        '</td><td><div class="bar-mini"><span style="width:'+x[5]+'%"></span></div></td></tr>';
+    }
+
+    return head(MODS[5],"生管部")+
+      '<div class="grid g4" style="margin-bottom:16px">'+kh+'</div>'+
+      '<div class="grid g23">'+
+        '<div class="card"><h3><span class="material-symbols-outlined">trending_up</span>揀貨件效與行走距離趨勢<span class="cap">近 6 週</span></h3><div id="c5a" class="chart"></div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">pie_chart</span>波次達成分布<span class="cap">本週</span></h3><div id="c5b" class="chart"></div></div>'+
+      '</div>'+
+      '<div class="card" style="margin-top:16px"><h3><span class="material-symbols-outlined">emoji_events</span>揀貨人員績效排行<span class="cap">當班</span></h3>'+
+        '<div class="tbl-wrap"><table><thead><tr><th>名次</th><th>人員</th><th>分區</th><th>揀貨件效</th><th>揀錯率</th><th>達成度</th></tr></thead><tbody>'+rr+'</tbody></table></div>'+
+        '<div class="note" style="margin-top:12px">綜合行走距離下降 <b>41.9%</b>、單位時間揀貨件數提升至 <b>388 件/時</b>，出貨延遲率由 9.5% 降至 <b>1.9%</b>。</div></div>';
+  }
+  function d5(){
+    mk("c5a",{
+      grid:{left:44,right:48,top:28,bottom:28},
+      tooltip:{trigger:"axis"},
+      legend:{top:0,textStyle:{color:"#78716c",fontSize:11}},
+      xAxis:{type:"category",data:["第1週","第2週","第3週","第4週","第5週","第6週"],axisLine:{lineStyle:{color:"#d6d3d1"}},axisLabel:{color:"#78716c",fontSize:11}},
+      yAxis:[
+        {type:"value",name:"件/時",splitLine:{lineStyle:{color:"#f0ede9"}},axisLabel:{color:"#78716c",fontSize:11}},
+        {type:"value",name:"m",splitLine:{show:false},axisLabel:{color:"#78716c",fontSize:11}}
+      ],
+      series:[
+        {name:"揀貨件效",type:"bar",data:[286,312,331,352,370,388],itemStyle:{color:"#ea580c",borderRadius:[4,4,0,0]},barWidth:"46%"},
+        {name:"行走距離",type:"line",yAxisIndex:1,smooth:true,data:[742,650,588,512,470,431],lineStyle:{color:"#fb923c",width:3},itemStyle:{color:"#fb923c"}}
+      ]
+    });
+    mk("c5b",{
+      tooltip:{trigger:"item"},
+      legend:{bottom:0,textStyle:{color:"#78716c",fontSize:11}},
+      series:[{type:"pie",radius:["42%","68%"],center:["50%","44%"],
+        label:{show:false},itemStyle:{borderColor:"#fff",borderWidth:2},
+        data:[
+          {value:74,name:"準時達成",itemStyle:{color:"#ea580c"}},
+          {value:18,name:"提前完成",itemStyle:{color:"#fb923c"}},
+          {value:6,name:"輕微延遲",itemStyle:{color:"#fdba74"}},
+          {value:2,name:"需複盤",itemStyle:{color:"#fecaca"}}
+        ]}]
+    });
+  }
+
+  var SCREENS=[
+    {r:s0,d:d0},{r:s1,d:d1},{r:s2,d:d2},{r:s3,d:d3},{r:s4,d:d4},{r:s5,d:d5}
+  ];
+
+  function show(i){
+    disposeCharts();
+    var sc=SCREENS[i]||SCREENS[0];
+    app.innerHTML=sc.r();
+    var btns=document.querySelectorAll("[data-i]");
+    for(var b=0;b<btns.length;b++){
+      btns[b].classList.toggle("active",+btns[b].getAttribute("data-i")===i);
+    }
+    void app.offsetHeight;
+    if(sc.d)sc.d();
+  }
+
+  function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+  window.addEventListener("hashchange",fromHash);fromHash();
+})();
+</script>
 </body>
 </html>

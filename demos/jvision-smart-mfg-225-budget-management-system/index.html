@@ -4,15 +4,640 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>預算管理系統（Budget Management System）｜Jvision 系統 Demo</title>
-  <meta name="description" content="應收付、現金流到預算的財務即時掌握" />
+  <meta name="description" content="年度預算編列、部門專案分配、預實差異分析與動支控管的單一平台" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --accent:#db2777;--accent2:#f472b6;--ink:#3f1230;--muted:#8b6b7d;
+      --bg:#fdf2f8;--card:#ffffff;--line:#f6d9e8;--soft:#fff5fa;
+      --ok:#059669;--warn:#d97706;--bad:#dc2626;--info:#2563eb;
+      --shadow:0 8px 24px rgba(219,39,119,.08);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:"Inter","Noto Sans TC",system-ui,sans-serif;
+      background:var(--bg);color:var(--ink);min-width:0;
+      -webkit-font-smoothing:antialiased;
+    }
+    .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+    a{color:inherit;text-decoration:none}
+
+    /* top nav */
+    .topbar{position:sticky;top:0;z-index:30;background:linear-gradient(100deg,#9d174d,#db2777);color:#fff;box-shadow:0 4px 18px rgba(157,23,77,.25)}
+    .topbar-inner{max-width:1360px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:10px 18px;flex-wrap:wrap;min-width:0}
+    .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .brand .logo{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:22px}
+    .brand h1{font-size:16px;margin:0;font-weight:800;letter-spacing:.5px}
+    .brand p{margin:0;font-size:11px;opacity:.82}
+    .nav{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;min-width:0}
+    .nav button{
+      display:flex;align-items:center;gap:7px;border:0;cursor:pointer;
+      background:rgba(255,255,255,.10);color:#fff;padding:8px 13px;border-radius:10px;
+      font-size:13px;font-weight:600;font-family:inherit;transition:.15s;min-width:0;
+    }
+    .nav button .material-symbols-outlined{font-size:19px}
+    .nav button:hover{background:rgba(255,255,255,.22)}
+    .nav button.on{background:#fff;color:var(--accent)}
+
+    .wrap{max-width:1360px;margin:0 auto;padding:20px 18px 60px;min-width:0}
+    .screen-head{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px;min-width:0}
+    .screen-head .st{min-width:0}
+    .screen-head h2{margin:0;font-size:22px;font-weight:800;display:flex;align-items:center;gap:9px}
+    .screen-head h2 .material-symbols-outlined{color:var(--accent);font-size:26px}
+    .screen-head .sub{margin:4px 0 0;color:var(--muted);font-size:13px}
+    .pill{margin-left:auto;background:var(--soft);border:1px solid var(--line);color:var(--accent);
+      padding:6px 13px;border-radius:999px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px}
+    .pill .dot{width:8px;height:8px;border-radius:50%;background:var(--accent2)}
+
+    .grid{display:grid;gap:14px;min-width:0}
+    .g4{grid-template-columns:repeat(4,1fr)}
+    .g3{grid-template-columns:repeat(3,1fr)}
+    .g2{grid-template-columns:repeat(2,1fr)}
+    .g23{grid-template-columns:2fr 1fr}
+    .g32{grid-template-columns:1.4fr 1fr}
+    @media(max-width:820px){
+      .g4,.g3,.g2,.g23,.g32{grid-template-columns:1fr}
+    }
+
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow);min-width:0}
+    .card h3{margin:0 0 12px;font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
+    .card h3 .material-symbols-outlined{color:var(--accent);font-size:20px}
+    .card .cap{color:var(--muted);font-size:12px;font-weight:500;margin-left:auto}
+
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px 16px;box-shadow:var(--shadow);min-width:0;position:relative;overflow:hidden}
+    .kpi::after{content:"";position:absolute;right:-18px;top:-18px;width:70px;height:70px;border-radius:50%;background:var(--soft)}
+    .kpi .kt{color:var(--muted);font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;position:relative}
+    .kpi .kt .material-symbols-outlined{font-size:18px;color:var(--accent)}
+    .kpi .kv{font-size:27px;font-weight:900;margin:8px 0 2px;position:relative;letter-spacing:.3px}
+    .kpi .kd{font-size:12px;font-weight:700;position:relative;display:flex;align-items:center;gap:4px}
+    .kpi .kd .material-symbols-outlined{font-size:15px}
+    .up{color:var(--bad)}.down{color:var(--ok)}.flat{color:var(--muted)}
+
+    .chartbox{width:100%;height:280px;overflow:hidden;min-width:0}
+    .chartbox.sm{height:230px}
+
+    table{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+    .tw{overflow-x:auto;border-radius:12px}
+    th{text-align:left;font-weight:700;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;padding:9px 11px;border-bottom:2px solid var(--line);white-space:nowrap;background:var(--soft)}
+    td{padding:10px 11px;border-bottom:1px solid var(--line);white-space:nowrap}
+    tbody tr:hover{background:var(--soft)}
+    .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+
+    .tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700}
+    .t-ok{background:#dcfce7;color:#166534}
+    .t-warn{background:#fef3c7;color:#92400e}
+    .t-bad{background:#fee2e2;color:#991b1b}
+    .t-info{background:#dbeafe;color:#1e40af}
+    .t-mut{background:#f3e8ee;color:#6b4a5c}
+
+    .bar{height:8px;border-radius:6px;background:var(--line);overflow:hidden;min-width:80px}
+    .bar > i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent2),var(--accent))}
+    .bar.warn > i{background:linear-gradient(90deg,#fbbf24,#d97706)}
+    .bar.bad > i{background:linear-gradient(90deg,#f87171,#dc2626)}
+
+    /* board */
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;min-width:0}
+    @media(max-width:820px){.board{grid-template-columns:1fr}}
+    .col{background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:11px;min-width:0}
+    .col .ch{display:flex;align-items:center;gap:7px;font-weight:800;font-size:13px;margin-bottom:10px}
+    .col .ch .cnt{margin-left:auto;background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:11px;color:var(--muted)}
+    .tk{background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:10px;margin-bottom:9px}
+    .tk .tt{font-weight:700;font-size:13px;margin-bottom:5px}
+    .tk .tm{color:var(--muted);font-size:11.5px;display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap}
+
+    /* timeline */
+    .tl{position:relative;padding-left:8px}
+    .tl .it{position:relative;padding:0 0 16px 26px;border-left:2px solid var(--line)}
+    .tl .it:last-child{border-left-color:transparent}
+    .tl .it .mk{position:absolute;left:-9px;top:1px;width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--accent)}
+    .tl .it.done .mk{background:var(--accent);border-color:var(--accent)}
+    .tl .it .th{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px}
+    .tl .it .tsub{color:var(--muted);font-size:12px;margin-top:3px}
+    .tl .it .ttime{font-size:11px;color:var(--accent);font-weight:700}
+
+    .flowbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .flowbar .fi{flex:1;min-width:130px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:9px}
+    .flowbar .fi .n{width:24px;height:24px;border-radius:50%;background:var(--soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex:0 0 auto}
+    .flowbar .fi .ft{font-size:12.5px;font-weight:700;min-width:0}
+    .flowbar .fi .fr{font-size:11px;color:var(--muted)}
+
+    .listrow{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line);min-width:0}
+    .listrow:last-child{border-bottom:0}
+    .listrow .ico{width:36px;height:36px;border-radius:10px;background:var(--soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+    .listrow .li{min-width:0;flex:1}
+    .listrow .li .a{font-weight:700;font-size:13.5px}
+    .listrow .li .b{color:var(--muted);font-size:11.5px}
+
+    .seg{display:inline-flex;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+    .seg span{padding:4px 11px;border-radius:8px;font-size:12px;font-weight:700;color:var(--muted)}
+    .seg span.on{background:var(--accent);color:#fff}
+
+    .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:26px}
+    .foot b{color:var(--accent)}
+
+    @media(max-width:560px){
+      .nav button .lbl{display:none}
+      .nav button{padding:8px 10px}
+      .brand p{display:none}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo material-symbols-outlined">savings</div>
+        <div>
+          <h1>預算管理系統</h1>
+          <p>Budget Management System · 財務會計</p>
+        </div>
+      </div>
+      <div class="nav" id="nav"></div>
+    </div>
+  </div>
+  <div class="wrap"><div id="screen"></div>
+    <div class="foot">此為純前端展示頁，所有數字為 <b>模擬資料</b>。財年 FY2026 · 幣別 新台幣（仟元）</div>
+  </div>
+
+  <script>
+  (function(){
+    "use strict";
+    var fmt = function(n){ return (n||0).toLocaleString("en-US"); };
+    var pct = function(n){ return (Math.round(n*10)/10) + "%"; };
+    var charts = [];
+    function disposeCharts(){
+      for(var i=0;i<charts.length;i++){ try{ charts[i].dispose(); }catch(e){} }
+      charts = [];
+    }
+    function mk(id, opt){
+      var el = document.getElementById(id);
+      if(!el) return;
+      var c = echarts.init(el);
+      c.setOption(opt);
+      charts.push(c);
+    }
+    var palette = ["#db2777","#f472b6","#fbcfe8","#9d174d","#f9a8d4","#be185d"];
+    function baseGrid(){ return {left:8,right:14,top:24,bottom:8,containLabelLabel:true,containLabel:true}; }
+
+    var NAV = [
+      {icon:"dashboard",label:"總覽"},
+      {icon:"description",label:"編列"},
+      {icon:"account_tree",label:"分配"},
+      {icon:"checklist",label:"審核"},
+      {icon:"insights",label:"差異"},
+      {icon:"rule",label:"控管"}
+    ];
+
+    /* ---------- data ---------- */
+    var DEPTS = [
+      {d:"研發處",  b:48200, a:41180, own:"林孟潔"},
+      {d:"製造處",  b:96500, a:99820, own:"陳建宏"},
+      {d:"品保處",  b:18600, a:16240, own:"黃詩涵"},
+      {d:"業務處",  b:37400, a:39610, own:"張家豪"},
+      {d:"行政處",  b:14300, a:12980, own:"吳雅雯"},
+      {d:"資訊處",  b:21800, a:20450, own:"李冠廷"}
+    ];
+
+    function nav(active){
+      var h="";
+      for(var i=0;i<NAV.length;i++){
+        h += '<button data-i="'+i+'" class="'+(i===active?"on":"")+'">'+
+             '<span class="material-symbols-outlined">'+NAV[i].icon+'</span>'+
+             '<span class="lbl">'+NAV[i].label+'</span></button>';
+      }
+      var n=document.getElementById("nav");
+      n.innerHTML=h;
+      var btns=n.querySelectorAll("button");
+      for(var j=0;j<btns.length;j++){
+        btns[j].addEventListener("click",function(){ location.hash="go="+this.getAttribute("data-i"); });
+      }
+    }
+
+    function head(icon,title,sub,pill){
+      return '<div class="screen-head"><div class="st">'+
+        '<h2><span class="material-symbols-outlined">'+icon+'</span>'+title+'</h2>'+
+        '<p class="sub">'+sub+'</p></div>'+
+        '<span class="pill"><span class="dot"></span>'+pill+'</span></div>';
+    }
+
+    /* ---------- screen 0 : 總覽儀表板 ---------- */
+    function s0(){
+      var totalB=0,totalA=0; for(var i=0;i<DEPTS.length;i++){ totalB+=DEPTS[i].b; totalA+=DEPTS[i].a; }
+      var rate=Math.round(totalA/totalB*1000)/10;
+      var over=DEPTS.filter(function(x){return x.a>x.b;}).length;
+      var h="";
+      h += head("dashboard","預算總覽儀表板","FY2026 年度預算執行率、可用餘額與超支預警一頁掌握","即時同步");
+      h += '<div class="grid g4">';
+      h += kpi("account_balance","年度總預算","NT$ "+fmt(totalB)+" 仟","目標基準","flat","目標","payments");
+      h += kpi("shopping_cart_checkout","累計實際動支","NT$ "+fmt(totalA)+" 仟","執行率 "+rate+"%",(rate>100?"up":"down"),(rate>100?"超前":"合理"),(rate>100?"trending_up":"trending_down"));
+      h += kpi("savings","可用餘額","NT$ "+fmt(totalB-totalA)+" 仟","剩餘 "+(Math.round((1-totalA/totalB)*1000)/10)+"%","down","充足","check_circle");
+      h += kpi("warning","超支部門",over+" / "+DEPTS.length+" 處","製造處、業務處","up","需覆核","priority_high");
+      h += '</div>';
+
+      h += '<div class="grid g23" style="margin-top:14px">';
+      h += '<div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>各部門預算 vs 實際<span class="cap">單位：仟元</span></h3><div id="c0a" class="chartbox"></div></div>';
+      h += '<div class="card"><h3><span class="material-symbols-outlined">donut_large</span>預算科目結構</h3><div id="c0b" class="chartbox"></div></div>';
+      h += '</div>';
+
+      h += '<div class="grid g32" style="margin-top:14px">';
+      h += '<div class="card"><h3><span class="material-symbols-outlined">stacked_line_chart</span>月度累計執行趨勢</h3><div id="c0c" class="chartbox sm"></div></div>';
+      h += '<div class="card"><h3><span class="material-symbols-outlined">notifications_active</span>預警清單</h3>'+
+           alertRow("製造處 動支達 103.4%","已超出年度預算 3,320 仟","t-bad","超支")+
+           alertRow("業務處 動支達 105.9%","差旅與行銷費用偏高","t-bad","超支")+
+           alertRow("研發處 委外費 Q3 剩 8%","恐於 10 月前用罄","t-warn","偏低")+
+           alertRow("資訊處 授權費 待入帳","3,200 仟憑證未拋轉","t-info","待處理")+
+           '</div>';
+      h += '</div>';
+      return h;
+    }
+    function kpi(icon,t,v,d,cls,dtag,dico){
+      return '<div class="kpi"><div class="kt"><span class="material-symbols-outlined">'+icon+'</span>'+t+'</div>'+
+        '<div class="kv">'+v+'</div>'+
+        '<div class="kd '+cls+'"><span class="material-symbols-outlined">'+dico+'</span>'+d+'</div></div>';
+    }
+    function alertRow(a,b,cls,tag){
+      return '<div class="listrow"><div class="ico"><span class="material-symbols-outlined">flag</span></div>'+
+        '<div class="li"><div class="a">'+a+'</div><div class="b">'+b+'</div></div>'+
+        '<span class="tag '+cls+'">'+tag+'</span></div>';
+    }
+    function draw0(){
+      mk("c0a",{
+        grid:baseGrid(),tooltip:{trigger:"axis"},legend:{data:["預算","實際"],top:0,textStyle:{fontSize:11}},
+        xAxis:{type:"category",data:DEPTS.map(function(x){return x.d;}),axisLabel:{fontSize:11,interval:0}},
+        yAxis:{type:"value",axisLabel:{fontSize:10}},
+        series:[
+          {name:"預算",type:"bar",data:DEPTS.map(function(x){return x.b;}),itemStyle:{color:"#f9a8d4",borderRadius:[4,4,0,0]}},
+          {name:"實際",type:"bar",data:DEPTS.map(function(x){return x.a;}),itemStyle:{color:"#db2777",borderRadius:[4,4,0,0]}}
+        ]
+      });
+      mk("c0b",{
+        tooltip:{trigger:"item",formatter:"{b}: {d}%"},legend:{bottom:0,textStyle:{fontSize:11}},
+        series:[{type:"pie",radius:["42%","68%"],center:["50%","44%"],avoidLabelOverlap:true,
+          label:{show:false},color:palette,
+          data:[
+            {name:"人事費",value:112000},{name:"製造費用",value:78000},
+            {name:"研發費",value:41000},{name:"行銷費",value:26000},
+            {name:"管理費",value:19000}
+          ]}]
+      });
+      var mon=["1月","2月","3月","4月","5月","6月","7月","8月","9月"];
+      mk("c0c",{
+        grid:baseGrid(),tooltip:{trigger:"axis"},legend:{data:["累計預算","累計實際"],top:0,textStyle:{fontSize:11}},
+        xAxis:{type:"category",boundaryGap:false,data:mon,axisLabel:{fontSize:11}},
+        yAxis:{type:"value",axisLabel:{fontSize:10}},
+        series:[
+          {name:"累計預算",type:"line",smooth:true,data:[26,53,79,106,132,158,185,211,236].map(function(v){return v*1000;}),lineStyle:{type:"dashed",color:"#f472b6"},itemStyle:{color:"#f472b6"}},
+          {name:"累計實際",type:"line",smooth:true,areaStyle:{color:"rgba(219,39,119,.12)"},data:[24,50,82,110,140,166,196,222,242].map(function(v){return v*1000;}),itemStyle:{color:"#db2777"},lineStyle:{color:"#db2777"}}
+        ]
+      });
+    }
+
+    /* ---------- screen 1 : 年度預算編列 ---------- */
+    var ITEMS=[
+      {c:"6110",n:"人事薪資",q1:28000,q2:28000,q3:28000,q4:28500,st:"已定稿"},
+      {c:"6120",n:"勞健保與退休金",q1:5200,q2:5200,q3:5300,q4:5300,st:"已定稿"},
+      {c:"6210",n:"原物料採購",q1:19500,q2:21000,q3:22500,q4:20000,st:"審核中"},
+      {c:"6220",n:"委外加工費",q1:8600,q2:9100,q3:9800,q4:8900,st:"審核中"},
+      {c:"6310",n:"研發試作費",q1:4200,q2:4600,q3:5100,q4:4400,st:"草稿"},
+      {c:"6410",n:"行銷推廣費",q1:6100,q2:5800,q3:7200,q4:6900,st:"草稿"},
+      {c:"6510",n:"軟體授權費",q1:3200,q2:1800,q3:1800,q4:1800,st:"已定稿"}
+    ];
+    function s1(){
+      var h="";
+      h += head("description","年度預算編列","科目分月編列、版本比對與試算稿，逐科目建立 FY2026 草案","版本 v3 · 試算稿");
+      h += flowbar(0);
+      h += '<div class="grid g4">';
+      h += kpi("layers","編列版本","v3","上一版 v2 差 +4.2%","flat","比對","difference");
+      h += kpi("checklist","科目完成度","5 / 7 科目","2 科目待定稿","down","進行中","pending");
+      h += kpi("functions","試算合計","NT$ 236,000 仟","較目標 -1.6%","down","達標","check");
+      h += kpi("history","最後儲存","10:24","陳建宏 儲存草案","flat","自動存檔","cloud_done");
+      h += '</div>';
+
+      h += '<div class="grid g32" style="margin-top:14px">';
+      h += '<div class="card"><h3><span class="material-symbols-outlined">table_chart</span>科目分季編列稿<span class="cap">單位：仟元</span></h3><div class="tw"><table><thead><tr>'+
+           '<th>科目</th><th>名稱</th><th class="num">Q1</th><th class="num">Q2</th><th class="num">Q3</th><th class="num">Q4</th><th class="num">合計</th><th>狀態</th></tr></thead><tbody>';
+      var sum=0;
+      for(var i=0;i<ITEMS.length;i++){
+        var it=ITEMS[i]; var t=it.q1+it.q2+it.q3+it.q4; sum+=t;
+        var cls=it.st==="已定稿"?"t-ok":(it.st==="審核中"?"t-info":"t-mut");
+        h += '<tr><td><b>'+it.c+'</b></td><td>'+it.n+'</td>'+
+             '<td class="num">'+fmt(it.q1)+'</td><td class="num">'+fmt(it.q2)+'</td>'+
+             '<td class="num">'+fmt(it.q3)+'</td><td class="num">'+fmt(it.q4)+'</td>'+
+             '<td class="num"><b>'+fmt(t)+'</b></td><td><span class="tag '+cls+'">'+it.st+'</span></td></tr>';
+      }
+      h += '<tr style="background:var(--soft)"><td colspan="6"><b>合計</b></td><td class="num"><b>'+fmt(sum)+'</b></td><td></td></tr>';
+      h += '</tbody></table></div></div>';
+      h += '<div class="card"><h3><span class="material-symbols-outlined">difference</span>版本差異比對</h3><div id="c1a" class="chartbox sm"></div></div>';
+      h += '</div>';
+
+      h += '<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">calendar_month</span>科目分月試算曲線</h3><div id="c1b" class="chartbox sm"></div></div>';
+      return h;
+    }
+    function draw1(){
+      mk("c1a",{
+        grid:baseGrid(),tooltip:{trigger:"axis"},legend:{data:["v2 上版","v3 本版"],top:0,textStyle:{fontSize:11}},
+        xAxis:{type:"value",axisLabel:{fontSize:10}},
+        yAxis:{type:"category",data:["人事","原料","委外","研發","行銷","授權"],axisLabel:{fontSize:11}},
+        series:[
+          {name:"v2 上版",type:"bar",data:[108000,79000,34000,17200,25000,9200],itemStyle:{color:"#f9a8d4",borderRadius:[0,4,4,0]}},
+          {name:"v3 本版",type:"bar",data:[112500,83000,36400,18300,26000,8600],itemStyle:{color:"#db2777",borderRadius:[0,4,4,0]}}
+        ]
+      });
+      var mon=["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+      mk("c1b",{
+        grid:baseGrid(),tooltip:{trigger:"axis"},legend:{top:0,textStyle:{fontSize:11}},
+        xAxis:{type:"category",data:mon,axisLabel:{fontSize:10}},
+        yAxis:{type:"value",axisLabel:{fontSize:10}},
+        series:[
+          {name:"人事薪資",type:"line",smooth:true,data:[9333,9333,9334,9333,9333,9334,9333,9333,9334,9500,9500,9500],itemStyle:{color:"#db2777"}},
+          {name:"原物料採購",type:"line",smooth:true,data:[6500,6500,6500,7000,7000,7000,7500,7500,7500,6667,6667,6666],itemStyle:{color:"#f472b6"}},
+          {name:"研發試作費",type:"line",smooth:true,data:[1400,1400,1400,1533,1533,1534,1700,1700,1700,1467,1467,1466],itemStyle:{color:"#9d174d"}}
+        ]
+      });
+    }
+
+    /* ---------- screen 2 : 部門專案分配 ---------- */
+    var PROJ=[
+      {p:"新產線建置",   d:"製造處",b:32000,used:29800,own:"陳建宏",lock:true},
+      {p:"次世代模組研發",d:"研發處",b:21500,used:14200,own:"林孟潔",lock:true},
+      {p:"品質檢測升級",  d:"品保處",b:9800, used:7100, own:"黃詩涵",lock:false},
+      {p:"通路拓展計畫",  d:"業務處",b:15600,used:16900,own:"張家豪",lock:true},
+      {p:"ERP 導入",     d:"資訊處",b:11200,used:8600, own:"李冠廷",lock:false},
+      {p:"淨零碳排改善",  d:"製造處",b:7400, used:2300, own:"吳雅雯",lock:false}
+    ];
+    function s2(){
+      var h="";
+      h += head("account_tree","部門專案分配","將總預算撥配至部門與專案，設定動支上限並鎖定額度","6 專案 · 4 已鎖定");
+      h += flowbar(1);
+      h += '<div class="grid g3">';
+      h += kpi("call_split","已撥配額度","NT$ 97,500 仟","佔總預算 41.3%","flat","分配","pie_chart");
+      h += kpi("lock","已鎖定專案","4 / 6","額度不可挪用","down","控管","verified");
+      h += kpi("report_problem","佔用超標","2 專案","業務、製造","up","需調整","priority_high");
+      h += '</div>';
+
+      h += '<div class="grid g23" style="margin-top:14px">';
+      h += '<div class="card"><h3><span class="material-symbols-outlined">view_list</span>專案額度分配表</h3><div class="tw"><table><thead><tr>'+
+           '<th>專案</th><th>部門</th><th class="num">核配</th><th class="num">已用</th><th style="width:150px">動用進度</th><th>負責</th><th>額度</th></tr></thead><tbody>';
+      for(var i=0;i<PROJ.length;i++){
+        var p=PROJ[i]; var r=Math.round(p.used/p.b*1000)/10;
+        var bc=r>100?"bad":(r>85?"warn":"");
+        h += '<tr><td><b>'+p.p+'</b></td><td>'+p.d+'</td>'+
+             '<td class="num">'+fmt(p.b)+'</td><td class="num">'+fmt(p.used)+'</td>'+
+             '<td><div style="display:flex;align-items:center;gap:7px"><div class="bar '+bc+'"><i style="width:'+Math.min(r,100)+'%"></i></div><span style="font-size:11.5px;font-weight:700">'+r+'%</span></div></td>'+
+             '<td>'+p.own+'</td>'+
+             '<td>'+(p.lock?'<span class="tag t-mut"><span class="material-symbols-outlined" style="font-size:13px">lock</span>鎖定</span>':'<span class="tag t-info">可調</span>')+'</td></tr>';
+      }
+      h += '</tbody></table></div></div>';
+      h += '<div class="card"><h3><span class="material-symbols-outlined">hub</span>部門撥配佔比</h3><div id="c2a" class="chartbox"></div></div>';
+      h += '</div>';
+
+      h += '<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">insights</span>各專案 核配 / 已用 對照</h3><div id="c2b" class="chartbox sm"></div></div>';
+      return h;
+    }
+    function draw2(){
+      mk("c2a",{
+        tooltip:{trigger:"item",formatter:"{b}: {c} 仟 ({d}%)"},legend:{bottom:0,textStyle:{fontSize:11}},
+        series:[{type:"pie",radius:["40%","66%"],center:["50%","42%"],color:palette,label:{show:false},
+          data:[
+            {name:"製造處",value:39400},{name:"研發處",value:21500},
+            {name:"業務處",value:15600},{name:"資訊處",value:11200},
+            {name:"品保處",value:9800}
+          ]}]
+      });
+      mk("c2b",{
+        grid:baseGrid(),tooltip:{trigger:"axis"},legend:{data:["核配","已用"],top:0,textStyle:{fontSize:11}},
+        xAxis:{type:"category",data:PROJ.map(function(x){return x.p;}),axisLabel:{fontSize:10,interval:0,width:70,overflow:"truncate"}},
+        yAxis:{type:"value",axisLabel:{fontSize:10}},
+        series:[
+          {name:"核配",type:"bar",data:PROJ.map(function(x){return x.b;}),itemStyle:{color:"#fbcfe8",borderRadius:[4,4,0,0]}},
+          {name:"已用",type:"bar",data:PROJ.map(function(x){return x.used;}),itemStyle:{color:"#db2777",borderRadius:[4,4,0,0]}}
+        ]
+      });
+    }
+
+    /* ---------- screen 3 : 編列協調與審核 ---------- */
+    function s3(){
+      var h="";
+      h += head("checklist","編列協調與審核","跨部門提報彙整、討論與逐級核決，定版為正式預算","逐級核決");
+      h += flowbar(2);
+      h += '<div class="grid g4">';
+      h += kpi("inbox","待覆核提報","7 件","含 2 件加急","up","待處理","pending_actions");
+      h += kpi("forum","協調意見","23 則","昨日 +6","flat","討論中","chat");
+      h += kpi("how_to_reg","本週核決","12 件","通過率 83%","down","順暢","thumb_up");
+      h += kpi("schedule","平均核簽時效","1.8 天","較上月 -0.6 天","down","加速","speed");
+      h += '</div>';
+
+      h += '<div class="grid g32" style="margin-top:14px">';
+      h += '<div class="card"><h3><span class="material-symbols-outlined">view_kanban</span>審核看板</h3>'+board()+'</div>';
+      h += '<div class="card"><h3><span class="material-symbols-outlined">timeline</span>核決歷程</h3>'+timeline()+'</div>';
+      h += '</div>';
+      return h;
+    }
+    function board(){
+      var cols=[
+        {t:"提報",ic:"upload_file",items:[
+          {tt:"製造處 原料追加案",m:["陳建宏","+2,400 仟"]},
+          {tt:"研發處 試作費調整",m:["林孟潔","+800 仟"]}
+        ]},
+        {t:"部門覆核",ic:"reviews",items:[
+          {tt:"業務處 行銷預算",m:["張家豪","+1,100 仟"]},
+          {tt:"資訊處 授權費",m:["李冠廷","-600 仟"]}
+        ]},
+        {t:"財務核決",ic:"fact_check",items:[
+          {tt:"品保處 檢測設備",m:["財務經理","審核中"]}
+        ]},
+        {t:"已定版",ic:"task_alt",items:[
+          {tt:"人事薪資 FY2026",m:["負責人","已定版"]},
+          {tt:"勞健保退休金",m:["負責人","已定版"]}
+        ]}
+      ];
+      var h='<div class="board">';
+      for(var i=0;i<cols.length;i++){
+        var c=cols[i];
+        h+='<div class="col"><div class="ch"><span class="material-symbols-outlined" style="font-size:18px;color:var(--accent)">'+c.ic+'</span>'+c.t+'<span class="cnt">'+c.items.length+'</span></div>';
+        for(var j=0;j<c.items.length;j++){
+          var it=c.items[j];
+          h+='<div class="tk"><div class="tt">'+it.tt+'</div><div class="tm"><span>'+it.m[0]+'</span><span>'+it.m[1]+'</span></div></div>';
+        }
+        h+='</div>';
+      }
+      return h+'</div>';
+    }
+    function timeline(){
+      var items=[
+        {t:"人事薪資預算 已定版",s:"負責人 王慶豐 核決 · 112,500 仟",tm:"08/13 16:20",done:true},
+        {t:"原料採購案 財務核決通過",s:"財務經理 陳雅琳 · 追加 2,400 仟",tm:"08/13 11:05",done:true},
+        {t:"行銷預算 部門覆核退回",s:"退回補件：需附季度成效",tm:"08/12 15:42",done:true},
+        {t:"研發試作費 提報送出",s:"研發處 林孟潔 送出提報",tm:"08/12 09:30",done:false},
+        {t:"品保檢測設備 待財務核決",s:"金額 9,800 仟 · 等待中",tm:"—",done:false}
+      ];
+      var h='<div class="tl">';
+      for(var i=0;i<items.length;i++){
+        var it=items[i];
+        h+='<div class="it '+(it.done?"done":"")+'"><div class="mk"></div>'+
+           '<div class="th">'+it.t+'</div>'+
+           '<div class="tsub">'+it.s+'</div>'+
+           '<div class="ttime">'+it.tm+'</div></div>';
+      }
+      return h+'</div>';
+    }
+
+    /* ---------- screen 4 : 預實差異分析 ---------- */
+    function s4(){
+      var h="";
+      h += head("insights","預實差異分析","預算對比實際、差異率與趨勢下鑽，鎖定異常科目與部門","YTD 至 9 月");
+      h += flowbar(3);
+      h += '<div class="grid g4">';
+      h += kpi("difference","總差異金額","+6,050 仟","實際 > 預算","up","不利","trending_up");
+      h += kpi("percent","加權差異率","+2.6%","門檻 ±5%","flat","可控","adjust");
+      h += kpi("thumb_down","不利差異科目","4 科目","委外、行銷偏高","up","關注","warning");
+      h += kpi("thumb_up","有利差異科目","3 科目","研發、管理節省","down","良好","savings");
+      h += '</div>';
+
+      h += '<div class="grid g2" style="margin-top:14px">';
+      h += '<div class="card"><h3><span class="material-symbols-outlined">waterfall_chart</span>科目差異瀑布<span class="cap">仟元</span></h3><div id="c4a" class="chartbox"></div></div>';
+      h += '<div class="card"><h3><span class="material-symbols-outlined">show_chart</span>累計差異率趨勢</h3><div id="c4b" class="chartbox"></div></div>';
+      h += '</div>';
+
+      h += '<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">query_stats</span>部門差異明細</h3><div class="tw"><table><thead><tr>'+
+           '<th>部門</th><th class="num">預算</th><th class="num">實際</th><th class="num">差異</th><th class="num">差異率</th><th>判定</th><th>主要原因</th></tr></thead><tbody>';
+      var reasons=["委外加工超量","產線試量產耗材","檢測外包減少","差旅與展會超支","人力精簡節省","雲端授費調降"];
+      for(var i=0;i<DEPTS.length;i++){
+        var d=DEPTS[i]; var diff=d.a-d.b; var r=Math.round(diff/d.b*1000)/10;
+        var bad=diff>0;
+        h += '<tr><td><b>'+d.d+'</b></td><td class="num">'+fmt(d.b)+'</td><td class="num">'+fmt(d.a)+'</td>'+
+             '<td class="num" style="color:'+(bad?"var(--bad)":"var(--ok)")+'">'+(diff>0?"+":"")+fmt(diff)+'</td>'+
+             '<td class="num" style="color:'+(bad?"var(--bad)":"var(--ok)")+'">'+(r>0?"+":"")+r+'%</td>'+
+             '<td><span class="tag '+(Math.abs(r)>5?(bad?"t-bad":"t-ok"):"t-warn")+'">'+(bad?"不利":"有利")+'</span></td>'+
+             '<td style="color:var(--muted);font-size:12px">'+reasons[i]+'</td></tr>';
+      }
+      h += '</tbody></table></div></div>';
+      return h;
+    }
+    function draw4(){
+      mk("c4a",{
+        grid:baseGrid(),tooltip:{trigger:"axis"},
+        xAxis:{type:"category",data:["預算基準","委外","行銷","差旅","研發節省","管理節省","實際"],axisLabel:{fontSize:10,interval:0}},
+        yAxis:{type:"value",axisLabel:{fontSize:10}},
+        series:[
+          {type:"bar",stack:"t",itemStyle:{color:"transparent"},data:[0,236000,238400,240900,243100,240900,0]},
+          {type:"bar",stack:"t",itemStyle:{color:"#db2777",borderRadius:2},
+            data:[236000,{value:2400,itemStyle:{color:"#dc2626"}},{value:2500,itemStyle:{color:"#dc2626"}},{value:2200,itemStyle:{color:"#dc2626"}},{value:-2200,itemStyle:{color:"#059669"}},{value:-2850,itemStyle:{color:"#059669"}},242050]}
+        ]
+      });
+      var mon=["1月","2月","3月","4月","5月","6月","7月","8月","9月"];
+      mk("c4b",{
+        grid:baseGrid(),tooltip:{trigger:"axis",valueFormatter:function(v){return v+"%";}},
+        xAxis:{type:"category",data:mon,axisLabel:{fontSize:10}},
+        yAxis:{type:"value",axisLabel:{fontSize:10,formatter:"{value}%"}},
+        series:[{type:"line",smooth:true,data:[-0.8,0.4,1.1,1.9,2.3,2.0,2.4,2.8,2.6],
+          areaStyle:{color:"rgba(219,39,119,.12)"},itemStyle:{color:"#db2777"},lineStyle:{color:"#db2777"},
+          markLine:{silent:true,symbol:"none",lineStyle:{color:"#d97706",type:"dashed"},data:[{yAxis:5,label:{formatter:"上限 +5%",fontSize:10}}]}
+        }]
+      });
+    }
+
+    /* ---------- screen 5 : 預算控管與追加 ---------- */
+    var CTRL=[
+      {no:"AP-20260813-07",d:"製造處",it:"原物料採購",amt:2400,rate:"103.4%",st:"攔截待簽",own:"陳建宏"},
+      {no:"AP-20260812-31",d:"業務處",it:"展會行銷費",amt:1100,rate:"105.9%",st:"追加審核",own:"張家豪"},
+      {no:"AP-20260811-15",d:"研發處",it:"委外試作費",amt:800, rate:"92.0%", st:"已核准",own:"林孟潔"},
+      {no:"AP-20260810-04",d:"資訊處",it:"軟體授權費",amt:-600,rate:"76.8%",st:"追減核准",own:"李冠廷"},
+      {no:"AP-20260809-22",d:"品保處",it:"檢測外包",amt:9800,rate:"72.4%",st:"待財務核決",own:"黃詩涵"}
+    ];
+    function s5(){
+      var h="";
+      h += head("rule","預算控管與追加","動支控管、超支攔截與追加減預算流程，回饋至總覽儀表板","即時攔截");
+      h += flowbar(4);
+      h += '<div class="grid g4">';
+      h += kpi("block","本月攔截筆數","3 筆","逾額動支自動擋下","up","已攔截","gpp_maybe");
+      h += kpi("post_add","追加申請","NT$ 3,500 仟","2 案審核中","flat","待核決","pending");
+      h += kpi("remove_circle","追減釋出","NT$ 600 仟","授權費調降","down","釋出","recycling");
+      h += kpi("verified_user","控管規則","3 條生效","額度/憑證/授權","flat","啟用","policy");
+      h += '</div>';
+
+      h += '<div class="grid g32" style="margin-top:14px">';
+      h += '<div class="card"><h3><span class="material-symbols-outlined">receipt_long</span>動支控管單</h3><div class="tw"><table><thead><tr>'+
+           '<th>單號</th><th>部門</th><th>科目</th><th class="num">追加/減</th><th class="num">動用率</th><th>狀態</th></tr></thead><tbody>';
+      for(var i=0;i<CTRL.length;i++){
+        var c=CTRL[i];
+        var scls=c.st==="已核准"||c.st==="追減核准"?"t-ok":(c.st==="攔截待簽"?"t-bad":"t-info");
+        h += '<tr><td><b>'+c.no+'</b></td><td>'+c.d+'</td><td>'+c.it+'</td>'+
+             '<td class="num" style="color:'+(c.amt<0?"var(--ok)":"var(--bad)")+'">'+(c.amt>0?"+":"")+fmt(c.amt)+'</td>'+
+             '<td class="num">'+c.rate+'</td><td><span class="tag '+scls+'">'+c.st+'</span></td></tr>';
+      }
+      h += '</tbody></table></div>';
+      h += '<div style="margin-top:12px;font-size:12px;color:var(--muted)"><b style="color:var(--accent)">生效規則：</b>RULE-01 逾額動支自動攔截 · RULE-02 超授權額度須財務覆核 · RULE-03 缺憑證不得入帳</div>';
+      h += '</div>';
+      h += '<div class="card"><h3><span class="material-symbols-outlined">radar</span>各部門動支健康度</h3><div id="c5a" class="chartbox"></div></div>';
+      h += '</div>';
+
+      h += '<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">bar_chart</span>剩餘可動支額度</h3><div id="c5b" class="chartbox sm"></div></div>';
+      return h;
+    }
+    function draw5(){
+      mk("c5a",{
+        tooltip:{},radar:{radius:"62%",center:["50%","52%"],
+          indicator:[
+            {name:"研發處",max:100},{name:"製造處",max:100},{name:"品保處",max:100},
+            {name:"業務處",max:100},{name:"行政處",max:100},{name:"資訊處",max:100}
+          ],axisName:{fontSize:11,color:"#8b6b7d"}},
+        series:[{type:"radar",areaStyle:{color:"rgba(219,39,119,.15)"},lineStyle:{color:"#db2777"},itemStyle:{color:"#db2777"},
+          data:[{value:[85,58,72,52,91,79],name:"動支健康度"}]}]
+      });
+      var rem=DEPTS.map(function(x){return Math.max(x.b-x.a,0);});
+      mk("c5b",{
+        grid:baseGrid(),tooltip:{trigger:"axis"},
+        xAxis:{type:"category",data:DEPTS.map(function(x){return x.d;}),axisLabel:{fontSize:11,interval:0}},
+        yAxis:{type:"value",axisLabel:{fontSize:10}},
+        series:[{type:"bar",data:DEPTS.map(function(x,i){
+            var r=x.b-x.a;
+            return {value:Math.max(r,0),itemStyle:{color:r<=0?"#fca5a5":(r<x.b*0.1?"#fbbf24":"#db2777"),borderRadius:[4,4,0,0]}};
+          }),barWidth:"48%"}]
+      });
+    }
+
+    function flowbar(active){
+      var st=[
+        {t:"編列草案",r:"會計專員"},
+        {t:"部門分配",r:"會計專員"},
+        {t:"協調審核",r:"財務經理"},
+        {t:"差異分析",r:"財務經理"},
+        {t:"控管追加",r:"負責人"}
+      ];
+      var h='<div class="flowbar">';
+      for(var i=0;i<st.length;i++){
+        var on=i===active;
+        h+='<div class="fi" style="'+(on?"border-color:var(--accent);box-shadow:0 4px 12px rgba(219,39,119,.14)":"")+'">'+
+           '<div class="n" style="'+(on?"background:var(--accent);color:#fff":"")+'">'+(i+1)+'</div>'+
+           '<div><div class="ft">'+st[i].t+'</div><div class="fr">'+st[i].r+'</div></div></div>';
+      }
+      return h+'</div>';
+    }
+
+    var RENDER=[s0,s1,s2,s3,s4,s5];
+    var DRAW=[draw0,draw1,draw2,draw3,draw4,draw5];
+    function draw3(){}
+
+    function show(i){
+      var container=document.getElementById("screen");
+      disposeCharts();
+      nav(i);
+      container.innerHTML=RENDER[i]();
+      void container.offsetHeight;
+      if(DRAW[i]) DRAW[i]();
+    }
+
+    window.__show=show;
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+    window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>

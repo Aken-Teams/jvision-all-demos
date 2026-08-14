@@ -4,15 +4,637 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>外籍移工管理系統（Foreign Worker Management）｜Jvision 系統 Demo</title>
-  <meta name="description" content="出勤、薪資、招募到績效的人資全流程" />
+  <meta name="description" content="聘僱許可與居留證到期提醒、入出境與體檢排程、仲介費用申報與聘僱合規追蹤" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --accent:#b45309; --accent2:#f59e0b; --accent-soft:#fef3c7;
+      --bg:#f7f5f2; --panel:#ffffff; --ink:#1c1917; --muted:#78716c;
+      --line:#e7e2db; --ok:#15803d; --warn:#b45309; --danger:#dc2626;
+      --ok-soft:#dcfce7; --warn-soft:#fef3c7; --danger-soft:#fee2e2;
+      --radius:14px; --shadow:0 1px 2px rgba(28,25,23,.05),0 8px 24px rgba(28,25,23,.06);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:"Inter","Noto Sans TC",system-ui,sans-serif;
+      background:var(--bg); color:var(--ink); line-height:1.55;
+      -webkit-font-smoothing:antialiased;
+    }
+    .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+    /* top nav */
+    header.topbar{
+      position:sticky; top:0; z-index:30; background:var(--panel);
+      border-bottom:1px solid var(--line);
+      box-shadow:0 1px 0 rgba(28,25,23,.04);
+    }
+    .topbar-inner{
+      max-width:1360px; margin:0 auto; padding:10px 18px;
+      display:flex; align-items:center; gap:16px; flex-wrap:wrap; min-width:0;
+    }
+    .brand{display:flex; align-items:center; gap:10px; min-width:0;}
+    .brand .logo{
+      width:38px; height:38px; border-radius:10px; flex:none;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:flex; align-items:center; justify-content:center; color:#fff;
+      box-shadow:0 4px 12px rgba(180,83,9,.35);
+    }
+    .brand .logo .material-symbols-outlined{font-size:22px}
+    .brand-txt{min-width:0}
+    .brand-txt b{display:block; font-size:15px; font-weight:800; letter-spacing:.2px; white-space:nowrap}
+    .brand-txt span{display:block; font-size:11px; color:var(--muted); white-space:nowrap}
+    nav.nav{display:flex; gap:6px; flex-wrap:wrap; min-width:0; margin-left:auto;}
+    nav.nav button{
+      display:inline-flex; align-items:center; gap:7px; cursor:pointer;
+      border:1px solid transparent; background:transparent; color:var(--muted);
+      font-family:inherit; font-size:13px; font-weight:600; padding:8px 12px;
+      border-radius:10px; white-space:nowrap; transition:.15s;
+    }
+    nav.nav button .material-symbols-outlined{font-size:19px}
+    nav.nav button:hover{background:var(--accent-soft); color:var(--accent)}
+    nav.nav button.active{background:var(--accent); color:#fff; box-shadow:0 4px 12px rgba(180,83,9,.28)}
+    main{max-width:1360px; margin:0 auto; padding:22px 18px 60px; min-width:0;}
+    .screen-head{margin:2px 0 18px}
+    .screen-head .eyebrow{
+      display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700;
+      color:var(--accent); background:var(--accent-soft); padding:4px 10px; border-radius:999px;
+    }
+    .screen-head h1{font-size:22px; font-weight:900; margin:10px 0 4px; letter-spacing:.3px}
+    .screen-head p{margin:0; color:var(--muted); font-size:13.5px}
+    /* grids */
+    .grid{display:grid; gap:14px; min-width:0}
+    .g-kpi{grid-template-columns:repeat(4,1fr)}
+    .g-2{grid-template-columns:1.6fr 1fr}
+    .g-2e{grid-template-columns:1fr 1fr}
+    .g-3{grid-template-columns:repeat(3,1fr)}
+    .g-side{grid-template-columns:1fr 320px}
+    @media(max-width:820px){
+      .g-kpi{grid-template-columns:repeat(2,1fr)}
+      .g-2,.g-2e,.g-3,.g-side{grid-template-columns:1fr}
+    }
+    @media(max-width:480px){ .g-kpi{grid-template-columns:1fr} }
+    .card{
+      background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+      padding:16px; box-shadow:var(--shadow); min-width:0;
+    }
+    .card h3{margin:0 0 12px; font-size:14px; font-weight:800; display:flex; align-items:center; gap:8px}
+    .card h3 .material-symbols-outlined{font-size:19px; color:var(--accent)}
+    .card .sub{font-size:12px; color:var(--muted); font-weight:500}
+    /* KPI */
+    .kpi{position:relative; overflow:hidden}
+    .kpi .ico{
+      width:40px; height:40px; border-radius:11px; display:flex; align-items:center; justify-content:center;
+      background:var(--accent-soft); color:var(--accent); margin-bottom:10px;
+    }
+    .kpi .ico .material-symbols-outlined{font-size:22px}
+    .kpi .val{font-size:26px; font-weight:900; letter-spacing:.5px; line-height:1.1}
+    .kpi .lbl{font-size:12.5px; color:var(--muted); font-weight:600; margin-top:2px}
+    .kpi .delta{font-size:11.5px; font-weight:700; margin-top:6px; display:inline-flex; align-items:center; gap:3px}
+    .kpi .delta.up{color:var(--ok)} .kpi .delta.down{color:var(--danger)} .kpi .delta.warn{color:var(--warn)}
+    .kpi .delta .material-symbols-outlined{font-size:15px}
+    /* chart */
+    .chart{width:100%; height:280px; overflow:hidden; min-width:0}
+    .chart.sm{height:220px}
+    /* table */
+    .tbl-wrap{overflow-x:auto; border-radius:10px}
+    table{width:100%; border-collapse:collapse; font-size:13px; min-width:520px}
+    th,td{padding:10px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap}
+    th{font-size:11.5px; font-weight:700; color:var(--muted); text-transform:none; background:#faf8f5; position:sticky; top:0}
+    tbody tr:hover{background:#fdfcfa}
+    td.name{font-weight:700}
+    /* pills */
+    .pill{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:999px}
+    .pill .material-symbols-outlined{font-size:14px}
+    .p-ok{background:var(--ok-soft); color:var(--ok)}
+    .p-warn{background:var(--warn-soft); color:var(--warn)}
+    .p-danger{background:var(--danger-soft); color:var(--danger)}
+    .p-info{background:#e0f2fe; color:#0369a1}
+    .p-gray{background:#f1efec; color:var(--muted)}
+    .flag{font-size:15px; margin-right:5px}
+    /* progress bar */
+    .bar{height:7px; border-radius:99px; background:#efece7; overflow:hidden; min-width:80px}
+    .bar > i{display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    /* board */
+    .board{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; min-width:0}
+    @media(max-width:820px){ .board{grid-template-columns:1fr 1fr} }
+    @media(max-width:480px){ .board{grid-template-columns:1fr} }
+    .col{background:#faf8f5; border:1px solid var(--line); border-radius:12px; padding:10px; min-width:0}
+    .col > .ch{font-size:12.5px; font-weight:800; display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; padding:0 2px}
+    .col > .ch .cnt{background:#fff; border:1px solid var(--line); border-radius:999px; padding:1px 8px; font-size:11px; color:var(--muted)}
+    .ticket{background:#fff; border:1px solid var(--line); border-left:3px solid var(--accent2); border-radius:9px; padding:9px 10px; margin-bottom:8px; box-shadow:0 1px 2px rgba(28,25,23,.04)}
+    .ticket b{font-size:12.5px; font-weight:700; display:block}
+    .ticket .meta{font-size:11px; color:var(--muted); margin-top:4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+    /* timeline */
+    .tl{position:relative; padding-left:22px; min-width:0}
+    .tl::before{content:""; position:absolute; left:7px; top:4px; bottom:4px; width:2px; background:var(--line)}
+    .tl-item{position:relative; padding:0 0 16px 6px}
+    .tl-item::before{content:""; position:absolute; left:-19px; top:3px; width:12px; height:12px; border-radius:50%; background:#fff; border:3px solid var(--accent2)}
+    .tl-item.done::before{background:var(--accent2); border-color:var(--accent2)}
+    .tl-item .t{font-size:13px; font-weight:700}
+    .tl-item .d{font-size:11.5px; color:var(--muted)}
+    /* list rows */
+    .lrow{display:flex; align-items:center; gap:11px; padding:11px 4px; border-bottom:1px solid var(--line); min-width:0}
+    .lrow:last-child{border-bottom:none}
+    .lrow .av{width:34px; height:34px; border-radius:9px; flex:none; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; color:#fff}
+    .lrow .info{min-width:0; flex:1}
+    .lrow .info b{font-size:13px; display:block}
+    .lrow .info span{font-size:11.5px; color:var(--muted)}
+    .lrow .rt{text-align:right; flex:none}
+    /* stat mini */
+    .mini{display:flex; gap:10px; flex-wrap:wrap}
+    .mini .m{flex:1; min-width:120px; background:#faf8f5; border:1px solid var(--line); border-radius:11px; padding:11px 13px}
+    .mini .m .v{font-size:19px; font-weight:900}
+    .mini .m .l{font-size:11.5px; color:var(--muted); font-weight:600}
+    /* gauge row */
+    .donut-wrap{display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+    .legend{list-style:none; margin:0; padding:0; font-size:12.5px; min-width:0}
+    .legend li{display:flex; align-items:center; gap:8px; padding:4px 0}
+    .legend .dot{width:10px; height:10px; border-radius:3px; flex:none}
+    .legend b{margin-left:auto; font-weight:800}
+    .muted{color:var(--muted)}
+    .foot-note{font-size:11.5px; color:var(--muted); margin-top:10px; display:flex; align-items:center; gap:6px}
+    @media(max-width:560px){ nav.nav button .txt{display:none} nav.nav button{padding:8px 10px} }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo"><span class="material-symbols-outlined">groups</span></div>
+        <div class="brand-txt">
+          <b>移工管理平台</b>
+          <span>Foreign Worker Management</span>
+        </div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+    </div>
+  </header>
+  <main id="app"></main>
+
+  <script>
+  (function(){
+    "use strict";
+    var accent="#b45309", accent2="#f59e0b", soft="#fef3c7";
+    var charts={};
+
+    var NAV=[
+      {i:0,ico:"groups",label:"移工名冊"},
+      {i:1,ico:"verified",label:"證件效期"},
+      {i:2,ico:"calendar_month",label:"入出境體檢"},
+      {i:3,ico:"receipt_long",label:"仲介費用"},
+      {i:4,ico:"gavel",label:"合規稽核"},
+      {i:5,ico:"account_tree",label:"續聘離境"}
+    ];
+
+    // ---------- helpers ----------
+    function el(html){ var d=document.createElement("div"); d.innerHTML=html; return d; }
+    function flag(c){ var m={"越南":"🇻🇳","印尼":"🇮🇩","菲律賓":"🇵🇭","泰國":"🇹🇭"}; return m[c]||"🏳️"; }
+    function avColor(s){ var c=["#b45309","#0369a1","#15803d","#9333ea","#dc2626","#0891b2"]; var h=0; for(var i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0;} return c[h%c.length]; }
+    function esc(s){ return String(s).replace(/[&<>]/g,function(x){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[x];}); }
+
+    function disposeAll(){
+      for(var k in charts){ try{ charts[k].dispose(); }catch(e){} }
+      charts={};
+    }
+    function mk(id,opt){
+      var node=document.getElementById(id);
+      if(!node) return;
+      var c=echarts.init(node);
+      c.setOption(opt);
+      charts[id]=c;
+    }
+
+    // ---------- fake data ----------
+    var WORKERS=[
+      {name:"NGUYEN VAN A", cn:"阮文安", nat:"越南", plant:"A廠 沖壓", agent:"宏昌人力", permit:"2026-11-08", arc:"2026-09-02", status:"在職", years:2.3},
+      {name:"SITI RAHMA", cn:"西蒂", nat:"印尼", plant:"B廠 組裝", agent:"友邦仲介", permit:"2026-08-30", arc:"2026-08-25", status:"在職", years:1.1},
+      {name:"DELA CRUZ M", cn:"戴拉", nat:"菲律賓", plant:"A廠 品保", agent:"宏昌人力", permit:"2027-02-14", arc:"2027-01-10", status:"在職", years:0.6},
+      {name:"SOMCHAI P", cn:"頌猜", nat:"泰國", plant:"C廠 表面處理", agent:"泰豐勞務", permit:"2026-09-19", arc:"2026-10-05", status:"在職", years:2.9},
+      {name:"TRAN THI B", cn:"陳氏碧", nat:"越南", plant:"B廠 包裝", agent:"友邦仲介", permit:"2028-03-01", arc:"2027-11-18", status:"在職", years:0.3},
+      {name:"BUDI SANTOSO", cn:"布迪", nat:"印尼", plant:"A廠 沖壓", agent:"宏昌人力", permit:"2026-08-22", arc:"2026-08-19", status:"待續聘", years:2.9},
+      {name:"REYES J", cn:"雷耶斯", nat:"菲律賓", plant:"C廠 CNC", agent:"泰豐勞務", permit:"2027-06-30", arc:"2027-05-12", status:"在職", years:1.7},
+      {name:"LE VAN C", cn:"黎文誠", nat:"越南", plant:"B廠 組裝", agent:"友邦仲介", permit:"2026-08-28", arc:"2026-09-15", status:"在職", years:2.1}
+    ];
+
+    // ============================================================
+    // Screen 0 — 移工名冊
+    // ============================================================
+    function screen0(){
+      var byNat={"越南":0,"印尼":0,"菲律賓":0,"泰國":0};
+      WORKERS.forEach(function(w){ byNat[w.nat]=(byNat[w.nat]||0)+1; });
+      var rows=WORKERS.map(function(w){
+        return '<tr>'+
+          '<td class="name"><span class="flag">'+flag(w.nat)+'</span>'+esc(w.cn)+'<div class="muted" style="font-weight:500;font-size:11px">'+esc(w.name)+'</div></td>'+
+          '<td>'+esc(w.nat)+'</td>'+
+          '<td>'+esc(w.plant)+'</td>'+
+          '<td>'+esc(w.agent)+'</td>'+
+          '<td>'+w.years.toFixed(1)+' 年</td>'+
+          '<td>'+(w.status==="在職"?'<span class="pill p-ok"><span class="material-symbols-outlined">task_alt</span>在職</span>':'<span class="pill p-warn"><span class="material-symbols-outlined">history</span>待續聘</span>')+'</td>'+
+        '</tr>';
+      }).join("");
+
+      return el(
+        head("移工名冊","groups","即時掌握全廠外籍移工在職狀態、國籍分布與所屬廠區配置。")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("groups","218","在職移工總數","up","+6 本月新進")+
+          kpi("public","4","聘僱來源國","warn","越南占比最高")+
+          kpi("factory","3","配置廠區","up","A/B/C 廠")+
+          kpi("history","5","待續聘人數","warn","30 日內期滿")+
+        '</div>'+
+        '<div class="grid g-2">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">table_view</span>移工名冊 <span class="sub">· 依到期日排序</span></h3>'+
+            '<div class="tbl-wrap"><table><thead><tr><th>姓名</th><th>國籍</th><th>廠區/工段</th><th>仲介來源</th><th>在職年資</th><th>狀態</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+            '<div class="foot-note"><span class="material-symbols-outlined" style="font-size:15px">info</span>顯示 8 / 218 筆，可依廠區、國籍與仲介篩選。</div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">donut_small</span>國籍分布</h3>'+
+            '<div class="donut-wrap"><div id="c0nat" class="chart sm" style="height:200px;flex:1;min-width:180px"></div>'+
+            '<ul class="legend">'+
+              natLeg("越南",98,"#b45309")+natLeg("印尼",64,"#f59e0b")+
+              natLeg("菲律賓",38,"#0369a1")+natLeg("泰國",18,"#15803d")+
+            '</ul></div>'+
+            '<div class="mini" style="margin-top:14px">'+
+              mini("11.3 年","平均聘僱年資")+mini("63%","男性比例")+
+            '</div>'+
+          '</div>'+
+        '</div>'
+      );
+    }
+    function natLeg(n,v,c){ return '<li><span class="dot" style="background:'+c+'"></span>'+n+'<b>'+v+' 人</b></li>'; }
+
+    function draw0(){
+      mk("c0nat",{
+        tooltip:{trigger:"item"},
+        series:[{type:"pie",radius:["52%","78%"],avoidLabelOverlap:false,
+          itemStyle:{borderColor:"#fff",borderWidth:2},
+          label:{show:false}, labelLine:{show:false},
+          data:[
+            {value:98,name:"越南",itemStyle:{color:"#b45309"}},
+            {value:64,name:"印尼",itemStyle:{color:"#f59e0b"}},
+            {value:38,name:"菲律賓",itemStyle:{color:"#0369a1"}},
+            {value:18,name:"泰國",itemStyle:{color:"#15803d"}}
+          ]}]
+      });
+    }
+
+    // ============================================================
+    // Screen 1 — 證件效期 (聘僱許可 + 居留證 ARC)
+    // ============================================================
+    function screen1(){
+      var docs=[
+        {cn:"布迪", nat:"印尼", type:"聘僱許可+ARC", due:"2026-08-19", days:5, plant:"A廠 沖壓"},
+        {cn:"西蒂", nat:"印尼", type:"居留證 ARC", due:"2026-08-25", days:11, plant:"B廠 組裝"},
+        {cn:"黎文誠", nat:"越南", type:"聘僱許可", due:"2026-08-28", days:14, plant:"B廠 組裝"},
+        {cn:"西蒂", nat:"印尼", type:"聘僱許可", due:"2026-08-30", days:16, plant:"B廠 組裝"},
+        {cn:"阮文安", nat:"越南", type:"居留證 ARC", due:"2026-09-02", days:19, plant:"A廠 沖壓"},
+        {cn:"頌猜", nat:"泰國", type:"聘僱許可", due:"2026-09-19", days:36, plant:"C廠 表面處理"}
+      ];
+      var rows=docs.map(function(d){
+        var cls=d.days<=7?"p-danger":(d.days<=14?"p-warn":"p-info");
+        var ico=d.days<=7?"error":(d.days<=14?"warning":"schedule");
+        var pct=Math.max(4,Math.min(100,Math.round((1-d.days/90)*100)));
+        return '<tr>'+
+          '<td class="name"><span class="flag">'+flag(d.nat)+'</span>'+esc(d.cn)+'</td>'+
+          '<td>'+esc(d.type)+'</td>'+
+          '<td>'+esc(d.plant)+'</td>'+
+          '<td>'+esc(d.due)+'</td>'+
+          '<td><span class="pill '+cls+'"><span class="material-symbols-outlined">'+ico+'</span>剩 '+d.days+' 天</span></td>'+
+          '<td style="min-width:120px"><div class="bar"><i style="width:'+pct+'%"></i></div></td>'+
+        '</tr>';
+      }).join("");
+
+      return el(
+        head("證件效期監控","verified","聘僱許可與居留證（ARC）到期自動排序，逾期罰則風險優先提醒。")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("warning","3","7 日內到期","down","需立即辦理")+
+          kpi("event_upcoming","12","30 日內到期","warn","已排入待辦")+
+          kpi("verified","98.2%","證件在效率","up","+1.4% MoM")+
+          kpi("gavel","0","現存逾期件","up","本季零逾期")+
+        '</div>'+
+        '<div class="grid g-2">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">event_busy</span>即將到期證件 <span class="sub">· 依剩餘天數升冪</span></h3>'+
+            '<div class="tbl-wrap"><table><thead><tr><th>移工</th><th>證件類型</th><th>廠區</th><th>到期日</th><th>剩餘</th><th>效期進度</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>未來 90 日到期分布</h3>'+
+            '<div id="c1bar" class="chart"></div>'+
+            '<div class="foot-note"><span class="material-symbols-outlined" style="font-size:15px">tips_and_updates</span>系統於到期前 45 / 30 / 14 / 7 日自動推播提醒。</div>'+
+          '</div>'+
+        '</div>'
+      );
+    }
+    function draw1(){
+      mk("c1bar",{
+        grid:{left:8,right:12,top:24,bottom:24,containLabel:true},
+        tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},
+        legend:{data:["聘僱許可","居留證ARC"],top:0,itemWidth:12,itemHeight:12,textStyle:{fontSize:11}},
+        xAxis:{type:"category",data:["0-7日","8-14日","15-30日","31-45日","46-60日","61-90日"],axisLabel:{fontSize:11}},
+        yAxis:{type:"value",splitLine:{lineStyle:{color:"#efece7"}},axisLabel:{fontSize:11}},
+        series:[
+          {name:"聘僱許可",type:"bar",stack:"a",data:[2,3,5,7,6,9],itemStyle:{color:accent,borderRadius:[0,0,0,0]}},
+          {name:"居留證ARC",type:"bar",stack:"a",data:[1,2,4,5,4,7],itemStyle:{color:accent2,borderRadius:[3,3,0,0]}}
+        ]
+      });
+    }
+
+    // ============================================================
+    // Screen 2 — 入出境與體檢排程
+    // ============================================================
+    function screen2(){
+      var board={
+        arranged:[
+          {n:"戴拉",nat:"菲律賓",t:"入境接機",d:"08/15 桃園 T2 · BR226"},
+          {n:"陳氏碧",nat:"越南",t:"入境接機",d:"08/16 桃園 T1 · VN570"}
+        ],
+        health:[
+          {n:"阮文安",nat:"越南",t:"3個月定期體檢",d:"08/18 · 聯合醫院"},
+          {n:"雷耶斯",nat:"菲律賓",t:"6個月定期體檢",d:"08/20 · 廠區健檢車"},
+          {n:"頌猜",nat:"泰國",t:"3個月定期體檢",d:"08/22 · 聯合醫院"}
+        ],
+        result:[
+          {n:"黎文誠",nat:"越南",t:"體檢複檢",d:"08/12 · 待報告"},
+          {n:"西蒂",nat:"印尼",t:"入境體檢",d:"08/10 · 合格"}
+        ],
+        depart:[
+          {n:"布迪",nat:"印尼",t:"期滿離境",d:"09/05 · 待訂機票"}
+        ]
+      };
+      function col(title,ico,list,cls){
+        var t=list.map(function(x){
+          return '<div class="ticket"><b><span class="flag">'+flag(x.nat)+'</span>'+esc(x.n)+'</b>'+
+            '<div class="meta"><span class="pill '+cls+'"><span class="material-symbols-outlined">'+ico+'</span>'+esc(x.t)+'</span></div>'+
+            '<div class="meta"><span class="material-symbols-outlined" style="font-size:14px">schedule</span>'+esc(x.d)+'</div></div>';
+        }).join("");
+        return '<div class="col"><div class="ch">'+title+'<span class="cnt">'+list.length+'</span></div>'+t+'</div>';
+      }
+      return el(
+        head("入出境與體檢排程","calendar_month","依入境日與體檢週期安排作業看板，避免漏排導致居留失效。")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("flight_land","2","本週入境","up","已安排接機")+
+          kpi("health_and_safety","3","待體檢","warn","3 日內到期")+
+          kpi("fact_check","96%","體檢合格率","up","+2% 季增")+
+          kpi("flight_takeoff","1","待離境","warn","09/05 期滿")+
+        '</div>'+
+        '<div class="grid g-2">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">view_kanban</span>作業看板</h3>'+
+            '<div class="board">'+
+              col("入出境安排","flight",board.arranged,"p-info")+
+              col("待體檢","health_and_safety",board.health,"p-warn")+
+              col("體檢結果","biotech",board.result,"p-ok")+
+              col("離境作業","flight_takeoff",board.depart,"p-gray")+
+            '</div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">monitoring</span>近半年體檢完成趨勢</h3>'+
+            '<div id="c2line" class="chart"></div>'+
+            '<div class="mini" style="margin-top:12px">'+
+              mini("38","本季應檢人次")+mini("36","已完成")+mini("2","逾期未檢")+
+            '</div>'+
+          '</div>'+
+        '</div>'
+      );
+    }
+    function draw2(){
+      mk("c2line",{
+        grid:{left:8,right:14,top:26,bottom:24,containLabel:true},
+        tooltip:{trigger:"axis"},
+        legend:{data:["應檢","已完成"],top:0,itemWidth:12,itemHeight:12,textStyle:{fontSize:11}},
+        xAxis:{type:"category",boundaryGap:false,data:["3月","4月","5月","6月","7月","8月"],axisLabel:{fontSize:11}},
+        yAxis:{type:"value",splitLine:{lineStyle:{color:"#efece7"}},axisLabel:{fontSize:11}},
+        series:[
+          {name:"應檢",type:"line",smooth:true,data:[30,34,29,41,36,38],lineStyle:{color:accent2,width:2},itemStyle:{color:accent2},areaStyle:{color:"rgba(245,158,11,.10)"}},
+          {name:"已完成",type:"line",smooth:true,data:[28,33,28,39,35,36],lineStyle:{color:accent,width:3},itemStyle:{color:accent},areaStyle:{color:"rgba(180,83,9,.12)"}}
+        ]
+      });
+    }
+
+    // ============================================================
+    // Screen 3 — 仲介費用 / 服務費申報
+    // ============================================================
+    function screen3(){
+      var fees=[
+        {agent:"宏昌人力",item:"仲介服務費",yr:"第1年",amt:1800,cap:1800,worker:"阮文安",status:"已申報"},
+        {agent:"友邦仲介",item:"仲介服務費",yr:"第2年",amt:1700,cap:1700,worker:"西蒂",status:"審核中"},
+        {agent:"泰豐勞務",item:"代辦文件費",yr:"—",amt:1200,cap:1500,worker:"頌猜",status:"已申報"},
+        {agent:"宏昌人力",item:"仲介服務費",yr:"第3年",amt:1500,cap:1500,worker:"布迪",status:"待補件"},
+        {agent:"友邦仲介",item:"健檢代辦費",yr:"—",amt:900,cap:1000,worker:"陳氏碧",status:"已申報"},
+        {agent:"泰豐勞務",item:"仲介服務費",yr:"第1年",amt:1850,cap:1800,worker:"雷耶斯",status:"超限退回"}
+      ];
+      var rows=fees.map(function(f){
+        var st=f.status, cls="p-ok", ico="task_alt";
+        if(st==="審核中"){cls="p-info";ico="hourglass_top";}
+        else if(st==="待補件"){cls="p-warn";ico="edit_note";}
+        else if(st==="超限退回"){cls="p-danger";ico="block";}
+        var over=f.amt>f.cap;
+        return '<tr>'+
+          '<td class="name">'+esc(f.agent)+'</td>'+
+          '<td>'+esc(f.item)+'</td>'+
+          '<td>'+esc(f.yr)+'</td>'+
+          '<td>'+esc(f.worker)+'</td>'+
+          '<td style="'+(over?'color:var(--danger);font-weight:800':'')+'">NT$ '+f.amt.toLocaleString()+'</td>'+
+          '<td class="muted">上限 '+f.cap.toLocaleString()+'</td>'+
+          '<td><span class="pill '+cls+'"><span class="material-symbols-outlined">'+ico+'</span>'+esc(st)+'</span></td>'+
+        '</tr>';
+      }).join("");
+      return el(
+        head("仲介費用申報","receipt_long","核對仲介服務費與代辦費單據，確認金額與合規上限後送出申報。")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("payments","NT$ 1.94M","本年申報總額","up","+8% YoY")+
+          kpi("hourglass_top","7","審核中件數","warn","平均 1.2 天")+
+          kpi("block","1","超限退回","down","已通知仲介")+
+          kpi("verified","99.1%","費用合規率","up","符合上限規範")+
+        '</div>'+
+        '<div class="grid g-2">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">request_quote</span>費用申報明細</h3>'+
+            '<div class="tbl-wrap"><table><thead><tr><th>仲介</th><th>費用項目</th><th>年度</th><th>移工</th><th>金額</th><th>法定上限</th><th>狀態</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+            '<div class="foot-note"><span class="material-symbols-outlined" style="font-size:15px">gavel</span>依勞動部規定服務費上限第1年 1,800 / 第2年 1,700 / 第3年起 1,500 元。</div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">stacked_bar_chart</span>各仲介申報金額</h3>'+
+            '<div id="c3bar" class="chart"></div>'+
+          '</div>'+
+        '</div>'
+      );
+    }
+    function draw3(){
+      mk("c3bar",{
+        grid:{left:8,right:16,top:14,bottom:22,containLabel:true},
+        tooltip:{trigger:"axis",axisPointer:{type:"shadow"},valueFormatter:function(v){return "NT$ "+Number(v).toLocaleString();}},
+        xAxis:{type:"value",splitLine:{lineStyle:{color:"#efece7"}},axisLabel:{fontSize:11,formatter:function(v){return (v/1000)+"k";}}},
+        yAxis:{type:"category",data:["泰豐勞務","友邦仲介","宏昌人力"],axisLabel:{fontSize:12}},
+        series:[{type:"bar",data:[512000,648000,780000],barWidth:22,
+          itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:accent},{offset:1,color:accent2}]),borderRadius:[0,6,6,0]},
+          label:{show:true,position:"right",fontSize:11,formatter:function(p){return "NT$ "+(p.value/1000)+"k";}}}]
+      });
+    }
+
+    // ============================================================
+    // Screen 4 — 合規稽核
+    // ============================================================
+    function screen4(){
+      var checks=[
+        {item:"聘僱許可有效",tot:218,ok:218,rate:100},
+        {item:"居留證 ARC 有效",tot:218,ok:216,rate:99.1},
+        {item:"定期體檢完成",tot:218,ok:214,rate:98.2},
+        {item:"仲介費用合規",tot:112,ok:111,rate:99.1},
+        {item:"勞動契約在期",tot:218,ok:217,rate:99.5},
+        {item:"宿舍安檢通過",tot:12,ok:11,rate:91.7}
+      ];
+      var rows=checks.map(function(c){
+        var cls=c.rate>=99?"p-ok":(c.rate>=95?"p-warn":"p-danger");
+        return '<div class="lrow">'+
+          '<div class="av" style="background:'+(c.rate>=99?"var(--ok)":(c.rate>=95?"var(--warn)":"var(--danger)"))+'"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">rule</span></div>'+
+          '<div class="info"><b>'+esc(c.item)+'</b><span>'+c.ok+' / '+c.tot+' 項符合</span>'+
+            '<div class="bar" style="margin-top:6px"><i style="width:'+c.rate+'%"></i></div></div>'+
+          '<div class="rt"><span class="pill '+cls+'">'+c.rate.toFixed(1)+'%</span></div>'+
+        '</div>';
+      }).join("");
+      return el(
+        head("合規稽核","gavel","彙整聘僱合規率與逾期罰則風險，供勞務仲介窗口確認成果。")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("shield","98.6%","整體合規率","up","+1.1% 季增")+
+          kpi("warning","4","待改善項目","warn","已派工追蹤")+
+          kpi("gavel","0","本季裁罰件","up","零罰則紀錄")+
+          kpi("history","365","無事故天數","up","連續達成")+
+        '</div>'+
+        '<div class="grid g-2e">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">fact_check</span>合規項目查核</h3>'+rows+'</div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">radar</span>各廠區合規雷達</h3>'+
+            '<div id="c4radar" class="chart"></div>'+
+            '<div class="foot-note"><span class="material-symbols-outlined" style="font-size:15px">insights</span>B 廠宿舍安檢待複查，其餘構面皆達標。</div>'+
+          '</div>'+
+        '</div>'
+      );
+    }
+    function draw4(){
+      mk("c4radar",{
+        tooltip:{},
+        legend:{data:["A廠","B廠","C廠"],bottom:0,itemWidth:12,itemHeight:12,textStyle:{fontSize:11}},
+        radar:{
+          indicator:[
+            {name:"聘僱許可",max:100},{name:"居留證",max:100},{name:"體檢",max:100},
+            {name:"費用合規",max:100},{name:"契約",max:100},{name:"宿舍",max:100}
+          ],
+          radius:"64%",axisName:{fontSize:11,color:"#57534e"},
+          splitLine:{lineStyle:{color:"#e7e2db"}},splitArea:{areaStyle:{color:["#fff","#faf8f5"]}}
+        },
+        series:[{type:"radar",data:[
+          {value:[100,99,98,99,100,95],name:"A廠",itemStyle:{color:accent},areaStyle:{color:"rgba(180,83,9,.15)"}},
+          {value:[100,98,97,98,99,88],name:"B廠",itemStyle:{color:accent2},areaStyle:{color:"rgba(245,158,11,.15)"}},
+          {value:[100,100,99,100,99,96],name:"C廠",itemStyle:{color:"#0369a1"},areaStyle:{color:"rgba(3,105,161,.12)"}}
+        ]}]
+      });
+    }
+
+    // ============================================================
+    // Screen 5 — 續聘離境
+    // ============================================================
+    function screen5(){
+      var cases=[
+        {n:"布迪",nat:"印尼",exp:"2026-09-05",stage:4,decision:"安排離境"},
+        {n:"阮文安",nat:"越南",exp:"2026-11-08",stage:2,decision:"續聘評估中"},
+        {n:"頌猜",nat:"泰國",exp:"2026-09-19",stage:3,decision:"確認續聘"},
+        {n:"黎文誠",nat:"越南",exp:"2026-08-28",stage:3,decision:"確認續聘"}
+      ];
+      var STAGES=["名冊建檔","效期評估","續聘/離境決策","許可展延","歸檔完成"];
+      var rows=cases.map(function(c){
+        var dcls=c.decision==="安排離境"?"p-gray":(c.decision.indexOf("續聘")>=0&&c.decision.indexOf("評估")<0?"p-ok":"p-warn");
+        return '<tr>'+
+          '<td class="name"><span class="flag">'+flag(c.nat)+'</span>'+esc(c.n)+'</td>'+
+          '<td>'+esc(c.exp)+'</td>'+
+          '<td>'+esc(STAGES[c.stage])+'</td>'+
+          '<td style="min-width:130px"><div class="bar"><i style="width:'+Math.round((c.stage+1)/STAGES.length*100)+'%"></i></div></td>'+
+          '<td><span class="pill '+dcls+'">'+esc(c.decision)+'</span></td>'+
+        '</tr>';
+      }).join("");
+      var tl=STAGES.map(function(s,i){
+        var done=i<2;
+        return '<div class="tl-item '+(done?"done":"")+'"><div class="t">'+esc(s)+'</div>'+
+          '<div class="d">'+["新進到職登錄護照與國籍","期滿前 60 日評估表現","主管與移工雙向確認意願","向勞動部送件展延聘僱許可","更新名冊並封存文件"][i]+'</div></div>';
+      }).join("");
+      return el(
+        head("期滿續聘與離境","account_tree","期滿前評估續聘或安排離境，完成媒合或機票與離境通報並歸檔。")+
+        '<div class="grid g-kpi" style="margin-bottom:14px">'+
+          kpi("how_to_reg","23","本季期滿人數","warn","已全數啟動")+
+          kpi("thumb_up","18","確認續聘","up","續聘率 78%")+
+          kpi("flight_takeoff","5","安排離境","warn","含 2 名轉出")+
+          kpi("schedule","32","平均展延工時","up","-11 小時/件")+
+        '</div>'+
+        '<div class="grid g-side">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">list_alt</span>期滿案件追蹤</h3>'+
+            '<div class="tbl-wrap"><table><thead><tr><th>移工</th><th>期滿日</th><th>目前階段</th><th>進度</th><th>決策</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+            '<h3 style="margin-top:18px"><span class="material-symbols-outlined">insights</span>近 6 季續聘率</h3>'+
+            '<div id="c5line" class="chart sm"></div>'+
+          '</div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">timeline</span>續聘作業流程</h3><div class="tl">'+tl+'</div></div>'+
+        '</div>'
+      );
+    }
+    function draw5(){
+      mk("c5line",{
+        grid:{left:8,right:16,top:20,bottom:22,containLabel:true},
+        tooltip:{trigger:"axis",valueFormatter:function(v){return v+"%";}},
+        xAxis:{type:"category",boundaryGap:false,data:["24Q3","24Q4","25Q1","25Q2","25Q3","25Q4"],axisLabel:{fontSize:11}},
+        yAxis:{type:"value",min:50,max:100,splitLine:{lineStyle:{color:"#efece7"}},axisLabel:{fontSize:11,formatter:"{value}%"}},
+        series:[{type:"line",smooth:true,data:[68,71,74,72,76,78],
+          lineStyle:{color:accent,width:3},itemStyle:{color:accent},symbolSize:7,
+          areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:"rgba(180,83,9,.22)"},{offset:1,color:"rgba(180,83,9,0)"}])}}]
+      });
+    }
+
+    // ---------- shared builders ----------
+    function head(title,ico,desc){
+      return '<div class="screen-head">'+
+        '<span class="eyebrow"><span class="material-symbols-outlined" style="font-size:15px">'+ico+'</span>移工管理模組</span>'+
+        '<h1>'+esc(title)+'</h1><p>'+esc(desc)+'</p></div>';
+    }
+    function kpi(ico,val,lbl,dir,delta){
+      var dc=dir==="up"?"up":(dir==="down"?"down":"warn");
+      var di=dir==="up"?"trending_up":(dir==="down"?"trending_down":"info");
+      return '<div class="card kpi"><div class="ico"><span class="material-symbols-outlined">'+ico+'</span></div>'+
+        '<div class="val">'+esc(val)+'</div><div class="lbl">'+esc(lbl)+'</div>'+
+        '<div class="delta '+dc+'"><span class="material-symbols-outlined">'+di+'</span>'+esc(delta)+'</div></div>';
+    }
+    function mini(v,l){ return '<div class="m"><div class="v">'+esc(v)+'</div><div class="l">'+esc(l)+'</div></div>'; }
+
+    var SCREENS=[
+      {build:screen0,draw:draw0},
+      {build:screen1,draw:draw1},
+      {build:screen2,draw:draw2},
+      {build:screen3,draw:draw3},
+      {build:screen4,draw:draw4},
+      {build:screen5,draw:draw5}
+    ];
+
+    // ---------- nav ----------
+    var navEl=document.getElementById("nav");
+    NAV.forEach(function(n){
+      var b=document.createElement("button");
+      b.setAttribute("data-i",n.i);
+      b.innerHTML='<span class="material-symbols-outlined">'+n.ico+'</span><span class="txt">'+n.label+'</span>';
+      b.addEventListener("click",function(){ location.hash="v"+n.i; });
+      navEl.appendChild(b);
+    });
+
+    function show(i){
+      var app=document.getElementById("app");
+      disposeAll();
+      var s=SCREENS[i]||SCREENS[0];
+      app.innerHTML="";
+      app.appendChild(s.build());
+      var btns=document.querySelectorAll("[data-i]");
+      for(var k=0;k<btns.length;k++){
+        btns[k].classList.toggle("active", (+btns[k].getAttribute("data-i"))===i);
+      }
+      void app.offsetHeight;
+      try{ s.draw(); }catch(e){}
+    }
+    window.addEventListener("resize",function(){
+      for(var k in charts){ try{ charts[k].resize(); }catch(e){} }
+    });
+
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+    window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>
