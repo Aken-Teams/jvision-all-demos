@@ -134,6 +134,7 @@
     <div class="max-w-6xl mx-auto px-6 py-5 text-center text-sm text-muted">© 2026 JVision</div>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
   <script src="./agents.generated.js"></script>
   <script src="./agents.js"></script>
   <script src="./agents-missions.js"></script>
@@ -145,30 +146,27 @@
     var q = sp.get("q");
     // 罐頭 demo 模式（?case 且無 ?q）→ 完全交給 agents-missions.js，本 live 腳本不介入
     var isCanned = sp.get("case") !== null && q === null;
+    var show = function (sel, on) { var e = $(sel); if (e) e.style.display = on ? "" : "none"; };
     if (isCanned) {
-      if ($("#liveAsk")) $("#liveAsk").hidden = true;
-      if ($("#cannedAsk")) $("#cannedAsk").hidden = false;
-      if ($("#cannedStats")) $("#cannedStats").hidden = false;
-      if ($("#caseSwitcher")) $("#caseSwitcher").hidden = false;
+      show("#liveAsk", false); show("#cannedAsk", true); show("#cannedStats", true); show("#caseSwitcher", true);
       return; // 不清對話、不動 iframe，讓罐頭 demo 正常播放
     }
-    // 即時模式：拿掉選擇情境、統計、重新播放
-    if ($("#cannedAsk")) $("#cannedAsk").hidden = true;
-    if ($("#cannedStats")) $("#cannedStats").hidden = true;
-    if ($("#caseSwitcher")) $("#caseSwitcher").hidden = true;
-    if ($("#liveAsk")) $("#liveAsk").hidden = false;
+    // 即時模式：拿掉選擇情境、統計、重新播放（用 display，因為容器是 flex，.hidden 會被蓋過）
+    show("#cannedAsk", false); show("#cannedStats", false); show("#caseSwitcher", false); show("#liveAsk", true);
     ["#logFeed", "#doneList", "#runAgents", "#summaryList"].forEach(function (s) { if ($(s)) $(s).innerHTML = ""; });
     if ($("#missCode")) $("#missCode").textContent = "MISSION CONTROL · 即時協作";
     var ifr = $("#resultFrame"); if (ifr) ifr.style.display = "none";
     function go() {
       var v = ($("#missInput").value || "").trim();
-      if (!v || !window.JVMission) return;
+      if (!v || !window.JVMission || window.JVMission.busy()) return;
       window.JVMission.run(v, "task");
     }
     if ($("#missRun")) $("#missRun").addEventListener("click", go);
     if ($("#missInput")) $("#missInput").addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
     if (q) {
       $("#missInput").value = q;
+      // 只在「從 /agents 帶 q 進來」時自動跑一次；跑完把 q 從網址拿掉 → 刷新不會重跑、不浪費 token
+      try { history.replaceState(null, "", location.pathname); } catch (e) {}
       var tries = 0;
       (function auto() {
         if (window.JVMission) window.JVMission.run(q, "task");

@@ -11,7 +11,23 @@
   var state = { mode: "task", running: false, total: 0, done: 0, bubbles: {} };
   (function injectCss() {
     var s = document.createElement("style");
-    s.textContent = "@keyframes jvb{0%,100%{opacity:.3}50%{opacity:1}}@keyframes jvspin{to{transform:rotate(360deg)}}@keyframes jvfade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}#liveResult h3{font-size:14px;font-weight:800;margin:0 0 8px}#liveResult table{width:100%;border-collapse:collapse;font-size:12.5px}#liveResult td,#liveResult th{border:1px solid #e2e8f0;padding:5px 8px;text-align:left}";
+    s.textContent = [
+      "@keyframes jvb{0%,100%{opacity:.3}50%{opacity:1}}@keyframes jvspin{to{transform:rotate(360deg)}}@keyframes jvfade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}",
+      // ── 結果畫面設計系統（比照 demo：卡片 / KPI / 圖表 / 表格 / 提示；RWD）──
+      "#liveResult .jv-h{font-size:15px;font-weight:800;color:#0f172a;margin:0 0 10px;display:flex;align-items:center;gap:6px}",
+      "#liveResult .jv-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}",
+      "#liveResult .jv-kpi{background:#f8fafc;border:1px solid #e8eef5;border-radius:14px;padding:14px}",
+      "#liveResult .jv-kpi .v{font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-.5px;line-height:1.1}",
+      "#liveResult .jv-kpi .l{font-size:12px;color:#64748b;font-weight:600;margin-top:4px}",
+      "#liveResult .jv-chart{width:100%;height:230px;margin:6px 0 14px}",
+      "#liveResult table.jv-table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0 14px}",
+      "#liveResult .jv-table th{background:#f4f8fb;color:#64748b;font-size:11.5px;font-weight:700;text-align:left;padding:8px 10px;border-bottom:1px solid #e2e8f0}",
+      "#liveResult .jv-table td{padding:8px 10px;border-bottom:1px solid #eef2f7;color:#334155}",
+      "#liveResult .jv-note{background:#f5f8ff;border:1px solid #dbe6f5;border-left:3px solid #2563eb;border-radius:10px;padding:10px 12px;font-size:13px;color:#334155;line-height:1.7}",
+      "#liveResult .jv-note a{color:#2563eb;text-decoration:underline;word-break:break-all}",
+      "#liveResult .jvsec{background:#fff;border:1px solid #e6ebf2;border-radius:16px;padding:16px;box-shadow:0 1px 2px rgba(15,23,42,.04)}",
+      "@media(max-width:520px){#liveResult .jv-kpis{grid-template-columns:repeat(2,1fr)}}"
+    ].join("");
     document.head.appendChild(s);
   })();
 
@@ -135,16 +151,45 @@
       '<div id="lrWait" style="color:#94a3b8;font-size:12px;display:flex;align-items:center;gap:6px;padding:8px 0"><span style="width:12px;height:12px;border:2px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;display:inline-block;animation:jvspin .9s linear infinite"></span> Agent 陸續產出區塊中…</div>';
   }
   function sanitize(html) { return String(html || "").replace(/<(script|style|iframe)[\s\S]*?<\/\1>/gi, ""); }
+  function renderCharts(root) {
+    if (!window.echarts) return;
+    root.querySelectorAll(".jv-chart").forEach(function (el) {
+      if (el.getAttribute("data-done")) return;
+      el.setAttribute("data-done", "1");
+      var type = el.getAttribute("data-type") || "bar";
+      var cats = (el.getAttribute("data-cats") || "").split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+      var series = (el.getAttribute("data-series") || "").split(",").map(function (s) { return parseFloat(s); }).filter(function (n) { return !isNaN(n); });
+      if (!series.length) { el.style.display = "none"; return; }
+      var COL = ["#2563eb", "#38bdf8", "#7c3aed", "#0d9488", "#f59e0b", "#e11d48"];
+      var c = window.echarts.init(el);
+      var opt;
+      if (type === "doughnut" || type === "pie") {
+        opt = { tooltip: { trigger: "item" }, legend: { bottom: 0, textStyle: { fontSize: 11 } },
+          series: [{ type: "pie", radius: ["45%", "72%"], center: ["50%", "44%"], label: { fontSize: 11 },
+            data: cats.map(function (ct, i) { return { name: ct, value: series[i], itemStyle: { color: COL[i % COL.length] } }; }) }] };
+      } else if (type === "line") {
+        opt = { grid: { left: 42, right: 14, top: 20, bottom: 26 }, tooltip: { trigger: "axis" },
+          xAxis: { type: "category", data: cats, axisLabel: { fontSize: 11 } }, yAxis: { type: "value" },
+          series: [{ type: "line", smooth: true, data: series, lineStyle: { width: 2.5, color: "#2563eb" }, itemStyle: { color: "#2563eb" }, areaStyle: { color: "rgba(37,99,235,.1)" } }] };
+      } else {
+        opt = { grid: { left: 42, right: 14, top: 20, bottom: 26 }, tooltip: { trigger: "axis" },
+          xAxis: { type: "category", data: cats, axisLabel: { fontSize: 11 } }, yAxis: { type: "value" },
+          series: [{ type: "bar", barMaxWidth: 40, data: series.map(function (v, i) { return { value: v, itemStyle: { color: COL[i % COL.length], borderRadius: [5, 5, 0, 0] } }; }) }] };
+      }
+      c.setOption(opt);
+    });
+  }
   function renderSection(e) {
     var host = $("#lrSections") || resultHost();
     var col = (DM[e.dataMode] || ["", "#64748b"])[1];
     var wrap = document.createElement("div");
-    wrap.style.cssText = "animation:jvfade .5s ease;border-left:3px solid " + col + ";border-radius:12px;overflow:hidden;margin-bottom:12px";
-    wrap.innerHTML = '<div style="font-size:11px;font-weight:700;color:' + col + ';padding:2px 2px 6px">◆ ' + esc(e.name) + ' · ' + esc(e.title || "") + '</div>' + sanitize(e.html);
+    wrap.style.cssText = "animation:jvfade .5s ease;margin-bottom:14px";
+    wrap.innerHTML = '<div style="font-size:11px;font-weight:800;color:' + col + ';margin:0 0 6px">◆ ' + esc(e.name) + ' · ' + esc(e.title || "") + '</div>' +
+      '<div class="jvsec" style="border-left:3px solid ' + col + '">' + sanitize(e.html) + '</div>';
     host.appendChild(wrap);
-    // 游標掃過的感覺：短暫高亮
+    renderCharts(wrap);
     wrap.style.boxShadow = "0 0 0 2px " + col + "33";
-    setTimeout(function () { wrap.style.transition = "box-shadow .6s"; wrap.style.boxShadow = "none"; }, 350);
+    setTimeout(function () { wrap.style.transition = "box-shadow .6s"; wrap.style.boxShadow = "none"; }, 400);
     wrap.scrollIntoView({ behavior: "smooth", block: "end" });
   }
 
@@ -175,13 +220,18 @@
     else if (t === "result_start") resultStart(e.title, e.sub);
     else if (t === "section") renderSection(e);
     else if (t === "html") { var h = resultHost(); h.innerHTML = sanitize(e.html); }
-    else if (t === "final") { narr("完成"); state.done = state.total + 1; progress(); var w = $("#lrWait"); if (w) w.remove(); var lv = $("#frameLive"); if (lv) lv.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-success"></span> 已完成'; if ($("#resultTitle")) $("#resultTitle").textContent = ($("#resultTitle").textContent || "").replace("（產生中）", ""); state.running = false; }
-    else if (t === "error") { narr("發生問題"); addBubble("_err", "系統", "", "reasoning", '<span class="text-danger">' + esc(e.message) + '</span>'); state.running = false; }
+    else if (t === "final") { narr("完成"); state.done = state.total + 1; progress(); var w = $("#lrWait"); if (w) w.remove(); var lv = $("#frameLive"); if (lv) lv.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-success"></span> 已完成'; if ($("#resultTitle")) $("#resultTitle").textContent = ($("#resultTitle").textContent || "").replace("（產生中）", ""); setBusy(false); }
+    else if (t === "error") { narr("發生問題"); addBubble("_err", "系統", "", "reasoning", '<span class="text-danger">' + esc(e.message) + '</span>'); setBusy(false); }
   }
 
+  function setBusy(on) {
+    state.running = on;
+    var btn = $("#missRun");
+    if (btn) { btn.disabled = on; btn.style.opacity = on ? ".5" : ""; btn.style.pointerEvents = on ? "none" : ""; btn.innerHTML = on ? '<span class="material-symbols-outlined text-[18px]" style="animation:jvspin 1s linear infinite">progress_activity</span> 執行中' : '<span class="material-symbols-outlined text-[18px]">bolt</span> 啟動'; }
+  }
   async function runMission(question, mode) {
     if (state.running) return;
-    state.running = true; state.mode = mode || "task"; state.bubbles = {}; state.done = 0; state.total = 0;
+    setBusy(true); state.mode = mode || "task"; state.bubbles = {}; state.done = 0; state.total = 0;
     if (feed()) feed().innerHTML = ""; if ($("#doneList")) $("#doneList").innerHTML = "";
     if ($("#demoQuestion")) $("#demoQuestion").textContent = question;
     if ($("#resultTitle")) $("#resultTitle").textContent = "結果畫面（產生中）";
@@ -202,8 +252,8 @@
     } catch (err) {
       handle({ type: "error", message: "無法連線後端（請確認 python app.py 已啟動於 :4610）" });
     }
-    state.running = false;
+    setBusy(false);
   }
 
-  window.JVMission = { run: runMission, setMode: function (m) { state.mode = m; } };
+  window.JVMission = { run: runMission, setMode: function (m) { state.mode = m; }, busy: function () { return state.running; } };
 })();
