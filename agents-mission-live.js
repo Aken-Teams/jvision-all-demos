@@ -9,6 +9,15 @@
   var DM = { "internal-sim": ["內部系統", "#2563eb"], "external-real": ["外部查證", "#0d9488"], "reasoning": ["推理彙整", "#7c3aed"] };
 
   var state = { mode: "task", running: false, total: 0, done: 0, bubbles: {} };
+  // 報告 iframe 內點選區塊 → 回報父視窗，顯示「已選取區塊 N」
+  window.addEventListener("message", function (ev) {
+    var d = ev && ev.data; if (!d || !d.jvrx) return;
+    var el = document.querySelector("#resultDesc"); if (!el) return;
+    if (d.jvrx === "ready") el.textContent = "報告完成 · 可點選任一區塊標記（hover 會出現虛線框）。";
+    else if (d.jvrx === "select") el.textContent = d.selected
+      ? ("已選取第 " + d.index + " / " + d.total + " 個區塊（再點一次取消、點其他區塊切換）")
+      : "點選報告中任一區塊可標記；再點一次取消。";
+  });
   var DESIGN_CSS = "";
   (function injectCss() {
     var s = document.createElement("style");
@@ -386,13 +395,64 @@
     }
   }
 
+  // pencils.dev 式「區塊逐一拼出 + 掃描光 + 可點選」——純 HTML/CSS/JS，注入到最終頁面
+  var REVEAL_SNIPPET = [
+    '<style id="jvrx-css">',
+    '.jvrx-hide{opacity:0!important;transform:translateY(16px) scale(.99);}',
+    '.jvrx-in{opacity:1!important;transform:none!important;transition:opacity .55s cubic-bezier(.2,.7,.2,1),transform .55s cubic-bezier(.2,.7,.2,1);}',
+    '.jvrx-scan{position:relative;}',
+    '.jvrx-scan::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:50;',
+    'background:linear-gradient(180deg,transparent 0%,rgba(110,168,255,.28) 45%,rgba(110,168,255,.28) 55%,transparent 100%);',
+    'transform:translateY(-100%);animation:jvrxScan .75s ease-out forwards;border-radius:inherit;}',
+    '@keyframes jvrxScan{to{transform:translateY(100%);}}',
+    '[data-jvrx]{scroll-margin-top:12px;}',
+    '[data-jvrx]:hover{outline:1.5px dashed rgba(99,102,241,.55);outline-offset:3px;cursor:pointer;}',
+    '.jvrx-sel{outline:2px solid #6366f1!important;outline-offset:3px;}',
+    '#jvrx-sweep{position:fixed;left:0;right:0;height:140px;pointer-events:none;z-index:99999;',
+    'background:linear-gradient(180deg,transparent,rgba(99,102,241,.16),rgba(99,102,241,.03),transparent);transform:translateY(-160px);}',
+    '</style>',
+    '<script id="jvrx-js">(function(){',
+    'function pick(){var b=document.body;if(!b)return[];',
+    'var f=function(n){return n.nodeType===1&&!/^(SCRIPT|STYLE|LINK|BR)$/.test(n.tagName);};',
+    'var k=[].filter.call(b.children,f);',
+    'if(k.length<=1&&k[0]){var inner=[].filter.call(k[0].children,f);if(inner.length>=2)k=inner;}',
+    'if(k.length<=1&&k[0]){var i2=[].filter.call(k[0].children,f);if(i2.length>=2)k=i2;}',
+    'return k;}',
+    'function run(){var k=pick();if(!k.length)return;',
+    'k.forEach(function(el,i){el.setAttribute("data-jvrx",i);el.classList.add("jvrx-hide");',
+    'el.addEventListener("click",function(ev){ev.stopPropagation();var was=el.classList.contains("jvrx-sel");',
+    'k.forEach(function(x){x.classList.remove("jvrx-sel");});if(!was)el.classList.add("jvrx-sel");',
+    'try{parent.postMessage({jvrx:"select",index:i+1,total:k.length,selected:!was},"*");}catch(e){}});});',
+    'var i=0;(function step(){if(i>=k.length){sweep();return;}var el=k[i++];',
+    'el.classList.remove("jvrx-hide");el.classList.add("jvrx-in","jvrx-scan");',
+    'setTimeout(function(){el.classList.remove("jvrx-scan");},760);',
+    'try{window.dispatchEvent(new Event("resize"));}catch(e){}',
+    'setTimeout(step,150);})();}',
+    'function sweep(){try{window.dispatchEvent(new Event("resize"));}catch(e){}',
+    'var s=document.createElement("div");s.id="jvrx-sweep";document.body.appendChild(s);',
+    'var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight),t0=null;',
+    'function a(ts){if(t0===null)t0=ts;var p=(ts-t0)/950;s.style.transform="translateY("+(-160+p*(h+200))+"px)";',
+    'if(p<1)requestAnimationFrame(a);else s.remove();}requestAnimationFrame(a);',
+    'try{parent.postMessage({jvrx:"ready"},"*");}catch(e){}}',
+    'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){setTimeout(run,50);});',
+    'else setTimeout(run,50);',
+    '})();<\/script>'
+  ].join("");
+
+  function injectReveal(html) {
+    if (!html || html.indexOf("jvrx-js") !== -1) return html;
+    var i = html.toLowerCase().lastIndexOf("</body>");
+    if (i === -1) i = html.toLowerCase().lastIndexOf("</html>");
+    return i === -1 ? html + REVEAL_SNIPPET : html.slice(0, i) + REVEAL_SNIPPET + html.slice(i);
+  }
+
   function renderPage(title, sub, html) {
     if ($("#resultTitle")) $("#resultTitle").textContent = title || "報告";
     if ($("#resultKind")) $("#resultKind").textContent = "AI 產出";
     var lr = $("#liveResult"); if (lr) lr.style.display = "none";
     var f = $("#resultFrame");
-    if (f) { f.style.display = ""; f.style.width = "100%"; f.style.height = "620px"; f.style.border = "0"; f.removeAttribute("src"); f.setAttribute("srcdoc", html); }
-    state.dash = { title: title, sub: sub, pageHtml: html };
+    if (f) { f.style.display = ""; f.style.width = "100%"; f.style.height = "620px"; f.style.border = "0"; f.removeAttribute("src"); f.setAttribute("srcdoc", injectReveal(html)); }
+    state.dash = { title: title, sub: sub, pageHtml: html };  // 匯出用原始 html（不含揭示動畫）
   }
 
   function scrollToResult() {
