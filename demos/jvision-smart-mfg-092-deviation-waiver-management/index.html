@@ -1,18 +1,521 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Deviation/Waiver Management（偏差放行管理）｜Jvision 系統 Demo</title>
-  <meta name="description" content="從異常到改善的品質閉環與追溯稽核" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>偏差放行管理 Deviation/Waiver Management｜Jvision Demo</title>
+<meta name="description" content="偏差／讓步放行的申請、風險評估、跨部門會簽、核准放行與期限追蹤閉環" />
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --accent:#be185d;--accent2:#fb7185;
+  --bg:#0d0b12;--panel:#171320;--panel2:#1f1a2b;--line:#2c2438;
+  --txt:#f2ecf6;--muted:#a99cba;--dim:#7d7090;
+  --good:#34d399;--warn:#fbbf24;--bad:#f87171;--info:#60a5fa;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:"Inter","Noto Sans TC",sans-serif;
+  background:radial-gradient(1200px 600px at 80% -10%,#2a1024 0%,transparent 60%),var(--bg);
+  color:var(--txt);min-height:100vh;-webkit-font-smoothing:antialiased;
+}
+.material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;font-size:20px}
+a{color:inherit;text-decoration:none}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:14px;
+  padding:10px 18px;background:rgba(13,11,18,.92);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;flex:0 0 auto}
+.brand b{font-size:15px;letter-spacing:.3px}
+.brand span{display:block;font-size:11px;color:var(--muted)}
+.navbtns{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;min-width:0}
+.nb{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:10px;
+  border:1px solid var(--line);background:var(--panel);color:var(--muted);
+  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;transition:.15s}
+.nb:hover{border-color:var(--accent2);color:var(--txt)}
+.nb.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
+.nb .material-symbols-outlined{font-size:18px}
+
+.wrap{max-width:1360px;margin:0 auto;padding:20px 18px 60px}
+.head{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:18px;min-width:0}
+.head h1{margin:0;font-size:22px;font-weight:800}
+.head p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.pill{margin-left:auto;display:inline-flex;align-items:center;gap:8px;padding:7px 13px;border-radius:999px;
+  background:var(--panel);border:1px solid var(--line);font-size:12px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 4px rgba(52,211,153,.15)}
+
+/* grid helpers */
+.grid{display:grid;gap:14px;min-width:0}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g21{grid-template-columns:2fr 1fr}
+.g12{grid-template-columns:1fr 2fr}
+.g5{grid-template-columns:repeat(5,1fr)}
+.grid>*{min-width:0}
+
+.card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:14px;padding:16px;min-width:0}
+.card h3{margin:0 0 12px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
+.card h3 .material-symbols-outlined{color:var(--accent2);font-size:19px}
+.sub{font-size:12px;color:var(--dim);font-weight:500}
+
+/* kpi */
+.kpi{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:14px;padding:15px 16px;position:relative;overflow:hidden;min-width:0}
+.kpi::after{content:"";position:absolute;right:-20px;top:-20px;width:80px;height:80px;border-radius:50%;
+  background:radial-gradient(circle,rgba(190,24,93,.25),transparent 70%)}
+.kpi .lab{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.kpi .val{font-size:27px;font-weight:800;margin-top:6px;letter-spacing:.5px}
+.kpi .val small{font-size:13px;font-weight:600;color:var(--muted)}
+.kpi .delta{font-size:12px;margin-top:4px;font-weight:600}
+.up{color:var(--good)}.down{color:var(--bad)}
+.kpi .material-symbols-outlined{font-size:16px;color:var(--accent2)}
+
+/* chart */
+.cwrap{position:relative;width:100%;overflow:hidden}
+
+/* table */
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--dim);font-weight:600;font-size:12px;text-transform:none;position:sticky;top:0}
+tbody tr:hover{background:rgba(190,24,93,.06)}
+td b{font-weight:700}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700}
+.t-good{background:rgba(52,211,153,.15);color:var(--good)}
+.t-warn{background:rgba(251,191,36,.15);color:var(--warn)}
+.t-bad{background:rgba(248,113,113,.15);color:var(--bad)}
+.t-info{background:rgba(96,165,250,.15);color:var(--info)}
+.t-acc{background:rgba(251,113,133,.16);color:var(--accent2)}
+.bar{height:6px;border-radius:4px;background:var(--line);overflow:hidden;min-width:60px}
+.bar > i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+
+/* board */
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;min-width:0}
+.board>*{min-width:0}
+.col{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0}
+.col h4{margin:0 0 10px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+.col h4 em{font-style:normal;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-size:11px}
+.tk{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-left:3px solid var(--accent2);
+  border-radius:9px;padding:9px 10px;margin-bottom:9px}
+.tk .id{font-size:11px;color:var(--dim);font-weight:700}
+.tk .ti{font-size:13px;font-weight:600;margin:3px 0}
+.tk .mt{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;margin-top:6px}
+
+/* timeline */
+.tl{position:relative;padding-left:22px}
+.tl::before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--line)}
+.tl .it{position:relative;margin-bottom:16px}
+.tl .it::before{content:"";position:absolute;left:-19px;top:3px;width:11px;height:11px;border-radius:50%;
+  background:var(--accent);box-shadow:0 0 0 4px rgba(190,24,93,.2)}
+.tl .tm{font-size:11px;color:var(--dim);font-weight:700}
+.tl .tt{font-size:13px;font-weight:600;margin:2px 0}
+.tl .td{font-size:12px;color:var(--muted)}
+
+/* misc */
+.rows{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:none}
+.row .l{display:flex;align-items:center;gap:10px;min-width:0}
+.ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex:0 0 auto;
+  background:rgba(190,24,93,.15);color:var(--accent2)}
+.mini{font-size:12px;color:var(--muted)}
+.gauge{display:flex;flex-direction:column;align-items:center;gap:6px}
+.big{font-size:34px;font-weight:900;background:linear-gradient(135deg,var(--accent2),var(--accent));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block}
+.note{font-size:12px;color:var(--dim);margin-top:10px;line-height:1.6}
+.matrix{display:grid;grid-template-columns:auto repeat(5,1fr);gap:5px;font-size:11px}
+.matrix .mh{color:var(--dim);text-align:center;padding:4px}
+.matrix .rl{color:var(--dim);display:flex;align-items:center;justify-content:flex-end;padding-right:6px}
+.mc{border-radius:6px;text-align:center;padding:10px 0;font-weight:700;color:#0d0b12}
+.stepbar{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.stepbar .s{flex:1;min-width:70px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center}
+.stepbar .s.done{border-color:var(--good);color:var(--good)}
+.stepbar .s.cur{border-color:var(--accent2);color:var(--accent2);background:rgba(190,24,93,.12)}
+.stepbar .s b{display:block;font-size:12px}
+.stepbar .s span{font-size:10px;color:var(--dim)}
+
+@media(max-width:820px){
+  .g4,.g3,.g2,.g21,.g12,.g5{grid-template-columns:1fr}
+  .board{grid-template-columns:1fr 1fr}
+}
+@media(max-width:560px){
+  .board{grid-template-columns:1fr}
+  .nb span.lb{display:none}
+  .nb{padding:8px 10px}
+  .head h1{font-size:19px}
+}
+</style>
 </head>
 <body>
+<div class="nav">
+  <div class="brand">
+    <div class="logo"><span class="material-symbols-outlined">gavel</span></div>
+    <div><b>偏差放行管理</b><span>Deviation / Waiver Management</span></div>
+  </div>
+  <div class="navbtns" id="navbtns"></div>
+</div>
+<div class="wrap">
+  <div class="head" id="head"></div>
   <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+</div>
+
+<script>
+"use strict";
+var charts=[];
+function destroyCharts(){for(var i=0;i<charts.length;i++){try{charts[i].destroy();}catch(e){}}charts=[];}
+function mk(id,cfg){
+  var el=document.getElementById(id);
+  if(!el)return;
+  var c=new Chart(el,cfg);
+  charts.push(c);
+  return c;
+}
+var AX="#a99cba", GRID="rgba(255,255,255,.06)";
+Chart.defaults.color=AX;
+Chart.defaults.font.family="Inter, Noto Sans TC, sans-serif";
+
+var NAV=[
+  {i:0,ic:"description",t:"偏差申請登錄"},
+  {i:1,ic:"science",t:"風險評估"},
+  {i:2,ic:"account_tree",t:"跨部門會簽"},
+  {i:3,ic:"gavel",t:"核准放行"},
+  {i:4,ic:"calendar_month",t:"期限追蹤"},
+  {i:5,ic:"history",t:"追溯稽核"}
+];
+var HEAD=[
+  {t:"偏差申請登錄",d:"製程工程師登錄偏差／讓步放行申請，附批號、規格差異與暫行對策"},
+  {t:"風險評估分級",d:"依嚴重度、發生度與可偵測度量化風險，判定隔離範圍與放行條件"},
+  {t:"跨部門會簽",d:"品保、研發、製程依關卡順序會簽，補件退回或加註放行條件"},
+  {t:"核准放行決議",d:"彙整會簽結論做出核准 / 有條件放行 / 駁回，電子簽章生效"},
+  {t:"期限追蹤",d:"追蹤放行有效期與逾期未關閉件，到期前提醒關案"},
+  {t:"追溯稽核",d:"放行批號追溯、稽核軌跡與作業紀錄完整留存"}
+];
+
+function navRender(cur){
+  var h="";
+  for(var k=0;k<NAV.length;k++){
+    var n=NAV[k];
+    h+='<button class="nb'+(n.i===cur?' on':'')+'" data-i="'+n.i+'"><span class="material-symbols-outlined">'+n.ic+'</span><span class="lb">'+n.t+'</span></button>';
+  }
+  document.getElementById("navbtns").innerHTML=h;
+  var hd=HEAD[cur];
+  document.getElementById("head").innerHTML='<div style="min-width:0"><h1>'+hd.t+'</h1><p>'+hd.d+'</p></div><div class="pill"><span class="dot"></span>即時連線 QMS · NCR · CAPA</div>';
+  var bs=document.querySelectorAll("[data-i]");
+  for(var j=0;j<bs.length;j++){
+    bs[j].addEventListener("click",function(){show(+this.getAttribute("data-i"));try{history.replaceState(null,"","#v"+this.getAttribute("data-i"));}catch(e){}try{window.scrollTo(0,0);}catch(e){}});
+  }
+}
+
+/* ---------- helpers ---------- */
+function kpi(lab,ic,val,unit,delta,dir){
+  return '<div class="kpi"><div class="lab"><span class="material-symbols-outlined">'+ic+'</span>'+lab+'</div>'+
+    '<div class="val">'+val+(unit?' <small>'+unit+'</small>':'')+'</div>'+
+    (delta?'<div class="delta '+(dir||'up')+'">'+delta+'</div>':'')+'</div>';
+}
+function tagFor(s){
+  var m={'待評估':'t-warn','待會簽':'t-info','待核准':'t-acc','已放行':'t-good','已駁回':'t-bad','逾期':'t-bad','進行中':'t-info','已關閉':'t-good','高':'t-bad','中':'t-warn','低':'t-good'};
+  return '<span class="tag '+(m[s]||'t-info')+'">'+s+'</span>';
+}
+
+/* ================= SCREEN 0 : 偏差申請登錄 ================= */
+function s0(){
+  var apps=[
+    {id:"DV-2408-117",part:"轉軸外殼 A32",lot:"L240811-07",type:"尺寸超差",dev:"外徑 +0.06mm",qty:1200,by:"林昱誠",st:"待評估"},
+    {id:"DV-2408-116",part:"密封墊圈 R7",lot:"L240810-22",type:"外觀瑕疵",dev:"表面刮痕 3處",qty:540,by:"陳品豪",st:"待會簽"},
+    {id:"DV-2408-115",part:"控制板 M9",lot:"L240810-05",type:"材料替代",dev:"電容改料號",qty:320,by:"黃雅琪",st:"待核准"},
+    {id:"DV-2408-114",part:"齒輪組 G12",lot:"L240809-18",type:"製程偏離",dev:"熱處理溫差",qty:880,by:"李承翰",st:"已放行"},
+    {id:"DV-2408-113",part:"外殼上蓋 C4",lot:"L240809-03",type:"尺寸超差",dev:"孔位偏移 0.15",qty:210,by:"林昱誠",st:"已駁回"}
+  ];
+  var rows="";
+  for(var i=0;i<apps.length;i++){var a=apps[i];
+    rows+='<tr><td><b>'+a.id+'</b></td><td>'+a.part+'</td><td>'+a.lot+'</td><td>'+a.type+'</td><td style="color:var(--accent2);font-weight:600">'+a.dev+'</td><td>'+a.qty+'</td><td>'+a.by+'</td><td>'+tagFor(a.st)+'</td></tr>';
+  }
+  var typs=[
+    {n:"尺寸超差",c:38},{n:"外觀瑕疵",c:24},{n:"材料替代",c:16},{n:"製程偏離",c:14},{n:"文件偏差",c:8}
+  ];
+  var tr="";
+  for(var j=0;j<typs.length;j++){var t=typs[j];
+    tr+='<div class="row"><div class="l"><span class="ic"><span class="material-symbols-outlined">label</span></span><div><div style="font-size:13px;font-weight:600">'+t.n+'</div><div class="mini">占比 '+t.c+'%</div></div></div><div style="flex:1;max-width:160px"><div class="bar"><i style="width:'+t.c+'%"></i></div></div></div>';
+  }
+  return '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("本月新登錄","note_add","64","件","較上月 +12","up")+
+    kpi("待評估","pending_actions","9","件","需 24h 內分派","down")+
+    kpi("平均登錄工時","timer","6.4","分/件","-38%","up")+
+    kpi("附件完整率","attach_file","96","%","+7pt","up")+
+    '</div>'+
+    '<div class="grid g21">'+
+      '<div class="card"><h3><span class="material-symbols-outlined">description</span>偏差申請清單 <span class="sub">最新登錄案件</span></h3>'+
+        '<div class="tbl"><table><thead><tr><th>單號</th><th>品項</th><th>批號</th><th>偏差類別</th><th>規格差異</th><th>數量</th><th>登錄人</th><th>狀態</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+      '<div class="card"><h3><span class="material-symbols-outlined">pie_chart</span>偏差類別分佈</h3>'+
+        '<div class="rows">'+tr+'</div>'+
+        '<div class="note">本月共 128 件，尺寸超差為最大宗，多集中於 CNC 加工站。</div></div>'+
+    '</div>';
+}
+
+/* ================= SCREEN 1 : 風險評估 ================= */
+function s1(){
+  var cells="";
+  var rl=["嚴重 5","高 4","中 3","低 2","輕微 1"];
+  var vals=[[8,12,20,34,45],[15,24,40,58,30],[22,40,62,44,18],[35,55,38,20,10],[48,30,15,8,4]];
+  cells+='<div></div>';
+  for(var c=1;c<=5;c++)cells+='<div class="mh">發生度 '+c+'</div>';
+  for(var r=0;r<5;r++){
+    cells+='<div class="rl">'+rl[r]+'</div>';
+    for(var cc=0;cc<5;cc++){
+      var score=(5-r)*(cc+1);
+      var col=score>=15?'#f87171':score>=8?'#fbbf24':'#34d399';
+      cells+='<div class="mc" style="background:'+col+'">'+vals[r][cc]+'</div>';
+    }
+  }
+  return '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("待評估案件","assignment_late","9","件","","up")+
+    kpi("高風險占比","priority_high","18","%","-5pt","up")+
+    kpi("平均 RPN","calculate","96","分","嚴重×發生×偵測","down")+
+    kpi("需隔離批次","block","4","批","已自動凍結","down")+
+    '</div>'+
+    '<div class="grid g12">'+
+      '<div class="card"><h3><span class="material-symbols-outlined">science</span>風險等級分佈</h3>'+
+        '<div class="cwrap" style="height:230px"><canvas id="c1a"></canvas></div>'+
+        '<div class="legend"><span><i class="sw" style="background:#f87171"></i>高風險</span><span><i class="sw" style="background:#fbbf24"></i>中風險</span><span><i class="sw" style="background:#34d399"></i>低風險</span></div></div>'+
+      '<div class="card"><h3><span class="material-symbols-outlined">grid_on</span>嚴重度 × 發生度 風險矩陣 <span class="sub">數字為案件數</span></h3>'+
+        '<div style="overflow-x:auto"><div class="matrix" style="min-width:420px">'+cells+'</div></div>'+
+        '<div class="note">紅區案件必先隔離批次並進入強制會簽；規格超差且影響功能者不得逕行放行。</div></div>'+
+    '</div>'+
+    '<div class="grid g2" style="margin-top:14px">'+
+      '<div class="card"><h3><span class="material-symbols-outlined">radar</span>三維風險評分（近5案）</h3>'+
+        '<div class="cwrap" style="height:250px"><canvas id="c1b"></canvas></div></div>'+
+      '<div class="card"><h3><span class="material-symbols-outlined">bolt</span>影響範圍研判</h3>'+
+        '<div class="rows">'+
+          '<div class="row"><div class="l"><span class="ic"><span class="material-symbols-outlined">verified</span></span><div><div style="font-size:13px;font-weight:600">功能安全</div><div class="mini">是否影響裝配與功能</div></div></div>'+tagFor("高")+'</div>'+
+          '<div class="row"><div class="l"><span class="ic"><span class="material-symbols-outlined">factory</span></span><div><div style="font-size:13px;font-weight:600">後段製程</div><div class="mini">是否可能造成連鎖不良</div></div></div>'+tagFor("中")+'</div>'+
+          '<div class="row"><div class="l"><span class="ic"><span class="material-symbols-outlined">local_shipping</span></span><div><div style="font-size:13px;font-weight:600">客戶端</div><div class="mini">是否涉及已出貨批號</div></div></div>'+tagFor("低")+'</div>'+
+          '<div class="row"><div class="l"><span class="ic"><span class="material-symbols-outlined">gavel</span></span><div><div style="font-size:13px;font-weight:600">法規符合</div><div class="mini">是否影響認證與規範</div></div></div>'+tagFor("中")+'</div>'+
+        '</div></div>'+
+    '</div>';
+}
+
+/* ================= SCREEN 2 : 跨部門會簽 ================= */
+function s2(){
+  var cols=[
+    {t:"待品保審",n:3,items:[
+      {id:"DV-2408-116",ti:"密封墊圈 R7 外觀瑕疵",who:"品保 陳品豪",due:"今日"},
+      {id:"DV-2408-119",ti:"軸承座 B8 尺寸超差",who:"品保 陳品豪",due:"1天"},
+      {id:"DV-2408-121",ti:"連接器 K3 材料替代",who:"品保 王思穎",due:"2天"}
+    ]},
+    {t:"待研發審",n:2,items:[
+      {id:"DV-2408-115",ti:"控制板 M9 電容改料",who:"研發 蔡明宏",due:"今日"},
+      {id:"DV-2408-118",ti:"外殼 C4 熱變形",who:"研發 蔡明宏",due:"3天"}
+    ]},
+    {t:"待製程審",n:2,items:[
+      {id:"DV-2408-120",ti:"齒輪 G12 熱處理偏差",who:"製程 李承翰",due:"1天"},
+      {id:"DV-2408-122",ti:"鑄件 F5 氣孔",who:"製程 郭俊傑",due:"2天"}
+    ]},
+    {t:"會簽完成",n:3,items:[
+      {id:"DV-2408-114",ti:"齒輪組 G12 溫差",who:"全部通過",due:"完成"},
+      {id:"DV-2408-113",ti:"上蓋 C4 孔位",who:"研發退回",due:"完成"},
+      {id:"DV-2408-112",ti:"墊片 R6 厚度",who:"全部通過",due:"完成"}
+    ]}
+  ];
+  var b="";
+  for(var i=0;i<cols.length;i++){var col=cols[i];
+    var it="";
+    for(var j=0;j<col.items.length;j++){var t=col.items[j];
+      it+='<div class="tk"><div class="id">'+t.id+'</div><div class="ti">'+t.ti+'</div><div class="mt"><span>'+t.who+'</span><span>'+t.due+'</span></div></div>';
+    }
+    b+='<div class="col"><h4>'+col.t+'<em>'+col.n+'</em></h4>'+it+'</div>';
+  }
+  return '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("進行中會簽","how_to_reg","10","件","","up")+
+    kpi("平均會簽時效","schedule","1.8","天","目標 ≤2 天","up")+
+    kpi("退回補件率","undo","12","%","-9pt","up")+
+    kpi("逾期會簽","running_with_errors","1","件","已升級通知","down")+
+    '</div>'+
+    '<div class="card" style="margin-bottom:14px"><h3><span class="material-symbols-outlined">account_tree</span>會簽看板 <span class="sub">依關卡順序流轉</span></h3>'+
+      '<div style="overflow-x:auto"><div class="board" style="min-width:0">'+b+'</div></div></div>'+
+    '<div class="grid g2">'+
+      '<div class="card"><h3><span class="material-symbols-outlined">timeline</span>DV-2408-116 會簽軌跡</h3>'+
+        '<div class="tl">'+
+          '<div class="it"><div class="tm">08/10 09:12</div><div class="tt">製程工程師登錄</div><div class="td">陳品豪提交偏差申請與暫行對策</div></div>'+
+          '<div class="it"><div class="tm">08/10 11:40</div><div class="tt">風險評估完成</div><div class="td">RPN 84 分，判定中風險，需會簽</div></div>'+
+          '<div class="it"><div class="tm">08/11 14:20</div><div class="tt">品保會簽中</div><div class="td">加註條件：需全檢並附外觀報告</div></div>'+
+          '<div class="it"><div class="tm">— 待處理</div><div class="tt">研發會簽</div><div class="td">等待材料工程師確認</div></div>'+
+        '</div></div>'+
+      '<div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>各部門待辦負荷</h3>'+
+        '<div class="cwrap" style="height:250px"><canvas id="c2a"></canvas></div></div>'+
+    '</div>';
+}
+
+/* ================= SCREEN 3 : 核准放行 ================= */
+function s3(){
+  var q=[
+    {id:"DV-2408-115",part:"控制板 M9",risk:"中",cond:"限用 3 批，需附替代料證明",by:"品質經理 張維倫"},
+    {id:"DV-2408-120",part:"齒輪 G12",risk:"高",cond:"隔離複驗合格後放行",by:"品質經理 張維倫"},
+    {id:"DV-2408-112",part:"墊片 R6",risk:"低",cond:"無條件放行",by:"品保主管 周雅文"}
+  ];
+  var rows="";
+  for(var i=0;i<q.length;i++){var a=q[i];
+    rows+='<tr><td><b>'+a.id+'</b></td><td>'+a.part+'</td><td>'+tagFor(a.risk)+'</td><td style="white-space:normal">'+a.cond+'</td><td>'+a.by+'</td></tr>';
+  }
+  return '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("待核准","approval","5","件","","up")+
+    kpi("平均核准時效","av_timer","2.6","天","-41% vs 舊制","up")+
+    kpi("有條件放行占比","rule","57","%","","up")+
+    kpi("駁回率","block","11","%","證據不足退回","down")+
+    '</div>'+
+    '<div class="grid g21">'+
+      '<div class="card"><h3><span class="material-symbols-outlined">gavel</span>待核准放行決議</h3>'+
+        '<div class="tbl"><table style="min-width:560px"><thead><tr><th>單號</th><th>品項</th><th>風險</th><th>放行條件</th><th>核決人</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+        '<div class="stepbar"><div class="s done"><b>登錄</b><span>已完成</span></div><div class="s done"><b>評估</b><span>已完成</span></div><div class="s done"><b>會簽</b><span>已完成</span></div><div class="s cur"><b>核准</b><span>進行中</span></div><div class="s"><b>放行</b><span>待簽章</span></div></div></div>'+
+      '<div class="card"><h3><span class="material-symbols-outlined">verified</span>DV-2408-115 核決卡</h3>'+
+        '<div class="gauge"><div class="big">83</div><div class="mini">綜合信心分數 / 100</div></div>'+
+        '<div class="rows" style="margin-top:6px">'+
+          '<div class="row"><span class="mini">風險等級</span>'+tagFor("中")+'</div>'+
+          '<div class="row"><span class="mini">會簽結論</span><b style="font-size:13px">3/3 通過</b></div>'+
+          '<div class="row"><span class="mini">建議決議</span>'+tagFor("已放行")+'</div>'+
+          '<div class="row"><span class="mini">電子簽章</span><b style="font-size:13px;color:var(--good)">就緒</b></div>'+
+        '</div><div class="note">決議規則：改善措施無驗證證據不得關閉；有條件放行須註明限用批數與有效期。</div></div>'+
+    '</div>'+
+    '<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">insights</span>近 6 個月核准時效趨勢</h3>'+
+      '<div class="cwrap" style="height:230px"><canvas id="c3a"></canvas></div></div>';
+}
+
+/* ================= SCREEN 4 : 期限追蹤 ================= */
+function s4(){
+  var lots=[
+    {id:"WV-2407-08",part:"控制板 M9",lot:"L240712-11",exp:"08/20",left:6,st:"進行中",p:70},
+    {id:"WV-2407-05",part:"齒輪組 G12",lot:"L240709-04",exp:"08/16",left:2,st:"進行中",p:88},
+    {id:"WV-2406-22",part:"密封墊圈 R7",lot:"L240628-19",exp:"08/13",left:-1,st:"逾期",p:100},
+    {id:"WV-2407-12",part:"外殼上蓋 C4",lot:"L240718-07",exp:"08/28",left:14,st:"進行中",p:40},
+    {id:"WV-2406-19",part:"軸承座 B8",lot:"L240620-02",exp:"08/10",left:0,st:"已關閉",p:100}
+  ];
+  var rows="";
+  for(var i=0;i<lots.length;i++){var a=lots[i];
+    var lc=a.left<0?'var(--bad)':a.left<=3?'var(--warn)':'var(--good)';
+    var lt=a.left<0?('逾期 '+(-a.left)+' 天'):a.left===0?'今日到期':('剩 '+a.left+' 天');
+    rows+='<tr><td><b>'+a.id+'</b></td><td>'+a.part+'</td><td>'+a.lot+'</td><td>'+a.exp+'</td><td style="color:'+lc+';font-weight:700">'+lt+'</td><td>'+tagFor(a.st)+'</td><td><div class="bar"><i style="width:'+a.p+'%"></i></div></td></tr>';
+  }
+  return '<div class="grid g5" style="margin-bottom:14px">'+
+    kpi("有效放行中","event_available","23","件","","up")+
+    kpi("7天內到期","hourglass_bottom","5","件","已發提醒","down")+
+    kpi("逾期未關閉","warning","1","件","需升級","down")+
+    kpi("本月到期關案","task_alt","18","件","","up")+
+    kpi("平均關案週期","update","11.2","天","-8.6 天","up")+
+    '</div>'+
+    '<div class="grid g21">'+
+      '<div class="card"><h3><span class="material-symbols-outlined">calendar_month</span>放行有效期追蹤</h3>'+
+        '<div class="tbl"><table style="min-width:640px"><thead><tr><th>放行編號</th><th>品項</th><th>批號</th><th>到期日</th><th>剩餘</th><th>狀態</th><th>關案進度</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+      '<div class="card"><h3><span class="material-symbols-outlined">notifications_active</span>到期提醒</h3>'+
+        '<div class="tl">'+
+          '<div class="it"><div class="tm">逾期</div><div class="tt" style="color:var(--bad)">WV-2406-22 已逾期 1 天</div><div class="td">密封墊圈 R7，需立即關案或延展</div></div>'+
+          '<div class="it"><div class="tm">2 天內</div><div class="tt" style="color:var(--warn)">WV-2407-05 即將到期</div><div class="td">齒輪組 G12，複驗結果待補</div></div>'+
+          '<div class="it"><div class="tm">6 天內</div><div class="tt">WV-2407-08 提醒</div><div class="td">控制板 M9，關案進度 70%</div></div>'+
+        '</div></div>'+
+    '</div>'+
+    '<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">stacked_bar_chart</span>逾期未關閉件數 vs 平均核准時效</h3>'+
+      '<div class="cwrap" style="height:240px"><canvas id="c4a"></canvas></div></div>';
+}
+
+/* ================= SCREEN 5 : 追溯稽核 ================= */
+function s5(){
+  var log=[
+    {t:"08/13 16:42",u:"品質經理 張維倫",a:"核准放行",o:"DV-2408-115",r:"有條件放行 · 電子簽章"},
+    {t:"08/13 14:10",u:"品保 陳品豪",a:"加註會簽條件",o:"DV-2408-116",r:"需全檢並附外觀報告"},
+    {t:"08/13 11:05",u:"製程 李承翰",a:"批次隔離",o:"L240809-18",r:"熱處理溫差自動凍結"},
+    {t:"08/12 17:33",u:"研發 蔡明宏",a:"退回補件",o:"DV-2408-113",r:"缺驗證證據不得關閉"},
+    {t:"08/12 09:20",u:"品保 王思穎",a:"風險評估",o:"DV-2408-119",r:"RPN 96 · 判定高風險"}
+  ];
+  var rows="";
+  for(var i=0;i<log.length;i++){var l=log[i];
+    rows+='<tr><td>'+l.t+'</td><td>'+l.u+'</td><td><span class="tag t-acc">'+l.a+'</span></td><td><b>'+l.o+'</b></td><td style="white-space:normal;color:var(--muted)">'+l.r+'</td></tr>';
+  }
+  var trace=[
+    {s:"原料進料",d:"供應商 東晟 · IQC 合格",ok:true},
+    {s:"CNC 加工",d:"機台 M-07 · 尺寸偏差登錄",ok:false},
+    {s:"偏差放行",d:"WV-2407-08 有條件放行",ok:true},
+    {s:"組裝入庫",d:"批號 L240712-11 · 限用",ok:true},
+    {s:"出貨",d:"客戶 泰宏 · 隨附放行證明",ok:true}
+  ];
+  var tt="";
+  for(var j=0;j<trace.length;j++){var t=trace[j];
+    tt+='<div class="it"><div class="tm">'+(t.ok?'通過':'偏差')+'</div><div class="tt" style="color:'+(t.ok?'var(--txt)':'var(--accent2)')+'">'+t.s+'</div><div class="td">'+t.d+'</div></div>';
+  }
+  return '<div class="grid g4" style="margin-bottom:14px">'+
+    kpi("本月操作紀錄","receipt_long","1,284","筆","全程留痕","up")+
+    kpi("可追溯批號","qr_code_2","100","%","批號雙向追溯","up")+
+    kpi("稽核發現","policy","3","項","2 項已改善","down")+
+    kpi("紀錄完整率","fact_check","99.2","%","+4.1pt","up")+
+    '</div>'+
+    '<div class="grid g21">'+
+      '<div class="card"><h3><span class="material-symbols-outlined">history</span>稽核軌跡 <span class="sub">全程操作留痕</span></h3>'+
+        '<div class="tbl"><table style="min-width:640px"><thead><tr><th>時間</th><th>操作人</th><th>動作</th><th>對象</th><th>說明</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+      '<div class="card"><h3><span class="material-symbols-outlined">account_tree</span>批號正逆向追溯 <span class="sub">L240712-11</span></h3>'+
+        '<div class="tl">'+tt+'</div></div>'+
+    '</div>'+
+    '<div class="grid g2" style="margin-top:14px">'+
+      '<div class="card"><h3><span class="material-symbols-outlined">donut_large</span>偏差最終處置分佈</h3>'+
+        '<div class="cwrap" style="height:230px"><canvas id="c5a"></canvas></div>'+
+        '<div class="legend"><span><i class="sw" style="background:#34d399"></i>核准放行</span><span><i class="sw" style="background:#fbbf24"></i>有條件放行</span><span><i class="sw" style="background:#f87171"></i>駁回報廢</span><span><i class="sw" style="background:#60a5fa"></i>重工</span></div></div>'+
+      '<div class="card"><h3><span class="material-symbols-outlined">trending_up</span>閉環改善驗證率</h3>'+
+        '<div class="cwrap" style="height:230px"><canvas id="c5b"></canvas></div></div>'+
+    '</div>';
+}
+
+/* ---------- charts per screen ---------- */
+function initCharts(i){
+  if(i===1){
+    mk("c1a",{type:"bar",data:{labels:["高風險","中風險","低風險"],datasets:[{label:"案件數",data:[14,38,76],backgroundColor:["#f87171","#fbbf24","#34d399"],borderRadius:6}]},
+      options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:GRID},ticks:{color:AX}},y:{grid:{color:GRID},ticks:{color:AX}}}}});
+    mk("c1b",{type:"radar",data:{labels:["嚴重度","發生度","可偵測度","擴散風險","客訴風險"],datasets:[
+      {label:"DV-115",data:[3,2,4,2,1],borderColor:"#fb7185",backgroundColor:"rgba(251,113,133,.2)",pointBackgroundColor:"#fb7185"},
+      {label:"DV-120",data:[5,4,2,4,2],borderColor:"#be185d",backgroundColor:"rgba(190,24,93,.2)",pointBackgroundColor:"#be185d"}]},
+      options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{labels:{color:AX}}},scales:{r:{angleLines:{color:GRID},grid:{color:GRID},pointLabels:{color:AX},ticks:{color:AX,backdropColor:"transparent"},suggestedMin:0,suggestedMax:5}}}});
+  }else if(i===2){
+    mk("c2a",{type:"bar",data:{labels:["品保","研發","製程","品質經理"],datasets:[
+      {label:"待辦",data:[4,2,3,1],backgroundColor:"#fb7185",borderRadius:6},
+      {label:"進行中",data:[3,2,2,2],backgroundColor:"#be185d",borderRadius:6}]},
+      options:{maintainAspectRatio:false,responsive:true,indexAxis:"y",plugins:{legend:{labels:{color:AX}}},scales:{x:{stacked:true,grid:{color:GRID},ticks:{color:AX}},y:{stacked:true,grid:{color:GRID},ticks:{color:AX}}}}});
+  }else if(i===3){
+    mk("c3a",{type:"line",data:{labels:["3月","4月","5月","6月","7月","8月"],datasets:[
+      {label:"平均核准時效(天)",data:[4.4,4.0,3.6,3.1,2.8,2.6],borderColor:"#fb7185",backgroundColor:"rgba(251,113,133,.15)",fill:true,tension:.35,pointBackgroundColor:"#fb7185"},
+      {label:"目標(天)",data:[3,3,3,3,3,3],borderColor:"#60a5fa",borderDash:[6,4],pointRadius:0,fill:false}]},
+      options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{labels:{color:AX}}},scales:{x:{grid:{color:GRID},ticks:{color:AX}},y:{grid:{color:GRID},ticks:{color:AX},beginAtZero:true}}}});
+  }else if(i===4){
+    mk("c4a",{type:"bar",data:{labels:["3月","4月","5月","6月","7月","8月"],datasets:[
+      {type:"bar",label:"逾期未關閉(件)",data:[7,6,5,4,3,1],backgroundColor:"#fb7185",borderRadius:6,yAxisID:"y"},
+      {type:"line",label:"平均核准時效(天)",data:[4.4,4.0,3.6,3.1,2.8,2.6],borderColor:"#60a5fa",backgroundColor:"rgba(96,165,250,.15)",tension:.35,yAxisID:"y1",pointBackgroundColor:"#60a5fa"}]},
+      options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{labels:{color:AX}}},scales:{x:{grid:{color:GRID},ticks:{color:AX}},y:{position:"left",grid:{color:GRID},ticks:{color:AX},beginAtZero:true},y1:{position:"right",grid:{drawOnChartArea:false},ticks:{color:AX},beginAtZero:true}}}});
+  }else if(i===5){
+    mk("c5a",{type:"doughnut",data:{labels:["核准放行","有條件放行","駁回報廢","重工"],datasets:[{data:[42,57,18,23],backgroundColor:["#34d399","#fbbf24","#f87171","#60a5fa"],borderColor:"#171320",borderWidth:2}]},
+      options:{maintainAspectRatio:false,responsive:true,cutout:"58%",plugins:{legend:{display:false}}}});
+    mk("c5b",{type:"line",data:{labels:["第1週","第2週","第3週","第4週","第5週","第6週"],datasets:[
+      {label:"改善驗證率 %",data:[61,67,73,80,86,92],borderColor:"#be185d",backgroundColor:"rgba(190,24,93,.18)",fill:true,tension:.35,pointBackgroundColor:"#be185d"}]},
+      options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{labels:{color:AX}}},scales:{x:{grid:{color:GRID},ticks:{color:AX}},y:{grid:{color:GRID},ticks:{color:AX},min:50,max:100}}}});
+  }
+}
+
+var RENDER=[s0,s1,s2,s3,s4,s5];
+function show(i){
+  destroyCharts();
+  navRender(i);
+  var container=document.getElementById("app");
+  container.innerHTML=RENDER[i]();
+  void container.offsetHeight;
+  initCharts(i);
+}
+
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>

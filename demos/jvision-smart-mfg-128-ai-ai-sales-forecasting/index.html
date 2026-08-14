@@ -4,15 +4,706 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AI銷售預測 AI Sales Forecasting｜Jvision 系統 Demo</title>
-  <meta name="description" content="從名單到成交的完整客戶生命週期管理" />
+  <meta name="description" content="多變量需求預測、客戶下單週期分析、產品線需求分解與產銷回饋規劃" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --ac:#7c3aed; --ac2:#a78bfa; --ac-soft:#f3efff;
+      --bg:#f6f5fb; --panel:#ffffff; --ink:#1e1b2e; --sub:#6b6784;
+      --line:#e9e6f4; --good:#16a34a; --warn:#f59e0b; --bad:#dc2626;
+      --shadow:0 1px 2px rgba(30,27,46,.05),0 8px 24px rgba(124,58,237,.06);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:"Inter","Noto Sans TC",system-ui,-apple-system,sans-serif;
+      background:var(--bg); color:var(--ink); line-height:1.55;
+      -webkit-font-smoothing:antialiased;
+    }
+    .ms{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;font-size:20px}
+    /* ===== Shell ===== */
+    .shell{display:flex;min-height:100vh;flex-direction:column}
+    .topbar{
+      display:flex;align-items:center;gap:14px;padding:12px 20px;
+      background:linear-gradient(100deg,#5b21b6,#7c3aed 55%,#8b5cf6);
+      color:#fff;position:sticky;top:0;z-index:30;
+    }
+    .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .brand .logo{
+      width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+      background:rgba(255,255,255,.16);flex:0 0 auto;
+    }
+    .brand .logo .ms{font-size:22px}
+    .brand h1{font-size:15px;margin:0;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .brand p{margin:0;font-size:11px;opacity:.82;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .topbar .spacer{flex:1}
+    .topbar .pill{
+      display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+      background:rgba(255,255,255,.15);padding:6px 11px;border-radius:999px;white-space:nowrap;
+    }
+    .body{display:flex;flex:1;min-height:0}
+    /* ===== Sidebar nav ===== */
+    nav.side{
+      width:236px;flex:0 0 auto;background:var(--panel);border-right:1px solid var(--line);
+      padding:14px 12px;display:flex;flex-direction:column;gap:4px;
+    }
+    nav.side .nav-h{font-size:11px;letter-spacing:.08em;color:var(--sub);font-weight:700;padding:6px 10px 4px;text-transform:uppercase}
+    .navbtn{
+      display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:11px;border:0;
+      background:transparent;color:var(--ink);cursor:pointer;font:inherit;text-align:left;width:100%;
+      font-weight:600;font-size:13.5px;transition:background .14s,color .14s;min-width:0;
+    }
+    .navbtn .ms{font-size:21px;color:var(--sub);flex:0 0 auto}
+    .navbtn .nlab{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .navbtn:hover{background:var(--ac-soft)}
+    .navbtn.on{background:var(--ac);color:#fff}
+    .navbtn.on .ms{color:#fff}
+    .navbtn .idx{margin-left:auto;font-size:11px;opacity:.6;font-weight:700;flex:0 0 auto}
+    /* ===== Main ===== */
+    main{flex:1;min-width:0;padding:20px;overflow:hidden}
+    .screen-head{margin:0 0 16px}
+    .screen-head h2{margin:0 0 3px;font-size:20px;font-weight:800;display:flex;align-items:center;gap:9px}
+    .screen-head h2 .ms{color:var(--ac);font-size:24px}
+    .screen-head p{margin:0;color:var(--sub);font-size:13px}
+    /* ===== KPI cards ===== */
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+    .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 15px;box-shadow:var(--shadow);min-width:0}
+    .kpi .kl{font-size:12px;color:var(--sub);font-weight:600;display:flex;align-items:center;gap:6px}
+    .kpi .kl .ms{font-size:16px;color:var(--ac)}
+    .kpi .kv{font-size:25px;font-weight:800;margin-top:6px;letter-spacing:-.02em}
+    .kpi .kd{font-size:11.5px;margin-top:3px;font-weight:600}
+    .up{color:var(--good)} .down{color:var(--bad)} .flat{color:var(--sub)}
+    /* ===== Split two-pane (signature) ===== */
+    .split{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start}
+    .pane{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);min-width:0;overflow:hidden}
+    .pane-h{padding:12px 15px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px}
+    .pane-h .ms{color:var(--ac);font-size:19px}
+    .pane-h .cnt{margin-left:auto;font-size:11px;color:var(--sub);font-weight:600}
+    .pane-b{padding:12px}
+    /* list rows */
+    .lrow{
+      display:flex;gap:11px;align-items:flex-start;padding:11px 12px;border-radius:11px;cursor:pointer;
+      border:1px solid transparent;transition:background .14s,border-color .14s;min-width:0;
+    }
+    .lrow:hover{background:var(--ac-soft)}
+    .lrow.sel{background:var(--ac-soft);border-color:var(--ac2)}
+    .lrow .dot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex:0 0 auto}
+    .lrow .lm{min-width:0;flex:1}
+    .lrow .lt{font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .lrow .ls{font-size:11.5px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .lrow .lval{font-weight:800;font-size:13px;flex:0 0 auto;text-align:right}
+    .lrow .lval small{display:block;font-weight:600;font-size:10.5px;color:var(--sub)}
+    /* chart box */
+    .chartbox{width:100%;overflow:hidden}
+    .chart{width:100%;height:300px;overflow:hidden}
+    .chart.sm{height:230px}
+    /* detail meta */
+    .meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+    .meta .m{background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:10px 12px;min-width:0}
+    .meta .m .ml{font-size:11px;color:var(--sub);font-weight:600}
+    .meta .m .mv{font-size:15px;font-weight:800;margin-top:2px}
+    /* tables */
+    .tbl-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px}
+    thead th{
+      text-align:left;padding:9px 12px;font-size:11px;color:var(--sub);font-weight:700;
+      border-bottom:1px solid var(--line);white-space:nowrap;background:#faf9fe;position:sticky;top:0;
+    }
+    tbody td{padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+    tbody tr:last-child td{border-bottom:0}
+    tbody tr:hover{background:var(--ac-soft)}
+    .tnum{font-variant-numeric:tabular-nums;font-weight:700}
+    /* badges */
+    .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+    .b-good{background:#dcfce7;color:#15803d}
+    .b-warn{background:#fef3c7;color:#b45309}
+    .b-bad{background:#fee2e2;color:#b91c1c}
+    .b-info{background:var(--ac-soft);color:var(--ac)}
+    .b-neu{background:#eef0f5;color:#5b6070}
+    /* bars inline */
+    .ibar{height:7px;border-radius:5px;background:#eee9f8;overflow:hidden;min-width:60px}
+    .ibar > span{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--ac),var(--ac2))}
+    /* board */
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .col{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:11px;min-width:0}
+    .col-h{font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:6px;margin-bottom:9px;padding:0 3px}
+    .col-h .cc{margin-left:auto;font-size:11px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 8px;color:var(--sub)}
+    .card{background:#fff;border:1px solid var(--line);border-radius:11px;padding:10px 11px;margin-bottom:9px;box-shadow:0 1px 2px rgba(30,27,46,.04);min-width:0}
+    .card:last-child{margin-bottom:0}
+    .card .ct{font-weight:700;font-size:12.5px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .card .cs{font-size:11px;color:var(--sub);display:flex;justify-content:space-between;gap:8px}
+    /* timeline */
+    .tl{position:relative;padding-left:24px;margin:4px 0}
+    .tl:before{content:"";position:absolute;left:8px;top:4px;bottom:4px;width:2px;background:var(--line)}
+    .tl .ev{position:relative;padding:0 0 16px}
+    .tl .ev:last-child{padding-bottom:0}
+    .tl .ev .tk{position:absolute;left:-20px;top:2px;width:15px;height:15px;border-radius:50%;background:#fff;border:3px solid var(--ac2)}
+    .tl .ev.done .tk{background:var(--ac);border-color:var(--ac)}
+    .tl .ev .eh{font-weight:700;font-size:13px}
+    .tl .ev .em{font-size:11.5px;color:var(--sub)}
+    /* two-up grid for detail sections */
+    .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+    .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .sec{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;min-width:0}
+    .sec .sh{padding:12px 15px;border-bottom:1px solid var(--line);font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px}
+    .sec .sh .ms{color:var(--ac);font-size:19px}
+    .sec .sh .r{margin-left:auto;font-size:11px;color:var(--sub);font-weight:600}
+    .sec .sb{padding:14px}
+    .note{font-size:12px;color:var(--sub);background:var(--ac-soft);border:1px solid var(--ac2);border-radius:10px;padding:9px 12px;display:flex;gap:8px;align-items:flex-start}
+    .note .ms{color:var(--ac);font-size:17px;flex:0 0 auto}
+    .lvbar{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px dashed var(--line)}
+    .lvbar:last-child{border-bottom:0}
+    .lvbar .n{font-size:12.5px;font-weight:600;width:96px;flex:0 0 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .lvbar .v{font-size:12.5px;font-weight:800;width:56px;text-align:right;flex:0 0 auto}
+    .gauge-wrap{display:flex;gap:10px;flex-wrap:wrap}
+    .stat{flex:1;min-width:110px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+    .stat .sl{font-size:11.5px;color:var(--sub);font-weight:600}
+    .stat .sv{font-size:22px;font-weight:800;margin-top:3px}
+    /* responsive */
+    @media(max-width:1100px){
+      .split{grid-template-columns:1fr}
+      .kpis{grid-template-columns:repeat(2,1fr)}
+      .board{grid-template-columns:repeat(2,1fr)}
+      .g3{grid-template-columns:1fr}
+    }
+    @media(max-width:860px){
+      .body{flex-direction:column}
+      nav.side{width:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line);padding:8px;gap:6px;position:sticky;top:58px;z-index:20}
+      nav.side .nav-h{display:none}
+      .navbtn{width:auto;flex:0 0 auto;padding:8px 12px}
+      .navbtn .idx{display:none}
+      main{padding:14px}
+    }
+    @media(max-width:820px){
+      .g2{grid-template-columns:1fr}
+      .meta{grid-template-columns:1fr}
+    }
+    @media(max-width:560px){
+      .kpis{grid-template-columns:1fr}
+      .board{grid-template-columns:1fr}
+      .navbtn .nlab{display:none}
+      .navbtn{padding:9px 11px}
+      .brand p{display:none}
+      .topbar .pill{display:none}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo"><span class="ms">insights</span></div>
+        <div style="min-width:0">
+          <h1>AI銷售預測 · AI Sales Forecasting</h1>
+          <p>多變量需求預測平台 · 業務部 / PMC產銷規劃 / 財務部</p>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <span class="pill"><span class="ms" style="font-size:15px">calendar_month</span>預測期間 2026-Q3</span>
+      <span class="pill"><span class="ms" style="font-size:15px">verified</span>MAPE 8.4%</span>
+    </header>
+    <div class="body">
+      <nav class="side" id="nav">
+        <div class="nav-h">功能模組</div>
+      </nav>
+      <main id="view"></main>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    "use strict";
+    var C={ac:"#7c3aed",ac2:"#a78bfa",good:"#16a34a",warn:"#f59e0b",bad:"#dc2626",line:"#e9e6f4",sub:"#6b6784"};
+    var charts=[];
+    function disposeCharts(){
+      for(var i=0;i<charts.length;i++){ try{charts[i].dispose();}catch(e){} }
+      charts=[];
+    }
+    function mk(id,opt){
+      var el=document.getElementById(id);
+      if(!el) return;
+      var ch=echarts.init(el);
+      ch.setOption(opt);
+      charts.push(ch);
+    }
+    function fmt(n){ return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,","); }
+
+    var MODULES=[
+      {icon:"monitoring",name:"預測總覽儀表",sub:"各產品線需求預測、MAPE 與偏差趨勢彙總"},
+      {icon:"insights",name:"多變量預測模型",sub:"季節性、景氣循環與促銷變量的模型輸出"},
+      {icon:"history",name:"客戶下單週期分析",sub:"客戶下單節律辨識與提前期補貨訊號"},
+      {icon:"account_tree",name:"產品線需求分解",sub:"由品項到品類逐層拆解預測數量與金額"},
+      {icon:"fact_check",name:"預測校準比對",sub:"AI 預測與業務人工預測差異審視與調整"},
+      {icon:"trending_up",name:"產銷回饋規劃",sub:"回饋 PMC 產能與備料，追蹤準確率成效"}
+    ];
+
+    /* ============ SCREEN 0 : 預測總覽儀表 (split) ============ */
+    var LINES=[
+      {id:"CNC 加工件",cust:"38 客戶",fc:12840,mape:6.9,bias:+1.4,st:"good"},
+      {id:"精密齒輪組",cust:"22 客戶",fc:8620,mape:8.1,bias:-2.2,st:"good"},
+      {id:"液壓閥模組",cust:"17 客戶",fc:5410,mape:11.6,bias:+5.1,st:"warn"},
+      {id:"伺服馬達件",cust:"29 客戶",fc:9730,mape:7.4,bias:-1.1,st:"good"},
+      {id:"感測器外殼",cust:"14 客戶",fc:3260,mape:14.3,bias:+7.8,st:"bad"},
+      {id:"連接器端子",cust:"41 客戶",fc:15120,mape:9.2,bias:+3.3,st:"warn"}
+    ];
+    function stColor(s){ return s==="good"?C.good:s==="warn"?C.warn:C.bad; }
+    function stBadge(s){ return s==="good"?"<span class='badge b-good'>穩定</span>":s==="warn"?"<span class='badge b-warn'>需關注</span>":"<span class='badge b-bad'>偏差大</span>"; }
+    function screen0(){
+      var rows=LINES.map(function(l,i){
+        return "<div class='lrow"+(i===0?" sel":"")+"' data-l='"+i+"' onclick=\"selLine("+i+")\">"+
+          "<span class='dot' style='background:"+stColor(l.st)+"'></span>"+
+          "<div class='lm'><div class='lt'>"+l.id+"</div><div class='ls'>"+l.cust+" · MAPE "+l.mape+"%</div></div>"+
+          "<div class='lval'>"+fmt(l.fc)+"<small>件/月</small></div></div>";
+      }).join("");
+      var h=""+
+      "<div class='screen-head'><h2><span class='ms'>monitoring</span>預測總覽儀表</h2><p>2026 Q3 各產品線需求預測結果、準確率 (MAPE) 與偏差方向一覽</p></div>"+
+      "<div class='kpis'>"+
+        kpi("insights","本季預測總量","54,980","件","up","▲ 6.2% vs 上季")+
+        kpi("verified","整體 MAPE","8.4","%","up","▼ 2.1pt 準確度提升")+
+        kpi("trending_up","預測偏差改善","+34","%","up","▲ 相較人工基準")+
+        kpi("warning","偏差警示品線","2","項","down","感測器外殼 / 連接器端子")+
+      "</div>"+
+      "<div class='split'>"+
+        "<div class='pane'><div class='pane-h'><span class='ms'>account_tree</span>產品線<span class='cnt'>6 項</span></div><div class='pane-b'>"+rows+"</div></div>"+
+        "<div class='pane'><div class='pane-h'><span class='ms'>show_chart</span>預測 vs 實績趨勢<span class='cnt' id='l-name'>CNC 加工件</span></div><div class='pane-b'>"+
+          "<div class='chartbox'><div id='c0line' class='chart'></div></div>"+
+          "<div class='meta' id='l-meta'></div>"+
+          "<div class='chartbox'><div id='c0bar' class='chart sm'></div></div>"+
+        "</div></div>"+
+      "</div>";
+      return h;
+    }
+    window.selLine=function(i){
+      var nodes=document.querySelectorAll("[data-l]");
+      for(var k=0;k<nodes.length;k++){ nodes[k].classList.toggle("sel", +nodes[k].getAttribute("data-l")===i); }
+      var l=LINES[i];
+      var nm=document.getElementById("l-name"); if(nm) nm.textContent=l.id;
+      var meta=document.getElementById("l-meta");
+      if(meta){
+        meta.innerHTML=
+          m("本月預測",fmt(l.fc)+" 件")+
+          m("MAPE",l.mape+"%")+
+          m("預測偏差",(l.bias>0?"+":"")+l.bias+"%")+
+          m("狀態",stBadge(l.st));
+      }
+      draw0(i);
+    };
+    function m(l,v){ return "<div class='m'><div class='ml'>"+l+"</div><div class='mv'>"+v+"</div></div>"; }
+    function draw0(i){
+      // dispose the two line-specific charts each time
+      for(var k=charts.length-1;k>=0;k--){
+        var opt=charts[k].__k; if(opt==="c0line"||opt==="c0bar"){ try{charts[k].dispose();}catch(e){} charts.splice(k,1); }
+      }
+      var l=LINES[i];
+      var base=l.fc/6;
+      var months=["4月","5月","6月","7月","8月","9月"];
+      var actual=[],forecast=[];
+      for(var j=0;j<6;j++){
+        var seed=(i+1)*(j+3);
+        var a=Math.round(base*(0.85+ (seed%7)/20));
+        actual.push(j<3?a:null);
+        forecast.push(Math.round(base*(0.88+ (seed%5)/18)));
+      }
+      var elL=document.getElementById("c0line");
+      if(elL){ var chL=echarts.init(elL); chL.__k="c0line"; chL.setOption({
+        grid:{left:44,right:14,top:30,bottom:26},
+        tooltip:{trigger:"axis"},
+        legend:{data:["實際出貨","AI 預測"],top:0,textStyle:{fontSize:11}},
+        xAxis:{type:"category",data:months,axisLabel:{fontSize:11,color:C.sub}},
+        yAxis:{type:"value",axisLabel:{fontSize:11,color:C.sub},splitLine:{lineStyle:{color:C.line}}},
+        series:[
+          {name:"實際出貨",type:"line",data:actual,smooth:true,connectNulls:false,lineStyle:{width:3,color:C.ac},itemStyle:{color:C.ac},symbolSize:7},
+          {name:"AI 預測",type:"line",data:forecast,smooth:true,lineStyle:{width:3,type:"dashed",color:C.ac2},itemStyle:{color:C.ac2},symbolSize:6,
+            areaStyle:{color:"rgba(167,139,250,.14)"}}
+        ]
+      }); charts.push(chL); }
+      var elB=document.getElementById("c0bar");
+      if(elB){ var chB=echarts.init(elB); chB.__k="c0bar"; chB.setOption({
+        grid:{left:44,right:14,top:26,bottom:26},
+        tooltip:{trigger:"axis"},
+        title:{text:"各通路需求占比 (件)",left:0,top:0,textStyle:{fontSize:12,color:C.sub,fontWeight:600}},
+        xAxis:{type:"category",data:["直營","經銷","OEM","外銷"],axisLabel:{fontSize:11,color:C.sub}},
+        yAxis:{type:"value",axisLabel:{fontSize:11,color:C.sub},splitLine:{lineStyle:{color:C.line}}},
+        series:[{type:"bar",barWidth:"46%",data:[
+          {value:Math.round(l.fc*0.32),itemStyle:{color:C.ac}},
+          {value:Math.round(l.fc*0.28),itemStyle:{color:C.ac2}},
+          {value:Math.round(l.fc*0.24),itemStyle:{color:"#c4b5fd"}},
+          {value:Math.round(l.fc*0.16),itemStyle:{color:"#ddd6fe"}}
+        ],itemStyle:{borderRadius:[5,5,0,0]}}]
+      }); charts.push(chB); }
+    }
+
+    /* ============ SCREEN 1 : 多變量預測模型 ============ */
+    var FEATURES=[
+      {n:"季節性指數",w:0.28},{n:"景氣循環 (PMI)",w:0.22},{n:"促銷/價格活動",w:0.18},
+      {n:"歷史出貨動能",w:0.14},{n:"客戶在手訂單",w:0.11},{n:"匯率與原物料",w:0.07}
+    ];
+    function screen1(){
+      var fr=FEATURES.map(function(f){
+        return "<div class='lvbar'><div class='n'>"+f.n+"</div><div class='ibar'><span style='width:"+(f.w*100/0.28)+"%'></span></div><div class='v'>"+(f.w*100).toFixed(0)+"%</div></div>";
+      }).join("");
+      var h=""+
+      "<div class='screen-head'><h2><span class='ms'>insights</span>多變量預測模型</h2><p>整合季節性、景氣循環與促銷變量的模型輸出，含 90% 信賴區間</p></div>"+
+      "<div class='kpis'>"+
+        kpi("science","模型版本","v3.2","LGBM","flat","2026-08-11 重訓")+
+        kpi("verified","驗證 R²","0.91","","up","▲ 交叉驗證 5-fold")+
+        kpi("insights","特徵數","28","項","flat","6 大類主要驅動因子")+
+        kpi("warning","殘差偏態","0.12","","flat","分佈近似常態")+
+      "</div>"+
+      "<div class='g2'>"+
+        "<div class='sec'><div class='sh'><span class='ms'>show_chart</span>需求預測與信賴區間<span class='r'>未來 8 期</span></div><div class='sb'>"+
+          "<div class='chartbox'><div id='c1band' class='chart'></div></div></div></div>"+
+        "<div class='sec'><div class='sh'><span class='ms'>rule</span>特徵重要度<span class='r'>SHAP 權重</span></div><div class='sb'>"+fr+
+          "<div class='note' style='margin-top:12px'><span class='ms'>lightbulb</span>季節性與景氣循環合計貢獻 50% 的預測變異，促銷活動於 Q3 旺季顯著提升。</div>"+
+        "</div></div>"+
+      "</div>"+
+      "<div class='g2' style='margin-top:14px'>"+
+        "<div class='sec'><div class='sh'><span class='ms'>calendar_month</span>季節性分解<span class='r'>年度型態</span></div><div class='sb'><div class='chartbox'><div id='c1season' class='chart sm'></div></div></div></div>"+
+        "<div class='sec'><div class='sh'><span class='ms'>monitoring</span>景氣循環對映<span class='r'>PMI vs 需求</span></div><div class='sb'><div class='chartbox'><div id='c1cycle' class='chart sm'></div></div></div></div>"+
+      "</div>";
+      return h;
+    }
+    function draw1(){
+      var mo=["7月","8月","9月","10月","11月","12月","1月","2月"];
+      var mid=[9200,10100,11800,10400,9700,12600,8800,8200];
+      var up=mid.map(function(v){return Math.round(v*1.11)});
+      var low=mid.map(function(v){return Math.round(v*0.9)});
+      var diff=up.map(function(v,i){return v-low[i]});
+      mk2("c1band",{
+        grid:{left:48,right:16,top:34,bottom:28},
+        tooltip:{trigger:"axis"},
+        legend:{data:["預測值"],top:0,textStyle:{fontSize:11}},
+        xAxis:{type:"category",data:mo,boundaryGap:false,axisLabel:{fontSize:11,color:C.sub}},
+        yAxis:{type:"value",axisLabel:{fontSize:11,color:C.sub},splitLine:{lineStyle:{color:C.line}}},
+        series:[
+          {name:"下界",type:"line",data:low,stack:"band",lineStyle:{opacity:0},symbol:"none",areaStyle:{opacity:0}},
+          {name:"區間",type:"line",data:diff,stack:"band",lineStyle:{opacity:0},symbol:"none",areaStyle:{color:"rgba(167,139,250,.22)"}},
+          {name:"預測值",type:"line",data:mid,smooth:true,lineStyle:{width:3,color:C.ac},itemStyle:{color:C.ac},symbolSize:6}
+        ]
+      });
+      mk2("c1season",{
+        grid:{left:44,right:14,top:14,bottom:26},
+        tooltip:{trigger:"axis"},
+        xAxis:{type:"category",data:["Q1","Q2","Q3","Q4"],axisLabel:{fontSize:11,color:C.sub}},
+        yAxis:{type:"value",axisLabel:{fontSize:11,color:C.sub,formatter:"{value}%"},splitLine:{lineStyle:{color:C.line}}},
+        series:[{type:"bar",barWidth:"46%",data:[
+          {value:-8,itemStyle:{color:"#c4b5fd"}},{value:4,itemStyle:{color:C.ac2}},
+          {value:14,itemStyle:{color:C.ac}},{value:-6,itemStyle:{color:"#c4b5fd"}}
+        ],itemStyle:{borderRadius:[5,5,0,0]},label:{show:true,position:"top",formatter:"{c}%",fontSize:11}}]
+      });
+      mk2("c1cycle",{
+        grid:{left:44,right:44,top:26,bottom:26},
+        tooltip:{trigger:"axis"},
+        legend:{data:["PMI","需求指數"],top:0,textStyle:{fontSize:11}},
+        xAxis:{type:"category",data:["1月","3月","5月","7月","9月","11月"],axisLabel:{fontSize:11,color:C.sub}},
+        yAxis:[
+          {type:"value",axisLabel:{fontSize:10,color:C.sub},splitLine:{lineStyle:{color:C.line}}},
+          {type:"value",axisLabel:{fontSize:10,color:C.sub},splitLine:{show:false}}
+        ],
+        series:[
+          {name:"PMI",type:"line",smooth:true,data:[49,51,53,54,56,52],lineStyle:{color:C.ac2,width:2},itemStyle:{color:C.ac2}},
+          {name:"需求指數",type:"line",yAxisIndex:1,smooth:true,data:[92,98,104,112,120,101],lineStyle:{color:C.ac,width:3},itemStyle:{color:C.ac}}
+        ]
+      });
+    }
+
+    /* ============ SCREEN 2 : 客戶下單週期分析 (split) ============ */
+    var CUST=[
+      {id:"宏達精機",cyc:"每 14 天",lead:21,conf:92,next:"2026-08-19",risk:"good"},
+      {id:"泰豐工業",cyc:"每 30 天",lead:35,conf:88,next:"2026-08-22",risk:"good"},
+      {id:"元晶科技",cyc:"每 21 天",lead:18,conf:74,next:"2026-08-16",risk:"warn"},
+      {id:"聯茂電子",cyc:"每 45 天",lead:40,conf:81,next:"2026-09-02",risk:"good"},
+      {id:"欣興材料",cyc:"不規則",lead:12,conf:58,next:"待觀察",risk:"bad"},
+      {id:"台達動力",cyc:"每 7 天",lead:9,conf:95,next:"2026-08-15",risk:"good"}
+    ];
+    function screen2(){
+      var rows=CUST.map(function(c,i){
+        var rb=c.risk==="good"?"b-good":c.risk==="warn"?"b-warn":"b-bad";
+        var rt=c.risk==="good"?"規律":c.risk==="warn"?"漂移":"不規則";
+        return "<div class='lrow"+(i===0?" sel":"")+"' data-c='"+i+"' onclick=\"selCust("+i+")\">"+
+          "<span class='dot' style='background:"+stColor(c.risk)+"'></span>"+
+          "<div class='lm'><div class='lt'>"+c.id+"</div><div class='ls'>"+c.cyc+" · 提前期 "+c.lead+" 天</div></div>"+
+          "<span class='badge "+rb+"'>"+rt+"</span></div>";
+      }).join("");
+      var h=""+
+      "<div class='screen-head'><h2><span class='ms'>history</span>客戶下單週期分析</h2><p>辨識重點客戶下單節律、提前期與下一次下單預測，觸發補貨訊號</p></div>"+
+      "<div class='kpis'>"+
+        kpi("groups","分析客戶數","161","家","flat","涵蓋 92% 出貨量")+
+        kpi("event_repeat","可辨識規律","78","%","up","▲ 週期型客戶占比")+
+        kpi("schedule","平均提前期","23","天","flat","建議備料緩衝")+
+        kpi("notifications_active","本週補貨訊號","5","筆","down","2 筆需業務確認")+
+      "</div>"+
+      "<div class='split'>"+
+        "<div class='pane'><div class='pane-h'><span class='ms'>groups</span>重點客戶<span class='cnt'>6 家</span></div><div class='pane-b'>"+rows+"</div></div>"+
+        "<div class='pane'><div class='pane-h'><span class='ms'>calendar_month</span>下單節律<span class='cnt' id='c-name'>宏達精機</span></div><div class='pane-b'>"+
+          "<div class='meta' id='c-meta'></div>"+
+          "<div class='chartbox'><div id='c2cyc' class='chart'></div></div>"+
+          "<div class='sec' style='box-shadow:none;margin-top:6px'><div class='sh'><span class='ms'>timeline</span>近期下單時間軸</div><div class='sb'><div class='tl' id='c-tl'></div></div></div>"+
+        "</div></div>"+
+      "</div>";
+      return h;
+    }
+    window.selCust=function(i){
+      var nodes=document.querySelectorAll("[data-c]");
+      for(var k=0;k<nodes.length;k++){ nodes[k].classList.toggle("sel", +nodes[k].getAttribute("data-c")===i); }
+      var c=CUST[i];
+      var nm=document.getElementById("c-name"); if(nm) nm.textContent=c.id;
+      var meta=document.getElementById("c-meta");
+      if(meta) meta.innerHTML=m("下單週期",c.cyc)+m("平均提前期",c.lead+" 天")+m("節律信心",c.conf+"%")+m("預測下次下單",c.next);
+      var tl=document.getElementById("c-tl");
+      if(tl){
+        var evs=[
+          {h:"預測下次下單 "+c.next,mm:"建議備料量 "+((i+3)*120)+" 件 · 信心 "+c.conf+"%",done:false},
+          {h:"實際下單 2026-08-01",mm:"數量 "+((i+2)*140)+" 件 · 準時",done:true},
+          {h:"實際下單 2026-07-18",mm:"數量 "+((i+2)*130)+" 件 · 提前 2 天",done:true},
+          {h:"實際下單 2026-07-04",mm:"數量 "+((i+2)*118)+" 件 · 準時",done:true}
+        ];
+        tl.innerHTML=evs.map(function(e){return "<div class='ev"+(e.done?" done":"")+"'><span class='tk'></span><div class='eh'>"+e.h+"</div><div class='em'>"+e.mm+"</div></div>";}).join("");
+      }
+      draw2(i);
+    };
+    function draw2(i){
+      for(var k=charts.length-1;k>=0;k--){ if(charts[k].__k==="c2cyc"){ try{charts[k].dispose();}catch(e){} charts.splice(k,1); } }
+      var wk=["W1","W2","W3","W4","W5","W6","W7","W8","W9","W10","W11","W12"];
+      var d=[];
+      for(var j=0;j<12;j++){ var s=(i+2)*(j+1); d.push( ((s*7)%13===0||(j%(3+i%3)===0))? Math.round(((s%9)+2)*45) : (j%2?Math.round((s%4)*20):0) ); }
+      var el=document.getElementById("c2cyc");
+      if(el){ var ch=echarts.init(el); ch.__k="c2cyc"; ch.setOption({
+        grid:{left:44,right:14,top:30,bottom:26},
+        tooltip:{trigger:"axis"},
+        title:{text:"近 12 週下單量 (件)",left:0,top:0,textStyle:{fontSize:12,color:C.sub,fontWeight:600}},
+        xAxis:{type:"category",data:wk,axisLabel:{fontSize:10,color:C.sub}},
+        yAxis:{type:"value",axisLabel:{fontSize:11,color:C.sub},splitLine:{lineStyle:{color:C.line}}},
+        series:[{type:"bar",barWidth:"52%",data:d.map(function(v){return {value:v,itemStyle:{color:v>0?C.ac:"#ede9fe"}};}),itemStyle:{borderRadius:[4,4,0,0]}}]
+      }); charts.push(ch); }
+    }
+
+    /* ============ SCREEN 3 : 產品線需求分解 (tree/board) ============ */
+    function screen3(){
+      var cats=[
+        {n:"金屬加工類",q:26680,pct:48,items:[["CNC 加工件",12840],["精密齒輪組",8620],["伺服馬達件",5220]]},
+        {n:"電子零件類",q:18380,pct:33,items:[["連接器端子",15120],["感測器外殼",3260]]},
+        {n:"流體控制類",q:5410,pct:10,items:[["液壓閥模組",5410]]},
+        {n:"其他類",q:4510,pct:9,items:[["治具備品",2810],["雜項耗材",1700]]}
+      ];
+      var cols=cats.map(function(c){
+        var cards=c.items.map(function(it){
+          var share=Math.round(it[1]/c.q*100);
+          return "<div class='card'><div class='ct'>"+it[0]+"</div><div class='cs'><span class='tnum'>"+fmt(it[1])+" 件</span><span>"+share+"%</span></div>"+
+            "<div class='ibar' style='margin-top:6px'><span style='width:"+share+"%'></span></div></div>";
+        }).join("");
+        return "<div class='col'><div class='col-h'>"+c.n+"<span class='cc'>"+c.pct+"%</span></div>"+cards+"</div>";
+      }).join("");
+      var h=""+
+      "<div class='screen-head'><h2><span class='ms'>account_tree</span>產品線需求分解</h2><p>由品類到品項逐層拆解 Q3 預測數量，對映產能與備料負荷</p></div>"+
+      "<div class='kpis'>"+
+        kpi("inventory_2","預測總量","54,980","件","flat","跨 4 大品類")+
+        kpi("category","品類數","4","類","flat","11 個活躍品項")+
+        kpi("factory","產能負載","86","%","down","流體控制類逼近上限")+
+        kpi("request_quote","預估營收","3.42","億","up","▲ 5.8% vs 上季")+
+      "</div>"+
+      "<div class='g2'>"+
+        "<div class='sec'><div class='sh'><span class='ms'>donut_small</span>品類占比<span class='r'>件數</span></div><div class='sb'><div class='chartbox'><div id='c3pie' class='chart'></div></div></div></div>"+
+        "<div class='sec'><div class='sh'><span class='ms'>bar_chart</span>品項需求排行<span class='r'>Top 8</span></div><div class='sb'><div class='chartbox'><div id='c3rank' class='chart'></div></div></div></div>"+
+      "</div>"+
+      "<div class='sec' style='margin-top:14px'><div class='sh'><span class='ms'>account_tree</span>需求分解看板<span class='r'>品類 › 品項</span></div><div class='sb'><div class='board'>"+cols+"</div></div></div>";
+      return h;
+    }
+    function draw3(){
+      mk2("c3pie",{
+        tooltip:{trigger:"item",formatter:"{b}: {c} 件 ({d}%)"},
+        legend:{bottom:0,textStyle:{fontSize:11}},
+        series:[{type:"pie",radius:["44%","70%"],center:["50%","44%"],avoidLabelOverlap:true,
+          itemStyle:{borderColor:"#fff",borderWidth:2},
+          label:{formatter:"{d}%",fontSize:11},
+          data:[
+            {value:26680,name:"金屬加工類",itemStyle:{color:C.ac}},
+            {value:18380,name:"電子零件類",itemStyle:{color:C.ac2}},
+            {value:5410,name:"流體控制類",itemStyle:{color:"#c4b5fd"}},
+            {value:4510,name:"其他類",itemStyle:{color:"#ddd6fe"}}
+          ]}]
+      });
+      var names=["連接器端子","CNC 加工件","精密齒輪組","伺服馬達件","液壓閥模組","感測器外殼","治具備品","雜項耗材"];
+      var vals=[15120,12840,8620,5220,5410,3260,2810,1700];
+      mk2("c3rank",{
+        grid:{left:88,right:24,top:12,bottom:20},
+        tooltip:{trigger:"axis"},
+        xAxis:{type:"value",axisLabel:{fontSize:10,color:C.sub},splitLine:{lineStyle:{color:C.line}}},
+        yAxis:{type:"category",data:names.slice().reverse(),axisLabel:{fontSize:10.5,color:C.sub}},
+        series:[{type:"bar",barWidth:"58%",data:vals.slice().reverse(),itemStyle:{color:C.ac,borderRadius:[0,5,5,0]},
+          label:{show:true,position:"right",fontSize:10,formatter:function(p){return fmt(p.value);}}}]
+      });
+    }
+
+    /* ============ SCREEN 4 : 預測校準比對 (table) ============ */
+    var CAL=[
+      {item:"CNC 加工件",ai:12840,human:12100,fin:12500,dev:+6.1,st:"good"},
+      {item:"連接器端子",ai:15120,human:13800,fin:14600,dev:+9.6,st:"warn"},
+      {item:"精密齒輪組",ai:8620,human:8900,fin:8700,dev:-3.1,st:"good"},
+      {item:"伺服馬達件",ai:5220,human:5400,fin:5300,dev:-3.3,st:"good"},
+      {item:"液壓閥模組",ai:5410,human:4600,fin:5000,dev:+17.6,st:"bad"},
+      {item:"感測器外殼",ai:3260,human:2700,fin:3050,dev:+20.7,st:"bad"},
+      {item:"治具備品",ai:2810,human:2900,fin:2850,dev:-3.1,st:"good"}
+    ];
+    function screen4(){
+      var rows=CAL.map(function(r){
+        return "<tr><td style='font-weight:700'>"+r.item+"</td>"+
+          "<td class='tnum'>"+fmt(r.ai)+"</td>"+
+          "<td class='tnum'>"+fmt(r.human)+"</td>"+
+          "<td class='tnum'>"+fmt(r.fin)+"</td>"+
+          "<td class='tnum "+(r.dev>0?"up":"down")+"'>"+(r.dev>0?"+":"")+r.dev+"%</td>"+
+          "<td>"+stBadge(r.st)+"</td>"+
+          "<td>"+(r.st==="bad"?"<span class='badge b-bad'>需協銷覆核</span>":r.st==="warn"?"<span class='badge b-warn'>經理確認</span>":"<span class='badge b-good'>採用 AI</span>")+"</td></tr>";
+      }).join("");
+      var h=""+
+      "<div class='screen-head'><h2><span class='ms'>fact_check</span>預測校準比對</h2><p>AI 預測 vs 業務人工預測差異審視，逐品項校準並記錄最終採用值</p></div>"+
+      "<div class='kpis'>"+
+        kpi("difference","平均差異","9.2","%","flat","AI vs 人工")+
+        kpi("handshake","一致採用","4","項","up","差異 < 5% 直接採用")+
+        kpi("gavel","待協銷覆核","2","項","down","差異 > 15%")+
+        kpi("verified","校準後 MAPE","8.4","%","up","▼ 較純人工 12.8%")+
+      "</div>"+
+      "<div class='g2'>"+
+        "<div class='sec'><div class='sh'><span class='ms'>bar_chart</span>AI vs 人工預測對比<span class='r'>件</span></div><div class='sb'><div class='chartbox'><div id='c4cmp' class='chart'></div></div></div></div>"+
+        "<div class='sec'><div class='sh'><span class='ms'>scatter_plot</span>差異分佈<span class='r'>偏差 %</span></div><div class='sb'><div class='chartbox'><div id='c4dev' class='chart'></div></div></div></div>"+
+      "</div>"+
+      "<div class='sec' style='margin-top:14px'><div class='sh'><span class='ms'>table_view</span>校準明細表<span class='r'>7 品項</span></div><div class='sb'>"+
+        "<div class='tbl-wrap'><table><thead><tr><th>品項</th><th>AI 預測</th><th>人工預測</th><th>校準採用</th><th>差異</th><th>穩定度</th><th>處置</th></tr></thead><tbody>"+rows+"</tbody></table></div>"+
+        "<div class='note' style='margin-top:12px'><span class='ms'>gavel</span>RULE-02：預估金額超過 100 萬元的高差異品項需由業務經理協銷覆核後方可回饋產銷。</div>"+
+      "</div></div>";
+      return h;
+    }
+    function draw4(){
+      var items=CAL.map(function(r){return r.item;});
+      mk2("c4cmp",{
+        grid:{left:48,right:14,top:34,bottom:56},
+        tooltip:{trigger:"axis"},
+        legend:{data:["AI 預測","人工預測","校準採用"],top:0,textStyle:{fontSize:11}},
+        xAxis:{type:"category",data:items,axisLabel:{fontSize:9.5,color:C.sub,interval:0,rotate:32}},
+        yAxis:{type:"value",axisLabel:{fontSize:11,color:C.sub},splitLine:{lineStyle:{color:C.line}}},
+        series:[
+          {name:"AI 預測",type:"bar",data:CAL.map(function(r){return r.ai;}),itemStyle:{color:C.ac,borderRadius:[4,4,0,0]}},
+          {name:"人工預測",type:"bar",data:CAL.map(function(r){return r.human;}),itemStyle:{color:C.ac2,borderRadius:[4,4,0,0]}},
+          {name:"校準採用",type:"line",data:CAL.map(function(r){return r.fin;}),lineStyle:{color:C.warn,width:2},itemStyle:{color:C.warn},symbolSize:6}
+        ]
+      });
+      mk2("c4dev",{
+        grid:{left:48,right:20,top:16,bottom:34},
+        tooltip:{trigger:"item",formatter:function(p){return p.data[2]+"<br/>偏差 "+p.data[1]+"%";}},
+        xAxis:{type:"value",name:"品項序",nameTextStyle:{fontSize:10,color:C.sub},axisLabel:{fontSize:10,color:C.sub},splitLine:{lineStyle:{color:C.line}}},
+        yAxis:{type:"value",axisLabel:{fontSize:11,color:C.sub,formatter:"{value}%"},splitLine:{lineStyle:{color:C.line}}},
+        series:[
+          {type:"scatter",symbolSize:15,data:CAL.map(function(r,i){return [i+1,r.dev,r.item];}),
+            itemStyle:{color:function(p){var d=Math.abs(p.data[1]);return d>15?C.bad:d>5?C.warn:C.good;}}},
+          {type:"line",markLine:{silent:true,symbol:"none",lineStyle:{color:C.ac2,type:"dashed"},data:[{yAxis:15},{yAxis:-15}],label:{fontSize:10}}}
+        ]
+      });
+    }
+
+    /* ============ SCREEN 5 : 產銷回饋規劃 (timeline + gauges) ============ */
+    function screen5(){
+      var plan=[
+        ["CNC 加工件",12500,"充足","2026-08-18","good"],
+        ["連接器端子",14600,"追加採購","2026-08-20","warn"],
+        ["精密齒輪組",8700,"充足","2026-08-19","good"],
+        ["液壓閥模組",5000,"產能瓶頸","2026-08-25","bad"],
+        ["伺服馬達件",5300,"充足","2026-08-21","good"]
+      ];
+      var rows=plan.map(function(p){
+        var b=p[4]==="good"?"b-good":p[4]==="warn"?"b-warn":"b-bad";
+        return "<tr><td style='font-weight:700'>"+p[0]+"</td><td class='tnum'>"+fmt(p[1])+"</td><td><span class='badge "+b+"'>"+p[2]+"</span></td><td>"+p[3]+"</td></tr>";
+      }).join("");
+      var h=""+
+      "<div class='screen-head'><h2><span class='ms'>trending_up</span>產銷回饋規劃</h2><p>將校準後預測回饋 PMC 產能與備料，並追蹤 MAPE 與偏差改善率成效</p></div>"+
+      "<div class='kpis'>"+
+        kpi("verified","本季 MAPE","8.4","%","up","目標 ≤ 10%")+
+        kpi("trending_up","偏差改善率","+34","%","up","▲ vs 純人工基準")+
+        kpi("factory","產能覆蓋","86","%","flat","1 項待協調")+
+        kpi("savings","呆滯庫存下降","−22","%","up","備料更貼近需求")+
+      "</div>"+
+      "<div class='g2'>"+
+        "<div class='sec'><div class='sh'><span class='ms'>monitoring</span>MAPE 準確率趨勢<span class='r'>近 6 期</span></div><div class='sb'><div class='chartbox'><div id='c5mape' class='chart'></div></div></div></div>"+
+        "<div class='sec'><div class='sh'><span class='ms'>speed</span>目標達成度<span class='r'>本季</span></div><div class='sb'><div class='chartbox'><div id='c5gauge' class='chart'></div></div></div></div>"+
+      "</div>"+
+      "<div class='g2' style='margin-top:14px'>"+
+        "<div class='sec'><div class='sh'><span class='ms'>inventory_2</span>備料/產能回饋<span class='r'>PMC</span></div><div class='sb'><div class='tbl-wrap'><table style='min-width:420px'><thead><tr><th>品項</th><th>回饋需求</th><th>備料狀態</th><th>投產日</th></tr></thead><tbody>"+rows+"</tbody></table></div></div></div>"+
+        "<div class='sec'><div class='sh'><span class='ms'>timeline</span>回饋執行時間軸<span class='r'>本週</span></div><div class='sb'><div class='tl'>"+
+          tlEv(true,"預測校準完成","業務經理簽核 · 2026-08-13")+
+          tlEv(true,"回饋 PMC 產銷會議","確認 5 品項產能配置 · 2026-08-13")+
+          tlEv(false,"連接器端子追加採購","缺口 820 件 · 待供應商回覆 2026-08-20")+
+          tlEv(false,"液壓閥模組產能協調","外包評估中 · 目標 2026-08-25")+
+          tlEv(false,"實績回收與 MAPE 覆核","月底更新模型 · 2026-08-31")+
+        "</div></div></div>"+
+      "</div>";
+      return h;
+    }
+    function tlEv(done,h2,mm){ return "<div class='ev"+(done?" done":"")+"'><span class='tk'></span><div class='eh'>"+h2+"</div><div class='em'>"+mm+"</div></div>"; }
+    function draw5(){
+      mk2("c5mape",{
+        grid:{left:44,right:16,top:30,bottom:26},
+        tooltip:{trigger:"axis"},
+        legend:{data:["AI 校準","純人工"],top:0,textStyle:{fontSize:11}},
+        xAxis:{type:"category",data:["3月","4月","5月","6月","7月","8月"],axisLabel:{fontSize:11,color:C.sub}},
+        yAxis:{type:"value",axisLabel:{fontSize:11,color:C.sub,formatter:"{value}%"},splitLine:{lineStyle:{color:C.line}}},
+        series:[
+          {name:"AI 校準",type:"line",smooth:true,data:[11.2,10.5,9.8,9.1,8.7,8.4],lineStyle:{color:C.ac,width:3},itemStyle:{color:C.ac},areaStyle:{color:"rgba(124,58,237,.10)"}},
+          {name:"純人工",type:"line",smooth:true,data:[13.4,13.1,12.9,12.8,12.9,12.8],lineStyle:{color:C.ac2,width:2,type:"dashed"},itemStyle:{color:C.ac2}}
+        ]
+      });
+      mk2("c5gauge",{
+        series:[{type:"gauge",startAngle:210,endAngle:-30,min:0,max:100,radius:"92%",center:["50%","56%"],
+          progress:{show:true,width:16,itemStyle:{color:C.ac}},
+          axisLine:{lineStyle:{width:16,color:[[0.7,"#ede9fe"],[1,"#ddd6fe"]]}},
+          pointer:{itemStyle:{color:C.ac}},
+          axisTick:{show:false},splitLine:{length:10,lineStyle:{color:"#fff",width:2}},
+          axisLabel:{fontSize:9,color:C.sub,distance:14},
+          detail:{valueAnimation:false,fontSize:26,fontWeight:800,offsetCenter:[0,"38%"],formatter:"{value}%",color:C.ac},
+          title:{offsetCenter:[0,"66%"],fontSize:12,color:C.sub},
+          data:[{value:88,name:"預測目標達成度"}]}]
+      });
+    }
+
+    /* ============ helpers ============ */
+    function kpi(icon,label,val,unit,dir,desc){
+      return "<div class='kpi'><div class='kl'><span class='ms'>"+icon+"</span>"+label+"</div>"+
+        "<div class='kv'>"+val+(unit?"<span style='font-size:14px;font-weight:700;color:var(--sub)'> "+unit+"</span>":"")+"</div>"+
+        "<div class='kd "+(dir==="up"?"up":dir==="down"?"down":"flat")+"'>"+desc+"</div></div>";
+    }
+    function mk2(id,opt){ mk(id,opt); }
+
+    var RENDER=[screen0,screen1,screen2,screen3,screen4,screen5];
+    var DRAW=[function(){draw0(0);},draw1,function(){draw2(0);},draw3,draw4,draw5];
+
+    function buildNav(){
+      var nav=document.getElementById("nav");
+      var html="<div class='nav-h'>功能模組</div>";
+      for(var i=0;i<MODULES.length;i++){
+        html+="<button class='navbtn' data-i='"+i+"' onclick='show("+i+")'>"+
+          "<span class='ms'>"+MODULES[i].icon+"</span><span class='nlab'>"+MODULES[i].name+"</span><span class='idx'>0"+(i+1)+"</span></button>";
+      }
+      nav.innerHTML=html;
+    }
+
+    window.show=function(i){
+      disposeCharts();
+      var view=document.getElementById("view");
+      view.innerHTML=RENDER[i]();
+      var btns=document.querySelectorAll("[data-i]");
+      for(var k=0;k<btns.length;k++){ btns[k].classList.toggle("on", +btns[k].getAttribute("data-i")===i); }
+      void view.offsetHeight;
+      DRAW[i]();
+    };
+
+    buildNav();
+
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+    window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>

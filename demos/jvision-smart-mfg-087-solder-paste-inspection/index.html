@@ -1,18 +1,424 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SPI（Solder Paste Inspection，錫膏檢測管理）｜Jvision 系統 Demo</title>
-  <meta name="description" content="從異常到改善的品質閉環與追溯稽核" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SPI 錫膏檢測管理｜控制中心</title>
+<link rel="icon" href="../../favicon.svg"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+<style>
+:root{
+  --accent:#7c3aed;--accent2:#a78bfa;--bg:#0d0b16;--panel:#171326;--panel2:#1f1a33;
+  --line:#2c2542;--txt:#ece9f5;--mut:#9b93b8;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--info:#60a5fa;
+}
+*{box-sizing:border-box;margin:0;padding:0;min-width:0}
+html,body{max-width:100%;overflow-x:hidden}
+body{font-family:'Inter','Noto Sans TC',sans-serif;background:var(--bg);color:var(--txt);
+  background-image:radial-gradient(900px 500px at 85% -10%,rgba(124,58,237,.18),transparent),radial-gradient(700px 400px at 0% 0%,rgba(167,139,250,.10),transparent);}
+.material-symbols-outlined{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;font-size:20px}
+.nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:10px 18px;background:rgba(13,11,22,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.3px}
+.brand .logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 4px 16px rgba(124,58,237,.5)}
+.brand small{display:block;font-weight:500;font-size:11px;color:var(--mut)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.tab{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:9px;cursor:pointer;
+  border:1px solid transparent;background:transparent;color:var(--mut);font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap}
+.tab:hover{color:var(--txt);background:var(--panel)}
+.tab.on{color:#fff;background:linear-gradient(135deg,rgba(124,58,237,.35),rgba(167,139,250,.18));border-color:var(--accent);box-shadow:0 0 0 1px rgba(124,58,237,.3)}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ok);font-weight:600}
+.live .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.wrap{padding:20px 18px 48px;max-width:1360px;margin:0 auto}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.head h1{font-size:21px;font-weight:800}
+.head p{color:var(--mut);font-size:13px;margin-top:4px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:600;
+  background:var(--panel);border:1px solid var(--line);color:var(--accent2)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.panel h3{font-size:14px;font-weight:700;margin-bottom:3px;display:flex;align-items:center;gap:8px}
+.panel h3 .material-symbols-outlined{color:var(--accent2);font-size:19px}
+.panel .sub{font-size:12px;color:var(--mut);margin-bottom:12px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g23{grid-template-columns:1.6fr 1fr}
+.g32{grid-template-columns:1fr 1.5fr}
+@media(max-width:820px){.g4,.g3,.g2,.g23,.g32{grid-template-columns:1fr}}
+.kpi{background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:14px;padding:15px;position:relative;overflow:hidden}
+.kpi::after{content:"";position:absolute;right:-18px;top:-18px;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.35),transparent 70%)}
+.kpi .lbl{font-size:12px;color:var(--mut);display:flex;align-items:center;gap:6px;font-weight:600}
+.kpi .val{font-size:27px;font-weight:800;margin-top:8px;letter-spacing:.5px}
+.kpi .val small{font-size:13px;color:var(--mut);font-weight:600}
+.kpi .delta{font-size:12px;margin-top:6px;font-weight:600}
+.up{color:var(--ok)}.down{color:var(--bad)}.flat{color:var(--mut)}
+.kpi .material-symbols-outlined{font-size:17px}
+table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
+th{text-align:left;color:var(--mut);font-weight:600;font-size:12px;padding:9px 11px;border-bottom:1px solid var(--line)}
+td{padding:10px 11px;border-bottom:1px solid rgba(44,37,66,.6)}
+tbody tr:hover{background:var(--panel2)}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:16px;font-size:11px;font-weight:700}
+.b-ok{background:rgba(52,211,153,.15);color:var(--ok)}
+.b-warn{background:rgba(251,191,36,.15);color:var(--warn)}
+.b-bad{background:rgba(248,113,113,.15);color:var(--bad)}
+.b-info{background:rgba(96,165,250,.15);color:var(--info)}
+.b-mut{background:var(--panel2);color:var(--mut)}
+.mono{font-family:'Inter',monospace;font-variant-numeric:tabular-nums}
+.bar{height:7px;border-radius:6px;background:var(--panel2);overflow:hidden}
+.bar > i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:820px){.board{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.board{grid-template-columns:1fr}}
+.col{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px;min-height:120px}
+.col h4{font-size:12px;font-weight:700;display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;color:var(--mut)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:9px}
+.card .t{font-size:12.5px;font-weight:700}
+.card .m{font-size:11px;color:var(--mut);margin-top:4px;display:flex;justify-content:space-between;gap:6px}
+.tl{position:relative;padding-left:22px}
+.tl::before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--line)}
+.tl .it{position:relative;padding:0 0 16px 0}
+.tl .it::before{content:"";position:absolute;left:-19px;top:3px;width:11px;height:11px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(124,58,237,.25)}
+.tl .it .tt{font-size:13px;font-weight:700}
+.tl .it .td{font-size:12px;color:var(--mut);margin-top:2px}
+.tl .it .tm{font-size:11px;color:var(--accent2);font-weight:600}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-top:10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.scroll{overflow-x:auto}
+.gauge-wrap{display:flex;align-items:center;justify-content:center;overflow:hidden}
+.pill{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;background:var(--panel2);color:var(--accent2)}
+.stat-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(44,37,66,.6);font-size:13px}
+.stat-row:last-child{border-bottom:none}
+.foot{text-align:center;color:var(--mut);font-size:12px;margin-top:26px}
+.heat{display:grid;gap:3px;grid-template-columns:repeat(16,1fr)}
+.heat i{aspect-ratio:1;border-radius:2px;display:block}
+[id^="c"]{overflow:hidden}
+@media(max-width:560px){.tab .txt{display:none}.tab{padding:8px}.brand small{display:none}}
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<nav class="nav">
+  <div class="brand">
+    <span class="logo material-symbols-outlined">precision_manufacturing</span>
+    <span>SPI 錫膏檢測管理<small>Solder Paste Inspection Control</small></span>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <span class="live"><span class="dot"></span>Line-A 連線中</span>
+</nav>
+<div class="wrap"><div id="view"></div>
+  <div class="foot">SPI（Solder Paste Inspection，錫膏檢測管理）· 純 UI 展示 · 擬真資料 · 無後端</div>
+</div>
+
+<script>
+"use strict";
+var TABS=[
+  {i:0,ic:"monitoring",t:"檢測總覽"},
+  {i:1,ic:"precision_manufacturing",t:"焊點量測"},
+  {i:2,ic:"insights",t:"SPC 製程管制"},
+  {i:3,ic:"warning",t:"缺陷判定"},
+  {i:4,ic:"build",t:"參數回饋"},
+  {i:5,ic:"history",t:"批次追溯"}
+];
+var charts=[];
+function clearCharts(){for(var k=0;k<charts.length;k++){try{charts[k].destroy();}catch(e){}}charts=[];}
+function el(id){return document.getElementById(id);}
+function mk(id,opt){var node=el(id);if(!node)return;var c=new ApexCharts(node,opt);c.render();charts.push(c);}
+function baseChart(extra){
+  var o={chart:{background:"transparent",redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},toolbar:{show:false},fontFamily:"Inter,Noto Sans TC,sans-serif"},
+    theme:{mode:"dark"},grid:{borderColor:"#2c2542",strokeDashArray:3},
+    tooltip:{theme:"dark"},dataLabels:{enabled:false},legend:{labels:{colors:"#9b93b8"}}};
+  return Object.assign(o,extra);
+}
+function axisStyle(){return{labels:{style:{colors:"#9b93b8",fontSize:"11px"}},axisBorder:{color:"#2c2542"},axisTicks:{color:"#2c2542"}};}
+
+/* ---------- screen 0 : 檢測總覽 ---------- */
+function s0(){
+  var kpis=[
+    {l:"班別檢板數",v:"4,182",u:"片",d:"+312 vs 昨班",c:"up",ic:"description"},
+    {l:"印刷良率",v:"98.6",u:"%",d:"+0.4pt",c:"up",ic:"task_alt"},
+    {l:"錫膏厚度 Cpk",v:"1.63",u:"",d:"目標≥1.33",c:"up",ic:"insights"},
+    {l:"待處理警報",v:"5",u:"件",d:"2 高風險",c:"down",ic:"warning"}
+  ];
+  var lines=[
+    {n:"Line-A SMT1",y:98.9,cpk:1.71,st:"稼動",b:"b-ok"},
+    {n:"Line-B SMT2",y:98.1,cpk:1.42,st:"稼動",b:"b-ok"},
+    {n:"Line-C SMT3",y:96.4,cpk:1.18,st:"警戒",b:"b-warn"},
+    {n:"Line-D SMT4",y:99.2,cpk:1.83,st:"稼動",b:"b-ok"},
+    {n:"Line-E SMT5",y:94.7,cpk:0.98,st:"停機檢修",b:"b-bad"}
+  ];
+  var h="";
+  h+='<div class="head"><div><h1>SMT 錫膏檢測控制中心</h1><p>全廠 5 條 SMT 產線印刷後 SPI 即時檢測狀態總覽</p></div>'
+    +'<span class="chip"><span class="material-symbols-outlined">schedule</span>2026-08-14 早班 · 更新於 08:42</span></div>';
+  h+='<div class="grid g4" style="margin-bottom:14px">';
+  for(var i=0;i<kpis.length;i++){var k=kpis[i];
+    h+='<div class="kpi"><div class="lbl"><span class="material-symbols-outlined">'+k.ic+'</span>'+k.l+'</div>'
+      +'<div class="val">'+k.v+' <small>'+k.u+'</small></div><div class="delta '+k.c+'">'+k.d+'</div></div>';}
+  h+='</div>';
+  h+='<div class="grid g23" style="margin-bottom:14px">';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">show_chart</span>今日各時段印刷良率 (%)</h3>'
+    +'<div class="sub">SPI 逐小時檢測 · 目標良率 98% 基準線</div><div id="c0a"></div></div>';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">donut_large</span>缺陷型態占比</h3>'
+    +'<div class="sub">本班 SPI 判定 NG 焊點分布</div><div class="gauge-wrap" id="c0b"></div></div>';
+  h+='</div>';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">factory</span>產線即時看板</h3><div class="sub">印刷良率 / 錫膏厚度 Cpk / 設備狀態</div>'
+    +'<div class="scroll"><table><thead><tr><th>產線</th><th>印刷良率</th><th>良率條</th><th>Cpk</th><th>設備狀態</th></tr></thead><tbody>';
+  for(var j=0;j<lines.length;j++){var L=lines[j];
+    h+='<tr><td style="font-weight:700">'+L.n+'</td><td class="mono">'+L.y.toFixed(1)+'%</td>'
+      +'<td style="min-width:120px"><div class="bar"><i style="width:'+L.y+'%"></i></div></td>'
+      +'<td class="mono">'+L.cpk.toFixed(2)+'</td><td><span class="badge '+L.b+'">'+L.st+'</span></td></tr>';}
+  h+='</tbody></table></div></div>';
+  el("view").innerHTML=h;
+  void el("view").offsetHeight;
+  mk("c0a",baseChart({chart:{type:"area",height:260},series:[{name:"良率%",data:[97.8,98.2,98.9,99.1,98.4,97.9,98.6,99.0]}],
+    stroke:{curve:"smooth",width:3},colors:["#a78bfa"],
+    fill:{type:"gradient",gradient:{shadeIntensity:1,opacityFrom:.45,opacityTo:.05}},
+    xaxis:Object.assign({categories:["06","07","08","09","10","11","12","13"]},axisStyle()),
+    yaxis:Object.assign({min:96,max:100,tickAmount:4},axisStyle()),
+    annotations:{yaxis:[{y:98,borderColor:"#fbbf24",strokeDashArray:4,label:{text:"目標 98%",style:{color:"#0d0b16",background:"#fbbf24"}}}]}}));
+  mk("c0b",baseChart({chart:{type:"donut",height:260},series:[42,23,18,11,6],
+    labels:["少錫","偏移","橋接","塌陷","異物"],colors:["#7c3aed","#a78bfa","#60a5fa","#fbbf24","#f87171"],
+    legend:{position:"bottom",labels:{colors:"#9b93b8"}},
+    plotOptions:{pie:{donut:{labels:{show:true,total:{show:true,label:"NG 焊點",color:"#9b93b8",formatter:function(){return"1,284";}}}}}}}));
+}
+
+/* ---------- screen 1 : 焊點量測 ---------- */
+function s1(){
+  var pads=[
+    {id:"R101-1",cmp:"R101",vol:104,ht:98,area:101,off:12,res:"合格",b:"b-ok"},
+    {id:"R101-2",cmp:"R101",vol:71,ht:74,area:82,off:9,res:"少錫",b:"b-bad"},
+    {id:"C205-1",cmp:"C205",vol:118,ht:112,area:109,off:31,res:"偏移",b:"b-warn"},
+    {id:"U3-14",cmp:"U3",vol:99,ht:101,area:97,off:6,res:"合格",b:"b-ok"},
+    {id:"U3-15",cmp:"U3",vol:156,ht:141,area:128,off:44,res:"橋接",b:"b-bad"},
+    {id:"L4-2",cmp:"L4",vol:96,ht:94,area:99,off:14,res:"合格",b:"b-ok"},
+    {id:"Q7-3",cmp:"Q7",vol:88,ht:83,area:91,off:19,res:"合格",b:"b-ok"}
+  ];
+  var h="";
+  h+='<div class="head"><div><h1>焊點 3D 量測</h1><p>板號 PCB-A7-000482 · 每個焊點的錫膏體積 / 高度 / 面積 / 偏移逐點檢測</p></div>'
+    +'<span class="chip"><span class="material-symbols-outlined">grid_on</span>共 1,842 焊點 · NG 24</span></div>';
+  h+='<div class="grid g4" style="margin-bottom:14px">';
+  var mm=[{l:"平均體積%",v:"101.4",ic:"deployed_code"},{l:"平均高度%",v:"98.7",ic:"straighten"},{l:"平均面積%",v:"100.2",ic:"select_all"},{l:"最大偏移",v:"44 μm",ic:"open_in_full"}];
+  for(var i=0;i<mm.length;i++){h+='<div class="kpi"><div class="lbl"><span class="material-symbols-outlined">'+mm[i].ic+'</span>'+mm[i].l+'</div><div class="val">'+mm[i].v+'</div><div class="delta flat">規格 80~120%</div></div>';}
+  h+='</div>';
+  h+='<div class="grid g23" style="margin-bottom:14px">';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">scatter_plot</span>體積 vs 高度散布</h3><div class="sub">綠框為規格窗，落在區外即判 NG</div><div id="c1a"></div></div>';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">bubble_chart</span>板面焊點檢測熱區</h3><div class="sub">綠=合格 黃=邊界 紅=NG</div>'
+    +'<div class="heat" id="heat"></div><div class="legend"><span><i style="background:#34d399"></i>合格</span><span><i style="background:#fbbf24"></i>邊界</span><span><i style="background:#f87171"></i>NG</span></div></div>';
+  h+='</div>';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">table_rows</span>焊點逐點量測明細</h3><div class="sub">數值為相對規格中心之百分比 · 偏移單位 μm</div>'
+    +'<div class="scroll"><table><thead><tr><th>焊點</th><th>元件</th><th>體積%</th><th>高度%</th><th>面積%</th><th>偏移μm</th><th>判定</th></tr></thead><tbody>';
+  for(var j=0;j<pads.length;j++){var p=pads[j];
+    h+='<tr><td class="mono" style="font-weight:700">'+p.id+'</td><td>'+p.cmp+'</td><td class="mono">'+p.vol+'</td><td class="mono">'+p.ht+'</td><td class="mono">'+p.area+'</td><td class="mono">'+p.off+'</td><td><span class="badge '+p.b+'">'+p.res+'</span></td></tr>';}
+  h+='</tbody></table></div></div>';
+  el("view").innerHTML=h;
+  void el("view").offsetHeight;
+  var hv=el("heat");if(hv){var hh="";var seed=7;for(var q=0;q<128;q++){seed=(seed*9301+49297)%233280;var r=seed/233280;var col=r>0.94?"#f87171":(r>0.85?"#fbbf24":"#34d399");hh+='<i style="background:'+col+';opacity:'+(r>0.85?1:.55)+'"></i>';}hv.innerHTML=hh;}
+  mk("c1a",baseChart({chart:{type:"scatter",height:270},
+    series:[{name:"合格",data:[[101,98],[99,101],[96,94],[88,83],[104,98],[100,100],[92,95],[108,103],[95,97]]},
+      {name:"NG",data:[[71,74],[156,141],[118,112]]}],
+    colors:["#34d399","#f87171"],markers:{size:6},
+    xaxis:Object.assign({type:"numeric",title:{text:"體積%",style:{color:"#9b93b8"}},min:60,max:170,tickAmount:5},axisStyle()),
+    yaxis:Object.assign({title:{text:"高度%",style:{color:"#9b93b8"}},min:60,max:150,tickAmount:5},axisStyle()),
+    annotations:{xaxis:[{x:80,x2:120,fillColor:"#34d399",opacity:.08,borderColor:"#34d399"}]}}));
+}
+
+/* ---------- screen 2 : SPC 製程管制 ---------- */
+function s2(){
+  var h="";
+  h+='<div class="head"><div><h1>SPC 製程管制</h1><p>錫膏厚度管制圖 · X-bar/R · Cpk 製程能力追蹤</p></div>'
+    +'<span class="chip"><span class="material-symbols-outlined">verified</span>製程受控 · 無連續 7 點趨勢</span></div>';
+  h+='<div class="grid g4" style="margin-bottom:14px">';
+  var kp=[{l:"Cpk",v:"1.63",ic:"insights",c:"up"},{l:"Cp",v:"1.71",ic:"straighten",c:"flat"},{l:"平均厚度",v:"127.4μm",ic:"height",c:"flat"},{l:"σ 標準差",v:"3.8μm",ic:"analytics",c:"up"}];
+  for(var i=0;i<kp.length;i++){h+='<div class="kpi"><div class="lbl"><span class="material-symbols-outlined">'+kp[i].ic+'</span>'+kp[i].l+'</div><div class="val">'+kp[i].v+'</div><div class="delta '+kp[i].c+'">規格 130±20μm</div></div>';}
+  h+='</div>';
+  h+='<div class="panel" style="margin-bottom:14px"><h3><span class="material-symbols-outlined">monitoring</span>X-bar 管制圖 · 錫膏厚度 (μm)</h3>'
+    +'<div class="sub">UCL 138.5 / CL 127.4 / LCL 116.3 · 每組 n=5</div><div id="c2a"></div></div>';
+  h+='<div class="grid g2">';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">bar_chart</span>厚度分布直方圖</h3><div class="sub">相對規格上下限 (LSL/USL) 的常態分布</div><div id="c2b"></div></div>';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">rule</span>製程能力判讀</h3><div class="sub">依 Cpk 分級與規則判定</div>'
+    +'<div class="stat-row"><span>Cpk 分級</span><span class="badge b-ok">A 級 · 優良 (≥1.33)</span></div>'
+    +'<div class="stat-row"><span>連續超差點</span><span class="mono">0 點</span></div>'
+    +'<div class="stat-row"><span>連續 7 點單邊</span><span class="badge b-ok">未觸發</span></div>'
+    +'<div class="stat-row"><span>預估 PPM (不良)</span><span class="mono">31 ppm</span></div>'
+    +'<div class="stat-row"><span>建議動作</span><span class="pill">維持現行參數</span></div>'
+    +'<div class="stat-row"><span>下次校驗</span><span class="mono">2026-08-15 08:00</span></div></div>';
+  h+='</div>';
+  el("view").innerHTML=h;
+  void el("view").offsetHeight;
+  mk("c2a",baseChart({chart:{type:"line",height:300},
+    series:[{name:"X-bar 厚度",data:[126,128,127,131,125,129,127,130,124,128,126,132,127]},
+      {name:"UCL",data:[138.5,138.5,138.5,138.5,138.5,138.5,138.5,138.5,138.5,138.5,138.5,138.5,138.5]},
+      {name:"LCL",data:[116.3,116.3,116.3,116.3,116.3,116.3,116.3,116.3,116.3,116.3,116.3,116.3,116.3]},
+      {name:"CL",data:[127.4,127.4,127.4,127.4,127.4,127.4,127.4,127.4,127.4,127.4,127.4,127.4,127.4]}],
+    colors:["#a78bfa","#f87171","#f87171","#60a5fa"],
+    stroke:{curve:"straight",width:[3,1.5,1.5,1.5],dashArray:[0,5,5,3]},
+    markers:{size:[5,0,0,0]},
+    xaxis:Object.assign({categories:["1","2","3","4","5","6","7","8","9","10","11","12","13"]},axisStyle()),
+    yaxis:Object.assign({min:112,max:142},axisStyle())}));
+  mk("c2b",baseChart({chart:{type:"bar",height:280},
+    series:[{name:"樣本數",data:[2,5,11,19,28,24,15,8,3]}],colors:["#7c3aed"],
+    plotOptions:{bar:{columnWidth:"85%",borderRadius:2}},
+    xaxis:Object.assign({categories:["114","118","122","126","130","134","138","142","146"]},axisStyle()),
+    yaxis:axisStyle(),
+    annotations:{xaxis:[{x:"114",borderColor:"#f87171",label:{text:"LSL",style:{color:"#fff",background:"#f87171"}}},{x:"146",borderColor:"#f87171",label:{text:"USL",style:{color:"#fff",background:"#f87171"}}}]}}));
+}
+
+/* ---------- screen 3 : 缺陷判定 ---------- */
+function s3(){
+  var cols=[
+    {n:"待判定",b:"b-info",items:[{t:"少錫 · R101-2",m:"體積71% / Line-C",p:"高"},{t:"偏移 · C205-1",m:"31μm / Line-B",p:"中"}]},
+    {n:"分析中",b:"b-warn",items:[{t:"橋接 · U3-15",m:"體積156% / Line-A",p:"高"},{t:"塌陷 · IC12",m:"高度68% / Line-D",p:"中"}]},
+    {n:"已警報",b:"b-bad",items:[{t:"連續少錫 · SMT3",m:"5 板連續 / 已攔截",p:"高"}]},
+    {n:"已處置",b:"b-ok",items:[{t:"異物 · L4-9",m:"清潔鋼板已恢復",p:"低"},{t:"偏移 · Q7-3",m:"視覺校正完成",p:"低"}]}
+  ];
+  var rules=[
+    {id:"少錫 (Insufficient)",cond:"體積 < 80% 規格",act:"攔截+檢查鋼板開口/刮刀壓力",sev:"高",b:"b-bad"},
+    {id:"橋接 (Bridging)",cond:"相鄰焊點錫膏連結 / 體積>140%",act:"降低壓力+檢查脫模速度",sev:"高",b:"b-bad"},
+    {id:"偏移 (Offset)",cond:"位置偏移 > 25μm",act:"校正視覺定位+鋼板對位",sev:"中",b:"b-warn"},
+    {id:"塌陷 (Slump)",cond:"高度 < 75% 且面積擴大",act:"檢查錫膏黏度/環境溫溼度",sev:"中",b:"b-warn"},
+    {id:"異物 (Foreign)",cond:"非預期反射點",act:"清潔鋼板底面",sev:"低",b:"b-mut"}
+  ];
+  var h="";
+  h+='<div class="head"><div><h1>缺陷判定與警報</h1><p>SPI 依門檻自動分類缺陷型態 · 高風險即時警報攔截不良板</p></div>'
+    +'<span class="chip"><span class="material-symbols-outlined">notifications_active</span>2 件高風險警報</span></div>';
+  h+='<div class="panel" style="margin-bottom:14px"><h3><span class="material-symbols-outlined">view_kanban</span>缺陷處置看板</h3><div class="sub">依判定 → 分析 → 警報 → 處置流轉</div>'
+    +'<div class="board">';
+  for(var c=0;c<cols.length;c++){var C=cols[c];
+    h+='<div class="col"><h4>'+C.n+'<span class="badge '+C.b+'">'+C.items.length+'</span></h4>';
+    for(var k=0;k<C.items.length;k++){var it=C.items[k];var pb=it.p==="高"?"b-bad":(it.p==="中"?"b-warn":"b-mut");
+      h+='<div class="card"><div class="t">'+it.t+'</div><div class="m"><span>'+it.m+'</span><span class="badge '+pb+'">'+it.p+'</span></div></div>';}
+    h+='</div>';}
+  h+='</div></div>';
+  h+='<div class="grid g32">';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">warning</span>缺陷型態趨勢</h3><div class="sub">近 7 日各缺陷發生數</div><div id="c3a"></div></div>';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">gavel</span>判定規則庫</h3><div class="sub">自動判定門檻與建議處置</div>'
+    +'<div class="scroll"><table><thead><tr><th>缺陷型態</th><th>判定條件</th><th>建議處置</th><th>等級</th></tr></thead><tbody>';
+  for(var r=0;r<rules.length;r++){var R=rules[r];
+    h+='<tr><td style="font-weight:700">'+R.id+'</td><td style="white-space:normal;color:var(--mut)">'+R.cond+'</td><td style="white-space:normal">'+R.act+'</td><td><span class="badge '+R.b+'">'+R.sev+'</span></td></tr>';}
+  h+='</tbody></table></div></div>';
+  h+='</div>';
+  el("view").innerHTML=h;
+  void el("view").offsetHeight;
+  mk("c3a",baseChart({chart:{type:"bar",height:290,stacked:true},
+    series:[{name:"少錫",data:[8,6,9,5,7,4,6]},{name:"偏移",data:[3,4,2,5,3,2,3]},{name:"橋接",data:[2,1,3,2,1,2,1]},{name:"塌陷",data:[1,2,1,1,2,1,1]}],
+    colors:["#7c3aed","#a78bfa","#60a5fa","#fbbf24"],
+    plotOptions:{bar:{columnWidth:"55%",borderRadius:2}},
+    tooltip:{shared:true,intersect:false},
+    xaxis:Object.assign({categories:["8/8","8/9","8/10","8/11","8/12","8/13","8/14"]},axisStyle()),
+    yaxis:axisStyle(),legend:{position:"top",labels:{colors:"#9b93b8"}}}));
+}
+
+/* ---------- screen 4 : 參數回饋 ---------- */
+function s4(){
+  var params=[
+    {n:"刮刀壓力",cur:"6.2 kg",rec:"5.8 kg",eff:"少錫↓",dir:"down"},
+    {n:"印刷速度",cur:"28 mm/s",rec:"25 mm/s",eff:"填充↑",dir:"down"},
+    {n:"脫模速度",cur:"3.0 mm/s",rec:"2.4 mm/s",eff:"塌陷↓",dir:"down"},
+    {n:"鋼板間距",cur:"0.10 mm",rec:"0.08 mm",eff:"轉移率↑",dir:"down"},
+    {n:"刮刀角度",cur:"60°",rec:"60°",eff:"維持",dir:"flat"}
+  ];
+  var logs=[
+    {tm:"08:41",t:"刮刀壓力 6.5→6.2kg",d:"Line-C 少錫率由 3.1% 降至 1.4%",who:"陳建豪 工程師"},
+    {tm:"07:58",t:"觸發連續少錫警報",d:"SMT3 連續 5 板體積<80%，自動攔截",who:"SPI 系統"},
+    {tm:"07:20",t:"脫模速度 3.0→2.4mm/s",d:"塌陷缺陷歸零，Cpk 1.42→1.61",who:"林佩宜 工程師"},
+    {tm:"06:35",t:"更換錫膏批號 SP-2408-C",d:"黏度重新校驗通過，回溫達標",who:"生產部"}
+  ];
+  var h="";
+  h+='<div class="head"><div><h1>印刷參數閉環回饋</h1><p>依 SPI 趨勢建議印刷機參數調整 · 形成印刷→檢測→回饋閉環</p></div>'
+    +'<span class="chip"><span class="material-symbols-outlined">autorenew</span>閉環模式 · Line-C</span></div>';
+  h+='<div class="grid g32" style="margin-bottom:14px">';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">tune</span>參數健康度雷達</h3><div class="sub">現行 vs 建議設定</div><div class="gauge-wrap" id="c4a"></div></div>';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">build</span>印刷機參數建議</h3><div class="sub">Line-C · DEK Horizon 08i</div>'
+    +'<div class="scroll"><table><thead><tr><th>參數</th><th>現行值</th><th>建議值</th><th>預期效益</th></tr></thead><tbody>';
+  for(var i=0;i<params.length;i++){var p=params[i];var ic=p.dir==="down"?'<span class="material-symbols-outlined" style="color:var(--ok);font-size:15px">south</span>':'';
+    h+='<tr><td style="font-weight:700">'+p.n+'</td><td class="mono">'+p.cur+'</td><td class="mono" style="color:var(--accent2);font-weight:700">'+ic+p.rec+'</td><td><span class="pill">'+p.eff+'</span></td></tr>';}
+  h+='</tbody></table></div></div>';
+  h+='</div>';
+  h+='<div class="grid g23">';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">trending_down</span>參數調整後良率恢復</h3><div class="sub">調整刮刀壓力與脫模速度後 Line-C 良率回升</div><div id="c4b"></div></div>';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">history_edu</span>回饋調整紀錄</h3><div class="sub">參數變更與驗證追蹤</div><div class="tl">';
+  for(var j=0;j<logs.length;j++){var g=logs[j];
+    h+='<div class="it"><div class="tm">'+g.tm+' · '+g.who+'</div><div class="tt">'+g.t+'</div><div class="td">'+g.d+'</div></div>';}
+  h+='</div></div>';
+  h+='</div>';
+  el("view").innerHTML=h;
+  void el("view").offsetHeight;
+  mk("c4a",baseChart({chart:{type:"radar",height:300},
+    series:[{name:"現行",data:[62,58,70,55,80]},{name:"建議",data:[88,90,86,84,82]}],
+    colors:["#f87171","#a78bfa"],stroke:{width:2},fill:{opacity:.25},markers:{size:4},
+    xaxis:{categories:["壓力","速度","脫模","間距","角度"],labels:{style:{colors:["#9b93b8","#9b93b8","#9b93b8","#9b93b8","#9b93b8"]}}},
+    yaxis:{show:false,max:100,min:0},legend:{position:"bottom",labels:{colors:"#9b93b8"}}}));
+  mk("c4b",baseChart({chart:{type:"line",height:270},
+    series:[{name:"Line-C 良率%",data:[94.1,94.4,93.8,96.2,97.5,98.3,98.6]}],
+    colors:["#34d399"],stroke:{curve:"smooth",width:3},markers:{size:4},
+    xaxis:Object.assign({categories:["07:00","07:20","07:40","08:00","08:20","08:40","09:00"]},axisStyle()),
+    yaxis:Object.assign({min:92,max:100},axisStyle()),
+    annotations:{xaxis:[{x:"08:00",borderColor:"#a78bfa",label:{text:"參數調整",style:{color:"#fff",background:"#7c3aed"}}}]}}));
+}
+
+/* ---------- screen 5 : 批次追溯 ---------- */
+function s5(){
+  var batches=[
+    {lot:"WO-2408-1042",pcb:"PCB-A7",paste:"SP-2408-C",stencil:"ST-0.12-A",qty:1200,yld:98.9,st:"完成",b:"b-ok"},
+    {lot:"WO-2408-1043",pcb:"PCB-B3",paste:"SP-2408-C",stencil:"ST-0.10-B",qty:800,yld:98.1,st:"完成",b:"b-ok"},
+    {lot:"WO-2408-1051",pcb:"PCB-C9",paste:"SP-2408-D",stencil:"ST-0.12-C",qty:640,yld:96.4,st:"警戒",b:"b-warn"},
+    {lot:"WO-2408-1055",pcb:"PCB-A7",paste:"SP-2408-C",stencil:"ST-0.12-A",qty:960,yld:99.2,st:"生產中",b:"b-info"}
+  ];
+  var audit=[
+    {tm:"08:40",who:"陳建豪",act:"覆核 WO-1051 SPI 報告並簽核"},
+    {tm:"08:12",who:"SPI 系統",act:"WO-1051 錫膏批號 SP-2408-D 綁定完成"},
+    {tm:"07:30",who:"林佩宜",act:"上傳 ST-0.12-C 鋼板張力檢驗紀錄"},
+    {tm:"06:50",who:"品保部",act:"WO-1042 出貨終檢 · 批號一致性通過"}
+  ];
+  var h="";
+  h+='<div class="head"><div><h1>批次追溯與稽核</h1><p>鋼板 / 錫膏批號綁定 · SPI 檢測紀錄可追溯可稽核</p></div>'
+    +'<span class="chip"><span class="material-symbols-outlined">qr_code_2</span>平均追溯時間 16 分鐘</span></div>';
+  h+='<div class="grid g4" style="margin-bottom:14px">';
+  var kk=[{l:"本班工單",v:"18",ic:"receipt_long"},{l:"綁定批號",v:"100%",ic:"link"},{l:"稽核紀錄",v:"1,204",ic:"history"},{l:"追溯時間",v:"16分",ic:"schedule"}];
+  for(var i=0;i<kk.length;i++){h+='<div class="kpi"><div class="lbl"><span class="material-symbols-outlined">'+kk[i].ic+'</span>'+kk[i].l+'</div><div class="val">'+kk[i].v+'</div><div class="delta up">可稽核</div></div>';}
+  h+='</div>';
+  h+='<div class="panel" style="margin-bottom:14px"><h3><span class="material-symbols-outlined">account_tree</span>工單批次追溯表</h3><div class="sub">工單 → PCB → 錫膏批號 → 鋼板 → SPI 良率</div>'
+    +'<div class="scroll"><table><thead><tr><th>工單號</th><th>PCB</th><th>錫膏批號</th><th>鋼板</th><th>數量</th><th>SPI良率</th><th>狀態</th></tr></thead><tbody>';
+  for(var j=0;j<batches.length;j++){var B=batches[j];
+    h+='<tr><td class="mono" style="font-weight:700">'+B.lot+'</td><td>'+B.pcb+'</td><td class="mono">'+B.paste+'</td><td class="mono">'+B.stencil+'</td><td class="mono">'+B.qty+'</td><td class="mono">'+B.yld.toFixed(1)+'%</td><td><span class="badge '+B.b+'">'+B.st+'</span></td></tr>';}
+  h+='</tbody></table></div></div>';
+  h+='<div class="grid g23">';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">stacked_line_chart</span>近 6 週印刷不良率趨勢</h3><div class="sub">追蹤印刷不良率與錫膏厚度 Cpk 改善</div><div id="c5a"></div></div>';
+  h+='<div class="panel"><h3><span class="material-symbols-outlined">fact_check</span>稽核操作紀錄</h3><div class="sub">簽核與資料綁定軌跡</div><div class="tl">';
+  for(var k=0;k<audit.length;k++){var a=audit[k];
+    h+='<div class="it"><div class="tm">'+a.tm+' · '+a.who+'</div><div class="tt">'+a.act+'</div></div>';}
+  h+='</div></div>';
+  h+='</div>';
+  el("view").innerHTML=h;
+  void el("view").offsetHeight;
+  mk("c5a",baseChart({chart:{type:"line",height:280},
+    series:[{name:"印刷不良率%",data:[6.4,5.1,4.3,3.5,2.6,2.0]},{name:"厚度Cpk",data:[1.02,1.18,1.31,1.44,1.55,1.63]}],
+    colors:["#f87171","#a78bfa"],stroke:{curve:"smooth",width:3},markers:{size:4},
+    xaxis:Object.assign({categories:["第1週","第2週","第3週","第4週","第5週","第6週"]},axisStyle()),
+    yaxis:[Object.assign({title:{text:"不良率%",style:{color:"#9b93b8"}},min:0,max:8},axisStyle()),
+      Object.assign({opposite:true,title:{text:"Cpk",style:{color:"#9b93b8"}},min:0.8,max:1.8},axisStyle())],
+    legend:{position:"top",labels:{colors:"#9b93b8"}}}));
+}
+
+var SCREENS=[s0,s1,s2,s3,s4,s5];
+function buildTabs(){
+  var t="";for(var i=0;i<TABS.length;i++){var T=TABS[i];
+    t+='<button class="tab" data-i="'+T.i+'"><span class="material-symbols-outlined">'+T.ic+'</span><span class="txt">'+T.t+'</span></button>';}
+  el("tabs").innerHTML=t;
+  var btns=document.querySelectorAll("[data-i]");
+  for(var k=0;k<btns.length;k++){btns[k].addEventListener("click",function(){location.hash="v"+this.getAttribute("data-i");});}
+}
+function show(i){
+  clearCharts();
+  var btns=document.querySelectorAll("[data-i]");
+  for(var k=0;k<btns.length;k++){btns[k].classList.toggle("on",+btns[k].getAttribute("data-i")===i);}
+  (SCREENS[i]||s0)();
+}
+buildTabs();
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>

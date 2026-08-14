@@ -4,15 +4,569 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ESD Control Management（靜電防護管理）｜Jvision 系統 Demo</title>
-  <meta name="description" content="從異常到改善的品質閉環與追溯稽核" />
+  <meta name="description" content="靜電防護點檢、阻值監測、異常警報與 S20.20 合規稽核" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --accent:#e11d48; --accent2:#fb7185; --accent-soft:#fff1f3;
+      --ink:#1f2430; --muted:#697086; --line:#eef0f4; --bg:#f6f7f9; --card:#ffffff;
+      --ok:#16a34a; --warn:#f59e0b; --bad:#e11d48; --info:#2563eb;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;}
+    body{font-family:"Inter","Noto Sans TC",sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
+    .ms{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+    .shell{max-width:1360px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+    /* topbar */
+    .topbar{display:flex;align-items:center;gap:14px;padding:14px 20px;background:linear-gradient(100deg,#e11d48,#fb7185);color:#fff;}
+    .brand{display:flex;align-items:center;gap:11px;min-width:0;}
+    .brand .logo{width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:23px;flex:0 0 auto;}
+    .brand h1{font-size:16px;margin:0;font-weight:800;line-height:1.25;}
+    .brand p{margin:2px 0 0;font-size:12px;opacity:.9;font-weight:500;}
+    .topbar .spacer{flex:1;}
+    .badge-live{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.16);padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;}
+    .dot{width:8px;height:8px;border-radius:50%;background:#bbf7d0;box-shadow:0 0 0 3px rgba(187,247,208,.3);}
+    /* nav */
+    nav{display:flex;flex-wrap:wrap;gap:8px;padding:12px 20px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;}
+    nav button{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#fff;color:var(--muted);
+      padding:9px 14px;border-radius:11px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;min-width:0;}
+    nav button .ms{font-size:19px;}
+    nav button:hover{border-color:var(--accent2);color:var(--accent);}
+    nav button.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 6px 16px rgba(225,29,72,.28);}
+    main{flex:1;padding:22px 20px 40px;}
+    .screen-head{margin:0 0 18px;}
+    .screen-head h2{margin:0;font-size:20px;font-weight:800;display:flex;align-items:center;gap:10px;}
+    .screen-head h2 .ms{color:var(--accent);font-size:24px;}
+    .screen-head p{margin:6px 0 0;color:var(--muted);font-size:13px;}
+    /* KPI */
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0;position:relative;overflow:hidden;}
+    .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent);}
+    .kpi .lab{font-size:12px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px;}
+    .kpi .lab .ms{font-size:17px;color:var(--accent);}
+    .kpi .val{font-size:27px;font-weight:900;margin-top:8px;letter-spacing:-.5px;}
+    .kpi .val small{font-size:13px;font-weight:700;color:var(--muted);margin-left:3px;}
+    .kpi .sub{font-size:11.5px;margin-top:5px;font-weight:600;}
+    .up{color:var(--ok);} .down{color:var(--bad);}
+    /* split workspace */
+    .split{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start;}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;min-width:0;}
+    .card-h{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;}
+    .card-h .ms{color:var(--accent);font-size:20px;}
+    .card-h .tag{margin-left:auto;font-size:11px;font-weight:700;color:var(--muted);background:var(--bg);padding:4px 9px;border-radius:999px;}
+    .card-b{padding:16px;}
+    /* list pane */
+    .lst{display:flex;flex-direction:column;}
+    .lrow{display:flex;align-items:center;gap:11px;padding:13px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .12s;min-width:0;}
+    .lrow:last-child{border-bottom:0;}
+    .lrow:hover{background:var(--accent-soft);}
+    .lrow.sel{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent);}
+    .lrow .ico{width:36px;height:36px;border-radius:10px;background:var(--bg);display:flex;align-items:center;justify-content:center;flex:0 0 auto;color:var(--accent);}
+    .lrow .ico .ms{font-size:20px;}
+    .lrow .txt{min-width:0;flex:1;}
+    .lrow .txt .t{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .lrow .txt .s{font-size:11.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    /* pills */
+    .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;}
+    .p-ok{background:#e7f6ec;color:var(--ok);}
+    .p-warn{background:#fef3e2;color:#b45309;}
+    .p-bad{background:#fde8ec;color:var(--bad);}
+    .p-info{background:#e6effe;color:var(--info);}
+    .p-mut{background:var(--bg);color:var(--muted);}
+    /* tables */
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th{text-align:left;font-size:11.5px;color:var(--muted);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+    td{padding:11px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+    tr:last-child td{border-bottom:0;}
+    tbody tr:hover{background:var(--accent-soft);}
+    .mono{font-family:"Inter";font-weight:700;letter-spacing:.3px;}
+    /* detail panel bits */
+    .detail-hero{padding:18px;background:linear-gradient(120deg,#fff1f3,#fff);border-bottom:1px solid var(--line);}
+    .detail-hero h3{margin:0;font-size:17px;font-weight:800;}
+    .detail-hero .meta{margin-top:6px;color:var(--muted);font-size:12.5px;}
+    .kv{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;padding:16px;}
+    .kv .k{font-size:11.5px;color:var(--muted);font-weight:600;}
+    .kv .v{font-size:14px;font-weight:700;margin-top:3px;}
+    .gauge-wrap{position:relative;height:170px;overflow:hidden;}
+    .chart-wrap{position:relative;height:260px;overflow:hidden;}
+    .chart-sm{position:relative;height:200px;overflow:hidden;}
+    /* progress bar */
+    .bar{height:8px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:7px;}
+    .bar > i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+    /* two column */
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start;}
+    /* board */
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start;}
+    .col{background:var(--bg);border-radius:14px;padding:12px;min-width:0;}
+    .col h4{margin:0 0 10px;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:7px;}
+    .col h4 .cnt{margin-left:auto;background:#fff;border:1px solid var(--line);border-radius:999px;font-size:11px;padding:1px 8px;}
+    .tik{background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:10px;}
+    .tik:last-child{margin-bottom:0;}
+    .tik .tt{font-size:12.5px;font-weight:700;}
+    .tik .tm{font-size:11px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:5px;}
+    /* timeline */
+    .tl{position:relative;padding-left:26px;}
+    .tl::before{content:"";position:absolute;left:9px;top:4px;bottom:4px;width:2px;background:var(--line);}
+    .tl .ev{position:relative;padding:0 0 18px 0;}
+    .tl .ev:last-child{padding-bottom:0;}
+    .tl .ev::before{content:"";position:absolute;left:-22px;top:3px;width:13px;height:13px;border-radius:50%;background:#fff;border:3px solid var(--accent);}
+    .tl .ev.done::before{background:var(--accent);}
+    .tl .ev .et{font-size:13px;font-weight:700;}
+    .tl .ev .ed{font-size:11.5px;color:var(--muted);margin-top:3px;}
+    .tl .ev .ex{font-size:12px;margin-top:5px;background:var(--bg);padding:8px 10px;border-radius:9px;}
+    /* environment cells */
+    .envgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+    .envcell{border:1px solid var(--line);border-radius:13px;padding:13px;min-width:0;}
+    .envcell .zn{font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;}
+    .envcell .rd{font-size:22px;font-weight:900;margin-top:8px;}
+    .envcell .rd small{font-size:12px;color:var(--muted);font-weight:700;}
+    .envcell .st{margin-top:8px;}
+    .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);margin-top:12px;}
+    .legend span{display:inline-flex;align-items:center;gap:6px;}
+    .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;}
+    .note{font-size:12px;color:var(--muted);margin-top:12px;display:flex;align-items:center;gap:7px;background:var(--bg);padding:10px 12px;border-radius:10px;}
+    .note .ms{color:var(--accent);font-size:18px;}
+    .btnbar{display:flex;flex-wrap:wrap;gap:8px;padding:14px 16px;border-top:1px solid var(--line);}
+    .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 13px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;}
+    .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+    .btn .ms{font-size:17px;}
+    .sec-title{font-size:13px;font-weight:800;margin:0 0 12px;display:flex;align-items:center;gap:8px;}
+    .sec-title .ms{color:var(--accent);font-size:19px;}
+    /* responsive */
+    @media(max-width:1080px){ .board{grid-template-columns:repeat(2,1fr);} }
+    @media(max-width:860px){
+      .split{grid-template-columns:1fr;}
+    }
+    @media(max-width:820px){
+      .kpis{grid-template-columns:1fr 1fr;}
+      .grid2,.grid3{grid-template-columns:1fr;}
+      .envgrid{grid-template-columns:1fr 1fr;}
+      .board{grid-template-columns:1fr;}
+      .kv{grid-template-columns:1fr 1fr;}
+    }
+    @media(max-width:560px){
+      nav button span.lbl{display:none;}
+      nav button{padding:9px 12px;}
+      .kpis{grid-template-columns:1fr 1fr;}
+      .envgrid{grid-template-columns:1fr 1fr;}
+      .brand p{display:none;}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo"><span class="ms">bolt</span></div>
+        <div style="min-width:0;">
+          <h1>ESD Control Management</h1>
+          <p>靜電防護管理平台 · 點檢 / 監測 / 合規</p>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <div class="badge-live"><span class="dot"></span>即時監測中 · 42 工位</div>
+    </div>
+    <nav id="nav"></nav>
+    <main><div id="screen"></div></main>
+  </div>
+
+  <script>
+  var show;
+  (function(){
+    var chart=null;
+
+    var NAV=[
+      {i:0,icon:"checklist",label:"點檢排程"},
+      {i:1,icon:"bolt",label:"阻值監測"},
+      {i:2,icon:"warning",label:"異常警報"},
+      {i:3,icon:"build",label:"處置追蹤"},
+      {i:4,icon:"thermostat",label:"環境監控"},
+      {i:5,icon:"verified",label:"合規報告"}
+    ];
+
+    function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});}
+    function el(id){return document.getElementById(id);}
+    function killChart(){ if(chart){ try{chart.destroy();}catch(e){} chart=null; } }
+
+    /* ---------- data ---------- */
+    var checkTasks=[
+      {id:"CHK-4821",zone:"SMT A 線",type:"腕帶點檢",items:12,done:12,by:"林建宏",status:"完成",cov:100},
+      {id:"CHK-4822",zone:"SMT B 線",type:"鞋跟點檢",items:16,done:14,by:"陳怡君",status:"進行中",cov:88},
+      {id:"CHK-4823",zone:"DIP 插件區",type:"地墊接地",items:8,done:5,by:"王志豪",status:"進行中",cov:63},
+      {id:"CHK-4824",zone:"包裝出貨",type:"離子風機",items:6,done:0,by:"未派工",status:"待派工",cov:0},
+      {id:"CHK-4825",zone:"IQC 進料",type:"腕帶點檢",items:10,done:10,by:"張美玲",status:"完成",cov:100},
+      {id:"CHK-4826",zone:"維修工作站",type:"接地線路",items:9,done:3,by:"李冠廷",status:"逾期",cov:33}
+    ];
+    var measRows=[
+      {sta:"WS-A-07",op:"林建宏",band:"腕帶",val:12.4,lo:7.5,hi:35,unit:"MΩ",res:"合格",ts:"09:12"},
+      {sta:"WS-A-11",op:"陳怡君",band:"鞋跟",val:41.7,lo:1,hi:35,unit:"MΩ",res:"超規",ts:"09:18"},
+      {sta:"WS-B-03",op:"王志豪",band:"腕帶",val:8.9,lo:7.5,hi:35,unit:"MΩ",res:"合格",ts:"09:25"},
+      {sta:"WS-B-09",op:"張美玲",band:"地墊",val:0.6,lo:1,hi:100,unit:"MΩ",res:"超規",ts:"09:31"},
+      {sta:"WS-C-02",op:"李冠廷",band:"腕帶",val:18.2,lo:7.5,hi:35,unit:"MΩ",res:"合格",ts:"09:40"},
+      {sta:"WS-C-06",op:"黃靜宜",band:"鞋跟",val:29.5,lo:1,hi:35,unit:"MΩ",res:"合格",ts:"09:47"}
+    ];
+    var alarms=[
+      {id:"AL-2207",sta:"WS-A-11",kind:"鞋跟阻值超上限",sev:"高",val:"41.7 MΩ",when:"2 分鐘前",ack:false},
+      {id:"AL-2206",sta:"WS-B-09",kind:"地墊阻值低於下限",sev:"高",val:"0.6 MΩ",when:"9 分鐘前",ack:false},
+      {id:"AL-2205",sta:"Zone-D 包裝",kind:"離子風機平衡偏移",sev:"中",val:"+118 V",when:"27 分鐘前",ack:true},
+      {id:"AL-2204",sta:"WS-A-04",kind:"腕帶未偵測到佩戴",sev:"中",val:"開路",when:"41 分鐘前",ack:true},
+      {id:"AL-2203",sta:"DIP 插件區",kind:"環境濕度過低",sev:"低",val:"28 %RH",when:"1 小時前",ack:true}
+    ];
+    var dispo=[
+      {id:"D-1042",sta:"WS-A-11",act:"隔離+換件",owner:"品保 陳怡君",stage:"complete"},
+      {id:"D-1041",sta:"WS-B-09",act:"接地重接",owner:"設備 王志豪",stage:"active"},
+      {id:"D-1040",sta:"Zone-D",act:"風機校正",owner:"設備 李冠廷",stage:"active"}
+    ];
+    var envZones=[
+      {zn:"SMT A 線",t:23.4,h:44,ion:"±35 V",st:"正常",cls:"p-ok"},
+      {zn:"SMT B 線",t:24.1,h:41,ion:"±52 V",st:"正常",cls:"p-ok"},
+      {zn:"DIP 插件區",t:22.8,h:28,ion:"±88 V",st:"濕度偏低",cls:"p-warn"},
+      {zn:"包裝出貨",t:25.6,h:39,ion:"+118 V",st:"離子偏移",cls:"p-bad"},
+      {zn:"IQC 進料",t:23.0,h:46,ion:"±29 V",st:"正常",cls:"p-ok"},
+      {zn:"維修工作站",t:24.9,h:43,ion:"±61 V",st:"正常",cls:"p-ok"},
+      {zn:"倉儲備料",t:22.2,h:37,ion:"±74 V",st:"觀察",cls:"p-warn"},
+      {zn:"成品出貨",t:23.7,h:42,ion:"±40 V",st:"正常",cls:"p-ok"}
+    ];
+
+    function pillFor(s){
+      if(s==="完成"||s==="合格"||s==="正常")return "p-ok";
+      if(s==="進行中"||s==="待派工"||s==="觀察"||s==="濕度偏低")return "p-info";
+      if(s==="逾期"||s==="超規"||s==="離子偏移")return "p-bad";
+      return "p-warn";
+    }
+    function sevPill(s){ return s==="高"?"p-bad":(s==="中"?"p-warn":"p-mut"); }
+
+    /* ---------- screens ---------- */
+    function s0(){
+      var sel=checkTasks[1];
+      var rows=checkTasks.map(function(t,idx){
+        return '<div class="lrow'+(idx===1?' sel':'')+'" data-row="'+idx+'">'+
+          '<div class="ico"><span class="ms">assignment</span></div>'+
+          '<div class="txt"><div class="t">'+esc(t.id)+' · '+esc(t.zone)+'</div>'+
+          '<div class="s">'+esc(t.type)+' · '+esc(t.by)+'</div></div>'+
+          '<span class="pill '+pillFor(t.status)+'">'+esc(t.status)+'</span></div>';
+      }).join("");
+      var kv=
+        '<div class="detail-hero"><h3>'+esc(sel.id)+' · '+esc(sel.zone)+'</h3>'+
+        '<div class="meta">'+esc(sel.type)+'　·　負責人 '+esc(sel.by)+'　·　班別 早班 A</div></div>'+
+        '<div class="kv">'+
+        '<div><div class="k">點檢項目</div><div class="v">'+sel.items+' 項</div></div>'+
+        '<div><div class="k">已完成</div><div class="v">'+sel.done+' 項</div></div>'+
+        '<div><div class="k">覆蓋率</div><div class="v">'+sel.cov+' %<div class="bar"><i style="width:'+sel.cov+'%"></i></div></div></div>'+
+        '<div><div class="k">預計完成</div><div class="v">10:30</div></div>'+
+        '</div>'+
+        '<div style="padding:0 16px 4px;"><div class="sec-title"><span class="ms">insights</span>近 7 日點檢覆蓋率</div>'+
+        '<div class="chart-sm"><canvas id="c0"></canvas></div></div>'+
+        '<div class="btnbar"><button class="btn primary"><span class="ms">check</span>確認完成</button>'+
+        '<button class="btn"><span class="ms">person_add</span>改派人員</button>'+
+        '<button class="btn"><span class="ms">event</span>調整排程</button></div>';
+      return kpiRow([
+        ["today","今日任務","6","+2 較昨日","up","event_available"],
+        ["task_alt","完成率","74 %","-6% 目標 80%","down","donut_large"],
+        ["group","出勤點檢員","5 / 6","1 人待補","","groups"],
+        ["schedule","逾期任務","1","需立即處理","down","warning"]
+      ])+
+      '<div class="split">'+
+        '<div class="card"><div class="card-h"><span class="ms">checklist</span>今日點檢任務<span class="tag">左側清單 · 點選查看</span></div><div class="lst" id="l0">'+rows+'</div></div>'+
+        '<div class="card" id="d0">'+kv+'</div>'+
+      '</div>';
+    }
+    function initS0(){
+      var ctx=el("c0"); if(!ctx)return;
+      chart=new Chart(ctx,{type:"line",data:{labels:["8/8","8/9","8/10","8/11","8/12","8/13","8/14"],
+        datasets:[{label:"覆蓋率 %",data:[71,78,83,80,88,92,74],borderColor:"#e11d48",backgroundColor:"rgba(225,29,72,.10)",fill:true,tension:.35,pointRadius:3,pointBackgroundColor:"#e11d48"}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:60,max:100,ticks:{callback:function(v){return v+"%";}}}}}});
+    }
+
+    function s1(){
+      var sel=measRows[1];
+      var rows=measRows.map(function(m,idx){
+        return '<div class="lrow'+(idx===1?' sel':'')+'" data-row="'+idx+'">'+
+          '<div class="ico"><span class="ms">sensors</span></div>'+
+          '<div class="txt"><div class="t">'+esc(m.sta)+' · '+esc(m.band)+'</div>'+
+          '<div class="s">'+esc(m.op)+' · '+m.val+' '+esc(m.unit)+' · '+esc(m.ts)+'</div></div>'+
+          '<span class="pill '+pillFor(m.res)+'">'+esc(m.res)+'</span></div>';
+      }).join("");
+      var detail=
+        '<div class="detail-hero"><h3>'+esc(sel.sta)+' · '+esc(sel.band)+'量測</h3>'+
+        '<div class="meta">作業員 '+esc(sel.op)+'　·　量測時間 '+esc(sel.ts)+'　·　規格帶 '+sel.lo+' – '+sel.hi+' '+esc(sel.unit)+'</div></div>'+
+        '<div style="padding:16px 16px 4px;"><div class="sec-title"><span class="ms">speed</span>即時阻值 vs 規格帶</div>'+
+        '<div class="gauge-wrap"><canvas id="c1a"></canvas></div>'+
+        '<div style="text-align:center;margin-top:-6px;"><span class="pill p-bad">量測值 '+sel.val+' '+esc(sel.unit)+' · 超出上限</span></div></div>'+
+        '<div style="padding:12px 16px 4px;"><div class="sec-title"><span class="ms">show_chart</span>本班量測趨勢（MΩ）</div>'+
+        '<div class="chart-sm"><canvas id="c1b"></canvas></div></div>'+
+        '<div class="btnbar"><button class="btn primary"><span class="ms">replay</span>要求複測</button>'+
+        '<button class="btn"><span class="ms">block</span>暫停工位</button></div>';
+      return kpiRow([
+        ["bolt","今日量測筆數","318","+41 較昨日","up","tune"],
+        ["verified","合格率","96.2 %","+1.4%","up","fact_check"],
+        ["error","超規筆數","12","集中於鞋跟","down","warning"],
+        ["straighten","平均阻值","19.8","MΩ 落於規格中段","","insights"]
+      ])+
+      '<div class="split">'+
+        '<div class="card"><div class="card-h"><span class="ms">sensors</span>量測站即時讀值<span class="tag">上限判定</span></div><div class="lst" id="l1">'+rows+'</div></div>'+
+        '<div class="card" id="d1">'+detail+'</div>'+
+      '</div>';
+    }
+    function initS1(){
+      var g=el("c1a");
+      if(g){ chart=new Chart(g,{type:"doughnut",data:{labels:["規格帶 1–35","超出量"],
+        datasets:[{data:[35,6.7],backgroundColor:["#fecdd3","#e11d48"],borderWidth:0}]},
+        options:{responsive:true,maintainAspectRatio:false,cutout:"72%",rotation:-90,circumference:180,plugins:{legend:{display:false}}}}); }
+      var t=el("c1b");
+      if(t){ var c2=new Chart(t,{type:"bar",data:{labels:["07","09","11","03","02","06"],
+        datasets:[{label:"MΩ",data:[12.4,41.7,8.9,0.6,18.2,29.5],
+          backgroundColor:["#fb7185","#e11d48","#fb7185","#e11d48","#fb7185","#fb7185"],borderRadius:6}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+        if(!chart)chart=c2; }
+    }
+
+    function s2(){
+      var open=alarms.filter(function(a){return !a.ack;});
+      var sel=alarms[0];
+      var rows=alarms.map(function(a,idx){
+        return '<div class="lrow'+(idx===0?' sel':'')+'" data-row="'+idx+'">'+
+          '<div class="ico" style="color:'+(a.sev==="高"?"#e11d48":(a.sev==="中"?"#f59e0b":"#697086"))+'"><span class="ms">'+(a.ack?"notifications":"notifications_active")+'</span></div>'+
+          '<div class="txt"><div class="t">'+esc(a.id)+' · '+esc(a.kind)+'</div>'+
+          '<div class="s">'+esc(a.sta)+' · '+esc(a.val)+' · '+esc(a.when)+'</div></div>'+
+          '<span class="pill '+sevPill(a.sev)+'">'+esc(a.sev)+'</span></div>';
+      }).join("");
+      var detail=
+        '<div class="detail-hero"><h3>'+esc(sel.id)+' · '+esc(sel.kind)+'</h3>'+
+        '<div class="meta">工位 '+esc(sel.sta)+'　·　量測 '+esc(sel.val)+'　·　'+esc(sel.when)+'　·　等級 高</div></div>'+
+        '<div style="padding:16px;"><div class="sec-title"><span class="ms">route</span>告警升級路徑</div>'+
+        '<div class="tl">'+
+          '<div class="ev done"><div class="et">感測器偵測超規</div><div class="ed">09:18 · WS-A-11 鞋跟阻值 41.7 MΩ</div></div>'+
+          '<div class="ev done"><div class="et">系統即時告警</div><div class="ed">09:18 · 推播現場看板與作業員</div></div>'+
+          '<div class="ev done"><div class="et">通知品保工程師</div><div class="ed">09:19 · 陳怡君 已接收</div></div>'+
+          '<div class="ev"><div class="et">工位隔離待確認</div><div class="ed">預計 09:25 · 依 RULE-02 隔離</div><div class="ex">規格超差且影響功能者必須先隔離。</div></div>'+
+        '</div></div>'+
+        '<div class="btnbar"><button class="btn primary"><span class="ms">how_to_reg</span>確認告警</button>'+
+        '<button class="btn"><span class="ms">assignment_ind</span>轉處置</button>'+
+        '<button class="btn"><span class="ms">block</span>隔離工位</button></div>';
+      return kpiRow([
+        ["warning","未處理告警",String(open.length),"其中 2 高風險","down","priority_high"],
+        ["schedule","平均回應","4.2","分鐘 · 目標 5","up","timer"],
+        ["notifications_active","今日告警數","23","-5 較昨日","up","campaign"],
+        ["shield","高風險占比","35 %","集中鞋跟/地墊","","stacked_bar_chart"]
+      ])+
+      '<div class="split">'+
+        '<div class="card"><div class="card-h"><span class="ms">warning</span>即時告警佇列<span class="tag">依風險排序</span></div><div class="lst" id="l2">'+rows+'</div></div>'+
+        '<div class="card" id="d2">'+detail+'</div>'+
+      '</div>';
+    }
+    function initS2(){}
+
+    function s3(){
+      var cols=[
+        {k:"通報",ic:"flag",items:[{t:"WS-C-06 鞋跟疑似老化",m:"品保 · 5 分鐘前"},{t:"Zone-D 濕度異常",m:"設備 · 12 分鐘前"}]},
+        {k:"處置中",ic:"build",items:[{t:"WS-B-09 地墊重接地",m:"王志豪 · 換件"},{t:"Zone-D 風機校正",m:"李冠廷 · 校正中"}]},
+        {k:"複測驗證",ic:"replay",items:[{t:"WS-A-11 鞋跟複測",m:"待 2 次合格"}]},
+        {k:"已關閉",ic:"task_alt",items:[{t:"WS-A-04 腕帶更換",m:"陳怡君 · 已閉環"},{t:"IQC 接地修復",m:"張美玲 · 已閉環"}]}
+      ];
+      var board=cols.map(function(c){
+        var tk=c.items.map(function(x){return '<div class="tik"><div class="tt">'+esc(x.t)+'</div><div class="tm"><span class="ms" style="font-size:15px;">schedule</span>'+esc(x.m)+'</div></div>';}).join("");
+        return '<div class="col"><h4><span class="ms" style="color:#e11d48;font-size:17px;">'+c.ic+'</span>'+esc(c.k)+'<span class="cnt">'+c.items.length+'</span></h4>'+tk+'</div>';
+      }).join("");
+      var sel=dispo[0];
+      var detail=
+        '<div class="detail-hero"><h3>'+esc(sel.id)+' · '+esc(sel.sta)+'</h3>'+
+        '<div class="meta">處置措施 '+esc(sel.act)+'　·　負責 '+esc(sel.owner)+'</div></div>'+
+        '<div class="kv">'+
+        '<div><div class="k">根因分類</div><div class="v">鞋跟導電層磨耗</div></div>'+
+        '<div><div class="k">影響範圍</div><div class="v">單一工位</div></div>'+
+        '<div><div class="k">處置類型</div><div class="v">隔離 + 換件</div></div>'+
+        '<div><div class="k">複測要求</div><div class="v">連續 2 次合格</div></div>'+
+        '</div>'+
+        '<div style="padding:0 16px 4px;"><div class="sec-title"><span class="ms">history</span>處置紀錄</div>'+
+        '<div class="tl">'+
+          '<div class="ev done"><div class="et">建立處置單</div><div class="ed">09:20 · 陳怡君</div></div>'+
+          '<div class="ev done"><div class="et">工位隔離</div><div class="ed">09:24 · 停用 WS-A-11</div></div>'+
+          '<div class="ev done"><div class="et">更換防靜電鞋跟帶</div><div class="ed">09:38 · 領料 #M-771</div></div>'+
+          '<div class="ev"><div class="et">複測驗證</div><div class="ed">待複測 · 依 RULE-03 需驗證方可關閉</div></div>'+
+        '</div></div>'+
+        '<div class="btnbar"><button class="btn primary"><span class="ms">verified</span>驗證關閉</button>'+
+        '<button class="btn"><span class="ms">edit_note</span>補充根因</button></div>';
+      return kpiRow([
+        ["build","處置中案件","3","2 待複測","","engineering"],
+        ["timer","平均閉環","6.4","小時 · -1.2","up","hourglass_bottom"],
+        ["replay","複測通過率","91 %","+4%","up","fact_check"],
+        ["repeat","重複發生","2","同工位再發","down","warning"]
+      ])+
+      '<div class="grid2">'+
+        '<div class="card"><div class="card-h"><span class="ms">view_kanban</span>處置追蹤看板<span class="tag">閉環流程</span></div>'+
+        '<div class="card-b"><div style="overflow-x:auto"><div class="board">'+board+'</div></div>'+
+        '<div class="note"><span class="ms">info</span>依 RULE-03，改善措施沒有驗證證據不得關閉案件。</div></div></div>'+
+        '<div class="card" id="d3">'+detail+'</div>'+
+      '</div>';
+    }
+    function initS3(){}
+
+    function s4(){
+      var sel=envZones[3];
+      var rows=envZones.map(function(z,idx){
+        return '<div class="lrow'+(idx===3?' sel':'')+'" data-row="'+idx+'">'+
+          '<div class="ico"><span class="ms">thermostat</span></div>'+
+          '<div class="txt"><div class="t">'+esc(z.zn)+'</div>'+
+          '<div class="s">'+z.t+'°C · '+z.h+'%RH · 離子 '+esc(z.ion)+'</div></div>'+
+          '<span class="pill '+z.cls+'">'+esc(z.st)+'</span></div>';
+      }).join("");
+      var cells=envZones.slice(0,4).map(function(z){
+        return '<div class="envcell"><div class="zn"><span class="ms" style="font-size:16px;color:#e11d48;">place</span>'+esc(z.zn)+'</div>'+
+          '<div class="rd">'+z.h+'<small> %RH</small></div>'+
+          '<div style="font-size:11.5px;color:var(--muted);margin-top:2px;">'+z.t+'°C · 離子 '+esc(z.ion)+'</div>'+
+          '<div class="st"><span class="pill '+z.cls+'">'+esc(z.st)+'</span></div></div>';
+      }).join("");
+      var detail=
+        '<div class="card-h"><span class="ms">monitoring</span>'+esc(sel.zn)+' · 24 小時趨勢<span class="tag">溫濕度 + 離子平衡</span></div>'+
+        '<div class="card-b">'+
+        '<div class="chart-wrap"><canvas id="c4"></canvas></div>'+
+        '<div class="legend"><span><i style="background:#e11d48"></i>相對濕度 %RH</span><span><i style="background:#fb7185"></i>溫度 °C</span><span><i style="background:#f59e0b"></i>離子平衡 |V|</span></div>'+
+        '<div class="note"><span class="ms">warning</span>包裝出貨區離子風機平衡偏移 +118 V，已建立處置單 D-1040。</div>'+
+        '<div class="envgrid" style="margin-top:14px;">'+cells+'</div>'+
+        '</div>';
+      return kpiRow([
+        ["thermostat","平均濕度","41 %RH","目標 40-60","","water_drop"],
+        ["device_thermostat","平均溫度","23.8","°C 穩定","","thermostat"],
+        ["air","離子風機在線","11 / 12","1 台校正中","","mode_fan"],
+        ["report","偏移區域","2","濕度/離子","down","warning"]
+      ])+
+      '<div class="split">'+
+        '<div class="card"><div class="card-h"><span class="ms">grid_view</span>廠區環境狀態<span class="tag">8 區域</span></div><div class="lst" id="l4">'+rows+'</div></div>'+
+        '<div class="card" id="d4">'+detail+'</div>'+
+      '</div>';
+    }
+    function initS4(){
+      var ctx=el("c4"); if(!ctx)return;
+      var lb=[];for(var h=0;h<24;h+=3){lb.push((h<10?"0"+h:h)+":00");}
+      chart=new Chart(ctx,{data:{labels:lb,
+        datasets:[
+          {type:"line",label:"%RH",data:[42,40,38,35,32,30,34,39],borderColor:"#e11d48",backgroundColor:"rgba(225,29,72,.08)",fill:true,tension:.35,yAxisID:"y",pointRadius:2},
+          {type:"line",label:"°C",data:[24.8,24.5,24.9,25.4,25.9,26.1,25.5,25.6],borderColor:"#fb7185",tension:.35,yAxisID:"y",pointRadius:2},
+          {type:"bar",label:"|V|",data:[40,52,66,80,95,118,102,88],backgroundColor:"rgba(245,158,11,.55)",yAxisID:"y1",borderRadius:4}
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+          scales:{y:{position:"left",beginAtZero:true},y1:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:"離子 V"}}}}});
+    }
+
+    function s5(){
+      var reqRows=[
+        ["7.1 接地系統","腕帶/工作面接地阻值","98 %","p-ok"],
+        ["7.2 EPA 標示","靜電防護區標示完整","100 %","p-ok"],
+        ["7.3 人員接地","腕帶/鞋跟每日點檢","91 %","p-warn"],
+        ["7.4 離子平衡","風機平衡 ±100V 內","83 %","p-warn"],
+        ["8.1 稽核紀錄","量測與處置留存","100 %","p-ok"],
+        ["8.2 訓練紀錄","作業員 ESD 訓練","95 %","p-ok"]
+      ];
+      var tbl=reqRows.map(function(r){
+        return '<tr><td class="mono">'+esc(r[0])+'</td><td>'+esc(r[1])+'</td>'+
+          '<td style="min-width:120px;">'+esc(r[2])+'<div class="bar"><i style="width:'+r[2]+'"></i></div></td>'+
+          '<td><span class="pill '+r[3]+'">'+(r[3]==="p-ok"?"符合":"觀察")+'</span></td></tr>';
+      }).join("");
+      return kpiRow([
+        ["verified","ESD 合規率","94.2 %","+8.4% 季增","up","fact_check"],
+        ["event_busy","異常事件數","23","-31% 季減","up","trending_down"],
+        ["assignment_turned_in","稽核通過項","5 / 6","1 項觀察","","checklist"],
+        ["schedule","下次稽核","D-14","S20.20 年度","","calendar_month"]
+      ])+
+      '<div class="grid2">'+
+        '<div class="card"><div class="card-h"><span class="ms">insights</span>合規率 vs 異常事件（近 6 週）<span class="tag">趨勢</span></div>'+
+        '<div class="card-b"><div class="chart-wrap"><canvas id="c5a"></canvas></div></div></div>'+
+        '<div class="card"><div class="card-h"><span class="ms">donut_small</span>異常類型分布<span class="tag">本季</span></div>'+
+        '<div class="card-b"><div class="chart-sm"><canvas id="c5b"></canvas></div>'+
+        '<div class="legend"><span><i style="background:#e11d48"></i>阻值超規</span><span><i style="background:#fb7185"></i>環境偏移</span><span><i style="background:#fda4af"></i>未佩戴</span><span><i style="background:#fecdd3"></i>其他</span></div></div></div>'+
+      '</div>'+
+      '<div class="card" style="margin-top:16px;"><div class="card-h"><span class="ms">verified</span>ANSI/ESD S20.20 合規檢核表<span class="tag">年度稽核</span></div>'+
+      '<div class="card-b"><div style="overflow-x:auto"><table><thead><tr><th>條款</th><th>檢核項目</th><th>達成率</th><th>判定</th></tr></thead><tbody>'+tbl+'</tbody></table></div>'+
+      '<div class="btnbar" style="border-top:0;padding-left:0;padding-right:0;"><button class="btn primary"><span class="ms">download</span>匯出稽核報告</button>'+
+      '<button class="btn"><span class="ms">history</span>歷次稽核比較</button></div></div></div>';
+    }
+    function initS5(){
+      var a=el("c5a");
+      if(a){ chart=new Chart(a,{data:{labels:["第1週","第2週","第3週","第4週","第5週","第6週"],
+        datasets:[
+          {type:"line",label:"合規率 %",data:[86,88,90,91,93,94],borderColor:"#e11d48",backgroundColor:"rgba(225,29,72,.10)",fill:true,tension:.35,yAxisID:"y",pointRadius:3,pointBackgroundColor:"#e11d48"},
+          {type:"bar",label:"異常事件",data:[38,33,29,27,25,23],backgroundColor:"rgba(251,113,133,.6)",yAxisID:"y1",borderRadius:5}
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+          scales:{y:{position:"left",min:80,max:100,ticks:{callback:function(v){return v+"%";}}},y1:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:"事件數"}}}}});
+      }
+      var b=el("c5b");
+      if(b){ var c2=new Chart(b,{type:"doughnut",data:{labels:["阻值超規","環境偏移","未佩戴","其他"],
+        datasets:[{data:[11,6,4,2],backgroundColor:["#e11d48","#fb7185","#fda4af","#fecdd3"],borderWidth:0}]},
+        options:{responsive:true,maintainAspectRatio:false,cutout:"62%",plugins:{legend:{display:false}}}});
+        if(!chart)chart=c2; }
+    }
+
+    /* ---------- helpers ---------- */
+    function kpiRow(arr){
+      return '<div class="kpis">'+arr.map(function(k){
+        var cls=k[4]?(' '+k[4]):"";
+        return '<div class="kpi"><div class="lab"><span class="ms">'+k[0]+'</span>'+esc(k[1])+'</div>'+
+          '<div class="val">'+esc(k[2])+'</div>'+
+          '<div class="sub'+cls+'">'+esc(k[3])+'</div></div>';
+      }).join("")+'</div>';
+    }
+
+    var HEADS=[
+      ["點檢排程","每日腕帶、鞋跟、地墊點檢派工與覆蓋率追蹤，避免漏檢造成防護缺口。","checklist"],
+      ["阻值監測","量測站即時接地阻值量測，以規格帶自動判定合格或超規。","bolt"],
+      ["異常警報","超規事件即時告警、工位定位與依風險等級升級通知。","warning"],
+      ["處置追蹤","超規工位的隔離、換件、複測閉環處置與根因記錄。","build"],
+      ["環境監控","溫濕度與離子風機平衡即時監控與失效偵測。","thermostat"],
+      ["合規報告","ESD 合規率、異常趨勢與 ANSI/ESD S20.20 稽核報告。","verified"]
+    ];
+
+    var RENDER=[s0,s1,s2,s3,s4,s5];
+    var INIT=[initS0,initS1,initS2,initS3,initS4,initS5];
+
+    function bindRows(listId,screenIdx){
+      var lst=el(listId); if(!lst)return;
+      lst.addEventListener("click",function(e){
+        var r=e.target.closest?e.target.closest(".lrow"):null;
+        if(!r)return;
+        var rows=lst.querySelectorAll(".lrow");
+        for(var i=0;i<rows.length;i++)rows[i].classList.remove("sel");
+        r.classList.add("sel");
+      });
+    }
+
+    show=function(i){
+      i=Math.max(0,Math.min(i,RENDER.length-1));
+      killChart();
+      var btns=document.querySelectorAll("[data-i]");
+      for(var b=0;b<btns.length;b++){
+        btns[b].classList.toggle("active",+btns[b].getAttribute("data-i")===i);
+      }
+      var host=el("screen");
+      var h=HEADS[i];
+      host.innerHTML='<div class="screen-head"><h2><span class="ms">'+h[2]+'</span>'+esc(h[0])+'</h2><p>'+esc(h[1])+'</p></div>'+RENDER[i]();
+      void host.offsetHeight;
+      INIT[i]();
+      bindRows("l"+i,i);
+    };
+
+    /* build nav */
+    (function(){
+      var nav=el("nav");
+      nav.innerHTML=NAV.map(function(n){
+        return '<button data-i="'+n.i+'"><span class="ms">'+n.icon+'</span><span class="lbl">'+esc(n.label)+'</span></button>';
+      }).join("");
+      nav.addEventListener("click",function(e){
+        var btn=e.target.closest?e.target.closest("[data-i]"):null;
+        if(!btn)return;
+        location.hash="v"+btn.getAttribute("data-i");
+      });
+    })();
+
+  })();
+
+  function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+  window.addEventListener("hashchange",fromHash);fromHash();
+  </script>
 </body>
 </html>

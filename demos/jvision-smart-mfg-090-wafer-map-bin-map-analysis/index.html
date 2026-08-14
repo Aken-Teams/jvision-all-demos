@@ -1,18 +1,477 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Wafer Map / Bin Map Analysis（晶圓圖分析）｜Jvision 系統 Demo</title>
-  <meta name="description" content="把分散數據變成可下鑽、可決策的經營洞察" />
-  <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>晶圓圖分析 Wafer Map / Bin Map Analysis</title>
+<link rel="icon" href="../../favicon.svg"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+<style>
+:root{
+  --c1:#dc2626; --c2:#f97316; --bg:#f4f5f7; --card:#ffffff;
+  --ink:#1f2733; --muted:#6b7280; --line:#e5e7eb; --soft:#f9fafb;
+  --ok:#16a34a; --warn:#f59e0b; --bad:#dc2626; --blue:#2563eb; --purple:#7c3aed;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:"Inter","Noto Sans TC",system-ui,sans-serif;
+  background:var(--bg); color:var(--ink); font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.material-symbols-outlined{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+.topbar{position:sticky; top:0; z-index:50; background:#0f172a; color:#fff; border-bottom:3px solid var(--c1);}
+.topbar-in{display:flex; align-items:center; gap:14px; padding:10px 18px; flex-wrap:wrap;}
+.brand{display:flex; align-items:center; gap:10px; min-width:0;}
+.brand .logo{width:34px; height:34px; border-radius:9px; flex:none; background:linear-gradient(135deg,var(--c1),var(--c2)); display:flex; align-items:center; justify-content:center; color:#fff;}
+.brand .logo .material-symbols-outlined{font-size:20px;}
+.brand b{font-size:15px; font-weight:800; letter-spacing:.3px; white-space:nowrap;}
+.brand span{font-size:11px; color:#94a3b8; display:block;}
+.nav{display:flex; gap:6px; flex-wrap:wrap; margin-left:auto; min-width:0;}
+.nav button{display:flex; align-items:center; gap:6px; border:0; cursor:pointer; background:rgba(255,255,255,.06); color:#cbd5e1; padding:8px 12px; border-radius:9px; font-family:inherit; font-size:13px; font-weight:600; min-width:0;}
+.nav button .material-symbols-outlined{font-size:18px;}
+.nav button:hover{background:rgba(255,255,255,.14); color:#fff;}
+.nav button.on{background:linear-gradient(135deg,var(--c1),var(--c2)); color:#fff;}
+.wrap{max-width:1280px; margin:0 auto; padding:18px;}
+.screen-head{margin:0 0 16px;}
+.screen-head h1{margin:0 0 4px; font-size:20px; font-weight:800;}
+.screen-head p{margin:0; color:var(--muted); font-size:13px;}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;}
+.tag .material-symbols-outlined{font-size:14px;}
+.tag.red{background:#fee2e2;color:#b91c1c;}
+.tag.org{background:#ffedd5;color:#c2410c;}
+.tag.grn{background:#dcfce7;color:#15803d;}
+.tag.blu{background:#dbeafe;color:#1d4ed8;}
+.tag.gry{background:#f1f5f9;color:#475569;}
+.tag.prp{background:#ede9fe;color:#6d28d9;}
+.grid{display:grid; gap:14px;}
+.g-kpi{grid-template-columns:repeat(4,1fr);}
+.g-2{grid-template-columns:repeat(2,1fr);}
+.g-3{grid-template-columns:repeat(3,1fr);}
+.g-32{grid-template-columns:2fr 1fr;}
+.g-23{grid-template-columns:1fr 2fr;}
+@media(max-width:820px){
+  .g-kpi{grid-template-columns:repeat(2,1fr);}
+  .g-2,.g-3,.g-32,.g-23{grid-template-columns:1fr;}
+}
+.card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; min-width:0;}
+.card.pad0{padding:0; overflow:hidden;}
+.card h3{margin:0 0 2px; font-size:14px; font-weight:700; display:flex; align-items:center; gap:7px;}
+.card h3 .material-symbols-outlined{font-size:18px; color:var(--c1);}
+.card .sub{color:var(--muted); font-size:12px; margin:0 0 12px;}
+.kpi .lab{font-size:12px; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:6px;}
+.kpi .lab .material-symbols-outlined{font-size:16px;}
+.kpi .val{font-size:28px; font-weight:800; margin:6px 0 2px; letter-spacing:-.5px;}
+.kpi .val small{font-size:13px; font-weight:700; color:var(--muted);}
+.kpi .delta{font-size:12px; font-weight:700;}
+.delta.up{color:var(--ok);} .delta.down{color:var(--bad);}
+.chart{width:100%; overflow:hidden;}
+.tbl-wrap{overflow-x:auto;}
+table{border-collapse:collapse; width:100%; font-size:13px; min-width:520px;}
+th,td{padding:10px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap;}
+th{background:var(--soft); font-weight:700; color:#374151; font-size:12px;}
+tbody tr:hover{background:#fef2f2;}
+td.num{text-align:right; font-variant-numeric:tabular-nums;}
+.bar{height:7px; border-radius:4px; background:var(--line); overflow:hidden; min-width:60px;}
+.bar>i{display:block; height:100%; border-radius:4px;}
+.dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px;}
+.board-wrap{overflow-x:auto;}
+.board{display:grid; grid-template-columns:repeat(5,minmax(210px,1fr)); gap:12px; min-width:900px;}
+.col{background:var(--soft); border:1px solid var(--line); border-radius:12px; padding:10px; min-width:0;}
+.col-h{display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; font-weight:700; font-size:13px;}
+.col-h .cnt{background:#fff; border:1px solid var(--line); border-radius:999px; padding:1px 8px; font-size:11px; color:var(--muted);}
+.tk{background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:9px; border-left:4px solid var(--c1);}
+.tk:last-child{margin-bottom:0;}
+.tk .tid{font-size:11px; color:var(--muted); font-weight:700;}
+.tk .tt{font-weight:700; font-size:13px; margin:2px 0 6px;}
+.tk .meta{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:11px; color:var(--muted);}
+.tk .av{width:20px; height:20px; border-radius:50%; background:linear-gradient(135deg,var(--c1),var(--c2)); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;}
+.wafer{display:grid; gap:2px; width:100%; max-width:360px; margin:0 auto; aspect-ratio:1/1;}
+.die{border-radius:2px; width:100%; height:100%;}
+.legend{display:flex; flex-wrap:wrap; gap:10px 16px; margin-top:14px; font-size:12px;}
+.legend .li{display:flex; align-items:center; gap:6px;}
+.legend .sw{width:12px; height:12px; border-radius:3px;}
+.tl{position:relative; padding-left:22px;}
+.tl:before{content:""; position:absolute; left:7px; top:4px; bottom:4px; width:2px; background:var(--line);}
+.pill-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+.pill{border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:600; color:#475569; cursor:default; display:flex; align-items:center; gap:6px;}
+.pill.on{background:linear-gradient(135deg,var(--c1),var(--c2)); color:#fff; border-color:transparent;}
+.pill .material-symbols-outlined{font-size:16px;}
+.stat-mini{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px dashed var(--line);}
+.stat-mini:last-child{border-bottom:0;}
+.stat-mini .ic{width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex:none; color:#fff;}
+.stat-mini .ic .material-symbols-outlined{font-size:19px;}
+.stat-mini .g{min-width:0; flex:1;}
+.stat-mini .g b{font-size:14px;}
+.stat-mini .g span{display:block; font-size:11px; color:var(--muted);}
+.ai{border-left:4px solid var(--c1); background:#fff7f7; border-radius:0 10px 10px 0; padding:12px 14px; margin-bottom:12px;}
+.ai:last-child{margin-bottom:0;}
+.ai .ah{display:flex; align-items:center; gap:8px; font-weight:700; font-size:13px; margin-bottom:4px;}
+.ai .ah .material-symbols-outlined{font-size:18px; color:var(--c1);}
+.ai .ad{font-size:12px; color:#4b5563;}
+.progress-lbl{display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; font-weight:600;}
+.foot{color:var(--muted); font-size:12px; text-align:center; padding:20px 0 6px;}
+@media(max-width:560px){ .nav button span.lb{display:none;} .brand span{display:none;} }
+</style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+<div class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <div class="logo"><span class="material-symbols-outlined">biotech</span></div>
+      <div style="min-width:0">
+        <b>晶圓圖分析平台</b>
+        <span>Wafer Map / Bin Map Analysis</span>
+      </div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+  </div>
+</div>
+<div class="wrap"><div id="app"></div>
+  <div class="foot">純 UI 系統展示 · 資料皆為擬真示範 · 晶圓圖分析平台 v090</div>
+</div>
+
+<script>
+"use strict";
+var NAV=[
+  {i:0,ic:"dashboard",lb:"測試數據匯入"},
+  {i:1,ic:"biotech",lb:"Bin Map 視覺化"},
+  {i:2,ic:"account_tree",lb:"空間圖形辨識"},
+  {i:3,ic:"insights",lb:"多批次疊圖"},
+  {i:4,ic:"warning",lb:"異常關聯分析"},
+  {i:5,ic:"fact_check",lb:"根因與結案"}
+];
+var charts=[];
+function clearCharts(){ for(var k=0;k<charts.length;k++){ try{charts[k].destroy();}catch(e){} } charts=[]; }
+function mk(id,opt){
+  var el=document.getElementById(id); if(!el) return;
+  var baseChart={redrawOnParentResize:false,redrawOnWindowResize:false,animations:{enabled:false},toolbar:{show:false},fontFamily:'inherit'};
+  opt.chart=Object.assign(baseChart,opt.chart||{});
+  var ch=new ApexCharts(el,opt); ch.render(); charts.push(ch);
+}
+
+var BINCOL={ "1":"#16a34a","2":"#f97316","3":"#dc2626","4":"#7c3aed","5":"#2563eb","6":"#0d9488","0":"#e5e7eb" };
+var BINNAME={ "1":"Pass","2":"Open","3":"Short","4":"Leakage","5":"Idd 超標","6":"Vt 偏移","0":"未測" };
+
+function genWafer(seed,pat){
+  var N=13, cells=[], cx=(N-1)/2, R=cx+0.35, s=seed;
+  function rnd(){ s=(s*1103515245+12345)&0x7fffffff; return (s/0x7fffffff); }
+  for(var y=0;y<N;y++){ for(var x=0;x<N;x++){
+    var d=Math.sqrt((x-cx)*(x-cx)+(y-cx)*(y-cx));
+    if(d>R){ cells.push("-1"); continue; }
+    var b="1", r=rnd();
+    if(pat==="edge" && d>R-1.3){ b = r<0.7?"3":"2"; }
+    else if(pat==="ring" && d>R-2.4 && d<R-1.1){ b = r<0.65?"5":"6"; }
+    else if(pat==="cluster" && x>=8 && x<=11 && y>=2 && y<=5){ b = r<0.7?"4":"3"; }
+    else if(pat==="scratch" && Math.abs((x-2)-(y-2))<1 && x>1 && x<11){ b = r<0.75?"2":"3"; }
+    else { b = r<0.06 ? (r<0.03?"2":"3") : "1"; }
+    cells.push(b);
+  }}
+  return {N:N, cells:cells};
+}
+function waferHTML(w){
+  var h='<div class="wafer" style="grid-template-columns:repeat('+w.N+',1fr)">';
+  for(var k=0;k<w.cells.length;k++){
+    var b=w.cells[k];
+    if(b==="-1"){ h+='<div class="die" style="background:transparent"></div>'; continue; }
+    h+='<div class="die" title="Bin '+b+'" style="background:'+BINCOL[b]+'"></div>';
+  }
+  return h+'</div>';
+}
+function waferYield(w){ var p=0,t=0; for(var k=0;k<w.cells.length;k++){ if(w.cells[k]==="-1")continue; t++; if(w.cells[k]==="1")p++;} return t? (p/t*100):0; }
+
+function kpi(ic,lab,val,unit,dir){
+  var d= dir? '<div class="delta '+(dir==='up'?'up':'down')+'">'+(dir==='up'?'▲':'▼')+' '+unit+'</div>' : '';
+  var v = dir? val : val+' <small>'+unit+'</small>';
+  return '<div class="card kpi"><div class="lab"><span class="material-symbols-outlined">'+ic+'</span>'+lab+'</div><div class="val">'+v+'</div>'+d+'</div>';
+}
+function ai(h,d){ return '<div class="ai"><div class="ah"><span class="material-symbols-outlined">auto_awesome</span>'+h+'</div><div class="ad">'+d+'</div></div>'; }
+function waferCard(title,w,y){
+  var cls = y>=90?"grn":(y>=80?"org":"red");
+  return '<div class="card"><h3 style="justify-content:space-between"><span style="display:flex;align-items:center;gap:7px"><span class="material-symbols-outlined">radio_button_checked</span>'+title+'</span><span class="tag '+cls+'">良率 '+y.toFixed(1)+'%</span></h3><div style="margin-top:8px">'+waferHTML(w)+'</div></div>';
+}
+function health(nm,val,cls){
+  return '<div class="stat-mini"><div class="ic" style="background:linear-gradient(135deg,var(--c1),var(--c2))"><span class="material-symbols-outlined">task_alt</span></div><div class="g"><b>'+nm+'</b><span>管線檢核關卡</span></div><span class="tag '+cls+'">'+val+'</span></div>';
+}
+
+/* SCREEN 0 */
+function s0(c){
+  var lots=[
+    {lot:"LOT-24518A",prod:"AP3021-N7",wf:25,fmt:"STDF v4",dies:14320,st:"已解析",prog:100,stc:"grn"},
+    {lot:"LOT-24521C",prod:"RF7712-N6",wf:25,fmt:"STDF v4",dies:9880,st:"解析中",prog:64,stc:"org"},
+    {lot:"LOT-24524B",prod:"PM4408-N5",wf:24,fmt:"CSV",dies:12060,st:"已解析",prog:100,stc:"grn"},
+    {lot:"LOT-24527D",prod:"AP3021-N7",wf:25,fmt:"STDF v4",dies:14210,st:"待驗證",prog:88,stc:"blu"},
+    {lot:"LOT-24530E",prod:"SN9901-N7",wf:12,fmt:"CSV",dies:5940,st:"欄位對映",prog:32,stc:"red"},
+    {lot:"LOT-24533F",prod:"RF7712-N6",wf:25,fmt:"STDF v4",dies:9910,st:"已解析",prog:100,stc:"grn"}
+  ];
+  var rows=lots.map(function(l){
+    return '<tr><td><b>'+l.lot+'</b></td><td>'+l.prod+'</td><td class="num">'+l.wf+'</td><td>'+l.fmt+'</td><td class="num">'+l.dies.toLocaleString()+'</td>'+
+      '<td style="min-width:120px"><div class="bar"><i style="width:'+l.prog+'%;background:linear-gradient(90deg,var(--c1),var(--c2))"></i></div></td>'+
+      '<td><span class="tag '+l.stc+'">'+l.st+'</span></td></tr>';
+  }).join("");
+  c.innerHTML=
+  '<div class="screen-head"><h1>測試數據匯入</h1><p>匯入 STDF / CSV 晶圓測試檔，自動解析每顆晶粒的 Bin 碼與座標，建立可視化資料集。</p></div>'+
+  '<div class="grid g-kpi" style="margin-bottom:14px">'+
+    kpi("upload_file","本日匯入批次","18","+5 批","up")+
+    kpi("memory","解析晶粒數","62.3","K","")+
+    kpi("rule","欄位對映成功率","96.4","%","up")+
+    kpi("error","解析異常檔","2","件","down")+
+  '</div>'+
+  '<div class="grid g-32">'+
+    '<div class="card pad0"><div style="padding:16px 16px 4px"><h3><span class="material-symbols-outlined">table_view</span>匯入佇列</h3><p class="sub">最新上傳的晶圓測試檔與解析進度</p></div>'+
+      '<div class="tbl-wrap"><table><thead><tr><th>批號</th><th>產品</th><th class="num">片數</th><th>格式</th><th class="num">晶粒數</th><th>解析進度</th><th>狀態</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">donut_large</span>匯入格式占比</h3><p class="sub">近 30 日檔案來源分布</p><div id="c0a" class="chart" style="height:250px"></div></div>'+
+  '</div>'+
+  '<div class="grid g-2" style="margin-top:14px">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">monitoring</span>每日匯入量趨勢</h3><p class="sub">批次數 vs 解析成功率</p><div id="c0b" class="chart" style="height:260px"></div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">checklist</span>解析健檢</h3><p class="sub">匯入管線各檢核關卡狀態</p>'+
+      health("座標欄位完整性","通過","grn")+health("Bin 定義對映","通過","grn")+health("重複晶粒去重","2 筆已合併","org")+health("測試溫度標籤","通過","grn")+health("STDF 版本相容","v4 相容","blu")+
+    '</div>'+
+  '</div>';
+  void c.offsetHeight;
+  mk("c0a",{chart:{type:'donut',height:250},labels:['STDF v4','CSV','WATmap','其他'],colors:['#dc2626','#f97316','#2563eb','#94a3b8'],series:[58,26,12,4],legend:{position:'bottom'},dataLabels:{enabled:true},stroke:{width:2}});
+  mk("c0b",{chart:{type:'line',height:260},colors:['#dc2626','#16a34a'],series:[{name:'匯入批次',type:'column',data:[9,12,11,15,13,18,14]},{name:'解析成功率 %',type:'line',data:[92,94,93,95,96,96,97]}],
+    stroke:{width:[0,3]},xaxis:{categories:['一','二','三','四','五','六','日']},yaxis:[{title:{text:'批次'}},{opposite:true,max:100,min:80,title:{text:'%'}}],dataLabels:{enabled:false},plotOptions:{bar:{columnWidth:'45%',borderRadius:4}},legend:{position:'top'}});
+}
+
+/* SCREEN 1 */
+function s1(c){
+  var w1=genWafer(7,"edge"), w2=genWafer(19,"cluster"), w3=genWafer(31,"none");
+  var bins=[
+    {b:"1",n:"Pass",cnt:12140,pct:84.8},
+    {b:"2",n:"Open",cnt:640,pct:4.5},
+    {b:"3",n:"Short",cnt:512,pct:3.6},
+    {b:"5",n:"Idd 超標",cnt:430,pct:3.0},
+    {b:"4",n:"Leakage",cnt:318,pct:2.2},
+    {b:"6",n:"Vt 偏移",cnt:280,pct:1.9}
+  ];
+  var brows=bins.map(function(x){
+    return '<tr><td><span class="dot" style="background:'+BINCOL[x.b]+'"></span>Bin '+x.b+'</td><td>'+x.n+'</td><td class="num">'+x.cnt.toLocaleString()+'</td>'+
+    '<td style="min-width:120px"><div class="bar"><i style="width:'+Math.min(x.pct*3,100)+'%;background:'+BINCOL[x.b]+'"></i></div></td><td class="num">'+x.pct+'%</td></tr>';
+  }).join("");
+  var leg=Object.keys(BINNAME).filter(function(k){return k!=="0";}).map(function(k){
+    return '<div class="li"><span class="sw" style="background:'+BINCOL[k]+'"></span>Bin '+k+' · '+BINNAME[k]+'</div>';
+  }).join("");
+  c.innerHTML=
+  '<div class="screen-head"><h1>Bin Map 視覺化</h1><p>依 Bin 定義渲染彩色晶圓圖，即時檢視良率、失效 Bin 分布與晶圓良莠。</p></div>'+
+  '<div class="pill-row"><span class="pill on"><span class="material-symbols-outlined">grid_on</span>LOT-24518A</span><span class="pill">W07</span><span class="pill">W12</span><span class="pill">W19</span><span class="pill"><span class="material-symbols-outlined">thermostat</span>25°C</span></div>'+
+  '<div class="grid g-23">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">pie_chart</span>Bin 分布</h3><p class="sub">整批 14,320 顆晶粒</p><div id="c1a" class="chart" style="height:240px"></div></div>'+
+    '<div class="card pad0"><div style="padding:16px 16px 4px"><h3><span class="material-symbols-outlined">format_list_numbered</span>Bin 明細</h3></div><div class="tbl-wrap"><table><thead><tr><th>Bin</th><th>類別</th><th class="num">數量</th><th>占比</th><th class="num">%</th></tr></thead><tbody>'+brows+'</tbody></table></div></div>'+
+  '</div>'+
+  '<div class="grid g-3" style="margin-top:14px">'+
+    waferCard("W07 · Edge Ring 疑似",w1,waferYield(w1))+
+    waferCard("W19 · 右上 Cluster",w2,waferYield(w2))+
+    waferCard("W12 · 隨機分布",w3,waferYield(w3))+
+  '</div>'+
+  '<div class="card" style="margin-top:14px"><div class="legend">'+leg+'</div></div>';
+  void c.offsetHeight;
+  mk("c1a",{chart:{type:'donut',height:240},labels:bins.map(function(x){return 'Bin '+x.b+' '+x.n;}),colors:bins.map(function(x){return BINCOL[x.b];}),series:bins.map(function(x){return x.cnt;}),legend:{show:false},dataLabels:{enabled:false},plotOptions:{pie:{donut:{labels:{show:true,total:{show:true,label:'良率',formatter:function(){return '84.8%';}}}}}},stroke:{width:2}});
+}
+
+/* SCREEN 2 */
+function s2(c){
+  var w=genWafer(7,"edge");
+  var sigs=[
+    {n:"Edge Ring",ic:"radio_button_checked",conf:94,cnt:38,col:"#dc2626",desc:"晶圓邊緣環狀失效，多與蝕刻均勻度相關"},
+    {n:"Center Cluster",ic:"blur_circular",conf:88,cnt:21,col:"#f97316",desc:"中心聚集缺陷，常見於 CMP 壓力不均"},
+    {n:"Scratch Line",ic:"linear_scale",conf:82,cnt:12,col:"#7c3aed",desc:"直線刮痕，晶圓搬運或探針卡刮傷"},
+    {n:"Random",ic:"scatter_plot",conf:71,cnt:96,col:"#2563eb",desc:"隨機分布，屬背景雜訊良率損失"}
+  ];
+  var scards=sigs.map(function(sg){
+    return '<div class="card"><h3 style="justify-content:space-between"><span style="display:flex;align-items:center;gap:7px"><span class="material-symbols-outlined" style="color:'+sg.col+'">'+sg.ic+'</span>'+sg.n+'</span><span class="tag gry">'+sg.cnt+' 片</span></h3>'+
+      '<div class="progress-lbl"><span>辨識信心度</span><span style="color:'+sg.col+'">'+sg.conf+'%</span></div><div class="bar"><i style="width:'+sg.conf+'%;background:'+sg.col+'"></i></div>'+
+      '<p class="sub" style="margin:10px 0 0">'+sg.desc+'</p></div>';
+  }).join("");
+  c.innerHTML=
+  '<div class="screen-head"><h1>空間圖形辨識</h1><p>系統自動偵測 Edge / Ring / Cluster / Scratch 等空間缺陷樣式，並標註辨識信心度。</p></div>'+
+  '<div class="grid g-kpi" style="margin-bottom:14px">'+
+    kpi("pattern","已辨識樣式","4","類","")+
+    kpi("verified","平均信心度","83.8","%","up")+
+    kpi("done_all","本週處理片數","167","+22","up")+
+    kpi("model_training","模型版本","v3.2","","")+
+  '</div>'+
+  '<div class="grid g-23">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">grid_view</span>樣式標註視圖 · W07</h3><p class="sub">紅點為 Edge Ring 命中晶粒</p><div style="margin-top:6px">'+waferHTML(w)+'</div>'+
+      '<div class="legend"><div class="li"><span class="sw" style="background:#dc2626"></span>失效</div><div class="li"><span class="sw" style="background:#f97316"></span>邊界</div><div class="li"><span class="sw" style="background:#16a34a"></span>正常</div></div></div>'+
+    '<div class="grid g-2">'+scards+'</div>'+
+  '</div>'+
+  '<div class="grid g-2" style="margin-top:14px">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">radar</span>樣式特徵向量</h3><p class="sub">Edge Ring 與模板比對</p><div id="c2a" class="chart" style="height:280px"></div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">stacked_bar_chart</span>各站點樣式命中數</h3><p class="sub">依製程站點分類</p><div id="c2b" class="chart" style="height:280px"></div></div>'+
+  '</div>';
+  void c.offsetHeight;
+  mk("c2a",{chart:{type:'radar',height:280},colors:['#dc2626','#94a3b8'],series:[{name:'本片 W07',data:[92,40,30,25,88,55]},{name:'Edge Ring 模板',data:[95,35,28,22,90,50]}],labels:['邊緣密度','中心密度','線性度','聚集度','環狀度','對稱性'],stroke:{width:2},fill:{opacity:0.25},markers:{size:3},yaxis:{show:false}});
+  mk("c2b",{chart:{type:'bar',stacked:true,height:280},colors:['#dc2626','#f97316','#7c3aed','#2563eb'],series:[{name:'Edge Ring',data:[14,8,10,6]},{name:'Cluster',data:[6,9,4,2]},{name:'Scratch',data:[3,2,5,2]},{name:'Random',data:[22,28,24,22]}],xaxis:{categories:['蝕刻','CMP','光刻','探針']},plotOptions:{bar:{borderRadius:3,columnWidth:'55%'}},dataLabels:{enabled:false},legend:{position:'top'},tooltip:{shared:true,intersect:false}});
+}
+
+/* SCREEN 3 */
+function s3(c){
+  var wf=[];
+  for(var i=0;i<6;i++){ wf.push(genWafer(3+i*11, i<3?"edge":(i<5?"ring":"none"))); }
+  var N=13, overlay=[];
+  for(var k=0;k<N*N;k++){ overlay.push(0); }
+  for(var q=0;q<wf.length;q++){ var cc=wf[q].cells; for(var m=0;m<cc.length;m++){ if(cc[m]!=="1"&&cc[m]!=="-1") overlay[m]++; } }
+  var maxo=1; for(var z=0;z<overlay.length;z++){ if(overlay[z]>maxo)maxo=overlay[z]; }
+  function heat(v){ if(v===0)return '#f1f5f9'; var t=v/maxo; var g=Math.round(230-190*t), b=Math.round(230-210*t); return 'rgb(220,'+g+','+b+')'; }
+  var cx=(N-1)/2, R=cx+0.35;
+  var oh='<div class="wafer" style="grid-template-columns:repeat('+N+',1fr)">';
+  for(var y=0;y<N;y++){ for(var x=0;x<N;x++){ var idx=y*N+x; var d=Math.sqrt((x-cx)*(x-cx)+(y-cx)*(y-cx));
+    if(d>R){ oh+='<div class="die" style="background:transparent"></div>'; }
+    else { oh+='<div class="die" title="重複命中 '+overlay[idx]+' 次" style="background:'+heat(overlay[idx])+'"></div>'; }
+  }}
+  oh+='</div>';
+  var wcells=wf.map(function(w,ix){
+    var yy=waferYield(w); var cls=yy>=90?"grn":(yy>=80?"org":"red");
+    return '<div style="text-align:center;min-width:0"><div style="font-size:11px;font-weight:700;margin-bottom:4px">W'+(ix*4+3<10?'0':'')+(ix*4+3)+'</div>'+waferHTML(w)+'<div class="tag '+cls+'" style="margin-top:4px">'+yy.toFixed(0)+'%</div></div>';
+  }).join("");
+  c.innerHTML=
+  '<div class="screen-head"><h1>多批次疊圖比對</h1><p>疊合多片晶圓找出重複性空間缺陷，紅色越深代表該座標跨片重複失效越多次。</p></div>'+
+  '<div class="pill-row"><span class="pill on"><span class="material-symbols-outlined">layers</span>疊合 6 片</span><span class="pill">LOT-24518A</span><span class="pill">LOT-24533F</span><span class="pill"><span class="material-symbols-outlined">filter_alt</span>Bin≠Pass</span></div>'+
+  '<div class="grid g-23">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">whatshot</span>疊圖熱區 (Composite)</h3><p class="sub">跨 6 片累積失效熱圖</p><div style="margin-top:8px">'+oh+'</div>'+
+      '<div class="legend"><div class="li"><span class="sw" style="background:#f1f5f9"></span>無重複</div><div class="li"><span class="sw" style="background:rgb(220,150,140)"></span>中度</div><div class="li"><span class="sw" style="background:rgb(220,40,20)"></span>高重複</div></div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">apps</span>疊合來源晶圓</h3><p class="sub">點選片別檢視個別 Bin Map</p><div class="grid g-3" style="margin-top:6px">'+wcells+'</div></div>'+
+  '</div>'+
+  '<div class="grid g-2" style="margin-top:14px">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">show_chart</span>重複缺陷率趨勢</h3><p class="sub">近 8 批疊圖重複命中率</p><div id="c3a" class="chart" style="height:260px"></div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">insights</span>座標重複度分布</h3><p class="sub">失效座標命中次數直方</p><div id="c3b" class="chart" style="height:260px"></div></div>'+
+  '</div>';
+  void c.offsetHeight;
+  mk("c3a",{chart:{type:'area',height:260},colors:['#dc2626'],series:[{name:'重複命中率 %',data:[18,22,17,26,31,24,29,21]}],xaxis:{categories:['L11','L14','L18','L21','L24','L27','L30','L33']},stroke:{width:2,curve:'smooth'},fill:{type:'gradient',gradient:{opacityFrom:0.4,opacityTo:0.05}},dataLabels:{enabled:false},yaxis:{max:40}});
+  mk("c3b",{chart:{type:'bar',height:260},colors:['#f97316'],series:[{name:'座標數',data:[42,28,19,11,6,3]}],xaxis:{categories:['1 次','2 次','3 次','4 次','5 次','6 次']},plotOptions:{bar:{borderRadius:4,columnWidth:'55%'}},dataLabels:{enabled:true},legend:{show:false}});
+}
+
+/* SCREEN 4 */
+function s4(c){
+  var rel=[
+    {tool:"ETCH-07",st:"蝕刻",sig:"Edge Ring",lots:8,hit:94,risk:"高",rc:"red"},
+    {tool:"CMP-03",st:"CMP",sig:"Center Cluster",lots:5,hit:71,risk:"中",rc:"org"},
+    {tool:"LITHO-11",st:"光刻",sig:"Scratch",lots:3,hit:58,risk:"中",rc:"org"},
+    {tool:"PROBE-05",st:"探針",sig:"Scratch",lots:6,hit:66,risk:"高",rc:"red"},
+    {tool:"IMPLANT-02",st:"離子植入",sig:"Vt 偏移",lots:2,hit:40,risk:"低",rc:"grn"}
+  ];
+  var rows=rel.map(function(r){
+    return '<tr><td><b>'+r.tool+'</b></td><td>'+r.st+'</td><td><span class="tag prp">'+r.sig+'</span></td><td class="num">'+r.lots+'</td>'+
+    '<td style="min-width:110px"><div class="bar"><i style="width:'+r.hit+'%;background:linear-gradient(90deg,var(--c1),var(--c2))"></i></div></td>'+
+    '<td class="num">'+r.hit+'%</td><td><span class="tag '+r.rc+'">'+r.risk+'</span></td></tr>';
+  }).join("");
+  c.innerHTML=
+  '<div class="screen-head"><h1>異常關聯分析</h1><p>將重複性空間缺陷關聯至機台、製程站點與時間窗，快速縮小可疑源並排序風險。</p></div>'+
+  '<div class="grid g-kpi" style="margin-bottom:14px">'+
+    kpi("hub","關聯機台","5","台","")+
+    kpi("priority_high","高風險組合","2","項","down")+
+    kpi("percent","最高相關度","94","%","up")+
+    kpi("schedule","平均定位時效","3.4","hr","down")+
+  '</div>'+
+  '<div class="grid g-32">'+
+    '<div class="card pad0"><div style="padding:16px 16px 4px"><h3><span class="material-symbols-outlined">device_hub</span>機台 × 缺陷樣式關聯矩陣</h3><p class="sub">依相關度與影響批數排序</p></div>'+
+      '<div class="tbl-wrap"><table><thead><tr><th>機台</th><th>站點</th><th>樣式</th><th class="num">批數</th><th>相關度</th><th class="num">%</th><th>風險</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">warning</span>AI 關聯洞察</h3>'+
+      ai("ETCH-07 高度相關","近 8 批 Edge Ring 缺陷有 94% 集中於 ETCH-07，建議優先檢查蝕刻均勻度與氣體流量。")+
+      ai("探針卡刮傷疑慮","PROBE-05 Scratch 樣式命中率上升，探針卡對位偏移風險，建議安排清針保養。")+
+      ai("時間窗聚集","失效批次多發生於 03:00–06:00 夜班換片時段。")+
+    '</div>'+
+  '</div>'+
+  '<div class="grid g-2" style="margin-top:14px">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">bubble_chart</span>相關度 × 影響批數</h3><p class="sub">氣泡大小 = 良率損失</p><div id="c4a" class="chart" style="height:290px"></div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">timeline</span>缺陷發生時間分布</h3><p class="sub">各班別失效批數</p><div id="c4b" class="chart" style="height:290px"></div></div>'+
+  '</div>';
+  void c.offsetHeight;
+  mk("c4a",{chart:{type:'bubble',height:290},colors:['#dc2626','#f97316','#7c3aed','#2563eb','#16a34a'],
+    series:[
+      {name:'ETCH-07',data:[[94,8,32]]},
+      {name:'CMP-03',data:[[71,5,18]]},
+      {name:'LITHO-11',data:[[58,3,10]]},
+      {name:'PROBE-05',data:[[66,6,22]]},
+      {name:'IMPLANT-02',data:[[40,2,6]]}
+    ],
+    xaxis:{title:{text:'相關度 %'},max:100,min:30},yaxis:{title:{text:'影響批數'},max:10},dataLabels:{enabled:false},legend:{position:'top'}});
+  mk("c4b",{chart:{type:'bar',height:290},colors:['#dc2626'],series:[{name:'失效批數',data:[3,4,11,7,5,2]}],xaxis:{categories:['白班早','白班午','夜班初','夜班中','夜班末','日換片']},plotOptions:{bar:{borderRadius:4,columnWidth:'55%'}},dataLabels:{enabled:true},legend:{show:false}});
+}
+
+/* SCREEN 5 */
+function s5(c){
+  var cols=[
+    {t:"待判定",cnt:3,cards:[
+      {id:"WM-3081",tt:"LOT-24518A Edge Ring 良率損失",who:"陳",tag:"red",tl:"Edge Ring"},
+      {id:"WM-3084",tt:"LOT-24521C 中心 Cluster",who:"林",tag:"org",tl:"Cluster"},
+      {id:"WM-3090",tt:"LOT-24530E 隨機良率下滑",who:"黃",tag:"gry",tl:"Random"}
+    ]},
+    {t:"原因分析",cnt:2,cards:[
+      {id:"WM-3072",tt:"PROBE-05 探針刮傷關聯",who:"吳",tag:"prp",tl:"Scratch"},
+      {id:"WM-3069",tt:"ETCH-07 蝕刻均勻度",who:"陳",tag:"red",tl:"Edge Ring"}
+    ]},
+    {t:"改善驗證",cnt:2,cards:[
+      {id:"WM-3055",tt:"CMP-03 壓力補償驗證",who:"林",tag:"org",tl:"Cluster"},
+      {id:"WM-3061",tt:"清針保養後回測",who:"吳",tag:"prp",tl:"Scratch"}
+    ]},
+    {t:"待核准",cnt:1,cards:[
+      {id:"WM-3040",tt:"ETCH 氣體流量調整結案",who:"品",tag:"red",tl:"Edge Ring"}
+    ]},
+    {t:"已關閉",cnt:2,cards:[
+      {id:"WM-3012",tt:"LITHO-11 對位偏移",who:"黃",tag:"blu",tl:"Scratch"},
+      {id:"WM-2998",tt:"IMPLANT-02 Vt 偏移",who:"陳",tag:"grn",tl:"Vt"}
+    ]}
+  ];
+  var board=cols.map(function(col){
+    var cards=col.cards.map(function(k){
+      return '<div class="tk"><div class="tid">'+k.id+'</div><div class="tt">'+k.tt+'</div><div class="meta"><span class="av">'+k.who+'</span><span class="tag '+k.tag+'">'+k.tl+'</span></div></div>';
+    }).join("");
+    return '<div class="col"><div class="col-h"><span>'+col.t+'</span><span class="cnt">'+col.cnt+'</span></div>'+cards+'</div>';
+  }).join("");
+  var rules=[
+    {id:"RULE-01",t:"已出貨批號客訴列最高優先",ev:"期限與未完成狀態"},
+    {id:"RULE-02",t:"規格超差且影響功能者先隔離批次",ev:"異常類型與影響範圍"},
+    {id:"RULE-03",t:"改善無驗證證據不得關閉案件",ev:"核准狀態與操作紀錄"}
+  ];
+  var rl=rules.map(function(r){
+    return '<div class="stat-mini"><div class="ic" style="background:linear-gradient(135deg,var(--c1),var(--c2))"><span class="material-symbols-outlined">gavel</span></div><div class="g"><b>'+r.t+'</b><span>依據：'+r.ev+'</span></div><span class="tag gry">'+r.id+'</span></div>';
+  }).join("");
+  c.innerHTML=
+  '<div class="screen-head"><h1>根因鎖定與結案</h1><p>以看板追蹤每件異常從判定、分析、驗證到核准關閉，需具驗證證據方可結案並歸檔稽核。</p></div>'+
+  '<div class="grid g-kpi" style="margin-bottom:14px">'+
+    kpi("assignment","進行中案件","8","件","")+
+    kpi("check_circle","本月結案","14","+3","up")+
+    kpi("timer","平均關案","8.5","天","down")+
+    kpi("verified_user","改善驗證率","92","%","up")+
+  '</div>'+
+  '<div class="card pad0" style="margin-bottom:14px"><div style="padding:16px 16px 8px"><h3><span class="material-symbols-outlined">view_kanban</span>異常處理看板</h3><p class="sub">依決策規則自動排序優先度</p></div>'+
+    '<div style="padding:0 14px 14px"><div class="board-wrap"><div class="board">'+board+'</div></div></div></div>'+
+  '<div class="grid g-2">'+
+    '<div class="card"><h3><span class="material-symbols-outlined">history</span>結案時效追蹤</h3><p class="sub">近 6 週平均關案天數</p><div id="c5a" class="chart" style="height:250px"></div></div>'+
+    '<div class="card"><h3><span class="material-symbols-outlined">gavel</span>結案決策規則</h3><p class="sub">系統據此把關結案品質</p>'+rl+'</div>'+
+  '</div>';
+  void c.offsetHeight;
+  mk("c5a",{chart:{type:'line',height:250},colors:['#dc2626','#16a34a'],series:[{name:'平均關案 (天)',data:[20,16,14,12,10,8.5]},{name:'改善驗證率 %',type:'column',data:[60,66,73,79,86,92]}],
+    stroke:{width:[3,0]},xaxis:{categories:['第1週','第2週','第3週','第4週','第5週','第6週']},yaxis:[{title:{text:'天'},max:22},{opposite:true,max:100,title:{text:'%'}}],plotOptions:{bar:{columnWidth:'40%',borderRadius:3}},dataLabels:{enabled:false},legend:{position:'top'}});
+}
+
+var SCREENS=[s0,s1,s2,s3,s4,s5];
+function show(i){
+  clearCharts();
+  var btns=document.querySelectorAll("[data-i]");
+  for(var b=0;b<btns.length;b++){ btns[b].classList.toggle("on", +btns[b].getAttribute("data-i")===i); }
+  var app=document.getElementById("app");
+  app.innerHTML="";
+  void app.offsetHeight;
+  SCREENS[i](app);
+}
+(function buildNav(){
+  var nav=document.getElementById("nav");
+  var h="";
+  for(var k=0;k<NAV.length;k++){
+    h+='<button data-i="'+NAV[k].i+'"><span class="material-symbols-outlined">'+NAV[k].ic+'</span><span class="lb">'+NAV[k].lb+'</span></button>';
+  }
+  nav.innerHTML=h;
+  var btns=nav.querySelectorAll("[data-i]");
+  for(var m=0;m<btns.length;m++){ btns[m].addEventListener("click",function(){ location.hash="go="+this.getAttribute("data-i"); }); }
+})();
+function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+</script>
 </body>
 </html>

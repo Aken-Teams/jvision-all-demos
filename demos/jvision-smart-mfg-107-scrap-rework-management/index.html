@@ -3,16 +3,404 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Scrap/Rework Management（報廢重工管理）｜Jvision 系統 Demo</title>
-  <meta name="description" content="應收付、現金流到預算的財務即時掌握" />
+  <title>報廢重工管理 Scrap/Rework Management｜Jvision 系統 Demo</title>
+  <meta name="description" content="不良品判定、報廢重工決策、重工作業指導、品質驗證與成本歸檔的單一平台" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --accent:#7c3aed; --accent2:#a78bfa; --bg:#0b0b16; --panel:#15152a; --panel2:#1c1c38;
+      --line:#2b2b52; --txt:#e8e6f5; --muted:#9a97c4; --ok:#34d399; --warn:#fbbf24; --bad:#f87171;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;}
+    body{font-family:"Inter","Noto Sans TC",sans-serif;background:var(--bg);color:var(--txt);
+      background-image:radial-gradient(900px 500px at 88% -10%,rgba(124,58,237,.18),transparent),radial-gradient(700px 400px at -5% 0,rgba(167,139,250,.10),transparent);
+      background-attachment:fixed;min-height:100vh;overflow-x:hidden;}
+    .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+    /* nav */
+    .nav{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+      padding:12px 18px;background:rgba(10,10,22,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
+    .brand{display:flex;align-items:center;gap:10px;min-width:0;}
+    .brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;color:#fff;flex:0 0 auto;}
+    .brand b{font-size:15px;letter-spacing:.3px;white-space:nowrap;}
+    .brand span{display:block;font-size:11px;color:var(--muted);}
+    .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;min-width:0;}
+    .tab{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:10px;border:1px solid var(--line);
+      background:var(--panel);color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:.15s;font-family:inherit;}
+    .tab:hover{color:var(--txt);border-color:var(--accent);}
+    .tab.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-color:transparent;box-shadow:0 4px 16px rgba(124,58,237,.4);}
+    .tab .material-symbols-outlined{font-size:19px;}
+    .wrap{max-width:1360px;margin:0 auto;padding:20px 18px 60px;}
+    .scr-head{margin:6px 2px 16px;}
+    .scr-head h1{margin:0;font-size:21px;font-weight:800;display:flex;align-items:center;gap:9px;}
+    .scr-head h1 .material-symbols-outlined{color:var(--accent2);font-size:26px;}
+    .scr-head p{margin:5px 0 0;color:var(--muted);font-size:13px;}
+    /* grids */
+    .grid{display:grid;gap:14px;}
+    .g4{grid-template-columns:repeat(4,1fr);}
+    .g3{grid-template-columns:repeat(3,1fr);}
+    .g2{grid-template-columns:repeat(2,1fr);}
+    .g23{grid-template-columns:1.6fr 1fr;}
+    .g32{grid-template-columns:1fr 1.5fr;}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0;}
+    .card h3{margin:0 0 12px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:7px;}
+    .card h3 .material-symbols-outlined{font-size:18px;color:var(--accent2);}
+    .card h3 .sub{margin-left:auto;font-size:11px;color:var(--muted);font-weight:500;}
+    /* kpi */
+    .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;min-width:0;position:relative;overflow:hidden;}
+    .kpi::after{content:"";position:absolute;right:-18px;top:-18px;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.28),transparent 70%);}
+    .kpi .lab{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;}
+    .kpi .lab .material-symbols-outlined{font-size:16px;color:var(--accent2);}
+    .kpi .val{font-size:27px;font-weight:800;margin-top:6px;letter-spacing:.5px;}
+    .kpi .val small{font-size:13px;color:var(--muted);font-weight:600;}
+    .kpi .dl{font-size:11px;margin-top:5px;font-weight:600;}
+    .up{color:var(--ok);} .down{color:var(--bad);} .flat{color:var(--warn);}
+    .chartbox{position:relative;width:100%;overflow:hidden;}
+    /* table */
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th,td{text-align:left;padding:10px 11px;border-bottom:1px solid var(--line);white-space:nowrap;}
+    th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;}
+    tbody tr:hover{background:var(--panel2);}
+    .tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:700;}
+    .t-ok{background:rgba(52,211,153,.14);color:var(--ok);}
+    .t-warn{background:rgba(251,191,36,.14);color:var(--warn);}
+    .t-bad{background:rgba(248,113,113,.14);color:var(--bad);}
+    .t-info{background:rgba(167,139,250,.16);color:var(--accent2);}
+    .t-mut{background:rgba(154,151,196,.14);color:var(--muted);}
+    .bar{height:7px;border-radius:20px;background:var(--panel2);overflow:hidden;min-width:70px;}
+    .bar i{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+    /* board / kanban */
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+    .col{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;}
+    .col .ch{font-size:12px;font-weight:700;color:var(--muted);display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;padding:0 3px;}
+    .col .ch .n{background:var(--panel);border-radius:20px;padding:1px 8px;font-size:11px;}
+    .tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:9px;border-left:3px solid var(--accent);}
+    .tile .id{font-size:11px;color:var(--accent2);font-weight:700;}
+    .tile .ti{font-size:13px;font-weight:600;margin:3px 0 5px;white-space:normal;}
+    .tile .mt{font-size:11px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;}
+    /* timeline */
+    .tl{position:relative;padding-left:26px;}
+    .tl::before{content:"";position:absolute;left:8px;top:4px;bottom:4px;width:2px;background:var(--line);}
+    .tl .it{position:relative;margin-bottom:16px;}
+    .tl .it::before{content:"";position:absolute;left:-22px;top:3px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);box-shadow:0 0 0 3px rgba(124,58,237,.25);}
+    .tl .it.done::before{background:var(--ok);}
+    .tl .it.now::before{background:var(--warn);}
+    .tl .tt{font-size:13px;font-weight:700;}
+    .tl .td{font-size:12px;color:var(--muted);margin-top:2px;white-space:normal;}
+    .tl .tm{font-size:11px;color:var(--accent2);font-weight:600;}
+    /* misc */
+    .flex{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .between{justify-content:space-between;}
+    .pill{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);font-size:12px;color:var(--muted);}
+    .pill .material-symbols-outlined{font-size:15px;color:var(--accent2);}
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;}
+    .btn.p{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#fff;}
+    .rule{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--accent2);border-radius:10px;padding:12px 13px;margin-bottom:10px;}
+    .rule .rid{font-size:11px;font-weight:800;color:var(--accent2);}
+    .rule .rt{font-size:13px;font-weight:600;margin:4px 0;white-space:normal;}
+    .rule .re{font-size:11.5px;color:var(--muted);}
+    .gauge{display:flex;align-items:center;gap:14px;}
+    .gaugebox{position:relative;width:120px;height:120px;flex:0 0 auto;}
+    .gaugebox .ctr{position:absolute;inset:0;display:grid;place-items:center;text-align:center;}
+    .gaugebox .ctr b{font-size:24px;font-weight:800;display:block;}
+    .gaugebox .ctr span{font-size:11px;color:var(--muted);}
+    .spec{display:flex;align-items:center;gap:10px;margin-bottom:11px;font-size:12.5px;flex-wrap:wrap;}
+    .spec .nm{width:120px;color:var(--muted);flex:0 0 auto;}
+    .spec .track{flex:1;min-width:120px;height:24px;border-radius:6px;background:var(--panel2);position:relative;border:1px solid var(--line);overflow:hidden;}
+    .spec .zone{position:absolute;top:0;bottom:0;background:rgba(52,211,153,.16);}
+    .spec .mk{position:absolute;top:-3px;bottom:-3px;width:3px;background:var(--accent2);border-radius:2px;}
+    .spec .rd{width:70px;text-align:right;font-weight:700;flex:0 0 auto;}
+    .cost-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;}
+    .cost-row .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:var(--panel2);flex:0 0 auto;}
+    .cost-row .ic .material-symbols-outlined{font-size:18px;color:var(--accent2);}
+    .cost-row .nm{flex:1;min-width:0;}
+    .cost-row .amt{font-weight:800;white-space:nowrap;}
+    .stepper{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+    .step{flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;position:relative;}
+    .step.on{border-color:var(--accent);background:rgba(124,58,237,.12);}
+    .step .sn{font-size:11px;color:var(--muted);}
+    .step .sti{font-size:13px;font-weight:700;margin-top:2px;}
+    .step .ss{font-size:11px;margin-top:4px;}
+    .foot{margin-top:22px;text-align:center;color:var(--muted);font-size:12px;}
+    @media(max-width:980px){
+      .g4{grid-template-columns:repeat(2,1fr);}
+      .g23,.g32{grid-template-columns:1fr;}
+      .board{grid-template-columns:repeat(2,1fr);}
+    }
+    @media(max-width:820px){
+      .g3,.g2{grid-template-columns:1fr;}
+    }
+    @media(max-width:560px){
+      .g4{grid-template-columns:1fr;}
+      .board{grid-template-columns:1fr;}
+      .tab .lbl{display:none;}
+      .tab{padding:8px 10px;}
+      .brand span{display:none;}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <div class="nav">
+    <div class="brand">
+      <div class="logo"><span class="material-symbols-outlined">recycling</span></div>
+      <div><b>報廢重工管理</b><span>Scrap / Rework Management</span></div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </div>
+  <div class="wrap"><div id="screen"></div>
+    <div class="foot">Jvision 系統 Demo · 報廢重工管理平台 · 資料為示意用途，非真實生產數據</div>
+  </div>
+
+  <script>
+  (function(){
+    var C={grid:"#2b2b52",tick:"#9a97c4",ac:"#7c3aed",ac2:"#a78bfa",ok:"#34d399",warn:"#fbbf24",bad:"#f87171"};
+    var charts={};
+    function killCharts(){for(var k in charts){try{charts[k].destroy();}catch(e){}}charts={};}
+    Chart.defaults.color=C.tick;Chart.defaults.font.family="Inter, 'Noto Sans TC', sans-serif";Chart.defaults.borderColor=C.grid;
+
+    var MODS=[
+      {icon:"fact_check",name:"不良品判定",sub:"缺陷登錄"},
+      {icon:"rule",name:"處置判定",sub:"報廢/重工"},
+      {icon:"build",name:"重工作業",sub:"SOP 指導"},
+      {icon:"verified",name:"品質驗證",sub:"複檢放行"},
+      {icon:"request_quote",name:"成本歸檔",sub:"COQ"},
+      {icon:"monitoring",name:"成效看板",sub:"KPI"}
+    ];
+
+    // ---------- helpers ----------
+    function el(id){return document.getElementById(id);}
+    function head(icon,t,d){return '<div class="scr-head"><h1><span class="material-symbols-outlined">'+icon+'</span>'+t+'</h1><p>'+d+'</p></div>';}
+    function kpi(icon,lab,val,unit,dl,cls){return '<div class="kpi"><div class="lab"><span class="material-symbols-outlined">'+icon+'</span>'+lab+'</div><div class="val">'+val+(unit?' <small>'+unit+'</small>':'')+'</div><div class="dl '+cls+'">'+dl+'</div></div>';}
+    function tag(cls,t){return '<span class="tag '+cls+'">'+t+'</span>';}
+
+    // ================= SCREEN 0 : 不良品判定 =================
+    function s0(){
+      var rows=[
+        {id:"NCR-2408-1042",part:"CNC-機殼A1",lot:"LOT-77321",qty:36,def:"尺寸超差",code:"D-102",sev:"重大",st:"t-bad",img:3},
+        {id:"NCR-2408-1041",part:"注塑上蓋B2",lot:"LOT-77318",qty:12,def:"表面刮傷",code:"S-044",sev:"次要",st:"t-warn",img:2},
+        {id:"NCR-2408-1039",part:"PCBA-主板",lot:"LOT-77310",qty:8,def:"焊點虛焊",code:"E-211",sev:"重大",st:"t-bad",img:5},
+        {id:"NCR-2408-1037",part:"鋁擠型框",lot:"LOT-77302",qty:24,def:"氧化色差",code:"S-051",sev:"次要",st:"t-warn",img:1},
+        {id:"NCR-2408-1035",part:"齒輪箱蓋",lot:"LOT-77295",qty:5,def:"毛邊未除",code:"M-018",sev:"輕微",st:"t-mut",img:2}
+      ];
+      var trs=rows.map(function(r){return '<tr><td style="color:var(--accent2);font-weight:700">'+r.id+'</td><td>'+r.part+'</td><td>'+r.lot+'</td><td>'+r.qty+'</td><td>'+r.def+'</td><td><span class="tag t-info">'+r.code+'</span></td><td>'+tag(r.st,r.sev)+'</td><td><span class="material-symbols-outlined" style="font-size:15px;color:var(--muted)">photo_camera</span> '+r.img+'</td></tr>';}).join('');
+      el("screen").innerHTML=
+        head("fact_check","不良品判定","登錄不良現象、選定缺陷代碼並判定嚴重度，開立報廢/重工單並附照片佐證")+
+        '<div class="grid g4" style="margin-bottom:14px">'+
+          kpi("assignment_late","今日待判定","23","件","+6 較昨日","down")+
+          kpi("category","高頻缺陷","尺寸超差","","佔 31%","flat")+
+          kpi("crisis","重大不良","9","件","需 2h 內處置","down")+
+          kpi("done_all","已完成判定","41","件","達成率 64%","up")+
+        '</div>'+
+        '<div class="grid g23">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">list_alt</span>待判定不良品清單<span class="sub">依開立時間排序</span></h3><div style="overflow-x:auto"><table><thead><tr><th>單號</th><th>品項</th><th>批號</th><th>數量</th><th>不良現象</th><th>缺陷碼</th><th>嚴重度</th><th>佐證</th></tr></thead><tbody>'+trs+'</tbody></table></div></div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">donut_small</span>缺陷分類分布<span class="sub">本週</span></h3><div class="chartbox" style="height:260px"><canvas id="c0"></canvas></div></div>'+
+        '</div>';
+      void el("screen").offsetHeight;
+      charts.c0=new Chart(el("c0"),{type:"doughnut",data:{labels:["尺寸超差","表面刮傷","焊點虛焊","氧化色差","毛邊/其他"],datasets:[{data:[31,22,18,15,14],backgroundColor:["#7c3aed","#a78bfa","#f87171","#fbbf24","#34d399"],borderColor:"#15152a",borderWidth:3}]},options:{maintainAspectRatio:false,responsive:true,cutout:"58%",plugins:{legend:{position:"bottom",labels:{padding:12,boxWidth:12}}}}});
+    }
+
+    // ================= SCREEN 1 : 處置判定 (報廢 or 重工) =================
+    function s1(){
+      var cases=[
+        {id:"NCR-2408-1042",part:"CNC-機殼A1",mat:1280,rework:340,fix:"可精修",cust:"影響上線",dec:"重工",dc:"t-info"},
+        {id:"NCR-2408-1039",part:"PCBA-主板",mat:2150,rework:1980,fix:"高風險",cust:"影響上線",dec:"報廢",dc:"t-bad"},
+        {id:"NCR-2408-1041",part:"注塑上蓋B2",mat:95,rework:60,fix:"可拋光",cust:"庫存",dec:"重工",dc:"t-info"},
+        {id:"NCR-2408-1037",part:"鋁擠型框",mat:210,rework:70,fix:"可陽極重上",cust:"庫存",dec:"重工",dc:"t-info"},
+        {id:"NCR-2408-1035",part:"齒輪箱蓋",mat:180,rework:15,fix:"可去毛邊",cust:"庫存",dec:"重工",dc:"t-info"}
+      ];
+      var trs=cases.map(function(c){var save=c.mat-c.rework;return '<tr><td style="color:var(--accent2);font-weight:700">'+c.id+'</td><td>'+c.part+'</td><td>NT$'+c.mat+'</td><td>NT$'+c.rework+'</td><td>'+c.fix+'</td><td>'+(c.cust==="影響上線"?tag("t-bad",c.cust):tag("t-mut",c.cust))+'</td><td>'+tag(c.dc,c.dec)+'</td><td style="font-weight:700;color:'+(save>0?"var(--ok)":"var(--bad)")+'">'+(save>0?"省 NT$"+save:"—")+'</td></tr>';}).join('');
+      var rules=[
+        {id:"RULE-01",t:"重工成本 ≥ 材料成本 70% 者判報廢，避免無效投入。",e:"材料成本 vs 重工工時料件"},
+        {id:"RULE-02",t:"影響客戶上線且期限兩天內者，優先安排重工並升級。",e:"異常類型與影響範圍"},
+        {id:"RULE-03",t:"連續三批同缺陷代碼者，凍結產線並通知製程工程。",e:"缺陷代碼與批次追溯"}
+      ].map(function(r){return '<div class="rule"><div class="rid">'+r.id+'</div><div class="rt">'+r.t+'</div><div class="re"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">description</span> '+r.e+'</div></div>';}).join('');
+      el("screen").innerHTML=
+        head("rule","處置判定 — 報廢或重工","依規則引擎比對材料成本、修復可行性與客戶影響，判定該批應報廢或進行重工")+
+        '<div class="grid g4" style="margin-bottom:14px">'+
+          kpi("rule","規則自動建議","82","%","人工覆核 18%","up")+
+          kpi("build","本月判重工","148","件","佔 71%","up")+
+          kpi("delete_forever","本月判報廢","61","件","佔 29%","down")+
+          kpi("savings","重工省下","NT$46.2K","","相對全報廢","up")+
+        '</div>'+
+        '<div class="grid g23">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">balance</span>處置決策比對表<span class="sub">規則引擎試算</span></h3><div style="overflow-x:auto"><table><thead><tr><th>單號</th><th>品項</th><th>材料成本</th><th>重工成本</th><th>可行性</th><th>影響</th><th>建議</th><th>效益</th></tr></thead><tbody>'+trs+'</tbody></table></div>'+
+          '<div style="margin-top:14px" class="chartbox" ><h3 style="font-size:13px;margin:0 0 8px;color:var(--muted)">報廢 vs 重工成本對比 (NT$)</h3><div class="chartbox" style="height:200px"><canvas id="c1"></canvas></div></div></div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">gavel</span>決策規則引擎</h3>'+rules+'</div>'+
+        '</div>';
+      void el("screen").offsetHeight;
+      charts.c1=new Chart(el("c1"),{type:"bar",data:{labels:["機殼A1","主板","上蓋B2","框","蓋"],datasets:[
+        {label:"若報廢損失",data:[1280,2150,95,210,180],backgroundColor:"rgba(248,113,113,.7)"},
+        {label:"重工成本",data:[340,1980,60,70,15],backgroundColor:"#7c3aed"}
+      ]},options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{position:"bottom",labels:{boxWidth:12}}},scales:{x:{grid:{color:C.grid}},y:{grid:{color:C.grid},beginAtZero:true}}}});
+    }
+
+    // ================= SCREEN 2 : 重工作業 (kanban + SOP) =================
+    function s2(){
+      var steps=[
+        {n:"步驟 1",t:"拆解隔離",s:"完成",cls:"on"},
+        {n:"步驟 2",t:"缺陷修整",s:"進行中",cls:"on"},
+        {n:"步驟 3",t:"更換料件",s:"待作業",cls:""},
+        {n:"步驟 4",t:"再組裝",s:"待作業",cls:""},
+        {n:"步驟 5",t:"送複檢",s:"待作業",cls:""}
+      ].map(function(s){return '<div class="step '+s.cls+'"><div class="sn">'+s.n+'</div><div class="sti">'+s.t+'</div><div class="ss '+(s.s==="完成"?"up":s.s==="進行中"?"flat":"")+'" style="color:'+(s.s==="完成"?"var(--ok)":s.s==="進行中"?"var(--warn)":"var(--muted)")+'">'+s.s+'</div></div>';}).join('');
+      function tile(id,ti,who,hr,pr){return '<div class="tile"><div class="id">'+id+'</div><div class="ti">'+ti+'</div><div class="mt"><span><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">person</span>'+who+'</span><span><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">schedule</span>'+hr+'h</span>'+pr+'</div></div>';}
+      var board=
+        '<div class="col"><div class="ch">待作業<span class="n">3</span></div>'+tile("RW-5521","注塑上蓋 拋光重工","王志明","0.5",tag("t-mut","次要"))+tile("RW-5524","鋁框 陽極重上","李佳穎","1.2",tag("t-mut","次要"))+tile("RW-5527","齒輪蓋 去毛邊","陳建宏","0.3",tag("t-mut","輕微"))+'</div>'+
+        '<div class="col"><div class="ch">重工中<span class="n">2</span></div>'+tile("RW-5518","CNC機殼 精修","張淑芬","2.0",tag("t-info","重大"))+tile("RW-5519","支架 焊補","黃俊傑","1.5",tag("t-warn","次要"))+'</div>'+
+        '<div class="col"><div class="ch">待複檢<span class="n">2</span></div>'+tile("RW-5510","端子 重壓","吳美玲","0.8",tag("t-info","重大"))+tile("RW-5512","外殼 補漆","周文彬","1.0",tag("t-mut","次要"))+'</div>'+
+        '<div class="col"><div class="ch">已完成<span class="n">4</span></div>'+tile("RW-5501","連接器 換件","許雅婷","0.6",tag("t-ok","合格"))+tile("RW-5498","面板 拋光","林宗翰","0.9",tag("t-ok","合格"))+'</div>';
+      el("screen").innerHTML=
+        head("build","重工作業指導","依重工 SOP 逐步作業，記錄工時、更換料件與作業站別，回報完成進度")+
+        '<div class="grid g4" style="margin-bottom:14px">'+
+          kpi("engineering","重工進行中","6","單","3 名作業員","flat")+
+          kpi("timer","平均重工工時","1.4","h/件","↓ 0.3h","up")+
+          kpi("build_circle","今日完成","11","件","目標 15","flat")+
+          kpi("inventory_2","料件更換","28","pcs","本班次","flat")+
+        '</div>'+
+        '<div class="card" style="margin-bottom:14px"><h3><span class="material-symbols-outlined">checklist</span>當前工單 SOP 進度 — RW-5518 CNC機殼 精修<span class="sub">作業員：張淑芬</span></h3><div class="stepper">'+steps+'</div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">view_kanban</span>重工作業看板<span class="sub">即時狀態</span></h3><div style="overflow-x:auto"><div class="board">'+board+'</div></div></div>';
+      void el("screen").offsetHeight;
+    }
+
+    // ================= SCREEN 3 : 品質驗證 (spec + gauge) =================
+    function s3(){
+      // spec bars: reading marker inside/outside green zone
+      var specs=[
+        {nm:"外徑 Ø(mm)",lo:0,hi:100,z1:35,z2:65,mk:48,rd:"49.7",ok:true},
+        {nm:"平面度(µm)",lo:0,hi:100,z1:0,z2:60,mk:44,rd:"18µm",ok:true},
+        {nm:"表面粗糙 Ra",lo:0,hi:100,z1:0,z2:55,mk:70,rd:"1.9",ok:false},
+        {nm:"扭力(N·m)",lo:0,hi:100,z1:40,z2:75,mk:58,rd:"12.4",ok:true},
+        {nm:"介電強度",lo:0,hi:100,z1:45,z2:100,mk:80,rd:"合格",ok:true}
+      ];
+      var sp=specs.map(function(s){var w=s.z2-s.z1;return '<div class="spec"><div class="nm">'+s.nm+'</div><div class="track"><div class="zone" style="left:'+s.z1+'%;width:'+w+'%"></div><div class="mk" style="left:'+s.mk+'%"></div></div><div class="rd" style="color:'+(s.ok?"var(--ok)":"var(--bad)")+'">'+s.rd+' '+(s.ok?"✓":"✗")+'</div></div>';}).join('');
+      var rows=[
+        {id:"RW-5510",part:"端子重壓",insp:"吳美玲",res:"合格",rc:"t-ok",note:"扭力達標放行"},
+        {id:"RW-5512",part:"外殼補漆",insp:"周文彬",res:"合格",rc:"t-ok",note:"色差ΔE<1.5"},
+        {id:"RW-5507",part:"主板補焊",insp:"李佳穎",res:"退回",rc:"t-bad",note:"虛焊未清除"},
+        {id:"RW-5503",part:"框件重上",insp:"陳建宏",res:"合格",rc:"t-ok",note:"膜厚OK"},
+        {id:"RW-5499",part:"齒輪蓋",insp:"王志明",res:"複檢中",rc:"t-warn",note:"待量測"}
+      ];
+      var trs=rows.map(function(r){return '<tr><td style="color:var(--accent2);font-weight:700">'+r.id+'</td><td>'+r.part+'</td><td>'+r.insp+'</td><td>'+tag(r.rc,r.res)+'</td><td style="color:var(--muted)">'+r.note+'</td></tr>';}).join('');
+      el("screen").innerHTML=
+        head("verified","品質驗證","重工後複檢量測，比對規格上下限，判定合格放行或退回再重工")+
+        '<div class="grid g4" style="margin-bottom:14px">'+
+          kpi("verified","重工合格率","92","%","目標 90%","up")+
+          kpi("fact_check","今日複檢","19","件","2 件退回","flat")+
+          kpi("undo","退回再重工","2","件","佔 10.5%","down")+
+          kpi("straighten","量測項/件","5.2","項","全檢","flat")+
+        '</div>'+
+        '<div class="grid g32">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">speed</span>驗證合格率<span class="sub">近30日</span></h3>'+
+            '<div class="gauge"><div class="gaugebox"><canvas id="c3g"></canvas><div class="ctr"><b>92%</b><span>合格放行</span></div></div>'+
+            '<div style="flex:1;min-width:0"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">複檢結果分布</div>'+
+            '<div class="flex" style="margin-bottom:6px"><span class="tag t-ok">合格 92%</span></div>'+
+            '<div class="flex" style="margin-bottom:6px"><span class="tag t-bad">退回 6%</span></div>'+
+            '<div class="flex"><span class="tag t-warn">複檢中 2%</span></div></div></div></div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">straighten</span>RW-5510 量測值 vs 規格帶<span class="sub">綠區=公差範圍</span></h3>'+sp+'</div>'+
+        '</div>'+
+        '<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">rule</span>複檢結果紀錄</h3><div style="overflow-x:auto"><table><thead><tr><th>重工單</th><th>品項</th><th>檢驗員</th><th>結果</th><th>備註</th></tr></thead><tbody>'+trs+'</tbody></table></div></div>';
+      void el("screen").offsetHeight;
+      charts.c3g=new Chart(el("c3g"),{type:"doughnut",data:{labels:["合格","退回","複檢中"],datasets:[{data:[92,6,2],backgroundColor:["#34d399","#f87171","#fbbf24"],borderColor:"#15152a",borderWidth:3}]},options:{maintainAspectRatio:false,responsive:true,cutout:"72%",plugins:{legend:{display:false}}}});
+    }
+
+    // ================= SCREEN 4 : 成本歸檔 (COQ) =================
+    function s4(){
+      var costs=[
+        {ic:"delete_forever",nm:"報廢材料損失",amt:"NT$ 128,400",pct:38},
+        {ic:"build",nm:"重工工時成本",amt:"NT$ 86,200",pct:26},
+        {ic:"inventory_2",nm:"更換料件成本",amt:"NT$ 61,700",pct:18},
+        {ic:"local_shipping",nm:"退貨/運費",amt:"NT$ 34,500",pct:10},
+        {ic:"science",nm:"重檢/量測",amt:"NT$ 27,800",pct:8}
+      ];
+      var cr=costs.map(function(c){return '<div class="cost-row"><div class="ic"><span class="material-symbols-outlined">'+c.ic+'</span></div><div class="nm">'+c.nm+'<div class="bar" style="margin-top:6px"><i style="width:'+c.pct+'%"></i></div></div><div class="amt">'+c.amt+'<div style="font-size:11px;color:var(--muted);font-weight:500;text-align:right">'+c.pct+'%</div></div></div>';}).join('');
+      var rows=[
+        {id:"COQ-2408-221",lot:"LOT-77321",type:"重工",dept:"CNC 加工",amt:"NT$ 3,240",st:"已歸檔",sc:"t-ok"},
+        {id:"COQ-2408-220",lot:"LOT-77310",type:"報廢",dept:"SMT 貼裝",amt:"NT$ 17,200",st:"已歸檔",sc:"t-ok"},
+        {id:"COQ-2408-219",lot:"LOT-77302",type:"重工",dept:"表面處理",amt:"NT$ 1,890",st:"待審核",sc:"t-warn"},
+        {id:"COQ-2408-218",lot:"LOT-77295",type:"重工",dept:"組裝",amt:"NT$ 620",st:"已歸檔",sc:"t-ok"},
+        {id:"COQ-2408-217",lot:"LOT-77288",type:"報廢",dept:"CNC 加工",amt:"NT$ 9,450",st:"待審核",sc:"t-warn"}
+      ];
+      var trs=rows.map(function(r){return '<tr><td style="color:var(--accent2);font-weight:700">'+r.id+'</td><td>'+r.lot+'</td><td>'+(r.type==="報廢"?tag("t-bad",r.type):tag("t-info",r.type))+'</td><td>'+r.dept+'</td><td style="font-weight:700">'+r.amt+'</td><td>'+tag(r.sc,r.st)+'</td></tr>';}).join('');
+      el("screen").innerHTML=
+        head("request_quote","成本歸檔 — COQ","彙整報廢損失與重工工時料件成本，歸入 COQ 並更新看板")+
+        '<div class="grid g4" style="margin-bottom:14px">'+
+          kpi("payments","本月 COQ 總額","NT$338.6K","","↓ 12% MoM","up")+
+          kpi("delete_forever","報廢損失佔比","38","%","主要項目","down")+
+          kpi("build","重工成本佔比","44","%","含工時料件","flat")+
+          kpi("archive","已歸檔單數","187","筆","待審 12 筆","flat")+
+        '</div>'+
+        '<div class="grid g23">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">stacked_line_chart</span>品質成本 (COQ) 月趨勢<span class="sub">NT$ 千元</span></h3><div class="chartbox" style="height:270px"><canvas id="c4"></canvas></div></div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">pie_chart</span>成本結構分解<span class="sub">本月</span></h3>'+cr+'</div>'+
+        '</div>'+
+        '<div class="card" style="margin-top:14px"><h3><span class="material-symbols-outlined">receipt_long</span>成本歸檔明細</h3><div style="overflow-x:auto"><table><thead><tr><th>COQ 單號</th><th>批號</th><th>類型</th><th>部門</th><th>金額</th><th>狀態</th></tr></thead><tbody>'+trs+'</tbody></table></div></div>';
+      void el("screen").offsetHeight;
+      charts.c4=new Chart(el("c4"),{type:"bar",data:{labels:["3月","4月","5月","6月","7月","8月"],datasets:[
+        {type:"bar",label:"報廢損失",data:[168,152,141,138,132,128],backgroundColor:"rgba(248,113,113,.75)",stack:"a"},
+        {type:"bar",label:"重工成本",data:[95,102,110,118,140,148],backgroundColor:"#7c3aed",stack:"a"},
+        {type:"line",label:"COQ 總額",data:[263,254,251,256,272,276],borderColor:"#a78bfa",backgroundColor:"#a78bfa",tension:.35,pointRadius:3,fill:false,yAxisID:"y"}
+      ]},options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{position:"bottom",labels:{boxWidth:12}}},scales:{x:{stacked:true,grid:{color:C.grid}},y:{stacked:true,grid:{color:C.grid},beginAtZero:true}}}});
+    }
+
+    // ================= SCREEN 5 : 成效看板 =================
+    function s5(){
+      var tl=[
+        {c:"done",t:"重複不良率降至 2.0%",m:"第6週",d:"連續改善達成目標，較起始 5.8% 下降 66%"},
+        {c:"done",t:"重工成功率突破 90%",m:"第5週",d:"SOP 標準化與 3D 量測導入見效"},
+        {c:"now",t:"CNC 尺寸超差專案追蹤中",m:"本週",d:"刀具壽命管理試行，待驗證兩批"},
+        {c:"",t:"SMT 虛焊改善提案",m:"下週",d:"回流焊溫度曲線調整，等待製程確認"}
+      ].map(function(i){return '<div class="it '+i.c+'"><div class="tt">'+i.t+'</div><div class="tm">'+i.m+'</div><div class="td">'+i.d+'</div></div>';}).join('');
+      var lines=[
+        {nm:"CNC 加工",rate:96,scr:1.8},{nm:"SMT 貼裝",rate:88,scr:3.2},
+        {nm:"表面處理",rate:94,scr:2.1},{nm:"組裝",rate:98,scr:0.9}
+      ];
+      var lr=lines.map(function(l){return '<div style="margin-bottom:12px"><div class="flex between" style="font-size:12.5px;margin-bottom:5px"><span>'+l.nm+'</span><span style="color:var(--muted)">重工成功 '+l.rate+'% · 報廢 '+l.scr+'%</span></div><div class="bar"><i style="width:'+l.rate+'%"></i></div></div>';}).join('');
+      el("screen").innerHTML=
+        head("monitoring","成效看板","報廢率、重工成功率與品質改善成效即時追蹤，主管一眼掌握重點")+
+        '<div class="grid g4" style="margin-bottom:14px">'+
+          kpi("verified","重工成功率","92","%","起始 67%","up")+
+          kpi("recycling","報廢率","2.0","%","起始 5.8%","up")+
+          kpi("schedule","批號追溯時間","14","分","起始 191 分","up")+
+          kpi("event_available","客訴關案","9.2","天","起始 21 天","up")+
+        '</div>'+
+        '<div class="grid g23">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">trending_up</span>改善驗證率趨勢<span class="sub">6 週</span></h3><div class="chartbox" style="height:240px"><canvas id="c5a"></canvas></div></div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">factory</span>各工站成效<span class="sub">重工成功率</span></h3>'+lr+'</div>'+
+        '</div>'+
+        '<div class="grid g2" style="margin-top:14px">'+
+          '<div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>報廢率 vs 重工成功率<span class="sub">近6月</span></h3><div class="chartbox" style="height:240px"><canvas id="c5b"></canvas></div></div>'+
+          '<div class="card"><h3><span class="material-symbols-outlined">history</span>改善行動時間軸</h3><div class="tl">'+tl+'</div></div>'+
+        '</div>';
+      void el("screen").offsetHeight;
+      charts.c5a=new Chart(el("c5a"),{type:"line",data:{labels:["第1週","第2週","第3週","第4週","第5週","第6週"],datasets:[{label:"改善驗證率 %",data:[67,72,77,82,87,92],borderColor:"#7c3aed",backgroundColor:"rgba(124,58,237,.18)",fill:true,tension:.35,pointRadius:3,pointBackgroundColor:"#a78bfa"}]},options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:C.grid}},y:{grid:{color:C.grid},min:50,max:100}}}});
+      charts.c5b=new Chart(el("c5b"),{data:{labels:["3月","4月","5月","6月","7月","8月"],datasets:[
+        {type:"line",label:"重工成功率 %",data:[74,79,83,87,90,92],borderColor:"#a78bfa",backgroundColor:"#a78bfa",tension:.35,pointRadius:3,yAxisID:"y",fill:false},
+        {type:"bar",label:"報廢率 %",data:[5.1,4.4,3.6,3.0,2.4,2.0],backgroundColor:"rgba(248,113,113,.7)",yAxisID:"y1"}
+      ]},options:{maintainAspectRatio:false,responsive:true,plugins:{legend:{position:"bottom",labels:{boxWidth:12}}},scales:{x:{grid:{color:C.grid}},y:{position:"left",grid:{color:C.grid},min:60,max:100,title:{display:true,text:"成功率%"}},y1:{position:"right",grid:{drawOnChartArea:false},min:0,max:8,title:{display:true,text:"報廢率%"}}}}});
+    }
+
+    var SCREENS=[s0,s1,s2,s3,s4,s5];
+
+    // build tabs
+    var th=MODS.map(function(m,i){return '<button class="tab" data-i="'+i+'"><span class="material-symbols-outlined">'+m.icon+'</span><span class="lbl">'+m.name+'</span></button>';}).join('');
+    el("tabs").innerHTML=th;
+
+    function show(i){
+      killCharts();
+      var tabs=document.querySelectorAll("[data-i]");
+      for(var k=0;k<tabs.length;k++){tabs[k].classList.toggle("on",+tabs[k].getAttribute("data-i")===i);}
+      var box=el("screen");
+      SCREENS[i]();
+    }
+    var tabsEl=document.querySelectorAll("[data-i]");
+    for(var j=0;j<tabsEl.length;j++){tabsEl[j].addEventListener("click",function(){show(+this.getAttribute("data-i"));try{window.scrollTo(0,0);}catch(e){}});}
+
+    window.show=show;
+  })();
+  function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}window.addEventListener("hashchange",fromHash);fromHash();
+  </script>
 </body>
 </html>

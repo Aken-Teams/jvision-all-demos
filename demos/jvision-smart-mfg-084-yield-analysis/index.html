@@ -4,15 +4,639 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Yield Analysis（良率分析）｜Jvision 系統 Demo</title>
-  <meta name="description" content="從異常到改善的品質閉環與追溯稽核" />
+  <meta name="description" content="良率即時看板、多站良率追蹤、不良模式排行與根因改善的品質閉環" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+  <style>
+    :root{
+      --accent:#db2777; --accent2:#f472b6; --accent-soft:#fce7f3;
+      --ink:#1f2430; --muted:#6b7280; --line:#e9ebf0; --bg:#f4f5f8;
+      --sidebar:#1b1420; --sidebar2:#2a1c27; --card:#ffffff;
+      --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --info:#2563eb;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:"Inter","Noto Sans TC",system-ui,sans-serif;
+      background:var(--bg); color:var(--ink); font-size:14px; line-height:1.55;
+      -webkit-font-smoothing:antialiased;
+    }
+    .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
+    .app{display:flex; min-height:100vh; align-items:stretch;}
+    /* sidebar */
+    .sidebar{
+      width:250px; flex:0 0 250px; background:linear-gradient(180deg,var(--sidebar),var(--sidebar2));
+      color:#f3e9ef; display:flex; flex-direction:column; padding:20px 14px; gap:6px; min-width:0;
+    }
+    .brand{display:flex; align-items:center; gap:11px; padding:6px 8px 16px;}
+    .brand .logo{
+      width:40px;height:40px;border-radius:11px;flex:0 0 40px;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:flex;align-items:center;justify-content:center;color:#fff;
+      box-shadow:0 6px 16px rgba(219,39,119,.4);
+    }
+    .brand .logo .material-symbols-outlined{font-size:24px}
+    .brand h1{font-size:15px;margin:0;font-weight:800;letter-spacing:.2px}
+    .brand p{margin:2px 0 0;font-size:11px;color:#c9a9bd;font-weight:500}
+    .nav{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+    .nav .lbl{font-size:10.5px;letter-spacing:1.2px;color:#9d7d8f;font-weight:700;padding:8px 10px 4px;text-transform:uppercase}
+    .navbtn{
+      display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:11px;
+      background:transparent;border:0;color:#e6d5df;cursor:pointer;text-align:left;
+      font-family:inherit;font-size:13.5px;font-weight:600;width:100%;min-width:0;transition:background .12s,color .12s;
+    }
+    .navbtn .material-symbols-outlined{font-size:21px;flex:0 0 auto;color:#e6a9c9}
+    .navbtn .nx{display:flex;flex-direction:column;min-width:0}
+    .navbtn .nx small{font-weight:500;font-size:10.5px;color:#a9899b;line-height:1.2}
+    .navbtn:hover{background:rgba(255,255,255,.06)}
+    .navbtn.active{background:linear-gradient(135deg,var(--accent),#be185d);color:#fff;box-shadow:0 6px 16px rgba(219,39,119,.35)}
+    .navbtn.active .material-symbols-outlined{color:#fff}
+    .navbtn.active small{color:#f9d3e5}
+    .side-foot{margin-top:auto;padding:12px 10px 2px;font-size:10.5px;color:#8f7183;border-top:1px solid rgba(255,255,255,.08)}
+    /* main */
+    .main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+    .topbar{
+      background:#fff;border-bottom:1px solid var(--line);padding:14px 26px;
+      display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:20;
+    }
+    .topbar .tt{min-width:0}
+    .topbar .tt h2{margin:0;font-size:18px;font-weight:800}
+    .topbar .tt p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+    .topbar .spacer{flex:1 1 auto}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:600;background:var(--accent-soft);color:#be185d}
+    .pill .material-symbols-outlined{font-size:16px}
+    .who{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--muted)}
+    .who .av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+    .content{padding:22px 26px 40px;min-width:0}
+    /* generic */
+    .grid{display:grid;gap:16px;min-width:0}
+    .g4{grid-template-columns:repeat(4,1fr)}
+    .g3{grid-template-columns:repeat(3,1fr)}
+    .g2{grid-template-columns:repeat(2,1fr)}
+    .g32{grid-template-columns:2fr 1fr}
+    .g23{grid-template-columns:1fr 2fr}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;min-width:0;box-shadow:0 1px 2px rgba(20,20,40,.03)}
+    .card h3{margin:0 0 3px;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:8px}
+    .card h3 .material-symbols-outlined{font-size:19px;color:var(--accent)}
+    .card .sub{font-size:11.5px;color:var(--muted);margin:0 0 14px}
+    .kpi .top{display:flex;align-items:center;justify-content:space-between}
+    .kpi .ic{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent)}
+    .kpi .ic .material-symbols-outlined{font-size:21px}
+    .kpi .val{font-size:27px;font-weight:900;margin:10px 0 2px;letter-spacing:-.5px}
+    .kpi .lab{font-size:12px;color:var(--muted);font-weight:600}
+    .kpi .dl{font-size:11.5px;font-weight:700;margin-top:8px;display:inline-flex;align-items:center;gap:3px}
+    .kpi .dl .material-symbols-outlined{font-size:15px}
+    .up{color:var(--ok)} .down{color:var(--bad)} .flat{color:var(--muted)}
+    .chartbox{width:100%;overflow:hidden;min-width:0}
+    table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px}
+    th{text-align:left;font-size:11px;color:var(--muted);font-weight:700;padding:9px 12px;border-bottom:2px solid var(--line);white-space:nowrap;text-transform:uppercase;letter-spacing:.4px}
+    td{padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+    tbody tr:hover{background:#fbf3f8}
+    .tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700}
+    .t-ok{background:#dcfce7;color:#15803d} .t-warn{background:#fef3c7;color:#b45309}
+    .t-bad{background:#fee2e2;color:#b91c1c} .t-info{background:#dbeafe;color:#1d4ed8}
+    .t-gray{background:#eef0f4;color:#4b5563}
+    .bar-wrap{background:#eef0f4;border-radius:999px;height:8px;overflow:hidden;min-width:60px}
+    .bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    .mono{font-variant-numeric:tabular-nums;font-weight:700}
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;min-width:0}
+    .col{background:#f8f9fb;border:1px solid var(--line);border-radius:14px;padding:12px;min-width:0}
+    .col .ch{font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .col .cnt{background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:11px;color:var(--muted)}
+    .kb{background:#fff;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:10px;margin-bottom:9px}
+    .kb .kt{font-size:12.5px;font-weight:700}
+    .kb .km{font-size:11px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+    .timeline{position:relative;padding-left:26px}
+    .timeline::before{content:"";position:absolute;left:9px;top:4px;bottom:4px;width:2px;background:var(--line)}
+    .tli{position:relative;padding:0 0 18px}
+    .tli::before{content:"";position:absolute;left:-21px;top:3px;width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 0 0 2px var(--accent-soft)}
+    .tli .tth{font-size:13px;font-weight:800}
+    .tli .ttm{font-size:11.5px;color:var(--muted)}
+    .tli .ttd{font-size:12px;margin-top:4px;background:#f8f9fb;border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+    .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:8px}
+    .legend span{display:inline-flex;align-items:center;gap:5px}
+    .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+    .flowstrip{display:flex;gap:0;flex-wrap:wrap;align-items:stretch;background:#fff;border:1px solid var(--line);border-radius:14px;padding:6px;margin-bottom:16px}
+    .fstep{flex:1 1 auto;min-width:120px;display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:10px}
+    .fstep .fn{width:24px;height:24px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+    .fstep.on{background:var(--accent-soft)} .fstep.on .fn{background:var(--accent);color:#fff}
+    .fstep .fx{min-width:0}
+    .fstep .fx b{font-size:12.5px;display:block}
+    .fstep .fx small{font-size:10.5px;color:var(--muted)}
+    .split{display:flex;align-items:center;color:#d0d3da;font-size:18px}
+    .gauge-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+    .statline{display:flex;flex-direction:column;gap:10px}
+    .statrow{display:flex;align-items:center;gap:10px;font-size:12.5px}
+    .statrow .nm{flex:0 0 96px;font-weight:600;min-width:0}
+    .statrow .vv{flex:0 0 52px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+    .note{background:var(--accent-soft);border:1px solid #f5c6dd;border-radius:12px;padding:12px 14px;font-size:12.5px;color:#9d174d;display:flex;gap:10px;align-items:flex-start}
+    .note .material-symbols-outlined{font-size:19px;flex:0 0 auto}
+    .chips{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--muted)}
+    .chip.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .mini-th{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+    .hbar{display:grid;grid-template-columns:120px 1fr 46px;gap:10px;align-items:center;font-size:12px;margin-bottom:9px;min-width:0}
+    .hbar .hn{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .hbar .hv{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+    /* responsive */
+    @media(max-width:1100px){ .g4{grid-template-columns:repeat(2,1fr)} .board{grid-template-columns:repeat(2,1fr)} }
+    @media(max-width:820px){
+      .g4,.g3,.g2,.g32,.g23{grid-template-columns:1fr}
+      .board{grid-template-columns:1fr}
+    }
+    @media(max-width:860px){
+      .app{flex-direction:column}
+      .sidebar{width:auto;flex:0 0 auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:12px 14px;gap:8px}
+      .brand{padding:0 10px 0 2px;border:0}
+      .nav{flex-direction:row;flex-wrap:wrap;gap:6px;margin:0}
+      .nav .lbl{display:none}
+      .navbtn{width:auto;padding:8px 12px}
+      .navbtn .nx small{display:none}
+      .side-foot{display:none}
+    }
+    @media(max-width:560px){
+      .navbtn .nx b{display:none}
+      .navbtn{padding:9px}
+      .content{padding:16px 14px 34px}
+      .topbar{padding:12px 14px}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo"><span class="material-symbols-outlined">insights</span></div>
+        <div>
+          <h1>Yield Analysis</h1>
+          <p>良率分析平台</p>
+        </div>
+      </div>
+      <nav class="nav" id="nav">
+        <div class="lbl">分析模組</div>
+      </nav>
+      <div class="side-foot">
+        Jvision QMS · Demo<br/>資料為模擬展示用途
+      </div>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <div class="tt">
+          <h2 id="scr-title">良率即時看板</h2>
+          <p id="scr-sub">整廠 FPY 與綜合良率即時彙整</p>
+        </div>
+        <div class="spacer"></div>
+        <span class="pill"><span class="material-symbols-outlined">factory</span>Fab-A 電子組裝廠</span>
+        <div class="who">
+          <div class="av">陳</div>
+          <div>陳詠晴<br/><span style="font-size:11px">製程工程部</span></div>
+        </div>
+      </div>
+      <div class="content" id="screen"></div>
+    </main>
+  </div>
+
+  <script>
+  (function(){
+    "use strict";
+    var charts=[];
+    function destroyCharts(){ for(var i=0;i<charts.length;i++){ try{charts[i].destroy();}catch(e){} } charts=[]; }
+    function mkChart(id,opt){
+      var el=document.getElementById(id);
+      if(!el) return;
+      opt.chart=opt.chart||{};
+      opt.chart.redrawOnParentResize=false;
+      opt.chart.redrawOnWindowResize=false;
+      opt.chart.animations={enabled:false};
+      opt.chart.fontFamily='Inter,"Noto Sans TC",sans-serif';
+      opt.chart.toolbar={show:false};
+      try{ var c=new ApexCharts(el,opt); c.render(); charts.push(c); }catch(e){}
+    }
+    var PINK="#db2777", PINK2="#f472b6", GRID="#eceef2";
+
+    var MODULES=[
+      {icon:"dashboard",name:"良率即時看板",sub:"整廠 FPY 與綜合良率即時彙整"},
+      {icon:"account_tree",name:"多站良率追蹤",sub:"各製程站別良率與流失分解"},
+      {icon:"insights",name:"不良模式排行",sub:"柏拉圖鎖定關鍵不良項目"},
+      {icon:"monitoring",name:"SPC 製程管制",sub:"關鍵參數管制圖與趨勢監控"},
+      {icon:"science",name:"根因分析",sub:"多維度交叉鎖定良率損失根因"},
+      {icon:"task_alt",name:"改善追蹤",sub:"改善對策驗證與效益追蹤"}
+    ];
+
+    // build nav
+    (function(){
+      var nav=document.getElementById("nav");
+      for(var i=0;i<MODULES.length;i++){
+        var b=document.createElement("button");
+        b.className="navbtn"; b.setAttribute("data-i",i);
+        b.innerHTML='<span class="material-symbols-outlined">'+MODULES[i].icon+'</span>'+
+          '<span class="nx"><b>'+MODULES[i].name+'</b><small>'+MODULES[i].sub+'</small></span>';
+        b.addEventListener("click",(function(idx){return function(){ location.hash="v"+idx; };})(i));
+        nav.appendChild(b);
+      }
+    })();
+
+    function esc(s){return String(s).replace(/[&<>]/g,function(c){return c==="&"?"&amp;":c==="<"?"&lt;":"&gt;";});}
+
+    // ---------- SCREEN 0: 良率即時看板 ----------
+    function screen0(){
+      var kpis=[
+        {ic:"verified",lab:"整線綜合良率",val:"94.6%",dl:"+1.8%",cls:"up"},
+        {ic:"task_alt",lab:"直通率 FPY",val:"91.2%",dl:"+2.4%",cls:"up"},
+        {ic:"warning",lab:"今日不良台數",val:"318",dl:"-64",cls:"up"},
+        {ic:"schedule",lab:"待處理異常",val:"7",dl:"+2",cls:"down"}
+      ];
+      var lines=[
+        {n:"SMT-1 主板貼裝線",fpy:"92.4",yld:"95.1",st:"正常",cls:"t-ok"},
+        {n:"SMT-2 副板貼裝線",fpy:"88.7",yld:"93.2",st:"注意",cls:"t-warn"},
+        {n:"DIP 插件線",fpy:"90.1",yld:"94.6",st:"正常",cls:"t-ok"},
+        {n:"FA 組裝線",fpy:"93.8",yld:"96.0",st:"正常",cls:"t-ok"},
+        {n:"FT 功能測試線",fpy:"86.2",yld:"90.4",st:"異常",cls:"t-bad"}
+      ];
+      var h='';
+      h+='<div class="grid g4">';
+      for(var i=0;i<kpis.length;i++){var k=kpis[i];
+        h+='<div class="card kpi"><div class="top"><div class="ic"><span class="material-symbols-outlined">'+k.ic+'</span></div>'+
+          '<span class="dl '+k.cls+'"><span class="material-symbols-outlined">'+(k.cls==="up"?"trending_up":"trending_down")+'</span>'+k.dl+'</span></div>'+
+          '<div class="val">'+k.val+'</div><div class="lab">'+k.lab+'</div></div>';
+      }
+      h+='</div>';
+      h+='<div class="grid g32" style="margin-top:16px">';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">show_chart</span>近 14 日良率趨勢</h3><p class="sub">整線綜合良率 vs 直通率（FPY）</p><div class="chartbox" id="c0trend"></div>'+
+        '<div class="legend"><span><i class="dot" style="background:'+PINK+'"></i>綜合良率</span><span><i class="dot" style="background:'+PINK2+'"></i>直通率 FPY</span><span><i class="dot" style="background:#94a3b8"></i>目標 93%</span></div></div>';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">donut_large</span>不良類別佔比</h3><p class="sub">今日不良台數分佈</p><div class="chartbox" id="c0donut"></div></div>';
+      h+='</div>';
+      h+='<div class="card" style="margin-top:16px"><h3><span class="material-symbols-outlined">factory</span>各產線良率總覽</h3><p class="sub">即時同步 MES / AOI 數據</p>'+
+        '<div style="overflow-x:auto"><table><thead><tr><th>產線</th><th>FPY %</th><th>綜合良率 %</th><th>良率達成</th><th>狀態</th></tr></thead><tbody>';
+      for(var j=0;j<lines.length;j++){var l=lines[j];var pct=Math.round(parseFloat(l.yld));
+        h+='<tr><td style="font-weight:700">'+l.n+'</td><td class="mono">'+l.fpy+'</td><td class="mono">'+l.yld+'</td>'+
+          '<td><div style="display:flex;align-items:center;gap:8px"><div class="bar-wrap" style="width:110px"><div class="bar-fill" style="width:'+pct+'%"></div></div><span class="mono" style="font-size:11px">'+pct+'%</span></div></td>'+
+          '<td><span class="tag '+l.cls+'">'+l.st+'</span></td></tr>';
+      }
+      h+='</tbody></table></div></div>';
+      document.getElementById("screen").innerHTML=h;
+      void document.getElementById("screen").offsetHeight;
+      mkChart("c0trend",{
+        chart:{type:"line",height:300},
+        series:[
+          {name:"綜合良率",data:[92.1,92.6,91.8,93.2,93.6,92.9,93.8,94.0,93.4,94.2,94.5,93.9,94.4,94.6]},
+          {name:"直通率 FPY",data:[88.4,89.1,88.0,89.6,90.2,89.4,90.5,90.9,90.1,91.0,91.4,90.7,91.1,91.2]},
+          {name:"目標",data:[93,93,93,93,93,93,93,93,93,93,93,93,93,93]}
+        ],
+        colors:[PINK,PINK2,"#94a3b8"],
+        stroke:{width:[3,3,2],curve:"smooth",dashArray:[0,0,5]},
+        xaxis:{categories:["D-13","D-12","D-11","D-10","D-9","D-8","D-7","D-6","D-5","D-4","D-3","D-2","D-1","今日"],labels:{style:{fontSize:"10px"}}},
+        yaxis:{min:85,max:97,labels:{formatter:function(v){return v.toFixed(0)+"%";}}},
+        grid:{borderColor:GRID},
+        legend:{show:false},
+        dataLabels:{enabled:false}
+      });
+      mkChart("c0donut",{
+        chart:{type:"donut",height:300},
+        series:[104,78,52,44,40],
+        labels:["虛焊 / 冷焊","元件錯位","焊錫短路","功能不良","外觀刮傷"],
+        colors:[PINK,PINK2,"#f9a8d4","#fbcfe8","#c4b5fd"],
+        legend:{position:"bottom",fontSize:"11px"},
+        dataLabels:{enabled:true,formatter:function(v){return v.toFixed(0)+"%";}},
+        plotOptions:{pie:{donut:{size:"62%",labels:{show:true,total:{show:true,label:"總不良台",fontSize:"12px",formatter:function(){return "318";}}}}}}
+      });
+    }
+
+    // ---------- SCREEN 1: 多站良率追蹤 ----------
+    function screen1(){
+      var stations=[
+        {n:"錫膏印刷",fpy:99.2,in:12000,ng:96,cls:"t-ok"},
+        {n:"SPI 檢測",fpy:98.6,in:11904,ng:167,cls:"t-ok"},
+        {n:"貼片 SMT",fpy:96.4,in:11737,ng:423,cls:"t-warn"},
+        {n:"迴焊 Reflow",fpy:97.9,in:11314,ng:238,cls:"t-ok"},
+        {n:"AOI 光學檢測",fpy:94.1,in:11076,ng:653,cls:"t-bad"},
+        {n:"DIP 插件",fpy:97.2,in:10423,ng:292,cls:"t-ok"},
+        {n:"功能測試 FT",fpy:95.5,in:10131,ng:456,cls:"t-warn"},
+        {n:"包裝出貨",fpy:99.6,in:9675,ng:39,cls:"t-ok"}
+      ];
+      var h='';
+      h+='<div class="note"><span class="material-symbols-outlined">account_tree</span><div><b>良率流失分解</b>：投入 12,000 片主板，通過 8 站後最終產出 <b>9,636 片</b>，累積綜合良率 <b>80.3%</b>；AOI 與 SMT 為主要流失站，建議優先分析。</div></div>';
+      h+='<div class="grid g23" style="margin-top:16px">';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>各站 FPY</h3><p class="sub">單站直通率，越低代表流失越多</p><div class="chartbox" id="c1bar"></div></div>';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">waterfall_chart</span>良率流失瀑布</h3><p class="sub">逐站累積產出片數</p><div class="chartbox" id="c1fall"></div></div>';
+      h+='</div>';
+      h+='<div class="card" style="margin-top:16px"><h3><span class="material-symbols-outlined">table_rows</span>站別良率明細</h3><p class="sub">今日班次（早班）數據</p>'+
+        '<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>製程站</th><th>投入片數</th><th>不良片數</th><th>單站 FPY</th><th>狀態</th></tr></thead><tbody>';
+      for(var i=0;i<stations.length;i++){var s=stations[i];
+        h+='<tr><td class="mono">'+(i+1)+'</td><td style="font-weight:700">'+s.n+'</td><td class="mono">'+s.in.toLocaleString()+'</td>'+
+          '<td class="mono" style="color:'+(s.ng>400?"#dc2626":"inherit")+'">'+s.ng+'</td>'+
+          '<td><div style="display:flex;align-items:center;gap:8px"><div class="bar-wrap" style="width:90px"><div class="bar-fill" style="width:'+s.fpy+'%"></div></div><span class="mono" style="font-size:11px">'+s.fpy.toFixed(1)+'%</span></div></td>'+
+          '<td><span class="tag '+s.cls+'">'+(s.cls==="t-bad"?"需分析":s.cls==="t-warn"?"注意":"正常")+'</span></td></tr>';
+      }
+      h+='</tbody></table></div></div>';
+      document.getElementById("screen").innerHTML=h;
+      void document.getElementById("screen").offsetHeight;
+      var names=[],fpys=[],prod=[];
+      for(var k=0;k<stations.length;k++){names.push(stations[k].n);fpys.push(stations[k].fpy);prod.push(stations[k].in);}
+      prod.push(9636);var fnames=names.slice();fnames.push("產出");
+      mkChart("c1bar",{
+        chart:{type:"bar",height:330},
+        series:[{name:"FPY",data:fpys}],
+        colors:[PINK],
+        plotOptions:{bar:{horizontal:true,borderRadius:4,barHeight:"62%",distributed:false}},
+        xaxis:{categories:names,min:90,max:100,labels:{formatter:function(v){return v.toFixed(0)+"%";},style:{fontSize:"10px"}}},
+        yaxis:{labels:{style:{fontSize:"11px"}}},
+        grid:{borderColor:GRID},
+        dataLabels:{enabled:true,formatter:function(v){return v.toFixed(1);},style:{fontSize:"10px",colors:["#fff"]}},
+        tooltip:{y:{formatter:function(v){return v.toFixed(1)+"%";}}}
+      });
+      mkChart("c1fall",{
+        chart:{type:"bar",height:330},
+        series:[{name:"累積產出片數",data:prod}],
+        colors:[PINK2],
+        plotOptions:{bar:{borderRadius:4,columnWidth:"58%"}},
+        xaxis:{categories:fnames,labels:{style:{fontSize:"9.5px"},rotate:-35,trim:true}},
+        yaxis:{labels:{formatter:function(v){return (v/1000).toFixed(0)+"k";}}},
+        grid:{borderColor:GRID},
+        dataLabels:{enabled:false},
+        tooltip:{y:{formatter:function(v){return v.toLocaleString()+" 片";}}}
+      });
+    }
+
+    // ---------- SCREEN 2: 不良模式排行 (柏拉圖) ----------
+    function screen2(){
+      var defects=[
+        {n:"AOI 虛焊",c:412},
+        {n:"元件偏移",c:286},
+        {n:"焊錫短路",c:198},
+        {n:"缺件 / 少件",c:154},
+        {n:"錫珠",c:112},
+        {n:"功能不良",c:88},
+        {n:"極性反接",c:57},
+        {n:"外觀刮傷",c:43}
+      ];
+      var total=0;for(var i=0;i<defects.length;i++)total+=defects[i].c;
+      var cum=0,cats=[],counts=[],cumline=[];
+      for(var j=0;j<defects.length;j++){cum+=defects[j].c;cats.push(defects[j].n);counts.push(defects[j].c);cumline.push(+(cum/total*100).toFixed(1));}
+      var h='';
+      h+='<div class="chips" style="margin-bottom:16px"><span class="chip sel">全部產線</span><span class="chip">SMT-1</span><span class="chip">SMT-2</span><span class="chip">FT 測試</span><span class="chip">本週</span></div>';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">insights</span>不良模式柏拉圖</h3><p class="sub">前 3 項不良佔全部 '+((defects[0].c+defects[1].c+defects[2].c)/total*100).toFixed(0)+'%，為改善重點（80/20 法則）</p><div class="chartbox" id="c2pareto"></div>'+
+        '<div class="legend"><span><i class="dot" style="background:'+PINK+'"></i>不良件數</span><span><i class="dot" style="background:'+PINK2+'"></i>累積佔比 %</span></div></div>';
+      h+='<div class="grid g2" style="margin-top:16px">';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">format_list_numbered</span>不良項目排行</h3><p class="sub">依件數由高至低</p>';
+      for(var m=0;m<defects.length;m++){var d=defects[m];var w=Math.round(d.c/defects[0].c*100);
+        h+='<div class="hbar"><div class="hn">'+(m+1)+'. '+d.n+'</div><div class="bar-wrap"><div class="bar-fill" style="width:'+w+'%"></div></div><div class="hv">'+d.c+'</div></div>';
+      }
+      h+='</div>';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">insert_chart</span>不良來源機台</h3><p class="sub">虛焊不良機台分佈</p><div class="chartbox" id="c2mc"></div></div>';
+      h+='</div>';
+      document.getElementById("screen").innerHTML=h;
+      void document.getElementById("screen").offsetHeight;
+      mkChart("c2pareto",{
+        chart:{type:"line",height:330,stacked:false},
+        series:[{name:"不良件數",type:"column",data:counts},{name:"累積佔比",type:"line",data:cumline}],
+        colors:[PINK,PINK2],
+        stroke:{width:[0,3]},
+        plotOptions:{bar:{borderRadius:4,columnWidth:"55%"}},
+        xaxis:{categories:cats,labels:{style:{fontSize:"10px"},rotate:-30,trim:true}},
+        yaxis:[
+          {title:{text:"件數",style:{fontSize:"11px"}},labels:{style:{fontSize:"10px"}}},
+          {opposite:true,min:0,max:100,title:{text:"累積 %",style:{fontSize:"11px"}},labels:{formatter:function(v){return v.toFixed(0)+"%";},style:{fontSize:"10px"}}}
+        ],
+        grid:{borderColor:GRID},
+        dataLabels:{enabled:false},
+        legend:{show:false},
+        markers:{size:[0,4]}
+      });
+      mkChart("c2mc",{
+        chart:{type:"bar",height:300},
+        series:[{name:"虛焊件數",data:[142,98,76,54,42]}],
+        colors:[PINK],
+        plotOptions:{bar:{borderRadius:4,columnWidth:"48%",distributed:true}},
+        colors:[PINK,"#e754a0","#f472b6","#f9a8d4","#fbcfe8"],
+        xaxis:{categories:["Mounter-3","Mounter-1","Reflow-2","Mounter-2","Reflow-1"],labels:{style:{fontSize:"10px"}}},
+        yaxis:{labels:{style:{fontSize:"10px"}}},
+        grid:{borderColor:GRID},
+        dataLabels:{enabled:true,style:{fontSize:"10px"}},
+        legend:{show:false}
+      });
+    }
+
+    // ---------- SCREEN 3: SPC 製程管制 ----------
+    function screen3(){
+      var params=[
+        {n:"迴焊峰溫 (°C)",cpk:1.42,v:"245.3",st:"穩定",cls:"t-ok"},
+        {n:"錫膏印刷厚度 (μm)",cpk:1.08,v:"128.6",st:"注意",cls:"t-warn"},
+        {n:"貼片壓力 (N)",cpk:1.55,v:"3.42",st:"穩定",cls:"t-ok"},
+        {n:"迴焊帶速 (cm/min)",cpk:0.92,v:"88.1",st:"偏移",cls:"t-bad"},
+        {n:"錫爐溫度 (°C)",cpk:1.33,v:"258.0",st:"穩定",cls:"t-ok"}
+      ];
+      var xbar=[127.8,128.2,127.5,129.1,128.6,130.2,129.4,128.9,131.1,129.8,128.6,127.9,130.4,128.6];
+      var ucl=132,lcl=124,cl=128;
+      var h='';
+      h+='<div class="grid g4">';
+      var scards=[
+        {ic:"speed",lab:"平均 Cpk",val:"1.26",cls:"flat",dl:"製程能力"},
+        {ic:"warning",lab:"超出管制點",val:"3",cls:"down",dl:"近 14 點"},
+        {ic:"monitoring",lab:"監控參數",val:"18",cls:"flat",dl:"5 項關鍵"},
+        {ic:"notifications_active",lab:"即時告警",val:"1",cls:"down",dl:"帶速偏移"}
+      ];
+      for(var i=0;i<scards.length;i++){var s=scards[i];
+        h+='<div class="card kpi"><div class="top"><div class="ic"><span class="material-symbols-outlined">'+s.ic+'</span></div></div>'+
+          '<div class="val">'+s.val+'</div><div class="lab">'+s.lab+'</div><div class="dl '+s.cls+'">'+s.dl+'</div></div>';
+      }
+      h+='</div>';
+      h+='<div class="grid g32" style="margin-top:16px">';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">monitoring</span>X-bar 管制圖 · 錫膏印刷厚度</h3><p class="sub">近 14 個量測子組（μm）</p><div class="chartbox" id="c3spc"></div>'+
+        '<div class="legend"><span><i class="dot" style="background:'+PINK+'"></i>量測值</span><span><i class="dot" style="background:#94a3b8"></i>中心線 CL</span><span><i class="dot" style="background:#dc2626"></i>管制界限 UCL/LCL</span></div></div>';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>各參數 Cpk</h3><p class="sub">製程能力指數（≥1.33 為佳）</p><div class="chartbox" id="c3cpk"></div></div>';
+      h+='</div>';
+      h+='<div class="card" style="margin-top:16px"><h3><span class="material-symbols-outlined">tune</span>關鍵參數監控</h3><p class="sub">即時量測與製程能力</p>'+
+        '<div style="overflow-x:auto"><table><thead><tr><th>參數</th><th>即時值</th><th>Cpk</th><th>能力</th><th>狀態</th></tr></thead><tbody>';
+      for(var j=0;j<params.length;j++){var p=params[j];var pw=Math.min(Math.round(p.cpk/1.67*100),100);
+        h+='<tr><td style="font-weight:700">'+p.n+'</td><td class="mono">'+p.v+'</td><td class="mono">'+p.cpk.toFixed(2)+'</td>'+
+          '<td><div class="bar-wrap" style="width:100px"><div class="bar-fill" style="width:'+pw+'%;background:'+(p.cpk<1?"#dc2626":p.cpk<1.33?"#d97706":"linear-gradient(90deg,#db2777,#f472b6)")+'"></div></div></td>'+
+          '<td><span class="tag '+p.cls+'">'+p.st+'</span></td></tr>';
+      }
+      h+='</tbody></table></div></div>';
+      document.getElementById("screen").innerHTML=h;
+      void document.getElementById("screen").offsetHeight;
+      var xc=[];for(var q=0;q<xbar.length;q++)xc.push("s"+(q+1));
+      mkChart("c3spc",{
+        chart:{type:"line",height:320},
+        series:[
+          {name:"量測值",data:xbar},
+          {name:"CL",data:xbar.map(function(){return cl;})},
+          {name:"UCL",data:xbar.map(function(){return ucl;})},
+          {name:"LCL",data:xbar.map(function(){return lcl;})}
+        ],
+        colors:[PINK,"#94a3b8","#dc2626","#dc2626"],
+        stroke:{width:[3,2,2,2],curve:"straight",dashArray:[0,4,6,6]},
+        markers:{size:[5,0,0,0]},
+        xaxis:{categories:xc,labels:{style:{fontSize:"10px"}}},
+        yaxis:{min:122,max:134,labels:{formatter:function(v){return v.toFixed(0);}}},
+        grid:{borderColor:GRID},
+        legend:{show:false},
+        dataLabels:{enabled:false}
+      });
+      mkChart("c3cpk",{
+        chart:{type:"bar",height:320},
+        series:[{name:"Cpk",data:[1.42,1.08,1.55,0.92,1.33]}],
+        plotOptions:{bar:{horizontal:true,borderRadius:4,barHeight:"60%",distributed:true}},
+        colors:["#16a34a","#d97706","#16a34a","#dc2626","#16a34a"],
+        xaxis:{categories:["迴焊峰溫","印刷厚度","貼片壓力","迴焊帶速","錫爐溫度"],max:1.8,labels:{style:{fontSize:"10px"}}},
+        yaxis:{labels:{style:{fontSize:"11px"}}},
+        grid:{borderColor:GRID},
+        dataLabels:{enabled:true,formatter:function(v){return v.toFixed(2);},style:{fontSize:"10px",colors:["#fff"]}},
+        legend:{show:false}
+      });
+    }
+
+    // ---------- SCREEN 4: 根因分析 ----------
+    function screen4(){
+      var causes=[
+        {n:"貼片機吸嘴磨損",w:82,cat:"設備"},
+        {n:"錫膏黏度偏高",w:68,cat:"物料"},
+        {n:"迴焊溫度曲線偏移",w:61,cat:"製程"},
+        {n:"元件供料飄移",w:44,cat:"設備"},
+        {n:"作業手法差異",w:29,cat:"人員"}
+      ];
+      var h='';
+      h+='<div class="note"><span class="material-symbols-outlined">science</span><div><b>根因鎖定</b>：針對 <b>AOI 虛焊</b>（本週最高不良）進行多維度交叉分析，鎖定 <b>Mounter-3 吸嘴磨損</b> 為主要根因，相關性 0.82，已建立改善對策 CAPA-2408-017。</div></div>';
+      h+='<div class="grid g2" style="margin-top:16px">';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">radar</span>5M1E 影響雷達</h3><p class="sub">虛焊不良各面向影響度評分</p><div class="chartbox" id="c4radar"></div></div>';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">scatter_plot</span>吸嘴使用次數 vs 虛焊率</h3><p class="sub">強正相關（r=0.82）</p><div class="chartbox" id="c4scatter"></div></div>';
+      h+='</div>';
+      h+='<div class="card" style="margin-top:16px"><h3><span class="material-symbols-outlined">rule</span>疑似根因權重</h3><p class="sub">依相關性與證據強度排序</p>';
+      for(var i=0;i<causes.length;i++){var c=causes[i];
+        h+='<div class="hbar" style="grid-template-columns:180px 1fr 70px"><div class="hn">'+c.n+' <span class="tag t-gray" style="font-size:10px">'+c.cat+'</span></div>'+
+          '<div class="bar-wrap"><div class="bar-fill" style="width:'+c.w+'%"></div></div><div class="hv">'+(c.w/100).toFixed(2)+'</div></div>';
+      }
+      h+='</div>';
+      h+='<div class="card" style="margin-top:16px"><h3><span class="material-symbols-outlined">fact_check</span>根因分析證據鏈</h3><p class="sub">RULE-02：規格超差且影響功能者必須先隔離批次</p>'+
+        '<div class="timeline">'+
+        tli("多維度交叉","AOI 虛焊 61% 集中於 Mounter-3，且與吸嘴使用次數高度相關。","相關係數 r=0.82")+
+        tli("參數比對","比對 SPI 印刷厚度分佈，Mounter-3 對應區塊偏薄，吸嘴取放偏移。","證據：SPC / 印刷厚度")+
+        tli("重現驗證","更換吸嘴後試產 200 片，虛焊率由 4.1% 降至 0.6%。","證據：試產批 LOT-24080912")+
+        tli("鎖定根因","確認 Mounter-3 吸嘴磨損為主因，建立 CAPA 對策並排入預防保養。","狀態：已核准 · 待改善驗證")+
+        '</div></div>';
+      document.getElementById("screen").innerHTML=h;
+      void document.getElementById("screen").offsetHeight;
+      mkChart("c4radar",{
+        chart:{type:"radar",height:340},
+        series:[{name:"影響度",data:[82,68,61,44,29,36]}],
+        colors:[PINK],
+        stroke:{width:2},
+        fill:{opacity:0.28,colors:[PINK]},
+        markers:{size:4,colors:[PINK]},
+        xaxis:{categories:["設備 Machine","物料 Material","方法 Method","量測 Measure","人員 Man","環境 Env"],labels:{style:{fontSize:"10.5px"}}},
+        yaxis:{max:100,tickAmount:4,labels:{formatter:function(v){return v.toFixed(0);},style:{fontSize:"9px"}}},
+        dataLabels:{enabled:false}
+      });
+      mkChart("c4scatter",{
+        chart:{type:"scatter",height:340},
+        series:[{name:"批次",data:[[1200,0.6],[2400,0.9],[3800,1.4],[5200,2.1],[6600,2.8],[7900,3.5],[9200,4.1],[10500,4.8],[4400,1.7],[7100,3.1]]}],
+        colors:[PINK],
+        xaxis:{title:{text:"吸嘴累積取放次數",style:{fontSize:"11px"}},tickAmount:5,labels:{formatter:function(v){return (v/1000).toFixed(0)+"k";},style:{fontSize:"10px"}}},
+        yaxis:{title:{text:"虛焊率 %",style:{fontSize:"11px"}},labels:{formatter:function(v){return v.toFixed(1);},style:{fontSize:"10px"}}},
+        grid:{borderColor:GRID},
+        markers:{size:6}
+      });
+    }
+    function tli(t,d,m){return '<div class="tli"><div class="tth">'+esc(t)+'</div><div class="ttm">'+esc(m)+'</div><div class="ttd">'+esc(d)+'</div></div>';}
+
+    // ---------- SCREEN 5: 改善追蹤 ----------
+    function screen5(){
+      var cols=[
+        {t:"待判定",cls:"t-gray",items:[
+          {k:"客訴 CS-2408-31 出貨批虛焊",m:["高","品保 · 林"]},
+          {k:"FT 測試站良率下滑",m:["中","製程 · 陳"]}
+        ]},
+        {t:"原因分析",cls:"t-info",items:[
+          {k:"錫膏黏度批次異常",m:["中","製程 · 王"]}
+        ]},
+        {t:"改善驗證",cls:"t-warn",items:[
+          {k:"Mounter-3 吸嘴磨損 CAPA-017",m:["高","製程 · 陳"]},
+          {k:"迴焊溫度曲線重調",m:["中","製程 · 李"]}
+        ]},
+        {t:"已關閉",cls:"t-ok",items:[
+          {k:"SPI 印刷厚度校正",m:["低","製程 · 王"]},
+          {k:"元件供料器保養",m:["中","設備 · 張"]}
+        ]}
+      ];
+      var rows=[
+        {id:"CAPA-2408-017",it:"Mounter-3 吸嘴更換 + PM",own:"陳詠晴",fpy0:"87.4",fpy1:"93.6",st:"驗證中",cls:"t-warn"},
+        {id:"CAPA-2408-012",it:"錫膏冷藏回溫作業標準化",own:"王柏諭",fpy0:"90.1",fpy1:"94.8",st:"已結案",cls:"t-ok"},
+        {id:"CAPA-2408-009",it:"迴焊帶速閉迴路控制",own:"李欣妤",fpy0:"88.9",fpy1:"92.2",st:"驗證中",cls:"t-warn"},
+        {id:"CAPA-2407-044",it:"SPI 印刷厚度自動校正",own:"王柏諭",fpy0:"91.2",fpy1:"96.0",st:"已結案",cls:"t-ok"}
+      ];
+      var h='';
+      h+='<div class="grid g4">';
+      var kk=[
+        {ic:"pending_actions",lab:"進行中改善案",val:"6",cls:"flat"},
+        {ic:"verified",lab:"已驗證有效",val:"12",cls:"up"},
+        {ic:"trending_up",lab:"平均良率提升",val:"+4.8%",cls:"up"},
+        {ic:"event_repeat",lab:"重複不良率",val:"1.9%",cls:"up"}
+      ];
+      for(var i=0;i<kk.length;i++){var k=kk[i];
+        h+='<div class="card kpi"><div class="top"><div class="ic"><span class="material-symbols-outlined">'+k.ic+'</span></div></div><div class="val">'+k.val+'</div><div class="lab">'+k.lab+'</div></div>';
+      }
+      h+='</div>';
+      h+='<div class="card" style="margin-top:16px"><h3><span class="material-symbols-outlined">view_kanban</span>改善案件看板</h3><p class="sub">依 CAPA 流程階段（待判定 → 原因分析 → 改善驗證 → 已關閉）</p>'+
+        '<div style="overflow-x:auto"><div class="board">';
+      for(var c=0;c<cols.length;c++){var col=cols[c];
+        h+='<div class="col"><div class="ch"><span class="tag '+col.cls+'">'+col.t+'</span><span class="cnt">'+col.items.length+'</span></div>';
+        for(var m=0;m<col.items.length;m++){var it=col.items[m];
+          h+='<div class="kb"><div class="kt">'+esc(it.k)+'</div><div class="km"><span class="tag '+(it.m[0]==="高"?"t-bad":it.m[0]==="中"?"t-warn":"t-gray")+'" style="font-size:10px">'+it.m[0]+'優先</span><span>'+esc(it.m[1])+'</span></div></div>';
+        }
+        h+='</div>';
+      }
+      h+='</div></div></div>';
+      h+='<div class="grid g23" style="margin-top:16px">';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">show_chart</span>改善前後良率</h3><p class="sub">CAPA 對策驗證成效</p><div class="chartbox" id="c5ba"></div>'+
+        '<div class="legend"><span><i class="dot" style="background:#94a3b8"></i>改善前</span><span><i class="dot" style="background:'+PINK+'"></i>改善後</span></div></div>';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">task_alt</span>CAPA 改善追蹤</h3><p class="sub">RULE-03：無驗證證據不得關閉案件</p>'+
+        '<div style="overflow-x:auto"><table><thead><tr><th>CAPA 單號</th><th>對策</th><th>負責人</th><th>前→後 FPY</th><th>狀態</th></tr></thead><tbody>';
+      for(var r=0;r<rows.length;r++){var rw=rows[r];
+        h+='<tr><td class="mono" style="font-weight:700">'+rw.id+'</td><td>'+esc(rw.it)+'</td><td>'+rw.own+'</td>'+
+          '<td class="mono">'+rw.fpy0+' → <span style="color:#db2777">'+rw.fpy1+'</span></td>'+
+          '<td><span class="tag '+rw.cls+'">'+rw.st+'</span></td></tr>';
+      }
+      h+='</tbody></table></div></div>';
+      h+='</div>';
+      document.getElementById("screen").innerHTML=h;
+      void document.getElementById("screen").offsetHeight;
+      mkChart("c5ba",{
+        chart:{type:"bar",height:300},
+        series:[
+          {name:"改善前",data:[87.4,90.1,88.9,91.2]},
+          {name:"改善後",data:[93.6,94.8,92.2,96.0]}
+        ],
+        colors:["#94a3b8",PINK],
+        plotOptions:{bar:{borderRadius:4,columnWidth:"62%"}},
+        xaxis:{categories:["CAPA-017","CAPA-012","CAPA-009","CAPA-044"],labels:{style:{fontSize:"10px"}}},
+        yaxis:{min:82,max:100,labels:{formatter:function(v){return v.toFixed(0)+"%";}}},
+        grid:{borderColor:GRID},
+        dataLabels:{enabled:false},
+        legend:{show:false},
+        tooltip:{shared:true,intersect:false,y:{formatter:function(v){return v.toFixed(1)+"%";}}}
+      });
+    }
+
+    var SCREENS=[screen0,screen1,screen2,screen3,screen4,screen5];
+
+    function show(i){
+      destroyCharts();
+      var btns=document.querySelectorAll("[data-i]");
+      for(var b=0;b<btns.length;b++){ btns[b].classList.toggle("active", +btns[b].getAttribute("data-i")===i); }
+      document.getElementById("scr-title").textContent=MODULES[i].name;
+      document.getElementById("scr-sub").textContent=MODULES[i].sub;
+      SCREENS[i]();
+    }
+
+    window.__show=show;
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+    window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>

@@ -3,16 +3,455 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AXI（自動X光檢測管理）｜Jvision 系統 Demo</title>
-  <meta name="description" content="從異常到改善的品質閉環與追溯稽核" />
+  <title>AXI 自動X光檢測管理｜Jvision 系統 Demo</title>
+  <meta name="description" content="焊點X光檢測：從影像判讀到缺陷處置與檢出率驗證的品質閉環" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --acc:#16a34a; --acc2:#4ade80; --acc-d:#15803d;
+      --bg:#f0f4f1; --panel:#ffffff; --ink:#0f1a12; --mut:#5b6b60;
+      --line:#dbe6de; --soft:#eef5f0; --warn:#dc2626; --warnbg:#fef2f2;
+      --amber:#d97706; --amberbg:#fffbeb; --info:#0369a1; --infobg:#eff6ff;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{font-family:"Inter","Noto Sans TC",system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5}
+    .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle}
+    .app{max-width:1360px;margin:0 auto;padding:0 16px 40px}
+    /* topbar */
+    .top{display:flex;align-items:center;gap:14px;padding:16px 4px;flex-wrap:wrap}
+    .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 6px 16px rgba(22,163,74,.32)}
+    .logo .material-symbols-outlined{font-size:26px}
+    .brand h1{font-size:18px;margin:0;font-weight:800;letter-spacing:.2px}
+    .brand p{margin:2px 0 0;font-size:12.5px;color:var(--mut)}
+    .top .live{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--acc-d);background:#dcfce7;padding:6px 12px;border-radius:999px;font-weight:600;min-width:0}
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 4px rgba(22,163,74,.18)}
+    /* nav */
+    nav{display:flex;flex-wrap:wrap;gap:8px;padding:6px 0 18px}
+    .nb{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--panel);color:var(--mut);padding:9px 14px;border-radius:11px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;min-width:0;transition:.15s}
+    .nb .material-symbols-outlined{font-size:19px}
+    .nb .ix{width:20px;height:20px;border-radius:6px;background:var(--soft);color:var(--acc-d);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+    .nb:hover{border-color:var(--acc2);color:var(--ink)}
+    .nb.on{background:linear-gradient(135deg,var(--acc),var(--acc-d));color:#fff;border-color:transparent;box-shadow:0 6px 14px rgba(22,163,74,.3)}
+    .nb.on .ix{background:rgba(255,255,255,.24);color:#fff}
+    /* screen head */
+    .shead{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:2px 0 14px}
+    .shead h2{margin:0;font-size:20px;font-weight:800}
+    .shead .sub{color:var(--mut);font-size:13px;margin:0}
+    .tag{margin-left:auto;font-size:12px;background:var(--soft);color:var(--acc-d);padding:5px 12px;border-radius:999px;font-weight:700;border:1px solid var(--line)}
+    /* generic cards */
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}
+    .card h3{margin:0 0 12px;font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px}
+    .card h3 .material-symbols-outlined{font-size:19px;color:var(--acc-d)}
+    .muted{color:var(--mut);font-size:12.5px}
+    /* KPI */
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 15px;min-width:0;position:relative;overflow:hidden}
+    .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(var(--acc),var(--acc2))}
+    .kpi .kl{font-size:12px;color:var(--mut);font-weight:600}
+    .kpi .kv{font-size:26px;font-weight:900;margin-top:4px;letter-spacing:-.5px}
+    .kpi .kd{font-size:11.5px;margin-top:3px;font-weight:700}
+    .up{color:var(--acc-d)} .down{color:var(--warn)}
+    /* split workspace */
+    .split{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start}
+    .list{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px;min-width:0}
+    .lfilter{display:flex;gap:6px;padding:6px 6px 10px;flex-wrap:wrap}
+    .chip{font-size:11.5px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--mut);cursor:pointer;font-weight:600}
+    .chip.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+    .li{display:flex;gap:10px;padding:11px 10px;border-radius:11px;cursor:pointer;border:1px solid transparent;min-width:0}
+    .li:hover{background:var(--soft)}
+    .li.on{background:var(--soft);border-color:var(--acc2)}
+    .li .th{width:44px;height:44px;border-radius:9px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:12px}
+    .li .in{min-width:0;flex:1}
+    .li .in .t{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .li .in .m{font-size:11.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .detail{min-width:0;display:flex;flex-direction:column;gap:14px}
+    /* badges */
+    .b{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px}
+    .b .material-symbols-outlined{font-size:14px}
+    .b-red{background:var(--warnbg);color:var(--warn)}
+    .b-amb{background:var(--amberbg);color:var(--amber)}
+    .b-grn{background:#dcfce7;color:var(--acc-d)}
+    .b-blu{background:var(--infobg);color:var(--info)}
+    .b-gry{background:#f1f5f2;color:var(--mut)}
+    /* tables */
+    table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px}
+    th{text-align:left;font-size:11px;color:var(--mut);font-weight:700;padding:9px 10px;border-bottom:2px solid var(--line);white-space:nowrap}
+    td{padding:10px;border-bottom:1px solid var(--soft);vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    .scroll{overflow-x:auto}
+    /* xray viewer signature */
+    .xray{background:#0c1512;border-radius:14px;padding:14px;position:relative;overflow:hidden;min-width:0}
+    .xray .grid{background-image:linear-gradient(rgba(74,222,128,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(74,222,128,.12) 1px,transparent 1px);background-size:26px 26px;border-radius:10px;height:300px;position:relative;border:1px solid rgba(74,222,128,.25)}
+    .joint{position:absolute;width:34px;height:34px;border-radius:50%;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#04140c;cursor:pointer}
+    .joint.ok{background:radial-gradient(circle at 35% 30%,#86efac,#22c55e)}
+    .joint.bad{background:radial-gradient(circle at 35% 30%,#fca5a5,#ef4444);box-shadow:0 0 0 3px rgba(239,68,68,.35),0 0 16px rgba(239,68,68,.5)}
+    .joint.rev{background:radial-gradient(circle at 35% 30%,#fde68a,#f59e0b);box-shadow:0 0 0 3px rgba(245,158,11,.3)}
+    .xleg{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:#cbe8d5}
+    .xleg span{display:inline-flex;align-items:center;gap:6px}
+    .xd{width:11px;height:11px;border-radius:50%}
+    /* chart wrap */
+    .cwrap{position:relative;width:100%;overflow:hidden}
+    /* grids */
+    .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .g2a{display:grid;grid-template-columns:1.5fr 1fr;gap:14px}
+    /* board */
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .col{background:var(--soft);border-radius:13px;padding:10px;min-width:0}
+    .col .ch{font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:space-between;padding:2px 4px 10px}
+    .col .ch .cnt{background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-size:11px;color:var(--mut)}
+    .tk{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;min-width:0}
+    .tk .tt{font-size:12.5px;font-weight:700}
+    .tk .tm{font-size:11px;color:var(--mut);margin-top:3px;display:flex;gap:6px;flex-wrap:wrap}
+    .tk:last-child{margin-bottom:0}
+    /* timeline */
+    .tl{position:relative;padding-left:22px}
+    .tl::before{content:"";position:absolute;left:7px;top:4px;bottom:4px;width:2px;background:var(--line)}
+    .tli{position:relative;padding:0 0 16px}
+    .tli::before{content:"";position:absolute;left:-19px;top:3px;width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--acc)}
+    .tli.done::before{background:var(--acc)}
+    .tli:last-child{padding-bottom:0}
+    .tli .tt{font-size:13px;font-weight:700}
+    .tli .tx{font-size:12px;color:var(--mut);margin-top:2px}
+    .tli .ts{font-size:11px;color:var(--acc-d);font-weight:700}
+    /* meter */
+    .meter{height:8px;border-radius:999px;background:var(--soft);overflow:hidden}
+    .meter i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+    .prog{height:7px;border-radius:999px;background:var(--soft);overflow:hidden;margin-top:6px}
+    .prog i{display:block;height:100%;background:var(--acc)}
+    /* def detail rows */
+    .drow{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:13px;min-width:0}
+    .drow:last-child{border-bottom:none}
+    .drow .k{color:var(--mut);font-weight:600;flex:0 0 auto}
+    .drow .v{font-weight:700;text-align:right;min-width:0}
+    .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+    .btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 13px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;color:var(--ink);display:inline-flex;align-items:center;gap:6px}
+    .btn .material-symbols-outlined{font-size:17px}
+    .btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+    .btn.dng{background:var(--warnbg);color:var(--warn);border-color:#fecaca}
+    /* gauge row */
+    .gauge{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .gc{text-align:center;padding:6px}
+    .gc .gv{font-size:30px;font-weight:900;letter-spacing:-1px}
+    .gc .gl{font-size:12px;color:var(--mut);font-weight:600;margin-top:2px}
+    /* legend */
+    .lg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-top:8px}
+    .lg span{display:inline-flex;align-items:center;gap:6px}
+    .sw{width:12px;height:12px;border-radius:3px}
+    .foot{text-align:center;color:var(--mut);font-size:11.5px;padding:22px 0 4px}
+    @media(max-width:860px){
+      .split{grid-template-columns:1fr}
+      .list{display:flex;overflow-x:auto;gap:8px}
+      .list .lwrap{display:flex;gap:8px}
+    }
+    @media(max-width:820px){
+      .kpis{grid-template-columns:1fr 1fr}
+      .g2,.g3,.g2a,.board,.gauge{grid-template-columns:1fr}
+    }
+    @media(max-width:560px){
+      .nb .ntx{display:none}
+      .nb{padding:9px 11px}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <div class="app">
+    <div class="top">
+      <div class="logo"><span class="material-symbols-outlined">biotech</span></div>
+      <div class="brand">
+        <h1>AXI 自動X光檢測管理</h1>
+        <p>焊點X光檢測 · 缺陷判讀 · 處置追溯與檢出率管制</p>
+      </div>
+      <div class="live"><span class="dot"></span>3 台 AXI 機台線上</div>
+    </div>
+    <nav id="nav"></nav>
+    <div id="screen"></div>
+    <div class="foot">Jvision Demo · AXI 自動X光檢測管理系統 · 本頁為純前端展示，資料皆為模擬</div>
+  </div>
+
+  <script>
+  (function(){
+    "use strict";
+    var C={acc:"#16a34a",acc2:"#4ade80",accD:"#15803d",warn:"#dc2626",amber:"#d97706",info:"#0369a1",mut:"#5b6b60",line:"#dbe6de",soft:"#eef5f0"};
+    var NAV=[
+      {ix:"M1",icon:"biotech",t:"X光檢測程式"},
+      {ix:"M2",icon:"insights",t:"缺陷影像判讀"},
+      {ix:"M3",icon:"rule",t:"缺陷分類複判"},
+      {ix:"M4",icon:"warning",t:"異常通報處置"},
+      {ix:"M5",icon:"precision_manufacturing",t:"機台校驗追蹤"},
+      {ix:"M6",icon:"monitoring",t:"檢出率SPC分析"}
+    ];
+    var host=document.getElementById("screen");
+    var navEl=document.getElementById("nav");
+    var charts=[];
+    function killCharts(){for(var i=0;i<charts.length;i++){try{charts[i].destroy();}catch(e){}}charts=[];}
+    function esc(s){return String(s).replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+    function el(id){return document.getElementById(id);}
+    function bar(id,cfg){var cv=el(id);if(!cv)return;var ch=new Chart(cv.getContext("2d"),cfg);charts.push(ch);return ch;}
+
+    // build nav
+    (function(){
+      var h="";
+      for(var i=0;i<NAV.length;i++){
+        h+='<button class="nb" data-i="'+i+'"><span class="ix">'+NAV[i].ix+'</span><span class="material-symbols-outlined">'+NAV[i].icon+'</span><span class="ntx">'+NAV[i].t+'</span></button>';
+      }
+      navEl.innerHTML=h;
+      navEl.addEventListener("click",function(e){
+        var b=e.target.closest("[data-i]");if(!b)return;
+        location.hash="v"+b.getAttribute("data-i");
+      });
+    })();
+
+    function head(t,sub,tag){
+      return '<div class="shead"><div><h2>'+t+'</h2><p class="sub">'+sub+'</p></div><span class="tag">'+tag+'</span></div>';
+    }
+    function kpi(l,v,d,cls){
+      return '<div class="kpi"><div class="kl">'+l+'</div><div class="kv">'+v+'</div><div class="kd '+(cls||"")+'">'+d+'</div></div>';
+    }
+
+    /* ============ SCREEN 0: X光檢測程式 (split workspace) ============ */
+    var PROGS=[
+      {id:"AXI-PGM-A71",name:"車用ECU主板 A71",rev:"v4.2",joints:1842,thr:"空洞≤18%",st:"生效",stc:"b-grn",owner:"陳彥廷",upd:"08/12",cov:98,line:"L1"},
+      {id:"AXI-PGM-B33",name:"電源模組 PWR-B33",rev:"v2.7",joints:960,thr:"少錫≤0.08mm",st:"生效",stc:"b-grn",owner:"林巧宜",upd:"08/11",cov:96,line:"L2"},
+      {id:"AXI-PGM-C08",name:"通訊背板 COM-C08",rev:"v1.9",joints:2410,thr:"橋接偵測 ON",st:"審核中",stc:"b-amb",owner:"黃志鴻",upd:"08/13",cov:91,line:"L1"},
+      {id:"AXI-PGM-D54",name:"感測器板 SNS-D54",rev:"v3.1",joints:640,thr:"空洞≤22%",st:"生效",stc:"b-grn",owner:"陳彥廷",upd:"08/09",cov:99,line:"L3"},
+      {id:"AXI-PGM-E12",name:"馬達驅動 MDR-E12",rev:"v0.9",joints:1280,thr:"待設定",st:"草稿",stc:"b-gry",owner:"林巧宜",upd:"08/13",cov:0,line:"L2"}
+    ];
+    function screen0(){
+      var lis="";
+      for(var i=0;i<PROGS.length;i++){var p=PROGS[i];
+        var col=p.st==="生效"?"linear-gradient(135deg,#16a34a,#4ade80)":p.st==="草稿"?"linear-gradient(135deg,#94a3b8,#cbd5e1)":"linear-gradient(135deg,#d97706,#fbbf24)";
+        lis+='<div class="li'+(i===0?" on":"")+'" data-p="'+i+'"><div class="th" style="background:'+col+'">'+p.line+'</div><div class="in"><div class="t">'+p.name+'</div><div class="m">'+p.id+' · '+p.rev+' · '+p.owner+'</div></div></div>';
+      }
+      var h=head("X光檢測程式","板卡檢測程式版本、判定門檻與焊點覆蓋維護","6 支程式 · 4 支生效");
+      h+='<div class="kpis" style="margin-bottom:14px">'+
+        kpi("生效程式","3","涵蓋 5 條 SMT 線","up")+
+        kpi("待審核","1","COM-C08 v1.9","")+
+        kpi("平均焊點覆蓋","97%","+2% 較上月","up")+
+        kpi("門檻異動 (30日)","12","2 筆待複核","")+'</div>';
+      h+='<div class="split"><div class="list"><div class="lfilter"><span class="chip on">全部</span><span class="chip">生效</span><span class="chip">審核中</span><span class="chip">草稿</span></div><div class="lwrap" style="flex-direction:column;width:100%">'+lis+'</div></div><div class="detail" id="pgDetail"></div></div>';
+      host.innerHTML=h;
+      renderProg(0);
+      host.querySelector(".list").addEventListener("click",function(e){
+        var b=e.target.closest("[data-p]");if(!b)return;
+        var idx=+b.getAttribute("data-p");
+        var all=host.querySelectorAll(".li");for(var k=0;k<all.length;k++)all[k].classList.remove("on");
+        b.classList.add("on");renderProg(idx);
+      });
+    }
+    function renderProg(i){
+      var p=PROGS[i];var box=el("pgDetail");if(!box)return;
+      var h='<div class="card"><h3><span class="material-symbols-outlined">biotech</span>'+esc(p.name)+' <span class="b '+p.stc+'" style="margin-left:auto">'+p.st+'</span></h3>'+
+        '<div class="drow"><span class="k">程式編號</span><span class="v">'+p.id+'</span></div>'+
+        '<div class="drow"><span class="k">版本 / 產線</span><span class="v">'+p.rev+' · '+p.line+'</span></div>'+
+        '<div class="drow"><span class="k">焊點總數</span><span class="v">'+p.joints.toLocaleString()+' 點</span></div>'+
+        '<div class="drow"><span class="k">關鍵判定門檻</span><span class="v">'+p.thr+'</span></div>'+
+        '<div class="drow"><span class="k">維護工程師</span><span class="v">'+p.owner+' · 更新 '+p.upd+'</span></div>'+
+        '<div style="margin-top:12px"><div class="muted" style="display:flex;justify-content:space-between"><span>焊點程式覆蓋率</span><span style="font-weight:800;color:var(--acc-d)">'+p.cov+'%</span></div><div class="meter" style="margin-top:6px"><i style="width:'+p.cov+'%"></i></div></div>'+
+        '<div class="btnrow" style="margin-top:14px"><button class="btn pri"><span class="material-symbols-outlined">edit</span>編輯門檻</button><button class="btn"><span class="material-symbols-outlined">difference</span>版本比對</button><button class="btn"><span class="material-symbols-outlined">play_arrow</span>試跑驗證</button></div></div>';
+      h+='<div class="g2"><div class="card"><h3><span class="material-symbols-outlined">tune</span>缺陷判定門檻</h3><div class="scroll"><table><thead><tr><th>缺陷類型</th><th>量測</th><th>門檻</th><th>狀態</th></tr></thead><tbody>'+
+        thr("焊點空洞","面積比","≤ 18%","b-grn","啟用")+
+        thr("橋接短路","相鄰間距","偵測 ON","b-grn","啟用")+
+        thr("少錫 / 缺錫","錫高","≥ 0.10mm","b-grn","啟用")+
+        thr("偏移 (Shift)","中心位移","≤ 0.05mm","b-amb","觀察")+
+        thr("空焊 (Open)","連接判定","模型判讀","b-grn","啟用")+
+        '</tbody></table></div></div>';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">history</span>版本變更紀錄</h3><div class="tl">'+
+        tli(true,"v4.2 提高空洞門檻至18%","陳彥廷 · 08/12","降低車規誤判，通過工程試跑")+
+        tli(true,"v4.1 新增偏移偵測","林巧宜 · 07/28","針對BGA球柵偏移補強")+
+        tli(true,"v4.0 導入AI判讀模型","黃志鴻 · 07/10","焊點分類模型 mAP 0.94")+
+        tli(false,"v3.8 首次量產放行","品質經理 · 06/22","")+
+        '</div></div></div>';
+      box.innerHTML=h;
+    }
+    function thr(a,b,c,cls,st){return '<tr><td style="font-weight:700">'+a+'</td><td>'+b+'</td><td>'+c+'</td><td><span class="b '+cls+'">'+st+'</span></td></tr>';}
+    function tli(done,t,s,x){return '<div class="tli'+(done?" done":"")+'"><div class="tt">'+t+'</div><div class="ts">'+s+'</div>'+(x?'<div class="tx">'+x+'</div>':'')+'</div>';}
+
+    /* ============ SCREEN 1: 缺陷影像判讀 (xray viewer signature) ============ */
+    var JOINTS=[
+      {x:14,y:20,s:"ok",n:"U12.3"},{x:30,y:18,s:"ok",n:"U12.4"},{x:48,y:22,s:"bad",n:"R7.1",d:"空洞 24%"},
+      {x:66,y:16,s:"ok",n:"C4.2"},{x:82,y:24,s:"ok",n:"C4.3"},{x:20,y:44,s:"rev",n:"U9.2",d:"偏移 疑"},
+      {x:40,y:48,s:"ok",n:"L3.1"},{x:58,y:42,s:"bad",n:"J2.5",d:"橋接"},{x:76,y:50,s:"ok",n:"D1.1"},
+      {x:12,y:72,s:"ok",n:"Q6.2"},{x:34,y:76,s:"ok",n:"Q6.3"},{x:52,y:70,s:"rev",n:"U9.7",d:"少錫 疑"},
+      {x:70,y:78,s:"ok",n:"T5.1"},{x:88,y:72,s:"bad",n:"BGA-14",d:"球空洞"}
+    ];
+    function screen1(){
+      var h=head("缺陷影像判讀","批號 LOT-20260814-B33 · 焊點X光影像自動判讀與標註","本批 960 焊點 · 3 疑似缺陷");
+      h+='<div class="kpis" style="margin-bottom:14px">'+
+        kpi("本批焊點","960","AXI-M02 掃描完成","")+
+        kpi("自動標記缺陷","3","待人工複判","down")+
+        kpi("疑似 (待確認)","2","偏移 / 少錫","")+
+        kpi("判讀信心均值","0.93","AI 焊點分類模型","up")+'</div>';
+      var jhtml="";
+      for(var i=0;i<JOINTS.length;i++){var j=JOINTS[i];
+        jhtml+='<div class="joint '+j.s+'" style="left:'+j.x+'%;top:'+j.y+'%" title="'+j.n+(j.d?" · "+j.d:"")+'">'+(j.s==="ok"?"":"!")+'</div>';
+      }
+      h+='<div class="g2a"><div class="card"><h3><span class="material-symbols-outlined">insights</span>焊點X光影像 · 判讀疊圖</h3>'+
+        '<div class="xray"><div class="grid">'+jhtml+'</div><div class="xleg"><span><i class="xd" style="background:#22c55e"></i>合格焊點</span><span><i class="xd" style="background:#ef4444"></i>判定缺陷</span><span><i class="xd" style="background:#f59e0b"></i>疑似 / 待複判</span></div></div>'+
+        '<div class="muted" style="margin-top:10px">綠色為AI判定合格，紅色為超出門檻缺陷，黃色為信心不足需人工複判。點位標籤對應板卡座標。</div></div>';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">list_alt</span>疑似缺陷清單</h3><div class="scroll"><table style="min-width:0"><thead><tr><th>座標</th><th>類型</th><th>量測</th><th>信心</th></tr></thead><tbody>'+
+        dj("R7.1","空洞","24%","0.97","b-red")+
+        dj("J2.5","橋接","—","0.95","b-red")+
+        dj("BGA-14","球空洞","31%","0.91","b-red")+
+        dj("U9.2","偏移","0.06mm","0.62","b-amb")+
+        dj("U9.7","少錫","0.09mm","0.58","b-amb")+
+        '</tbody></table></div>'+
+        '<div style="margin-top:12px"><div class="muted" style="display:flex;justify-content:space-between"><span>本批判讀進度</span><span style="font-weight:800;color:var(--acc-d)">960 / 960</span></div><div class="prog"><i style="width:100%"></i></div></div>'+
+        '<div class="btnrow"><button class="btn pri"><span class="material-symbols-outlined">arrow_forward</span>送出複判</button><button class="btn"><span class="material-symbols-outlined">download</span>匯出報告</button></div></div></div>';
+      host.innerHTML=h;
+    }
+    function dj(a,b,c,cf,cls){return '<tr><td style="font-weight:700">'+a+'</td><td><span class="b '+cls+'">'+b+'</span></td><td>'+c+'</td><td style="font-weight:700">'+cf+'</td></tr>';}
+
+    /* ============ SCREEN 2: 缺陷分類複判 (board + donut) ============ */
+    function screen2(){
+      var h=head("缺陷分類與複判","品保工程師對疑似缺陷分類、複判裁決真缺陷或誤判","今日 47 件待複判");
+      h+='<div class="g2a" style="margin-bottom:14px"><div class="card"><h3><span class="material-symbols-outlined">donut_large</span>缺陷類別分佈 (本週)</h3><div class="cwrap" style="height:250px"><canvas id="c2a"></canvas></div><div class="lg"><span><i class="sw" style="background:#16a34a"></i>空洞</span><span><i class="sw" style="background:#4ade80"></i>橋接</span><span><i class="sw" style="background:#d97706"></i>少錫</span><span><i class="sw" style="background:#0369a1"></i>偏移</span><span><i class="sw" style="background:#94a3b8"></i>空焊</span></div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">balance</span>複判裁決統計</h3>'+
+        '<div class="drow"><span class="k">AI 標記總數</span><span class="v">312 點</span></div>'+
+        '<div class="drow"><span class="k">複判為真缺陷</span><span class="v" style="color:var(--warn)">218 點 (70%)</span></div>'+
+        '<div class="drow"><span class="k">複判為誤判</span><span class="v" style="color:var(--acc-d)">94 點 (30%)</span></div>'+
+        '<div class="drow"><span class="k">平均複判耗時</span><span class="v">1.4 分/點</span></div>'+
+        '<div style="margin-top:10px"><div class="muted">誤判率 (假不良)</div><div class="meter" style="margin-top:6px"><i style="width:30%;background:linear-gradient(90deg,#d97706,#fbbf24)"></i></div><div class="muted" style="margin-top:4px">目標 ≤ 15% · 現況 30% 需優化門檻</div></div></div></div>';
+      // kanban board
+      h+='<div class="card"><h3><span class="material-symbols-outlined">rule</span>複判看板</h3><div class="scroll"><div class="board" style="min-width:720px">'+
+        col("待複判","cnt",3,[["R7.1 · 空洞","LOT-B33","b-red","24%"],["BGA-14 · 球空洞","LOT-B33","b-red","31%"],["J2.5 · 橋接","LOT-B33","b-red","—"]])+
+        col("判定真缺陷","cnt",3,[["U8.1 · 空洞","LOT-A71","b-red","已通報"],["Q3.2 · 少錫","LOT-A71","b-amb","隔離"],["L1.4 · 空焊","LOT-C08","b-red","已通報"]])+
+        col("判定誤判","cnt",2,[["U9.2 · 偏移","LOT-B33","b-grn","雜訊"],["T5.1 · 空洞","LOT-D54","b-grn","低於門檻"]])+
+        col("已歸檔","cnt",2,[["C4.2 · 合格","LOT-B33","b-gry","OK"],["D1.1 · 合格","LOT-B33","b-gry","OK"]])+
+        '</div></div></div>';
+      host.innerHTML=h;
+      void host.offsetHeight;
+      bar("c2a",{type:"doughnut",data:{labels:["空洞","橋接","少錫","偏移","空焊"],datasets:[{data:[38,24,18,12,8],backgroundColor:["#16a34a","#4ade80","#d97706","#0369a1","#94a3b8"],borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"60%",plugins:{legend:{display:false}}}});
+    }
+    function col(t,c,n,items){
+      var tk="";for(var i=0;i<items.length;i++){var it=items[i];
+        tk+='<div class="tk"><div class="tt">'+it[0]+'</div><div class="tm"><span>'+it[1]+'</span><span class="b '+it[2]+'">'+it[3]+'</span></div></div>';
+      }
+      return '<div class="col"><div class="ch">'+t+'<span class="cnt">'+n+'</span></div>'+tk+'</div>';
+    }
+
+    /* ============ SCREEN 3: 異常通報處置 (split: NCR list + detail) ============ */
+    var NCRS=[
+      {id:"NCR-2608-014",t:"車用ECU主板焊點空洞超標",lot:"LOT-A71-0812",sev:"高",sevc:"b-red",st:"處置中",stc:"b-amb",owner:"製程工程部",qty:"隔離 240 片",dt:"08/12",pct:55,type:"空洞"},
+      {id:"NCR-2608-013",t:"通訊背板BGA球空洞",lot:"LOT-C08-0813",sev:"高",sevc:"b-red",st:"待處置",stc:"b-red",owner:"品保部",qty:"隔離 96 片",dt:"08/13",pct:20,type:"球空洞"},
+      {id:"NCR-2608-011",t:"電源模組橋接短路",lot:"LOT-B33-0811",sev:"中",sevc:"b-amb",st:"驗證中",stc:"b-blu",owner:"設備工程部",qty:"重工 30 片",dt:"08/11",pct:80,type:"橋接"},
+      {id:"NCR-2608-009",t:"感測器板少錫",lot:"LOT-D54-0809",sev:"低",sevc:"b-grn",st:"已關閉",stc:"b-grn",owner:"品保部",qty:"重工 12 片",dt:"08/09",pct:100,type:"少錫"}
+    ];
+    function screen3(){
+      var lis="";
+      for(var i=0;i<NCRS.length;i++){var n=NCRS[i];
+        var col=n.sev==="高"?"linear-gradient(135deg,#dc2626,#f87171)":n.sev==="中"?"linear-gradient(135deg,#d97706,#fbbf24)":"linear-gradient(135deg,#16a34a,#4ade80)";
+        lis+='<div class="li'+(i===0?" on":"")+'" data-n="'+i+'"><div class="th" style="background:'+col+'">'+n.sev+'</div><div class="in"><div class="t">'+n.t+'</div><div class="m">'+n.id+' · '+n.st+'</div></div></div>';
+      }
+      var h=head("異常通報處置","焊點缺陷不良通報、批次隔離與矯正處置追蹤","2 件高風險 · 1 件待處置");
+      h+='<div class="kpis" style="margin-bottom:14px">'+
+        kpi("開立中 NCR","3","含 2 件高風險","down")+
+        kpi("隔離批次","336 片","跨 2 批號","")+
+        kpi("平均處置天數","4.8","目標 ≤ 6 天","up")+
+        kpi("本月關案","17","關案率 92%","up")+'</div>';
+      h+='<div class="split"><div class="list"><div class="lfilter"><span class="chip on">全部</span><span class="chip">高風險</span><span class="chip">待處置</span><span class="chip">驗證中</span></div><div class="lwrap" style="flex-direction:column;width:100%">'+lis+'</div></div><div class="detail" id="ncrDetail"></div></div>';
+      host.innerHTML=h;
+      renderNcr(0);
+      host.querySelector(".list").addEventListener("click",function(e){
+        var b=e.target.closest("[data-n]");if(!b)return;var idx=+b.getAttribute("data-n");
+        var all=host.querySelectorAll(".li");for(var k=0;k<all.length;k++)all[k].classList.remove("on");
+        b.classList.add("on");renderNcr(idx);
+      });
+    }
+    function renderNcr(i){
+      var n=NCRS[i];var box=el("ncrDetail");if(!box)return;
+      var h='<div class="card"><h3><span class="material-symbols-outlined">warning</span>'+esc(n.t)+' <span class="b '+n.stc+'" style="margin-left:auto">'+n.st+'</span></h3>'+
+        '<div class="drow"><span class="k">單號</span><span class="v">'+n.id+'</span></div>'+
+        '<div class="drow"><span class="k">缺陷類型 / 批號</span><span class="v">'+n.type+' · '+n.lot+'</span></div>'+
+        '<div class="drow"><span class="k">嚴重度</span><span class="v"><span class="b '+n.sevc+'">'+n.sev+'</span></span></div>'+
+        '<div class="drow"><span class="k">影響範圍</span><span class="v">'+n.qty+'</span></div>'+
+        '<div class="drow"><span class="k">負責單位 / 開單</span><span class="v">'+n.owner+' · '+n.dt+'</span></div>'+
+        '<div style="margin-top:12px"><div class="muted" style="display:flex;justify-content:space-between"><span>處置進度</span><span style="font-weight:800;color:var(--acc-d)">'+n.pct+'%</span></div><div class="meter" style="margin-top:6px"><i style="width:'+n.pct+'%"></i></div></div>'+
+        '<div class="btnrow" style="margin-top:14px"><button class="btn pri"><span class="material-symbols-outlined">assignment_turned_in</span>更新處置</button><button class="btn dng"><span class="material-symbols-outlined">block</span>擴大隔離</button><button class="btn"><span class="material-symbols-outlined">attach_file</span>附證據</button></div></div>';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">timeline</span>處置追蹤軸</h3><div class="tl">'+
+        tli(true,"AXI 判定缺陷 · 自動通報","品保系統 · "+n.dt+" 09:12","缺陷類型："+n.type)+
+        tli(true,"批次隔離 · "+n.qty,"品保部 · "+n.dt+" 10:30","規格超差且影響功能，先行隔離")+
+        tli(n.pct>=55,"根因分析 (回焊溫度曲線)","製程工程部 · 進行中","比對SPI錫膏量與回焊區溫度")+
+        tli(n.pct>=80,"矯正措施驗證","設備工程部 · "+(n.pct>=80?"完成":"待辦"),"調整回焊區2溫度 +8°C 後試產")+
+        tli(n.pct>=100,"結案 · 檢出率回饋","品質經理 · "+(n.pct>=100?"已關閉":"待辦"),"改善驗證率納入SPC")+
+        '</div>'+
+        '<div class="card" style="margin-top:12px;background:var(--soft);border-style:dashed"><div class="muted" style="font-weight:700;color:var(--ink)"><span class="material-symbols-outlined" style="font-size:17px;color:var(--acc-d);vertical-align:-3px">gavel</span> 決策規則</div><div class="muted" style="margin-top:6px">RULE-02：規格超差且影響功能者必須先隔離批次。RULE-03：改善措施無驗證證據不得關閉案件。</div></div></div>';
+      box.innerHTML=h;
+    }
+
+    /* ============ SCREEN 4: 機台校驗追蹤 (KPI + gauges + table + bar) ============ */
+    var MC=[
+      {id:"AXI-M01",line:"L1",st:"運轉",stc:"b-grn",oee:88,cal:"08/28",days:14,tp:"420 片/日",err:"0.4%"},
+      {id:"AXI-M02",line:"L2",st:"運轉",stc:"b-grn",oee:91,cal:"08/20",days:6,tp:"380 片/日",err:"0.3%"},
+      {id:"AXI-M03",line:"L3",st:"校驗中",stc:"b-amb",oee:0,cal:"08/14",days:0,tp:"—",err:"—"},
+      {id:"AXI-M04",line:"L1",st:"待料停機",stc:"b-gry",oee:0,cal:"09/02",days:19,tp:"—",err:"—"}
+    ];
+    function screen4(){
+      var h=head("機台校驗追蹤","AXI 機台校驗排程、稼動率與檢測穩定度監控","4 台 · 1 台校驗中");
+      h+='<div class="kpis" style="margin-bottom:14px">'+
+        kpi("線上機台","2 / 4","1 校驗 · 1 待料","")+
+        kpi("平均 OEE","89.5%","+1.8% 週比","up")+
+        kpi("最近校驗","M03","今日 08/14 執行","")+
+        kpi("校驗逾期","0","全數在效期內","up")+'</div>';
+      h+='<div class="g2a" style="margin-bottom:14px"><div class="card"><h3><span class="material-symbols-outlined">bar_chart</span>各機台稼動率 (OEE %)</h3><div class="cwrap" style="height:240px"><canvas id="c4a"></canvas></div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">speed</span>檢測穩定度指標</h3><div class="gauge">'+
+        '<div class="gc"><div class="gv" style="color:var(--acc-d)">0.35%</div><div class="gl">平均誤判率</div></div>'+
+        '<div class="gc"><div class="gv" style="color:var(--acc-d)">99.2%</div><div class="gl">影像可判讀率</div></div>'+
+        '<div class="gc"><div class="gv" style="color:var(--amber)">1.2%</div><div class="gl">重掃比例</div></div>'+
+        '</div><div class="muted" style="margin-top:10px">校驗使用標準片 (Cal-Coupon) 逐點驗證灰階線性與空洞量測偏差，偏差 &gt; 3% 觸發重校。</div>'+
+        '<div style="margin-top:10px"><div class="muted" style="display:flex;justify-content:space-between"><span>標準片量測偏差</span><span style="font-weight:800;color:var(--acc-d)">1.8%</span></div><div class="meter" style="margin-top:6px"><i style="width:22%"></i></div></div></div></div>';
+      var rows="";
+      for(var i=0;i<MC.length;i++){var m=MC[i];
+        rows+='<tr><td style="font-weight:800">'+m.id+'</td><td>'+m.line+'</td><td><span class="b '+m.stc+'">'+m.st+'</span></td><td>'+(m.oee?m.oee+'%':'—')+'</td><td>'+m.tp+'</td><td>'+m.err+'</td><td>'+m.cal+(m.days?' <span class="muted">('+m.days+'日)</span>':' <span class="b b-amb">今日</span>')+'</td></tr>';
+      }
+      h+='<div class="card"><h3><span class="material-symbols-outlined">precision_manufacturing</span>機台校驗排程</h3><div class="scroll"><table><thead><tr><th>機台</th><th>產線</th><th>狀態</th><th>OEE</th><th>產能</th><th>誤判率</th><th>下次校驗</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+      host.innerHTML=h;
+      void host.offsetHeight;
+      bar("c4a",{type:"bar",data:{labels:["AXI-M01","AXI-M02","AXI-M03","AXI-M04"],datasets:[{label:"OEE %",data:[88,91,0,0],backgroundColor:["#16a34a","#16a34a","#d97706","#94a3b8"],borderRadius:6,maxBarThickness:52}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,max:100,grid:{color:"#eef5f0"}},x:{grid:{display:false}}},plugins:{legend:{display:false}}}});
+    }
+
+    /* ============ SCREEN 5: 檢出率SPC分析 (line + bar SPC) ============ */
+    function screen5(){
+      var h=head("檢出率 SPC 分析","焊點缺陷檢出率與誤判率統計管制，驗證檢測程式成效","6 週趨勢 · 管制中");
+      h+='<div class="kpis" style="margin-bottom:14px">'+
+        kpi("焊點缺陷檢出率","98.6%","+1.9% 較改善前","up")+
+        kpi("誤判率 (假不良)","0.35%","-0.22% 週比","up")+
+        kpi("DPPM","142","缺陷/百萬焊點","up")+
+        kpi("改善驗證率","92%","67%→92% 六週","up")+'</div>';
+      h+='<div class="g2a" style="margin-bottom:14px"><div class="card"><h3><span class="material-symbols-outlined">show_chart</span>檢出率 vs 誤判率趨勢</h3><div class="cwrap" style="height:260px"><canvas id="c5a"></canvas></div><div class="lg"><span><i class="sw" style="background:#16a34a"></i>缺陷檢出率 %</span><span><i class="sw" style="background:#d97706"></i>誤判率 %</span></div></div>'+
+        '<div class="card"><h3><span class="material-symbols-outlined">insights</span>改善成效</h3>'+
+        '<div class="drow"><span class="k">批號追溯時間</span><span class="v">191 → 14 分</span></div>'+
+        '<div class="drow"><span class="k">重複不良率</span><span class="v">5.8% → 2.0%</span></div>'+
+        '<div class="drow"><span class="k">客訴平均關案</span><span class="v">21 → 9.2 天</span></div>'+
+        '<div style="margin-top:10px"><div class="muted" style="display:flex;justify-content:space-between"><span>改善驗證率</span><span style="font-weight:800;color:var(--acc-d)">92%</span></div><div class="meter" style="margin-top:6px"><i style="width:92%"></i></div></div>'+
+        '<div class="muted" style="margin-top:10px">檢出率提升源於AI判讀模型與門檻優化；誤判率下降降低重工浪費。</div></div></div>';
+      h+='<div class="card"><h3><span class="material-symbols-outlined">monitoring</span>各缺陷類型 DPPM 管制圖</h3><div class="cwrap" style="height:240px"><canvas id="c5b"></canvas></div><div class="muted" style="margin-top:8px">虛線為管制上限 (UCL 200 DPPM)。空洞類長期偏高，已納入回焊溫度改善追蹤。</div></div>';
+      host.innerHTML=h;
+      void host.offsetHeight;
+      bar("c5a",{type:"line",data:{labels:["第1週","第2週","第3週","第4週","第5週","第6週"],datasets:[
+        {label:"缺陷檢出率 %",data:[94.1,95.2,96.4,97.3,98.0,98.6],borderColor:"#16a34a",backgroundColor:"rgba(22,163,74,.12)",fill:true,tension:.35,pointRadius:3,yAxisID:"y"},
+        {label:"誤判率 %",data:[1.4,1.1,0.9,0.7,0.5,0.35],borderColor:"#d97706",backgroundColor:"rgba(217,119,6,.08)",fill:true,tension:.35,pointRadius:3,yAxisID:"y1"}
+      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{position:"left",min:90,max:100,grid:{color:"#eef5f0"},title:{display:true,text:"檢出率%"}},y1:{position:"right",min:0,max:2,grid:{display:false},title:{display:true,text:"誤判率%"}},x:{grid:{display:false}}}}});
+      bar("c5b",{type:"bar",data:{labels:["空洞","橋接","少錫","偏移","空焊","裂縫"],datasets:[
+        {label:"DPPM",data:[188,96,120,54,72,38],backgroundColor:["#dc2626","#16a34a","#d97706","#16a34a","#16a34a","#16a34a"],borderRadius:5,maxBarThickness:48},
+        {label:"UCL",type:"line",data:[200,200,200,200,200,200],borderColor:"#94a3b8",borderDash:[6,4],pointRadius:0,fill:false}
+      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:"#eef5f0"}},x:{grid:{display:false}}}}});
+    }
+
+    var SCREENS=[screen0,screen1,screen2,screen3,screen4,screen5];
+    function show(i){
+      killCharts();
+      var btns=document.querySelectorAll("[data-i]");
+      for(var k=0;k<btns.length;k++)btns[k].classList.toggle("on",+btns[k].getAttribute("data-i")===i);
+      SCREENS[i]();
+    }
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+    window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>

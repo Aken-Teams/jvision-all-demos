@@ -4,15 +4,585 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Skip Lot Management（跳批管理）｜Jvision 系統 Demo</title>
-  <meta name="description" content="從異常到改善的品質閉環與追溯稽核" />
+  <meta name="description" content="跳批資格條件、供應商料號矩陣、跳批啟動審核、績效追蹤與異常恢復全檢的品質閉環" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../shared/jvision-demo-app.css" />
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --acc:#16a34a; --acc2:#4ade80; --acc-d:#15803d;
+      --ink:#0f2417; --sub:#5b7566; --line:#e2ece5; --bg:#f2f7f3; --card:#ffffff;
+      --warn:#f59e0b; --bad:#dc2626; --ok:#16a34a; --info:#0891b2;
+      --shadow:0 1px 2px rgba(16,60,32,.05),0 8px 24px rgba(16,60,32,.06);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{font-family:"Inter","Noto Sans TC",system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5}
+    .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:400;font-style:normal;font-size:20px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;direction:ltr;vertical-align:middle}
+    .app{display:flex;min-height:100vh;min-width:0}
+    /* sidebar */
+    .side{width:236px;flex:none;background:linear-gradient(180deg,#0f2417,#123a24);color:#dcefe3;display:flex;flex-direction:column;padding:18px 14px;gap:6px;position:sticky;top:0;height:100vh;min-width:0}
+    .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 16px}
+    .logo{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:grid;place-items:center;color:#06240f;flex:none;box-shadow:0 6px 16px rgba(74,222,128,.3)}
+    .logo .material-symbols-outlined{font-size:24px}
+    .brand b{font-size:15px;font-weight:800;letter-spacing:.2px;display:block}
+    .brand span{font-size:11px;color:#8fc9a8}
+    .nav{display:flex;flex-direction:column;gap:4px;min-width:0}
+    .nav button{display:flex;align-items:center;gap:11px;width:100%;border:0;background:transparent;color:#bfe0cd;padding:11px 12px;border-radius:10px;cursor:pointer;font:inherit;font-size:13.5px;font-weight:600;text-align:left;transition:.15s;min-width:0}
+    .nav button .material-symbols-outlined{font-size:21px;flex:none}
+    .nav button .nx{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .nav button small{display:block;font-size:10.5px;color:#7db894;font-weight:500}
+    .nav button:hover{background:rgba(255,255,255,.06);color:#fff}
+    .nav button.on{background:linear-gradient(135deg,var(--acc),var(--acc-d));color:#fff;box-shadow:0 6px 16px rgba(22,163,74,.35)}
+    .nav button.on small{color:#d6f5e2}
+    .sfoot{margin-top:auto;padding:12px 10px 4px;font-size:11px;color:#79b795;border-top:1px solid rgba(255,255,255,.08)}
+    .sfoot b{color:#cfeede}
+    /* main */
+    .main{flex:1;min-width:0;display:flex;flex-direction:column}
+    .top{background:#fff;border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+    .top h1{font-size:17px;margin:0;font-weight:800;letter-spacing:.2px}
+    .top .crumb{font-size:12px;color:var(--sub);font-weight:600}
+    .top .sp{flex:1}
+    .pill{display:inline-flex;align-items:center;gap:6px;background:#eafaf0;color:var(--acc-d);border:1px solid #c7ecd4;padding:6px 11px;border-radius:99px;font-size:12px;font-weight:700}
+    .pill.dot::before{content:"";width:7px;height:7px;border-radius:99px;background:var(--acc);box-shadow:0 0 0 0 rgba(22,163,74,.5);animation:pulse 2s infinite}
+    @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 7px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+    .wrap{padding:22px;min-width:0}
+    /* generic */
+    .kgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:var(--shadow);min-width:0}
+    .kpi .kl{font-size:12px;color:var(--sub);font-weight:600;display:flex;align-items:center;gap:6px}
+    .kpi .kv{font-size:26px;font-weight:800;margin-top:8px;letter-spacing:-.5px}
+    .kpi .kd{font-size:11.5px;margin-top:4px;font-weight:600}
+    .up{color:var(--ok)}.down{color:var(--bad)}.flat{color:var(--sub)}
+    .kpi .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:#eafaf0;color:var(--acc-d);float:right}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);min-width:0}
+    .card .ch{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .card .ch h3{margin:0;font-size:14.5px;font-weight:800}
+    .card .ch .sp{flex:1}
+    .card .ch .sub{font-size:11.5px;color:var(--sub);font-weight:600}
+    .cbody{padding:16px}
+    /* split two-pane signature */
+    .split{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start}
+    .listpane{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;min-width:0}
+    .lhead{padding:13px 15px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+    .lhead h3{margin:0;font-size:13.5px;font-weight:800}
+    .lhead .sp{flex:1}
+    .search{display:flex;align-items:center;gap:7px;background:#f3f8f4;border:1px solid var(--line);border-radius:9px;padding:7px 10px;margin:12px 15px 6px;color:var(--sub);font-size:12.5px}
+    .litem{padding:12px 15px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;gap:11px;align-items:flex-start;transition:.12s;min-width:0}
+    .litem:hover{background:#f6fbf7}
+    .litem.on{background:linear-gradient(90deg,#eafaf0,#fff);border-left:3px solid var(--acc);padding-left:12px}
+    .litem .av{width:36px;height:36px;border-radius:9px;flex:none;display:grid;place-items:center;font-weight:800;font-size:13px;color:#fff}
+    .litem .lt{min-width:0;flex:1}
+    .litem .lt b{font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .litem .lt small{font-size:11px;color:var(--sub);display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .detpane{min-width:0;display:flex;flex-direction:column;gap:16px}
+    .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}
+    .b-ok{background:#e7f8ee;color:var(--acc-d)}
+    .b-skip{background:#e0f2fe;color:#0369a1}
+    .b-warn{background:#fef3c7;color:#b45309}
+    .b-bad{background:#fee2e2;color:#b91c1c}
+    .b-mut{background:#eef2f0;color:#556}
+    table{width:100%;border-collapse:collapse;font-size:12.5px}
+    th{text-align:left;color:var(--sub);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;padding:9px 12px;border-bottom:1px solid var(--line);background:#f8fbf9;white-space:nowrap}
+    td{padding:10px 12px;border-bottom:1px solid #eef4f0;vertical-align:middle}
+    tr:last-child td{border-bottom:0}
+    tbody tr:hover{background:#f8fbf9}
+    .num{font-variant-numeric:tabular-nums;font-weight:700}
+    .chart{width:100%;height:280px;overflow:hidden}
+    .g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    .bar{height:7px;border-radius:99px;background:#eaf1ec;overflow:hidden}
+    .bar>i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+    .dl{display:flex;flex-direction:column;gap:12px}
+    .dl .row{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;padding-bottom:10px;border-bottom:1px dashed var(--line)}
+    .dl .row:last-child{border-bottom:0;padding-bottom:0}
+    .dl .row b{font-weight:700}
+    .dl .row span{color:var(--sub);font-weight:600}
+    .hero{display:flex;gap:16px;align-items:center;padding:18px;border-radius:14px;background:linear-gradient(135deg,#0f2417,#16643a);color:#eafaf0;flex-wrap:wrap}
+    .hero .hav{width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.12);display:grid;place-items:center;font-weight:800;font-size:20px;flex:none}
+    .hero h2{margin:0;font-size:19px;font-weight:800}
+    .hero p{margin:4px 0 0;font-size:12.5px;color:#a9d6bd}
+    .hero .sp{flex:1}
+    .rule-box{background:#f6fbf7;border:1px solid #d9efdf;border-radius:11px;padding:13px 15px}
+    .rule-box .rl{display:flex;align-items:center;gap:9px;font-size:12.5px;padding:7px 0;border-bottom:1px dashed #d9efdf}
+    .rule-box .rl:last-child{border-bottom:0}
+    .rule-box .rl .material-symbols-outlined{font-size:18px}
+    .ck{width:19px;height:19px;border-radius:6px;display:grid;place-items:center;flex:none}
+    .cky{background:var(--acc);color:#fff}.ckn{background:#fee2e2;color:#b91c1c}
+    /* timeline */
+    .tl{position:relative;padding-left:26px}
+    .tl::before{content:"";position:absolute;left:9px;top:4px;bottom:4px;width:2px;background:var(--line)}
+    .tl .ti{position:relative;padding:0 0 18px}
+    .tl .ti:last-child{padding-bottom:0}
+    .tl .dot{position:absolute;left:-21px;top:2px;width:14px;height:14px;border-radius:99px;border:3px solid #fff;box-shadow:0 0 0 2px var(--line)}
+    .tl .ti b{font-size:13px}
+    .tl .ti small{display:block;color:var(--sub);font-size:11.5px;margin-top:1px}
+    .tl .ti p{margin:5px 0 0;font-size:12px;color:#3c5648}
+    .tl time{font-size:11px;color:var(--sub);font-weight:700}
+    /* stat strip */
+    .strip{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+    .strip>div{padding:14px 16px;border-right:1px solid var(--line)}
+    .strip>div:last-child{border-right:0}
+    .strip .sl{font-size:11.5px;color:var(--sub);font-weight:600}
+    .strip .sv{font-size:22px;font-weight:800;margin-top:4px}
+    .prog-lg{display:flex;align-items:center;gap:12px}
+    .ring{width:74px;height:74px;flex:none}
+    .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:#eef4f0;color:#456}
+    .lvl{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800;color:#fff}
+    .miniq{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:1px}
+    @media(max-width:1040px){
+      .kgrid{grid-template-columns:repeat(2,1fr)}
+      .split{grid-template-columns:1fr}
+      .g2,.g3{grid-template-columns:1fr}
+      .strip{grid-template-columns:1fr}
+      .strip>div{border-right:0;border-bottom:1px solid var(--line)}
+    }
+    @media(max-width:860px){
+      .app{flex-direction:column}
+      .side{width:auto;height:auto;position:sticky;top:0;z-index:30;flex-direction:row;align-items:center;padding:10px 12px;gap:10px;overflow-x:auto}
+      .brand{padding:0;flex:none}
+      .sfoot{display:none}
+      .nav{flex-direction:row;flex-wrap:nowrap;gap:6px}
+      .nav button{flex:none;padding:9px 12px}
+      .nav button small{display:none}
+    }
+    @media(max-width:560px){
+      .kgrid{grid-template-columns:1fr}
+      .top{padding:12px 14px}
+      .wrap{padding:14px}
+      .nav button .nx{display:none}
+      .nav button{padding:9px}
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="../../shared/jvision-demo-app.js"></script>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">
+        <div class="logo"><span class="material-symbols-outlined">fact_check</span></div>
+        <div><b>SkipLot QMS</b><span>跳批管理平台</span></div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="sfoot">品保部 · IQC · 供應商品質<br/><b>v2.6</b> · 資料為示範用途</div>
+    </aside>
+    <main class="main">
+      <header class="top">
+        <div>
+          <div class="crumb" id="crumb">跳批管理</div>
+          <h1 id="title">跳批資格條件</h1>
+        </div>
+        <div class="sp"></div>
+        <span class="pill dot">IQC 連線中</span>
+        <span class="pill"><span class="material-symbols-outlined" style="font-size:16px">calendar_month</span> 2026-08-14</span>
+      </header>
+      <div class="wrap" id="view"></div>
+    </main>
+  </div>
+
+  <script>
+  (function(){
+    "use strict";
+    var charts=[];
+    function disposeCharts(){for(var i=0;i<charts.length;i++){try{charts[i].dispose();}catch(e){}}charts=[];}
+    function mk(id,opt){var el=document.getElementById(id);if(!el||!window.echarts)return;var c=echarts.init(el);c.setOption(opt);charts.push(c);return c;}
+    var GRID={left:8,right:14,top:24,bottom:8,containLabel:true};
+    var AX={axisLine:{lineStyle:{color:"#cddbd2"}},axisLabel:{color:"#5b7566",fontSize:11},axisTick:{show:false},splitLine:{lineStyle:{color:"#eef4f0"}}};
+
+    /* ---------- fake data ---------- */
+    var COLORS={A:"#16a34a",B:"#0891b2",C:"#f59e0b",D:"#dc2626"};
+    // supplier x part rows (used across screens)
+    var ROWS=[
+      {id:"SP-2011",sup:"鴻裕精密",part:"CN-4471 連接器",cat:"連接器",lots:41,def:0.18,grade:"A",status:"skip",ratio:80,streak:38,due:"2026-11-02",risk:12,owner:"林士傑",last:"合格"},
+      {id:"SP-2033",sup:"泰昌電子",part:"RS-8820 電阻陣列",cat:"被動元件",lots:27,def:0.42,grade:"A",status:"skip",ratio:60,streak:24,due:"2026-10-18",risk:22,owner:"陳雅婷",last:"合格"},
+      {id:"SP-2048",sup:"永盛五金",part:"MB-1200 鋁殼",cat:"機構件",lots:16,def:1.35,grade:"C",status:"review",ratio:0,streak:9,due:"-",risk:58,owner:"林士傑",last:"待判定"},
+      {id:"SP-2050",sup:"和碩塑膠",part:"PL-330 外殼",cat:"機構件",lots:33,def:0.31,grade:"A",status:"skip",ratio:60,streak:29,due:"2026-10-05",risk:16,owner:"黃冠廷",last:"合格"},
+      {id:"SP-2066",sup:"聯發線材",part:"WR-990 線束",cat:"線材",lots:12,def:2.10,grade:"D",status:"full",ratio:0,streak:0,due:"-",risk:74,owner:"陳雅婷",last:"不良"},
+      {id:"SP-2071",sup:"大同馬達",part:"MT-560 微型馬達",cat:"驅動件",lots:22,def:0.66,grade:"B",status:"review",ratio:0,streak:14,due:"-",risk:34,owner:"黃冠廷",last:"合格"},
+      {id:"SP-2088",sup:"鴻裕精密",part:"CN-2210 端子",cat:"連接器",lots:36,def:0.12,grade:"A",status:"skip",ratio:80,streak:34,due:"2026-11-20",risk:9,owner:"林士傑",last:"合格"},
+      {id:"SP-2093",sup:"泰昌電子",part:"CP-118 電容",cat:"被動元件",lots:19,def:0.88,grade:"B",status:"review",ratio:0,streak:11,due:"-",risk:41,owner:"陳雅婷",last:"合格"},
+      {id:"SP-2101",sup:"永盛五金",part:"SC-045 螺絲",cat:"機構件",lots:44,def:0.09,grade:"A",status:"skip",ratio:80,streak:44,due:"2026-12-01",risk:6,owner:"黃冠廷",last:"合格"},
+      {id:"SP-2115",sup:"聯發線材",part:"FL-720 排線",cat:"線材",lots:8,def:1.72,grade:"D",status:"full",ratio:0,streak:0,due:"-",risk:69,owner:"林士傑",last:"不良"}
+    ];
+    function stBadge(s){
+      if(s==="skip")return '<span class="badge b-skip">跳批中</span>';
+      if(s==="review")return '<span class="badge b-warn">評估中</span>';
+      if(s==="full")return '<span class="badge b-bad">恢復全檢</span>';
+      return '<span class="badge b-mut">-</span>';
+    }
+    function gradeChip(g){var c={A:"#16a34a",B:"#0891b2",C:"#f59e0b",D:"#dc2626"}[g]||"#889";return '<span class="lvl" style="background:'+c+'">'+g+'</span>';}
+    function avColor(g){return COLORS[g]||"#889";}
+
+    /* ================= SCREEN 0 : 跳批資格條件（split） ================= */
+    function s0(){
+      var rules=[
+        {t:"連續合格批數 ≥ 20 批",ok:true},
+        {t:"近 90 天缺陷率 ≤ 0.5%",ok:true},
+        {t:"供應商評等 A 或 B 級",ok:true},
+        {t:"無重大客訴 / 召回紀錄",ok:true},
+        {t:"最近一次稽核分數 ≥ 85",ok:false}
+      ];
+      var chips=ROWS.map(function(r,i){
+        return '<div class="litem'+(i===0?' on':'')+'" onclick="__pick0('+i+')">'+
+          '<div class="av" style="background:'+avColor(r.grade)+'">'+r.grade+'</div>'+
+          '<div class="lt"><b>'+r.part+'</b><small>'+r.sup+' · '+r.id+'</small></div>'+
+          stBadge(r.status)+'</div>';
+      }).join("");
+      var html=''+
+      '<div class="kgrid">'+
+        kpi("符合跳批資格","fact_check","6","+1 本週","up","／ 10 組供應商料號")+
+        kpi("評估中待判定","pending_actions","3","2 組近門檻","flat","需補件覆核")+
+        kpi("平均連續合格","done_all","23.6 批","門檻 20 批","up","跨料號中位數")+
+        kpi("資格條件版本","rule","RULE v3","2026-07 生效","flat","4 項硬性條件")+
+      '</div>'+
+      '<div class="split">'+
+        '<div class="listpane">'+
+          '<div class="lhead"><h3>供應商料號清單</h3><div class="sp"></div><span class="tag">10 筆</span></div>'+
+          '<div class="search"><span class="material-symbols-outlined" style="font-size:16px">search</span>搜尋供應商 / 料號</div>'+
+          '<div id="list0" style="max-height:520px;overflow:auto">'+chips+'</div>'+
+        '</div>'+
+        '<div class="detpane" id="det0"></div>'+
+      '</div>';
+      set(html);
+      window.__pick0=function(i){
+        var ls=document.querySelectorAll("#list0 .litem");
+        for(var k=0;k<ls.length;k++)ls[k].classList.toggle("on",k===i);
+        renderDet0(i);
+      };
+      renderDet0(0);
+      function renderDet0(i){
+        var r=ROWS[i];
+        var passN=rules.filter(function(x){return x.ok;}).length;
+        var rl=rules.map(function(x){return '<div class="rl"><div class="ck '+(x.ok?"cky":"ckn")+'"><span class="material-symbols-outlined" style="font-size:14px">'+(x.ok?"check":"close")+'</span></div>'+x.t+'</div>';}).join("");
+        var verdict = (r.grade==="A"||r.grade==="B") && r.def<=0.5 && r.lots>=20;
+        var det=document.getElementById("det0");
+        det.innerHTML=''+
+        '<div class="hero"><div class="hav">'+r.grade+'</div>'+
+          '<div><h2>'+r.part+'</h2><p>'+r.sup+' · '+r.id+' · '+r.cat+'</p></div>'+
+          '<div class="sp"></div>'+
+          '<div style="text-align:right"><div style="font-size:11px;color:#a9d6bd;font-weight:600">資格判定</div>'+
+          '<div style="font-size:18px;font-weight:800;color:'+(verdict?"#4ade80":"#fca5a5")+'">'+(verdict?"符合跳批":"不符・維持全檢")+'</div></div></div>'+
+        '<div class="g2">'+
+          '<div class="card"><div class="ch"><h3>資格條件比對</h3><div class="sp"></div><span class="tag">'+passN+'/5 通過</span></div>'+
+            '<div class="cbody"><div class="rule-box">'+rl+'</div></div></div>'+
+          '<div class="card"><div class="ch"><h3>近 12 批缺陷率趨勢</h3></div>'+
+            '<div class="cbody"><div class="chart" id="c0" style="height:230px"></div></div></div>'+
+        '</div>'+
+        '<div class="card"><div class="ch"><h3>合格佐證數據</h3><div class="sp"></div><span class="sub">資料截至 2026-08-13</span></div>'+
+          '<div class="cbody"><div class="strip">'+
+            '<div><div class="sl">連續合格批數</div><div class="sv">'+r.lots+' 批</div></div>'+
+            '<div><div class="sl">近 90 天缺陷率</div><div class="sv" style="color:'+(r.def<=0.5?"var(--ok)":"var(--bad)")+'">'+r.def.toFixed(2)+'%</div></div>'+
+            '<div><div class="sl">供應商評等</div><div class="sv">'+r.grade+' 級</div></div>'+
+          '</div></div></div>';
+        void det.offsetHeight;
+        var base=r.def; var arr=[];for(var k=0;k<12;k++){arr.push(+(Math.max(0,base+ (Math.sin(k*1.3)*0.3) + (k===7? (r.grade==="D"?1.4:0.2):0)).toFixed(2)));}
+        mk("c0",{grid:GRID,tooltip:{trigger:"axis"},
+          xAxis:Object.assign({type:"category",data:["b1","b2","b3","b4","b5","b6","b7","b8","b9","b10","b11","b12"]},AX),
+          yAxis:Object.assign({type:"value",name:"%"},AX),
+          series:[{type:"line",data:arr,smooth:true,symbol:"circle",symbolSize:6,lineStyle:{width:3,color:"#16a34a"},itemStyle:{color:"#16a34a"},areaStyle:{color:"rgba(22,163,74,.12)"},markLine:{silent:true,data:[{yAxis:0.5,name:"門檻"}],lineStyle:{color:"#f59e0b",type:"dashed"},label:{formatter:"門檻 0.5%",color:"#b45309",fontSize:10}}}]});
+      }
+    }
+
+    /* ================= SCREEN 1 : 供應商料號矩陣 ================= */
+    function s1(){
+      var rowsHtml=ROWS.map(function(r){
+        var q=miniQ(r.grade);
+        return '<tr>'+
+          '<td>'+gradeChip(r.grade)+'</td>'+
+          '<td><b>'+r.part+'</b><br><small style="color:var(--sub)">'+r.id+'</small></td>'+
+          '<td>'+r.sup+'</td>'+
+          '<td><span class="tag">'+r.cat+'</span></td>'+
+          '<td>'+stBadge(r.status)+'</td>'+
+          '<td class="num">'+(r.ratio?r.ratio+'%':'—')+'</td>'+
+          '<td class="num">'+r.def.toFixed(2)+'%</td>'+
+          '<td class="num">'+r.streak+'</td>'+
+          '<td>'+q+'</td>'+
+        '</tr>';
+      }).join("");
+      var html=''+
+      '<div class="kgrid">'+
+        kpi("涵蓋供應商","account_tree","6 家","跨 5 類料件","flat","")+
+        kpi("跳批中料號","local_shipping","5","占 50%","up","")+
+        kpi("平均缺陷率","target","0.68%","-0.11% MoM","up","矩陣整體")+
+        kpi("高風險料號","warning","2","需恢復全檢","down","D 級")+
+      '</div>'+
+      '<div class="g2">'+
+        '<div class="card"><div class="ch"><h3>各料件類別跳批比例</h3><div class="sp"></div><span class="sub">跳批中 / 全部</span></div><div class="cbody"><div class="chart" id="c1a"></div></div></div>'+
+        '<div class="card"><div class="ch"><h3>供應商評等分布</h3></div><div class="cbody"><div class="chart" id="c1b"></div></div></div>'+
+      '</div>'+
+      '<div class="card" style="margin-top:16px"><div class="ch"><h3>供應商 × 料號 跳批矩陣</h3><div class="sp"></div>'+
+        '<span class="miniq" style="background:#16a34a"></span><span class="sub">合格</span>&nbsp;&nbsp;<span class="miniq" style="background:#f59e0b"></span><span class="sub">警戒</span>&nbsp;&nbsp;<span class="miniq" style="background:#dc2626"></span><span class="sub">不良</span></div>'+
+        '<div style="overflow-x:auto"><table><thead><tr><th>評等</th><th>料號</th><th>供應商</th><th>類別</th><th>狀態</th><th>跳批比例</th><th>缺陷率</th><th>連續合格</th><th>近 8 批</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'+
+      '</div>';
+      set(html);
+      mk("c1a",{grid:GRID,tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},legend:{data:["跳批中","全檢/評估"],bottom:0,textStyle:{fontSize:11}},
+        xAxis:Object.assign({type:"category",data:["連接器","被動元件","機構件","線材","驅動件"]},AX),
+        yAxis:Object.assign({type:"value"},AX),
+        series:[
+          {name:"跳批中",type:"bar",stack:"t",data:[2,1,2,0,0],itemStyle:{color:"#16a34a",borderRadius:[0,0,0,0]},barWidth:26},
+          {name:"全檢/評估",type:"bar",stack:"t",data:[0,1,1,2,1],itemStyle:{color:"#e2ece5",borderRadius:[4,4,0,0]}}
+        ]});
+      mk("c1b",{tooltip:{trigger:"item"},legend:{bottom:0,textStyle:{fontSize:11}},
+        series:[{type:"pie",radius:["46%","72%"],center:["50%","44%"],avoidLabelOverlap:true,itemStyle:{borderColor:"#fff",borderWidth:2},label:{fontSize:11},
+          data:[{value:5,name:"A 級",itemStyle:{color:"#16a34a"}},{value:1,name:"B 級",itemStyle:{color:"#0891b2"}},{value:1,name:"C 級",itemStyle:{color:"#f59e0b"}},{value:2,name:"D 級",itemStyle:{color:"#dc2626"}}]}]});
+    }
+    function miniQ(g){
+      var seq={A:["ok","ok","ok","ok","ok","ok","ok","ok"],B:["ok","ok","warn","ok","ok","ok","ok","ok"],C:["ok","warn","ok","warn","ok","ok","warn","ok"],D:["ok","bad","ok","warn","bad","ok","bad","warn"]}[g]||["ok","ok","ok","ok","ok","ok","ok","ok"];
+      var cmap={ok:"#16a34a",warn:"#f59e0b",bad:"#dc2626"};
+      return seq.map(function(s){return '<span class="miniq" style="background:'+cmap[s]+'"></span>';}).join("");
+    }
+
+    /* ================= SCREEN 2 : 跳批啟動審核（split） ================= */
+    function s2(){
+      var apps=[
+        {id:"SKP-0912",part:"CN-4471 連接器",sup:"鴻裕精密",lvl:"跳 4 抽 1",prio:"高",st:"待簽核",who:"品質經理",grade:"A"},
+        {id:"SKP-0913",part:"SC-045 螺絲",sup:"永盛五金",lvl:"跳 4 抽 1",prio:"中",st:"待簽核",who:"品質經理",grade:"A"},
+        {id:"SKP-0910",part:"PL-330 外殼",sup:"和碩塑膠",lvl:"跳 2 抽 1",prio:"中",st:"覆核中",who:"品保主管",grade:"A"},
+        {id:"SKP-0908",part:"CP-118 電容",sup:"泰昌電子",lvl:"跳 2 抽 1",prio:"低",st:"待補件",who:"品保工程師",grade:"B"},
+        {id:"SKP-0905",part:"MT-560 微型馬達",sup:"大同馬達",lvl:"跳 2 抽 1",prio:"低",st:"待補件",who:"品保工程師",grade:"B"}
+      ];
+      var chips=apps.map(function(a,i){
+        var pc=a.prio==="高"?"#dc2626":a.prio==="中"?"#f59e0b":"#0891b2";
+        return '<div class="litem'+(i===0?' on':'')+'" onclick="__pick2('+i+')">'+
+          '<div class="av" style="background:'+avColor(a.grade)+'">'+a.grade+'</div>'+
+          '<div class="lt"><b>'+a.part+'</b><small>'+a.sup+' · '+a.id+'</small></div>'+
+          '<span class="badge" style="background:'+pc+'22;color:'+pc+'">'+a.prio+'</span></div>';
+      }).join("");
+      var html=''+
+      '<div class="kgrid">'+
+        kpi("待簽核申請","approval","2","今日新增","flat","品質經理")+
+        kpi("覆核中","reviews","1","品保主管","flat","")+
+        kpi("待補件","upload_file","2","缺佐證","down","")+
+        kpi("本月核准跳批","verified","14","駁回 3 件","up","核准率 82%")+
+      '</div>'+
+      '<div class="split">'+
+        '<div class="listpane">'+
+          '<div class="lhead"><h3>跳批申請佇列</h3><div class="sp"></div><span class="tag">5 件</span></div>'+
+          '<div class="search"><span class="material-symbols-outlined" style="font-size:16px">filter_list</span>依優先度排序</div>'+
+          '<div id="list2" style="max-height:520px;overflow:auto">'+chips+'</div>'+
+        '</div>'+
+        '<div class="detpane" id="det2"></div>'+
+      '</div>';
+      set(html);
+      window.__pick2=function(i){var ls=document.querySelectorAll("#list2 .litem");for(var k=0;k<ls.length;k++)ls[k].classList.toggle("on",k===i);renderDet2(i);};
+      renderDet2(0);
+      function renderDet2(i){
+        var a=apps[i];
+        var det=document.getElementById("det2");
+        det.innerHTML=''+
+        '<div class="hero"><div class="hav"><span class="material-symbols-outlined">fact_check</span></div>'+
+          '<div><h2>'+a.id+' · '+a.part+'</h2><p>'+a.sup+' · 申請跳批等級 '+a.lvl+' · 目前狀態 '+a.st+'</p></div>'+
+          '<div class="sp"></div><span class="pill" style="background:rgba(255,255,255,.12);color:#eafaf0;border:0">'+a.who+'</span></div>'+
+        '<div class="g2">'+
+          '<div class="card"><div class="ch"><h3>合格紀錄佐證</h3></div><div class="cbody">'+
+            '<div class="dl">'+
+              row("連續合格批數","36 批 ✓")+
+              row("近 90 天缺陷率","0.12% ✓")+
+              row("最近稽核分數","91 分 ✓")+
+              row("客訴 / 召回","0 件 ✓")+
+              row("SPC Cpk","1.52 ✓")+
+            '</div></div></div>'+
+          '<div class="card"><div class="ch"><h3>風險評分</h3></div><div class="cbody"><div class="chart" id="c2" style="height:230px"></div></div></div>'+
+        '</div>'+
+        '<div class="card"><div class="ch"><h3>簽核動作</h3><div class="sp"></div><span class="sub">RULE-02 規格超差且影響功能者必須先隔離批次</span></div>'+
+          '<div class="cbody" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+
+            '<span class="badge b-ok" style="padding:9px 16px"><span class="material-symbols-outlined" style="font-size:16px">check_circle</span> 核准跳批 '+a.lvl+'</span>'+
+            '<span class="badge b-warn" style="padding:9px 16px"><span class="material-symbols-outlined" style="font-size:16px">edit</span> 調整跳批等級</span>'+
+            '<span class="badge b-bad" style="padding:9px 16px"><span class="material-symbols-outlined" style="font-size:16px">block</span> 駁回・維持全檢</span>'+
+            '<div class="sp"></div><span class="sub">設定跳批期限 90 天，屆期自動複核</span>'+
+          '</div></div>';
+        void det.offsetHeight;
+        mk("c2",{tooltip:{},radar:{indicator:[{name:"品質穩定",max:100},{name:"交期",max:100},{name:"稽核",max:100},{name:"回應",max:100},{name:"改善",max:100}],radius:"64%",axisName:{fontSize:10,color:"#5b7566"},splitLine:{lineStyle:{color:"#eef4f0"}},splitArea:{areaStyle:{color:["#fbfefc","#f3f9f5"]}}},
+          series:[{type:"radar",data:[{value:[92,85,88,80,86],name:"評分",areaStyle:{color:"rgba(22,163,74,.18)"},lineStyle:{color:"#16a34a",width:2},itemStyle:{color:"#16a34a"}}]}]});
+      }
+    }
+    function row(k,v){return '<div class="row"><span>'+k+'</span><b>'+v+'</b></div>';}
+
+    /* ================= SCREEN 3 : 跳批績效追蹤 ================= */
+    function s3(){
+      var perf=[
+        {sup:"鴻裕精密",skip:82,save:64,anom:0.11},
+        {sup:"永盛五金",skip:78,save:58,anom:0.08},
+        {sup:"和碩塑膠",skip:60,save:44,anom:0.29},
+        {sup:"泰昌電子",skip:46,save:33,anom:0.35},
+        {sup:"大同馬達",skip:22,save:16,anom:0.61},
+        {sup:"聯發線材",skip:0,save:0,anom:1.82}
+      ];
+      var tb=perf.map(function(p){
+        var w=Math.round(p.anom/2*100);
+        return '<tr><td><b>'+p.sup+'</b></td><td class="num">'+p.skip+'%</td><td class="num">'+p.save+' 工時</td>'+
+          '<td class="num" style="color:'+(p.anom<=0.5?"var(--ok)":"var(--bad)")+'">'+p.anom.toFixed(2)+'%</td>'+
+          '<td style="min-width:120px"><div class="bar"><i style="width:'+Math.min(100,w)+'%;background:'+(p.anom<=0.5?"linear-gradient(90deg,#16a34a,#4ade80)":"linear-gradient(90deg,#dc2626,#f59e0b)")+'"></i></div></td></tr>';
+      }).join("");
+      var html=''+
+      '<div class="kgrid">'+
+        kpi("整體跳批比例","speed","58%","+6% MoM","up","目標 60%")+
+        kpi("抽驗工時節省","schedule","215 hr","本月累計","up","≈ 27 人日")+
+        kpi("跳批期間異常率","warning","0.34%","門檻 0.50%","up","含全料號")+
+        kpi("跳批準確率","verified","96.8%","誤跳 3 批","up","近 3 月")+
+      '</div>'+
+      '<div class="g2">'+
+        '<div class="card"><div class="ch"><h3>跳批比例 vs 異常率（6 週）</h3><div class="sp"></div><span class="sub">雙軸</span></div><div class="cbody"><div class="chart" id="c3a"></div></div></div>'+
+        '<div class="card"><div class="ch"><h3>抽驗工時節省來源</h3></div><div class="cbody"><div class="chart" id="c3b"></div></div></div>'+
+      '</div>'+
+      '<div class="card" style="margin-top:16px"><div class="ch"><h3>供應商跳批績效複核</h3><div class="sp"></div><span class="sub">異常率 ≤ 0.5% 維持跳批</span></div>'+
+        '<div style="overflow-x:auto"><table><thead><tr><th>供應商</th><th>跳批比例</th><th>工時節省</th><th>跳批期間異常率</th><th>異常水位</th></tr></thead><tbody>'+tb+'</tbody></table></div></div>';
+      set(html);
+      mk("c3a",{grid:{left:8,right:40,top:30,bottom:26,containLabel:true},tooltip:{trigger:"axis"},legend:{data:["跳批比例 %","異常率 %"],top:0,textStyle:{fontSize:11}},
+        xAxis:Object.assign({type:"category",data:["W1","W2","W3","W4","W5","W6"]},AX),
+        yAxis:[Object.assign({type:"value",name:"跳批%",max:100},AX),Object.assign({type:"value",name:"異常%",max:1,position:"right",splitLine:{show:false}},AX)],
+        series:[
+          {name:"跳批比例 %",type:"bar",data:[41,46,50,53,55,58],itemStyle:{color:"#4ade80",borderRadius:[4,4,0,0]},barWidth:22},
+          {name:"異常率 %",yAxisIndex:1,type:"line",data:[0.51,0.47,0.42,0.39,0.36,0.34],smooth:true,symbolSize:7,lineStyle:{width:3,color:"#dc2626"},itemStyle:{color:"#dc2626"}}
+        ]});
+      mk("c3b",{tooltip:{trigger:"item"},legend:{bottom:0,textStyle:{fontSize:11}},
+        series:[{type:"pie",roseType:"radius",radius:["30%","70%"],center:["50%","44%"],itemStyle:{borderColor:"#fff",borderWidth:2},label:{fontSize:10},
+          data:[{value:92,name:"連接器",itemStyle:{color:"#16a34a"}},{value:64,name:"機構件",itemStyle:{color:"#22c55e"}},{value:38,name:"被動元件",itemStyle:{color:"#4ade80"}},{value:21,name:"驅動件",itemStyle:{color:"#86efac"}}]}]});
+    }
+
+    /* ================= SCREEN 4 : 異常觸發恢復全檢（split） ================= */
+    function s4(){
+      var evs=[
+        {id:"ANM-3301",part:"WR-990 線束",sup:"聯發線材",sev:"重大",act:"已凍結・全檢",when:"08-13 09:42",grade:"D"},
+        {id:"ANM-3298",part:"FL-720 排線",sup:"聯發線材",sev:"重大",act:"已凍結・全檢",when:"08-12 15:10",grade:"D"},
+        {id:"ANM-3290",part:"MB-1200 鋁殼",sup:"永盛五金",sev:"中",act:"降級複檢",when:"08-11 11:28",grade:"C"},
+        {id:"ANM-3277",part:"CP-118 電容",sup:"泰昌電子",sev:"輕微",act:"加抽觀察",when:"08-09 08:03",grade:"B"}
+      ];
+      var chips=evs.map(function(e,i){
+        var sc=e.sev==="重大"?"#dc2626":e.sev==="中"?"#f59e0b":"#0891b2";
+        return '<div class="litem'+(i===0?' on':'')+'" onclick="__pick4('+i+')">'+
+          '<div class="av" style="background:'+sc+'"><span class="material-symbols-outlined" style="font-size:20px">warning</span></div>'+
+          '<div class="lt"><b>'+e.part+'</b><small>'+e.id+' · '+e.when+'</small></div>'+
+          '<span class="badge" style="background:'+sc+'22;color:'+sc+'">'+e.sev+'</span></div>';
+      }).join("");
+      var html=''+
+      '<div class="kgrid">'+
+        kpi("本月觸發事件","warning","4","2 重大","down","")+
+        kpi("已恢復全檢","block","2 料號","自動凍結","flat","D 級")+
+        kpi("平均恢復時效","bolt","6 分鐘","異常→凍結","up","規則自動")+
+        kpi("回歸跳批天數","event_repeat","≈ 30 天","需重新資格","flat","")+
+      '</div>'+
+      '<div class="split">'+
+        '<div class="listpane">'+
+          '<div class="lhead"><h3>異常觸發事件</h3><div class="sp"></div><span class="tag">4 件</span></div>'+
+          '<div class="search"><span class="material-symbols-outlined" style="font-size:16px">notifications_active</span>依嚴重度</div>'+
+          '<div id="list4" style="max-height:520px;overflow:auto">'+chips+'</div>'+
+        '</div>'+
+        '<div class="detpane" id="det4"></div>'+
+      '</div>';
+      set(html);
+      window.__pick4=function(i){var ls=document.querySelectorAll("#list4 .litem");for(var k=0;k<ls.length;k++)ls[k].classList.toggle("on",k===i);renderDet4(i);};
+      renderDet4(0);
+      function renderDet4(i){
+        var e=evs[i];
+        var det=document.getElementById("det4");
+        det.innerHTML=''+
+        '<div class="hero" style="background:linear-gradient(135deg,#3f1414,#7f1d1d)"><div class="hav" style="background:rgba(255,255,255,.15)"><span class="material-symbols-outlined">block</span></div>'+
+          '<div><h2>'+e.part+' 跳批已凍結</h2><p>'+e.sup+' · '+e.id+' · 觸發於 '+e.when+' · 恢復逐批全檢</p></div>'+
+          '<div class="sp"></div><span class="pill" style="background:rgba(255,255,255,.14);color:#fee2e2;border:0">'+e.sev+'異常</span></div>'+
+        '<div class="g2">'+
+          '<div class="card"><div class="ch"><h3>恢復全檢處置流程</h3></div><div class="cbody"><div class="tl">'+
+            tli("#dc2626","偵測不良","IQC 抽驗判退 · "+e.when,"進料抽驗發現尺寸/外觀不良，判退該批。")+
+            tli("#dc2626","自動凍結跳批","系統規則 6 分鐘內執行","觸發 RULE-02，該供應商料號跳批狀態即時改為恢復全檢。")+
+            tli("#f59e0b","通知供應商","SQM 發出改善要求","要求供應商提交 8D 與根因分析。")+
+            tli("#16a34a","逐批全檢","恢復逐批 100% 檢驗","連續 20 批合格後方可重新申請跳批資格。")+
+          '</div></div></div>'+
+          '<div class="card"><div class="ch"><h3>跳批期間不良分布</h3></div><div class="cbody"><div class="chart" id="c4" style="height:250px"></div></div></div>'+
+        '</div>'+
+        '<div class="card"><div class="ch"><h3>影響批次追溯</h3><div class="sp"></div><span class="sub">跳批期間未檢驗批次需回溯</span></div>'+
+          '<div style="overflow-x:auto"><table><thead><tr><th>批號</th><th>入庫日</th><th>數量</th><th>去向</th><th>處置</th></tr></thead><tbody>'+
+            '<tr><td>LOT-88412</td><td>08-10</td><td class="num">2,400</td><td>已投產</td><td><span class="badge b-warn">追蹤</span></td></tr>'+
+            '<tr><td>LOT-88455</td><td>08-11</td><td class="num">1,800</td><td>倉儲</td><td><span class="badge b-bad">攔截全檢</span></td></tr>'+
+            '<tr><td>LOT-88490</td><td>08-12</td><td class="num">2,100</td><td>倉儲</td><td><span class="badge b-bad">攔截全檢</span></td></tr>'+
+          '</tbody></table></div></div>';
+        void det.offsetHeight;
+        mk("c4",{grid:GRID,tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},
+          xAxis:Object.assign({type:"value"},AX),
+          yAxis:Object.assign({type:"category",data:["外觀刮傷","尺寸超差","導通不良","端子鬆脫"]},AX),
+          series:[{type:"bar",data:[3,9,5,2],barWidth:16,itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:"#f59e0b"},{offset:1,color:"#dc2626"}]),borderRadius:[0,4,4,0]},label:{show:true,position:"right",fontSize:11}}]});
+      }
+    }
+    function tli(c,t,s,p){return '<div class="ti"><span class="dot" style="background:'+c+'"></span><b>'+t+'</b><small>'+s+'</small><p>'+p+'</p></div>';}
+
+    /* ================= SCREEN 5 : 稽核追溯紀錄 ================= */
+    function s5(){
+      var logs=[
+        {t:"核准跳批",who:"品質經理 王建명".replace("명","民"),tg:"SKP-0912",when:"08-13 16:20",d:"鴻裕精密 CN-4471 核准跳 4 抽 1，期限至 2026-11-02。",c:"#16a34a"},
+        {t:"自動凍結",who:"系統規則 RULE-02",tg:"ANM-3301",when:"08-13 09:48",d:"聯發線材 WR-990 跳批期間判退，自動恢復全檢。",c:"#dc2626"},
+        {t:"調整等級",who:"品保主管 李佩珊",tg:"SKP-0910",when:"08-12 10:05",d:"和碩塑膠 PL-330 由跳 4 抽 1 降為跳 2 抽 1。",c:"#f59e0b"},
+        {t:"資格複核",who:"IQC 陳雅婷",tg:"SP-2033",when:"08-11 14:33",d:"泰昌電子 RS-8820 缺陷率 0.42% 維持跳批。",c:"#0891b2"},
+        {t:"駁回申請",who:"品質經理 王建民",tg:"SKP-0899",when:"08-10 11:12",d:"大同馬達 MT-560 稽核分數不足，維持全檢。",c:"#dc2626"},
+        {t:"條件版本更新",who:"品保部 林士傑",tg:"RULE v3",when:"08-07 09:00",d:"跳批資格條件更新為連續合格 20 批、缺陷率 ≤ 0.5%。",c:"#16a34a"}
+      ];
+      var tl=logs.map(function(l){return '<div class="ti"><span class="dot" style="background:'+l.c+'"></span>'+
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>'+l.t+'</b><span class="tag">'+l.tg+'</span><time style="margin-left:auto">'+l.when+'</time></div>'+
+        '<small>'+l.who+'</small><p>'+l.d+'</p></div>';}).join("");
+      var html=''+
+      '<div class="kgrid">'+
+        kpi("本月稽核事件","history","128","全程留痕","flat","")+
+        kpi("跳批決策紀錄","gavel","47","核准 38・駁回 9","flat","")+
+        kpi("追溯完整度","verified","100%","可稽核","up","批次可回溯")+
+        kpi("平均查詢時效","bolt","15 秒","原 184 分","up","批號追溯")+
+      '</div>'+
+      '<div class="g2">'+
+        '<div class="card"><div class="ch"><h3>近 6 月跳批決策統計</h3></div><div class="cbody"><div class="chart" id="c5a"></div></div></div>'+
+        '<div class="card"><div class="ch"><h3>稽核事件類型占比</h3></div><div class="cbody"><div class="chart" id="c5b"></div></div></div>'+
+      '</div>'+
+      '<div class="card" style="margin-top:16px"><div class="ch"><h3>稽核追溯軌跡</h3><div class="sp"></div><span class="pill dot">即時串流</span></div>'+
+        '<div class="cbody"><div class="tl">'+tl+'</div></div></div>';
+      set(html);
+      mk("c5a",{grid:GRID,tooltip:{trigger:"axis"},legend:{data:["核准","駁回","凍結"],top:0,textStyle:{fontSize:11}},
+        xAxis:Object.assign({type:"category",data:["3月","4月","5月","6月","7月","8月"]},AX),
+        yAxis:Object.assign({type:"value"},AX),
+        series:[
+          {name:"核准",type:"bar",stack:"a",data:[9,11,10,12,13,14],itemStyle:{color:"#16a34a"},barWidth:24},
+          {name:"駁回",type:"bar",stack:"a",data:[4,3,5,2,3,3],itemStyle:{color:"#f59e0b"}},
+          {name:"凍結",type:"bar",stack:"a",data:[3,2,2,3,2,4],itemStyle:{color:"#dc2626",borderRadius:[3,3,0,0]}}
+        ]});
+      mk("c5b",{tooltip:{trigger:"item"},legend:{bottom:0,textStyle:{fontSize:11}},
+        series:[{type:"pie",radius:["46%","72%"],center:["50%","44%"],itemStyle:{borderColor:"#fff",borderWidth:2},label:{fontSize:11},
+          data:[{value:47,name:"跳批決策",itemStyle:{color:"#16a34a"}},{value:33,name:"績效複核",itemStyle:{color:"#0891b2"}},{value:28,name:"異常凍結",itemStyle:{color:"#dc2626"}},{value:20,name:"條件變更",itemStyle:{color:"#f59e0b"}}]}]});
+    }
+
+    /* ---------- helpers ---------- */
+    function kpi(l,ic,v,d,cls,sub){
+      return '<div class="kpi"><div class="ic"><span class="material-symbols-outlined" style="font-size:20px">'+ic+'</span></div>'+
+        '<div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+
+        '<div class="kd '+(cls||"flat")+'">'+d+(sub?' <span style="color:var(--sub);font-weight:500">'+sub+'</span>':'')+'</div></div>';
+    }
+    function set(h){var v=document.getElementById("view");v.innerHTML=h;void v.offsetHeight;}
+
+    var SCREENS=[
+      {name:"跳批資格條件",sub:"准入規則比對",icon:"rule",fn:s0},
+      {name:"供應商料號矩陣",sub:"狀態與等級一覽",icon:"account_tree",fn:s1},
+      {name:"跳批啟動審核",sub:"合格佐證簽核",icon:"fact_check",fn:s2},
+      {name:"跳批績效追蹤",sub:"比例與異常率",icon:"monitoring",fn:s3},
+      {name:"異常觸發恢復",sub:"凍結與全檢",icon:"warning",fn:s4},
+      {name:"稽核追溯紀錄",sub:"決策軌跡",icon:"history",fn:s5}
+    ];
+    var navEl=document.getElementById("nav");
+    navEl.innerHTML=SCREENS.map(function(s,i){
+      return '<button data-i="'+i+'"><span class="material-symbols-outlined">'+s.icon+'</span>'+
+        '<span class="nx">'+s.name+'<small>'+s.sub+'</small></span></button>';
+    }).join("");
+    var btns=navEl.querySelectorAll("[data-i]");
+    for(var b=0;b<btns.length;b++){(function(btn){btn.addEventListener("click",function(){show(+btn.getAttribute("data-i"));try{location.hash="v"+btn.getAttribute("data-i");}catch(e){}});})(btns[b]);}
+
+    function show(i){
+      i=Math.max(0,Math.min(i,SCREENS.length-1));
+      disposeCharts();
+      for(var k=0;k<btns.length;k++)btns[k].classList.toggle("on",k===i);
+      document.getElementById("title").textContent=SCREENS[i].name;
+      document.getElementById("crumb").textContent="跳批管理 / "+SCREENS[i].sub;
+      SCREENS[i].fn();
+      var view=document.getElementById("view");
+      void view.offsetHeight;
+    }
+    window.show=show;
+
+    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
+    window.addEventListener("hashchange",fromHash);fromHash();
+  })();
+  </script>
 </body>
 </html>
