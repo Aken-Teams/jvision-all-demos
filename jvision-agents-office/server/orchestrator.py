@@ -408,11 +408,16 @@ async def run(question: str, mode, emit):
     names = "、".join(t["agent"]["name"] for t in data_team)
     emit({"type": "message", "id": "orchestrator", "name": "智策", "role": "總指揮", "dataMode": "reasoning",
           "text": f"這題屬於「{'、'.join(doms)}」。我請 {names} 去查各系統資料，交給 {synth['name']} {verb}，我負責確認。"})
-    members = [{"id": t["agent"]["id"], "name": t["agent"]["name"], "role": t["agent"]["role"],
-               "dataMode": t["agent"]["dataMode"], "subtask": t["subtask"]} for t in data_team]
+    # 上方 agents 清單也放指揮官（排最前）
+    members = [{"id": "orchestrator", "name": "智策", "role": "總指揮", "dataMode": "reasoning", "subtask": "分工協調與最終確認"}]
+    members += [{"id": t["agent"]["id"], "name": t["agent"]["name"], "role": t["agent"]["role"],
+                 "dataMode": t["agent"]["dataMode"], "subtask": t["subtask"]} for t in data_team]
     members.append({"id": synth["id"], "name": synth["name"], "role": synth["role"], "dataMode": "reasoning", "subtask": verb})
     emit({"type": "team", "members": members})
     emit({"type": "page_pending", "title": question, "sub": "領域：" + "、".join(doms) + f" · {synth['name']} 彙整中", "output": output})
+    # 完成項目也放一則「指揮官分工摘要」（誰處理什麼）
+    _assign = "；".join(f"{t['agent']['name']}→{t['subtask']}" for t in data_team)
+    emit({"type": "done_item", "text": f"智策 分工：{_assign}；{synth['name']}→{verb}"})
 
     # ① 各系統查資料（生現況數據）
     emit({"type": "status", "message": "資料 Agent 查各系統現況…"})
