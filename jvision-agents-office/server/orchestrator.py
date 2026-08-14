@@ -433,7 +433,7 @@ async def run(question: str, mode, emit):
         emit({"type": "page", "title": question,
               "sub": "領域：" + "、".join(doms) + f" · {synth['name']} 設計 · 資料來自 {len(gathered)} 個系統", "html": html})
 
-    # ③ 指揮官確認
-    emit({"type": "message", "id": "orchestrator", "name": "智策", "role": "總指揮", "dataMode": "reasoning",
+    # ③ 指揮官確認（用不同 id → 前端會新增一則泡泡在 繪境 下方，而不是覆蓋最上面的開場白）
+    emit({"type": "message", "id": "orchestrator_done", "name": "智策", "role": "總指揮", "dataMode": "reasoning",
           "text": "我確認過報告數據一致、結論合理，完成。"})
     emit({"type": "final", "message": "完成。"})

@@ -142,7 +142,7 @@
   }
   function addBubble(id, name, role, dm, html, thinking) {
     var f = feed(); if (!f) return;
-    var isCmd = id === "orchestrator";
+    var isCmd = String(id).indexOf("orchestrator") === 0;
     var col = isCmd ? "#7c3aed" : (DM[dm] || ["", "#64748b"])[1];
     var tag = isCmd ? "總指揮" : (DM[dm] || [""])[0];
     var bubbleBg = isCmd ? "background:#f5f3ff;border-color:#ddd6fe" : "background:#f8fafc;border-color:#e2e8f0";
