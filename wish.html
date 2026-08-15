@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 許願池 · 技術健診 — JVision</title>
+  <meta name="description" content="對 AI 許個願：描述你的需求，AI 立刻告訴你適合用哪些 AI 技術（RAG、OCR、電腦視覺…）實現。" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script>
+    tailwind.config = { theme: { extend: {
+      colors: { ink:"#0f1e46", body:"#334155", muted:"#64748b", line:"#e2e8f0", soft:"#f5f8fc", brand:"#1e40af", brand2:"#3b82f6", accent:"#d97706", violet:"#7c3aed", success:"#16a34a" },
+      fontFamily: { sans:['Inter','Noto Sans TC','Microsoft JhengHei','sans-serif'] },
+      maxWidth: { shell:'1280px' },
+    } } };
+  </script>
+  <style>
+    body { font-family: Inter, 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; }
+    .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+    .navlink { position:relative; }
+    .navlink::after { content:""; position:absolute; left:0; right:0; bottom:-6px; height:2px; border-radius:2px; background:currentColor; transform:scaleX(0); transform-origin:right; transition:transform .28s ease; }
+    .navlink:hover::after, .navlink.is-active::after { transform:scaleX(1); transform-origin:left; }
+    .dot-grid { background-image: radial-gradient(#dbe4f5 1px, transparent 1px); background-size: 16px 16px; }
+
+    .stage { position: relative; overflow: hidden; background:#f5f8fc; }
+
+    /* 入場：由上而下展開（保留願望「展卷」的意象，但乾淨）*/
+    .unroll { transform-origin: top center; animation: unroll .7s cubic-bezier(.2,.8,.2,1) both; }
+    @keyframes unroll { from{transform:scaleY(.04); opacity:.12} to{transform:scaleY(1); opacity:1} }
+
+    /* 輸入面板（沿用全站 hero 輸入元件風格）*/
+    .ask-panel { background:#fff; border:1px solid #e2e8f0; border-radius:16px; box-shadow:0 12px 34px rgba(15,30,70,.08); transition:border-color .2s ease; }
+    .ask-panel:focus-within { border-color:#3b82f6; }
+
+    /* 思考中動畫 */
+    .thinking-orb { width:60px; height:60px; border-radius:50%; margin:0 auto; display:grid; place-content:center; color:#fff;
+      background-image:linear-gradient(135deg,#1e40af,#7c3aed); animation: orbPulse 1.7s ease-in-out infinite; }
+    .thinking-orb .material-symbols-outlined { animation: spin 3.2s linear infinite; }
+    @keyframes orbPulse { 0%,100%{ transform:scale(1); box-shadow:0 0 0 0 rgba(124,58,237,.35) } 50%{ transform:scale(1.08); box-shadow:0 0 0 16px rgba(124,58,237,0) } }
+    .fitpill.高 { background:#dcfce7; color:#166534 } .fitpill.中 { background:#fef9c3; color:#854d0e } .fitpill.低 { background:#f1f5f9; color:#475569 }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+    .techcard { animation: fadeUp .45s ease both; }
+    @keyframes spin { to { transform: rotate(360deg) } }
+    .marquee { animation: marquee 34s linear infinite; }
+    @keyframes marquee { to { transform: translateX(-50%); } }
+    @media (prefers-reduced-motion: reduce) { .marquee,.unroll { animation: none !important; } }
+  </style>
+</head>
+<body class="text-body antialiased min-h-screen flex flex-col">
+
+  <header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-line">
+    <nav class="max-w-shell mx-auto h-16 px-6 flex items-center justify-between gap-6">
+      <a href="./index.html" class="flex items-center shrink-0" aria-label="JVision DEMO 首頁"><img src="./assets/logo.png" alt="JVision DEMO" class="h-9 w-auto" /></a>
+      <div class="flex items-center gap-8">
+        <a href="./catalog.html" class="navlink text-sm font-bold text-ink hover:text-brand transition-colors">專案目錄</a>
+        <a href="./agents.html" class="navlink text-sm font-bold text-ink hover:text-brand transition-colors">專案 Agents</a>
+        <a href="./wish.html" class="navlink is-active text-sm font-bold text-brand transition-colors">AI 許願池</a>
+      </div>
+    </nav>
+  </header>
+
+  <section class="stage flex-1">
+    <!-- 底層淡色 -->
+    <div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(180deg,#f7faff,#ffffff)"></div>
+    <!-- 菱形方格：鋪滿整頁 -->
+    <div class="absolute inset-0 pointer-events-none" style="
+        background:
+          repeating-linear-gradient(45deg, rgba(30,64,175,.05) 0 1px, transparent 1px 78px),
+          repeating-linear-gradient(-45deg, rgba(30,64,175,.05) 0 1px, transparent 1px 78px);"></div>
+
+    <div class="relative max-w-shell mx-auto px-6 h-full">
+      <div class="grid lg:grid-cols-2 gap-10 items-center h-full min-h-[560px] py-10">
+        <!-- 左：一般圖片 -->
+        <div class="hidden lg:flex items-center justify-center">
+          <img src="./assets/wish-hero.png" alt="AI 技術導入示意" class="w-full max-w-[560px] h-auto" onerror="this.style.display='none'" />
+        </div>
+        <!-- 右：三種狀態（許願 → 思考中 → 結果），就地切換、不往下長 -->
+        <div class="unroll max-w-xl w-full">
+
+        <!-- 狀態①：許願 -->
+        <div id="wishAsk">
+          <span class="eyebrow inline-flex items-center gap-2 text-[11px] font-bold text-violet uppercase mb-4"><span class="w-1.5 h-1.5 rounded-full bg-violet"></span> AI 技術健診 · 匿名許願</span>
+          <h1 class="text-ink font-black tracking-tight text-[clamp(1.9rem,3vw,2.6rem)] leading-[1.2] mb-3">對 AI 許個願，看它適合用哪些 <span class="text-transparent bg-clip-text" style="background-image:linear-gradient(90deg,#1e40af,#7c3aed)">AI 技術</span> 實現</h1>
+          <p class="text-[1.02rem] text-muted leading-relaxed mb-5">描述你的需求或痛點（愈具體愈好），系統將分析並建議最適合導入的 AI 技術與導入方向。</p>
+          <div class="ask-panel p-3">
+            <textarea id="wishInput" rows="3" maxlength="1000" class="w-full border-none focus:ring-0 resize-none bg-transparent px-2 pt-1 text-[15px] text-ink placeholder:text-muted" placeholder="例如：我們有大量紙本合約與發票，想自動抓出關鍵欄位，並能用問句查詢內容…"></textarea>
+            <div class="flex items-center justify-between gap-3 px-2 pt-1">
+              <span id="wishHint" class="text-[12px] text-muted inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px]">lock</span> 匿名送出，不會顯示他人願望</span>
+              <button id="wishBtn" class="shrink-0 inline-flex items-center gap-2 h-10 px-5 rounded-lg text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm" style="background-image:linear-gradient(90deg,#1e40af,#7c3aed)">
+                <span class="material-symbols-outlined text-[18px]">auto_awesome</span> 許願 · 分析
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 狀態②：思考中 -->
+        <div id="wishThinking" class="hidden">
+          <div class="ask-panel px-6 py-10 text-center">
+            <div class="thinking-orb"><span class="material-symbols-outlined text-[26px]">auto_awesome</span></div>
+            <p class="text-ink font-black text-[16px] mt-5">AI 正在為你的願望做技術健診</p>
+            <p id="thinkStep" class="text-muted text-[13px] mt-1.5">分析你的需求…</p>
+          </div>
+        </div>
+
+        <!-- 狀態③：結果（限高、內部可捲、不撐破畫面）-->
+        <div id="wishResult" class="hidden">
+          <div class="bg-white border border-line rounded-2xl shadow-[0_18px_44px_rgba(15,30,70,.10)] overflow-hidden">
+            <div class="flex items-center justify-between gap-3 px-5 py-3 border-b border-line bg-soft/60">
+              <span class="font-black text-ink text-[15px] inline-flex items-center gap-1.5"><span class="material-symbols-outlined text-[19px] text-brand">tips_and_updates</span> AI 給你的分析與建議</span>
+              <button id="wishAgain" class="text-brand text-[13px] font-bold inline-flex items-center gap-1 hover:text-brand2 transition-colors"><span class="material-symbols-outlined text-[16px]">replay</span> 重新許願</button>
+            </div>
+            <div class="px-5 py-4 overflow-y-auto" style="max-height:min(68vh,560px)">
+              <div id="wishIntro" class="mb-3"></div>
+              <ul id="wishPoints" class="flex flex-col gap-2 mb-3"></ul>
+              <p class="eyebrow text-[11px] font-black text-muted uppercase tracking-wider mb-1 text-center">各方案適合度</p>
+              <div id="wishRadar" style="width:100%;height:240px"></div>
+              <div id="wishNext" class="mt-2 text-[13px] text-brand font-bold flex items-start gap-1.5 justify-center hidden"><span class="material-symbols-outlined text-[17px]">flag</span><span id="wishNextText"></span></div>
+            </div>
+          </div>
+        </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 底部產業輪播（同首頁）-->
+  <section class="shrink-0 bg-brand overflow-hidden" aria-label="涵蓋產業">
+    <div class="flex whitespace-nowrap w-max marquee">
+      <div class="flex items-center gap-10 px-5 py-3 text-white/85 eyebrow text-[12px] font-bold">
+        <span>SMART MANUFACTURING</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>ENTERPRISE OPS</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>HEALTHCARE</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>FINTECH</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>ESG</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>CONSTRUCTION</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>RETAIL</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>LOGISTICS</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>EDUCATION</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+      </div>
+      <div class="flex items-center gap-10 px-5 py-3 text-white/85 eyebrow text-[12px] font-bold" aria-hidden="true">
+        <span>SMART MANUFACTURING</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>ENTERPRISE OPS</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>HEALTHCARE</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>FINTECH</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>ESG</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>CONSTRUCTION</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>RETAIL</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>LOGISTICS</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+        <span>EDUCATION</span><i class="w-1 h-1 rounded-full bg-white/50"></i>
+      </div>
+    </div>
+  </section>
+
+  <script src="./agents.generated.js"></script>
+  <script src="./agents.js"></script>
+  <script src="./shared/hub-nav.js"></script>
+  <script>
+    (function () {
+      var $ = function (s) { return document.querySelector(s); };
+      var API = (location.hostname === "localhost" || location.hostname === "127.0.0.1") ? "http://localhost:4610/wish" : "/wish";
+      var btn = $("#wishBtn"), input = $("#wishInput"), busy = false, stepTimer = null;
+      function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); }
+      function show(state) {
+        $("#wishAsk").classList.toggle("hidden", state !== "ask");
+        $("#wishThinking").classList.toggle("hidden", state !== "think");
+        $("#wishResult").classList.toggle("hidden", state !== "result");
+      }
+      function startThinking() {
+        show("think");
+        var steps = ["分析你的需求…", "比對適合的 AI 技術…", "整理成白話建議…"], i = 0;
+        $("#thinkStep").textContent = steps[0];
+        stepTimer = setInterval(function () { i = (i + 1) % steps.length; $("#thinkStep").textContent = steps[i]; }, 2200);
+      }
+      function stopThinking() { if (stepTimer) { clearInterval(stepTimer); stepTimer = null; } }
+      var radar = null;
+      function scoreOf(fit) { return fit === "高" ? 95 : (fit === "低" ? 48 : 72); }
+      function render(r) {
+        var recs = (r.recommendations || r.technologies || []).slice(0, 5);
+        // 上方：你的狀況 + 建議方向（用底色標註重點，白話）
+        var intro = "";
+        if (r.problem) intro += '<div class="text-[13.5px] leading-relaxed mb-1.5"><span class="inline-block bg-amber-100 text-amber-800 font-bold rounded px-1.5 py-0.5 text-[12px] mr-1.5 align-middle">你的狀況</span><span class="text-ink">' + esc(r.problem) + '</span></div>';
+        if (r.summary) intro += '<div class="text-[13.5px] leading-relaxed"><span class="inline-block bg-brand/10 text-brand font-bold rounded px-1.5 py-0.5 text-[12px] mr-1.5 align-middle">建議方向</span><span class="text-ink">' + esc(r.summary) + '</span></div>';
+        $("#wishIntro").innerHTML = intro ? '<div class="bg-soft border border-line rounded-xl px-4 py-3">' + intro + '</div>' : "";
+        // 重點建議：能力(底色標註) + 白話效益 + 技術補充
+        $("#wishPoints").innerHTML = recs.map(function (t) {
+          var cap = t.capability || t.short || "", tech = t.tech || t.name || "", benefit = t.benefit || t.why || "", fit = t.fit || "中";
+          return '<li class="bg-white border border-line rounded-xl px-3.5 py-2.5 shadow-sm">' +
+            '<div class="text-[13.5px] text-ink leading-snug"><span class="inline-block bg-brand/10 text-brand font-black rounded px-1.5 py-0.5 text-[12px] mr-1.5 align-middle">' + esc(cap) + '</span>' + esc(benefit) + '</div>' +
+            (tech ? '<div class="text-[11px] text-muted mt-1.5">適用技術：' + esc(tech) + ' · <span class="fitpill ' + esc(fit) + ' font-bold px-1.5 py-0.5 rounded-full">適合度 ' + esc(fit) + '</span></div>' : '') +
+            '</li>';
+        }).join("");
+        var nx = $("#wishNext");
+        if (r.next_step) { $("#wishNextText").textContent = "建議第一步：" + r.next_step; nx.classList.remove("hidden"); } else nx.classList.add("hidden");
+        show("result");
+        // 雷達圖：軸=白話能力，tooltip 顯示白話效益+技術（appendToBody 避免被卡片裁切）
+        var el = $("#wishRadar");
+        if (radar) { try { radar.dispose(); } catch (e) {} radar = null; }
+        if (recs.length >= 3 && window.echarts) {
+          radar = echarts.init(el);
+          radar.setOption({
+            tooltip: {
+              trigger: "item", confine: true, appendToBody: true,
+              backgroundColor: "#0f1e46", borderWidth: 0, textStyle: { color: "#fff", fontSize: 12 },
+              extraCssText: "max-width:250px;white-space:normal;line-height:1.5;box-shadow:0 10px 28px rgba(0,0,0,.22);z-index:99999",
+              formatter: function (p) {
+                var t = recs[p.dataIndex] || recs[0];
+                return '<b>' + esc(t.capability || t.short || "") + '</b>（適合度 ' + esc(t.fit || "") + '）<br/>' + esc(t.benefit || t.why || "") + (t.tech || t.name ? '<br/><span style="opacity:.7">技術：' + esc(t.tech || t.name) + '</span>' : '');
+              }
+            },
+            radar: {
+              indicator: recs.map(function (t) { return { name: (t.capability || t.short || t.tech || t.name || ""), max: 100 }; }),
+              radius: "60%", center: ["50%", "55%"],
+              axisName: { color: "#334155", fontSize: 12, fontWeight: 700 },
+              splitLine: { lineStyle: { color: "#e2e8f0" } }, axisLine: { lineStyle: { color: "#e2e8f0" } },
+              splitArea: { areaStyle: { color: ["#f8fafc", "#ffffff"] } }
+            },
+            series: [{ type: "radar", symbolSize: 5,
+              data: [{ value: recs.map(function (t) { return scoreOf(t.fit); }),
+                lineStyle: { color: "#2563eb", width: 2 }, itemStyle: { color: "#7c3aed" },
+                areaStyle: { color: "rgba(37,99,235,.16)" } }] }]
+          });
+        } else {
+          el.innerHTML = '<div class="flex flex-col gap-2 pt-2">' + recs.map(function (t) {
+            return '<div class="flex items-center justify-between bg-soft border border-line rounded-lg px-3 py-2"><span class="text-[14px] font-bold text-ink">' + esc(t.capability || t.tech || t.name || "") + '</span><span class="fitpill ' + esc(t.fit || "中") + ' text-[11px] font-bold px-2 py-0.5 rounded-full">適合度 ' + esc(t.fit || "中") + '</span></div>';
+          }).join("") + '</div>';
+        }
+      }
+      async function go() {
+        var v = (input.value || "").trim();
+        if (!v || busy) return;
+        busy = true; startThinking();
+        try {
+          var res = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ need: v }) });
+          var data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error || ("HTTP " + res.status));
+          stopThinking(); render(data);
+        } catch (e) {
+          stopThinking(); show("ask");
+          $("#wishHint").textContent = "分析失敗：" + (e.message || "請稍後再試") + "（請確認後端已啟動）";
+        } finally { busy = false; }
+      }
+      btn.addEventListener("click", go);
+      input.addEventListener("keydown", function (e) { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") go(); });
+      $("#wishAgain").addEventListener("click", function () { show("ask"); });
+      window.addEventListener("resize", function () { if (radar) { try { radar.resize(); } catch (e) { } } });
+    })();
+  </script>
+</body>
+</html>

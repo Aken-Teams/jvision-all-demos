@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio, json
 from aiohttp import web
 import llm, orchestrator, registry
+import wish
 
 PORT = 4610
 
@@ -75,14 +76,46 @@ async def handle_run(request):
     return resp
 
 
+async def handle_wish(request):
+    """許願分析：{need} → gemma4 建議適合的 AI 技術 → 存 MySQL（匿名）。"""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    need = (body.get("need") or "").strip()[:1000]
+    if not need:
+        resp = web.json_response({"error": "請描述你的需求"}, status=400)
+        _cors(resp); return resp
+    loop = asyncio.get_event_loop()
+    try:
+        result = await loop.run_in_executor(None, wish.analyze, need)
+    except Exception as ex:
+        resp = web.json_response({"error": f"AI 分析失敗：{type(ex).__name__}"}, status=502)
+        _cors(resp); return resp
+    try:
+        await loop.run_in_executor(None, wish.save, need, result)
+        result["saved"] = True
+    except Exception:
+        result["saved"] = False
+    resp = web.json_response(result)
+    _cors(resp); return resp
+
+
 def make_app():
     app = web.Application()
     app.router.add_post("/run", handle_run)
     app.router.add_options("/run", handle_options)
     app.router.add_get("/health", handle_health)
+    app.router.add_post("/wish", handle_wish)
+    app.router.add_options("/wish", handle_options)
     return app
 
 
 if __name__ == "__main__":
+    try:
+        wish.ensure_table()
+        print("[wish] MySQL 資料表就緒（ai_wish_analysis）")
+    except Exception as e:
+        print(f"[wish] 警告：資料表建立/連線失敗：{type(e).__name__}: {e}")
     print(f"JVision Agents 後端啟動於 http://localhost:{PORT}  (claude={llm.available()})")
     web.run_app(make_app(), host="127.0.0.1", port=PORT, print=None)
