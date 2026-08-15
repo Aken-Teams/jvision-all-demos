@@ -381,6 +381,12 @@ function renderAgentMarketplace() {
   if (clearEl) clearEl.addEventListener("click", () => { state.q = ""; state.cat = ""; state.big = ""; state.status = ""; state.visible = PAGE; if (searchEl) searchEl.value = ""; apply(); });
   if (moreEl) moreEl.addEventListener("click", () => { state.visible += PAGE; apply(); });
   paintCats(); paintStatus(); apply();
+
+  /* 對外的小 API：手機版底部大分類列用它切換篩選（桌機行為不變） */
+  window.jvAgentFilter = {
+    setBig(key) { state.cat = ""; state.big = key || ""; state.open = key || ""; state.visible = PAGE; apply(); },
+    getBig() { return state.big; },
+  };
 }
 
 /* 產出範例：依 agent 功能，用不同版型呈現「它真的會產出什麼」 */
