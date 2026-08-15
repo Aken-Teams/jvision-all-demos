@@ -464,7 +464,10 @@ function renderProfile() {
   const sameBig = AGENTS.filter((x) => x.big === a.big && x.cat !== a.cat);
   const labels = ["交叉驗證", "交棒協作", "彙整交付"];
   const seenCat = {};
-  for (const x of sameBig) { if (partners.length >= 4) break; if (seenCat[x.cat]) continue; seenCat[x.cat] = 1; partners.push({ a: x, label: labels[(partners.length - 1) % labels.length] }); }
+  // 用獨立計數器取標籤：看這位 agent 自己是不是總指揮（那時上面不會 push orch），
+  // 若沿用 partners.length - 1 會在第一筆算出 labels[-1] → undefined
+  let li = 0;
+  for (const x of sameBig) { if (partners.length >= 4) break; if (seenCat[x.cat]) continue; seenCat[x.cat] = 1; partners.push({ a: x, label: labels[li++ % labels.length] }); }
   while (partners.length < 4) { const x = AGENTS.find((y) => y.id !== a.id && !partners.some((p) => p.a.id === y.id)); if (!x) break; partners.push({ a: x, label: "協作" }); }
   const pos = ["top-2 left-2", "top-2 right-2", "bottom-2 left-2", "bottom-2 right-2"];
   set("#pfGraphNodes", partners.slice(0, 4).map((pr, i) => `
