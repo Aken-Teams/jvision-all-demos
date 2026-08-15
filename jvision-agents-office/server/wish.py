@@ -40,23 +40,24 @@ TECH_MENU = ("RAG 檢索增強生成、OCR 光學字元辨識、LLM 大型語言
              "知識圖譜、語意搜尋、文件分類、命名實體辨識 NER、RPA 流程自動化、多模態 AI、"
              "情感分析、機器翻譯、聚類分群、強化學習")
 
+RADAR_DIMS = ["效益潛力", "可行性", "資料就緒度", "自動化空間", "導入急迫度"]
+
 SYS = (
     "你是企業 AI 導入顧問，面對的是【不懂技術的一般使用者】。使用者描述需求或痛點，你要用【白話、貼近他實際狀況】的方式，"
-    "讓他知道：他遇到的問題本質是什麼、可以怎麼改善、以及 AI 能幫他做到什麼。\n"
-    "全程繁體中文（台灣用語），不要自稱 ChatGPT 或 OpenAI。\n"
-    "【最重要】不要只丟技術名詞（例如只說『用自然語言處理』外行人看不懂）。"
-    "請先用白話講『這能幫你做到什麼、解決你什麼狀況』，把艱深的技術名只當『補充標註』。\n"
-    f"可挑選的 AI 技術（3–5 個最關鍵的）：{TECH_MENU}。\n"
+    "讓他知道：他遇到的問題本質是什麼、可以怎麼改善、適合哪些 AI 技術，並針對他的狀況做一份評估。\n"
+    "全程繁體中文（台灣用語），不要自稱 ChatGPT 或 OpenAI。用白話、精簡。\n"
+    f"從下列 AI 技術中挑出 3–5 個最貼切的做成技術標籤：{TECH_MENU}。\n"
+    "另外針對『這位使用者的需求』在 5 個固定面向各打一個 0–100 分（要依他的描述給出【有高低差異】的分數，不要全部給高分；有把握就給高、資訊不足或難度高就給中低）：\n"
+    "  效益潛力＝導入後幫助有多大；可行性＝以現有技術落地的容易度；資料就緒度＝他手上資料是否足夠可用；"
+    "自動化空間＝可被自動化取代的人工比例；導入急迫度＝這件事有多需要盡快處理。\n"
     "只輸出 JSON（不要 markdown 圍欄、不要多餘文字、不要註解）：\n"
-    '{"problem":"用白話點出使用者遇到的問題本質（1 句，站在他的角度，例：你的困擾是大量文件靠人工整理、又花時間又容易漏）",'
+    '{"problem":"用白話點出使用者遇到的問題本質（1 句，站在他的角度）",'
     '"summary":"建議的解決方向（1 句白話，不用艱深術語）",'
     '"recommendations":[{'
-    '"capability":"白話能力標籤，4-8字（雷達圖軸用，例：自動讀文件、看懂語意、情緒判斷、找關鍵資訊、預測故障、智慧問答）",'
-    '"tag":"2-6字的技術短標籤（做成標籤用，例：OCR、NER、RAG、LLM、電腦視覺）",'
-    '"benefit":"白話說這能幫你做到什麼、解決你什麼狀況（1 句，站在使用者角度，不要只寫技術名）",'
-    '"tech":"背後用到的 AI 技術名稱（hover 補充用，例：自然語言處理 NLP）",'
-    '"fit":"高/中/低"}],'
-    '"next_step":"白話的第一步建議（1 句）"}'
+    '"tag":"2-6字技術短標籤（例：OCR、NER、RAG、LLM）",'
+    '"tech":"完整技術名（hover 補充用，例：自然語言處理 NLP）",'
+    '"benefit":"白話說這技術能幫你做到什麼（1 句，站在使用者角度）"}],'
+    '"scores":{"效益潛力":0-100,"可行性":0-100,"資料就緒度":0-100,"自動化空間":0-100,"導入急迫度":0-100}}'
 )
 
 
@@ -75,43 +76,63 @@ def _extract_json(text):
 
 
 def analyze(need: str) -> dict:
-    """呼叫 gemma4（非串流、帶瀏覽器 UA 避開 Cloudflare）→ 回結構化建議。"""
-    body = json.dumps({
-        "model": OLLAMA_MODEL,
-        "messages": [{"role": "system", "content": SYS}, {"role": "user", "content": f"我的需求：{need}"}],
-        "max_tokens": 2000, "stream": False,
-    }).encode("utf-8")
-    req = urllib.request.Request(f"{OLLAMA_URL}/v1/chat/completions", method="POST", data=body,
-                                 headers={"Authorization": f"Bearer {OLLAMA_KEY}", "Content-Type": "application/json",
-                                          "User-Agent": UA, "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=120, context=ssl.create_default_context()) as r:
-        data = json.loads(r.read())
-    msg = data["choices"][0]["message"]
-    text = (msg.get("content") or msg.get("reasoning") or "").strip()
-    parsed = _extract_json(text) or {}
+    """呼叫 gemma4（非串流、帶瀏覽器 UA 避開 Cloudflare）→ 回結構化建議。
+    thinking 模型有時把 token 花在思考、content 回空；只解析 content，失敗就重試幾次。"""
+    def _gateway():
+        body = json.dumps({
+            "model": OLLAMA_MODEL,
+            "messages": [{"role": "system", "content": SYS}, {"role": "user", "content": f"我的需求：{need}"}],
+            "max_tokens": 3500, "stream": False,
+        }).encode("utf-8")
+        req = urllib.request.Request(f"{OLLAMA_URL}/v1/chat/completions", method="POST", data=body,
+                                     headers={"Authorization": f"Bearer {OLLAMA_KEY}", "Content-Type": "application/json",
+                                              "User-Agent": UA, "Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=120, context=ssl.create_default_context()) as r:
+            data = json.loads(r.read())
+        return (data["choices"][0]["message"].get("content") or "").strip()
+
+    parsed, last_err, text = None, None, ""
+    for _ in range(3):  # content 空/JSON 壞 → 重試（thinking 模型非決定性）
+        try:
+            content = _gateway()
+        except Exception as e:
+            last_err = e; continue
+        if content:
+            text = content
+        p = _extract_json(content)
+        if p and (p.get("problem") or p.get("recommendations") or p.get("scores")):
+            parsed = p; break
+    if parsed is None:
+        if last_err is not None:
+            raise last_err
+        parsed = {}
     items = parsed.get("recommendations") or parsed.get("technologies") or []
     clean = []
-    for t in items[:5]:
+    for t in items[:6]:
         if not isinstance(t, dict):
             continue
-        cap = str(t.get("capability") or t.get("short") or "").strip()[:10]
         tech = str(t.get("tech") or t.get("name") or "").strip()[:40]
-        tag = str(t.get("tag") or "").strip()[:8]
+        tag = str(t.get("tag") or t.get("capability") or "").strip()[:8]
         benefit = str(t.get("benefit") or t.get("why") or "").strip()[:90]
-        fit = (str(t.get("fit", "中")).strip()[:4] or "中")
-        if not (cap or tech or benefit):
+        if not (tag or tech or benefit):
             continue
-        if not cap:
-            cap = (tech.split(" ")[0] or "AI 能力")[:8]
         if not tag:
-            tag = (tech.split(" ")[0] if tech else cap)[:8]
-        clean.append({"capability": cap, "tag": tag, "benefit": benefit, "tech": tech or cap, "fit": fit})
+            tag = (tech.split(" ")[0] or "AI")[:8]
+        clean.append({"tag": tag, "tech": tech or tag, "benefit": benefit})
     if not clean:
-        clean = [{"capability": "AI 輔助", "tag": "LLM", "benefit": "先用 AI 理解並歸納你的需求，找出可自動化的環節。", "tech": "大型語言模型 LLM", "fit": "中"}]
+        clean = [{"tag": "LLM", "tech": "大型語言模型 LLM", "benefit": "先用 AI 理解並歸納你的需求，找出可自動化的環節。"}]
+    # 5 個固定面向評分（依需求給有高低差的分數；缺/不合理則給中性 65）
+    sc = parsed.get("scores") or {}
+    radar = []
+    for name in RADAR_DIMS:
+        try:
+            v = int(float(sc.get(name)))
+        except Exception:
+            v = 65
+        radar.append({"name": name, "score": max(20, min(100, v))})
     return {"problem": str(parsed.get("problem", "")).strip()[:150],
             "summary": (str(parsed.get("summary", "")).strip()[:200] or text[:150]),
-            "recommendations": clean,
-            "next_step": str(parsed.get("next_step", "")).strip()[:150]}
+            "recommendations": clean, "radar": radar}
 
 
 def ensure_table():

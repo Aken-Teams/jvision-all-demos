@@ -64,7 +64,7 @@
     </nav>
   </header>
 
-  <section class="stage flex-1 min-h-0 flex overflow-y-auto overflow-x-hidden">
+  <section class="stage flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
     <!-- 底層淡色 -->
     <div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(180deg,#f7faff,#ffffff)"></div>
     <!-- 菱形方格：鋪滿整頁 -->
@@ -121,7 +121,7 @@
               <div id="wishTags" class="flex flex-wrap gap-2 mb-4"></div>
               <!-- 雷達圖（細節放 tooltip）-->
               <div id="wishRadar" style="width:100%;height:260px"></div>
-              <p class="text-[11px] text-muted text-center -mt-1">滑鼠移到圖上看各技術說明</p>
+              <p class="text-[11px] text-muted text-center -mt-1">此為 AI 對你需求的 5 面向評估 · 技術標籤可滑鼠停留看說明</p>
             </div>
           </div>
         </div>
@@ -181,53 +181,51 @@
       }
       function stopThinking() { if (stepTimer) { clearInterval(stepTimer); stepTimer = null; } }
       var radar = null;
-      function scoreOf(fit) { return fit === "高" ? 95 : (fit === "低" ? 48 : 72); }
       function render(r) {
-        var recs = (r.recommendations || r.technologies || []).slice(0, 5);
+        var recs = (r.recommendations || []).slice(0, 6);
+        var dims = r.radar || [];
         // 你的問題（琥珀底標）+ 建議方向（重點，藍色左邊條）
         var intro = "";
         if (r.problem) intro += '<div class="text-[13.5px] leading-relaxed mb-2.5"><span class="inline-block bg-amber-100 text-amber-800 font-bold rounded px-2 py-0.5 text-[12px] mr-1.5 align-middle">你的問題</span><span class="text-body">' + esc(r.problem) + '</span></div>';
         if (r.summary) intro += '<div class="rounded-xl bg-brand/5 border-l-[3px] border-brand pl-3 pr-3 py-2.5"><span class="block eyebrow text-[10.5px] font-black text-brand uppercase tracking-wider mb-0.5">AI 建議方向</span><span class="text-[14.5px] text-ink font-semibold leading-relaxed">' + esc(r.summary) + '</span></div>';
         $("#wishIntro").innerHTML = intro;
-        // 濃縮技術標籤（每個建議一個短標籤、去重）
-        var seen = {}, tags = [];
-        recs.forEach(function (t) { var g = (t.tag || t.capability || "").trim(); if (g && !seen[g]) { seen[g] = 1; tags.push(g); } });
-        $("#wishTags").innerHTML = tags.slice(0, 5).map(function (g) {
-          return '<span class="inline-flex items-center gap-1 bg-brand/10 text-brand text-[12.5px] font-bold rounded-full px-3 py-1"><span class="material-symbols-outlined text-[15px]">bolt</span>' + esc(g) + '</span>';
+        // 技術標籤（去重）；hover 顯示白話效益 + 技術全名
+        var seen = {};
+        $("#wishTags").innerHTML = recs.map(function (t) {
+          var g = (t.tag || "").trim(); if (!g || seen[g]) return ""; seen[g] = 1;
+          var tip = (t.benefit || "") + (t.tech ? "｜技術：" + t.tech : "");
+          return '<span class="group relative inline-flex items-center gap-1 bg-brand/10 text-brand text-[12.5px] font-bold rounded-full px-3 py-1 cursor-default">' +
+            '<span class="material-symbols-outlined text-[15px]">bolt</span>' + esc(g) +
+            (tip ? '<span class="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-max max-w-[240px] whitespace-normal text-left bg-ink text-white font-normal text-[12px] leading-relaxed rounded-lg px-3 py-2 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">' +
+              esc(t.benefit || "") + (t.tech ? '<span class="block opacity-70 mt-0.5">技術：' + esc(t.tech) + '</span>' : '') + '</span>' : '') +
+            '</span>';
         }).join("");
         show("result");
-        // 雷達圖：軸=白話能力，tooltip 顯示白話效益+技術（appendToBody 避免被卡片裁切）
+        // 雷達圖：5 個「固定面向」對這個需求的評分（不是把技術當軸）
         var el = $("#wishRadar");
         if (radar) { try { radar.dispose(); } catch (e) {} radar = null; }
-        if (recs.length >= 3 && window.echarts) {
+        if (dims.length >= 3 && window.echarts) {
           radar = echarts.init(el);
           radar.setOption({
             tooltip: {
               trigger: "item", confine: true, appendToBody: true,
               backgroundColor: "#0f1e46", borderWidth: 0, textStyle: { color: "#fff", fontSize: 12 },
-              extraCssText: "max-width:250px;white-space:normal;line-height:1.5;box-shadow:0 10px 28px rgba(0,0,0,.22);z-index:99999",
-              formatter: function (p) {
-                var t = recs[p.dataIndex] || recs[0];
-                return '<b>' + esc(t.capability || t.short || "") + '</b><br/>' + esc(t.benefit || t.why || "") + (t.tech || t.name ? '<br/><span style="opacity:.7">技術：' + esc(t.tech || t.name) + '</span>' : '');
-              }
+              extraCssText: "max-width:220px;white-space:normal;line-height:1.6;box-shadow:0 10px 28px rgba(0,0,0,.22);z-index:99999",
+              formatter: function () { return dims.map(function (d) { return d.name + '：<b>' + d.score + '</b>'; }).join("<br/>"); }
             },
             radar: {
-              indicator: recs.map(function (t) { return { name: (t.capability || t.short || t.tech || t.name || ""), max: 100 }; }),
-              radius: "60%", center: ["50%", "55%"],
+              indicator: dims.map(function (d) { return { name: d.name, max: 100 }; }),
+              radius: "62%", center: ["50%", "55%"],
               axisName: { color: "#334155", fontSize: 12, fontWeight: 700 },
               splitLine: { lineStyle: { color: "#e2e8f0" } }, axisLine: { lineStyle: { color: "#e2e8f0" } },
               splitArea: { areaStyle: { color: ["#f8fafc", "#ffffff"] } }
             },
             series: [{ type: "radar", symbolSize: 5,
-              data: [{ value: recs.map(function (t) { return scoreOf(t.fit); }),
+              data: [{ value: dims.map(function (d) { return d.score; }),
                 lineStyle: { color: "#2563eb", width: 2 }, itemStyle: { color: "#7c3aed" },
                 areaStyle: { color: "rgba(37,99,235,.16)" } }] }]
           });
-        } else {
-          el.innerHTML = '<div class="flex flex-wrap gap-2 justify-center pt-4">' + recs.map(function (t) {
-            return '<span class="bg-soft border border-line rounded-full px-3.5 py-1.5 text-[13.5px] font-bold text-ink">' + esc(t.capability || t.tag || t.tech || "") + '</span>';
-          }).join("") + '</div>';
-        }
+        } else { el.innerHTML = ""; }
       }
       async function go() {
         var v = (input.value || "").trim();
