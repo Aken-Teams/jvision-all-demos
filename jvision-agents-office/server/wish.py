@@ -82,7 +82,7 @@ def analyze(need: str) -> dict:
         body = json.dumps({
             "model": OLLAMA_MODEL,
             "messages": [{"role": "system", "content": SYS}, {"role": "user", "content": f"我的需求：{need}"}],
-            "max_tokens": 3500, "stream": False,
+            "max_tokens": 7000, "stream": False,
         }).encode("utf-8")
         req = urllib.request.Request(f"{OLLAMA_URL}/v1/chat/completions", method="POST", data=body,
                                      headers={"Authorization": f"Bearer {OLLAMA_KEY}", "Content-Type": "application/json",
