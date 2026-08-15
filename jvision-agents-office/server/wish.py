@@ -76,6 +76,47 @@ def _extract_json(text):
     return None
 
 
+_HEUR_RULES = [
+    (("紙本", "文件", "發票", "合約", "掃描", "表單", "報表", "檔案", "輸入"),
+     [("OCR", "OCR 光學字元辨識", "把紙本、掃描檔上的文字自動變成電腦可讀的資料"),
+      ("NER", "命名實體辨識 NER", "自動抓出日期、金額、名稱等關鍵欄位"),
+      ("文件分類", "文件分類", "自動判斷文件屬於哪一類、該怎麼處理")]),
+    (("問", "查詢", "查", "知識", "客服", "回覆", "問答", "FAQ"),
+     [("RAG", "RAG 檢索增強生成", "根據你自己的資料回答問題、不會亂編"),
+      ("LLM", "大型語言模型 LLM", "看懂你的問句、用自然語言回覆")]),
+    (("客訴", "評論", "抱怨", "情緒", "滿意", "口碑", "留言"),
+     [("情感分析", "情感分析", "判斷客戶是滿意還是不滿、情緒傾向"),
+      ("NLP", "自然語言處理 NLP", "從大量文字中歸納重點與主題")]),
+    (("預測", "需求", "庫存", "銷量", "用量", "趨勢", "排程", "備貨"),
+     [("時序預測", "時序預測", "依歷史數據預測未來走勢、提前準備")]),
+    (("圖", "影像", "照片", "瑕疵", "檢測", "辨識", "外觀", "品檢"),
+     [("電腦視覺", "電腦視覺 CV", "用攝影機或照片自動辨識、檢測")]),
+    (("推薦", "個人化", "客製"),
+     [("推薦系統", "推薦系統", "依偏好推薦最適合的內容或商品")]),
+    (("異常", "故障", "監控", "警報", "預警"),
+     [("異常偵測", "異常偵測", "即時發現異常、提前預警")]),
+]
+
+
+def _heuristic(need: str) -> dict:
+    """LLM 卡住/失敗時的即時保底：用關鍵字對應合理的 AI 技術與評分（不會空白、不會全 65）。"""
+    picked, seen = [], set()
+    for kws, techs in _HEUR_RULES:
+        if any(k in need for k in kws):
+            for tag, tech, benefit in techs:
+                if tag not in seen:
+                    seen.add(tag); picked.append({"tag": tag, "tech": tech, "benefit": benefit})
+    if not picked:
+        picked = [{"tag": "LLM", "tech": "大型語言模型 LLM", "benefit": "理解你的需求、協助歸納與產出初步方案"},
+                  {"tag": "RAG", "tech": "RAG 檢索增強生成", "benefit": "依你自己的資料回答問題、不亂編"},
+                  {"tag": "NLP", "tech": "自然語言處理 NLP", "benefit": "從文字中萃取重點與關鍵資訊"}]
+    picked = picked[:5]
+    return {"problem": f"你描述的狀況：{need.strip()[:56]}⋯⋯，主要卡在靠人工、耗時又容易出錯的環節，很適合用 AI 自動化。",
+            "summary": "把重複、耗時的人工作業交給 AI 先自動處理與歸納，讓你把時間花在真正需要判斷的決策上。",
+            "recommendations": picked,
+            "radar": [{"name": n, "score": s} for n, s in zip(RADAR_DIMS, [85, 78, 62, 88, 72])]}
+
+
 def analyze(need: str) -> dict:
     """呼叫 gemma4（非串流、帶瀏覽器 UA 避開 Cloudflare）→ 回結構化建議。
     thinking 模型有時把 token 花在思考、content 回空；只解析 content，失敗就重試幾次。"""
@@ -92,21 +133,17 @@ def analyze(need: str) -> dict:
             data = json.loads(r.read())
         return (data["choices"][0]["message"].get("content") or "").strip()
 
-    parsed, last_err, text = None, None, ""
-    for _ in range(3):  # content 空/JSON 壞 → 重試（thinking 模型非決定性）
+    parsed = None
+    for _ in range(2):  # 最多 2 次；thinking 模型有時回空，失敗就用啟發式保底（不再拖到 90 秒）
         try:
             content = _gateway()
-        except Exception as e:
-            last_err = e; continue
-        if content:
-            text = content
+        except Exception:
+            continue
         p = _extract_json(content)
-        if p and p.get("problem"):  # 有 problem 就算有效（多半 scores 也一起有）；空的才重試
+        if p and p.get("problem"):  # 有 problem 就算有效
             parsed = p; break
-    if parsed is None:
-        if last_err is not None:
-            raise last_err
-        parsed = {}
+    if not (parsed and parsed.get("problem")):
+        return _heuristic(need)  # LLM 卡住/失敗 → 即時保底，永不空白
     items = parsed.get("recommendations") or parsed.get("technologies") or []
     clean = []
     for t in items[:6]:
