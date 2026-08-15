@@ -52,8 +52,9 @@ SYS = (
     '"summary":"建議的解決方向（1 句白話，不用艱深術語）",'
     '"recommendations":[{'
     '"capability":"白話能力標籤，4-8字（雷達圖軸用，例：自動讀文件、看懂語意、情緒判斷、找關鍵資訊、預測故障、智慧問答）",'
+    '"tag":"2-6字的技術短標籤（做成標籤用，例：OCR、NER、RAG、LLM、電腦視覺）",'
     '"benefit":"白話說這能幫你做到什麼、解決你什麼狀況（1 句，站在使用者角度，不要只寫技術名）",'
-    '"tech":"背後用到的 AI 技術名稱（給想深入的人看的補充，例：自然語言處理 NLP）",'
+    '"tech":"背後用到的 AI 技術名稱（hover 補充用，例：自然語言處理 NLP）",'
     '"fit":"高/中/低"}],'
     '"next_step":"白話的第一步建議（1 句）"}'
 )
@@ -95,15 +96,18 @@ def analyze(need: str) -> dict:
             continue
         cap = str(t.get("capability") or t.get("short") or "").strip()[:10]
         tech = str(t.get("tech") or t.get("name") or "").strip()[:40]
+        tag = str(t.get("tag") or "").strip()[:8]
         benefit = str(t.get("benefit") or t.get("why") or "").strip()[:90]
         fit = (str(t.get("fit", "中")).strip()[:4] or "中")
         if not (cap or tech or benefit):
             continue
         if not cap:
             cap = (tech.split(" ")[0] or "AI 能力")[:8]
-        clean.append({"capability": cap, "benefit": benefit, "tech": tech or cap, "fit": fit})
+        if not tag:
+            tag = (tech.split(" ")[0] if tech else cap)[:8]
+        clean.append({"capability": cap, "tag": tag, "benefit": benefit, "tech": tech or cap, "fit": fit})
     if not clean:
-        clean = [{"capability": "AI 輔助", "benefit": "先用 AI 理解並歸納你的需求，找出可自動化的環節。", "tech": "大型語言模型 LLM", "fit": "中"}]
+        clean = [{"capability": "AI 輔助", "tag": "LLM", "benefit": "先用 AI 理解並歸納你的需求，找出可自動化的環節。", "tech": "大型語言模型 LLM", "fit": "中"}]
     return {"problem": str(parsed.get("problem", "")).strip()[:150],
             "summary": (str(parsed.get("summary", "")).strip()[:200] or text[:150]),
             "recommendations": clean,
