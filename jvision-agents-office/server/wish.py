@@ -100,7 +100,7 @@ def analyze(need: str) -> dict:
         if content:
             text = content
         p = _extract_json(content)
-        if p and (p.get("problem") or p.get("recommendations") or p.get("scores")):
+        if p and p.get("problem") and p.get("scores"):  # 要有關鍵欄位才算成功，半成品就重試
             parsed = p; break
     if parsed is None:
         if last_err is not None:
