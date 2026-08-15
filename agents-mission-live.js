@@ -534,7 +534,22 @@
       ".jvr-lightbox{position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.72);display:flex;align-items:center;justify-content:center;padding:24px}" +
       ".jvr-lightbox-body{position:relative;background:#fff;border-radius:16px;width:min(1040px,96vw);padding:20px}" +
       ".jvr-lb-chart{width:100%;height:min(70vh,560px)}" +
-      ".jvr-lb-close{position:absolute;top:8px;right:12px;border:0;background:transparent;font-size:26px;line-height:1;cursor:pointer;color:#64748b}";
+      ".jvr-lb-close{position:absolute;top:8px;right:12px;border:0;background:transparent;font-size:26px;line-height:1;cursor:pointer;color:#64748b}" +
+      /* ---- 手機版：窄畫面下表格會被壓成一字一行，改成整表橫向捲動 ---- */
+      "@media(max-width:767px){" +
+      ".jvr-report{padding:12px 14px;font-size:14px;line-height:1.75}" +
+      ".jvr-h1{font-size:19px}.jvr-h2{font-size:16.5px}.jvr-h3{font-size:15px}" +
+      ".jvr-report .jvr-h{margin:16px 0 6px}" +
+      "ul.jvr-list,ol.jvr-list{padding-left:20px}" +
+      /* 表格給一個舒服的最小寬度，放不下就在 .jvr-tablewrap 裡左右滑 */
+      ".jvr-table{min-width:460px;font-size:13px}" +
+      ".jvr-table th,.jvr-table td{padding:8px 10px}" +
+      ".jvr-tablewrap{margin:10px 0;-webkit-overflow-scrolling:touch}" +
+      ".jvr-chart{margin:12px 0}" +
+      ".jvr-lightbox{padding:12px}.jvr-lightbox-body{padding:14px;width:96vw}" +
+      ".jvr-lb-chart{height:min(64vh,420px)}" +
+      ".jvr-pre{font-size:12px;padding:10px 12px}" +
+      "}";
     var s = document.createElement("style"); s.textContent = css; document.head.appendChild(s);
   })();
 

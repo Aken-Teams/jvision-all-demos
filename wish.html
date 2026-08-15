@@ -19,7 +19,10 @@
     } } };
   </script>
   <style>
+    /* 一屏到底：高度優先用 100dvh（手機網址列會算進去），
+       另有 script 以 window.innerHeight 實測覆寫，確保底部輪播不被切掉。 */
     html, body { height: 100%; }
+    @supports (height: 100dvh) { html, body { height: 100dvh; } }
     body { font-family: Inter, 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; overflow: hidden; }
     .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
     .navlink { position:relative; }
@@ -49,6 +52,24 @@
     .marquee { animation: marquee 34s linear infinite; }
     @keyframes marquee { to { transform: translateX(-50%); } }
     @media (prefers-reduced-motion: reduce) { .marquee,.unroll { animation: none !important; } }
+
+    /* ===== 手機版（<768px）===== */
+    @media (max-width: 767px) {
+      body { overflow-x: hidden; }
+      /* 內容在剩餘空間置中，不要上方擠一塊、下方空一大片 */
+      #wishStage { display: flex; }
+      #wishShell { padding: 1rem 1rem 1.25rem; margin: auto 0; }
+      #wishAsk h1 { font-size: 1.55rem; line-height: 1.24; }
+      #wishAsk > p { font-size: .9rem; }
+      /* 輸入面板：提示與按鈕各自一列，按鈕滿版 */
+      .ask-panel { padding: .625rem; }
+      #wishInput { min-height: 96px; }
+      #wishFoot { flex-direction: column; align-items: stretch; gap: .5rem; padding-left: .25rem; padding-right: .25rem; }
+      #wishBtn { width: 100%; justify-content: center; height: 2.75rem; }
+      /* 結果卡：內部捲動高度依實際視窗算 */
+      #wishBody { max-height: calc(100dvh - 260px) !important; padding: .875rem 1rem; }
+      #wishResult .border-b { padding: .625rem .875rem; }
+    }
   </style>
 </head>
 <body class="text-body antialiased flex flex-col">
@@ -64,7 +85,7 @@
     </nav>
   </header>
 
-  <section class="stage flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+  <section id="wishStage" class="stage flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
     <!-- 底層淡色 -->
     <div class="absolute inset-0 pointer-events-none" style="background:linear-gradient(180deg,#f7faff,#ffffff)"></div>
     <!-- 菱形方格：鋪滿整頁 -->
@@ -72,8 +93,11 @@
         background:
           repeating-linear-gradient(45deg, rgba(30,64,175,.05) 0 1px, transparent 1px 78px),
           repeating-linear-gradient(-45deg, rgba(30,64,175,.05) 0 1px, transparent 1px 78px);"></div>
+    <!-- 手機：把桌機左側的示意圖鋪在底部當背景（桌機仍用左欄那張 img） -->
+    <div class="wish-bg md:hidden absolute inset-0 pointer-events-none" style="background-image:url('./assets/wish-hero.png'); background-repeat:no-repeat;"></div>
+    <div class="wish-bg-scrim md:hidden absolute inset-0 pointer-events-none"></div>
 
-    <div class="relative w-full max-w-shell big:max-w-[1600px] mx-auto px-6 pt-6 xl:pt-8 big:pt-14 pb-6 self-start">
+    <div id="wishShell" class="relative w-full max-w-shell big:max-w-[1600px] mx-auto px-6 pt-6 xl:pt-8 big:pt-14 pb-6 self-start">
       <div class="grid xl:grid-cols-2 gap-10 big:gap-20 items-start">
         <!-- 左：一般圖片（1280 以上才顯示）-->
         <div class="hidden xl:flex items-center justify-center">
@@ -89,7 +113,7 @@
           <p class="text-[14px] xl:text-[15px] big:text-[17px] text-muted leading-relaxed mb-5">描述你的需求或痛點（愈具體愈好），系統將分析並建議最適合導入的 AI 技術與導入方向。</p>
           <div class="ask-panel p-3">
             <textarea id="wishInput" rows="3" maxlength="1000" class="w-full border-none focus:ring-0 resize-none bg-transparent px-2 pt-1 text-[15px] big:text-[16px] text-ink placeholder:text-muted min-h-[84px] xl:min-h-[120px] big:min-h-[210px]" placeholder="例如：我們有大量紙本合約與發票，想自動抓出關鍵欄位，並能用問句查詢內容…"></textarea>
-            <div class="flex items-center justify-between gap-3 px-2 pt-1">
+            <div id="wishFoot" class="flex items-center justify-between gap-3 px-2 pt-1">
               <span id="wishHint" class="text-[12px] text-muted inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px]">lock</span> 匿名送出，不會顯示他人願望</span>
               <button id="wishBtn" class="shrink-0 inline-flex items-center gap-2 h-10 px-5 rounded-lg text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm" style="background-image:linear-gradient(90deg,#1e40af,#7c3aed)">
                 <span class="material-symbols-outlined text-[18px]">auto_awesome</span> 許願 · 分析
@@ -114,7 +138,7 @@
               <span class="font-black text-ink text-[15px] inline-flex items-center gap-1.5"><span class="material-symbols-outlined text-[19px] text-brand">tips_and_updates</span> AI 給你的分析與建議</span>
               <button id="wishAgain" class="text-brand text-[13px] font-bold inline-flex items-center gap-1 hover:text-brand2 transition-colors"><span class="material-symbols-outlined text-[16px]">replay</span> 重新許願</button>
             </div>
-            <div class="px-5 py-4 overflow-y-auto" style="max-height:calc(100dvh - 210px)">
+            <div id="wishBody" class="px-5 py-4 overflow-y-auto" style="max-height:calc(100dvh - 210px)">
               <!-- 你的問題 + 建議方向 -->
               <div id="wishIntro" class="mb-3"></div>
               <!-- 濃縮技術標籤 -->
@@ -162,6 +186,18 @@
   <script src="./agents.generated.js"></script>
   <script src="./agents.js"></script>
   <script src="./shared/hub-nav.js"></script>
+  <script src="./shared/jv-mobile-nav.js"></script>
+  <script>
+    /* 一屏到底：用實測的可見高度鎖住頁面，底部輪播一定看得到 */
+    (function () {
+      function fit() { var h = window.innerHeight; if (!h) return;
+        document.documentElement.style.height = h + "px"; document.body.style.height = h + "px"; }
+      fit();
+      window.addEventListener("resize", fit);
+      window.addEventListener("orientationchange", function () { setTimeout(fit, 250); });
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+    })();
+  </script>
   <script>
     (function () {
       var $ = function (s) { return document.querySelector(s); };
