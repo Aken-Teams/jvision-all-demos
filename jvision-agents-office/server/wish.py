@@ -46,6 +46,7 @@ SYS = (
     "你是企業 AI 導入顧問，面對的是【不懂技術的一般使用者】。使用者描述需求或痛點，你要用【白話、貼近他實際狀況】的方式，"
     "讓他知道：他遇到的問題本質是什麼、可以怎麼改善、適合哪些 AI 技術，並針對他的狀況做一份評估。\n"
     "全程繁體中文（台灣用語），不要自稱 ChatGPT 或 OpenAI。用白話、精簡。\n"
+    "**直接輸出最終 JSON 就好，不要冗長的逐步推理，讓回覆盡量快。**\n"
     f"從下列 AI 技術中挑出 3–5 個最貼切的做成技術標籤：{TECH_MENU}。\n"
     "另外針對『這位使用者的需求』在 5 個固定面向各打一個 0–100 分（要依他的描述給出【有高低差異】的分數，不要全部給高分；有把握就給高、資訊不足或難度高就給中低）：\n"
     "  效益潛力＝導入後幫助有多大；可行性＝以現有技術落地的容易度；資料就緒度＝他手上資料是否足夠可用；"
@@ -100,7 +101,7 @@ def analyze(need: str) -> dict:
         if content:
             text = content
         p = _extract_json(content)
-        if p and p.get("problem") and p.get("scores"):  # 要有關鍵欄位才算成功，半成品就重試
+        if p and p.get("problem"):  # 有 problem 就算有效（多半 scores 也一起有）；空的才重試
             parsed = p; break
     if parsed is None:
         if last_err is not None:

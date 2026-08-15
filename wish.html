@@ -189,16 +189,13 @@
         if (r.problem) intro += '<div class="text-[13.5px] leading-relaxed mb-2.5"><span class="inline-block bg-amber-100 text-amber-800 font-bold rounded px-2 py-0.5 text-[12px] mr-1.5 align-middle">你的問題</span><span class="text-body">' + esc(r.problem) + '</span></div>';
         if (r.summary) intro += '<div class="rounded-xl bg-brand/5 border-l-[3px] border-brand pl-3 pr-3 py-2.5"><span class="block eyebrow text-[10.5px] font-black text-brand uppercase tracking-wider mb-0.5">AI 建議方向</span><span class="text-[14.5px] text-ink font-semibold leading-relaxed">' + esc(r.summary) + '</span></div>';
         $("#wishIntro").innerHTML = intro;
-        // 技術標籤（去重）；hover 顯示白話效益 + 技術全名
+        // 技術標籤（去重）；hover 顯示白話效益 + 技術全名（用 body 浮動 tooltip，避免被面板裁切）
         var seen = {};
+        function eA(s) { return esc(s).replace(/"/g, "&quot;"); }
         $("#wishTags").innerHTML = recs.map(function (t) {
           var g = (t.tag || "").trim(); if (!g || seen[g]) return ""; seen[g] = 1;
-          var tip = (t.benefit || "") + (t.tech ? "｜技術：" + t.tech : "");
-          return '<span class="group relative inline-flex items-center gap-1 bg-brand/10 text-brand text-[12.5px] font-bold rounded-full px-3 py-1 cursor-default">' +
-            '<span class="material-symbols-outlined text-[15px]">bolt</span>' + esc(g) +
-            (tip ? '<span class="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-max max-w-[240px] whitespace-normal text-left bg-ink text-white font-normal text-[12px] leading-relaxed rounded-lg px-3 py-2 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">' +
-              esc(t.benefit || "") + (t.tech ? '<span class="block opacity-70 mt-0.5">技術：' + esc(t.tech) + '</span>' : '') + '</span>' : '') +
-            '</span>';
+          return '<span class="jvtag inline-flex items-center gap-1 bg-brand/10 text-brand text-[12.5px] font-bold rounded-full px-3 py-1 cursor-default" data-benefit="' + eA(t.benefit || "") + '" data-tech="' + eA(t.tech || "") + '">' +
+            '<span class="material-symbols-outlined text-[15px]">bolt</span>' + esc(g) + '</span>';
         }).join("");
         show("result");
         // 雷達圖：5 個「固定面向」對這個需求的評分（不是把技術當軸）
@@ -245,6 +242,23 @@
       input.addEventListener("keydown", function (e) { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") go(); });
       $("#wishAgain").addEventListener("click", function () { show("ask"); });
       window.addEventListener("resize", function () { if (radar) { try { radar.resize(); } catch (e) { } } });
+      // 技術標籤浮動說明（fixed 定位、掛在 body，永不被面板 overflow 裁切）
+      var tagTip = document.createElement("div");
+      tagTip.style.cssText = "position:fixed;z-index:99999;max-width:260px;display:none;background:#0f1e46;color:#fff;font-size:12px;line-height:1.6;border-radius:10px;padding:8px 12px;box-shadow:0 10px 28px rgba(0,0,0,.22);pointer-events:none";
+      document.body.appendChild(tagTip);
+      document.addEventListener("mouseover", function (e) {
+        var tag = e.target.closest ? e.target.closest(".jvtag") : null; if (!tag) return;
+        var b = tag.getAttribute("data-benefit") || "", te = tag.getAttribute("data-tech") || "";
+        if (!b && !te) return;
+        tagTip.innerHTML = esc(b) + (te ? '<span style="display:block;opacity:.7;margin-top:2px">技術：' + esc(te) + '</span>' : '');
+        tagTip.style.display = "block";
+        var r = tag.getBoundingClientRect();
+        tagTip.style.left = Math.max(8, Math.min(window.innerWidth - 268, r.left)) + "px";
+        tagTip.style.top = (r.bottom + 8) + "px";
+      });
+      document.addEventListener("mouseout", function (e) {
+        if (e.target.closest && e.target.closest(".jvtag")) tagTip.style.display = "none";
+      });
     })();
   </script>
 </body>
