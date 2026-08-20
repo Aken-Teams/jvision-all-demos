@@ -166,3 +166,15 @@ if "--pass2" in sys.argv:
             if not DRY: io.open(f, "w", encoding="utf-8", newline="").write(t)
     print("pass2 changed:", changed2, "| replacements:", sum(hits2.values()))
     for k, v in hits2.most_common(): print(f"   {v:4d}  {k}")
+
+# --- 第三輪：中文字後面接英文代碼， 不成立，單獨處理 ---
+if "--pass3" in sys.argv:
+    f3 = "demos/jvision-smart-mfg-240-bank-reconciliation-cash-application-system/index.html"
+    a = '["泰宏CUB","富晟TPB","昌信CTBC","岳山ESUN","首信FCB"]'
+    b = '["泰宏THX","富晟FSX","昌信CHX","岳山YSX","首信SSX"]'
+    t3 = io.open(f3, encoding="utf-8").read()
+    if a in t3 and not DRY:
+        io.open(f3, "w", encoding="utf-8", newline="").write(t3.replace(a, b))
+        print("pass3: 銀行英文代碼已替換")
+    else:
+        print("pass3:", "已是新值" if a not in t3 else "dry-run")
