@@ -42,29 +42,41 @@ for (const repo of repos) {
     signatures.add(await page.evaluate(() => (document.body.innerText || "").replace(/\s+/g, "").slice(0, 3000)));
   }
 
-  // 圖表真的畫出像素（chartscan 的語意）
-  const chartPixels = await page.evaluate(() => {
-    const canvases = [...document.querySelectorAll("canvas")];
-    const svgs = [...document.querySelectorAll("svg")].filter((s) => s.getBoundingClientRect().width > 40);
-    let painted = svgs.length;
-    for (const c of canvases) {
+  /* 圖表與溢出都必須逐畫面量測。
+     只在最後一個 stage 量會漏報：ApexCharts 畫的是 SVG，隱藏畫面上的
+     SVG getBoundingClientRect().width 為 0 會被濾掉，而 Chart.js／ECharts
+     用 canvas、點陣圖在隱藏後仍在，於是同樣的 demo 會因圖表庫不同而結果相反。 */
+  const measure = () => page.evaluate(() => {
+    const vis = (el) => el.getBoundingClientRect().width > 40;
+    let painted = 0;
+    for (const s of document.querySelectorAll("svg")) {
+      if (vis(s) && s.querySelector("path,rect,circle,line,polyline")) painted += 1;
+    }
+    for (const c of document.querySelectorAll("canvas")) {
       try {
         const ctx = c.getContext("2d");
         if (!ctx || !c.width || !c.height) continue;
         const d = ctx.getImageData(0, 0, c.width, c.height).data;
         for (let i = 3; i < d.length; i += 4000) if (d[i] > 0) { painted += 1; break; }
-      } catch { /* 跨域或 webgl 取不到就跳過 */ }
+      } catch { /* webgl 或跨域取不到就跳過 */ }
     }
     return painted;
   });
 
-  // 三種寬度不可水平溢出
+  const screenCount = Math.max(stages.length, 6);
+  let chartPixels = 0;
   const overflow = [];
   for (const width of [1360, 768, 390]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.waitForTimeout(400);
-    const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    if (over > 2) overflow.push(`${width}px:+${over}`);
+    let worst = 0;
+    for (let v = 0; v < screenCount; v += 1) {
+      await page.evaluate((n) => { location.hash = `#go=${n}`; }, v);
+      await page.waitForTimeout(260);
+      if (width === 1360) chartPixels += await measure();
+      const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      if (over > worst) worst = over;
+    }
+    if (worst > 2) overflow.push(`${width}px:+${worst}`);
   }
 
   const distinctOk = stages.length > 0 && signatures.size === stages.length;
