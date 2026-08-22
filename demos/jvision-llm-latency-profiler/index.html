@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LLM 延遲剖析台 · it-ops｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+:root{
+  --blue:#9333ea;--ink:#1f1830;--body:#3d3650;--muted:#756d86;--line:#e8e2ef;
+  --bg:#f7f5fa;--green:#16a36a;--amber:#d8870b;--red:#dc3f55;--white:#fff;
+  --blue-soft:#f4eafe;--shadow:0 12px 36px rgba(49,32,68,.08);--radius:18px
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--body);font-family:Inter,"Noto Sans TC",sans-serif;line-height:1.5;overflow-x:hidden}
+button,input,select{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid rgba(147,51,234,.25);outline-offset:2px}
+.shell{min-height:100vh}
+header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+.header-row{max-width:1440px;margin:auto;padding:12px 24px;display:flex;align-items:center;gap:22px}
+.brand{display:flex;align-items:center;gap:11px;min-width:max-content}
+.brand-mark{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#7e22ce,var(--blue));box-shadow:0 8px 18px rgba(147,51,234,.24)}
+.brand-mark .material-symbols-outlined{font-size:22px}
+.brand b{display:block;color:var(--ink);font-size:15px}
+.brand small{display:block;color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+nav{display:flex;gap:6px;overflow:auto;padding:2px;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+.nav-btn{border:0;background:transparent;color:var(--muted);border-radius:11px;padding:9px 12px;display:flex;gap:7px;align-items:center;white-space:nowrap;font-size:13px;font-weight:600}
+.nav-btn .material-symbols-outlined{font-size:19px}
+.nav-btn.active{background:var(--blue-soft);color:var(--blue)}
+.live{margin-left:auto;display:flex;align-items:center;gap:7px;white-space:nowrap;font-size:12px;color:var(--green);font-weight:700}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(22,163,106,.1)}
+main{max-width:1440px;margin:auto;padding:28px 24px 48px}
+.view{display:none;animation:enter .3s ease}
+.view.active{display:block}
+@keyframes enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:22px}
+.eyebrow{display:flex;align-items:center;gap:7px;color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.eyebrow .material-symbols-outlined{font-size:18px}
+h1,h2,h3,p{margin-top:0}
+h1{margin-bottom:7px;color:var(--ink);font-size:clamp(26px,3vw,38px);line-height:1.2}
+h2{color:var(--ink);font-size:20px;margin-bottom:4px}
+h3{color:var(--ink);font-size:15px;margin-bottom:5px}
+.page-head p{margin:0;color:var(--muted);font-size:14px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.btn{min-height:42px;border-radius:11px;border:1px solid var(--line);background:#fff;color:var(--body);padding:9px 14px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.btn .material-symbols-outlined{font-size:19px}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-pad{padding:20px}
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.metric{padding:17px}
+.metric-label{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px;font-weight:600}
+.metric-label .material-symbols-outlined{font-size:20px;color:var(--blue)}
+.metric strong{display:block;color:var(--ink);font-size:25px;margin:7px 0 2px}
+.delta{font-size:11px;font-weight:700;color:var(--green)}
+.delta.warn{color:var(--amber)}
+.grid-main{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,.75fr);gap:18px}
+.toolbar{padding:14px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.field{min-height:39px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--body);padding:8px 10px}
+.search{display:flex;align-items:center;gap:7px;min-width:240px;flex:1;border:1px solid var(--line);border-radius:10px;padding:0 10px;background:#fff}
+.search .material-symbols-outlined{font-size:19px;color:var(--muted)}
+.search input{border:0;outline:0;min-width:0;width:100%;height:38px;color:var(--body)}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:700px}
+th{text-align:left;padding:12px 16px;background:#fbfafc;color:var(--muted);font-size:11px;letter-spacing:.04em}
+td{padding:14px 16px;border-top:1px solid var(--line);font-size:13px}
+tbody tr{transition:.18s}
+tbody tr:hover{background:#fcf9ff}
+.request-id{color:var(--blue);font-weight:800}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:700;background:#f3f1f5;color:var(--body)}
+.pill.red{background:#fff0f2;color:var(--red)}
+.pill.amber{background:#fff7e7;color:#aa6500}
+.pill.green{background:#eaf8f2;color:var(--green)}
+.pill.purple{background:var(--blue-soft);color:var(--blue)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.side-title{display:flex;justify-content:space-between;align-items:center;padding-bottom:13px;border-bottom:1px solid var(--line)}
+.queue-list{display:grid;gap:4px;margin-top:10px}
+.queue-item{padding:12px;border-radius:12px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px}
+.queue-item:hover{background:var(--blue-soft)}
+.queue-index{width:29px;height:29px;border-radius:9px;display:grid;place-items:center;background:#f0edf4;color:var(--muted);font-size:11px;font-weight:800}
+.queue-item b{display:block;font-size:12px;color:var(--ink)}
+.queue-item small{color:var(--muted);font-size:10px}
+.queue-ms{font-weight:800;color:var(--red);font-size:12px}
+.note{margin-top:14px;padding:13px;border-radius:12px;background:#fff8e9;border:1px solid #f5dfae;color:#765319;font-size:12px;display:flex;gap:9px}
+.note .material-symbols-outlined{font-size:19px;color:var(--amber)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:11px}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend i{width:9px;height:9px;border-radius:3px}
+.water-layout{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:18px}
+.trace-summary{padding:16px 20px;display:flex;gap:22px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.trace-summary div{min-width:105px}
+.trace-summary small{display:block;color:var(--muted);font-size:10px}
+.trace-summary b{color:var(--ink);font-size:15px}
+.timeline{padding:18px 20px}
+.ruler{display:grid;grid-template-columns:150px 1fr;margin-bottom:9px}
+.ticks{display:flex;justify-content:space-between;color:var(--muted);font-size:9px}
+.span-row{display:grid;grid-template-columns:150px minmax(300px,1fr);align-items:center;min-height:50px;border-top:1px solid #f2eef5}
+.span-label{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink);font-weight:600}
+.span-label .material-symbols-outlined{font-size:17px;color:var(--muted)}
+.span-track{height:28px;position:relative;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(20% - 1px),#f0ecf3 calc(20% - 1px),#f0ecf3 20%)}
+.span{position:absolute;top:5px;height:18px;border-radius:5px;min-width:5px;color:#fff;font-size:9px;line-height:18px;padding-left:6px;overflow:hidden;white-space:nowrap}
+.span.queue{background:#d8870b}.span.retrieval{background:#4f7ee8}.span.model{background:var(--blue)}.span.tool{background:#dc3f55}.span.io{background:#16a36a}
+.insight-list{display:grid;gap:10px;margin-top:14px}
+.insight{border:1px solid var(--line);border-radius:13px;padding:13px}
+.insight-head{display:flex;justify-content:space-between;gap:8px}
+.insight p{font-size:11px;color:var(--muted);margin:5px 0 0}
+.share-bar{height:8px;border-radius:999px;background:#eeeaf1;overflow:hidden;margin-top:9px}
+.share-bar i{display:block;height:100%;background:var(--blue);border-radius:inherit}
+.chart{width:100%;height:280px}
+.diag-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:18px}
+.heatmap{display:grid;grid-template-columns:110px repeat(5,1fr);gap:5px;align-items:center;margin-top:15px}
+.hm-label{font-size:11px;color:var(--muted)}
+.hm-head{text-align:center;font-size:9px;color:var(--muted)}
+.hm-cell{min-height:45px;border-radius:9px;display:grid;place-items:center;font-size:10px;font-weight:800}
+.c1{background:#f4eafe;color:#7130a7}.c2{background:#e7c9fc;color:#63228f}.c3{background:#cd8df3;color:#4b146b}.c4{background:#a94ce6;color:#fff}.c5{background:#7e22ce;color:#fff}
+.factor-list{display:grid;gap:12px;margin-top:14px}
+.factor{display:grid;grid-template-columns:1fr auto;gap:6px}
+.factor b{font-size:12px;color:var(--ink)}.factor small{font-size:11px;color:var(--muted)}
+.factor .share-bar{grid-column:1/-1;margin:0}
+.factor .share-bar i.amber{background:var(--amber)}.factor .share-bar i.red{background:var(--red)}
+.test-box{margin-top:18px;padding:16px;background:linear-gradient(135deg,#2d173e,#4c1d68);color:#fff;border-radius:16px}
+.test-box h3{color:#fff}.test-box p{color:#d9c8e5;font-size:11px;margin-bottom:12px}
+.test-row{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid rgba(255,255,255,.12);font-size:11px}
+.model-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.model-card{padding:17px;position:relative;overflow:hidden}
+.model-card.selected{border:2px solid var(--blue)}
+.model-card.selected:after{content:"基準";position:absolute;right:-25px;top:10px;background:var(--blue);color:#fff;font-size:9px;padding:4px 27px;transform:rotate(38deg)}
+.model-card small{color:var(--muted);font-size:10px}.model-card strong{display:block;color:var(--ink);font-size:23px;margin:7px 0}
+.model-card footer{display:flex;justify-content:space-between;color:var(--muted);font-size:10px}
+.chart-grid{display:grid;grid-template-columns:1.3fr .7fr;gap:18px}
+.segmented{display:flex;background:#f2eef5;padding:4px;border-radius:10px}
+.segmented button{border:0;background:transparent;border-radius:8px;padding:7px 10px;color:var(--muted);font-size:11px;font-weight:700}
+.segmented button.active{background:#fff;color:var(--blue);box-shadow:0 2px 7px rgba(0,0,0,.06)}
+.cause-list{display:grid;gap:12px;margin-top:15px}
+.cause{display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.cause:last-child{border:0}
+.cause-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--blue-soft);color:var(--blue)}
+.cause-icon .material-symbols-outlined{font-size:19px}
+.cause b{display:block;color:var(--ink);font-size:12px}.cause small{color:var(--muted);font-size:10px}.cause em{margin-left:auto;color:var(--red);font-size:11px;font-style:normal;font-weight:800}
+.tool-layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:18px}
+.trace-list{padding:8px}
+.trace-item{width:100%;border:0;background:transparent;text-align:left;padding:13px;border-radius:12px;display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;color:var(--body)}
+.trace-item.active{background:var(--blue-soft)}
+.trace-state{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#eaf8f2;color:var(--green)}
+.trace-state.warn{background:#fff0f2;color:var(--red)}
+.trace-state .material-symbols-outlined{font-size:17px}
+.trace-item b{display:block;font-size:12px;color:var(--ink)}.trace-item small{font-size:10px;color:var(--muted)}.trace-item strong{font-size:11px}
+.detail-banner{padding:20px;background:linear-gradient(120deg,#fff 55%,#f5eafd);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:15px;align-items:center}
+.detail-banner code{font-size:11px;background:#eee9f2;padding:6px 9px;border-radius:8px;color:#66338c}
+.stat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
+.stat-strip div{background:#fff;padding:15px}
+.stat-strip small{display:block;color:var(--muted);font-size:10px}.stat-strip b{color:var(--ink);font-size:16px}
+.log{margin:18px;background:#261d2d;color:#dcd3e3;border-radius:14px;padding:16px;overflow:auto;font:11px/1.8 ui-monospace,SFMono-Regular,monospace}
+.log div{min-width:590px}.log time{color:#a999b5}.log .ok{color:#62d69f}.log .bad{color:#ff7d91}.log .key{color:#d797ff}
+.case-top{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;margin-bottom:18px}
+.score-card{padding:22px;background:linear-gradient(135deg,#54206f,#9333ea);color:#fff;border:0}
+.score-card h2{color:#fff}.score-card p{color:#e9d7f5;font-size:12px}
+.score-value{font-size:54px;font-weight:800;line-height:1;margin:18px 0 8px}.score-value small{font-size:16px;font-weight:600}
+.score-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:18px}
+.score-grid div{background:rgba(255,255,255,.1);border-radius:11px;padding:10px}
+.score-grid small{display:block;color:#e7d4f3;font-size:9px}.score-grid b{font-size:14px}
+.approval{padding:20px}
+.approval-step{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.approval-step:last-child{border:0}
+.check{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#eaf8f2;color:var(--green)}
+.check .material-symbols-outlined{font-size:18px}
+.approval-step b{display:block;color:var(--ink);font-size:12px}.approval-step small{color:var(--muted);font-size:10px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpi{padding:17px}
+.kpi-head{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
+.compare{display:flex;align-items:baseline;gap:7px;margin-top:10px}
+.compare del{color:var(--muted);font-size:13px}.compare strong{color:var(--ink);font-size:24px}.compare small{color:var(--muted)}
+.progress-ring{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--green) 0 82%,#eeeaf1 82%);position:relative}
+.progress-ring:before{content:"";position:absolute;inset:5px;border-radius:50%;background:#fff}
+.progress-ring span{position:relative;font-size:9px;font-weight:800;color:var(--green)}
+.footer-note{text-align:center;color:var(--muted);font-size:11px;padding-top:22px}
+.mobile-step{display:none}
+@media(max-width:1050px){
+  .live{display:none}.metric-grid,.kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .grid-main,.water-layout,.diag-grid,.chart-grid,.case-top{grid-template-columns:1fr}
+  .tool-layout{grid-template-columns:280px minmax(0,1fr)}
+}
+@media(max-width:760px){
+  .header-row{padding:10px 14px;align-items:flex-start}.brand small{display:none}
+  nav{margin-left:auto}.nav-btn{padding:9px}.nav-btn span:last-child{display:none}
+  main{padding:20px 14px 38px}.page-head{display:block}.actions{justify-content:flex-start;margin-top:14px}
+  .metric-grid,.model-grid,.kpi-grid{grid-template-columns:1fr 1fr}
+  .tool-layout{grid-template-columns:1fr}.trace-list{display:grid;grid-template-columns:1fr 1fr}
+  .stat-strip{grid-template-columns:1fr 1fr}.score-grid{grid-template-columns:1fr}
+  .ruler,.span-row{grid-template-columns:112px minmax(300px,1fr)}
+  .timeline{overflow:auto}.heatmap{grid-template-columns:82px repeat(5,minmax(45px,1fr));overflow:auto}
+}
+@media(max-width:440px){
+  .brand b{font-size:13px}.brand-mark{width:34px;height:34px}.header-row{gap:8px}
+  .nav-btn{padding:8px 7px}.metric-grid,.model-grid,.kpi-grid{grid-template-columns:1fr}
+  .trace-list{grid-template-columns:1fr}.toolbar>*{width:100%}.search{min-width:0}
+  .detail-banner{align-items:flex-start;flex-direction:column}.stat-strip{grid-template-columns:1fr 1fr}
+  h1{font-size:25px}.page-head p{font-size:13px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+<header>
+  <div class="header-row">
+    <div class="brand">
+      <div class="brand-mark"><span class="material-symbols-outlined">query_stats</span></div>
+      <div><b>LLM 延遲剖析台</b><small>JVision · IT Ops</small></div>
+    </div>
+    <nav aria-label="剖析流程">
+      <button class="nav-btn" data-i="0"><span class="material-symbols-outlined">filter_alt</span><span>慢速請求</span></button>
+      <button class="nav-btn" data-i="1"><span class="material-symbols-outlined">waterfall_chart</span><span>請求瀑布</span></button>
+      <button class="nav-btn" data-i="2"><span class="material-symbols-outlined">search_insights</span><span>排隊檢索</span></button>
+      <button class="nav-btn" data-i="3"><span class="material-symbols-outlined">timer</span><span>首 Token</span></button>
+      <button class="nav-btn" data-i="4"><span class="material-symbols-outlined">handyman</span><span>工具耗時</span></button>
+      <button class="nav-btn" data-i="5"><span class="material-symbols-outlined">verified</span><span>改善結案</span></button>
+    </nav>
+    <div class="live"><i></i>追蹤服務正常</div>
+  </div>
+</header>
+
+<main>
+<section class="view" data-view="0">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow"><span class="material-symbols-outlined">filter_alt</span>階段 01 · 應用負責人</div>
+      <h1>選取慢速請求</h1>
+      <p>依服務等級篩選具代表性的延遲樣本，建立可重現的剖析工作集。</p>
+    </div>
+    <div class="actions"><button class="btn"><span class="material-symbols-outlined">download</span>匯出樣本</button><button class="btn primary" data-next="1"><span class="material-symbols-outlined">waterfall_chart</span>剖析已選請求</button></div>
+  </div>
+  <div class="metric-grid">
+    <div class="card metric"><div class="metric-label">近 24 小時請求<span class="material-symbols-outlined">cloud</span></div><strong>18,420</strong><span class="delta">↑ 8.4% 請求量</span></div>
+    <div class="card metric"><div class="metric-label">P95 總延遲<span class="material-symbols-outlined">speed</span></div><strong>4.82s</strong><span class="delta warn">高於 SLO 1.82s</span></div>
+    <div class="card metric"><div class="metric-label">慢速樣本<span class="material-symbols-outlined">warning</span></div><strong>386</strong><span class="delta warn">占全部 2.1%</span></div>
+    <div class="card metric"><div class="metric-label">待剖析<span class="material-symbols-outlined">pending_actions</span></div><strong>27</strong><span class="delta">今日已處理 41 筆</span></div>
+  </div>
+  <div class="grid-main">
+    <div class="card">
+      <div class="toolbar">
+        <label class="search"><span class="material-symbols-outlined">search</span><input id="requestSearch" aria-label="搜尋請求" placeholder="搜尋 Request ID 或服務"></label>
+        <select class="field" id="serviceFilter" aria-label="服務篩選"><option value="all">全部服務</option><option>客服助理</option><option>法務摘要</option><option>知識問答</option></select>
+        <select class="field" id="latencyFilter" aria-label="延遲篩選"><option value="0">延遲 ≥ 3 秒</option><option value="5">延遲 ≥ 5 秒</option><option value="8">延遲 ≥ 8 秒</option></select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>選取</th><th>Request ID</th><th>應用服務</th><th>模型</th><th>總延遲</th><th>首 Token</th><th>SLA</th></tr></thead>
+          <tbody id="requestRows">
+            <tr data-service="客服助理" data-latency="8.42"><td><input type="checkbox" checked aria-label="選取 LLM-001"></td><td class="request-id">LLM-001</td><td>客服助理</td><td>JV-Large-70B</td><td><b>8.42s</b></td><td>2.38s</td><td><span class="pill red"><i class="dot"></i>違反</span></td></tr>
+            <tr data-service="法務摘要" data-latency="7.18"><td><input type="checkbox" checked aria-label="選取 LLM-002"></td><td class="request-id">LLM-002</td><td>法務摘要</td><td>JV-Reasoner</td><td><b>7.18s</b></td><td>1.96s</td><td><span class="pill red"><i class="dot"></i>違反</span></td></tr>
+            <tr data-service="知識問答" data-latency="5.76"><td><input type="checkbox" aria-label="選取 LLM-003"></td><td class="request-id">LLM-003</td><td>知識問答</td><td>JV-Medium</td><td><b>5.76s</b></td><td>1.34s</td><td><span class="pill amber"><i class="dot"></i>風險</span></td></tr>
+            <tr data-service="客服助理" data-latency="4.91"><td><input type="checkbox" aria-label="選取 LLM-004"></td><td class="request-id">LLM-004</td><td>客服助理</td><td>JV-Large-70B</td><td><b>4.91s</b></td><td>1.09s</td><td><span class="pill amber"><i class="dot"></i>風險</span></td></tr>
+            <tr data-service="知識問答" data-latency="3.88"><td><input type="checkbox" aria-label="選取 LLM-005"></td><td class="request-id">LLM-005</td><td>知識問答</td><td>JV-Medium</td><td><b>3.88s</b></td><td>0.82s</td><td><span class="pill green"><i class="dot"></i>達標</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <aside class="card card-pad">
+      <div class="side-title"><div><h3>異常樣本佇列</h3><small>依延遲影響排序</small></div><span class="pill purple">27 筆</span></div>
+      <div class="queue-list">
+        <div class="queue-item"><span class="queue-index">01</span><div><b>LLM-001 · 客服助理</b><small>ap-northeast · 14:32:08</small></div><span class="queue-ms">8.42s</span></div>
+        <div class="queue-item"><span class="queue-index">02</span><div><b>LLM-002 · 法務摘要</b><small>ap-east · 14:28:41</small></div><span class="queue-ms">7.18s</span></div>
+        <div class="queue-item"><span class="queue-index">03</span><div><b>LLM-003 · 知識問答</b><small>ap-northeast · 14:25:12</small></div><span class="queue-ms">5.76s</span></div>
+      </div>
+      <div class="note"><span class="material-symbols-outlined">lightbulb</span><span>建議優先選取跨區域且含工具呼叫的樣本，可同時驗證排隊與網路延遲。</span></div>
+    </aside>
+  </div>
+</section>
+
+<section class="view" data-view="1">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow"><span class="material-symbols-outlined">waterfall_chart</span>階段 02 · AI 架構師</div>
+      <h1>檢視請求瀑布</h1>
+      <p>定位排隊、檢索、推論與工具階段占比，找出關鍵路徑。</p>
+    </div>
+    <div class="actions"><button class="btn"><span class="material-symbols-outlined">share</span>分享 Trace</button><button class="btn primary" data-next="2">通過並進入診斷<span class="material-symbols-outlined">arrow_forward</span></button></div>
+  </div>
+  <div class="water-layout">
+    <div class="card">
+      <div class="trace-summary">
+        <div><small>REQUEST ID</small><b>LLM-001</b></div><div><small>總延遲</small><b>8,420 ms</b></div><div><small>SPAN 數量</small><b>17</b></div><div><small>提示長度</small><b>6,284 tokens</b></div><div><small>輸出</small><b>892 tokens</b></div>
+      </div>
+      <div class="timeline">
+        <div class="ruler"><span></span><div class="ticks"><span>0</span><span>2s</span><span>4s</span><span>6s</span><span>8s</span></div></div>
+        <div class="span-row"><div class="span-label"><span class="material-symbols-outlined">route</span>API Gateway</div><div class="span-track"><i class="span io" style="left:0;width:100%">8,420 ms</i></div></div>
+        <div class="span-row"><div class="span-label"><span class="material-symbols-outlined">hourglass_top</span>Provider Queue</div><div class="span-track"><i class="span queue" style="left:2%;width:22%">1,842 ms</i></div></div>
+        <div class="span-row"><div class="span-label"><span class="material-symbols-outlined">database</span>RAG Pipeline</div><div class="span-track"><i class="span retrieval" style="left:24%;width:18%">1,516 ms</i></div></div>
+        <div class="span-row"><div class="span-label"><span class="material-symbols-outlined">neurology</span>Model Inference</div><div class="span-track"><i class="span model" style="left:42%;width:47%">3,958 ms</i></div></div>
+        <div class="span-row"><div class="span-label"><span class="material-symbols-outlined">handyman</span>CRM Tool</div><div class="span-track"><i class="span tool" style="left:52%;width:20%">1,684 ms</i></div></div>
+        <div class="span-row"><div class="span-label"><span class="material-symbols-outlined">data_object</span>Serialize</div><div class="span-track"><i class="span io" style="left:90%;width:7%">589 ms</i></div></div>
+        <div class="legend" style="margin-top:15px"><span><i style="background:#d8870b"></i>排隊</span><span><i style="background:#4f7ee8"></i>檢索</span><span><i style="background:#9333ea"></i>推論</span><span><i style="background:#dc3f55"></i>工具</span><span><i style="background:#16a36a"></i>I/O</span></div>
+      </div>
+    </div>
+    <aside>
+      <div class="card card-pad">
+        <div class="side-title"><h3>關鍵路徑洞察</h3><span class="pill red">2 個瓶頸</span></div>
+        <div class="insight-list">
+          <div class="insight"><div class="insight-head"><h3>模型推論</h3><span class="pill purple">47.0%</span></div><p>提示長度超過同模型 P75，prefill 增加 860 ms。</p><div class="share-bar"><i style="width:47%"></i></div></div>
+          <div class="insight"><div class="insight-head"><h3>供應商排隊</h3><span class="pill amber">21.9%</span></div><p>14:30 併發達限流門檻，跨區備援未啟用。</p><div class="share-bar"><i style="width:22%;background:var(--amber)"></i></div></div>
+          <div class="insight"><div class="insight-head"><h3>CRM 工具</h3><span class="pill red">20.0%</span></div><p>第二次呼叫因 429 重試，額外增加 712 ms。</p><div class="share-bar"><i style="width:20%;background:var(--red)"></i></div></div>
+        </div>
+      </div>
+      <div class="note"><span class="material-symbols-outlined">rule</span><span>判定：瀑布完整且 Trace ID 可追溯。可進入排隊與檢索診斷。</span></div>
+    </aside>
+  </div>
+</section>
+
+<section class="view" data-view="2">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow"><span class="material-symbols-outlined">search_insights</span>階段 03 · 資料科學家</div>
+      <h1>診斷排隊檢索</h1>
+      <p>分析負載、向量查詢與重排的延遲來源，驗證改善假設。</p>
+    </div>
+    <div class="actions"><button class="btn"><span class="material-symbols-outlined">science</span>儲存實驗</button><button class="btn primary" data-next="3">通過診斷<span class="material-symbols-outlined">arrow_forward</span></button></div>
+  </div>
+  <div class="diag-grid">
+    <div class="card card-pad">
+      <div class="side-title"><div><h2>併發 × 區域延遲熱圖</h2><small>供應商排隊時間，中位數 ms</small></div><span class="pill amber">尖峰 14:00–15:00</span></div>
+      <div class="heatmap">
+        <span></span><span class="hm-head">10</span><span class="hm-head">25</span><span class="hm-head">50</span><span class="hm-head">75</span><span class="hm-head">100 req/s</span>
+        <span class="hm-label">台北 ap-east</span><span class="hm-cell c1">42</span><span class="hm-cell c1">68</span><span class="hm-cell c2">184</span><span class="hm-cell c3">486</span><span class="hm-cell c4">912</span>
+        <span class="hm-label">東京 ap-ne-1</span><span class="hm-cell c1">38</span><span class="hm-cell c1">61</span><span class="hm-cell c2">142</span><span class="hm-cell c2">298</span><span class="hm-cell c3">604</span>
+        <span class="hm-label">新加坡 ap-se-1</span><span class="hm-cell c1">74</span><span class="hm-cell c2">126</span><span class="hm-cell c2">286</span><span class="hm-cell c4">784</span><span class="hm-cell c5">1,426</span>
+        <span class="hm-label">私有叢集</span><span class="hm-cell c1">31</span><span class="hm-cell c1">47</span><span class="hm-cell c1">96</span><span class="hm-cell c2">214</span><span class="hm-cell c3">558</span>
+      </div>
+      <div id="retrievalChart" class="chart" aria-label="檢索階段延遲圖"></div>
+    </div>
+    <aside>
+      <div class="card card-pad">
+        <div class="side-title"><div><h2>延遲因子排序</h2><small>對總檢索時間的貢獻</small></div><span class="pill purple">RAG v2.6</span></div>
+        <div class="factor-list">
+          <div class="factor"><b>Cross-encoder 重排</b><small>612 ms · 40%</small><div class="share-bar"><i class="red" style="width:82%"></i></div></div>
+          <div class="factor"><b>向量資料庫查詢</b><small>438 ms · 29%</small><div class="share-bar"><i class="amber" style="width:59%"></i></div></div>
+          <div class="factor"><b>文件內容讀取</b><small>286 ms · 19%</small><div class="share-bar"><i style="width:39%"></i></div></div>
+          <div class="factor"><b>查詢嵌入</b><small>180 ms · 12%</small><div class="share-bar"><i style="width:25%;background:var(--green)"></i></div></div>
+        </div>
+      </div>
+      <div class="test-box">
+        <h3>改善模擬 · 實驗 B</h3>
+        <p>將重排文件由 50 降至 20，並啟用向量查詢快取。</p>
+        <div class="test-row"><span>檢索 P95</span><b>1,516 → 742 ms</b></div>
+        <div class="test-row"><span>答案命中率</span><b>91.8 → 91.5%</b></div>
+        <div class="test-row"><span>估計成本</span><b>-18.4%</b></div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<section class="view" data-view="3">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow"><span class="material-symbols-outlined">timer</span>階段 04 · 資料科學家</div>
+      <h1>比較首 Token</h1>
+      <p>評估模型、提示長度及區域對 TTFT 的影響，選定服務基準。</p>
+    </div>
+    <div class="actions"><div class="segmented"><button class="active" data-range="p50">P50</button><button data-range="p95">P95</button></div><button class="btn primary" data-next="4">採用建議組合<span class="material-symbols-outlined">arrow_forward</span></button></div>
+  </div>
+  <div class="model-grid">
+    <div class="card model-card selected"><span class="pill green">建議</span><small>JV-Medium · 東京</small><strong>0.68s</strong><footer><span>6K tokens</span><span>US$0.004 / req</span></footer></div>
+    <div class="card model-card"><span class="pill purple">品質優先</span><small>JV-Large-70B · 台北</small><strong>1.09s</strong><footer><span>6K tokens</span><span>US$0.011 / req</span></footer></div>
+    <div class="card model-card"><span class="pill amber">推理模式</span><small>JV-Reasoner · 新加坡</small><strong>1.74s</strong><footer><span>6K tokens</span><span>US$0.018 / req</span></footer></div>
+  </div>
+  <div class="chart-grid">
+    <div class="card card-pad">
+      <div class="side-title"><div><h2>提示長度與首 Token 時間</h2><small>三模型、四種提示規模比較</small></div><span class="pill purple" id="percentileLabel">P50 基準</span></div>
+      <div id="ttftChart" class="chart" style="height:330px" aria-label="首 Token 比較圖"></div>
+    </div>
+    <aside class="card card-pad">
+      <div class="side-title"><div><h2>影響來源</h2><small>LLM-001 與基準差異</small></div><b style="color:var(--red)">+1.70s</b></div>
+      <div class="cause-list">
+        <div class="cause"><span class="cause-icon"><span class="material-symbols-outlined">text_fields</span></span><div><b>提示過長</b><small>6,284 tokens，高於 P75</small></div><em>+860ms</em></div>
+        <div class="cause"><span class="cause-icon"><span class="material-symbols-outlined">group_work</span></span><div><b>批次壅塞</b><small>批次深度 18</small></div><em>+420ms</em></div>
+        <div class="cause"><span class="cause-icon"><span class="material-symbols-outlined">public</span></span><div><b>跨區網路</b><small>台北 → 新加坡</small></div><em>+270ms</em></div>
+        <div class="cause"><span class="cause-icon"><span class="material-symbols-outlined">shield_lock</span></span><div><b>內容安全檢查</b><small>政策集 enterprise-v4</small></div><em>+150ms</em></div>
+      </div>
+      <div class="note"><span class="material-symbols-outlined">recommend</span><span>路由至東京 JV-Medium 並將固定系統提示快取，預估 TTFT 降至 0.68 秒。</span></div>
+    </aside>
+  </div>
+</section>
+
+<section class="view" data-view="4">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow"><span class="material-symbols-outlined">handyman</span>階段 05 · AI 架構師</div>
+      <h1>追查工具耗時</h1>
+      <p>辨識工具重試、網路與回傳處理瓶頸，鎖定失敗呼叫。</p>
+    </div>
+    <div class="actions"><button class="btn"><span class="material-symbols-outlined">bug_report</span>建立改善案件</button><button class="btn primary" data-next="5">送交改善驗證<span class="material-symbols-outlined">arrow_forward</span></button></div>
+  </div>
+  <div class="tool-layout">
+    <aside class="card trace-list">
+      <button class="trace-item active"><span class="trace-state warn"><span class="material-symbols-outlined">priority_high</span></span><span><b>CRM customer_lookup</b><small>重試 1 次 · HTTP 429</small></span><strong>1,684ms</strong></button>
+      <button class="trace-item"><span class="trace-state"><span class="material-symbols-outlined">check</span></span><span><b>policy_search</b><small>成功 · 18 筆結果</small></span><strong>486ms</strong></button>
+      <button class="trace-item"><span class="trace-state"><span class="material-symbols-outlined">check</span></span><span><b>account_balance</b><small>成功 · 快取命中</small></span><strong>92ms</strong></button>
+      <button class="trace-item"><span class="trace-state"><span class="material-symbols-outlined">check</span></span><span><b>ticket_create</b><small>成功 · ITSM-8824</small></span><strong>318ms</strong></button>
+      <button class="trace-item"><span class="trace-state"><span class="material-symbols-outlined">check</span></span><span><b>response_guard</b><small>成功 · 無敏感資料</small></span><strong>144ms</strong></button>
+    </aside>
+    <div class="card">
+      <div class="detail-banner"><div><span class="pill red">HTTP 429 · 已重試</span><h2 style="margin-top:9px">CRM customer_lookup</h2><p style="margin:0;color:var(--muted);font-size:11px">trace_9fd72a · attempt 2/3 · ap-east-1</p></div><code>POST /v2/customers/search</code></div>
+      <div class="stat-strip">
+        <div><small>DNS + Connect</small><b>86 ms</b></div><div><small>伺服器處理</small><b>612 ms</b></div><div><small>重試退避</small><b>712 ms</b></div><div><small>解析與序列化</small><b>274 ms</b></div>
+      </div>
+      <div class="log" aria-label="工具呼叫紀錄">
+        <div><time>14:32:09.184</time> <span class="key">tool.start</span> customer_lookup request_id=LLM-001</div>
+        <div><time>14:32:09.271</time> dns.resolved crm.internal <span class="ok">10.24.18.7</span> 31ms</div>
+        <div><time>14:32:09.326</time> tls.connected protocol=h2 region=ap-east-1 55ms</div>
+        <div><time>14:32:09.938</time> response.received <span class="bad">http=429 retry_after=0.7</span></div>
+        <div><time>14:32:10.650</time> <span class="key">retry.start</span> attempt=2 backoff=712ms</div>
+        <div><time>14:32:10.782</time> response.received <span class="ok">http=200 bytes=18422</span></div>
+        <div><time>14:32:10.868</time> deserialize.complete records=12 duration=86ms</div>
+        <div><time>14:32:10.868</time> <span class="ok">tool.complete total=1684ms</span></div>
+      </div>
+      <div class="card-pad" style="padding-top:0">
+        <div class="note" style="margin-top:0"><span class="material-symbols-outlined">construction</span><span><b>改善建議：</b>加入客戶查詢 60 秒快取、使用 jitter 退避，並將 CRM 連線池由 20 提升至 50。</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="view" data-view="5">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow"><span class="material-symbols-outlined">verified</span>階段 06 · 應用負責人</div>
+      <h1>驗證改善結案</h1>
+      <p>核准優化措施並比較改善前後服務指標，保留完整操作紀錄。</p>
+    </div>
+    <div class="actions"><button class="btn"><span class="material-symbols-outlined">description</span>下載驗證報告</button><button class="btn primary" id="closeCase"><span class="material-symbols-outlined">task_alt</span>核准結案</button></div>
+  </div>
+  <div class="case-top">
+    <div class="card score-card">
+      <span class="pill" style="background:rgba(255,255,255,.16);color:#fff">改善案件 PERF-2026-081</span>
+      <div class="score-value">82<small>% 延遲改善</small></div>
+      <h2>LLM-001 已達服務目標</h2>
+      <p>排隊路由、提示快取與 CRM 工具重試策略已於 8 月 20 日上線，連續 24 小時無回歸。</p>
+      <div class="score-grid"><div><small>總延遲 P95</small><b>8.42 → 2.31s</b></div><div><small>首 Token P95</small><b>2.38 → 0.74s</b></div><div><small>錯誤率</small><b>2.8 → 0.3%</b></div></div>
+    </div>
+    <div class="card approval">
+      <div class="side-title"><div><h2>驗證清單</h2><small>4 / 4 項通過</small></div><div class="progress-ring"><span>100%</span></div></div>
+      <div class="approval-step"><span class="check"><span class="material-symbols-outlined">check</span></span><div><b>壓力測試通過</b><small>100 req/s，P95 低於 3 秒</small></div><span class="pill green">通過</span></div>
+      <div class="approval-step"><span class="check"><span class="material-symbols-outlined">check</span></span><div><b>答案品質無回歸</b><small>評測集命中率 91.6%</small></div><span class="pill green">通過</span></div>
+      <div class="approval-step"><span class="check"><span class="material-symbols-outlined">check</span></span><div><b>隱私與稽核完整</b><small>Trace 遮罩及操作紀錄已驗證</small></div><span class="pill green">通過</span></div>
+      <div class="approval-step"><span class="check"><span class="material-symbols-outlined">check</span></span><div><b>回復方案演練</b><small>5 分鐘內可切回原路由</small></div><span class="pill green">通過</span></div>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="card kpi"><div class="kpi-head"><span>事件平均處理</span><span class="pill green">-75%</span></div><div class="compare"><del>120</del><strong>30</strong><small>分鐘</small></div></div>
+    <div class="card kpi"><div class="kpi-head"><span>系統可用率</span><span class="pill green">+2pt</span></div><div class="compare"><del>97</del><strong>99</strong><small>%</small></div></div>
+    <div class="card kpi"><div class="kpi-head"><span>SLA 達成率</span><span class="pill green">+13pt</span></div><div class="compare"><del>85</del><strong>98</strong><small>%</small></div></div>
+    <div class="card kpi"><div class="kpi-head"><span>資產盤點工時</span><span class="pill green">-80%</span></div><div class="compare"><del>20</del><strong>4</strong><small>小時/月</small></div></div>
+  </div>
+  <div class="card card-pad">
+    <div class="side-title"><div><h2>改善後系統可用率</h2><small>W1–W6 · 目標 99%</small></div><span class="pill green" id="caseBadge">符合結案門檻</span></div>
+    <div id="trendChart" class="chart" aria-label="系統可用率趨勢圖"></div>
+  </div>
+  <div class="footer-note">輸出：LLM 延遲剖析台處理結果與可追溯的操作紀錄 · 稽核編號 AUD-3091-0821</div>
+</section>
+</main>
+</div>
+
+<script>
+const chartInstances = {};
+const chartBuilders = {
+  2(el) {
+    const instance = echarts.init(el);
+    instance.setOption({
+      tooltip:{trigger:"axis"},
+      grid:{left:48,right:18,top:42,bottom:34},
+      legend:{top:8,textStyle:{color:"#756d86",fontSize:10}},
+      xAxis:{type:"category",data:["嵌入","向量查詢","重排","文件讀取"],axisLine:{lineStyle:{color:"#e8e2ef"}},axisLabel:{color:"#756d86",fontSize:10}},
+      yAxis:{type:"value",name:"ms",nameTextStyle:{color:"#756d86"},splitLine:{lineStyle:{color:"#f0ecf3"}},axisLabel:{color:"#756d86"}},
+      series:[
+        {name:"目前 P95",type:"bar",barWidth:22,data:[180,438,612,286],itemStyle:{color:"#9333ea",borderRadius:[6,6,0,0]}},
+        {name:"改善模擬",type:"bar",barWidth:22,data:[96,214,278,154],itemStyle:{color:"#c9a3e9",borderRadius:[6,6,0,0]}}
+      ]
+    });
+    return instance;
+  },
+  3(el) {
+    const instance = echarts.init(el);
+    instance.setOption({
+      tooltip:{trigger:"axis"},
+      legend:{top:8,textStyle:{color:"#756d86",fontSize:10}},
+      grid:{left:48,right:22,top:48,bottom:38},
+      xAxis:{type:"category",data:["1K","3K","6K","12K tokens"],axisLine:{lineStyle:{color:"#e8e2ef"}},axisLabel:{color:"#756d86"}},
+      yAxis:{type:"value",name:"秒",min:0,max:3,splitLine:{lineStyle:{color:"#f0ecf3"}},axisLabel:{color:"#756d86"}},
+      series:[
+        {name:"JV-Medium",type:"line",smooth:true,symbolSize:8,data:[.31,.44,.68,1.16],lineStyle:{width:3,color:"#16a36a"},itemStyle:{color:"#16a36a"}},
+        {name:"JV-Large-70B",type:"line",smooth:true,symbolSize:8,data:[.52,.73,1.09,1.92],lineStyle:{width:3,color:"#9333ea"},itemStyle:{color:"#9333ea"}},
+        {name:"JV-Reasoner",type:"line",smooth:true,symbolSize:8,data:[.81,1.18,1.74,2.72],lineStyle:{width:3,color:"#d8870b"},itemStyle:{color:"#d8870b"}}
+      ]
+    });
+    return instance;
+  },
+  5(el) {
+    const instance = echarts.init(el);
+    instance.setOption({
+      tooltip:{trigger:"axis",valueFormatter:value=>value+"%"},
+      grid:{left:48,right:24,top:28,bottom:34},
+      xAxis:{type:"category",boundaryGap:false,data:["W1","W2","W3","W4","W5","W6"],axisLine:{lineStyle:{color:"#e8e2ef"}},axisLabel:{color:"#756d86"}},
+      yAxis:{type:"value",min:96.5,max:99.5,axisLabel:{color:"#756d86",formatter:"{value}%"},splitLine:{lineStyle:{color:"#f0ecf3"}}},
+      series:[{name:"系統可用率",type:"line",smooth:true,symbolSize:9,data:[97,97.4,97.8,98.2,98.6,99],lineStyle:{width:4,color:"#9333ea"},itemStyle:{color:"#9333ea",borderWidth:3,borderColor:"#fff"},areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"rgba(147,51,234,.28)"},{offset:1,color:"rgba(147,51,234,.02)"}]}},markLine:{symbol:"none",label:{formatter:"目標 99%",color:"#16a36a"},lineStyle:{color:"#16a36a",type:"dashed"},data:[{yAxis:99}]}}]
+    });
+    return instance;
+  }
+};
+
+function initChart(viewIndex) {
+  if (!chartBuilders[viewIndex] || chartInstances[viewIndex]) return;
+  const chartIds = {2:"retrievalChart",3:"ttftChart",5:"trendChart"};
+  const element = document.getElementById(chartIds[viewIndex]);
+  if (element && element.clientWidth > 0) chartInstances[viewIndex] = chartBuilders[viewIndex](element);
+}
+
+function show(index) {
+  const safeIndex = Math.max(0,Math.min(5,Number(index) || 0));
+  document.querySelectorAll(".view").forEach((viewElement,viewIndex)=>viewElement.classList.toggle("active",viewIndex===safeIndex));
+  document.querySelectorAll("[data-i]").forEach(button=>button.classList.toggle("active",Number(button.dataset.i)===safeIndex));
+  requestAnimationFrame(()=>initChart(safeIndex));
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function indexFromHash() {
+  const match = location.hash.match(/(?:go=|v)([0-9]+)/);
+  return match ? Number(match[1]) : 0;
+}
+
+function navigateTo(index) {
+  const nextHash = "#go="+index;
+  if (location.hash===nextHash) show(index);
+  else location.hash=nextHash;
+}
+
+document.querySelectorAll("[data-i]").forEach(button=>button.addEventListener("click",()=>navigateTo(button.dataset.i)));
+document.querySelectorAll("[data-next]").forEach(button=>button.addEventListener("click",()=>navigateTo(button.dataset.next)));
+window.addEventListener("hashchange",()=>show(indexFromHash()));
+window.addEventListener("resize",()=>Object.values(chartInstances).forEach(instance=>instance.resize()));
+
+function filterRequests() {
+  const keyword = document.getElementById("requestSearch").value.trim().toLowerCase();
+  const selectedService = document.getElementById("serviceFilter").value;
+  const minimumLatency = Number(document.getElementById("latencyFilter").value);
+  document.querySelectorAll("#requestRows tr").forEach(row=>{
+    const textMatch = row.textContent.toLowerCase().includes(keyword);
+    const serviceMatch = selectedService==="all" || row.dataset.service===selectedService;
+    const latencyMatch = Number(row.dataset.latency)>=minimumLatency;
+    row.hidden = !(textMatch && serviceMatch && latencyMatch);
+  });
+}
+document.getElementById("requestSearch").addEventListener("input",filterRequests);
+document.getElementById("serviceFilter").addEventListener("change",filterRequests);
+document.getElementById("latencyFilter").addEventListener("change",filterRequests);
+
+document.querySelectorAll("[data-range]").forEach(button=>button.addEventListener("click",()=>{
+  document.querySelectorAll("[data-range]").forEach(item=>item.classList.toggle("active",item===button));
+  const isP95 = button.dataset.range==="p95";
+  document.getElementById("percentileLabel").textContent=isP95?"P95 尖峰":"P50 基準";
+  const instance=chartInstances[3];
+  if(instance){
+    instance.setOption({series:isP95?[
+      {data:[.58,.81,1.22,2.03]},{data:[.94,1.36,2.38,2.91]},{data:[1.32,1.86,2.65,2.98]}
+    ]:[
+      {data:[.31,.44,.68,1.16]},{data:[.52,.73,1.09,1.92]},{data:[.81,1.18,1.74,2.72]}
+    ]});
+  }
+}));
+
+document.getElementById("closeCase").addEventListener("click",event=>{
+  event.currentTarget.innerHTML='<span class="material-symbols-outlined">verified</span>已核准結案';
+  event.currentTarget.disabled=true;
+  document.getElementById("caseBadge").textContent="案件已結案";
+});
+
+show(indexFromHash());
+</script>
+</body>
+</html>

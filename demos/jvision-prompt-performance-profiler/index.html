@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prompt 效能剖析器 · analytics-bi｜Jvision 系統 Demo</title>
+  <link rel="icon" href="../../favicon.svg">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --blue:#b45309;
+      --blue-dark:#8a3f07;
+      --blue-soft:#fff7ed;
+      --ink:#1c1917;
+      --body:#44403c;
+      --muted:#78716c;
+      --line:#e7e5e4;
+      --bg:#fafaf9;
+      --surface:#ffffff;
+      --green:#15803d;
+      --amber:#d97706;
+      --red:#dc2626;
+      --shadow:0 18px 44px rgba(68,64,60,.08);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      min-width:0;
+      color:var(--body);
+      background:
+        radial-gradient(circle at 92% 0,rgba(180,83,9,.08),transparent 27rem),
+        var(--bg);
+      font-family:Inter,"Noto Sans TC",sans-serif;
+    }
+    button,input,select{font:inherit}
+    button{color:inherit}
+    button:focus-visible,input:focus-visible,select:focus-visible{
+      outline:3px solid rgba(180,83,9,.24);
+      outline-offset:2px;
+    }
+    .material-symbols-outlined{
+      font-size:20px;
+      line-height:1;
+      font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24;
+    }
+    .shell{display:grid;grid-template-columns:264px minmax(0,1fr);min-height:100vh}
+    .sidebar{
+      position:sticky;top:0;height:100vh;padding:24px 18px;
+      border-right:1px solid var(--line);background:rgba(255,255,255,.94);
+      backdrop-filter:blur(18px);z-index:20;
+    }
+    .brand{display:flex;align-items:center;gap:12px;padding:2px 8px 24px}
+    .brand-mark{
+      display:grid;place-items:center;width:42px;height:42px;border-radius:13px;
+      color:#fff;background:linear-gradient(145deg,#d97706,var(--blue-dark));
+      box-shadow:0 10px 24px rgba(180,83,9,.25);
+    }
+    .brand strong{display:block;color:var(--ink);font-size:15px}
+    .brand span{display:block;margin-top:3px;color:var(--muted);font-size:11px}
+    .nav-label{padding:0 10px 9px;color:#a8a29e;font-size:10px;font-weight:800;letter-spacing:.14em}
+    .nav-list{display:grid;gap:7px}
+    .nav-btn{
+      width:100%;min-height:49px;display:flex;align-items:center;gap:11px;
+      padding:10px 12px;border:1px solid transparent;border-radius:13px;
+      background:transparent;text-align:left;cursor:pointer;transition:.18s ease;
+    }
+    .nav-btn:hover{background:#fafaf9;border-color:var(--line)}
+    .nav-btn.active{color:var(--blue-dark);background:var(--blue-soft);border-color:#fed7aa}
+    .nav-no{
+      display:grid;place-items:center;width:27px;height:27px;flex:0 0 auto;
+      border-radius:9px;background:#f5f5f4;color:var(--muted);font-size:11px;font-weight:800;
+    }
+    .nav-btn.active .nav-no{color:#fff;background:var(--blue)}
+    .nav-copy strong{display:block;font-size:13px}
+    .nav-copy small{display:block;margin-top:2px;color:var(--muted);font-size:10px}
+    .side-note{
+      position:absolute;left:18px;right:18px;bottom:20px;padding:14px;
+      border:1px solid #fed7aa;border-radius:14px;background:var(--blue-soft);
+    }
+    .side-note strong{display:flex;align-items:center;gap:7px;color:var(--blue-dark);font-size:12px}
+    .side-note p{margin:7px 0 0;font-size:11px;line-height:1.6}
+    .main{min-width:0;padding:24px clamp(16px,3vw,42px) 52px}
+    .mobile-bar{display:none}
+    .page-head{
+      display:flex;align-items:flex-start;justify-content:space-between;gap:20px;
+      max-width:1440px;margin:0 auto 20px;
+    }
+    .eyebrow{
+      display:flex;align-items:center;gap:7px;margin-bottom:8px;
+      color:var(--blue);font-size:11px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;
+    }
+    h1,h2,h3,p{overflow-wrap:anywhere}
+    h1{margin:0;color:var(--ink);font-size:clamp(24px,3vw,36px);line-height:1.2;letter-spacing:-.025em}
+    .subtitle{margin:8px 0 0;color:var(--muted);font-size:13px;line-height:1.65}
+    .head-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+    .pill,.badge{
+      display:inline-flex;align-items:center;gap:6px;border-radius:999px;font-weight:700;white-space:nowrap;
+    }
+    .pill{padding:9px 12px;border:1px solid var(--line);background:#fff;font-size:11px}
+    .badge{padding:5px 9px;font-size:10px}
+    .badge.green{color:var(--green);background:#f0fdf4}
+    .badge.amber{color:#a16207;background:#fffbeb}
+    .badge.red{color:var(--red);background:#fef2f2}
+    .badge.blue{color:var(--blue-dark);background:var(--blue-soft)}
+    .screen{display:none;max-width:1440px;margin:auto;animation:rise .32s ease}
+    .screen.active{display:block}
+    @keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+    .card{
+      min-width:0;border:1px solid var(--line);border-radius:var(--radius);
+      background:rgba(255,255,255,.96);box-shadow:var(--shadow);
+    }
+    .card-pad{padding:20px}
+    .card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:17px}
+    .card-head h2,.card-head h3{margin:0;color:var(--ink)}
+    .card-head h2{font-size:17px}.card-head h3{font-size:14px}
+    .card-head p{margin:5px 0 0;color:var(--muted);font-size:11px}
+    .muted{color:var(--muted)}
+    .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}
+    .metric{padding:16px;border:1px solid var(--line);border-radius:15px;background:#fff}
+    .metric-top{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:11px}
+    .metric strong{display:block;margin-top:9px;color:var(--ink);font-size:25px;letter-spacing:-.03em}
+    .metric small{display:block;margin-top:6px;color:var(--muted);font-size:10px}
+    .delta{color:var(--green)!important;font-weight:700}
+    .grid-72{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr);gap:14px}
+    .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+    .btn{
+      min-height:40px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+      padding:9px 13px;border:1px solid var(--line);border-radius:11px;background:#fff;
+      font-size:11px;font-weight:800;cursor:pointer;
+    }
+    .btn:hover{border-color:#fdba74;background:#fffaf5}
+    .btn.primary{color:#fff;background:var(--blue);border-color:var(--blue)}
+    .btn.primary:hover{background:var(--blue-dark)}
+    .chart-wrap{position:relative;width:100%;height:260px}
+    .chart-wrap.short{height:205px}
+    .table-wrap{width:100%;overflow:auto}
+    table{width:100%;border-collapse:collapse;min-width:650px}
+    th{
+      padding:11px 12px;border-bottom:1px solid var(--line);color:var(--muted);
+      background:#fafaf9;text-align:left;font-size:10px;font-weight:800;
+    }
+    td{padding:12px;border-bottom:1px solid #f1f0ef;font-size:11px}
+    tr:last-child td{border-bottom:0}
+    .section-label{margin:0 0 12px;color:var(--ink);font-size:13px;font-weight:800}
+
+    /* v0 */
+    .prompt-layout{display:grid;grid-template-columns:minmax(260px,.72fr) minmax(0,1.4fr) 280px;gap:14px}
+    .request-list{padding:10px}
+    .request-item{
+      width:100%;display:block;padding:13px;margin-bottom:8px;border:1px solid transparent;
+      border-radius:12px;background:transparent;text-align:left;cursor:pointer;
+    }
+    .request-item:hover,.request-item.selected{border-color:#fed7aa;background:var(--blue-soft)}
+    .request-item strong{display:flex;justify-content:space-between;gap:8px;color:var(--ink);font-size:11px}
+    .request-item span{display:block;margin-top:5px;color:var(--muted);font-size:10px}
+    .editor-top{display:flex;align-items:center;justify-content:space-between;padding:14px 17px;border-bottom:1px solid var(--line)}
+    .editor-body{padding:16px;background:#fcfcfb}
+    .segment{
+      position:relative;margin-bottom:10px;padding:14px 14px 14px 18px;border:1px solid var(--line);
+      border-radius:12px;background:#fff;font-size:11px;line-height:1.65;
+    }
+    .segment:before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:4px;border-radius:0 4px 4px 0}
+    .segment.system:before{background:var(--blue)}
+    .segment.knowledge:before{background:#2563eb}
+    .segment.examples:before{background:#7c3aed}
+    .segment.question:before{background:var(--green)}
+    .seg-head{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px}
+    .seg-head strong{color:var(--ink);font-size:10px}
+    .seg-head span{color:var(--muted);font-size:9px}
+    .inspect-list{display:grid;gap:11px}
+    .inspect-row{padding-bottom:10px;border-bottom:1px solid var(--line)}
+    .inspect-row:last-child{border:0}
+    .inspect-row span{display:block;color:var(--muted);font-size:9px}
+    .inspect-row strong{display:block;margin-top:4px;color:var(--ink);font-size:12px}
+    .legend-dot{display:inline-block;width:8px;height:8px;margin-right:6px;border-radius:50%}
+
+    /* v1 */
+    .cost-hero{
+      display:grid;grid-template-columns:1.1fr .9fr;gap:14px;padding:22px;
+      background:linear-gradient(130deg,#fff 50%,#fff7ed);
+    }
+    .big-cost{margin:8px 0;color:var(--ink);font-size:43px;font-weight:800;letter-spacing:-.05em}
+    .big-cost sup{font-size:16px;color:var(--muted)}
+    .cost-bars{display:grid;gap:14px;margin-top:15px}
+    .bar-label{display:flex;justify-content:space-between;margin-bottom:6px;font-size:10px}
+    .bar-track{height:8px;border-radius:99px;background:#f1f0ef;overflow:hidden}
+    .bar-fill{height:100%;border-radius:99px;background:var(--blue)}
+    .recommend{
+      display:flex;align-items:flex-start;gap:11px;padding:13px;border:1px solid #bbf7d0;
+      border-radius:13px;background:#f0fdf4;
+    }
+    .recommend strong{display:block;color:#166534;font-size:11px}
+    .recommend p{margin:4px 0 0;color:#4d7c5a;font-size:10px;line-height:1.55}
+
+    /* v2 */
+    .trace-summary{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:18px 20px}
+    .trace-main{min-width:150px}
+    .trace-main strong{display:block;color:var(--ink);font-size:31px}
+    .trace-main span{color:var(--muted);font-size:10px}
+    .trace-stat{padding-left:20px;border-left:1px solid var(--line)}
+    .trace-stat strong{display:block;color:var(--ink);font-size:16px}
+    .trace-stat span{font-size:9px;color:var(--muted)}
+    .waterfall{padding:19px;overflow:hidden}
+    .time-axis{display:grid;grid-template-columns:145px repeat(5,1fr);padding-bottom:9px;color:var(--muted);font-size:9px}
+    .wf-row{display:grid;grid-template-columns:145px minmax(0,1fr);align-items:center;min-height:43px;border-top:1px solid #f3f2f1}
+    .wf-label{display:flex;align-items:center;gap:7px;color:var(--ink);font-size:10px}
+    .wf-track{
+      position:relative;height:18px;border-radius:5px;
+      background:repeating-linear-gradient(90deg,transparent 0,transparent calc(20% - 1px),#eee calc(20% - 1px),#eee 20%);
+    }
+    .wf-block{
+      position:absolute;top:3px;height:12px;border-radius:4px;background:var(--blue);
+      box-shadow:0 3px 8px rgba(180,83,9,.18);
+    }
+    .wf-block.warn{background:#ef4444}
+    .wf-block.info{background:#2563eb}
+    .bottleneck{padding:15px;border-left:4px solid var(--red);background:#fff7f7}
+    .bottleneck strong{color:#991b1b;font-size:11px}
+    .bottleneck p{margin:5px 0 0;font-size:10px;line-height:1.55}
+
+    /* v3 */
+    .experiment-banner{
+      display:flex;align-items:center;justify-content:space-between;gap:18px;padding:21px;
+      color:#fff;background:linear-gradient(125deg,#7c2d12,var(--blue),#d97706);
+    }
+    .experiment-banner h2{margin:0;font-size:19px}
+    .experiment-banner p{margin:6px 0 0;color:#ffedd5;font-size:11px}
+    .progress-ring{
+      width:72px;height:72px;display:grid;place-items:center;flex:0 0 auto;border-radius:50%;
+      background:conic-gradient(#fff 0 75%,rgba(255,255,255,.25) 75%);
+      position:relative;
+    }
+    .progress-ring:after{content:"";position:absolute;inset:7px;border-radius:50%;background:#a64b08}
+    .progress-ring strong{position:relative;z-index:1;font-size:14px}
+    .variant-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .variant{padding:16px;border:1px solid var(--line);border-radius:14px;background:#fff}
+    .variant.winner{border:2px solid var(--green);background:#f8fff9}
+    .variant-head{display:flex;align-items:center;justify-content:space-between}
+    .variant h3{margin:0;color:var(--ink);font-size:13px}
+    .variant p{min-height:34px;margin:8px 0;color:var(--muted);font-size:10px;line-height:1.55}
+    .variant-score{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+    .variant-score div{padding:8px 4px;border-radius:9px;background:#f5f5f4;text-align:center}
+    .variant-score strong{display:block;color:var(--ink);font-size:12px}
+    .variant-score span{font-size:8px;color:var(--muted)}
+    .run-log{display:grid;gap:8px}
+    .log-row{display:grid;grid-template-columns:72px 1fr auto;gap:10px;align-items:center;padding:10px;border-radius:10px;background:#fafaf9;font-size:10px}
+
+    /* v4 */
+    .contribution-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);gap:14px}
+    .score-list{display:grid;gap:11px}
+    .score-row{display:grid;grid-template-columns:130px minmax(0,1fr) 44px;gap:10px;align-items:center;font-size:10px}
+    .score-row strong{text-align:right;color:var(--ink)}
+    .positive{color:var(--green)!important}.negative{color:var(--red)!important}
+    .finding{padding:13px;margin-bottom:9px;border-radius:12px;background:#fafaf9}
+    .finding strong{display:flex;align-items:center;gap:7px;color:var(--ink);font-size:11px}
+    .finding p{margin:5px 0 0;color:var(--muted);font-size:10px;line-height:1.55}
+    .quality-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .quality{padding:13px;border-radius:12px;background:#fafaf9;text-align:center}
+    .quality strong{display:block;color:var(--ink);font-size:20px}
+    .quality span{font-size:9px;color:var(--muted)}
+
+    /* v5 */
+    .deploy-hero{
+      display:grid;grid-template-columns:1fr auto;gap:22px;align-items:center;padding:24px;
+      border-color:#bbf7d0;background:linear-gradient(120deg,#f0fdf4,#fff);
+    }
+    .deploy-hero h2{margin:0;color:#14532d;font-size:21px}
+    .deploy-hero p{margin:7px 0 0;color:#4d7c5a;font-size:11px}
+    .ready-icon{
+      display:grid;place-items:center;width:64px;height:64px;border-radius:50%;
+      color:#fff;background:var(--green);box-shadow:0 12px 28px rgba(21,128,61,.2);
+    }
+    .ready-icon .material-symbols-outlined{font-size:34px}
+    .compare-table{display:grid;gap:2px}
+    .compare-row{display:grid;grid-template-columns:1.2fr repeat(3,1fr);align-items:center;min-height:45px;padding:0 12px;border-radius:9px;font-size:10px}
+    .compare-row:nth-child(even){background:#fafaf9}
+    .compare-row.header{min-height:35px;color:var(--muted);font-weight:800}
+    .compare-row strong{color:var(--ink)}
+    .checklist{display:grid;gap:9px}
+    .check-item{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid var(--line);border-radius:11px;font-size:10px}
+    .check-item .material-symbols-outlined{color:var(--green)}
+    .audit-timeline{position:relative;padding-left:21px}
+    .audit-timeline:before{content:"";position:absolute;left:6px;top:7px;bottom:8px;width:2px;background:#e7e5e4}
+    .audit-item{position:relative;padding:0 0 15px 9px}
+    .audit-item:before{content:"";position:absolute;left:-19px;top:4px;width:9px;height:9px;border:2px solid #fff;border-radius:50%;background:var(--blue);box-shadow:0 0 0 2px #fed7aa}
+    .audit-item strong{display:block;color:var(--ink);font-size:10px}
+    .audit-item span{font-size:9px;color:var(--muted)}
+
+    .toast{
+      position:fixed;right:22px;bottom:22px;z-index:50;max-width:300px;padding:12px 15px;
+      border-radius:12px;color:#fff;background:#292524;box-shadow:0 16px 36px rgba(0,0,0,.2);
+      font-size:11px;opacity:0;transform:translateY(12px);pointer-events:none;transition:.2s ease;
+    }
+    .toast.show{opacity:1;transform:none}
+    @media(max-width:1100px){
+      .shell{grid-template-columns:220px minmax(0,1fr)}
+      .prompt-layout{grid-template-columns:240px minmax(0,1fr)}
+      .prompt-layout>.card:last-child{grid-column:1/-1}
+      .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .variant-grid{grid-template-columns:1fr}
+    }
+    @media(max-width:800px){
+      .shell{display:block}
+      .sidebar{position:static;width:auto;height:auto;padding:12px 14px;border:0;border-bottom:1px solid var(--line)}
+      .brand{padding:0}.brand-mark{width:37px;height:37px}.brand span,.nav-label,.side-note{display:none}
+      .nav-list{
+        display:flex;gap:7px;margin-top:12px;padding-bottom:2px;overflow-x:auto;
+        scrollbar-width:none;
+      }
+      .nav-btn{width:auto;min-width:max-content;min-height:42px;padding:7px 10px}
+      .nav-copy small{display:none}
+      .main{padding-top:18px}
+      .page-head{display:block}.head-actions{margin-top:12px;justify-content:flex-start}
+      .grid-72,.grid-2,.contribution-layout,.cost-hero{grid-template-columns:1fr}
+      .prompt-layout{grid-template-columns:1fr}
+      .prompt-layout>.card:last-child{grid-column:auto}
+      .request-list{display:flex;gap:8px;overflow:auto}
+      .request-item{min-width:190px;margin:0}
+    }
+    @media(max-width:520px){
+      .main{padding-left:12px;padding-right:12px}
+      .metric-grid,.grid-3,.quality-cards{grid-template-columns:1fr}
+      .card-pad{padding:15px}
+      .nav-copy strong{font-size:11px}
+      .nav-no{display:none}
+      .time-axis{grid-template-columns:105px repeat(5,1fr)}
+      .wf-row{grid-template-columns:105px minmax(0,1fr)}
+      .trace-stat{padding-left:0;border:0}
+      .experiment-banner{align-items:flex-start}
+      .variant-score{grid-template-columns:repeat(3,1fr)}
+      .score-row{grid-template-columns:96px minmax(0,1fr) 38px}
+      .compare-row{grid-template-columns:1.25fr repeat(3,.75fr);padding:0 7px;font-size:9px}
+      .deploy-hero{grid-template-columns:1fr}
+      .ready-icon{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><span class="material-symbols-outlined">query_stats</span></div>
+        <div><strong>Prompt Profiler</strong><span>Jvision Analytics BI</span></div>
+      </div>
+      <div class="nav-label">分析工作流程</div>
+      <nav class="nav-list" aria-label="Prompt 效能剖析流程">
+        <button class="nav-btn" data-i="0"><span class="nav-no">01</span><span class="nav-copy"><strong>切分提示</strong><small>AI 架構師</small></span></button>
+        <button class="nav-btn" data-i="1"><span class="nav-no">02</span><span class="nav-copy"><strong>盤點用量</strong><small>應用負責人</small></span></button>
+        <button class="nav-btn" data-i="2"><span class="nav-no">03</span><span class="nav-copy"><strong>定位延遲</strong><small>AI 架構師</small></span></button>
+        <button class="nav-btn" data-i="3"><span class="nav-no">04</span><span class="nav-copy"><strong>執行消融</strong><small>資料科學家</small></span></button>
+        <button class="nav-btn" data-i="4"><span class="nav-no">05</span><span class="nav-copy"><strong>評估貢獻</strong><small>資料科學家</small></span></button>
+        <button class="nav-btn" data-i="5"><span class="nav-no">06</span><span class="nav-copy"><strong>套用縮減</strong><small>應用負責人</small></span></button>
+      </nav>
+      <div class="side-note">
+        <strong><span class="material-symbols-outlined">verified_user</span>資料保護已啟用</strong>
+        <p>分析內容已遮罩敏感欄位，模型請求僅保留 30 天。</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="page-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">analytics</span>Prompt 效能剖析器</div>
+          <h1 id="pageTitle">切分提示</h1>
+          <p class="subtitle" id="pageSubtitle">匯入模型請求並標記提示的功能區段。</p>
+        </div>
+        <div class="head-actions">
+          <span class="pill"><span class="material-symbols-outlined">database</span>prod-rag-assistant</span>
+          <span class="badge green"><span class="material-symbols-outlined">circle</span>即時資料</span>
+          <button class="btn" type="button" data-action="export"><span class="material-symbols-outlined">download</span>匯出報告</button>
+        </div>
+      </header>
+
+      <section class="screen" data-screen="0" aria-label="切分提示">
+        <div class="metric-grid">
+          <article class="metric"><div class="metric-top"><span>本次輸入 Token</span><span class="material-symbols-outlined">token</span></div><strong>8,426</strong><small>占模型視窗 6.4%</small></article>
+          <article class="metric"><div class="metric-top"><span>已辨識區段</span><span class="material-symbols-outlined">segment</span></div><strong>12</strong><small class="delta">100% 已完成標記</small></article>
+          <article class="metric"><div class="metric-top"><span>提示版本</span><span class="material-symbols-outlined">history</span></div><strong>v18.3</strong><small>部署於 2026-08-21</small></article>
+          <article class="metric"><div class="metric-top"><span>敏感資訊</span><span class="material-symbols-outlined">shield</span></div><strong>0</strong><small class="delta">遮罩檢查通過</small></article>
+        </div>
+
+        <div class="prompt-layout">
+          <article class="card">
+            <div class="card-pad">
+              <div class="card-head"><div><h2>模型請求</h2><p>最近 15 分鐘</p></div><span class="badge blue">28 筆</span></div>
+            </div>
+            <div class="request-list">
+              <button class="request-item selected" type="button"><strong>REQ-89F2 <span class="badge green">200</span></strong><span>客服知識問答 · 10:42:18</span></button>
+              <button class="request-item" type="button"><strong>REQ-89E7 <span class="badge green">200</span></strong><span>合約條款摘要 · 10:41:52</span></button>
+              <button class="request-item" type="button"><strong>REQ-89D1 <span class="badge amber">慢速</span></strong><span>產品規格比對 · 10:40:37</span></button>
+              <button class="request-item" type="button"><strong>REQ-89C8 <span class="badge green">200</span></strong><span>退換貨意圖辨識 · 10:39:11</span></button>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="editor-top">
+              <div><strong style="color:var(--ink);font-size:12px">REQ-89F2 / 組裝後提示</strong><div class="muted" style="font-size:9px;margin-top:4px">gpt-enterprise-4.2 · temperature 0.2</div></div>
+              <button class="btn" type="button" data-action="segment"><span class="material-symbols-outlined">auto_fix_high</span>自動切片</button>
+            </div>
+            <div class="editor-body">
+              <div class="segment system"><div class="seg-head"><strong>系統指令</strong><span>1,246 tokens · 14.8%</span></div>你是企業客服助理。回答必須引用核准知識庫，使用繁體中文，並以三段式結構提供結論、依據與下一步。</div>
+              <div class="segment knowledge"><div class="seg-head"><strong>檢索知識 × 6</strong><span>5,182 tokens · 61.5%</span></div>KB-RET-024 退貨政策、KB-WAR-018 保固範圍、KB-SHP-031 物流時程，以及三筆產品版本補充說明。</div>
+              <div class="segment examples"><div class="seg-head"><strong>格式範例 × 3</strong><span>1,614 tokens · 19.2%</span></div>Q：商品拆封後可以退貨嗎？ A：結論／政策依據／申請步驟。每則引用需附文件代碼。</div>
+              <div class="segment question"><div class="seg-head"><strong>使用者問題</strong><span>384 tokens · 4.5%</span></div>企業採購的設備已拆封，其中兩台出現異常，如何申請換貨？需要準備哪些資料？</div>
+            </div>
+          </article>
+
+          <article class="card card-pad">
+            <div class="card-head"><div><h2>區段檢查器</h2><p>所選請求的結構摘要</p></div></div>
+            <div class="inspect-list">
+              <div class="inspect-row"><span>主要語言</span><strong>繁體中文</strong></div>
+              <div class="inspect-row"><span>視窗利用率</span><strong>6.4% / 128K</strong></div>
+              <div class="inspect-row"><span>重複內容</span><strong style="color:var(--amber)">812 tokens</strong></div>
+              <div class="inspect-row"><span>快取命中</span><strong>系統指令、格式範例</strong></div>
+              <div class="inspect-row"><span>區段圖例</span><strong style="font-size:10px;line-height:2">
+                <i class="legend-dot" style="background:var(--blue)"></i>指令
+                <i class="legend-dot" style="background:#2563eb"></i>知識<br>
+                <i class="legend-dot" style="background:#7c3aed"></i>範例
+                <i class="legend-dot" style="background:var(--green)"></i>問題
+              </strong></div>
+            </div>
+            <button class="btn primary" style="width:100%;margin-top:16px" type="button" data-next="1">確認切片並盤點用量</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="1" aria-label="盤點用量">
+        <div class="cost-hero card">
+          <div>
+            <span class="badge blue">過去 7 日 · 186,420 次請求</span>
+            <div class="big-cost"><sup>NT$</sup> 84,620</div>
+            <p class="subtitle">推估月成本 NT$362,657；相較上版提示增加 8.7%。</p>
+            <div class="recommend" style="margin-top:17px">
+              <span class="material-symbols-outlined">energy_savings_leaf</span>
+              <div><strong>可節省 NT$71,300 / 月</strong><p>摘要長知識片段並提高範例區快取命中率，預估不影響品質門檻。</p></div>
+            </div>
+          </div>
+          <div class="chart-wrap short"><canvas id="costDoughnut" aria-label="Token 成本組成圖"></canvas></div>
+        </div>
+
+        <div class="metric-grid" style="margin-top:14px">
+          <article class="metric"><div class="metric-top"><span>輸入 Token</span><span>72.4%</span></div><strong>1.38B</strong><small>NT$61,274</small></article>
+          <article class="metric"><div class="metric-top"><span>輸出 Token</span><span>21.1%</span></div><strong>402M</strong><small>NT$17,855</small></article>
+          <article class="metric"><div class="metric-top"><span>快取 Token</span><span>6.5%</span></div><strong>124M</strong><small>NT$5,491</small></article>
+          <article class="metric"><div class="metric-top"><span>每次請求</span><span class="material-symbols-outlined">payments</span></div><strong>$0.45</strong><small class="delta">目標 $0.34</small></article>
+        </div>
+
+        <div class="grid-72">
+          <article class="card card-pad">
+            <div class="card-head"><div><h2>區段 Token 成本分解</h2><p>依提示功能區段排序</p></div><button class="btn" type="button" data-action="filter">全部模型</button></div>
+            <div class="cost-bars">
+              <div><div class="bar-label"><strong>檢索知識</strong><span>5,182 tokens · NT$0.282</span></div><div class="bar-track"><div class="bar-fill" style="width:61.5%"></div></div></div>
+              <div><div class="bar-label"><strong>格式範例</strong><span>1,614 tokens · NT$0.088</span></div><div class="bar-track"><div class="bar-fill" style="width:19.2%;background:#7c3aed"></div></div></div>
+              <div><div class="bar-label"><strong>系統指令</strong><span>1,246 tokens · NT$0.068</span></div><div class="bar-track"><div class="bar-fill" style="width:14.8%;background:#2563eb"></div></div></div>
+              <div><div class="bar-label"><strong>使用者問題</strong><span>384 tokens · NT$0.021</span></div><div class="bar-track"><div class="bar-fill" style="width:4.5%;background:var(--green)"></div></div></div>
+            </div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-head"><div><h2>模型成本排行</h2><p>今日累計</p></div></div>
+            <div class="inspect-list">
+              <div class="inspect-row"><span>gpt-enterprise-4.2</span><strong>NT$8,914 <em class="muted" style="float:right;font-size:9px">48.2%</em></strong></div>
+              <div class="inspect-row"><span>private-llm-70b</span><strong>NT$5,276 <em class="muted" style="float:right;font-size:9px">28.5%</em></strong></div>
+              <div class="inspect-row"><span>fast-mini-v3</span><strong>NT$3,119 <em class="muted" style="float:right;font-size:9px">16.9%</em></strong></div>
+              <div class="inspect-row"><span>embedding-multilingual</span><strong>NT$1,188 <em class="muted" style="float:right;font-size:9px">6.4%</em></strong></div>
+            </div>
+            <button class="btn primary" style="width:100%;margin-top:15px" type="button" data-next="2">前往延遲分析</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="2" aria-label="定位延遲">
+        <article class="card trace-summary">
+          <div class="trace-main"><strong>2,846 ms</strong><span>REQ-89D1 總處理時間</span></div>
+          <div class="trace-stat"><strong>1,432 ms</strong><span>模型推論</span></div>
+          <div class="trace-stat"><strong>824 ms</strong><span>向量檢索</span></div>
+          <div class="trace-stat"><strong>412 ms</strong><span>工具呼叫</span></div>
+          <div class="trace-stat"><strong>178 ms</strong><span>提示組裝</span></div>
+          <span class="badge red">超出 P95 目標 646 ms</span>
+        </article>
+
+        <div class="grid-72" style="margin-top:14px">
+          <article class="card waterfall">
+            <div class="card-head"><div><h2>請求延遲瀑布</h2><p>Trace ID: tr_8e1a7c49 · Asia/Taipei</p></div><span class="pill">0—2,846 ms</span></div>
+            <div class="time-axis"><span>處理節點</span><span>0</span><span>570</span><span>1,140</span><span>1,710</span><span>2,280</span></div>
+            <div class="wf-row"><div class="wf-label"><span class="material-symbols-outlined">login</span>API Gateway</div><div class="wf-track"><i class="wf-block info" style="left:0;width:4%"></i></div></div>
+            <div class="wf-row"><div class="wf-label"><span class="material-symbols-outlined">manage_search</span>向量檢索</div><div class="wf-track"><i class="wf-block warn" style="left:4%;width:29%"></i></div></div>
+            <div class="wf-row"><div class="wf-label"><span class="material-symbols-outlined">account_tree</span>提示組裝</div><div class="wf-track"><i class="wf-block" style="left:33%;width:6.3%"></i></div></div>
+            <div class="wf-row"><div class="wf-label"><span class="material-symbols-outlined">psychology</span>模型推論</div><div class="wf-track"><i class="wf-block" style="left:39.3%;width:50.3%"></i></div></div>
+            <div class="wf-row"><div class="wf-label"><span class="material-symbols-outlined">build</span>工具呼叫</div><div class="wf-track"><i class="wf-block info" style="left:55%;width:14.5%"></i></div></div>
+            <div class="wf-row"><div class="wf-label"><span class="material-symbols-outlined">output</span>回應格式化</div><div class="wf-track"><i class="wf-block" style="left:89.6%;width:7%"></i></div></div>
+          </article>
+
+          <div style="display:grid;gap:14px">
+            <article class="card card-pad">
+              <div class="card-head"><div><h2>延遲分布</h2><p>最近 1,000 次請求</p></div></div>
+              <div class="chart-wrap short"><canvas id="latencyChart" aria-label="延遲分布圖"></canvas></div>
+            </article>
+            <div class="bottleneck">
+              <strong>主要瓶頸：向量檢索重試</strong>
+              <p>跨區索引首次查詢逾時後重試，額外增加 516 ms。建議將產品規格索引移至台灣區唯讀副本。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-3" style="margin-top:14px">
+          <article class="card card-pad"><div class="card-head"><div><h3>P50 回應</h3><p>穩定區間</p></div></div><strong style="font-size:25px;color:var(--ink)">1.42s</strong><span class="badge green" style="margin-left:8px">-8.1%</span></article>
+          <article class="card card-pad"><div class="card-head"><div><h3>P95 回應</h3><p>服務門檻 2.2s</p></div></div><strong style="font-size:25px;color:var(--ink)">2.85s</strong><span class="badge red" style="margin-left:8px">+29.5%</span></article>
+          <article class="card card-pad"><div class="card-head"><div><h3>首字延遲</h3><p>TTFT</p></div></div><strong style="font-size:25px;color:var(--ink)">684ms</strong><span class="badge amber" style="margin-left:8px">需改善</span></article>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="3" aria-label="執行消融">
+        <article class="card experiment-banner">
+          <div>
+            <span class="badge" style="color:#7c2d12;background:#ffedd5">實驗 EXP-2408-17</span>
+            <h2 style="margin-top:10px">客服提示上下文縮減批次</h2>
+            <p>評測集 240 題 · 4 個變體 · 已完成 720 / 960 次推論</p>
+          </div>
+          <div class="progress-ring"><strong>75%</strong></div>
+        </article>
+
+        <div class="variant-grid" style="margin-top:14px">
+          <article class="variant">
+            <div class="variant-head"><h3>A · 基準提示</h3><span class="badge blue">控制組</span></div>
+            <p>保留完整系統指令、6 筆知識與 3 組格式範例。</p>
+            <div class="variant-score"><div><strong>92.8</strong><span>品質</span></div><div><strong>8.4K</strong><span>Token</span></div><div><strong>2.3s</strong><span>延遲</span></div></div>
+          </article>
+          <article class="variant">
+            <div class="variant-head"><h3>B · 移除重複範例</h3><span class="badge amber">評測中</span></div>
+            <p>刪除語意重複的兩組格式範例，保留代表性案例。</p>
+            <div class="variant-score"><div><strong>92.6</strong><span>品質</span></div><div><strong>7.2K</strong><span>Token</span></div><div><strong>2.0s</strong><span>延遲</span></div></div>
+          </article>
+          <article class="variant winner">
+            <div class="variant-head"><h3>C · 知識摘要＋快取</h3><span class="badge green">目前最佳</span></div>
+            <p>摘要長知識片段，固定規則移至可重用提示快取。</p>
+            <div class="variant-score"><div><strong>93.1</strong><span>品質</span></div><div><strong>5.9K</strong><span>Token</span></div><div><strong>1.7s</strong><span>延遲</span></div></div>
+          </article>
+        </div>
+
+        <div class="grid-72" style="margin-top:14px">
+          <article class="card card-pad">
+            <div class="card-head"><div><h2>批次執行記錄</h2><p>依評測資料集分層抽樣</p></div><button class="btn" type="button" data-action="pause"><span class="material-symbols-outlined">pause</span>暫停佇列</button></div>
+            <div class="run-log">
+              <div class="log-row"><span>批次 01</span><span>一般退換貨 · 80 題 × 4 變體</span><span class="badge green">完成</span></div>
+              <div class="log-row"><span>批次 02</span><span>企業採購 · 60 題 × 4 變體</span><span class="badge green">完成</span></div>
+              <div class="log-row"><span>批次 03</span><span>保固例外 · 40 題 × 4 變體</span><span class="badge amber">執行中 50%</span></div>
+              <div class="log-row"><span>批次 04</span><span>跨區物流 · 60 題 × 4 變體</span><span class="badge blue">排隊中</span></div>
+            </div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-head"><div><h2>實驗設定</h2><p>品質門檻與停止條件</p></div></div>
+            <div class="inspect-list">
+              <div class="inspect-row"><span>最低正確率</span><strong>≥ 91.0%</strong></div>
+              <div class="inspect-row"><span>引用完整率</span><strong>≥ 98.0%</strong></div>
+              <div class="inspect-row"><span>最大退化容忍</span><strong>≤ 0.5 pt</strong></div>
+              <div class="inspect-row"><span>隨機種子</span><strong>3479</strong></div>
+            </div>
+            <button class="btn primary" style="width:100%;margin-top:15px" type="button" data-next="4">檢視貢獻評分</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="4" aria-label="評估貢獻">
+        <div class="metric-grid">
+          <article class="metric"><div class="metric-top"><span>綜合品質</span><span class="material-symbols-outlined">workspace_premium</span></div><strong>93.1</strong><small class="delta">較基準 +0.3 pt</small></article>
+          <article class="metric"><div class="metric-top"><span>正確性</span><span class="material-symbols-outlined">fact_check</span></div><strong>94.2%</strong><small>門檻 91%</small></article>
+          <article class="metric"><div class="metric-top"><span>引用完整率</span><span class="material-symbols-outlined">format_quote</span></div><strong>98.8%</strong><small class="delta">通過門檻</small></article>
+          <article class="metric"><div class="metric-top"><span>安全遵循</span><span class="material-symbols-outlined">health_and_safety</span></div><strong>100%</strong><small>0 筆高風險違規</small></article>
+        </div>
+
+        <div class="contribution-layout">
+          <article class="card card-pad">
+            <div class="card-head"><div><h2>指令區段貢獻評分</h2><p>以消融結果估算對各品質構面的邊際影響</p></div><span class="pill">信賴區間 95%</span></div>
+            <div class="chart-wrap"><canvas id="contributionChart" aria-label="區段貢獻雷達圖"></canvas></div>
+            <div class="score-list" style="margin-top:15px">
+              <div class="score-row"><span>引用規則</span><div class="bar-track"><div class="bar-fill" style="width:92%;background:var(--green)"></div></div><strong class="positive">+9.2</strong></div>
+              <div class="score-row"><span>角色與任務</span><div class="bar-track"><div class="bar-fill" style="width:71%;background:#2563eb"></div></div><strong class="positive">+7.1</strong></div>
+              <div class="score-row"><span>代表性範例</span><div class="bar-track"><div class="bar-fill" style="width:48%;background:#7c3aed"></div></div><strong class="positive">+4.8</strong></div>
+              <div class="score-row"><span>重複格式範例</span><div class="bar-track"><div class="bar-fill" style="width:12%;background:var(--red)"></div></div><strong class="negative">-1.2</strong></div>
+            </div>
+          </article>
+
+          <div style="display:grid;gap:14px">
+            <article class="card card-pad">
+              <div class="card-head"><div><h2>分析結論</h2><p>模型評測與規則檢查交叉驗證</p></div></div>
+              <div class="finding"><strong><span class="material-symbols-outlined" style="color:var(--green)">trending_up</span>知識摘要提升精準度</strong><p>移除檢索雜訊後，企業採購題組正確率提高 1.8 個百分點。</p></div>
+              <div class="finding"><strong><span class="material-symbols-outlined" style="color:var(--amber)">content_cut</span>兩組範例可安全移除</strong><p>格式遵循僅下降 0.1 pt，仍高於 98% 的發布門檻。</p></div>
+              <div class="finding"><strong><span class="material-symbols-outlined" style="color:#2563eb">shield</span>安全規則必須保留</strong><p>移除後敏感訂單資訊揭露率上升，已排除該實驗變體。</p></div>
+            </article>
+            <article class="card card-pad">
+              <div class="card-head"><div><h2>題組表現</h2><p>最佳變體 C</p></div></div>
+              <div class="quality-cards">
+                <div class="quality"><strong>95.4</strong><span>一般退換貨</span></div>
+                <div class="quality"><strong>93.8</strong><span>企業採購</span></div>
+                <div class="quality"><strong>89.9</strong><span>保固例外</span></div>
+              </div>
+              <button class="btn primary" style="width:100%;margin-top:14px" type="button" data-next="5">建立縮減方案</button>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="5" aria-label="套用縮減">
+        <article class="card deploy-hero">
+          <div>
+            <span class="badge green">方案 OPT-3479-C 已通過驗證</span>
+            <h2 style="margin-top:10px">準備套用「知識摘要＋快取」</h2>
+            <p>預估 Token 減少 29.9%、P95 延遲降低 26.1%，品質提高 0.3 pt。</p>
+          </div>
+          <div class="ready-icon"><span class="material-symbols-outlined">done_all</span></div>
+        </article>
+
+        <div class="metric-grid" style="margin-top:14px">
+          <article class="metric"><div class="metric-top"><span>每次 Token</span><span class="badge green">-29.9%</span></div><strong>5,906</strong><small>原始 8,426</small></article>
+          <article class="metric"><div class="metric-top"><span>P95 延遲</span><span class="badge green">-26.1%</span></div><strong>1.71s</strong><small>原始 2.31s</small></article>
+          <article class="metric"><div class="metric-top"><span>品質評分</span><span class="badge green">+0.3</span></div><strong>93.1</strong><small>門檻 91.0</small></article>
+          <article class="metric"><div class="metric-top"><span>月成本預估</span><span class="badge green">-19.7%</span></div><strong>$291K</strong><small>每月節省 NT$71,300</small></article>
+        </div>
+
+        <div class="grid-72">
+          <article class="card card-pad">
+            <div class="card-head"><div><h2>方案前後比較</h2><p>基於 240 題評測集與 7 日流量回放</p></div><button class="btn" type="button" data-action="report">下載驗證報告</button></div>
+            <div class="compare-table">
+              <div class="compare-row header"><span>指標</span><span>目前版本</span><span>縮減方案</span><span>變化</span></div>
+              <div class="compare-row"><strong>輸入 Token</strong><span>8,426</span><span>5,906</span><span class="positive">-2,520</span></div>
+              <div class="compare-row"><strong>推論成本 / 次</strong><span>NT$0.45</span><span>NT$0.34</span><span class="positive">-24.4%</span></div>
+              <div class="compare-row"><strong>P95 延遲</strong><span>2.31s</span><span>1.71s</span><span class="positive">-600ms</span></div>
+              <div class="compare-row"><strong>正確率</strong><span>92.8%</span><span>93.1%</span><span class="positive">+0.3 pt</span></div>
+              <div class="compare-row"><strong>引用完整率</strong><span>98.7%</span><span>98.8%</span><span class="positive">+0.1 pt</span></div>
+            </div>
+            <h3 class="section-label" style="margin-top:20px">發布前檢查</h3>
+            <div class="checklist">
+              <div class="check-item"><span class="material-symbols-outlined">check_circle</span>評測品質高於 91% 發布門檻</div>
+              <div class="check-item"><span class="material-symbols-outlined">check_circle</span>敏感資訊與安全規則完整保留</div>
+              <div class="check-item"><span class="material-symbols-outlined">check_circle</span>5% 金絲雀流量與自動回復規則已設定</div>
+            </div>
+          </article>
+
+          <div style="display:grid;gap:14px">
+            <article class="card card-pad">
+              <div class="card-head"><div><h2>部署策略</h2><p>生產環境漸進發布</p></div><span class="badge blue">待核准</span></div>
+              <div class="inspect-list">
+                <div class="inspect-row"><span>目標環境</span><strong>prod-rag-assistant</strong></div>
+                <div class="inspect-row"><span>第一階段流量</span><strong>5% · 30 分鐘</strong></div>
+                <div class="inspect-row"><span>自動回復條件</span><strong>品質 &lt; 91% 或錯誤率 &gt; 1%</strong></div>
+                <div class="inspect-row"><span>核准人</span><strong>應用負責人 · 林怡君</strong></div>
+              </div>
+              <button class="btn primary" style="width:100%;margin-top:16px" type="button" data-action="deploy"><span class="material-symbols-outlined">rocket_launch</span>核准並開始發布</button>
+            </article>
+            <article class="card card-pad">
+              <div class="card-head"><div><h2>可追溯紀錄</h2><p>方案 OPT-3479-C</p></div></div>
+              <div class="audit-timeline">
+                <div class="audit-item"><strong>品質驗證完成</strong><span>資料科學家 · 10:26</span></div>
+                <div class="audit-item"><strong>成本估算已確認</strong><span>應用負責人 · 10:18</span></div>
+                <div class="audit-item"><strong>安全規則比對通過</strong><span>AI 架構師 · 10:02</span></div>
+                <div class="audit-item"><strong>方案由實驗 EXP-2408-17 建立</strong><span>系統 · 09:54</span></div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const stageInfo = [
+        { title: "切分提示", subtitle: "匯入模型請求並標記提示的功能區段。" },
+        { title: "盤點用量", subtitle: "檢視各區段 Token 與推論成本占比。" },
+        { title: "定位延遲", subtitle: "沿請求瀑布找出主要等待節點。" },
+        { title: "執行消融", subtitle: "批次測試移除、摘要與替換區段的效果。" },
+        { title: "評估貢獻", subtitle: "比對評測集並解釋品質變化來源。" },
+        { title: "套用縮減", subtitle: "選定最佳方案並驗證成本、延遲及品質。" }
+      ];
+
+      const chartRegistry = {};
+      const pageTitle = document.getElementById("pageTitle");
+      const pageSubtitle = document.getElementById("pageSubtitle");
+      const toastBox = document.getElementById("toast");
+
+      function notify(message) {
+        toastBox.textContent = message;
+        toastBox.classList.add("show");
+        window.clearTimeout(notify.hideId);
+        notify.hideId = window.setTimeout(() => toastBox.classList.remove("show"), 2200);
+      }
+
+      function chartReady(canvas) {
+        return canvas && canvas.parentElement && canvas.parentElement.clientWidth > 0;
+      }
+
+      function initCharts(index) {
+        if (typeof Chart === "undefined") return;
+
+        if (index === 1 && !chartRegistry.cost) {
+          const canvas = document.getElementById("costDoughnut");
+          if (!chartReady(canvas)) return;
+          chartRegistry.cost = new Chart(canvas, {
+            type: "doughnut",
+            data: {
+              labels: ["輸入 Token", "輸出 Token", "快取 Token"],
+              datasets: [{
+                data: [72.4, 21.1, 6.5],
+                backgroundColor: ["#b45309", "#f59e0b", "#fed7aa"],
+                borderWidth: 0,
+                hoverOffset: 4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              cutout: "70%",
+              plugins: {
+                legend: { position: "bottom", labels: { boxWidth: 9, usePointStyle: true, font: { size: 10 } } },
+                tooltip: { callbacks: { label: context => " " + context.label + " " + context.raw + "%" } }
+              }
+            }
+          });
+        }
+
+        if (index === 2 && !chartRegistry.latency) {
+          const canvas = document.getElementById("latencyChart");
+          if (!chartReady(canvas)) return;
+          chartRegistry.latency = new Chart(canvas, {
+            type: "line",
+            data: {
+              labels: ["P10", "P25", "P50", "P75", "P90", "P95", "P99"],
+              datasets: [{
+                label: "延遲 ms",
+                data: [620, 890, 1420, 1810, 2320, 2850, 4120],
+                borderColor: "#b45309",
+                backgroundColor: "rgba(180,83,9,.12)",
+                fill: true,
+                tension: .38,
+                pointRadius: 3,
+                pointBackgroundColor: "#b45309"
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 9 } } },
+                y: { grid: { color: "#eee" }, ticks: { font: { size: 9 }, callback: value => value / 1000 + "s" } }
+              },
+              plugins: { legend: { display: false } }
+            }
+          });
+        }
+
+        if (index === 4 && !chartRegistry.contribution) {
+          const canvas = document.getElementById("contributionChart");
+          if (!chartReady(canvas)) return;
+          chartRegistry.contribution = new Chart(canvas, {
+            type: "radar",
+            data: {
+              labels: ["正確性", "格式遵循", "引用完整", "安全性", "簡潔度", "語氣一致"],
+              datasets: [
+                {
+                  label: "縮減方案 C",
+                  data: [94.2, 98.4, 98.8, 100, 91.6, 95.1],
+                  borderColor: "#b45309",
+                  backgroundColor: "rgba(180,83,9,.15)",
+                  pointBackgroundColor: "#b45309",
+                  borderWidth: 2
+                },
+                {
+                  label: "基準提示",
+                  data: [93.8, 98.3, 98.7, 100, 84.2, 95.0],
+                  borderColor: "#a8a29e",
+                  backgroundColor: "rgba(168,162,158,.05)",
+                  pointBackgroundColor: "#a8a29e",
+                  borderDash: [4, 4],
+                  borderWidth: 1
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                r: {
+                  min: 75,
+                  max: 100,
+                  ticks: { display: false },
+                  pointLabels: { color: "#57534e", font: { size: 10 } },
+                  grid: { color: "#e7e5e4" },
+                  angleLines: { color: "#e7e5e4" }
+                }
+              },
+              plugins: {
+                legend: { position: "bottom", labels: { usePointStyle: true, boxWidth: 8, font: { size: 10 } } }
+              }
+            }
+          });
+        }
+      }
+
+      function show(index, updateHash) {
+        const safeIndex = Math.max(0, Math.min(5, Number(index) || 0));
+        document.querySelectorAll("[data-screen]").forEach(screen => {
+          screen.classList.toggle("active", Number(screen.dataset.screen) === safeIndex);
+        });
+        document.querySelectorAll("[data-i]").forEach(button => {
+          const selected = Number(button.dataset.i) === safeIndex;
+          button.classList.toggle("active", selected);
+          button.setAttribute("aria-current", selected ? "step" : "false");
+        });
+        pageTitle.textContent = stageInfo[safeIndex].title;
+        pageSubtitle.textContent = stageInfo[safeIndex].subtitle;
+        document.title = "Prompt 效能剖析器 · analytics-bi｜Jvision 系統 Demo";
+        if (updateHash && window.location.hash !== "#go=" + safeIndex) {
+          history.pushState(null, "", "#go=" + safeIndex);
+        }
+        window.requestAnimationFrame(() => initCharts(safeIndex));
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      function indexFromHash() {
+        const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+        return match ? Number(match[1]) : 0;
+      }
+
+      document.querySelectorAll("[data-i]").forEach(button => {
+        button.addEventListener("click", () => show(Number(button.dataset.i), true));
+      });
+
+      document.querySelectorAll("[data-next]").forEach(button => {
+        button.addEventListener("click", () => show(Number(button.dataset.next), true));
+      });
+
+      document.querySelectorAll(".request-item").forEach(button => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll(".request-item").forEach(item => item.classList.remove("selected"));
+          button.classList.add("selected");
+          notify("已載入 " + button.querySelector("strong").childNodes[0].textContent.trim());
+        });
+      });
+
+      document.querySelectorAll("[data-action]").forEach(button => {
+        button.addEventListener("click", () => {
+          const action = button.dataset.action;
+          const messages = {
+            export: "剖析報告已建立，準備下載",
+            segment: "自動切片完成：辨識 12 個功能區段",
+            filter: "目前顯示全部模型的彙總用量",
+            pause: "批次佇列已暫停，新任務不會開始",
+            report: "驗證報告 OPT-3479-C 已建立",
+            deploy: "已送出發布核准，等待應用負責人簽核"
+          };
+          notify(messages[action] || "操作已完成");
+        });
+      });
+
+      window.addEventListener("hashchange", () => show(indexFromHash(), false));
+      show(indexFromHash(), false);
+    })();
+  </script>
+</body>
+</html>

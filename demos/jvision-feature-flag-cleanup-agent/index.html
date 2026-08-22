@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Feature Flag 清理 Agent · it-ops｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+:root{
+  --blue:#1e40af;--ink:#172033;--body:#334155;--muted:#64748b;--line:#dbe3ef;
+  --bg:#f5f7fb;--green:#16845b;--amber:#c77700;--red:#c2414b;--white:#fff;
+  --blue-soft:#e9efff;--shadow:0 10px 30px rgba(30,64,175,.08)
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--body);font-family:Inter,"Noto Sans TC",sans-serif;overflow-x:hidden}
+button,input,select{font:inherit}
+button{cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid rgba(30,64,175,.25);outline-offset:2px}
+.app{min-height:100vh;display:grid;grid-template-columns:78px minmax(0,1fr)}
+.rail{position:fixed;inset:0 auto 0 0;width:78px;background:#10245f;color:#fff;display:flex;flex-direction:column;align-items:center;padding:18px 10px;z-index:20}
+.brand{width:46px;height:46px;border-radius:15px;background:#fff;color:var(--blue);display:grid;place-items:center;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.rail-nav{display:grid;gap:10px;margin:auto 0}
+.nav-btn{position:relative;width:50px;height:50px;border:0;border-radius:15px;background:transparent;color:#b9c8f2;display:grid;place-items:center}
+.nav-btn:hover,.nav-btn.active{background:#fff;color:var(--blue)}
+.nav-btn .material-symbols-outlined{font-size:23px}
+.nav-tip{position:absolute;left:58px;top:50%;transform:translateY(-50%);white-space:nowrap;padding:7px 10px;border-radius:8px;background:#172033;color:#fff;font-size:12px;opacity:0;pointer-events:none;transition:.2s}
+.nav-btn:hover .nav-tip{opacity:1}
+.rail-foot{font-size:10px;color:#91a4d8;letter-spacing:.08em}
+.main{grid-column:2;min-width:0}
+.header{height:72px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)}
+.header-title{display:flex;align-items:center;gap:12px;min-width:0}
+.header-title h1{margin:0;font-size:18px;color:var(--ink);white-space:nowrap}
+.header-title span{font-size:12px;color:var(--blue);background:var(--blue-soft);padding:5px 9px;border-radius:999px}
+.header-actions{display:flex;align-items:center;gap:10px}
+.health{display:flex;align-items:center;gap:7px;color:var(--green);font-size:13px;font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 0 5px rgba(22,132,91,.1)}
+.avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#dce6ff;color:var(--blue);font-weight:700}
+.screen{display:none;padding:28px 32px 42px;min-height:calc(100vh - 72px);animation:rise .28s ease}
+.screen.active{display:block}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.page-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:22px}
+.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--blue);font-weight:800;margin-bottom:7px}
+.page-head h2{margin:0;color:var(--ink);font-size:29px;line-height:1.25}
+.page-head p{margin:8px 0 0;color:var(--muted);max-width:690px;font-size:14px;line-height:1.7}
+.primary,.secondary,.ghost{border-radius:10px;padding:10px 14px;font-weight:700;border:1px solid transparent;display:inline-flex;align-items:center;gap:7px;justify-content:center}
+.primary{background:var(--blue);color:#fff;box-shadow:0 7px 16px rgba(30,64,175,.2)}
+.secondary{background:#fff;color:var(--blue);border-color:#b8c8ef}
+.ghost{background:transparent;color:var(--body);border-color:var(--line)}
+.material-symbols-outlined{font-size:20px;line-height:1}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line)}
+.card-head h3{margin:0;color:var(--ink);font-size:15px}
+.card-body{padding:20px}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.badge.blue{background:var(--blue-soft);color:var(--blue)}
+.badge.green{background:#e6f6ef;color:var(--green)}
+.badge.amber{background:#fff3dc;color:var(--amber)}
+.badge.red{background:#fff0f1;color:var(--red)}
+.muted{color:var(--muted)}
+.grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.metric{padding:17px}
+.metric small{color:var(--muted);display:block;margin-bottom:9px}
+.metric strong{font-size:26px;color:var(--ink)}
+.metric .delta{margin-top:8px;font-size:12px;color:var(--green)}
+.progress{height:7px;background:#e7ecf4;border-radius:99px;overflow:hidden}
+.progress i{display:block;height:100%;border-radius:inherit;background:var(--blue)}
+.split{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,.8fr);gap:16px}
+.chart{width:100%;height:280px}
+.empty-note{font-size:12px;color:var(--muted)}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:690px}
+th,td{text-align:left;padding:13px 16px;border-bottom:1px solid var(--line);font-size:13px}
+th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;background:#fafbfe}
+tbody tr:hover{background:#f8faff}
+.check{width:17px;height:17px;accent-color:var(--blue)}
+.repo{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--ink)}
+.repo-icon{width:34px;height:34px;border-radius:9px;background:var(--blue-soft);color:var(--blue);display:grid;place-items:center}
+.score{font-weight:800}
+.score.bad{color:var(--red)}.score.warn{color:var(--amber)}.score.good{color:var(--green)}
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.search{position:relative;min-width:220px;flex:1}
+.search input{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px 10px 38px;background:#fff;color:var(--ink)}
+.search .material-symbols-outlined{position:absolute;left:12px;top:10px;color:var(--muted)}
+.select{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--body)}
+.insight-list{display:grid;gap:11px}
+.insight{padding:13px;border:1px solid var(--line);border-radius:12px}
+.insight b{display:flex;justify-content:space-between;color:var(--ink);font-size:13px;margin-bottom:7px}
+.insight p{font-size:12px;line-height:1.55;margin:0;color:var(--muted)}
+
+/* v1 impact graph */
+.impact-layout{display:grid;grid-template-columns:260px minmax(0,1fr) 300px;gap:16px;min-height:600px}
+.flag-panel,.detail-panel{padding:16px}
+.flag-item{border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:10px;transition:.2s}
+.flag-item.selected{border-color:var(--blue);background:var(--blue-soft)}
+.flag-item b{display:block;color:var(--ink);font-size:13px;margin-bottom:6px}
+.flag-item span{font-size:11px;color:var(--muted)}
+.canvas{position:relative;overflow:hidden;background-image:radial-gradient(#cfd8e8 1px,transparent 1px);background-size:20px 20px;min-height:600px}
+.graph-stage{position:absolute;inset:22px;min-width:610px}
+.edge{position:absolute;height:2px;background:#aab8ce;transform-origin:left center}
+.node{position:absolute;min-width:130px;padding:12px;border:1px solid var(--line);background:#fff;border-radius:12px;box-shadow:0 5px 15px rgba(23,32,51,.08)}
+.node.flag{border-color:var(--blue);background:var(--blue);color:#fff}
+.node.service{border-left:4px solid #657bd0}
+.node.risk{border-left:4px solid var(--red)}
+.node small{display:block;margin-top:4px;color:var(--muted)}
+.node.flag small{color:#cfdbff}
+.detail-list{display:grid;gap:12px}
+.detail-row{padding-bottom:12px;border-bottom:1px solid var(--line)}
+.detail-row label{font-size:11px;color:var(--muted);display:block;margin-bottom:5px}
+.detail-row strong{font-size:13px;color:var(--ink)}
+.code-ref{padding:11px;background:#172033;color:#dce6ff;border-radius:9px;font:11px/1.6 monospace;overflow-wrap:anywhere}
+
+/* v2 simulation */
+.scenario-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.scenario{padding:18px;position:relative}
+.scenario.recommended{border:2px solid var(--green)}
+.scenario h3{margin:12px 0 5px;color:var(--ink);font-size:16px}
+.scenario p{font-size:12px;color:var(--muted);line-height:1.55;min-height:38px}
+.scenario-value{display:flex;justify-content:space-between;align-items:end;margin:18px 0}
+.scenario-value strong{font-size:29px;color:var(--ink)}
+.scenario-value span{font-size:11px;color:var(--muted)}
+.mini-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mini-kpis div{background:#f7f9fc;border-radius:9px;padding:10px}
+.mini-kpis b,.mini-kpis small{display:block}
+.mini-kpis b{font-size:14px;color:var(--ink);margin-bottom:3px}
+.mini-kpis small{font-size:10px;color:var(--muted)}
+.sim-bottom{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(290px,.7fr);gap:16px;margin-top:16px}
+.test-log{font:12px/1.7 monospace;background:#172033;color:#d6e0f8;padding:18px;border-radius:14px;height:280px;overflow:auto}
+.log-ok{color:#72e0ae}.log-warn{color:#ffd27b}
+.switch-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.toggle{width:42px;height:24px;background:var(--blue);border-radius:99px;position:relative}
+.toggle:after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;right:3px;top:3px}
+
+/* v3 planner */
+.plan-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}
+.timeline{padding:10px 20px 20px}
+.plan-step{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:12px;position:relative;padding:16px 0}
+.plan-step:not(:last-child):before{content:"";position:absolute;left:20px;top:51px;bottom:-14px;width:2px;background:var(--line)}
+.step-num{width:42px;height:42px;border-radius:12px;background:var(--blue-soft);color:var(--blue);display:grid;place-items:center;font-weight:800;z-index:1}
+.plan-step h4{margin:1px 0 5px;color:var(--ink);font-size:14px}
+.plan-step p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
+.file-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.file-tags span{background:#f0f3f8;color:#4b5970;padding:4px 7px;border-radius:6px;font:10px monospace}
+.duration{font-size:11px;color:var(--muted);padding-top:7px}
+.approval-box{padding:19px}
+.risk-score{display:flex;align-items:center;gap:15px;margin:13px 0 18px}
+.risk-ring{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--amber) 0 34%,#edf1f6 34%);position:relative}
+.risk-ring:after{content:"";position:absolute;inset:8px;border-radius:50%;background:#fff}
+.risk-ring strong{position:relative;z-index:1;color:var(--ink)}
+.rule{display:flex;gap:9px;padding:11px 0;border-bottom:1px solid var(--line);font-size:12px}
+.rule .material-symbols-outlined{color:var(--green);font-size:18px}
+
+/* v4 verification */
+.verify-hero{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;margin-bottom:16px}
+.gate-summary{padding:21px;background:linear-gradient(135deg,#173a9c,#1e40af);color:#fff}
+.gate-summary h3{margin:0 0 8px;font-size:18px}
+.gate-summary p{font-size:12px;line-height:1.65;color:#d5dfff}
+.gate-big{font-size:44px;font-weight:800;margin:16px 0 2px}
+.verify-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.test-group{padding:18px}
+.group-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.group-title h3{margin:0;color:var(--ink);font-size:15px}
+.test-case{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:10px;padding:11px 0;border-top:1px solid var(--line)}
+.test-case b{font-size:12px;color:var(--ink)}
+.test-case small{display:block;color:var(--muted);font-size:10px;margin-top:4px}
+.pass-icon{color:var(--green)}
+.threshold{font:11px monospace;color:var(--blue);background:var(--blue-soft);padding:5px 7px;border-radius:6px}
+.stop-box{border-left:4px solid var(--red)}
+.monitor-chart{height:210px}
+
+/* v5 execution */
+.execution-banner{padding:22px;display:flex;align-items:center;justify-content:space-between;gap:20px;background:linear-gradient(120deg,#fff,#edf2ff)}
+.execution-id{display:flex;align-items:center;gap:15px}
+.exec-icon{width:54px;height:54px;border-radius:16px;background:#e6f6ef;color:var(--green);display:grid;place-items:center}
+.execution-id h3{margin:0 0 5px;color:var(--ink)}
+.execution-id p{margin:0;font-size:12px;color:var(--muted)}
+.exec-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,.7fr);gap:16px;margin-top:16px}
+.pipeline{padding:20px}
+.pipeline-row{display:grid;grid-template-columns:38px minmax(0,1fr) 100px;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.pipe-icon{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#e6f6ef;color:var(--green)}
+.pipeline-row h4{margin:0 0 4px;color:var(--ink);font-size:13px}
+.pipeline-row p{margin:0;color:var(--muted);font-size:11px}
+.audit{padding:18px}
+.audit-event{display:grid;grid-template-columns:10px minmax(0,1fr);gap:10px;padding:9px 0}
+.audit-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);margin-top:5px}
+.audit-event b{display:block;color:var(--ink);font-size:12px}
+.audit-event small{color:var(--muted);font-size:10px}
+.result-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
+.result{padding:16px}
+.result span{font-size:11px;color:var(--muted)}
+.result strong{display:block;color:var(--ink);font-size:22px;margin-top:7px}
+.result del{font-size:11px;color:#94a3b8;margin-left:5px}
+
+@media(max-width:1100px){
+  .grid-4,.result-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .impact-layout{grid-template-columns:220px minmax(0,1fr)}
+  .detail-panel{grid-column:1/-1}
+  .scenario-grid{grid-template-columns:1fr}
+  .scenario p{min-height:auto}
+}
+@media(max-width:820px){
+  .app{display:block;padding-bottom:74px}
+  .main{display:block}
+  .rail{inset:auto 0 0 0;width:auto;height:66px;flex-direction:row;padding:8px 12px}
+  .brand,.rail-foot{display:none}
+  .rail-nav{display:flex;justify-content:space-around;width:100%;margin:0}
+  .nav-btn{width:46px;height:46px}
+  .nav-tip{display:none}
+  .header{padding:0 18px}
+  .header-title h1{font-size:15px}
+  .health{display:none}
+  .screen{padding:22px 18px 32px}
+  .page-head{display:block}
+  .page-head h2{font-size:24px}
+  .page-head .toolbar{margin-top:14px}
+  .split,.sim-bottom,.plan-layout,.verify-hero,.exec-grid{grid-template-columns:1fr}
+  .impact-layout{grid-template-columns:1fr}
+  .canvas{min-height:500px;overflow:auto}
+  .flag-panel{max-height:280px;overflow:auto}
+}
+@media(max-width:520px){
+  .header-title span{display:none}
+  .header-actions .ghost{display:none}
+  .grid-4,.result-kpis,.verify-grid{grid-template-columns:1fr}
+  .page-head h2{font-size:22px}
+  .toolbar>*{width:100%}
+  .search{min-width:0}
+  .chart{height:240px}
+  .mini-kpis{grid-template-columns:1fr}
+  .plan-step{grid-template-columns:38px minmax(0,1fr)}
+  .plan-step .duration{grid-column:2}
+  .pipeline-row{grid-template-columns:38px minmax(0,1fr)}
+  .pipeline-row>.badge{grid-column:2;justify-self:start}
+  .execution-banner{align-items:flex-start;flex-direction:column}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" aria-label="流程導覽">
+    <div class="brand" aria-label="JVision">JV</div>
+    <nav class="rail-nav">
+      <button class="nav-btn" data-i="0" aria-label="掃描旗標"><span class="material-symbols-outlined">radar</span><span class="nav-tip">掃描旗標</span></button>
+      <button class="nav-btn" data-i="1" aria-label="確認影響"><span class="material-symbols-outlined">account_tree</span><span class="nav-tip">確認影響</span></button>
+      <button class="nav-btn" data-i="2" aria-label="模擬情境"><span class="material-symbols-outlined">query_stats</span><span class="nav-tip">模擬情境</span></button>
+      <button class="nav-btn" data-i="3" aria-label="規劃清理"><span class="material-symbols-outlined">route</span><span class="nav-tip">規劃清理</span></button>
+      <button class="nav-btn" data-i="4" aria-label="設定驗證"><span class="material-symbols-outlined">fact_check</span><span class="nav-tip">設定驗證</span></button>
+      <button class="nav-btn" data-i="5" aria-label="核准執行"><span class="material-symbols-outlined">cleaning_services</span><span class="nav-tip">核准執行</span></button>
+    </nav>
+    <div class="rail-foot">IT OPS</div>
+  </aside>
+
+  <main class="main">
+    <header class="header">
+      <div class="header-title">
+        <h1>Feature Flag 清理 Agent</h1>
+        <span>安全移除工作台</span>
+      </div>
+      <div class="header-actions">
+        <div class="health"><i class="dot"></i>來源同步正常</div>
+        <button class="ghost"><span class="material-symbols-outlined">notifications</span></button>
+        <div class="avatar" aria-label="使用者：林工程主管">林</div>
+      </div>
+    </header>
+
+    <section class="screen" data-screen="0">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">Stage 01 · 開發者</div>
+          <h2>掃描旗標健康狀態</h2>
+          <p>彙整程式引用、最後切換時間與環境覆蓋率，找出疑似過期或無效的 Feature Flag。</p>
+        </div>
+        <div class="toolbar">
+          <button class="secondary"><span class="material-symbols-outlined">tune</span>掃描設定</button>
+          <button class="primary" id="scanBtn"><span class="material-symbols-outlined">radar</span>重新掃描</button>
+        </div>
+      </div>
+
+      <div class="grid-4">
+        <article class="card metric"><small>已盤點旗標</small><strong>248</strong><div class="delta">涵蓋 12 個儲存庫</div></article>
+        <article class="card metric"><small>過期候選</small><strong>17</strong><div class="delta" style="color:var(--red)">其中 5 個為高風險</div></article>
+        <article class="card metric"><small>無程式引用</small><strong>9</strong><div class="delta">較上週增加 2 個</div></article>
+        <article class="card metric"><small>平均健康分數</small><strong>76</strong><div class="progress" style="margin-top:12px"><i style="width:76%"></i></div></article>
+      </div>
+
+      <div class="split" style="margin-top:16px">
+        <article class="card">
+          <div class="card-head">
+            <h3>過期候選清單</h3>
+            <span class="badge blue">掃描完成 · 10:42</span>
+          </div>
+          <div class="card-body" style="padding-bottom:10px">
+            <div class="toolbar">
+              <div class="search"><span class="material-symbols-outlined">search</span><input aria-label="搜尋旗標" placeholder="搜尋旗標或儲存庫"></div>
+              <select class="select" aria-label="風險篩選"><option>全部風險</option><option>高風險</option><option>中風險</option></select>
+              <select class="select" aria-label="環境篩選"><option>全部環境</option><option>Production</option><option>Staging</option></select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>旗標</th><th>儲存庫</th><th>最後切換</th><th>引用</th><th>健康分數</th><th>判定</th></tr></thead>
+              <tbody>
+                <tr><td><div class="repo"><span class="repo-icon"><span class="material-symbols-outlined">flag</span></span>checkout_v2</div></td><td>web-checkout</td><td>183 天前</td><td>14</td><td class="score bad">32</td><td><span class="badge red">高風險</span></td></tr>
+                <tr><td><div class="repo"><span class="repo-icon"><span class="material-symbols-outlined">flag</span></span>legacy_tax_rule</div></td><td>order-core</td><td>271 天前</td><td>6</td><td class="score bad">38</td><td><span class="badge red">高風險</span></td></tr>
+                <tr><td><div class="repo"><span class="repo-icon"><span class="material-symbols-outlined">flag</span></span>new_member_badge</div></td><td>member-ui</td><td>96 天前</td><td>3</td><td class="score warn">56</td><td><span class="badge amber">待確認</span></td></tr>
+                <tr><td><div class="repo"><span class="repo-icon"><span class="material-symbols-outlined">flag</span></span>invoice_pdf_beta</div></td><td>billing-api</td><td>124 天前</td><td>0</td><td class="score warn">61</td><td><span class="badge amber">無引用</span></td></tr>
+                <tr><td><div class="repo"><span class="repo-icon"><span class="material-symbols-outlined">flag</span></span>search_rank_a3</div></td><td>search-service</td><td>42 天前</td><td>21</td><td class="score good">82</td><td><span class="badge green">觀察中</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+        <aside class="card">
+          <div class="card-head"><h3>Agent 掃描摘要</h3><span class="material-symbols-outlined" style="color:var(--blue)">auto_awesome</span></div>
+          <div class="card-body">
+            <div id="healthChart" class="chart" style="height:190px"></div>
+            <div class="insight-list">
+              <div class="insight"><b>優先檢查 checkout_v2 <span class="badge red">P1</span></b><p>Production 已固定開啟 183 天，但仍控制付款失敗回復分支。</p></div>
+              <div class="insight"><b>可快速清除 4 個旗標 <span class="badge green">低風險</span></b><p>程式碼零引用，且設定中心無環境覆寫。</p></div>
+              <div class="insight"><b>掃描涵蓋率 94%</b><p>尚有 mobile-legacy 儲存庫等待權限同步。</p></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="1">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">Stage 02 · 工程主管</div>
+          <h2>確認分支與服務影響</h2>
+          <p>沿依賴圖檢查受控程式分支、下游服務與使用者旅程，確認清理範圍是否完整。</p>
+        </div>
+        <div class="toolbar"><button class="secondary">匯出影響報告</button><button class="primary" data-next="2">影響確認通過</button></div>
+      </div>
+      <div class="impact-layout">
+        <aside class="card flag-panel">
+          <div class="card-head" style="padding:5px 0 14px;margin-bottom:14px"><h3>待確認旗標</h3><span class="badge red">5 高風險</span></div>
+          <div class="flag-item selected"><b>checkout_v2</b><span>web-checkout · 14 處引用</span></div>
+          <div class="flag-item"><b>legacy_tax_rule</b><span>order-core · 6 處引用</span></div>
+          <div class="flag-item"><b>new_member_badge</b><span>member-ui · 3 處引用</span></div>
+          <div class="flag-item"><b>invoice_pdf_beta</b><span>billing-api · 0 處引用</span></div>
+          <div class="flag-item"><b>promo_stack_2024</b><span>promotion · 8 處引用</span></div>
+          <div class="insight" style="margin-top:14px"><b>影響判定規則</b><p>服務依賴、流量比例、錯誤預算與需求驗收紀錄須同時完整。</p></div>
+        </aside>
+        <div class="card canvas" aria-label="旗標依賴關係圖">
+          <div class="graph-stage">
+            <div class="edge" style="width:135px;left:145px;top:91px;transform:rotate(-17deg)"></div>
+            <div class="edge" style="width:140px;left:145px;top:102px;transform:rotate(19deg)"></div>
+            <div class="edge" style="width:135px;left:406px;top:63px;transform:rotate(8deg)"></div>
+            <div class="edge" style="width:145px;left:406px;top:181px;transform:rotate(-15deg)"></div>
+            <div class="edge" style="width:210px;left:145px;top:111px;transform:rotate(55deg)"></div>
+            <div class="node flag" style="left:10px;top:65px"><b>checkout_v2</b><small>固定 ON · 183 天</small></div>
+            <div class="node service" style="left:280px;top:20px"><b>checkout-web</b><small>63% 流量</small></div>
+            <div class="node service" style="left:280px;top:145px"><b>payment-api</b><small>付款授權</small></div>
+            <div class="node risk" style="left:535px;top:48px"><b>訂單確認頁</b><small>核心旅程</small></div>
+            <div class="node risk" style="left:535px;top:135px"><b>失敗回復</b><small>錯誤預算 0.4%</small></div>
+            <div class="node service" style="left:280px;top:290px"><b>analytics-event</b><small>事件 schema v2</small></div>
+            <div class="node" style="left:535px;top:305px"><b>營運儀表板</b><small>轉換率指標</small></div>
+          </div>
+        </div>
+        <aside class="card detail-panel">
+          <div class="card-head" style="padding:2px 0 14px;margin-bottom:16px"><h3>checkout_v2</h3><span class="badge red">風險 8.2</span></div>
+          <div class="detail-list">
+            <div class="detail-row"><label>需求狀態</label><strong>PAY-218 已於 2025/11 驗收</strong></div>
+            <div class="detail-row"><label>Production 狀態</label><strong>100% 開啟 · 無客群覆寫</strong></div>
+            <div class="detail-row"><label>受影響服務</label><strong>3 個服務、2 個使用者旅程</strong></div>
+            <div class="detail-row"><label>主要負責人</label><strong>支付平台組 · 陳怡君</strong></div>
+          </div>
+          <p class="muted" style="font-size:11px;margin:16px 0 7px">關鍵引用</p>
+          <div class="code-ref">src/checkout/submit.ts:128<br>if (flags.checkout_v2) {<br>&nbsp;&nbsp;return submitPaymentV2();<br>}</div>
+          <div class="insight" style="margin-top:14px"><b>Agent 建議</b><p>保留 V2 分支，移除 fallback 與旗標判斷；analytics schema 不需變更。</p></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="2">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">Stage 03 · 測試工程師</div>
+          <h2>比較旗標移除情境</h2>
+          <p>以近七日流量回放固定開啟、固定關閉與直接移除三種情境，預測可靠性與使用者影響。</p>
+        </div>
+        <div class="toolbar"><button class="secondary">調整流量樣本</button><button class="primary" id="runSim">執行情境模擬</button></div>
+      </div>
+
+      <div class="scenario-grid">
+        <article class="card scenario recommended">
+          <span class="badge green">建議方案</span><h3>直接移除 · 保留 V2</h3><p>移除旗標判斷與舊版 fallback，所有流量維持現行 V2 路徑。</p>
+          <div class="scenario-value"><strong>99.95%</strong><span>預測成功率</span></div>
+          <div class="mini-kpis"><div><b>+0.1%</b><small>轉換率</small></div><div><b>184ms</b><small>P95 延遲</small></div><div><b>0.18%</b><small>錯誤率</small></div></div>
+        </article>
+        <article class="card scenario">
+          <span class="badge blue">基準情境</span><h3>固定開啟</h3><p>保留旗標與兩條程式分支，所有環境繼續固定使用 V2。</p>
+          <div class="scenario-value"><strong>99.94%</strong><span>預測成功率</span></div>
+          <div class="mini-kpis"><div><b>0.0%</b><small>轉換率</small></div><div><b>187ms</b><small>P95 延遲</small></div><div><b>0.19%</b><small>錯誤率</small></div></div>
+        </article>
+        <article class="card scenario">
+          <span class="badge red">不建議</span><h3>固定關閉 · 回退 V1</h3><p>全數切回舊版結帳流程，僅用於驗證 fallback 的現存風險。</p>
+          <div class="scenario-value"><strong>98.71%</strong><span>預測成功率</span></div>
+          <div class="mini-kpis"><div><b>-3.8%</b><small>轉換率</small></div><div><b>241ms</b><small>P95 延遲</small></div><div><b>1.29%</b><small>錯誤率</small></div></div>
+        </article>
+      </div>
+
+      <div class="sim-bottom">
+        <article class="card">
+          <div class="card-head"><h3>七日流量回放比較</h3><span class="badge blue">1,240,862 筆請求</span></div>
+          <div class="card-body"><div id="scenarioChart" class="chart"></div></div>
+        </article>
+        <aside class="card">
+          <div class="card-head"><h3>模擬執行紀錄</h3><span class="badge green">完成</span></div>
+          <div class="card-body">
+            <div class="test-log">
+              <span class="log-ok">✓</span> 載入 production 流量樣本<br>
+              <span class="log-ok">✓</span> 去識別化 82,410 個 session<br>
+              <span class="log-ok">✓</span> 重放 checkout submit 事件<br>
+              <span class="log-ok">✓</span> 驗證 payment-api 回應 schema<br>
+              <span class="log-warn">!</span> 17 筆逾時樣本已排除<br>
+              <span class="log-ok">✓</span> 比對轉換與錯誤預算<br>
+              <span class="log-ok">✓</span> 建議「直接移除 · 保留 V2」<br>
+              <br>run_id: SIM-240822-07<br>confidence: 96.8%
+            </div>
+            <div class="switch-row"><span>包含尖峰時段</span><div class="toggle"></div></div>
+            <div class="switch-row"><span>套用故障注入</span><div class="toggle"></div></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="3">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">Stage 04 · 開發者</div>
+          <h2>編排安全移除路徑</h2>
+          <p>將程式修改、設定清除、文件更新與部署順序拆成可核准、可回復的變更任務。</p>
+        </div>
+        <div class="toolbar"><button class="secondary">儲存草稿</button><button class="primary" data-next="4">送交驗證設定</button></div>
+      </div>
+      <div class="plan-layout">
+        <article class="card">
+          <div class="card-head"><h3>清理計畫 CLN-3220</h3><span class="badge blue">預估 2.5 小時</span></div>
+          <div class="timeline">
+            <div class="plan-step">
+              <div class="step-num">01</div><div><h4>建立基準與凍結設定</h4><p>快照 Production 旗標狀態、近七日 SLI 與環境覆寫，暫停新增 targeting rule。</p><div class="file-tags"><span>flag-snapshot.json</span><span>baseline-sli.csv</span></div></div><div class="duration">15 分鐘</div>
+            </div>
+            <div class="plan-step">
+              <div class="step-num">02</div><div><h4>收斂 checkout_v2 程式分支</h4><p>保留 submitPaymentV2 路徑，刪除 V1 fallback、旗標 SDK 呼叫及無效測試 fixture。</p><div class="file-tags"><span>submit.ts</span><span>checkout.test.ts</span><span>flags.ts</span></div></div><div class="duration">45 分鐘</div>
+            </div>
+            <div class="plan-step">
+              <div class="step-num">03</div><div><h4>執行預備環境驗證</h4><p>部署至 staging，執行單元、契約與結帳回歸集合；通過後生成不可變 artifact。</p><div class="file-tags"><span>build #8412</span><span>regression-checkout</span></div></div><div class="duration">35 分鐘</div>
+            </div>
+            <div class="plan-step">
+              <div class="step-num">04</div><div><h4>漸進發布程式變更</h4><p>依 10% → 50% → 100% 三階段發布，每階段觀察 15 分鐘並比對停止條件。</p><div class="file-tags"><span>deploy-prod.yml</span><span>rollback #8411</span></div></div><div class="duration">55 分鐘</div>
+            </div>
+            <div class="plan-step">
+              <div class="step-num">05</div><div><h4>清除設定與更新文件</h4><p>從旗標平台刪除 checkout_v2，更新 Runbook、架構圖及服務擁有權紀錄。</p><div class="file-tags"><span>runbook.md</span><span>service-catalog</span></div></div><div class="duration">20 分鐘</div>
+            </div>
+          </div>
+        </article>
+        <aside>
+          <article class="card approval-box">
+            <div class="card-head" style="padding:0 0 14px"><h3>變更風險評估</h3><span class="badge amber">中低風險</span></div>
+            <div class="risk-score"><div class="risk-ring"><strong>3.4</strong></div><div><b style="color:var(--ink)">可控風險</b><p class="muted" style="font-size:11px;line-height:1.5">依影響範圍、回復能力與模擬信心計算</p></div></div>
+            <div class="rule"><span class="material-symbols-outlined">check_circle</span><span>已指定明確 rollback artifact</span></div>
+            <div class="rule"><span class="material-symbols-outlined">check_circle</span><span>發布期間無重大活動衝突</span></div>
+            <div class="rule"><span class="material-symbols-outlined">check_circle</span><span>支付平台與 SRE 可同步支援</span></div>
+            <div class="rule"><span class="material-symbols-outlined">check_circle</span><span>所有設定清除皆在程式發布後</span></div>
+          </article>
+          <article class="card approval-box" style="margin-top:16px">
+            <div class="card-head" style="padding:0 0 14px"><h3>執行窗口</h3><span class="material-symbols-outlined" style="color:var(--blue)">event</span></div>
+            <p style="font-weight:800;color:var(--ink)">2026/08/25 14:00–16:30</p>
+            <p class="muted" style="font-size:12px;line-height:1.6">避開每日結算與行銷尖峰；發布值班：陳怡君、王柏凱。</p>
+            <div class="insight"><b>回復界線</b><p>設定尚未刪除前，可於 8 分鐘內回復 build #8411。</p></div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="4">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">Stage 05 · 測試工程師</div>
+          <h2>設定驗證門檻與停止條件</h2>
+          <p>選定測試集合、觀測指標及自動停止條件，確保每個發布階段都有可判讀的安全門檻。</p>
+        </div>
+        <div class="toolbar"><button class="secondary">載入範本</button><button class="primary" data-next="5">鎖定驗證計畫</button></div>
+      </div>
+      <div class="verify-hero">
+        <article class="card gate-summary">
+          <h3>發布驗證信心</h3><p>測試範圍涵蓋旗標控制的關鍵分支、服務契約與兩條核心使用者旅程。</p>
+          <div class="gate-big">94%</div><small>28 / 30 項驗證已配置</small>
+          <div class="progress" style="margin-top:18px;background:rgba(255,255,255,.2)"><i style="width:94%;background:#7ee2b8"></i></div>
+        </article>
+        <article class="card">
+          <div class="card-head"><h3>即時 SLI 基準</h3><span class="badge green">健康</span></div>
+          <div class="card-body"><div id="monitorChart" class="monitor-chart"></div></div>
+        </article>
+      </div>
+
+      <div class="verify-grid">
+        <article class="card test-group">
+          <div class="group-title"><h3>自動化測試集合</h3><span class="badge green">18 項</span></div>
+          <div class="test-case"><span class="material-symbols-outlined pass-icon">check_circle</span><div><b>checkout-unit</b><small>V2 分支與錯誤映射 · 126 cases</small></div><span class="threshold">100% pass</span></div>
+          <div class="test-case"><span class="material-symbols-outlined pass-icon">check_circle</span><div><b>payment-contract</b><small>付款授權與 idempotency schema</small></div><span class="threshold">0 diff</span></div>
+          <div class="test-case"><span class="material-symbols-outlined pass-icon">check_circle</span><div><b>checkout-e2e</b><small>信用卡、轉帳、失敗回復旅程</small></div><span class="threshold">24 / 24</span></div>
+          <div class="test-case"><span class="material-symbols-outlined pass-icon">check_circle</span><div><b>accessibility-smoke</b><small>表單焦點、錯誤提示與鍵盤操作</small></div><span class="threshold">0 critical</span></div>
+        </article>
+        <article class="card test-group">
+          <div class="group-title"><h3>觀測指標門檻</h3><span class="badge blue">4 指標</span></div>
+          <div class="test-case"><span class="material-symbols-outlined" style="color:var(--blue)">monitoring</span><div><b>checkout_success_rate</b><small>五分鐘移動視窗</small></div><span class="threshold">≥ 99.8%</span></div>
+          <div class="test-case"><span class="material-symbols-outlined" style="color:var(--blue)">speed</span><div><b>submit_latency_p95</b><small>依裝置與區域拆分</small></div><span class="threshold">≤ 220ms</span></div>
+          <div class="test-case"><span class="material-symbols-outlined" style="color:var(--blue)">error</span><div><b>payment_error_rate</b><small>排除使用者輸入錯誤</small></div><span class="threshold">≤ 0.35%</span></div>
+          <div class="test-case"><span class="material-symbols-outlined" style="color:var(--blue)">shopping_cart</span><div><b>checkout_conversion</b><small>與同時段基準比較</small></div><span class="threshold">跌幅 &lt; 1%</span></div>
+        </article>
+        <article class="card test-group stop-box">
+          <div class="group-title"><h3>自動停止條件</h3><span class="badge red">強制</span></div>
+          <div class="test-case"><span class="material-symbols-outlined" style="color:var(--red)">emergency_home</span><div><b>錯誤率連續 3 分鐘超標</b><small>立即停止擴量並觸發 rollback</small></div><span class="badge red">自動回復</span></div>
+          <div class="test-case"><span class="material-symbols-outlined" style="color:var(--amber)">warning</span><div><b>P95 延遲超過 260ms</b><small>凍結當前流量並通知值班</small></div><span class="badge amber">人工判讀</span></div>
+          <div class="test-case"><span class="material-symbols-outlined" style="color:var(--red)">block</span><div><b>付款 schema 出現未知差異</b><small>禁止進入下一發布階段</small></div><span class="badge red">阻擋</span></div>
+        </article>
+        <article class="card test-group">
+          <div class="group-title"><h3>驗證責任與證據</h3><span class="badge amber">2 項待確認</span></div>
+          <div class="test-case"><span class="material-symbols-outlined pass-icon">person</span><div><b>測試負責人 · 吳佩珊</b><small>自動化結果與旅程抽驗</small></div><span class="badge green">已接受</span></div>
+          <div class="test-case"><span class="material-symbols-outlined pass-icon">person</span><div><b>SRE 值班 · 王柏凱</b><small>SLI 與 rollback 決策</small></div><span class="badge green">已接受</span></div>
+          <div class="test-case"><span class="material-symbols-outlined" style="color:var(--amber)">pending</span><div><b>產品驗收紀錄</b><small>PAY-218 結帳畫面截圖</small></div><span class="badge amber">待附加</span></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="5">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">Stage 06 · 工程主管</div>
+          <h2>核准並追蹤清理執行</h2>
+          <p>核准變更任務，同步程式庫、旗標平台與文件系統，保留完整且可追溯的操作紀錄。</p>
+        </div>
+        <div class="toolbar"><button class="secondary">下載稽核包</button><button class="primary" id="approveBtn"><span class="material-symbols-outlined">verified</span>核准執行</button></div>
+      </div>
+
+      <article class="card execution-banner">
+        <div class="execution-id">
+          <div class="exec-icon"><span class="material-symbols-outlined">task_alt</span></div>
+          <div><h3>CLN-3220 · checkout_v2 安全移除</h3><p>變更窗口 2026/08/25 14:00–16:30 · 擁有團隊：支付平台組</p></div>
+        </div>
+        <div class="toolbar"><span class="badge green">驗證計畫已鎖定</span><span class="badge blue">等待主管核准</span></div>
+      </article>
+
+      <div class="result-kpis">
+        <article class="card result"><span>事件平均處理</span><strong>30 分鐘 <del>120</del></strong></article>
+        <article class="card result"><span>系統可用率</span><strong>99% <del>97%</del></strong></article>
+        <article class="card result"><span>SLA 達成率</span><strong>98% <del>85%</del></strong></article>
+        <article class="card result"><span>資產盤點工時</span><strong>4 小時/月 <del>20</del></strong></article>
+      </div>
+
+      <div class="exec-grid">
+        <article class="card pipeline">
+          <div class="card-head" style="padding:0 0 14px"><h3>跨系統執行管線</h3><span class="badge blue">6 個任務</span></div>
+          <div class="pipeline-row"><div class="pipe-icon"><span class="material-symbols-outlined">check</span></div><div><h4>建立清理分支</h4><p>GitHub · cleanup/checkout-v2 · PR #1842</p></div><span class="badge green">已備妥</span></div>
+          <div class="pipeline-row"><div class="pipe-icon"><span class="material-symbols-outlined">check</span></div><div><h4>執行 CI 驗證</h4><p>Build #8412 · 150 tests · 0 failures</p></div><span class="badge green">已通過</span></div>
+          <div class="pipeline-row"><div class="pipe-icon" style="background:var(--blue-soft);color:var(--blue)"><span class="material-symbols-outlined">rocket_launch</span></div><div><h4>漸進部署 Production</h4><p>10% → 50% → 100% · 每階段觀察 15 分鐘</p></div><span class="badge blue">待核准</span></div>
+          <div class="pipeline-row"><div class="pipe-icon" style="background:#f0f3f8;color:var(--muted)"><span class="material-symbols-outlined">flag</span></div><div><h4>刪除旗標設定</h4><p>LaunchDarkly · checkout_v2 · 3 environments</p></div><span class="badge">等候中</span></div>
+          <div class="pipeline-row"><div class="pipe-icon" style="background:#f0f3f8;color:var(--muted)"><span class="material-symbols-outlined">description</span></div><div><h4>同步文件與資產清冊</h4><p>Runbook、服務目錄與架構依賴圖</p></div><span class="badge">等候中</span></div>
+        </article>
+
+        <aside>
+          <article class="card audit">
+            <div class="card-head" style="padding:0 0 14px"><h3>操作稽核軌跡</h3><span class="material-symbols-outlined" style="color:var(--blue)">history</span></div>
+            <div class="audit-event"><i class="audit-dot"></i><div><b>驗證計畫已鎖定</b><small>吳佩珊 · 今天 10:38</small></div></div>
+            <div class="audit-event"><i class="audit-dot"></i><div><b>清理路徑完成風險評估</b><small>Feature Flag Agent · 今天 10:21</small></div></div>
+            <div class="audit-event"><i class="audit-dot"></i><div><b>情境模擬選定直接移除</b><small>吳佩珊 · 今天 09:56</small></div></div>
+            <div class="audit-event"><i class="audit-dot"></i><div><b>影響範圍確認通過</b><small>林志偉 · 昨天 16:42</small></div></div>
+            <div class="audit-event"><i class="audit-dot"></i><div><b>旗標掃描建立候選項目</b><small>Feature Flag Agent · 昨天 15:10</small></div></div>
+          </article>
+          <article class="card" style="margin-top:16px">
+            <div class="card-head"><h3>可用率改善趨勢</h3><span class="badge green">目標 99%</span></div>
+            <div class="card-body"><div id="trendChart" class="chart" style="height:230px"></div></div>
+          </article>
+        </aside>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const screens = Array.from(document.querySelectorAll("[data-screen]"));
+  const navButtons = Array.from(document.querySelectorAll("[data-i]"));
+  const charts = {};
+  let currentIndex = 0;
+
+  function buildChart(chartKey, elementId, option){
+    const chartElement = document.getElementById(elementId);
+    if(!chartElement || chartElement.offsetWidth <= 0 || typeof echarts === "undefined") return;
+    if(!charts[chartKey]) charts[chartKey] = echarts.init(chartElement);
+    charts[chartKey].setOption(option, true);
+    charts[chartKey].resize();
+  }
+
+  function initScreen(index){
+    if(index === 0){
+      buildChart("health","healthChart",{
+        tooltip:{trigger:"item"},
+        series:[{type:"pie",radius:["58%","78%"],center:["50%","48%"],label:{show:false},
+          data:[
+            {value:17,name:"過期候選",itemStyle:{color:"#c2414b"}},
+            {value:31,name:"待觀察",itemStyle:{color:"#d99a2b"}},
+            {value:200,name:"健康",itemStyle:{color:"#1e40af"}}
+          ]}],
+        graphic:[{type:"text",left:"center",top:"38%",style:{text:"248",font:"700 28px Inter",fill:"#172033"}},
+          {type:"text",left:"center",top:"57%",style:{text:"旗標",font:"12px Noto Sans TC",fill:"#64748b"}}]
+      });
+    }
+    if(index === 2){
+      buildChart("scenario","scenarioChart",{
+        tooltip:{trigger:"axis"},
+        legend:{bottom:0,textStyle:{color:"#64748b"}},
+        grid:{left:42,right:18,top:20,bottom:45},
+        xAxis:{type:"category",data:["W1","W2","W3","W4","W5","W6","W7"],axisLine:{lineStyle:{color:"#dbe3ef"}}},
+        yAxis:{type:"value",min:98,max:100,axisLabel:{formatter:"{value}%"},splitLine:{lineStyle:{color:"#edf1f6"}}},
+        series:[
+          {name:"直接移除",type:"line",smooth:true,data:[99.87,99.91,99.9,99.93,99.94,99.96,99.95],symbolSize:7,lineStyle:{width:3,color:"#16845b"},itemStyle:{color:"#16845b"}},
+          {name:"固定開啟",type:"line",smooth:true,data:[99.86,99.89,99.9,99.91,99.93,99.94,99.94],lineStyle:{color:"#1e40af"},itemStyle:{color:"#1e40af"}},
+          {name:"固定關閉",type:"line",smooth:true,data:[98.92,98.74,98.85,98.63,98.79,98.68,98.71],lineStyle:{color:"#c2414b",type:"dashed"},itemStyle:{color:"#c2414b"}}
+        ]
+      });
+    }
+    if(index === 4){
+      buildChart("monitor","monitorChart",{
+        grid:{left:10,right:10,top:8,bottom:18},
+        xAxis:{type:"category",show:false,data:["09:00","09:15","09:30","09:45","10:00","10:15","10:30","10:45"]},
+        yAxis:{type:"value",show:false,min:99.7,max:100},
+        series:[{type:"line",smooth:true,symbol:"none",data:[99.91,99.94,99.92,99.96,99.95,99.97,99.94,99.96],
+          lineStyle:{width:3,color:"#16845b"},areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"rgba(22,132,91,.35)"},{offset:1,color:"rgba(22,132,91,.02)"}]}},
+          markLine:{symbol:"none",label:{formatter:"門檻 99.8%",color:"#64748b"},lineStyle:{color:"#c2414b",type:"dashed"},data:[{yAxis:99.8}]} }]
+      });
+    }
+    if(index === 5){
+      buildChart("trend","trendChart",{
+        tooltip:{trigger:"axis"},
+        grid:{left:42,right:12,top:20,bottom:28},
+        xAxis:{type:"category",data:["W1","W2","W3","W4","W5","W6"],axisLine:{lineStyle:{color:"#dbe3ef"}}},
+        yAxis:{type:"value",min:96.5,max:99.5,axisLabel:{formatter:"{value}%"},splitLine:{lineStyle:{color:"#edf1f6"}}},
+        series:[{type:"line",smooth:true,data:[97,97.4,97.8,98.2,98.6,99],symbolSize:8,
+          lineStyle:{width:3,color:"#1e40af"},itemStyle:{color:"#1e40af"},
+          areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"rgba(30,64,175,.28)"},{offset:1,color:"rgba(30,64,175,.02)"}]}}}]
+      });
+    }
+  }
+
+  function show(index){
+    const safeIndex = Math.max(0,Math.min(5,Number(index) || 0));
+    currentIndex = safeIndex;
+    screens.forEach((screenElement,screenIndex)=>screenElement.classList.toggle("active",screenIndex === safeIndex));
+    navButtons.forEach((buttonElement,buttonIndex)=>{
+      buttonElement.classList.toggle("active",buttonIndex === safeIndex);
+      buttonElement.setAttribute("aria-current",buttonIndex === safeIndex ? "step" : "false");
+    });
+    requestAnimationFrame(()=>initScreen(safeIndex));
+  }
+
+  function indexFromHash(){
+    const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+    return match ? Math.max(0,Math.min(5,Number(match[1]))) : 0;
+  }
+
+  function navigate(index){
+    const safeIndex = Math.max(0,Math.min(5,Number(index) || 0));
+    if(window.location.hash === "#go=" + safeIndex) show(safeIndex);
+    else window.location.hash = "go=" + safeIndex;
+  }
+
+  navButtons.forEach(buttonElement=>{
+    buttonElement.addEventListener("click",()=>navigate(buttonElement.dataset.i));
+  });
+  document.querySelectorAll("[data-next]").forEach(buttonElement=>{
+    buttonElement.addEventListener("click",()=>navigate(buttonElement.dataset.next));
+  });
+
+  const scanButton = document.getElementById("scanBtn");
+  if(scanButton){
+    scanButton.addEventListener("click",()=>{
+      scanButton.innerHTML = '<span class="material-symbols-outlined">check_circle</span>掃描完成';
+      scanButton.style.background = "var(--green)";
+    });
+  }
+
+  const simulationButton = document.getElementById("runSim");
+  if(simulationButton){
+    simulationButton.addEventListener("click",()=>{
+      simulationButton.innerHTML = '<span class="material-symbols-outlined">check_circle</span>模擬已更新';
+      initScreen(2);
+    });
+  }
+
+  const approvalButton = document.getElementById("approveBtn");
+  if(approvalButton){
+    approvalButton.addEventListener("click",()=>{
+      approvalButton.innerHTML = '<span class="material-symbols-outlined">verified</span>已核准，等待執行';
+      approvalButton.style.background = "var(--green)";
+      document.querySelectorAll('[data-screen="5"] .badge.blue').forEach(badgeElement=>{
+        if(badgeElement.textContent.indexOf("等待主管核准") >= 0) {
+          badgeElement.textContent = "主管已核准";
+          badgeElement.className = "badge green";
+        }
+      });
+    });
+  }
+
+  window.addEventListener("hashchange",()=>show(indexFromHash()));
+  window.addEventListener("resize",()=>{
+    Object.keys(charts).forEach(chartKey=>charts[chartKey].resize());
+  });
+
+  show(indexFromHash());
+})();
+</script>
+</body>
+</html>

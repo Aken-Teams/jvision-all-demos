@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flaky Test 根因獵人 · it-ops｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --blue:#4d7c0f;--ink:#17210d;--body:#344329;--muted:#6d7864;--line:#dce4d5;
+  --bg:#f4f7f1;--green:#16865a;--amber:#b76a0b;--red:#c54141;--white:#fff;
+  --soft:#edf4e6;--shadow:0 12px 32px rgba(36,55,20,.08)
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--body);font-family:Inter,"Noto Sans TC",sans-serif;overflow-x:hidden}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.material-symbols-outlined{font-size:20px;line-height:1;vertical-align:middle}
+.shell{min-height:100vh;display:grid;grid-template-columns:220px minmax(0,1fr)}
+.sidebar{position:sticky;top:0;height:100vh;padding:24px 16px;background:#17210d;color:#fff;display:flex;flex-direction:column;z-index:20}
+.brand{display:flex;gap:10px;align-items:center;padding:0 8px 22px;border-bottom:1px solid rgba(255,255,255,.12)}
+.brand-mark{width:36px;height:36px;border-radius:11px;background:linear-gradient(145deg,#87b943,var(--blue));display:grid;place-items:center;font-weight:800}
+.brand strong{display:block;font-size:14px}.brand small{color:#b9c5ae;font-size:11px}
+.side-label{margin:22px 10px 9px;color:#91a184;font-size:10px;font-weight:800;letter-spacing:.12em}
+.nav{display:grid;gap:7px}
+.nav button{border:0;border-radius:11px;padding:11px 10px;background:transparent;color:#bfc9b7;text-align:left;display:grid;grid-template-columns:26px 1fr;gap:7px;align-items:center;font-size:12px;line-height:1.35}
+.nav button:hover,.nav button:focus-visible{background:rgba(255,255,255,.08);color:#fff;outline:2px solid #a8cf6e;outline-offset:2px}
+.nav button.active{background:#fff;color:var(--ink);box-shadow:0 6px 18px rgba(0,0,0,.16)}
+.nav button.active .material-symbols-outlined{color:var(--blue)}
+.sidebar-foot{margin-top:auto;padding:14px 10px 2px;border-top:1px solid rgba(255,255,255,.12)}
+.sidebar-foot b{display:block;font-size:11px}.sidebar-foot span{font-size:10px;color:#91a184}
+.main{min-width:0}
+.appbar{height:66px;padding:0 28px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:15;backdrop-filter:blur(12px)}
+.app-title{display:flex;align-items:center;gap:11px;min-width:0}.app-title h1{margin:0;font-size:16px;color:var(--ink)}.app-title p{margin:2px 0 0;font-size:11px;color:var(--muted)}
+.live{display:flex;align-items:center;gap:7px;color:var(--green);font-size:11px;font-weight:700}.live:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(22,134,90,.12);animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 8px rgba(22,134,90,0)}}
+.mobile-menu{display:none;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px}
+.content{padding:24px 28px 40px;max-width:1540px;margin:auto}
+.view{display:none;animation:rise .3s ease}.view.active{display:block}
+@keyframes rise{from{opacity:.4;transform:translateY(7px)}}
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:20px}
+.eyebrow{color:var(--blue);font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.page-head h2{margin:5px 0 6px;color:var(--ink);font-size:25px;line-height:1.2}.page-head p{margin:0;max-width:720px;color:var(--muted);font-size:13px;line-height:1.7}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:#fff;color:var(--body);border-radius:10px;padding:9px 12px;font-weight:700;font-size:12px;display:inline-flex;align-items:center;gap:7px}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}.btn:hover,.btn:focus-visible{outline:3px solid rgba(77,124,15,.2);outline-offset:2px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 18px rgba(40,60,24,.035)}
+.card-head{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.card-head h3{margin:0;color:var(--ink);font-size:14px}.card-head small{color:var(--muted)}
+.pad{padding:18px}
+.grid-2{display:grid;grid-template-columns:1.3fr .7fr;gap:16px}.grid-even{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.metric-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.metric{padding:15px;background:#fff;border:1px solid var(--line);border-radius:14px}.metric span{font-size:11px;color:var(--muted)}.metric strong{display:block;margin-top:7px;color:var(--ink);font-size:23px}.metric em{font-style:normal;color:var(--green);font-size:10px;font-weight:700}
+.badge{display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:5px 8px;background:var(--soft);color:var(--blue);font-size:10px;font-weight:800}.badge.red{background:#fff0ef;color:var(--red)}.badge.amber{background:#fff6e7;color:var(--amber)}.badge.green{background:#eaf7f1;color:var(--green)}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--line);font-size:11px}th{color:var(--muted);font-weight:700;background:#fafcf8}td{color:var(--body)}tbody tr:hover{background:#f8fbf5}
+.progress{height:6px;background:#e8eee2;border-radius:8px;overflow:hidden}.progress i{display:block;height:100%;background:var(--blue);border-radius:8px}
+.chart-box{position:relative;height:250px;min-width:0}
+.empty-note{color:var(--muted);font-size:11px}
+.form-field{display:grid;gap:6px}.form-field label{font-size:10px;font-weight:800;color:var(--muted)}.form-field select,.form-field input,.form-field textarea{width:100%;border:1px solid var(--line);border-radius:9px;background:#fff;padding:9px 10px;color:var(--ink);outline:0}.form-field textarea{min-height:76px;resize:vertical}.form-field select:focus,.form-field input:focus,.form-field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(77,124,15,.12)}
+/* v0 */
+.hunt-list{display:grid;gap:10px}.hunt{padding:13px;border:1px solid var(--line);border-radius:12px;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}.hunt.selected{border-color:var(--blue);background:#f8fbf4}.risk{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:#fff0ef;color:var(--red)}.hunt h4{margin:0 0 4px;font-size:12px;color:var(--ink)}.hunt p{margin:0;color:var(--muted);font-size:10px}.score{text-align:right}.score strong{display:block;color:var(--red);font-size:17px}.score span{font-size:9px;color:var(--muted)}
+.filter-strip{display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:9px;margin-bottom:14px}
+/* v1 */
+.timeline-grid{display:grid;grid-template-columns:150px minmax(520px,1fr);overflow:auto}.timeline-label,.timeline-track{min-height:50px;border-bottom:1px solid var(--line);padding:10px}.timeline-label b{display:block;font-size:10px;color:var(--ink)}.timeline-label small{font-size:9px;color:var(--muted)}.timeline-track{position:relative;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(20% - 1px),#edf0e9 calc(20% - 1px),#edf0e9 20%)}.bar{position:absolute;height:12px;top:10px;border-radius:4px;background:var(--green)}.bar.fail{top:28px;background:var(--red)}.race-pin{position:absolute;top:3px;bottom:3px;width:2px;background:var(--amber)}.race-pin:after{content:"競態";position:absolute;top:0;left:4px;color:var(--amber);font-size:8px;font-weight:800}
+.log-panel{background:#17210d;color:#dce8d1;border-radius:14px;padding:16px;font:10px/1.8 ui-monospace,SFMono-Regular,monospace;max-height:242px;overflow:auto}.log-panel .err{color:#ff9990}.log-panel .warn{color:#ffd485}.log-panel .ok{color:#89d4aa}
+/* v2 */
+.env-columns{display:grid;grid-template-columns:1fr 54px 1fr;gap:10px;align-items:start}.env-box{border:1px solid var(--line);border-radius:14px;overflow:hidden}.env-title{padding:13px;background:#f7faf4;font-size:12px;font-weight:800;color:var(--ink)}.env-row{padding:11px 13px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;font-size:10px}.env-row.diff{background:#fff8ec}.env-row b{color:var(--ink)}.compare-arrow{display:grid;place-items:center;height:220px;color:var(--blue)}.heatmap{display:grid;grid-template-columns:70px repeat(7,1fr);gap:5px;align-items:center}.heatmap span{font-size:9px;text-align:center;color:var(--muted)}.cell{height:25px;border-radius:5px;background:#dfead3}.cell.m{background:#aeca86}.cell.h{background:#699a29}.cell.bad{background:#e6a39d}
+/* v3 */
+.state-map{min-height:340px;position:relative;padding:25px;background:radial-gradient(circle at center,#f9fcf6,#fff 65%);overflow:hidden}.state-center{width:130px;height:130px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;text-align:center;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 14px rgba(77,124,15,.1)}.node{position:absolute;width:118px;padding:11px;border:1px solid var(--line);border-radius:11px;background:#fff;box-shadow:var(--shadow);font-size:10px}.node b{display:block;color:var(--ink);margin-bottom:4px}.node small{color:var(--muted)}.n1{left:5%;top:12%}.n2{right:5%;top:10%}.n3{left:5%;bottom:12%}.n4{right:5%;bottom:12%}.n5{left:50%;top:5%;transform:translateX(-50%)}.contaminated{border-color:var(--red);box-shadow:0 0 0 3px rgba(197,65,65,.1)}
+.evidence-list{display:grid;gap:9px}.evidence{padding:12px;border:1px solid var(--line);border-radius:11px;display:flex;gap:10px}.evidence .material-symbols-outlined{color:var(--red)}.evidence b{display:block;font-size:11px;color:var(--ink)}.evidence p{margin:4px 0 0;font-size:9px;color:var(--muted);line-height:1.55}
+/* v4 */
+.lab{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px}.hypothesis{padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:9px}.hypothesis.active{border-color:var(--blue);background:#f8fbf4}.hypothesis h4{margin:0;font-size:11px;color:var(--ink)}.hypothesis p{font-size:9px;color:var(--muted);line-height:1.5}.confidence{display:flex;justify-content:space-between;font-size:9px;margin-bottom:5px}.experiment-board{padding:18px}.factor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.factor{border:1px solid var(--line);border-radius:11px;padding:11px}.factor span{display:block;font-size:9px;color:var(--muted)}.factor strong{font-size:11px;color:var(--ink)}.run-dots{display:flex;gap:5px;flex-wrap:wrap}.run-dots i{width:18px;height:18px;border-radius:5px;background:var(--green)}.run-dots i.fail{background:var(--red)}.run-dots i.skip{background:#d6ded0}
+/* v5 */
+.prescription{border-left:4px solid var(--blue);padding:16px 16px 16px 18px;background:#fff;border-radius:4px 14px 14px 4px;box-shadow:var(--shadow)}.prescription h3{margin:0 0 7px;color:var(--ink);font-size:14px}.prescription p{margin:0;color:var(--muted);font-size:10px;line-height:1.6}.prescription-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}.mini{padding:12px;border:1px solid var(--line);border-radius:11px}.mini span{font-size:9px;color:var(--muted)}.mini strong{display:block;margin-top:4px;color:var(--ink);font-size:15px}.approval{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line)}.avatar{width:38px;height:38px;border-radius:50%;background:var(--soft);color:var(--blue);display:grid;place-items:center;font-size:11px;font-weight:800}.approval b{display:block;font-size:11px;color:var(--ink)}.approval small{font-size:9px;color:var(--muted)}
+.toast{position:fixed;right:22px;bottom:22px;background:var(--ink);color:#fff;padding:11px 15px;border-radius:10px;font-size:11px;z-index:50;opacity:0;transform:translateY(12px);pointer-events:none;transition:.25s}.toast.on{opacity:1;transform:none}
+@media(max-width:1050px){
+  .metric-row{grid-template-columns:repeat(2,1fr)}.grid-3{grid-template-columns:1fr 1fr}.lab{grid-template-columns:1fr}.factor-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:768px){
+  .shell{display:block}.sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;transform:translateX(-105%);transition:.25s}.sidebar.open{transform:none}.appbar{height:60px;padding:0 16px}.mobile-menu{display:block}.content{padding:18px 16px 32px}.page-head{display:block}.actions{margin-top:12px}.grid-2,.grid-even,.grid-3{grid-template-columns:1fr}.env-columns{grid-template-columns:1fr}.compare-arrow{height:42px;transform:rotate(90deg)}.filter-strip{grid-template-columns:1fr 1fr}.filter-strip .btn{grid-column:span 2}.prescription-grid{grid-template-columns:1fr}.state-map{min-height:430px}.n1,.n3{left:2%}.n2,.n4{right:2%}.n5{top:2%}.app-title p{display:none}
+}
+@media(max-width:440px){
+  .metric-row{grid-template-columns:1fr 1fr;gap:8px}.metric{padding:11px}.metric strong{font-size:19px}.page-head h2{font-size:21px}.filter-strip{grid-template-columns:1fr}.filter-strip .btn{grid-column:auto}.factor-grid{grid-template-columns:1fr}.state-map{min-height:520px}.state-center{width:105px;height:105px}.node{width:105px}.n1{top:8%}.n2{top:25%}.n3{bottom:24%}.n4{bottom:7%}.n5{top:44%;left:4%;transform:none}.approval{grid-template-columns:42px 1fr}.approval>.badge{grid-column:2}.heatmap{grid-template-columns:56px repeat(7,1fr);gap:3px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidePanel">
+    <div class="brand"><div class="brand-mark">JV</div><div><strong>Root Cause Hunter</strong><small>Flaky Test Intelligence</small></div></div>
+    <div class="side-label">INVESTIGATION FLOW</div>
+    <nav class="nav" aria-label="根因調查流程">
+      <button data-i="0"><span class="material-symbols-outlined">monitor_heart</span><span>01 鎖定不穩定測試</span></button>
+      <button data-i="1"><span class="material-symbols-outlined">timeline</span><span>02 對齊執行時序</span></button>
+      <button data-i="2"><span class="material-symbols-outlined">tune</span><span>03 比對環境條件</span></button>
+      <button data-i="3"><span class="material-symbols-outlined">share</span><span>04 追查共享狀態</span></button>
+      <button data-i="4"><span class="material-symbols-outlined">psychology</span><span>05 驗證根因假設</span></button>
+      <button data-i="5"><span class="material-symbols-outlined">noise_control_off</span><span>06 核准降噪處方</span></button>
+    </nav>
+    <div class="sidebar-foot"><b>CI Reliability Workspace</b><span>本週已節省 18.6 小時重跑成本</span></div>
+  </aside>
+
+  <main class="main">
+    <header class="appbar">
+      <div class="app-title">
+        <button class="mobile-menu" id="menuButton" aria-label="開啟流程選單"><span class="material-symbols-outlined">menu</span></button>
+        <div><h1>Flaky Test 根因獵人</h1><p>分析時序、環境與共享狀態，建立可重現的根因證據</p></div>
+      </div>
+      <div class="live">CI 串流正常</div>
+    </header>
+
+    <div class="content">
+      <section class="view" data-view="0">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 01 · Triage</div><h2>鎖定不穩定測試</h2><p>依失敗率、CI 浪費與產品風險排列調查優先序，先處理最昂貴且影響發布的案例。</p></div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">download</span>匯出榜單</button><button class="btn primary" data-next="1">開始時序分析</button></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric"><span>近 7 日 Flaky Tests</span><strong>47</strong><em>較上週 −8%</em></div>
+          <div class="metric"><span>浪費 CI 時數</span><strong>31.4h</strong><em>預估成本 NT$18,900</em></div>
+          <div class="metric"><span>阻擋發布</span><strong>6</strong><em style="color:var(--red)">2 項高風險</em></div>
+          <div class="metric"><span>SLA 達成率</span><strong>85%</strong><em>目標 98%</em></div>
+        </div>
+        <div class="filter-strip">
+          <div class="form-field"><label>搜尋測試或套件</label><input value="checkout" aria-label="搜尋測試"></div>
+          <div class="form-field"><label>儲存庫</label><select><option>commerce-api</option><option>web-checkout</option></select></div>
+          <div class="form-field"><label>觀測期間</label><select><option>最近 7 天</option><option>最近 30 天</option></select></div>
+          <button class="btn">套用條件</button>
+        </div>
+        <div class="grid-2">
+          <article class="card">
+            <div class="card-head"><h3>不穩定測試排行榜</h3><span class="badge red">需立即調查 4</span></div>
+            <div class="pad hunt-list">
+              <div class="hunt selected"><div class="risk"><span class="material-symbols-outlined">priority_high</span></div><div><h4>checkout.concurrent-coupon.spec</h4><p>web-checkout · 失敗 19/80 · 平均重跑 2.6 次</p></div><div class="score"><strong>92</strong><span>風險分數</span></div></div>
+              <div class="hunt"><div class="risk"><span class="material-symbols-outlined">database</span></div><div><h4>order.repository.cleanup.spec</h4><p>commerce-api · 失敗 13/76 · 共用資料庫</p></div><div class="score"><strong>84</strong><span>風險分數</span></div></div>
+              <div class="hunt"><div class="risk"><span class="material-symbols-outlined">schedule</span></div><div><h4>payment.webhook-timeout.spec</h4><p>payment-worker · 失敗 9/62 · 等待逾時</p></div><div class="score"><strong>76</strong><span>風險分數</span></div></div>
+              <div class="hunt"><div class="risk"><span class="material-symbols-outlined">cloud</span></div><div><h4>inventory.region-sync.spec</h4><p>stock-service · 失敗 7/91 · 僅發生於 ap-east</p></div><div class="score"><strong>69</strong><span>風險分數</span></div></div>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-head"><h3>失敗趨勢與 CI 成本</h3><small>最近 7 天</small></div>
+            <div class="pad"><div class="chart-box"><canvas id="triageChart"></canvas></div>
+              <div style="margin-top:16px"><div style="display:flex;justify-content:space-between;font-size:10px"><b>調查配額</b><span>7 / 10</span></div><div class="progress" style="margin-top:7px"><i style="width:70%"></i></div></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="1">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 02 · Runtime Overlay</div><h2>對齊執行時序</h2><p>將成功與失敗執行疊在同一時間軸，定位競態、等待與資源尖峰。</p></div>
+          <div class="actions"><button class="btn">Run #8421 vs #8437</button><button class="btn primary" data-next="2">檢查環境差異</button></div>
+        </div>
+        <div class="grid-2">
+          <article class="card">
+            <div class="card-head"><h3>步驟時序疊圖</h3><div><span class="badge green">成功執行</span> <span class="badge red">失敗執行</span></div></div>
+            <div class="timeline-grid">
+              <div class="timeline-label"><b>啟動容器</b><small>Δ +0.2s</small></div><div class="timeline-track"><i class="bar" style="left:2%;width:13%"></i><i class="bar fail" style="left:2%;width:15%"></i></div>
+              <div class="timeline-label"><b>建立測試資料</b><small>Δ +1.4s</small></div><div class="timeline-track"><i class="bar" style="left:17%;width:17%"></i><i class="bar fail" style="left:18%;width:25%"></i></div>
+              <div class="timeline-label"><b>套用優惠券</b><small>Δ −0.8s</small></div><div class="timeline-track"><i class="bar" style="left:36%;width:19%"></i><i class="bar fail" style="left:44%;width:12%"></i><i class="race-pin" style="left:51%"></i></div>
+              <div class="timeline-label"><b>讀取購物車</b><small>Δ +2.7s</small></div><div class="timeline-track"><i class="bar" style="left:58%;width:12%"></i><i class="bar fail" style="left:57%;width:29%"></i></div>
+              <div class="timeline-label"><b>驗證總額</b><small>assert failed</small></div><div class="timeline-track"><i class="bar" style="left:73%;width:11%"></i><i class="bar fail" style="left:88%;width:8%"></i></div>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-head"><h3>關聯訊號</h3><span class="badge amber">疑似競態 86%</span></div>
+            <div class="pad">
+              <div class="metric" style="margin-bottom:10px"><span>最顯著等待差</span><strong>+2.7s</strong><em style="color:var(--amber)">Redis lock acquisition</em></div>
+              <div class="metric"><span>失敗前 CPU 尖峰</span><strong>93%</strong><em>runner-ap-17</em></div>
+            </div>
+          </article>
+        </div>
+        <div class="grid-even" style="margin-top:16px">
+          <article class="card"><div class="card-head"><h3>同步日誌</h3><small>游標 14:32:08.714</small></div><div class="pad"><div class="log-panel"><div class="ok">14:32:06.102 [setup] fixture cart_903 created</div><div>14:32:07.431 [coupon] writing SAVE20</div><div class="warn">14:32:07.438 [worker-B] cart cache invalidation queued</div><div>14:32:08.692 [worker-A] cart cache read version=41</div><div class="err">14:32:08.714 [assert] expected 800, received 1000</div><div class="err">14:32:08.719 [trace] stale cache version=41, latest=42</div></div></div></article>
+          <article class="card"><div class="card-head"><h3>步驟耗時比較</h3><small>秒</small></div><div class="pad"><div class="chart-box"><canvas id="timelineChart"></canvas></div></div></article>
+        </div>
+      </section>
+
+      <section class="view" data-view="2">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 03 · Environment Diff</div><h2>比對環境條件</h2><p>核對映像、依賴、節點負載與區域，找出只在特定執行條件出現的失敗。</p></div>
+          <div class="actions"><button class="btn">儲存比較基準</button><button class="btn primary" data-next="3">追查共享狀態</button></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric"><span>比對條件</span><strong>28</strong><em>6 項有差異</em></div><div class="metric"><span>高相關差異</span><strong>3</strong><em style="color:var(--red)">需驗證</em></div><div class="metric"><span>節點負載差</span><strong>+41%</strong><em>失敗執行較高</em></div><div class="metric"><span>環境信心</span><strong>72%</strong><em>中高相關</em></div>
+        </div>
+        <article class="card">
+          <div class="card-head"><h3>成功與失敗環境快照</h3><span class="badge amber">3 個關鍵差異</span></div>
+          <div class="pad env-columns">
+            <div class="env-box"><div class="env-title">成功 · Run #8421</div><div class="env-row"><span>容器映像</span><b>test:4.18.2</b></div><div class="env-row"><span>Node.js</span><b>20.15.1</b></div><div class="env-row"><span>Redis client</span><b>5.4.0</b></div><div class="env-row"><span>Runner</span><b>ap-east-08</b></div><div class="env-row"><span>CPU / Memory</span><b>42% / 61%</b></div><div class="env-row"><span>平行工作數</span><b>4</b></div></div>
+            <div class="compare-arrow"><span class="material-symbols-outlined">compare_arrows</span></div>
+            <div class="env-box"><div class="env-title">失敗 · Run #8437</div><div class="env-row"><span>容器映像</span><b>test:4.18.2</b></div><div class="env-row"><span>Node.js</span><b>20.15.1</b></div><div class="env-row diff"><span>Redis client</span><b>5.5.0</b></div><div class="env-row diff"><span>Runner</span><b>ap-east-17</b></div><div class="env-row diff"><span>CPU / Memory</span><b>83% / 79%</b></div><div class="env-row diff"><span>平行工作數</span><b>8</b></div></div>
+          </div>
+        </article>
+        <div class="grid-even" style="margin-top:16px">
+          <article class="card"><div class="card-head"><h3>節點 × 時段失敗熱區</h3><small>失敗密度</small></div><div class="pad heatmap"><span></span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span><span>ap-08</span><i class="cell"></i><i class="cell m"></i><i class="cell"></i><i class="cell m"></i><i class="cell"></i><i class="cell"></i><i class="cell"></i><span>ap-17</span><i class="cell m"></i><i class="cell h"></i><i class="cell bad"></i><i class="cell bad"></i><i class="cell h"></i><i class="cell m"></i><i class="cell"></i><span>ap-21</span><i class="cell"></i><i class="cell"></i><i class="cell m"></i><i class="cell"></i><i class="cell h"></i><i class="cell"></i><i class="cell"></i><span>ap-24</span><i class="cell m"></i><i class="cell"></i><i class="cell"></i><i class="cell m"></i><i class="cell"></i><i class="cell"></i><i class="cell"></i></div></article>
+          <article class="card"><div class="card-head"><h3>條件相關性</h3><small>失敗機率提升</small></div><div class="pad"><div class="chart-box"><canvas id="environmentChart"></canvas></div></div></article>
+        </div>
+      </section>
+
+      <section class="view" data-view="3">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 04 · Shared State</div><h2>追查共享狀態</h2><p>沿著資料、快取、檔案與外部服務依賴，定位跨測試污染的來源與傳播路徑。</p></div>
+          <div class="actions"><button class="btn">隔離重跑</button><button class="btn primary" data-next="4">建立根因假設</button></div>
+        </div>
+        <div class="grid-2">
+          <article class="card">
+            <div class="card-head"><h3>共享狀態關聯圖</h3><span class="badge red">污染路徑已命中</span></div>
+            <div class="state-map">
+              <div class="state-center"><div><span class="material-symbols-outlined">bug_report</span><br><b>checkout<br>coupon test</b></div></div>
+              <div class="node n1"><b>Redis cart:903</b><small>TTL 300s · v41</small></div>
+              <div class="node n2 contaminated"><b>coupon:global</b><small>前序測試未清除</small></div>
+              <div class="node n3"><b>Postgres orders</b><small>transaction isolated</small></div>
+              <div class="node n4"><b>Pricing mock</b><small>3 個案例共用</small></div>
+              <div class="node n5 contaminated"><b>worker queue</b><small>延遲 2.7 秒</small></div>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-head"><h3>污染證據鏈</h3><small>依時間排序</small></div>
+            <div class="pad evidence-list">
+              <div class="evidence"><span class="material-symbols-outlined">data_object</span><div><b>14:31:58 · 前序案例寫入全域優惠券</b><p>promotion.bulk-import.spec 建立 coupon:global=SAVE20，清理鉤子因 timeout 未執行。</p></div></div>
+              <div class="evidence"><span class="material-symbols-outlined">cached</span><div><b>14:32:07 · 快取失效事件延後</b><p>ap-east-17 負載 83%，queue lag 達 2.7 秒，舊版購物車仍可讀取。</p></div></div>
+              <div class="evidence"><span class="material-symbols-outlined">alt_route</span><div><b>14:32:08 · 平行 worker 讀到不同版本</b><p>worker-A 讀取 v41，worker-B 已提交 v42，造成總額斷言不一致。</p></div></div>
+              <div class="evidence"><span class="material-symbols-outlined">verified</span><div><b>隔離驗證 · 20/20 次成功</b><p>停用前序案例並改用獨立 Redis namespace 後未再出現失敗。</p></div></div>
+            </div>
+          </article>
+        </div>
+        <article class="card" style="margin-top:16px">
+          <div class="card-head"><h3>受影響測試與狀態資源</h3><span class="badge">影響 4 個套件</span></div>
+          <div class="table-wrap"><table><thead><tr><th>測試案例</th><th>共享資源</th><th>讀寫模式</th><th>污染機率</th><th>建議隔離</th></tr></thead><tbody><tr><td>checkout.concurrent-coupon</td><td>coupon:global</td><td>讀 / 寫</td><td><span class="badge red">91%</span></td><td>per-test namespace</td></tr><tr><td>promotion.bulk-import</td><td>coupon:global</td><td>寫入</td><td><span class="badge red">87%</span></td><td>強制 teardown</td></tr><tr><td>cart.price-refresh</td><td>cart:*</td><td>讀取</td><td><span class="badge amber">64%</span></td><td>等待 invalidation</td></tr><tr><td>pricing.region-rule</td><td>pricing mock</td><td>覆寫</td><td><span class="badge amber">48%</span></td><td>獨立 mock server</td></tr></tbody></table></div>
+        </article>
+      </section>
+
+      <section class="view" data-view="4">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 05 · Hypothesis Lab</div><h2>驗證根因假設</h2><p>控制時序、負載與共享狀態變因，透過重跑實驗建立可重現且可審查的證據。</p></div>
+          <div class="actions"><button class="btn">新增實驗</button><button class="btn primary" id="runExperiment">執行 20 次重跑</button></div>
+        </div>
+        <div class="lab">
+          <div>
+            <article class="card"><div class="card-head"><h3>根因假設</h3><span class="badge">3 項</span></div><div class="pad">
+              <div class="hypothesis active"><h4>H1 · Redis 失效延遲造成舊資料讀取</h4><p>高負載節點上的 queue lag 擴大平行 worker 的競態窗口。</p><div class="confidence"><span>證據信心</span><b>88%</b></div><div class="progress"><i style="width:88%"></i></div></div>
+              <div class="hypothesis"><h4>H2 · Redis client 5.5.0 行為差異</h4><p>新版依賴可能改變 pipeline flush 時機。</p><div class="confidence"><span>證據信心</span><b>52%</b></div><div class="progress"><i style="width:52%;background:var(--amber)"></i></div></div>
+              <div class="hypothesis"><h4>H3 · 前序測試未執行 teardown</h4><p>全域優惠券殘留，放大快取版本不一致的影響。</p><div class="confidence"><span>證據信心</span><b>81%</b></div><div class="progress"><i style="width:81%"></i></div></div>
+            </div></article>
+          </div>
+          <article class="card experiment-board">
+            <div style="display:flex;justify-content:space-between;gap:10px;align-items:start"><div><div class="eyebrow">Experiment EXP-014</div><h3 style="margin:5px 0;color:var(--ink)">隔離 namespace × 注入 queue lag</h3></div><span class="badge green">證據充分</span></div>
+            <div class="factor-grid" style="margin:18px 0">
+              <div class="factor"><span>Redis namespace</span><strong>獨立 / 共用</strong></div>
+              <div class="factor"><span>Queue lag</span><strong>0 / 1.5 / 3.0s</strong></div>
+              <div class="factor"><span>Runner 負載</span><strong>40% / 85%</strong></div>
+            </div>
+            <div class="grid-even">
+              <div><h4 style="font-size:11px;color:var(--ink)">共用 namespace · 高負載</h4><div class="run-dots" aria-label="重跑結果"><i></i><i class="fail"></i><i></i><i class="fail"></i><i class="fail"></i><i></i><i></i><i class="fail"></i><i></i><i class="fail"></i><i></i><i></i><i class="fail"></i><i></i><i class="fail"></i><i></i><i></i><i class="fail"></i><i></i><i class="fail"></i></div><p class="empty-note">失敗 9/20 · 失敗率 45%</p></div>
+              <div><h4 style="font-size:11px;color:var(--ink)">獨立 namespace · 高負載</h4><div class="run-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p class="empty-note">失敗 0/20 · 失敗率 0%</p></div>
+            </div>
+            <div style="margin-top:22px"><h4 style="font-size:11px;color:var(--ink)">實驗失敗率</h4><div class="chart-box"><canvas id="experimentChart"></canvas></div></div>
+          </article>
+        </div>
+        <article class="card" style="margin-top:16px"><div class="card-head"><h3>根因結論草案</h3><span class="badge green">可重現</span></div><div class="pad"><p style="margin:0;font-size:11px;line-height:1.8">前序測試未清除 <b>coupon:global</b>，在高負載 runner 上使 Redis 失效事件延遲；checkout 測試的平行 worker 因而讀到不同版本的購物車。獨立 namespace 可將失敗率由 <b>45%</b> 降至 <b>0%</b>。</p></div></article>
+      </section>
+
+      <section class="view" data-view="5">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 06 · Noise Reduction</div><h2>核准降噪處方</h2><p>審核修復、隔離與重構建議，建立任務並持續追蹤 CI 噪音下降幅度。</p></div>
+          <div class="actions"><button class="btn" id="rejectButton">退回補件</button><button class="btn primary" id="approveButton"><span class="material-symbols-outlined">verified</span>核准處方</button></div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <div class="prescription">
+              <span class="badge green">推薦處方 · RX-3218</span><h3 style="margin-top:12px">隔離快取狀態並強制清理全域優惠券</h3><p>為每個測試建立 Redis namespace；在 promotion 套件加入可靠 teardown；購物車斷言前等待對應版本的 invalidation event。</p>
+              <div class="prescription-grid"><div class="mini"><span>預估噪音下降</span><strong>−87%</strong></div><div class="mini"><span>工程工時</span><strong>12h</strong></div><div class="mini"><span>回復難度</span><strong>低</strong></div></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="badge">修復</span><span class="badge">測試隔離</span><span class="badge">可觀測性</span></div>
+            </div>
+            <article class="card" style="margin-top:16px"><div class="card-head"><h3>執行任務</h3><span class="badge">3 項</span></div><div class="table-wrap"><table><thead><tr><th>任務</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead><tbody><tr><td>FLA-3218 · namespace fixture</td><td>林育安</td><td>D+2</td><td><span class="badge amber">待核准</span></td></tr><tr><td>FLA-3219 · teardown guard</td><td>陳佩琪</td><td>D+3</td><td><span class="badge">已排程</span></td></tr><tr><td>FLA-3220 · queue lag metric</td><td>王子維</td><td>D+5</td><td><span class="badge">草稿</span></td></tr></tbody></table></div></article>
+          </div>
+          <div>
+            <article class="card"><div class="card-head"><h3>成效預測</h3><small>導入後 6 週</small></div><div class="pad"><div class="chart-box"><canvas id="benefitChart"></canvas></div><div class="grid-even" style="margin-top:12px"><div class="metric"><span>事件平均處理</span><strong>30 分</strong><em>原 120 分</em></div><div class="metric"><span>系統可用率</span><strong>99%</strong><em>原 97%</em></div><div class="metric"><span>SLA 達成率</span><strong>98%</strong><em>原 85%</em></div><div class="metric"><span>盤點工時</span><strong>4h</strong><em>原 20h</em></div></div></div></article>
+            <article class="card" style="margin-top:16px"><div class="card-head"><h3>簽核軌跡</h3><span class="badge amber">等待工程主管</span></div><div class="pad"><div class="approval"><div class="avatar">測</div><div><b>測試工程師 · 吳佳蓉</b><small>證據確認 · 今天 10:18</small></div><span class="badge green">已簽核</span></div><div class="approval"><div class="avatar">開</div><div><b>開發者 · 林育安</b><small>修復可行性確認 · 今天 10:42</small></div><span class="badge green">已簽核</span></div><div class="approval"><div class="avatar">工</div><div><b>工程主管 · 周明哲</b><small>等待成本與發布風險審核</small></div><span class="badge amber">待處理</span></div></div></article>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toastMessage" role="status" aria-live="polite"></div>
+<script>
+"use strict";
+const chartInstances={};
+const sidePanel=document.getElementById("sidePanel");
+const menuButton=document.getElementById("menuButton");
+const toastMessage=document.getElementById("toastMessage");
+
+function chartDefaults(){
+  Chart.defaults.font.family='Inter,"Noto Sans TC",sans-serif';
+  Chart.defaults.color="#6d7864";
+  Chart.defaults.borderColor="#e5eadf";
+}
+function createChart(chartId,config){
+  if(chartInstances[chartId]||typeof Chart==="undefined")return;
+  const canvas=document.getElementById(chartId);
+  if(!canvas||!canvas.parentElement||canvas.parentElement.clientWidth<20)return;
+  chartInstances[chartId]=new Chart(canvas,config);
+}
+function initChart(viewIndex){
+  chartDefaults();
+  if(viewIndex===0)createChart("triageChart",{type:"line",data:{labels:["六","日","一","二","三","四","五"],datasets:[{label:"失敗執行",data:[31,27,35,22,29,18,16],borderColor:"#c54141",backgroundColor:"rgba(197,65,65,.1)",fill:true,tension:.35},{label:"浪費分鐘",data:[48,41,53,39,45,34,29],borderColor:"#4d7c0f",tension:.35,yAxisID:"y1"}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{y:{beginAtZero:true},y1:{display:false,beginAtZero:true}}}});
+  if(viewIndex===1)createChart("timelineChart",{type:"bar",data:{labels:["容器","資料","優惠券","購物車","斷言"],datasets:[{label:"成功",data:[1.2,1.6,1.9,1.1,.8],backgroundColor:"#16865a"},{label:"失敗",data:[1.4,3,1.1,3.8,.6],backgroundColor:"#c54141"}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{y:{beginAtZero:true}}}});
+  if(viewIndex===2)createChart("environmentChart",{type:"bar",data:{labels:["CPU >80%","平行數 8","client 5.5","ap-east-17","記憶體 >75%"],datasets:[{label:"失敗機率提升",data:[41,34,22,19,12],backgroundColor:["#4d7c0f","#699a29","#8cad62","#aec58e","#d2dfc3"],borderRadius:6}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{callback:function(value){return value+"%"}}}}}});
+  if(viewIndex===4)createChart("experimentChart",{type:"bar",data:{labels:["共用／低負載","共用／高負載","隔離／低負載","隔離／高負載"],datasets:[{label:"失敗率 %",data:[10,45,0,0],backgroundColor:["#b76a0b","#c54141","#16865a","#16865a"],borderRadius:7}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:50}}}});
+  if(viewIndex===5)createChart("benefitChart",{type:"line",data:{labels:["W1","W2","W3","W4","W5","W6"],datasets:[{label:"系統可用率 %",data:[97,97.4,97.8,98.2,98.6,99],borderColor:"#4d7c0f",backgroundColor:"rgba(77,124,15,.12)",fill:true,tension:.35,pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{y:{min:96,max:100,ticks:{callback:function(value){return value+"%"}}}}}});
+}
+function show(viewIndex,updateHash){
+  const safeIndex=Math.max(0,Math.min(5,Number(viewIndex)||0));
+  document.querySelectorAll(".view").forEach(function(panel){panel.classList.toggle("active",Number(panel.dataset.view)===safeIndex)});
+  document.querySelectorAll("[data-i]").forEach(function(control){control.classList.toggle("active",Number(control.dataset.i)===safeIndex)});
+  sidePanel.classList.remove("open");
+  if(updateHash!==false&&location.hash!=="#go="+safeIndex)location.hash="go="+safeIndex;
+  requestAnimationFrame(function(){initChart(safeIndex)});
+}
+function hashIndex(){
+  const match=location.hash.match(/(?:go=|v)([0-9]+)/);
+  return match?Math.min(5,Number(match[1])):0;
+}
+function notify(message){
+  toastMessage.textContent=message;
+  toastMessage.classList.add("on");
+  toastMessage.addEventListener("transitionend",function dismiss(){
+    toastMessage.classList.remove("on");
+    toastMessage.removeEventListener("transitionend",dismiss);
+  },{once:true});
+}
+document.querySelectorAll("[data-i]").forEach(function(control){control.addEventListener("click",function(){show(control.dataset.i,true)})});
+document.querySelectorAll("[data-next]").forEach(function(control){control.addEventListener("click",function(){show(control.dataset.next,true)})});
+menuButton.addEventListener("click",function(){sidePanel.classList.toggle("open")});
+document.addEventListener("click",function(event){if(innerWidth<=768&&!sidePanel.contains(event.target)&&!menuButton.contains(event.target))sidePanel.classList.remove("open")});
+window.addEventListener("hashchange",function(){show(hashIndex(),false)});
+document.getElementById("runExperiment").addEventListener("click",function(){notify("已建立 20 次控制變因重跑，實驗編號 EXP-015")});
+document.getElementById("approveButton").addEventListener("click",function(){notify("降噪處方已核准，3 項工程任務已建立")});
+document.getElementById("rejectButton").addEventListener("click",function(){notify("已退回補件並通知工程主管")});
+show(hashIndex(),false);
+</script>
+</body>
+</html>

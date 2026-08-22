@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI 訪談轉需求工作台 · collaboration-pm｜Jvision 系統 Demo</title>
+  <link rel="icon" href="../../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --blue:#be123c;
+      --ink:#21151a;
+      --body:#44383d;
+      --muted:#786b70;
+      --line:#eadde2;
+      --bg:#f8f5f6;
+      --green:#16805b;
+      --amber:#b76a0b;
+      --red:#c83246;
+      --white:#fff;
+      --soft:#fff1f4;
+      --shadow:0 18px 42px rgba(83,30,47,.09);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      color:var(--body);
+      background:var(--bg);
+      font-family:Inter,"Noto Sans TC",sans-serif;
+      overflow-x:hidden;
+    }
+    button,input,textarea{font:inherit}
+    button{color:inherit}
+    button:focus-visible,input:focus-visible,textarea:focus-visible{
+      outline:3px solid rgba(190,18,60,.22);
+      outline-offset:2px;
+    }
+    .material-symbols-outlined{
+      font-size:21px;
+      font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24;
+    }
+    .shell{min-height:100vh;display:grid;grid-template-columns:78px minmax(0,1fr)}
+    .rail{
+      position:fixed;inset:0 auto 0 0;width:78px;
+      display:flex;flex-direction:column;align-items:center;
+      padding:18px 10px;background:#fff;border-right:1px solid var(--line);z-index:20;
+    }
+    .brand{
+      width:46px;height:46px;border-radius:15px;display:grid;place-items:center;
+      color:#fff;background:var(--blue);font-weight:800;letter-spacing:-.06em;
+      box-shadow:0 10px 24px rgba(190,18,60,.25);
+    }
+    .rail-nav{display:flex;flex-direction:column;gap:10px;margin-top:34px}
+    .nav-btn{
+      position:relative;width:48px;height:48px;border:0;border-radius:14px;
+      display:grid;place-items:center;background:transparent;color:#8b7c82;cursor:pointer;
+    }
+    .nav-btn:hover{background:#f9eef1;color:var(--blue)}
+    .nav-btn.active{background:var(--soft);color:var(--blue)}
+    .nav-btn.active::before{
+      content:"";position:absolute;left:-10px;width:4px;height:25px;
+      border-radius:0 4px 4px 0;background:var(--blue);
+    }
+    .nav-btn .tip{
+      pointer-events:none;position:absolute;left:58px;white-space:nowrap;
+      background:var(--ink);color:#fff;border-radius:8px;padding:7px 9px;
+      font-size:12px;opacity:0;transform:translateX(-4px);transition:.18s;
+    }
+    .nav-btn:hover .tip,.nav-btn:focus-visible .tip{opacity:1;transform:none}
+    .rail-foot{margin-top:auto;color:#9b8c92}
+    main{grid-column:2;min-width:0}
+    .topbar{
+      height:72px;padding:0 28px;display:flex;align-items:center;gap:16px;
+      background:rgba(255,255,255,.9);border-bottom:1px solid var(--line);
+      position:sticky;top:0;z-index:12;backdrop-filter:blur(12px);
+    }
+    .crumb{min-width:0}
+    .crumb small{display:block;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.1em}
+    .crumb strong{display:block;color:var(--ink);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .top-actions{margin-left:auto;display:flex;align-items:center;gap:10px}
+    .search{
+      display:flex;align-items:center;gap:8px;width:230px;height:40px;padding:0 12px;
+      border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--muted);font-size:13px;
+    }
+    .icon-btn,.avatar{
+      width:40px;height:40px;border:1px solid var(--line);border-radius:12px;
+      display:grid;place-items:center;background:#fff;cursor:pointer;
+    }
+    .avatar{border:0;border-radius:50%;background:#381a25;color:#fff;font-size:12px;font-weight:800}
+    .screen{display:none;min-height:calc(100vh - 72px);padding:26px 28px 42px}
+    .screen.active{display:block;animation:enter .28s ease both}
+    @keyframes enter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+    .screen-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:22px}
+    .eyebrow{color:var(--blue);font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+    h1,h2,h3,p{margin-top:0}
+    h1{margin:6px 0 6px;color:var(--ink);font-size:clamp(25px,3vw,38px);line-height:1.18;letter-spacing:-.035em}
+    h2{margin-bottom:7px;color:var(--ink);font-size:22px;letter-spacing:-.02em}
+    h3{margin-bottom:5px;color:var(--ink);font-size:15px}
+    .sub{margin:0;color:var(--muted);font-size:14px;line-height:1.7}
+    .actions{display:flex;flex-wrap:wrap;gap:9px}
+    .btn{
+      min-height:42px;padding:0 15px;border:1px solid var(--line);border-radius:12px;
+      display:inline-flex;align-items:center;justify-content:center;gap:7px;
+      background:#fff;font-weight:700;font-size:13px;cursor:pointer;
+    }
+    .btn.primary{border-color:var(--blue);background:var(--blue);color:#fff}
+    .btn.soft{border-color:#f2ccd5;background:var(--soft);color:var(--blue)}
+    .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 8px 28px rgba(71,35,48,.045)}
+    .chip{
+      display:inline-flex;align-items:center;gap:5px;min-height:26px;padding:3px 9px;
+      border-radius:999px;background:#f4f0f1;color:#685a60;font-size:11px;font-weight:700;
+    }
+    .chip.red{background:#fff0f3;color:var(--blue)}
+    .chip.green{background:#e9f7f1;color:var(--green)}
+    .chip.amber{background:#fff6e7;color:var(--amber)}
+    .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+    .meta{color:var(--muted);font-size:12px}
+    .divider{height:1px;background:var(--line)}
+    .empty-note{padding:18px;text-align:center;color:var(--muted)}
+    .progress{height:7px;border-radius:99px;background:#f0e8eb;overflow:hidden}
+    .progress span{display:block;height:100%;border-radius:inherit;background:var(--blue)}
+    .two-col{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(270px,.75fr);gap:18px}
+    .three-col{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+
+    /* v0 transcript workspace */
+    .ingest-strip{
+      display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;
+      overflow:hidden;margin-bottom:18px;background:var(--line);
+    }
+    .ingest-stat{padding:16px;background:#fff}
+    .ingest-stat span{display:block;color:var(--muted);font-size:11px}
+    .ingest-stat strong{display:block;margin-top:6px;color:var(--ink);font-size:20px}
+    .transcript-layout{display:grid;grid-template-columns:230px minmax(0,1fr) 285px;gap:16px}
+    .session-list{padding:12px}
+    .session-row{
+      width:100%;padding:13px;border:0;border-radius:13px;text-align:left;background:transparent;cursor:pointer;
+    }
+    .session-row.active{background:var(--soft)}
+    .session-row strong{display:block;color:var(--ink);font-size:13px}
+    .session-row span{display:block;margin-top:4px;color:var(--muted);font-size:11px}
+    .transcript{padding:20px;min-width:0}
+    .audio-bar{
+      display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:18px;
+      border-radius:14px;background:#2c1920;color:#fff;
+    }
+    .play{width:34px;height:34px;border:0;border-radius:50%;display:grid;place-items:center;background:#fff;color:var(--blue)}
+    .wave{height:24px;flex:1;background:repeating-linear-gradient(90deg,#966c7a 0 2px,transparent 2px 6px);opacity:.8}
+    .quote-row{display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;padding:13px 0;border-bottom:1px solid #f0e8eb}
+    .speaker{font-size:11px;font-weight:800;color:var(--blue)}
+    .speaker small{display:block;margin-top:3px;color:var(--muted);font-weight:500}
+    .quote{font-size:13px;line-height:1.75}
+    mark{padding:2px 3px;border-radius:4px;background:#ffe5eb;color:#7d102c}
+    .topic-panel{padding:17px}
+    .topic-card{padding:12px;margin-top:10px;border:1px solid var(--line);border-radius:12px}
+    .topic-card p{margin:6px 0 0;color:var(--muted);font-size:11px;line-height:1.6}
+
+    /* v1 goals */
+    .goal-board{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px}
+    .north-star{padding:24px;background:linear-gradient(135deg,#4b1728,#941437);color:#fff;border:0}
+    .north-star h2,.north-star h3{color:#fff}
+    .north-star p{max-width:730px;color:#f4dce3;line-height:1.7}
+    .metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
+    .metric-box{padding:15px;border:1px solid rgba(255,255,255,.16);border-radius:14px;background:rgba(255,255,255,.08)}
+    .metric-box small{display:block;color:#eabecb}
+    .metric-box strong{display:block;margin-top:6px;font-size:22px}
+    .goal-list{display:grid;gap:12px;margin-top:16px}
+    .goal-item{display:grid;grid-template-columns:45px minmax(0,1fr) auto;gap:13px;align-items:center;padding:16px}
+    .score{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;background:var(--soft);color:var(--blue);font-weight:800}
+    .goal-item p{margin:4px 0 0;color:var(--muted);font-size:12px}
+    .stakeholders{padding:18px}
+    .person{display:flex;gap:11px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+    .person:last-child{border-bottom:0}
+    .person-avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#f3e4e8;color:var(--blue);font-size:12px;font-weight:800}
+    .person strong,.person span{display:block;font-size:12px}
+    .person span{margin-top:3px;color:var(--muted)}
+    .confidence{margin-left:auto;color:var(--green);font-size:11px;font-weight:800}
+
+    /* v2 rule modeler */
+    .rule-shell{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px}
+    .rule-canvas{padding:20px;min-height:550px;background-image:radial-gradient(#e9dce1 1px,transparent 1px);background-size:20px 20px}
+    .rule-path{display:grid;grid-template-columns:1fr 50px 1fr 50px 1fr;align-items:center;gap:5px;margin:32px 0}
+    .node{padding:18px;border:1px solid var(--line);border-radius:15px;background:#fff;box-shadow:var(--shadow)}
+    .node.condition{border-top:4px solid var(--amber)}
+    .node.action{border-top:4px solid var(--green)}
+    .node.exception{border-top:4px solid var(--blue)}
+    .node small{display:block;margin-bottom:6px;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.08em}
+    .arrow{display:grid;place-items:center;color:var(--blue)}
+    .logic-table{width:100%;border-collapse:collapse;margin-top:24px;background:#fff;border-radius:14px;overflow:hidden}
+    .logic-table th,.logic-table td{padding:11px;border-bottom:1px solid var(--line);font-size:11px;text-align:left}
+    .logic-table th{background:#faf7f8;color:var(--muted)}
+    .inspector{padding:19px}
+    .field{margin-top:15px}
+    .field label{display:block;margin-bottom:6px;color:var(--muted);font-size:11px;font-weight:700}
+    .field input,.field textarea{
+      width:100%;border:1px solid var(--line);border-radius:11px;background:#fff;padding:10px 11px;color:var(--body);
+    }
+    .field textarea{min-height:82px;resize:vertical}
+    .token-row{display:flex;flex-wrap:wrap;gap:7px}
+    .validation{margin-top:18px;padding:13px;border-radius:12px;background:#ecf8f2;color:var(--green);font-size:12px;line-height:1.6}
+
+    /* v3 exceptions */
+    .risk-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+    .risk-card{padding:17px}
+    .risk-card small{color:var(--muted)}
+    .risk-card strong{display:block;margin:7px 0 8px;color:var(--ink);font-size:25px}
+    .matrix-wrap{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:18px}
+    .matrix-card{padding:20px}
+    .matrix{
+      display:grid;grid-template-columns:54px repeat(4,1fr);grid-template-rows:repeat(5,74px);
+      gap:7px;margin-top:16px;
+    }
+    .matrix-label{display:grid;place-items:center;color:var(--muted);font-size:10px;font-weight:700}
+    .matrix-cell{position:relative;border:1px solid var(--line);border-radius:11px;background:#fbf9fa}
+    .matrix-cell.hot{background:#fff0f3;border-color:#efb9c6}
+    .matrix-cell.warn{background:#fff8e9;border-color:#f3d69c}
+    .risk-dot{
+      position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);
+      width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+      background:var(--blue);color:#fff;font-size:10px;font-weight:800;
+    }
+    .scenario-list{padding:18px}
+    .scenario{padding:13px 0;border-bottom:1px solid var(--line)}
+    .scenario:last-child{border-bottom:0}
+    .scenario-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .scenario p{margin:7px 0;color:var(--muted);font-size:11px;line-height:1.55}
+    .scenario footer{display:flex;gap:6px;flex-wrap:wrap}
+
+    /* v4 unresolved questions */
+    .question-layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr);gap:18px}
+    .question-list{padding:8px}
+    .question-row{
+      display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:12px;
+      align-items:start;padding:16px 12px;border-bottom:1px solid var(--line);
+    }
+    .q-icon{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:var(--soft);color:var(--blue)}
+    .question-row p{margin:5px 0 8px;color:var(--muted);font-size:12px;line-height:1.55}
+    .source-link{display:flex;align-items:center;gap:6px;color:var(--blue);font-size:11px;font-weight:700}
+    .answer-panel{padding:20px}
+    .source-quote{padding:14px;border-left:3px solid var(--blue);background:#fbf5f7;font-size:12px;line-height:1.7}
+    .answer-box{width:100%;min-height:126px;margin-top:14px;padding:13px;border:1px solid var(--line);border-radius:13px;resize:vertical}
+    .conflict{margin-top:14px;padding:13px;border-radius:12px;background:#fff7e8;color:#80500d;font-size:11px;line-height:1.6}
+    .resolution-meter{display:grid;grid-template-columns:112px minmax(0,1fr);gap:15px;align-items:center;margin-top:18px}
+    .donut{
+      width:108px;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;
+      background:conic-gradient(var(--blue) 0 72%,#f1e7ea 72%);
+    }
+    .donut::after{
+      content:"72%";width:76px;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;
+      background:#fff;color:var(--ink);font-weight:800;
+    }
+
+    /* v5 PRD approval */
+    .prd-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px}
+    .document{padding:30px}
+    .doc-cover{padding-bottom:22px;border-bottom:1px solid var(--line)}
+    .doc-cover h2{font-size:27px}
+    .doc-meta{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;color:var(--muted);font-size:11px}
+    .doc-section{padding:22px 0;border-bottom:1px solid var(--line)}
+    .doc-section:last-child{border-bottom:0}
+    .acceptance{display:grid;gap:9px;margin-top:12px}
+    .accept-row{display:flex;gap:10px;padding:11px;border-radius:11px;background:#faf7f8;font-size:12px;line-height:1.55}
+    .check{color:var(--green)}
+    .approval{padding:18px;align-self:start;position:sticky;top:92px}
+    .approval-step{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;padding:11px 0}
+    .approval-mark{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#e9f7f1;color:var(--green)}
+    .approval-step.pending .approval-mark{background:#fff5e5;color:var(--amber)}
+    .approval-step span{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+    .readiness{margin:16px 0;padding:14px;border-radius:13px;background:var(--soft)}
+    .readiness strong{display:block;color:var(--blue);font-size:25px}
+
+    .chart-card{padding:18px;margin-top:18px}
+    .chart-box{position:relative;height:190px;margin-top:12px}
+    .toast{
+      position:fixed;right:22px;bottom:22px;max-width:320px;padding:13px 16px;
+      border-radius:12px;background:var(--ink);color:#fff;font-size:12px;
+      box-shadow:var(--shadow);opacity:0;pointer-events:none;transform:translateY(8px);transition:.2s;z-index:50;
+    }
+    .toast.visible{opacity:1;transform:none}
+
+    @media(max-width:1080px){
+      .transcript-layout{grid-template-columns:210px minmax(0,1fr)}
+      .topic-panel{grid-column:1/-1}
+      .goal-board,.rule-shell,.matrix-wrap,.question-layout,.prd-grid{grid-template-columns:1fr}
+      .approval{position:static}
+      .three-col{grid-template-columns:1fr 1fr}
+    }
+    @media(max-width:768px){
+      .shell{display:block;padding-bottom:70px}
+      main{display:block}
+      .rail{
+        inset:auto 0 0;width:auto;height:68px;padding:7px 10px;flex-direction:row;
+        border-right:0;border-top:1px solid var(--line);
+      }
+      .brand,.rail-foot{display:none}
+      .rail-nav{width:100%;margin:0;flex-direction:row;justify-content:space-around;gap:2px}
+      .nav-btn{width:45px;height:52px}
+      .nav-btn.active::before{left:50%;top:-7px;width:24px;height:3px;transform:translateX(-50%);border-radius:0 0 4px 4px}
+      .nav-btn .tip{display:none}
+      .topbar{height:62px;padding:0 16px}
+      .search{display:none}
+      .screen{min-height:calc(100vh - 132px);padding:20px 16px 30px}
+      .screen-head{display:block}
+      .screen-head .actions{margin-top:15px}
+      .two-col,.transcript-layout{grid-template-columns:1fr}
+      .session-list{display:flex;overflow-x:auto;gap:8px}
+      .session-row{min-width:175px}
+      .topic-panel{grid-column:auto}
+      .ingest-strip,.risk-summary{grid-template-columns:1fr 1fr}
+      .metric-grid{grid-template-columns:1fr}
+      .rule-path{grid-template-columns:1fr}
+      .arrow{transform:rotate(90deg);height:32px}
+      .matrix{grid-template-columns:40px repeat(4,minmax(48px,1fr));overflow:auto}
+      .three-col{grid-template-columns:1fr}
+      .document{padding:20px}
+    }
+    @media(max-width:430px){
+      .topbar{gap:8px}
+      .icon-btn{display:none}
+      h1{font-size:25px}
+      .ingest-strip,.risk-summary{grid-template-columns:1fr}
+      .quote-row{grid-template-columns:1fr}
+      .goal-item{grid-template-columns:42px minmax(0,1fr)}
+      .goal-item>.chip{grid-column:2}
+      .question-row{grid-template-columns:36px minmax(0,1fr)}
+      .question-row>.chip{grid-column:2}
+      .resolution-meter{grid-template-columns:1fr;justify-items:center;text-align:center}
+      .actions .btn{flex:1}
+      .doc-meta{display:grid;gap:7px}
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail" aria-label="流程導覽">
+      <div class="brand" aria-label="Jvision">JV</div>
+      <nav class="rail-nav">
+        <button class="nav-btn" data-i="0" aria-label="整理訪談內容"><span class="material-symbols-outlined">record_voice_over</span><span class="tip">整理訪談內容</span></button>
+        <button class="nav-btn" data-i="1" aria-label="確認產品目標"><span class="material-symbols-outlined">flag</span><span class="tip">確認產品目標</span></button>
+        <button class="nav-btn" data-i="2" aria-label="定義業務規則"><span class="material-symbols-outlined">rule</span><span class="tip">定義業務規則</span></button>
+        <button class="nav-btn" data-i="3" aria-label="補齊例外情境"><span class="material-symbols-outlined">alt_route</span><span class="tip">補齊例外情境</span></button>
+        <button class="nav-btn" data-i="4" aria-label="釐清未決問題"><span class="material-symbols-outlined">quiz</span><span class="tip">釐清未決問題</span></button>
+        <button class="nav-btn" data-i="5" aria-label="審定 PRD 草案"><span class="material-symbols-outlined">description</span><span class="tip">審定 PRD 草案</span></button>
+      </nav>
+      <span class="material-symbols-outlined rail-foot">help</span>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div class="crumb">
+          <small>AI REQUIREMENTS / 專案 IR-042</small>
+          <strong id="screenTitle">整理訪談內容</strong>
+        </div>
+        <div class="top-actions">
+          <div class="search"><span class="material-symbols-outlined">search</span>搜尋需求、規則或來源</div>
+          <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+          <div class="avatar" aria-label="使用者王郁婷">YT</div>
+        </div>
+      </header>
+
+      <section class="screen" data-screen="0" aria-labelledby="v0-title">
+        <div class="screen-head">
+          <div>
+            <span class="eyebrow">01 · Transcript workspace</span>
+            <h1 id="v0-title">整理訪談內容</h1>
+            <p class="sub">匯入逐字稿、校正講者，並將關鍵語句連結到可追溯的訪談來源。</p>
+          </div>
+          <div class="actions">
+            <button class="btn"><span class="material-symbols-outlined">upload_file</span>匯入逐字稿</button>
+            <button class="btn primary action-demo">完成初步整理</button>
+          </div>
+        </div>
+
+        <div class="ingest-strip card">
+          <div class="ingest-stat"><span>已匯入訪談</span><strong>4 場</strong></div>
+          <div class="ingest-stat"><span>逐字內容</span><strong>3h 42m</strong></div>
+          <div class="ingest-stat"><span>AI 講者辨識</span><strong>96.8%</strong></div>
+          <div class="ingest-stat"><span>待校正片段</span><strong style="color:var(--blue)">7</strong></div>
+        </div>
+
+        <div class="transcript-layout">
+          <aside class="session-list card" aria-label="訪談場次">
+            <button class="session-row active"><strong>營運流程訪談</strong><span>今天 10:30 · 48:12</span></button>
+            <button class="session-row"><strong>客服主管訪談</strong><span>8 月 19 日 · 56:40</span></button>
+            <button class="session-row"><strong>法遵需求確認</strong><span>8 月 18 日 · 39:08</span></button>
+            <button class="session-row"><strong>技術可行性會議</strong><span>8 月 17 日 · 1:18:20</span></button>
+          </aside>
+
+          <article class="transcript card">
+            <div class="audio-bar">
+              <button class="play" aria-label="播放"><span class="material-symbols-outlined">play_arrow</span></button>
+              <span class="meta" style="color:#fff">18:42</span>
+              <div class="wave" aria-hidden="true"></div>
+              <span class="meta" style="color:#fff">48:12</span>
+            </div>
+            <div class="quote-row">
+              <div class="speaker">林雅雯<small>營運主管<br>18:42</small></div>
+              <div class="quote">現在每次建立客戶專案，都要再人工確認一次合約層級。希望新系統能依方案自動帶出限制，<mark>但策略型客戶仍要允許主管覆核</mark>。</div>
+            </div>
+            <div class="quote-row">
+              <div class="speaker">王郁婷<small>產品經理<br>19:06</small></div>
+              <div class="quote">主管覆核是所有策略型客戶都需要，還是只有超過特定額度才需要？</div>
+            </div>
+            <div class="quote-row">
+              <div class="speaker">林雅雯<small>營運主管<br>19:18</small></div>
+              <div class="quote"><mark>目前是年度合約超過 300 萬</mark>，或是有客製 SLA 的客戶。兩種情況都要留下核准紀錄。</div>
+            </div>
+            <div class="quote-row">
+              <div class="speaker">陳俊豪<small>客服主管<br>20:02</small></div>
+              <div class="quote">如果主管不在，希望能委派代理人，不然我們月底會卡住。委派期間應該要有開始與結束日期。</div>
+            </div>
+          </article>
+
+          <aside class="topic-panel card">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <h3>AI 主題片段</h3><span class="chip red">12 個</span>
+            </div>
+            <div class="topic-card"><span class="chip amber">業務規則</span><h3>策略客戶覆核門檻</h3><p>來源 18:42–19:31 · 信心 94%</p></div>
+            <div class="topic-card"><span class="chip green">例外流程</span><h3>主管代理與委派期限</h3><p>來源 20:02–20:44 · 信心 91%</p></div>
+            <div class="topic-card"><span class="chip red">未決問題</span><h3>客製 SLA 的判定來源</h3><p>尚未確認由合約或 CRM 欄位判定</p></div>
+            <div style="margin-top:16px">
+              <div class="meta" style="display:flex;justify-content:space-between"><span>整理進度</span><strong>78%</strong></div>
+              <div class="progress" style="margin-top:7px"><span style="width:78%"></span></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="1" aria-labelledby="v1-title">
+        <div class="screen-head">
+          <div>
+            <span class="eyebrow">02 · Outcome alignment</span>
+            <h1 id="v1-title">確認產品目標</h1>
+            <p class="sub">審閱 AI 萃取的目標、痛點、成功指標與利害關係人優先順序。</p>
+          </div>
+          <div class="actions">
+            <button class="btn">要求補充來源</button>
+            <button class="btn primary action-demo">核准產品目標</button>
+          </div>
+        </div>
+
+        <div class="goal-board">
+          <div>
+            <section class="north-star card">
+              <span class="chip" style="background:rgba(255,255,255,.12);color:#fff">北極星目標 · O-01</span>
+              <h2 style="margin-top:15px">讓訪談結論在 2 個工作日內成為可驗證需求</h2>
+              <p>減少跨角色反覆解讀，確保每項需求都能回溯到訪談片段、明確規則與驗收依據。</p>
+              <div class="metric-grid">
+                <div class="metric-box"><small>需求形成時間</small><strong>5 → 2 天</strong></div>
+                <div class="metric-box"><small>來源覆蓋率</small><strong>≥ 95%</strong></div>
+                <div class="metric-box"><small>首輪驗收通過</small><strong>≥ 88%</strong></div>
+              </div>
+            </section>
+
+            <div class="goal-list">
+              <article class="goal-item card">
+                <div class="score">92</div>
+                <div><h3>降低需求澄清往返</h3><p>將矛盾與資訊缺口在規劃前集中確認，預計每案減少 3.4 次往返。</p></div>
+                <span class="chip green">高度一致</span>
+              </article>
+              <article class="goal-item card">
+                <div class="score">86</div>
+                <div><h3>建立規則到驗收的追溯鏈</h3><p>每條業務規則需連結來源、負責角色、例外路徑及驗收條件。</p></div>
+                <span class="chip amber">待確認 KPI</span>
+              </article>
+              <article class="goal-item card">
+                <div class="score">74</div>
+                <div><h3>縮短工程可行性評估</h3><p>讓工程主管在 PRD 核准前取得完整架構影響與技術限制。</p></div>
+                <span class="chip red">優先序衝突</span>
+              </article>
+            </div>
+
+            <section class="chart-card card">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div><h3>六週目標信心水位</h3><span class="meta">依已確認訪談來源與跨角色共識計算</span></div>
+                <span class="chip green">+18%</span>
+              </div>
+              <div class="chart-box"><canvas id="goalChart" aria-label="目標信心水位折線圖"></canvas></div>
+            </section>
+          </div>
+
+          <aside class="stakeholders card">
+            <h3>利害關係人共識</h3>
+            <p class="sub">5 位已審閱，1 位待回覆</p>
+            <div class="person"><div class="person-avatar">YW</div><div><strong>林雅雯</strong><span>營運主管</span></div><span class="confidence">一致 96%</span></div>
+            <div class="person"><div class="person-avatar">JH</div><div><strong>陳俊豪</strong><span>客服主管</span></div><span class="confidence">一致 91%</span></div>
+            <div class="person"><div class="person-avatar">SC</div><div><strong>張思誠</strong><span>工程主管</span></div><span class="confidence">一致 84%</span></div>
+            <div class="person"><div class="person-avatar">ML</div><div><strong>葉美玲</strong><span>法遵代表</span></div><span class="chip amber">待回覆</span></div>
+            <div class="divider" style="margin:14px 0"></div>
+            <h3>AI 偵測到的分歧</h3>
+            <div class="topic-card">
+              <span class="chip red">優先序</span>
+              <p>營運要求先支援代理覆核；工程建議先完成規則版本控管。</p>
+            </div>
+            <div class="topic-card">
+              <span class="chip amber">指標定義</span>
+              <p>「需求完成」應以 PRD 核准或開發排程建立為準，尚待定義。</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="2" aria-labelledby="v2-title">
+        <div class="screen-head">
+          <div>
+            <span class="eyebrow">03 · Business rule modeler</span>
+            <h1 id="v2-title">定義業務規則</h1>
+            <p class="sub">將訪談陳述轉成可實作的條件、限制、動作與決策邏輯。</p>
+          </div>
+          <div class="actions">
+            <button class="btn"><span class="material-symbols-outlined">account_tree</span>新增分支</button>
+            <button class="btn primary action-demo">儲存規則版本 v1.3</button>
+          </div>
+        </div>
+
+        <div class="rule-shell">
+          <section class="rule-canvas card">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div><h3>RULE-03 · 策略客戶覆核</h3><span class="meta">來源：營運流程訪談 18:42–20:44</span></div>
+              <span class="chip green"><span class="dot"></span>語法有效</span>
+            </div>
+
+            <div class="rule-path">
+              <div class="node condition"><small>WHEN · 條件</small><h3>年度合約 ≥ 300 萬</h3><span class="meta">或具有客製 SLA</span></div>
+              <div class="arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
+              <div class="node action"><small>THEN · 動作</small><h3>建立主管覆核任務</h3><span class="meta">期限：2 個工作日</span></div>
+              <div class="arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
+              <div class="node exception"><small>EXCEPT · 例外</small><h3>主管已設定代理人</h3><span class="meta">轉派有效代理人</span></div>
+            </div>
+
+            <table class="logic-table">
+              <thead><tr><th>條件組</th><th>合約金額</th><th>客製 SLA</th><th>有效代理</th><th>系統結果</th></tr></thead>
+              <tbody>
+                <tr><td>A</td><td>≥ 300 萬</td><td>任意</td><td>否</td><td><span class="chip red">主管覆核</span></td></tr>
+                <tr><td>B</td><td>&lt; 300 萬</td><td>是</td><td>否</td><td><span class="chip red">主管覆核</span></td></tr>
+                <tr><td>C</td><td>任意</td><td>任意</td><td>是</td><td><span class="chip amber">代理覆核</span></td></tr>
+                <tr><td>D</td><td>&lt; 300 萬</td><td>否</td><td>否</td><td><span class="chip green">自動通過</span></td></tr>
+              </tbody>
+            </table>
+
+            <div class="three-col" style="margin-top:18px">
+              <div class="node"><small>限制</small><h3>核准不可自我代理</h3></div>
+              <div class="node"><small>稽核</small><h3>保留版本與操作者</h3></div>
+              <div class="node"><small>通知</small><h3>到期前 4 小時提醒</h3></div>
+            </div>
+          </section>
+
+          <aside class="inspector card">
+            <h3>規則屬性</h3>
+            <div class="field"><label for="ruleTitle">規則名稱</label><input id="ruleTitle" value="策略客戶覆核"></div>
+            <div class="field"><label>負責角色</label><div class="token-row"><span class="chip red">系統分析師</span><span class="chip">工程主管</span></div></div>
+            <div class="field"><label for="ruleExpression">自然語言規則</label><textarea id="ruleExpression">若年度合約金額達 300 萬，或客戶具有客製 SLA，系統必須建立主管覆核任務；若存在有效代理人則轉派代理覆核。</textarea></div>
+            <div class="field"><label>引用證據</label><div class="token-row"><span class="chip"><span class="material-symbols-outlined" style="font-size:14px">code</span>程式碼</span><span class="chip"><span class="material-symbols-outlined" style="font-size:14px">article</span>架構</span></div></div>
+            <div class="validation"><strong>規則驗證通過</strong><br>4 組條件已覆蓋，未發現循環依賴；有 1 項例外情境待測試確認。</div>
+            <button class="btn primary action-demo" style="width:100%;margin-top:16px">發布至例外盤點</button>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="3" aria-labelledby="v3-title">
+        <div class="screen-head">
+          <div>
+            <span class="eyebrow">04 · Exception inventory</span>
+            <h1 id="v3-title">補齊例外情境</h1>
+            <p class="sub">檢視正常流程外的邊界條件、錯誤路徑、替代處理與特殊角色。</p>
+          </div>
+          <div class="actions">
+            <button class="btn">產生測試案例</button>
+            <button class="btn primary action-demo">確認例外覆蓋</button>
+          </div>
+        </div>
+
+        <div class="risk-summary">
+          <article class="risk-card card"><small>例外情境</small><strong>14</strong><span class="chip red">3 高風險</span></article>
+          <article class="risk-card card"><small>邊界條件</small><strong>8</strong><span class="chip amber">2 待定義</span></article>
+          <article class="risk-card card"><small>替代路徑</small><strong>6</strong><span class="chip green">已驗證</span></article>
+          <article class="risk-card card"><small>案例覆蓋率</small><strong>86%</strong><div class="progress"><span style="width:86%"></span></div></article>
+        </div>
+
+        <div class="matrix-wrap">
+          <section class="matrix-card card">
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+              <div><h3>風險影響矩陣</h3><span class="meta">依發生機率與業務影響排列</span></div>
+              <div class="token-row"><span class="chip red">高</span><span class="chip amber">中</span></div>
+            </div>
+            <div class="matrix" aria-label="例外風險矩陣">
+              <div class="matrix-label">影響</div><div class="matrix-label">極低</div><div class="matrix-label">低</div><div class="matrix-label">中</div><div class="matrix-label">高</div>
+              <div class="matrix-label">重大</div><div class="matrix-cell"></div><div class="matrix-cell warn"><span class="risk-dot" style="background:var(--amber)">E-09</span></div><div class="matrix-cell hot"><span class="risk-dot">E-03</span></div><div class="matrix-cell hot"><span class="risk-dot">E-01</span></div>
+              <div class="matrix-label">高</div><div class="matrix-cell"></div><div class="matrix-cell"></div><div class="matrix-cell warn"><span class="risk-dot" style="background:var(--amber)">E-07</span></div><div class="matrix-cell hot"><span class="risk-dot">E-04</span></div>
+              <div class="matrix-label">中</div><div class="matrix-cell"></div><div class="matrix-cell"><span class="risk-dot" style="background:#8c7d82">E-12</span></div><div class="matrix-cell warn"></div><div class="matrix-cell"></div>
+              <div class="matrix-label">低</div><div class="matrix-cell"></div><div class="matrix-cell"></div><div class="matrix-cell"></div><div class="matrix-cell"></div>
+            </div>
+            <section class="chart-card" style="padding:18px 0 0">
+              <h3>例外案例覆蓋趨勢</h3>
+              <div class="chart-box"><canvas id="exceptionChart" aria-label="例外案例覆蓋長條圖"></canvas></div>
+            </section>
+          </section>
+
+          <aside class="scenario-list card">
+            <div style="display:flex;justify-content:space-between"><h3>優先處理情境</h3><span class="chip red">6 未關閉</span></div>
+            <article class="scenario">
+              <div class="scenario-head"><h3>E-01 · 代理期限已過</h3><span class="chip red">重大</span></div>
+              <p>覆核送出後代理權限到期，任務不可留在已失效代理人的佇列。</p>
+              <footer><span class="chip">轉回原主管</span><span class="chip">通知營運</span></footer>
+            </article>
+            <article class="scenario">
+              <div class="scenario-head"><h3>E-03 · CRM 金額不同步</h3><span class="chip red">重大</span></div>
+              <p>合約金額更新延遲時，須以已簽署合約快照作為門檻判定依據。</p>
+              <footer><span class="chip">資料快照</span><span class="chip">人工覆核</span></footer>
+            </article>
+            <article class="scenario">
+              <div class="scenario-head"><h3>E-07 · 多位有效代理</h3><span class="chip amber">中度</span></div>
+              <p>同時存在兩位代理人時，依委派優先序及最近生效日選擇。</p>
+              <footer><span class="chip">排序規則</span><span class="chip">需驗收</span></footer>
+            </article>
+            <article class="scenario">
+              <div class="scenario-head"><h3>E-09 · 通知服務中斷</h3><span class="chip amber">中度</span></div>
+              <p>通知失敗不得阻擋任務建立，並須排入通知重送佇列。</p>
+              <footer><span class="chip">重試 3 次</span><span class="chip">監控告警</span></footer>
+            </article>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="4" aria-labelledby="v4-title">
+        <div class="screen-head">
+          <div>
+            <span class="eyebrow">05 · Open question queue</span>
+            <h1 id="v4-title">釐清未決問題</h1>
+            <p class="sub">集中處理訪談矛盾與資訊缺口，讓每個答案保留受訪者及來源依據。</p>
+          </div>
+          <div class="actions">
+            <button class="btn">寄送問題清單</button>
+            <button class="btn primary action-demo">提交本次釐清</button>
+          </div>
+        </div>
+
+        <div class="question-layout">
+          <section class="question-list card">
+            <div style="padding:14px 12px;display:flex;justify-content:space-between;align-items:center">
+              <div><h3>待確認問題</h3><span class="meta">依阻塞需求數排序</span></div>
+              <span class="chip red">4 項待回覆</span>
+            </div>
+            <article class="question-row">
+              <div class="q-icon"><span class="material-symbols-outlined">priority_high</span></div>
+              <div><h3>客製 SLA 應從哪個資料欄位判定？</h3><p>訪談提及合約與 CRM，但兩者更新時間不同；目前阻塞 RULE-03 與 4 個驗收案例。</p><span class="source-link"><span class="material-symbols-outlined" style="font-size:15px">play_circle</span>客服主管訪談 24:18</span></div>
+              <span class="chip red">高優先</span>
+            </article>
+            <article class="question-row">
+              <div class="q-icon"><span class="material-symbols-outlined">compare_arrows</span></div>
+              <div><h3>代理人可否再次委派？</h3><p>營運流程允許臨時代理，但資安原則限制權限轉授，兩項來源互相矛盾。</p><span class="source-link"><span class="material-symbols-outlined" style="font-size:15px">play_circle</span>技術會議 38:42</span></div>
+              <span class="chip amber">有衝突</span>
+            </article>
+            <article class="question-row">
+              <div class="q-icon"><span class="material-symbols-outlined">schedule</span></div>
+              <div><h3>兩個工作日是否排除公司休假日？</h3><p>目前 SLA 僅定義週末，尚未確認各地區辦公室的行事曆來源。</p><span class="source-link"><span class="material-symbols-outlined" style="font-size:15px">play_circle</span>營運訪談 31:07</span></div>
+              <span class="chip">待回覆</span>
+            </article>
+            <article class="question-row">
+              <div class="q-icon"><span class="material-symbols-outlined">history</span></div>
+              <div><h3>規則版本需保留多久？</h3><p>法遵要求完整稽核軌跡，但尚未指定線上與封存資料的保存年限。</p><span class="source-link"><span class="material-symbols-outlined" style="font-size:15px">play_circle</span>法遵訪談 12:52</span></div>
+              <span class="chip">待回覆</span>
+            </article>
+          </section>
+
+          <aside class="answer-panel card">
+            <span class="chip red">Q-014 · 阻塞 4 項需求</span>
+            <h2 style="margin-top:13px">客製 SLA 判定來源</h2>
+            <div class="source-quote">「客製服務通常會寫在合約附約；CRM 也會標記，但可能晚一到兩天才更新。」<br><strong>— 陳俊豪，客服主管</strong></div>
+            <label class="meta" for="answerText" style="display:block;margin-top:16px">受訪者確認答案</label>
+            <textarea id="answerText" class="answer-box">以已簽署合約附約的 SLA 類型為主要依據；CRM 欄位僅作提示。若附約尚未完成結構化，轉交營運主管人工判定。</textarea>
+            <div class="conflict"><strong>AI 衝突提醒</strong><br>技術會議曾決議以 CRM 為單一來源。接受此答案後，需同步更新架構資料來源與 RULE-03。</div>
+            <div class="resolution-meter">
+              <div class="donut" aria-label="問題釐清率 72%"></div>
+              <div><h3>整體釐清率</h3><p class="sub">18 個問題中已確認 13 個；剩餘 2 個會阻塞 PRD 核准。</p></div>
+            </div>
+            <button class="btn primary action-demo" style="width:100%;margin-top:18px">採納答案並同步規則</button>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="5" aria-labelledby="v5-title">
+        <div class="screen-head">
+          <div>
+            <span class="eyebrow">06 · PRD approval</span>
+            <h1 id="v5-title">審定 PRD 草案</h1>
+            <p class="sub">審閱需求、驗收條件、流程與技術可行性，核准進入開發規劃。</p>
+          </div>
+          <div class="actions">
+            <button class="btn">匯出 PDF</button>
+            <button class="btn primary action-demo">核准進入開發</button>
+          </div>
+        </div>
+
+        <div class="prd-grid">
+          <article class="document card">
+            <header class="doc-cover">
+              <span class="chip green">Draft v1.8 · 可審核</span>
+              <h2 style="margin-top:14px">策略客戶覆核與代理流程</h2>
+              <p class="sub">把訪談辨識出的合約門檻、客製 SLA、主管代理與稽核要求轉為可驗證的產品需求。</p>
+              <div class="doc-meta"><span>文件：PRD-IR-042</span><span>負責人：王郁婷</span><span>更新：2026/08/21 14:30</span><span>來源覆蓋：96%</span></div>
+            </header>
+
+            <section class="doc-section">
+              <span class="eyebrow">01 · 產品目標</span>
+              <h3 style="margin-top:8px">在不犧牲稽核性的前提下降低人工判斷</h3>
+              <p class="sub">系統依合約金額與 SLA 類型自動決定覆核路徑，使 90% 標準案件無需人工分流，並保留完整決策紀錄。</p>
+            </section>
+
+            <section class="doc-section">
+              <span class="eyebrow">02 · 核心需求</span>
+              <div class="acceptance">
+                <div class="accept-row"><span class="material-symbols-outlined check">check_circle</span><span><strong>REQ-01</strong>　年度合約達 300 萬或具有客製 SLA 時，建立主管覆核任務。</span></div>
+                <div class="accept-row"><span class="material-symbols-outlined check">check_circle</span><span><strong>REQ-02</strong>　主管有有效代理人時，依委派優先序轉派，且禁止二次委派。</span></div>
+                <div class="accept-row"><span class="material-symbols-outlined check">check_circle</span><span><strong>REQ-03</strong>　每次判定須保存規則版本、資料快照、操作者及時間。</span></div>
+              </div>
+            </section>
+
+            <section class="doc-section">
+              <span class="eyebrow">03 · 驗收條件</span>
+              <div class="three-col" style="margin-top:12px">
+                <div class="node"><small>GIVEN</small><h3>合約 420 萬</h3><span class="meta">無客製 SLA</span></div>
+                <div class="node"><small>WHEN</small><h3>建立客戶專案</h3><span class="meta">規則 v1.3 生效</span></div>
+                <div class="node"><small>THEN</small><h3>產生覆核任務</h3><span class="meta">期限 2 個工作日</span></div>
+              </div>
+            </section>
+
+            <section class="doc-section">
+              <span class="eyebrow">04 · 預期成效</span>
+              <div class="three-col" style="margin-top:12px">
+                <div><h3>事件平均處理</h3><strong style="font-size:24px;color:var(--blue)">120 → 30</strong><span class="meta"> 分鐘</span></div>
+                <div><h3>系統可用率</h3><strong style="font-size:24px;color:var(--green)">97 → 99</strong><span class="meta"> %</span></div>
+                <div><h3>SLA 達成率</h3><strong style="font-size:24px;color:var(--green)">85 → 98</strong><span class="meta"> %</span></div>
+              </div>
+              <div class="chart-box" style="margin-top:22px"><canvas id="prdChart" aria-label="系統可用率趨勢折線圖"></canvas></div>
+            </section>
+          </article>
+
+          <aside class="approval card">
+            <h3>審核與完整度</h3>
+            <div class="readiness"><span class="meta">PRD 就緒分數</span><strong>92 / 100</strong><div class="progress"><span style="width:92%"></span></div></div>
+            <div class="approval-step"><div class="approval-mark"><span class="material-symbols-outlined">check</span></div><div><strong>產品經理</strong><span>王郁婷 · 已核准 13:48</span></div></div>
+            <div class="approval-step"><div class="approval-mark"><span class="material-symbols-outlined">check</span></div><div><strong>系統分析師</strong><span>許家豪 · 已核准 14:02</span></div></div>
+            <div class="approval-step"><div class="approval-mark"><span class="material-symbols-outlined">check</span></div><div><strong>測試工程師</strong><span>蔡宜庭 · 已核准 14:16</span></div></div>
+            <div class="approval-step pending"><div class="approval-mark"><span class="material-symbols-outlined">more_horiz</span></div><div><strong>工程主管</strong><span>張思誠 · 等待最終核准</span></div></div>
+            <div class="divider" style="margin:12px 0"></div>
+            <div class="token-row">
+              <span class="chip green">18/18 需求有來源</span>
+              <span class="chip green">12/12 規則有效</span>
+              <span class="chip amber">1 項風險接受</span>
+            </div>
+            <button class="btn primary action-demo" style="width:100%;margin-top:18px">核准 PRD v1.8</button>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">操作已完成並留下追溯紀錄</div>
+
+  <script>
+    const screenLabels = [
+      "整理訪談內容",
+      "確認產品目標",
+      "定義業務規則",
+      "補齊例外情境",
+      "釐清未決問題",
+      "審定 PRD 草案"
+    ];
+    const chartInstances = {};
+    const screens = Array.from(document.querySelectorAll("[data-screen]"));
+    const navButtons = Array.from(document.querySelectorAll("[data-i]"));
+    const titleNode = document.getElementById("screenTitle");
+
+    Chart.defaults.font.family = 'Inter, "Noto Sans TC", sans-serif';
+    Chart.defaults.color = "#786b70";
+
+    function chartReady(canvasId) {
+      const canvasNode = document.getElementById(canvasId);
+      return canvasNode && canvasNode.parentElement.clientWidth > 0;
+    }
+
+    function initChart(screenIndex) {
+      if (screenIndex === 1 && !chartInstances.goal && chartReady("goalChart")) {
+        chartInstances.goal = new Chart(document.getElementById("goalChart"), {
+          type: "line",
+          data: {
+            labels: ["W1","W2","W3","W4","W5","W6"],
+            datasets: [{
+              label: "目標信心水位",
+              data: [66,71,75,78,82,84],
+              borderColor: "#be123c",
+              backgroundColor: "rgba(190,18,60,.1)",
+              fill: true,
+              tension: .38,
+              pointRadius: 4,
+              pointBackgroundColor: "#fff",
+              pointBorderWidth: 2
+            }]
+          },
+          options: {
+            responsive:true,
+            maintainAspectRatio:false,
+            plugins:{legend:{display:false}},
+            scales:{
+              x:{grid:{display:false}},
+              y:{min:50,max:100,ticks:{callback:value=>value+"%"},grid:{color:"#f0e7ea"}}
+            }
+          }
+        });
+      }
+
+      if (screenIndex === 3 && !chartInstances.exception && chartReady("exceptionChart")) {
+        chartInstances.exception = new Chart(document.getElementById("exceptionChart"), {
+          type: "bar",
+          data: {
+            labels:["規則門檻","角色權限","資料延遲","通知失敗","稽核紀錄"],
+            datasets:[
+              {label:"已覆蓋",data:[8,6,5,4,7],backgroundColor:"#be123c",borderRadius:6},
+              {label:"待補齊",data:[1,2,2,1,0],backgroundColor:"#eadde2",borderRadius:6}
+            ]
+          },
+          options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            plugins:{legend:{position:"bottom",labels:{usePointStyle:true,boxWidth:7}}},
+            scales:{
+              x:{stacked:true,grid:{display:false}},
+              y:{stacked:true,beginAtZero:true,ticks:{stepSize:2},grid:{color:"#f0e7ea"}}
+            }
+          }
+        });
+      }
+
+      if (screenIndex === 5 && !chartInstances.prd && chartReady("prdChart")) {
+        chartInstances.prd = new Chart(document.getElementById("prdChart"), {
+          type:"line",
+          data:{
+            labels:["W1","W2","W3","W4","W5","W6"],
+            datasets:[{
+              label:"系統可用率 %",
+              data:[97,97.4,97.8,98.2,98.6,99],
+              borderColor:"#16805b",
+              backgroundColor:"rgba(22,128,91,.1)",
+              fill:true,
+              tension:.35,
+              pointRadius:3,
+              pointBackgroundColor:"#16805b"
+            }]
+          },
+          options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            plugins:{legend:{display:false}},
+            scales:{
+              x:{grid:{display:false}},
+              y:{min:96,max:100,ticks:{callback:value=>value+"%"},grid:{color:"#f0e7ea"}}
+            }
+          }
+        });
+      }
+    }
+
+    function show(indexValue) {
+      const parsedIndex = Number(indexValue);
+      const safeIndex = Number.isInteger(parsedIndex) && parsedIndex >= 0 && parsedIndex < 6 ? parsedIndex : 0;
+      screens.forEach((screenNode,index)=>screenNode.classList.toggle("active",index===safeIndex));
+      navButtons.forEach((buttonNode,index)=>{
+        const selected = index === safeIndex;
+        buttonNode.classList.toggle("active",selected);
+        buttonNode.setAttribute("aria-current",selected ? "step" : "false");
+      });
+      titleNode.textContent = screenLabels[safeIndex];
+      document.title = screenLabels[safeIndex] + " · AI 訪談轉需求工作台｜Jvision 系統 Demo";
+      initChart(safeIndex);
+    }
+
+    function indexFromHash() {
+      const matchValue = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+      return matchValue ? Number(matchValue[1]) : 0;
+    }
+
+    function goTo(indexValue) {
+      const nextHash = "#go=" + indexValue;
+      if (window.location.hash === nextHash) {
+        show(indexValue);
+      } else {
+        window.location.hash = nextHash;
+      }
+    }
+
+    navButtons.forEach(buttonNode=>{
+      buttonNode.addEventListener("click",()=>goTo(Number(buttonNode.dataset.i)));
+    });
+
+    window.addEventListener("hashchange",()=>show(indexFromHash()));
+
+    const toastNode = document.getElementById("toast");
+    document.querySelectorAll(".action-demo").forEach(actionNode=>{
+      actionNode.addEventListener("click",()=>{
+        toastNode.classList.toggle("visible");
+        actionNode.setAttribute("aria-pressed",toastNode.classList.contains("visible") ? "true" : "false");
+      });
+    });
+
+    show(indexFromHash());
+  </script>
+</body>
+</html>

@@ -1,0 +1,1175 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LLM 改善實驗追蹤器 · analytics-bi｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+:root{
+  --blue:#7c3aed;
+  --ink:#1e1632;
+  --body:#352d46;
+  --muted:#756d83;
+  --line:#e8e2ef;
+  --bg:#f7f5fa;
+  --green:#159a6e;
+  --amber:#d88916;
+  --red:#dc4c64;
+  --white:#fff;
+  --violet-soft:#f0e9ff;
+  --shadow:0 12px 32px rgba(42,28,70,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--body);
+  background:var(--bg);
+  font-family:Inter,"Noto Sans TC",sans-serif;
+  line-height:1.55;
+  overflow-x:hidden;
+}
+button,input,select,textarea{font:inherit}
+button{color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(124,58,237,.24);
+  outline-offset:2px;
+}
+.material-symbols-outlined{
+  font-size:20px;
+  font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24;
+  vertical-align:middle;
+}
+.app-shell{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:100vh}
+.sidebar{
+  position:sticky;
+  top:0;
+  height:100vh;
+  padding:24px 16px;
+  background:#211735;
+  color:#eee8f8;
+  display:flex;
+  flex-direction:column;
+  z-index:20;
+}
+.brand{display:flex;gap:11px;align-items:center;padding:0 8px 22px}
+.brand-mark{
+  width:38px;height:38px;border-radius:12px;
+  display:grid;place-items:center;
+  color:#fff;background:linear-gradient(145deg,#9d6cff,var(--blue));
+  box-shadow:0 8px 24px rgba(124,58,237,.35)
+}
+.brand-copy strong{display:block;font-size:14px;letter-spacing:.02em}
+.brand-copy span{display:block;color:#afa4c1;font-size:11px;margin-top:1px}
+.nav-label{
+  padding:0 10px;margin:5px 0 8px;color:#887b9d;
+  font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase
+}
+.nav-list{display:grid;gap:6px}
+.nav-btn{
+  width:100%;min-height:48px;border:0;border-radius:12px;padding:9px 10px;
+  display:grid;grid-template-columns:30px 1fr;gap:8px;align-items:center;
+  text-align:left;background:transparent;color:#c9bfd8;cursor:pointer;
+  transition:background .18s,color .18s,transform .18s
+}
+.nav-btn:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-btn.active{
+  color:#fff;background:linear-gradient(90deg,rgba(124,58,237,.82),rgba(124,58,237,.32));
+  box-shadow:inset 3px 0 #cbb3ff
+}
+.nav-btn .step-no{
+  width:28px;height:28px;border-radius:9px;display:grid;place-items:center;
+  background:rgba(255,255,255,.08);font-size:11px;font-weight:800
+}
+.nav-btn.active .step-no{background:#fff;color:var(--blue)}
+.nav-btn b{display:block;font-size:12px;font-weight:700;line-height:1.35}
+.nav-btn small{display:block;color:#8f829f;font-size:9px;margin-top:2px}
+.nav-btn.active small{color:#d8cbee}
+.sidebar-foot{
+  margin-top:auto;border-top:1px solid rgba(255,255,255,.1);padding:17px 8px 0
+}
+.health{display:flex;gap:8px;align-items:center;font-size:11px;color:#b9afc7}
+.health-dot{width:8px;height:8px;border-radius:50%;background:#31d099;box-shadow:0 0 0 5px rgba(49,208,153,.1)}
+.sidebar-foot p{font-size:10px;color:#796e8c;margin:8px 0 0}
+
+.workspace{min-width:0}
+.topbar{
+  height:68px;padding:0 clamp(16px,3vw,38px);
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  background:rgba(255,255,255,.91);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:15;backdrop-filter:blur(12px)
+}
+.breadcrumb{display:flex;align-items:center;gap:8px;min-width:0;color:var(--muted);font-size:12px}
+.breadcrumb strong{color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-actions{display:flex;align-items:center;gap:9px}
+.icon-btn,.ghost-btn,.primary-btn,.soft-btn{
+  border:1px solid var(--line);background:#fff;cursor:pointer;min-height:40px;border-radius:10px;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:700
+}
+.icon-btn{width:40px;padding:0}
+.ghost-btn,.soft-btn,.primary-btn{padding:0 14px;font-size:12px}
+.soft-btn{color:var(--blue);background:var(--violet-soft);border-color:#dfd2fb}
+.primary-btn{color:#fff;background:var(--blue);border-color:var(--blue);box-shadow:0 7px 18px rgba(124,58,237,.2)}
+.content{padding:clamp(18px,3vw,38px);max-width:1600px;margin:0 auto}
+.screen{display:none;animation:screenIn .26s ease both}
+.screen.active{display:block}
+@keyframes screenIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;margin-bottom:24px}
+.eyebrow{display:flex;align-items:center;gap:7px;color:var(--blue);font-size:11px;font-weight:800;letter-spacing:.08em}
+.page-head h1{margin:6px 0 7px;color:var(--ink);font-size:clamp(24px,3vw,36px);line-height:1.22;letter-spacing:-.025em}
+.page-head p{margin:0;max-width:760px;color:var(--muted);font-size:13px}
+.page-meta{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:99px;background:#fff;border:1px solid var(--line);font-size:11px;font-weight:700;white-space:nowrap}
+.pill.green{color:var(--green);background:#eefaf6;border-color:#cdeee1}
+.pill.amber{color:#9b5d05;background:#fff7e8;border-color:#f3ddb4}
+.pill.violet{color:var(--blue);background:var(--violet-soft);border-color:#ddd0fa}
+.card{
+  background:#fff;border:1px solid var(--line);border-radius:16px;
+  box-shadow:0 5px 18px rgba(42,28,70,.04)
+}
+.card-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:15px}
+.card-head h2,.card-head h3{margin:0;color:var(--ink);font-size:14px}
+.card-head p{margin:3px 0 0;color:var(--muted);font-size:11px}
+.card-body{padding:20px}
+.mini-label{font-size:10px;text-transform:uppercase;letter-spacing:.09em;font-weight:800;color:var(--muted)}
+.metric-value{font-size:26px;line-height:1.1;color:var(--ink);font-weight:800;letter-spacing:-.03em}
+.delta{font-size:10px;font-weight:700;color:var(--green)}
+.muted{color:var(--muted)}
+.divider{height:1px;background:var(--line);margin:17px 0}
+.avatar{
+  width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
+  color:#fff;background:linear-gradient(145deg,#b494f5,var(--blue));font-size:10px;font-weight:800
+}
+.badge{display:inline-flex;align-items:center;min-height:24px;padding:3px 8px;border-radius:7px;font-size:10px;font-weight:800}
+.badge.running{color:#075f49;background:#e6f8f2}
+.badge.waiting{color:#8a570d;background:#fff3d9}
+.badge.done{color:#57496b;background:#eeeaf4}
+.badge.risk{color:#a42e44;background:#ffebef}
+.field-label{display:block;margin-bottom:7px;color:var(--ink);font-size:11px;font-weight:800}
+.field,.select-field,.text-field{
+  width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--body);
+  padding:10px 12px;font-size:12px;min-height:42px
+}
+.text-field{resize:none;min-height:84px}
+.progress-track{height:7px;border-radius:10px;background:#eeeaf3;overflow:hidden}
+.progress-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--blue),#ab82ff)}
+.chart{width:100%;height:280px}
+.empty-hide{display:none!important}
+
+/* Screen 0 — hypothesis canvas */
+.hypothesis-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(270px,.75fr);gap:20px}
+.canvas-card{overflow:hidden}
+.canvas-banner{
+  padding:20px;background:linear-gradient(120deg,#27183f 0%,#51308a 64%,#7c3aed 100%);
+  color:#fff;display:flex;justify-content:space-between;gap:18px;align-items:center
+}
+.canvas-banner h2{font-size:17px;margin:4px 0}
+.canvas-banner p{margin:0;color:#d8c9ee;font-size:11px}
+.exp-code{font-size:11px;padding:8px 11px;border:1px solid rgba(255,255,255,.2);border-radius:8px;background:rgba(255,255,255,.08)}
+.canvas-fields{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.canvas-cell{padding:20px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-height:138px}
+.canvas-cell:nth-child(even){border-right:0}
+.canvas-cell h3{margin:0 0 9px;color:var(--ink);font-size:12px;display:flex;align-items:center;gap:7px}
+.canvas-cell p{font-size:12px;color:var(--muted);margin:0}
+.statement{
+  padding:13px;border-radius:10px;background:var(--bg);border-left:3px solid var(--blue);
+  color:var(--body)!important;line-height:1.7
+}
+.target-row{display:flex;align-items:flex-end;gap:9px;margin-top:9px}
+.target-row strong{font-size:22px;color:var(--ink)}
+.target-row span{font-size:10px;color:var(--muted);padding-bottom:4px}
+.assumption-list{display:grid;gap:8px}
+.assumption{display:grid;grid-template-columns:20px 1fr;gap:8px;align-items:start;font-size:11px;color:var(--body)}
+.assumption .material-symbols-outlined{font-size:17px;color:var(--green)}
+.side-stack{display:grid;gap:16px}
+.score-ring{
+  width:126px;height:126px;margin:4px auto 15px;border-radius:50%;
+  display:grid;place-items:center;background:conic-gradient(var(--blue) 0 82%,#eee9f4 82% 100%);
+  position:relative
+}
+.score-ring:before{content:"";position:absolute;inset:11px;border-radius:50%;background:#fff}
+.score-ring div{position:relative;text-align:center}
+.score-ring strong{display:block;color:var(--ink);font-size:28px}
+.score-ring span{font-size:9px;color:var(--muted)}
+.check-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:11px}
+.check-row:last-child{border:0}
+.check-row .material-symbols-outlined{color:var(--green);font-size:17px}
+.input-chips{display:flex;gap:7px;flex-wrap:wrap}
+.input-chip{padding:7px 9px;border-radius:8px;background:var(--violet-soft);color:var(--blue);font-size:10px;font-weight:700}
+
+/* Screen 1 — A/B configuration */
+.config-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px}
+.variants{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.variant-card{position:relative;overflow:hidden}
+.variant-head{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.variant-letter{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:#ece8f1;color:#5d526b;font-weight:800}
+.variant-card.experiment{border-color:#cdb9f6;box-shadow:0 8px 25px rgba(124,58,237,.1)}
+.variant-card.experiment .variant-letter{background:var(--blue);color:#fff}
+.variant-body{padding:18px}
+.config-line{margin-bottom:15px}
+.config-line:last-child{margin:0}
+.param-table{width:100%;border-collapse:collapse;font-size:11px}
+.param-table td{padding:9px 0;border-bottom:1px solid var(--line)}
+.param-table td:last-child{text-align:right;color:var(--ink);font-weight:700}
+.split-control{padding:22px}
+.split-bar{height:42px;border-radius:11px;display:flex;overflow:hidden;margin:14px 0 8px;color:#fff;font-size:11px;font-weight:800}
+.split-a{width:50%;background:#645a72;display:grid;place-items:center}
+.split-b{width:50%;background:var(--blue);display:grid;place-items:center}
+.range-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+.audience-rule{padding:11px;border-radius:10px;background:var(--bg);font-size:11px;margin-top:10px;display:flex;gap:9px}
+.cost-summary{background:#211735;color:#fff;border:0}
+.cost-summary .card-head{border-color:rgba(255,255,255,.1)}
+.cost-summary .card-head h3{color:#fff}
+.cost-body{padding:20px}
+.cost-row{display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:11px;color:#bdb2cd}
+.cost-row strong{font-size:15px;color:#fff}
+.launch-box{padding:16px;background:#f2ecff;border:1px dashed #b99cea;border-radius:13px;text-align:center}
+.launch-box .material-symbols-outlined{font-size:30px;color:var(--blue)}
+.launch-box h3{font-size:13px;color:var(--ink);margin:5px 0}
+.launch-box p{font-size:10px;color:var(--muted);margin:0 0 12px}
+
+/* Screen 2 — execution console */
+.run-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.stat-tile{padding:16px}
+.stat-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.stat-icon{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:var(--violet-soft);color:var(--blue)}
+.execution-layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.7fr);gap:18px}
+.run-card{overflow:hidden}
+.run-toolbar{padding:13px 17px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center}
+.live-indicator{display:flex;align-items:center;gap:7px;color:var(--green);font-size:10px;font-weight:800}
+.live-indicator:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.8s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 7px rgba(21,154,110,0)}0%,100%{box-shadow:0 0 0 0 rgba(21,154,110,.22)}}
+.batch-table{width:100%;border-collapse:collapse;min-width:620px}
+.batch-table th{padding:10px 14px;background:#faf9fc;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.05em;text-align:left}
+.batch-table td{padding:12px 14px;border-top:1px solid var(--line);font-size:11px}
+.batch-id{color:var(--blue);font-weight:800}
+.mini-progress{display:flex;align-items:center;gap:8px}
+.mini-progress .progress-track{width:80px}
+.log-console{
+  background:#1d1727;color:#cbbfd9;border-radius:12px;padding:14px;height:190px;
+  overflow:hidden;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;line-height:1.8
+}
+.log-console div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-time{color:#746784}
+.log-ok{color:#56d8aa}
+.log-warn{color:#f0b85b}
+.quality-list{display:grid;gap:12px}
+.quality-item{display:grid;grid-template-columns:1fr auto;gap:7px;font-size:11px}
+.quality-item .progress-track{grid-column:1/-1}
+.dataset-tile{padding:13px;border-radius:11px;background:var(--bg);margin-bottom:9px}
+.dataset-tile b{display:block;color:var(--ink);font-size:11px}
+.dataset-tile span{font-size:9px;color:var(--muted)}
+
+/* Screen 3 — analytics */
+.analytics-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.kpi-card{padding:16px;position:relative;overflow:hidden}
+.kpi-card:after{content:"";position:absolute;width:64px;height:64px;border-radius:50%;background:var(--violet-soft);right:-22px;top:-28px}
+.kpi-card strong{display:block;color:var(--ink);font-size:23px;margin:6px 0 2px}
+.analytics-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.72fr);gap:18px}
+.chart-card{min-width:0}
+.metric-tabs{display:flex;gap:4px;background:var(--bg);padding:4px;border-radius:9px}
+.metric-tabs button{border:0;border-radius:7px;background:transparent;padding:6px 9px;font-size:9px;color:var(--muted);cursor:pointer}
+.metric-tabs button.active{background:#fff;color:var(--blue);box-shadow:0 2px 8px rgba(30,22,50,.08)}
+.significance{padding:20px}
+.sig-score{display:flex;align-items:center;gap:15px;padding:14px;background:#eefaf6;border-radius:12px}
+.sig-score .material-symbols-outlined{font-size:31px;color:var(--green)}
+.sig-score strong{display:block;color:#086149;font-size:18px}
+.sig-score span{font-size:10px;color:#407969}
+.effect-row{padding:14px 0;border-bottom:1px solid var(--line)}
+.effect-row:last-child{border:0}
+.effect-top{display:flex;justify-content:space-between;font-size:11px;margin-bottom:7px}
+.effect-top strong{color:var(--ink)}
+.effect-top span{color:var(--green);font-weight:800}
+.segment-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
+.segment-card{padding:15px}
+.segment-card h3{font-size:11px;color:var(--ink);margin:0 0 9px}
+.segment-values{display:flex;justify-content:space-between;align-items:flex-end}
+.segment-values strong{font-size:18px;color:var(--ink)}
+.segment-values span{font-size:10px;color:var(--green);font-weight:700}
+
+/* Screen 4 — decision review */
+.review-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);gap:20px}
+.review-hero{padding:22px;display:flex;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(110deg,#fff,#f7f1ff)}
+.review-hero h2{font-size:18px;color:var(--ink);margin:4px 0}
+.review-hero p{font-size:11px;color:var(--muted);margin:0}
+.recommendation{
+  min-width:152px;border-radius:14px;padding:14px;text-align:center;background:#e9f8f2;color:var(--green);
+  border:1px solid #c6ebde
+}
+.recommendation .material-symbols-outlined{font-size:29px}
+.recommendation strong{display:block;font-size:14px}
+.scorecard{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line)}
+.score-unit{padding:18px;border-right:1px solid var(--line);text-align:center}
+.score-unit:last-child{border:0}
+.score-unit strong{font-size:20px;color:var(--ink);display:block}
+.score-unit span{font-size:9px;color:var(--muted)}
+.evidence-table{width:100%;border-collapse:collapse}
+.evidence-table th,.evidence-table td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--line);font-size:10px}
+.evidence-table th{color:var(--muted);background:#faf9fc}
+.evidence-table td:first-child{color:var(--ink);font-weight:700}
+.vote-list{display:grid;gap:11px}
+.vote{display:grid;grid-template-columns:32px 1fr auto;align-items:center;gap:10px;padding:10px;border-radius:11px;background:var(--bg)}
+.vote b{display:block;font-size:11px;color:var(--ink)}
+.vote small{display:block;font-size:9px;color:var(--muted)}
+.vote-result{font-size:9px;color:var(--green);font-weight:800}
+.risk-note{padding:12px;border-radius:10px;background:#fff7e8;color:#825514;font-size:10px;display:flex;gap:8px}
+.decision-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.reject-btn,.approve-btn{min-height:44px;border-radius:10px;font-size:11px;font-weight:800;cursor:pointer}
+.reject-btn{border:1px solid #efc7ce;color:var(--red);background:#fff}
+.approve-btn{border:1px solid var(--green);color:#fff;background:var(--green)}
+
+/* Screen 5 — lineage */
+.lineage-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.lineage-stat{padding:16px;display:flex;align-items:center;gap:12px}
+.lineage-stat .stat-icon{flex:0 0 auto}
+.lineage-stat strong{font-size:20px;color:var(--ink)}
+.lineage-stat span{display:block;font-size:9px;color:var(--muted)}
+.lineage-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.65fr);gap:18px}
+.lineage-map{padding:24px;overflow:auto}
+.lineage-flow{min-width:660px;display:grid;grid-template-columns:repeat(4,1fr);gap:24px;align-items:center;position:relative}
+.lineage-flow:before{content:"";position:absolute;left:10%;right:10%;top:44px;height:2px;background:#ded5e9}
+.node{position:relative;z-index:1;text-align:center}
+.node-box{
+  width:88px;height:88px;margin:0 auto 10px;border-radius:20px;background:#fff;border:2px solid var(--line);
+  display:grid;place-items:center;box-shadow:0 8px 22px rgba(42,28,70,.08)
+}
+.node-box .material-symbols-outlined{font-size:27px;color:#756a84}
+.node.current .node-box{border-color:var(--blue);background:var(--violet-soft)}
+.node.current .node-box .material-symbols-outlined{color:var(--blue)}
+.node.approved .node-box{border-color:var(--green);background:#eefaf6}
+.node.approved .node-box .material-symbols-outlined{color:var(--green)}
+.node b{display:block;font-size:11px;color:var(--ink)}
+.node small{display:block;font-size:9px;color:var(--muted);margin-top:2px}
+.baseline-banner{
+  margin-top:24px;border-radius:13px;padding:17px;
+  background:linear-gradient(100deg,#251837,#55338b);color:#fff;
+  display:flex;align-items:center;justify-content:space-between;gap:15px
+}
+.baseline-banner h3{margin:0 0 3px;font-size:13px}
+.baseline-banner p{margin:0;color:#cfc1e3;font-size:10px}
+.audit-list{display:grid}
+.audit-item{display:grid;grid-template-columns:11px 1fr;gap:10px;padding:0 0 17px;position:relative}
+.audit-item:not(:last-child):before{content:"";position:absolute;left:4px;top:12px;bottom:0;width:1px;background:var(--line)}
+.audit-dot{width:9px;height:9px;border-radius:50%;background:var(--blue);margin-top:5px;z-index:1}
+.audit-item b{font-size:11px;color:var(--ink);display:block}
+.audit-item p{font-size:10px;color:var(--muted);margin:2px 0}
+.audit-item time{font-size:9px;color:#a399af}
+.record-wrap{margin-top:18px;overflow:hidden}
+.table-scroll{overflow-x:auto}
+.records-table{width:100%;border-collapse:collapse;min-width:690px}
+.records-table th{padding:11px 15px;background:#faf9fc;text-align:left;color:var(--muted);font-size:9px;text-transform:uppercase}
+.records-table td{padding:12px 15px;border-top:1px solid var(--line);font-size:10px}
+.records-table td:first-child{color:var(--blue);font-weight:800}
+
+.toast{
+  position:fixed;right:20px;bottom:20px;z-index:50;max-width:330px;
+  border-radius:12px;background:#20152f;color:#fff;padding:12px 15px;
+  box-shadow:0 15px 35px rgba(23,14,37,.25);font-size:11px;
+  opacity:0;transform:translateY(12px);pointer-events:none;transition:.22s
+}
+.toast.visible{opacity:1;transform:none}
+.mobile-step{display:none}
+
+@media(max-width:1050px){
+  .hypothesis-grid,.config-layout,.execution-layout,.analytics-grid,.review-layout,.lineage-layout{grid-template-columns:1fr}
+  .side-stack{grid-template-columns:1fr 1fr}
+  .analytics-kpis,.run-summary{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:768px){
+  .app-shell{display:block}
+  .sidebar{
+    position:sticky;height:auto;top:0;padding:10px 14px;display:block;
+    border-bottom:1px solid rgba(255,255,255,.1)
+  }
+  .brand{padding:0;min-height:44px}
+  .brand-mark{width:34px;height:34px}
+  .brand-copy span,.nav-label,.sidebar-foot,.nav-btn b,.nav-btn small{display:none}
+  .nav-list{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-top:8px}
+  .nav-btn{display:grid;grid-template-columns:1fr;place-items:center;padding:5px;min-height:40px}
+  .nav-btn .step-no{width:29px;height:29px}
+  .topbar{top:102px;height:55px;padding:0 15px}
+  .top-actions .ghost-btn{display:none}
+  .content{padding:18px 15px 28px}
+  .page-head{align-items:flex-start;flex-direction:column}
+  .page-meta{justify-content:flex-start}
+  .mobile-step{display:inline}
+  .variants,.side-stack{grid-template-columns:1fr}
+  .canvas-fields{grid-template-columns:1fr}
+  .canvas-cell,.canvas-cell:nth-child(even){border-right:0}
+  .segment-grid{grid-template-columns:1fr 1fr}
+  .scorecard{grid-template-columns:1fr 1fr}
+  .score-unit:nth-child(2){border-right:0}
+  .score-unit:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .lineage-summary{grid-template-columns:1fr 1fr}
+}
+@media(max-width:480px){
+  .brand-copy strong{font-size:12px}
+  .topbar{top:102px}
+  .breadcrumb span:not(.mobile-step),.top-actions .soft-btn{display:none}
+  .page-head h1{font-size:25px}
+  .analytics-kpis,.run-summary,.lineage-summary{grid-template-columns:1fr 1fr}
+  .stat-tile,.kpi-card{padding:13px}
+  .metric-value,.kpi-card strong{font-size:20px}
+  .canvas-banner,.review-hero,.baseline-banner{align-items:flex-start;flex-direction:column}
+  .variants{gap:12px}
+  .segment-grid{grid-template-columns:1fr}
+  .decision-actions{grid-template-columns:1fr}
+  .chart{height:245px}
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" aria-label="實驗流程導覽">
+    <div class="brand">
+      <div class="brand-mark"><span class="material-symbols-outlined">experiment</span></div>
+      <div class="brand-copy">
+        <strong>LLM Experiment Lab</strong>
+        <span>改善實驗追蹤器</span>
+      </div>
+    </div>
+    <div class="nav-label">改善循環 · 6 階段</div>
+    <nav class="nav-list">
+      <button class="nav-btn" data-i="0" type="button">
+        <span class="step-no">01</span><span><b>提出改善假設</b><small>Hypothesis canvas</small></span>
+      </button>
+      <button class="nav-btn" data-i="1" type="button">
+        <span class="step-no">02</span><span><b>配置對照方案</b><small>A/B configuration</small></span>
+      </button>
+      <button class="nav-btn" data-i="2" type="button">
+        <span class="step-no">03</span><span><b>執行評測</b><small>Evaluation run</small></span>
+      </button>
+      <button class="nav-btn" data-i="3" type="button">
+        <span class="step-no">04</span><span><b>分析實驗結果</b><small>Result analytics</small></span>
+      </button>
+      <button class="nav-btn" data-i="4" type="button">
+        <span class="step-no">05</span><span><b>審議是否採用</b><small>Adoption review</small></span>
+      </button>
+      <button class="nav-btn" data-i="5" type="button">
+        <span class="step-no">06</span><span><b>沉澱改善基線</b><small>Optimization lineage</small></span>
+      </button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="health"><span class="health-dot"></span>評測服務運作正常</div>
+      <p>Workspace · JV-LLM-PROD</p>
+    </div>
+  </aside>
+
+  <main class="workspace">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <span class="material-symbols-outlined">home</span>
+        <span>AI 治理中心</span><span>›</span>
+        <strong id="crumbTitle">提出改善假設</strong>
+        <span class="mobile-step" id="mobileStep">1 / 6</span>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" type="button" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+        <button class="ghost-btn action-toast" type="button"><span class="material-symbols-outlined">history</span>操作紀錄</button>
+        <button class="soft-btn action-toast" type="button"><span class="material-symbols-outlined">ios_share</span>匯出報告</button>
+        <span class="avatar" title="AI 架構師">YL</span>
+      </div>
+    </header>
+
+    <div class="content">
+      <section class="screen" data-screen="0" aria-labelledby="screen0-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">lightbulb</span>改善假設畫布 · v0</div>
+            <h1 id="screen0-title">提出改善假設</h1>
+            <p>描述待解問題、變更機制與預期影響，將口頭想法轉成可驗證、可否證的實驗。</p>
+          </div>
+          <div class="page-meta">
+            <span class="pill violet">LLM-001</span>
+            <span class="pill amber"><span class="material-symbols-outlined">edit_note</span>草稿待評估</span>
+          </div>
+        </div>
+
+        <div class="hypothesis-grid">
+          <article class="card canvas-card">
+            <div class="canvas-banner">
+              <div>
+                <div class="mini-label" style="color:#cbb7e9">實驗主題</div>
+                <h2>客服回答的檢索精準度提升</h2>
+                <p>Owner：資料科學家 林若晴 · 建立於 2026/08/18</p>
+              </div>
+              <div class="exp-code">EXP-2026-042</div>
+            </div>
+            <div class="canvas-fields">
+              <div class="canvas-cell">
+                <h3><span class="material-symbols-outlined">problem</span>待解問題</h3>
+                <p class="statement">退款與帳務類問題的回答常引用過期政策，人工抽檢的事實正確率僅 82.4%。</p>
+              </div>
+              <div class="canvas-cell">
+                <h3><span class="material-symbols-outlined">conversion_path</span>預期機制</h3>
+                <p class="statement">加入文件時效權重與 reranker，讓最新且語意相符的政策文件優先進入上下文。</p>
+              </div>
+              <div class="canvas-cell">
+                <h3><span class="material-symbols-outlined">track_changes</span>主要成功門檻</h3>
+                <div class="target-row"><strong>≥ 90%</strong><span>事實正確率</span></div>
+                <div class="progress-track"><div class="progress-fill" style="width:82.4%"></div></div>
+                <p style="margin-top:7px">目前基線 82.4%，需提升至少 7.6 個百分點。</p>
+              </div>
+              <div class="canvas-cell">
+                <h3><span class="material-symbols-outlined">balance</span>護欄指標</h3>
+                <div class="assumption-list">
+                  <div class="assumption"><span class="material-symbols-outlined">check_circle</span><span>P95 延遲不得增加超過 250 ms</span></div>
+                  <div class="assumption"><span class="material-symbols-outlined">check_circle</span><span>單次請求成本增幅需低於 8%</span></div>
+                  <div class="assumption"><span class="material-symbols-outlined">check_circle</span><span>敏感資訊洩漏率維持 0%</span></div>
+                </div>
+              </div>
+              <div class="canvas-cell">
+                <h3><span class="material-symbols-outlined">groups</span>適用範圍</h3>
+                <p>繁體中文客服對話 · 退款、發票、扣款爭議 · Web 與 App 通路。</p>
+                <div class="input-chips" style="margin-top:12px">
+                  <span class="input-chip">zh-Hant</span><span class="input-chip">RAG</span><span class="input-chip">客服正式環境</span>
+                </div>
+              </div>
+              <div class="canvas-cell">
+                <h3><span class="material-symbols-outlined">data_object</span>證據輸入</h3>
+                <div class="input-chips">
+                  <span class="input-chip">模型請求 18,420</span>
+                  <span class="input-chip">提示版本 12</span>
+                  <span class="input-chip">標註回應 3,200</span>
+                </div>
+                <p style="margin-top:12px">固定評測集最後更新：2026/08/17 16:30</p>
+              </div>
+            </div>
+          </article>
+
+          <div class="side-stack">
+            <article class="card">
+              <div class="card-head"><div><h3>可測試性評分</h3><p>依完整性與可量測性計算</p></div><span class="pill green">良好</span></div>
+              <div class="card-body">
+                <div class="score-ring"><div><strong>82</strong><span>/ 100</span></div></div>
+                <div class="check-row"><span>問題定義具體</span><span class="material-symbols-outlined">check_circle</span></div>
+                <div class="check-row"><span>成功門檻可量測</span><span class="material-symbols-outlined">check_circle</span></div>
+                <div class="check-row"><span>樣本量尚待確認</span><span class="material-symbols-outlined" style="color:var(--amber)">error</span></div>
+              </div>
+            </article>
+            <article class="card">
+              <div class="card-head"><div><h3>評估路由</h3><p>下一步由 AI 架構師接手</p></div></div>
+              <div class="card-body">
+                <div class="check-row"><span>資料品質檢查</span><span class="badge done">通過</span></div>
+                <div class="check-row"><span>隱私風險評估</span><span class="badge done">通過</span></div>
+                <div class="check-row"><span>架構可行性</span><span class="badge waiting">待確認</span></div>
+                <button class="primary-btn action-next" data-next="1" type="button" style="width:100%;margin-top:15px">送交配置方案<span class="material-symbols-outlined">arrow_forward</span></button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="1" aria-labelledby="screen1-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">splitscreen</span>A/B 方案配置 · v1</div>
+            <h1 id="screen1-title">配置對照方案</h1>
+            <p>建立控制組、實驗組與流量分配方式，隔離提示、模型與檢索參數的變因。</p>
+          </div>
+          <div class="page-meta">
+            <span class="pill">EXP-2026-042</span>
+            <span class="pill green">前置檢查 6/6</span>
+          </div>
+        </div>
+
+        <div class="config-layout">
+          <div>
+            <div class="variants">
+              <article class="card variant-card">
+                <div class="variant-head">
+                  <div style="display:flex;gap:10px;align-items:center"><span class="variant-letter">A</span><div><strong style="font-size:12px;color:var(--ink)">控制組 · 現行基線</strong><div class="muted" style="font-size:9px">baseline-2026.07</div></div></div>
+                  <span class="badge done">鎖定</span>
+                </div>
+                <div class="variant-body">
+                  <div class="config-line">
+                    <label class="field-label">模型</label>
+                    <div class="field">JV-Llama-70B · 2026.06</div>
+                  </div>
+                  <div class="config-line">
+                    <label class="field-label">系統提示</label>
+                    <div class="field">support-agent-v12</div>
+                  </div>
+                  <table class="param-table">
+                    <tr><td>Retriever</td><td>Hybrid BM25 + Vector</td></tr>
+                    <tr><td>Top K</td><td>8</td></tr>
+                    <tr><td>Reranker</td><td>未啟用</td></tr>
+                    <tr><td>Temperature</td><td>0.20</td></tr>
+                  </table>
+                </div>
+              </article>
+
+              <article class="card variant-card experiment">
+                <div class="variant-head">
+                  <div style="display:flex;gap:10px;align-items:center"><span class="variant-letter">B</span><div><strong style="font-size:12px;color:var(--ink)">實驗組 · 時效加權</strong><div class="muted" style="font-size:9px">candidate-rerank-v3</div></div></div>
+                  <span class="badge running">候選</span>
+                </div>
+                <div class="variant-body">
+                  <div class="config-line">
+                    <label class="field-label">模型</label>
+                    <select class="select-field"><option>JV-Llama-70B · 2026.06</option></select>
+                  </div>
+                  <div class="config-line">
+                    <label class="field-label">系統提示</label>
+                    <select class="select-field"><option>support-agent-v13-time-aware</option></select>
+                  </div>
+                  <table class="param-table">
+                    <tr><td>Retriever</td><td>Hybrid + freshness</td></tr>
+                    <tr><td>Top K</td><td>12</td></tr>
+                    <tr><td>Reranker</td><td>JV-Rerank-v3</td></tr>
+                    <tr><td>Temperature</td><td>0.15</td></tr>
+                  </table>
+                </div>
+              </article>
+            </div>
+
+            <article class="card" style="margin-top:16px">
+              <div class="card-head"><div><h3>流量與樣本配置</h3><p>預估 7 天可達統計檢定所需樣本</p></div><span class="pill violet">信心水準 95%</span></div>
+              <div class="split-control">
+                <div class="mini-label">正式環境流量分配</div>
+                <div class="split-bar"><div class="split-a">A · 50%</div><div class="split-b">B · 50%</div></div>
+                <div class="range-labels"><span>控制組預估 9,200 筆</span><span>實驗組預估 9,200 筆</span></div>
+                <div class="divider"></div>
+                <div class="audience-rule"><span class="material-symbols-outlined" style="color:var(--blue)">filter_alt</span><span><b>納入：</b>繁中客服、退款與帳務意圖、已同意品質分析；依 conversation_id 穩定分組。</span></div>
+                <div class="audience-rule"><span class="material-symbols-outlined" style="color:var(--red)">block</span><span><b>排除：</b>VIP 升級案件、法務爭議、人工已接管、上下文超過 24k tokens。</span></div>
+              </div>
+            </article>
+          </div>
+
+          <div style="display:grid;gap:16px;align-content:start">
+            <article class="card cost-summary">
+              <div class="card-head"><div><h3>實驗預算估算</h3><p style="color:#9184a4">依 18,400 次請求計算</p></div></div>
+              <div class="cost-body">
+                <div class="cost-row"><span>推論 Token</span><strong>28.7M</strong></div>
+                <div class="cost-row"><span>預估費用</span><strong>US$ 486</strong></div>
+                <div class="cost-row"><span>評測 GPU</span><strong>31.5 hr</strong></div>
+                <div class="cost-row"><span>最長執行期</span><strong>7 天</strong></div>
+              </div>
+            </article>
+            <article class="card">
+              <div class="card-head"><div><h3>停止條件</h3><p>任一條件成立即暫停分流</p></div></div>
+              <div class="card-body">
+                <div class="check-row"><span>錯誤率高於 2.0%</span><span class="badge risk">硬停止</span></div>
+                <div class="check-row"><span>P95 延遲高於 2.8s</span><span class="badge risk">硬停止</span></div>
+                <div class="check-row"><span>每日成本高於 US$90</span><span class="badge waiting">告警</span></div>
+              </div>
+            </article>
+            <div class="launch-box">
+              <span class="material-symbols-outlined">rocket_launch</span>
+              <h3>方案已可執行</h3>
+              <p>配置雜湊：8f3a-42bc · 無未解衝突</p>
+              <button class="primary-btn action-next" data-next="2" type="button" style="width:100%">啟動評測批次</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="2" aria-labelledby="screen2-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">science</span>評測批次執行 · v2</div>
+            <h1 id="screen2-title">執行評測</h1>
+            <p>以固定資料集與線上分流同步收集結果，監看品質、延遲、錯誤與成本護欄。</p>
+          </div>
+          <div class="page-meta">
+            <span class="pill green"><span class="material-symbols-outlined">sensors</span>執行中</span>
+            <span class="pill">已運行 03:42:18</span>
+          </div>
+        </div>
+
+        <div class="run-summary">
+          <article class="card stat-tile">
+            <div class="stat-top"><span class="mini-label">已處理樣本</span><span class="stat-icon"><span class="material-symbols-outlined">data_usage</span></span></div>
+            <div class="metric-value">12,684</div><span class="delta">68.9% 完成</span>
+          </article>
+          <article class="card stat-tile">
+            <div class="stat-top"><span class="mini-label">吞吐量</span><span class="stat-icon"><span class="material-symbols-outlined">speed</span></span></div>
+            <div class="metric-value">38.6</div><span class="muted" style="font-size:10px">requests / sec</span>
+          </article>
+          <article class="card stat-tile">
+            <div class="stat-top"><span class="mini-label">P95 延遲</span><span class="stat-icon"><span class="material-symbols-outlined">timer</span></span></div>
+            <div class="metric-value">1.84s</div><span class="delta">低於護欄 34%</span>
+          </article>
+          <article class="card stat-tile">
+            <div class="stat-top"><span class="mini-label">累計成本</span><span class="stat-icon"><span class="material-symbols-outlined">payments</span></span></div>
+            <div class="metric-value">$324</div><span class="muted" style="font-size:10px">預算使用 66.7%</span>
+          </article>
+        </div>
+
+        <div class="execution-layout">
+          <div style="display:grid;gap:18px">
+            <article class="card run-card">
+              <div class="run-toolbar">
+                <div class="live-indicator">批次即時狀態</div>
+                <div style="display:flex;gap:7px"><span class="pill">離線 3</span><span class="pill violet">線上 2</span></div>
+              </div>
+              <div class="table-scroll">
+                <table class="batch-table">
+                  <thead><tr><th>批次</th><th>資料集</th><th>變體</th><th>進度</th><th>錯誤</th><th>階段</th></tr></thead>
+                  <tbody>
+                    <tr><td class="batch-id">RUN-8412</td><td>退款政策 v6</td><td>B</td><td><div class="mini-progress"><div class="progress-track"><div class="progress-fill" style="width:92%"></div></div><span>92%</span></div></td><td>0.3%</td><td><span class="badge running">推論中</span></td></tr>
+                    <tr><td class="batch-id">RUN-8411</td><td>帳務爭議 v4</td><td>A</td><td><div class="mini-progress"><div class="progress-track"><div class="progress-fill" style="width:100%"></div></div><span>100%</span></div></td><td>0.2%</td><td><span class="badge done">完成</span></td></tr>
+                    <tr><td class="batch-id">RUN-8410</td><td>困難反例集 v3</td><td>B</td><td><div class="mini-progress"><div class="progress-track"><div class="progress-fill" style="width:71%"></div></div><span>71%</span></div></td><td>0.6%</td><td><span class="badge running">評分中</span></td></tr>
+                    <tr><td class="batch-id">RUN-8409</td><td>安全紅隊 v8</td><td>A / B</td><td><div class="mini-progress"><div class="progress-track"><div class="progress-fill" style="width:100%"></div></div><span>100%</span></div></td><td>0.0%</td><td><span class="badge done">完成</span></td></tr>
+                    <tr><td class="batch-id">RUN-8408</td><td>線上影子流量</td><td>B</td><td><div class="mini-progress"><div class="progress-track"><div class="progress-fill" style="width:43%"></div></div><span>43%</span></div></td><td>0.4%</td><td><span class="badge running">收集中</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-head"><div><h3>執行日誌</h3><p>已隱去提示與回應中的個人資料</p></div><button class="ghost-btn action-toast" type="button">下載 JSONL</button></div>
+              <div class="card-body">
+                <div class="log-console" aria-label="執行日誌">
+                  <div><span class="log-time">14:28:42.193</span> <span class="log-ok">PASS</span> judge/factuality sample=TW-RF-01842 score=0.94</div>
+                  <div><span class="log-time">14:28:42.226</span> <span class="log-ok">PASS</span> guardrail/pii sample=TW-AC-00971 match=none</div>
+                  <div><span class="log-time">14:28:42.310</span> INFO retrieval variant=B freshness_weight=0.35 docs=12</div>
+                  <div><span class="log-time">14:28:42.481</span> INFO inference variant=A latency_ms=1624 tokens_out=284</div>
+                  <div><span class="log-time">14:28:42.526</span> <span class="log-warn">WARN</span> citation sample=TW-RF-01845 unsupported_span=1</div>
+                  <div><span class="log-time">14:28:42.682</span> <span class="log-ok">PASS</span> judge/helpfulness sample=TW-BL-00328 score=0.91</div>
+                  <div><span class="log-time">14:28:42.741</span> INFO checkpoint saved batch=RUN-8412 processed=4600</div>
+                  <div><span class="log-time">14:28:42.905</span> INFO online_split conversation=hash_7c3 group=B</div>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <div style="display:grid;gap:18px;align-content:start">
+            <article class="card">
+              <div class="card-head"><div><h3>護欄健康度</h3><p>近 15 分鐘滑動視窗</p></div><span class="badge running">正常</span></div>
+              <div class="card-body quality-list">
+                <div class="quality-item"><span>成功請求率</span><strong>99.6%</strong><div class="progress-track"><div class="progress-fill" style="width:99.6%;background:var(--green)"></div></div></div>
+                <div class="quality-item"><span>延遲安全餘裕</span><strong>34%</strong><div class="progress-track"><div class="progress-fill" style="width:66%;background:var(--amber)"></div></div></div>
+                <div class="quality-item"><span>預算餘裕</span><strong>33.3%</strong><div class="progress-track"><div class="progress-fill" style="width:66.7%"></div></div></div>
+                <div class="quality-item"><span>PII 防護</span><strong>100%</strong><div class="progress-track"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div></div>
+              </div>
+            </article>
+            <article class="card">
+              <div class="card-head"><div><h3>評測資料集</h3><p>版本均已建立快照</p></div></div>
+              <div class="card-body">
+                <div class="dataset-tile"><b>主評測集 · 3,200 筆</b><span>退款 42% · 帳務 36% · 其他 22%</span></div>
+                <div class="dataset-tile"><b>困難反例 · 680 筆</b><span>低檢索召回 · 政策版本衝突</span></div>
+                <div class="dataset-tile"><b>安全紅隊 · 240 筆</b><span>提示注入 · PII · 越權詢問</span></div>
+                <button class="primary-btn action-next" data-next="3" type="button" style="width:100%;margin-top:8px">檢視目前分析</button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="3" aria-labelledby="screen3-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">query_stats</span>效果顯著性分析 · v3</div>
+            <h1 id="screen3-title">分析實驗結果</h1>
+            <p>判讀品質、延遲、成本與統計可信度，辨識整體提升背後的客群差異與副作用。</p>
+          </div>
+          <div class="page-meta">
+            <span class="pill green">樣本 18,420</span>
+            <span class="pill">分析截止 08/22 14:30</span>
+          </div>
+        </div>
+
+        <div class="analytics-kpis">
+          <article class="card kpi-card"><span class="mini-label">事實正確率</span><strong>91.7%</strong><span class="delta">+9.3pp vs A</span></article>
+          <article class="card kpi-card"><span class="mini-label">引用完整率</span><strong>94.2%</strong><span class="delta">+6.8pp vs A</span></article>
+          <article class="card kpi-card"><span class="mini-label">P95 延遲</span><strong>1.84s</strong><span style="font-size:10px;color:var(--amber);font-weight:700">+180ms · 護欄內</span></article>
+          <article class="card kpi-card"><span class="mini-label">每千次成本</span><strong>$26.4</strong><span style="font-size:10px;color:var(--amber);font-weight:700">+5.7% · 護欄內</span></article>
+        </div>
+
+        <div class="analytics-grid">
+          <article class="card chart-card">
+            <div class="card-head">
+              <div><h3>A/B 品質趨勢</h3><p>每日人工與 LLM-as-judge 加權得分</p></div>
+              <div class="metric-tabs"><button class="active" type="button">正確率</button><button type="button">延遲</button><button type="button">成本</button></div>
+            </div>
+            <div class="card-body"><div id="qualityChart" class="chart" role="img" aria-label="控制組與實驗組品質趨勢圖"></div></div>
+          </article>
+
+          <article class="card">
+            <div class="card-head"><div><h3>統計判讀</h3><p>雙尾比例檢定 · α = 0.05</p></div></div>
+            <div class="significance">
+              <div class="sig-score">
+                <span class="material-symbols-outlined">verified</span>
+                <div><strong>結果顯著</strong><span>p = 0.003 · 檢定力 92%</span></div>
+              </div>
+              <div class="effect-row"><div class="effect-top"><strong>絕對提升</strong><span>+9.3pp</span></div><div class="progress-track"><div class="progress-fill" style="width:77%"></div></div></div>
+              <div class="effect-row"><div class="effect-top"><strong>相對提升</strong><span>+11.3%</span></div><div class="progress-track"><div class="progress-fill" style="width:84%"></div></div></div>
+              <div class="effect-row"><div class="effect-top"><strong>95% 信賴區間</strong><span>+4.1 ～ +14.5pp</span></div><div class="progress-track"><div class="progress-fill" style="width:68%;background:var(--green)"></div></div></div>
+              <div class="risk-note" style="margin-top:13px"><span class="material-symbols-outlined">info</span><span>小型企業帳務意圖僅 312 筆，區隔結論仍需擴充樣本。</span></div>
+            </div>
+          </article>
+        </div>
+
+        <div class="segment-grid">
+          <article class="card segment-card"><h3>退款政策</h3><div class="segment-values"><div><strong>93.8%</strong><div class="muted" style="font-size:9px">實驗組品質</div></div><span>+11.2pp</span></div></article>
+          <article class="card segment-card"><h3>發票與稅務</h3><div class="segment-values"><div><strong>90.4%</strong><div class="muted" style="font-size:9px">實驗組品質</div></div><span>+8.6pp</span></div></article>
+          <article class="card segment-card"><h3>扣款爭議</h3><div class="segment-values"><div><strong>88.9%</strong><div class="muted" style="font-size:9px">實驗組品質</div></div><span>+5.1pp</span></div></article>
+        </div>
+
+        <article class="card" style="margin-top:18px">
+          <div class="card-head"><div><h3>成本—品質權衡</h3><p>每個點代表不同檢索與 reranker 組合</p></div><button class="primary-btn action-next" data-next="4" type="button">建立評審資料包</button></div>
+          <div class="card-body"><div id="tradeoffChart" class="chart" style="height:245px" role="img" aria-label="成本品質權衡散佈圖"></div></div>
+        </article>
+      </section>
+
+      <section class="screen" data-screen="4" aria-labelledby="screen4-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">fact_check</span>採用決策評審 · v4</div>
+            <h1 id="screen4-title">審議是否採用</h1>
+            <p>彙整效益、成本、風險與限制，由應用負責人及跨職能評審做出採用決策。</p>
+          </div>
+          <div class="page-meta">
+            <span class="pill amber">決策會議 · 今日 16:00</span>
+            <span class="pill">文件版本 R3</span>
+          </div>
+        </div>
+
+        <div class="review-layout">
+          <div style="display:grid;gap:18px;align-content:start">
+            <article class="card">
+              <div class="review-hero">
+                <div>
+                  <div class="mini-label">系統建議</div>
+                  <h2>採用實驗組 B，分階段擴大流量</h2>
+                  <p>核心品質改善達標，成本與延遲增幅均在護欄內；建議先提升至 25% 正式流量。</p>
+                </div>
+                <div class="recommendation"><span class="material-symbols-outlined">thumb_up</span><strong>建議採用</strong><span style="font-size:9px">信心 92%</span></div>
+              </div>
+              <div class="scorecard">
+                <div class="score-unit"><strong>91.7</strong><span>品質 / 100</span></div>
+                <div class="score-unit"><strong>86.0</strong><span>成本效益 / 100</span></div>
+                <div class="score-unit"><strong>94.0</strong><span>安全 / 100</span></div>
+                <div class="score-unit"><strong>88.5</strong><span>綜合評分 / 100</span></div>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-head"><div><h3>決策證據摘要</h3><p>來源皆可追溯至原始請求、提示與回應</p></div><span class="pill green">證據完整</span></div>
+              <div class="table-scroll">
+                <table class="evidence-table">
+                  <thead><tr><th>評估面向</th><th>實驗結果</th><th>門檻</th><th>判定</th></tr></thead>
+                  <tbody>
+                    <tr><td>事實正確率</td><td>91.7%（+9.3pp）</td><td>≥ 90%</td><td><span class="badge running">通過</span></td></tr>
+                    <tr><td>統計顯著性</td><td>p = 0.003</td><td>p &lt; 0.05</td><td><span class="badge running">通過</span></td></tr>
+                    <tr><td>P95 延遲增幅</td><td>+180 ms</td><td>≤ 250 ms</td><td><span class="badge running">通過</span></td></tr>
+                    <tr><td>單次成本增幅</td><td>+5.7%</td><td>≤ 8%</td><td><span class="badge running">通過</span></td></tr>
+                    <tr><td>敏感資訊洩漏</td><td>0 / 18,420</td><td>0</td><td><span class="badge running">通過</span></td></tr>
+                    <tr><td>區隔樣本覆蓋</td><td>1 個區隔偏低</td><td>全部 ≥ 500</td><td><span class="badge waiting">附條件</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-head"><div><h3>正式採用條件</h3><p>核准後自動寫入發布檢核單</p></div></div>
+              <div class="card-body" style="display:grid;gap:9px">
+                <div class="audience-rule"><span class="material-symbols-outlined" style="color:var(--green)">check_circle</span><span>第一週流量上限 25%，連續 48 小時無護欄告警後升至 50%。</span></div>
+                <div class="audience-rule"><span class="material-symbols-outlined" style="color:var(--green)">check_circle</span><span>補足小型企業帳務意圖樣本至 500 筆，於兩週後複審區隔效果。</span></div>
+                <div class="audience-rule"><span class="material-symbols-outlined" style="color:var(--green)">check_circle</span><span>保留 baseline-2026.07 一鍵回退能力至少 30 天。</span></div>
+              </div>
+            </article>
+          </div>
+
+          <div style="display:grid;gap:18px;align-content:start">
+            <article class="card">
+              <div class="card-head"><div><h3>評審意見</h3><p>3 / 4 已完成簽核</p></div><span class="pill violet">法定人數已達</span></div>
+              <div class="card-body vote-list">
+                <div class="vote"><span class="avatar">YL</span><span><b>游立衡</b><small>AI 架構師 · 架構可行</small></span><span class="vote-result">同意</span></div>
+                <div class="vote"><span class="avatar" style="background:linear-gradient(145deg,#47b997,#087558)">LR</span><span><b>林若晴</b><small>資料科學家 · 結果顯著</small></span><span class="vote-result">同意</span></div>
+                <div class="vote"><span class="avatar" style="background:linear-gradient(145deg,#eda84c,#b3670a)">CW</span><span><b>陳維安</b><small>應用負責人 · 附條件採用</small></span><span class="vote-result">同意</span></div>
+                <div class="vote"><span class="avatar" style="background:#aaa0b6">HC</span><span><b>何承恩</b><small>資安評審 · 待簽核</small></span><span class="badge waiting">待處理</span></div>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-head"><div><h3>風險與回退</h3><p>採用後持續監看</p></div></div>
+              <div class="card-body">
+                <div class="risk-note"><span class="material-symbols-outlined">warning</span><span>Reranker 服務為新增依賴；若 5 分鐘錯誤率高於 1%，自動回退控制組。</span></div>
+                <div class="check-row" style="margin-top:10px"><span>回退演練</span><span class="badge done">18 秒完成</span></div>
+                <div class="check-row"><span>值班窗口</span><span class="muted">AI Platform</span></div>
+                <div class="check-row"><span>複審日期</span><span class="muted">2026/09/05</span></div>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-head"><div><h3>最終決策</h3><p>決策將寫入不可變更稽核紀錄</p></div></div>
+              <div class="card-body">
+                <label class="field-label" for="decisionNote">決策備註</label>
+                <textarea id="decisionNote" class="text-field">同意依 25% → 50% → 100% 分階段採用，並於兩週內完成區隔樣本補強。</textarea>
+                <div class="decision-actions" style="margin-top:12px">
+                  <button class="reject-btn action-toast" type="button">退回補件</button>
+                  <button class="approve-btn action-next" data-next="5" type="button">核准並建立基線</button>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="5" aria-labelledby="screen5-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">history</span>優化譜系追蹤 · v5</div>
+            <h1 id="screen5-title">沉澱改善基線</h1>
+            <p>將核准版本納入正式基線，串聯假設、配置、執行結果、採用決策與完整操作紀錄。</p>
+          </div>
+          <div class="page-meta">
+            <span class="pill green"><span class="material-symbols-outlined">verified</span>已核准</span>
+            <span class="pill violet">baseline-2026.08</span>
+          </div>
+        </div>
+
+        <div class="lineage-summary">
+          <article class="card lineage-stat"><span class="stat-icon"><span class="material-symbols-outlined">account_tree</span></span><div><strong>14</strong><span>關聯版本</span></div></article>
+          <article class="card lineage-stat"><span class="stat-icon"><span class="material-symbols-outlined">dataset</span></span><div><strong>18,420</strong><span>可追溯評測樣本</span></div></article>
+          <article class="card lineage-stat"><span class="stat-icon"><span class="material-symbols-outlined">inventory_2</span></span><div><strong>R3</strong><span>決策資料包版本</span></div></article>
+        </div>
+
+        <div class="lineage-layout">
+          <article class="card">
+            <div class="card-head"><div><h3>改善版本譜系</h3><p>從問題假設到正式採用的不可變更鏈結</p></div><button class="ghost-btn action-toast" type="button">檢視差異</button></div>
+            <div class="lineage-map">
+              <div class="lineage-flow">
+                <div class="node">
+                  <div class="node-box"><span class="material-symbols-outlined">lightbulb</span></div>
+                  <b>EXP-2026-042</b><small>改善假設 · 08/18</small>
+                </div>
+                <div class="node">
+                  <div class="node-box"><span class="material-symbols-outlined">tune</span></div>
+                  <b>candidate-v3</b><small>方案配置 · 08/19</small>
+                </div>
+                <div class="node current">
+                  <div class="node-box"><span class="material-symbols-outlined">analytics</span></div>
+                  <b>eval-8412</b><small>顯著結果 · 08/22</small>
+                </div>
+                <div class="node approved">
+                  <div class="node-box"><span class="material-symbols-outlined">verified</span></div>
+                  <b>baseline-2026.08</b><small>正式基線 · 已核准</small>
+                </div>
+              </div>
+              <div class="baseline-banner">
+                <div><h3>客服 RAG 正式基線 · 2026.08</h3><p>JV-Llama-70B + freshness retriever + JV-Rerank-v3</p></div>
+                <div style="text-align:right"><div class="mini-label" style="color:#bfaed6">版本雜湊</div><strong style="font-size:12px">sha256:4ad8…e21f</strong></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head"><div><h3>採用操作紀錄</h3><p>Asia/Taipei · 時間已校準</p></div><span class="pill green">完整</span></div>
+            <div class="card-body audit-list">
+              <div class="audit-item"><span class="audit-dot" style="background:var(--green)"></span><div><b>建立正式基線</b><p>baseline-2026.08 已封存並簽章</p><time>2026/08/22 16:18:42 · 游立衡</time></div></div>
+              <div class="audit-item"><span class="audit-dot"></span><div><b>核准附條件採用</b><p>決策編號 DEC-2026-118</p><time>2026/08/22 16:12:09 · 陳維安</time></div></div>
+              <div class="audit-item"><span class="audit-dot"></span><div><b>完成顯著性分析</b><p>p=0.003，分析資料包 R3</p><time>2026/08/22 14:36:20 · 林若晴</time></div></div>
+              <div class="audit-item"><span class="audit-dot"></span><div><b>評測批次完成</b><p>18,420 / 18,420 筆成功處理</p><time>2026/08/22 14:30:04 · Evaluation Bot</time></div></div>
+              <div class="audit-item"><span class="audit-dot" style="background:#a89caf"></span><div><b>鎖定 A/B 配置</b><p>配置雜湊 8f3a-42bc</p><time>2026/08/19 10:04:51 · 游立衡</time></div></div>
+            </div>
+          </article>
+        </div>
+
+        <article class="card record-wrap">
+          <div class="card-head"><div><h3>LLM 改善實驗追蹤器資料列表</h3><p>改善循環各階段責任與期限</p></div><span class="pill">6 筆紀錄</span></div>
+          <div class="table-scroll">
+            <table class="records-table">
+              <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
+              <tbody>
+                <tr><td>LLM-001</td><td>提出改善假設</td><td>資料科學家</td><td>D+1</td><td><span class="badge running">處理中</span></td></tr>
+                <tr><td>LLM-002</td><td>配置對照方案</td><td>AI 架構師</td><td>D+2</td><td><span class="badge waiting">待確認</span></td></tr>
+                <tr><td>LLM-003</td><td>執行評測</td><td>評測工程師</td><td>D+3</td><td><span class="badge waiting">待確認</span></td></tr>
+                <tr><td>LLM-004</td><td>分析實驗結果</td><td>資料科學家</td><td>D+4</td><td><span class="badge done">已完成</span></td></tr>
+                <tr><td>LLM-005</td><td>審議是否採用</td><td>應用負責人</td><td>D+5</td><td><span class="badge done">已完成</span></td></tr>
+                <tr><td>LLM-006</td><td>沉澱改善基線</td><td>AI 架構師</td><td>D+6</td><td><span class="badge done">已完成</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <div style="display:flex;justify-content:flex-end;gap:9px;margin-top:18px;flex-wrap:wrap">
+          <button class="ghost-btn action-toast" type="button"><span class="material-symbols-outlined">description</span>下載決策報告</button>
+          <button class="primary-btn action-toast" type="button"><span class="material-symbols-outlined">add</span>建立下一個改善假設</button>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">操作已完成</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const stageTitles = [
+    "提出改善假設",
+    "配置對照方案",
+    "執行評測",
+    "分析實驗結果",
+    "審議是否採用",
+    "沉澱改善基線"
+  ];
+  const screens = Array.from(document.querySelectorAll("[data-screen]"));
+  const navButtons = Array.from(document.querySelectorAll("[data-i]"));
+  const chartInstances = {};
+  let currentIndex = 0;
+  let toastTimerId = 0;
+
+  function validIndex(value){
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= 0 && parsed < screens.length ? parsed : 0;
+  }
+
+  function readHashIndex(){
+    const matched = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+    return matched ? validIndex(matched[1]) : 0;
+  }
+
+  function chartTheme(){
+    return {
+      textStyle:{fontFamily:'Inter,"Noto Sans TC",sans-serif'},
+      color:["#7c3aed","#655b72","#159a6e","#d88916"],
+      animationDuration:650
+    };
+  }
+
+  function initQualityChart(){
+    const chartElement = document.getElementById("qualityChart");
+    if(!chartElement || chartElement.clientWidth === 0 || chartInstances.quality){return;}
+    const instance = echarts.init(chartElement);
+    const theme = chartTheme();
+    instance.setOption({
+      ...theme,
+      tooltip:{trigger:"axis",backgroundColor:"#211735",borderWidth:0,textStyle:{color:"#fff",fontSize:11}},
+      legend:{top:2,right:4,itemWidth:16,itemHeight:7,textStyle:{color:"#756d83",fontSize:10}},
+      grid:{left:40,right:18,top:45,bottom:31},
+      xAxis:{type:"category",boundaryGap:false,data:["D1","D2","D3","D4","D5","D6","D7"],axisLine:{lineStyle:{color:"#e8e2ef"}},axisTick:{show:false},axisLabel:{color:"#756d83",fontSize:10}},
+      yAxis:{type:"value",min:76,max:96,axisLabel:{formatter:"{value}%",color:"#756d83",fontSize:10},splitLine:{lineStyle:{color:"#eeeaf3"}}},
+      series:[
+        {name:"控制組 A",type:"line",smooth:true,symbolSize:6,data:[82.1,82.7,82.2,82.8,81.9,82.6,82.4],lineStyle:{width:2,color:"#655b72"},itemStyle:{color:"#655b72"}},
+        {name:"實驗組 B",type:"line",smooth:true,symbolSize:7,data:[86.2,87.8,89.1,90.2,90.7,91.2,91.7],lineStyle:{width:3,color:"#7c3aed"},itemStyle:{color:"#7c3aed"},areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"rgba(124,58,237,.23)"},{offset:1,color:"rgba(124,58,237,.01)"}]}}}
+      ]
+    });
+    chartInstances.quality = instance;
+  }
+
+  function initTradeoffChart(){
+    const chartElement = document.getElementById("tradeoffChart");
+    if(!chartElement || chartElement.clientWidth === 0 || chartInstances.tradeoff){return;}
+    const instance = echarts.init(chartElement);
+    const theme = chartTheme();
+    instance.setOption({
+      ...theme,
+      tooltip:{
+        formatter:function(params){
+          return params.data[2] + "<br>正確率 " + params.data[1] + "%<br>成本 $" + params.data[0];
+        },
+        backgroundColor:"#211735",borderWidth:0,textStyle:{color:"#fff",fontSize:11}
+      },
+      grid:{left:48,right:25,top:18,bottom:42},
+      xAxis:{type:"value",min:22,max:31,name:"每千次請求成本（US$）",nameLocation:"middle",nameGap:28,nameTextStyle:{color:"#756d83",fontSize:10},axisLine:{lineStyle:{color:"#e8e2ef"}},axisLabel:{color:"#756d83",fontSize:10},splitLine:{lineStyle:{color:"#eeeaf3"}}},
+      yAxis:{type:"value",min:80,max:94,name:"正確率 %",nameTextStyle:{color:"#756d83",fontSize:10},axisLabel:{color:"#756d83",fontSize:10},splitLine:{lineStyle:{color:"#eeeaf3"}}},
+      series:[{
+        type:"scatter",
+        symbolSize:function(data){return data[3];},
+        data:[
+          {value:[24.9,82.4,"控制組 A",17],itemStyle:{color:"#655b72"}},
+          {value:[26.4,91.7,"候選 B · 採用",28],itemStyle:{color:"#7c3aed",shadowBlur:14,shadowColor:"rgba(124,58,237,.4)"}},
+          {value:[27.8,92.1,"Top K 16",18],itemStyle:{color:"#d88916"}},
+          {value:[29.6,92.5,"大型 reranker",18],itemStyle:{color:"#d88916"}},
+          {value:[23.8,86.9,"僅時效加權",17],itemStyle:{color:"#159a6e"}},
+          {value:[25.5,89.2,"Reranker v2",17],itemStyle:{color:"#159a6e"}}
+        ],
+        label:{show:true,position:"top",formatter:function(params){return params.data[2];},fontSize:9,color:"#5f566b"}
+      }]
+    });
+    chartInstances.tradeoff = instance;
+  }
+
+  function initChartsFor(index){
+    if(index !== 3){return;}
+    window.requestAnimationFrame(function(){
+      initQualityChart();
+      initTradeoffChart();
+    });
+  }
+
+  function show(index){
+    const safeIndex = validIndex(index);
+    currentIndex = safeIndex;
+    screens.forEach(function(screenElement, screenIndex){
+      const active = screenIndex === safeIndex;
+      screenElement.classList.toggle("active", active);
+      screenElement.setAttribute("aria-hidden", String(!active));
+    });
+    navButtons.forEach(function(buttonElement){
+      const active = Number(buttonElement.dataset.i) === safeIndex;
+      buttonElement.classList.toggle("active", active);
+      buttonElement.setAttribute("aria-current", active ? "step" : "false");
+    });
+    document.getElementById("crumbTitle").textContent = stageTitles[safeIndex];
+    document.getElementById("mobileStep").textContent = (safeIndex + 1) + " / 6";
+    document.title = "LLM 改善實驗追蹤器 · analytics-bi｜Jvision 系統 Demo";
+    initChartsFor(safeIndex);
+  }
+
+  function navigate(index){
+    const safeIndex = validIndex(index);
+    const desiredHash = "#go=" + safeIndex;
+    if(window.location.hash === desiredHash){
+      show(safeIndex);
+    }else{
+      window.location.hash = desiredHash;
+    }
+  }
+
+  function showToast(message){
+    const toastElement = document.getElementById("toast");
+    toastElement.textContent = message || "操作已完成";
+    toastElement.classList.add("visible");
+    window.clearTimeout(toastTimerId);
+    toastTimerId = window.setTimeout(function(){
+      toastElement.classList.remove("visible");
+    },2200);
+  }
+
+  navButtons.forEach(function(buttonElement){
+    buttonElement.addEventListener("click",function(){
+      navigate(Number(buttonElement.dataset.i));
+    });
+  });
+
+  document.querySelectorAll(".action-next").forEach(function(buttonElement){
+    buttonElement.addEventListener("click",function(){
+      navigate(Number(buttonElement.dataset.next));
+    });
+  });
+
+  document.querySelectorAll(".action-toast").forEach(function(buttonElement){
+    buttonElement.addEventListener("click",function(){
+      showToast("示範操作已完成，紀錄已保留於本次工作階段。");
+    });
+  });
+
+  window.addEventListener("hashchange",function(){
+    show(readHashIndex());
+  });
+
+  window.addEventListener("resize",function(){
+    Object.keys(chartInstances).forEach(function(chartKey){
+      chartInstances[chartKey].resize();
+    });
+  });
+
+  show(0);
+  if(window.location.hash){
+    show(readHashIndex());
+  }
+})();
+</script>
+</body>
+</html>

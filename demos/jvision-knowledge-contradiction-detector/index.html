@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<link rel="icon" href="../../favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<title>知識矛盾偵測器 · analytics-bi｜Jvision 系統 Demo</title>
+<style>
+:root{
+  --blue:#1e40af;
+  --ink:#15213a;
+  --body:#34425e;
+  --muted:#71809d;
+  --line:#dce4f1;
+  --bg:#f5f7fb;
+  --green:#14845d;
+  --amber:#b96b08;
+  --red:#c53b49;
+  --shadow:0 12px 32px rgba(27,48,94,.08);
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--body);font-family:Inter,"Noto Sans TC",sans-serif}
+body{overflow-x:hidden}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+.material-symbols-outlined{font-size:21px;font-variation-settings:"FILL" 0,"wght" 450}
+.shell{min-height:100vh;padding-left:78px}
+.rail{
+  position:fixed;inset:0 auto 0 0;width:78px;background:#10275f;color:#fff;
+  display:flex;flex-direction:column;align-items:center;padding:18px 10px;z-index:20
+}
+.brand{
+  width:44px;height:44px;border-radius:14px;background:#fff;color:var(--blue);
+  display:grid;place-items:center;font-weight:800;font-size:18px;box-shadow:0 8px 20px #08194366
+}
+.rail-nav{display:flex;flex-direction:column;gap:8px;margin:auto 0}
+.nav-btn{
+  position:relative;width:52px;height:52px;border:0;border-radius:14px;
+  background:transparent;color:#b9c8ed;display:grid;place-items:center;transition:.2s
+}
+.nav-btn:hover,.nav-btn:focus-visible{background:#ffffff18;color:#fff;outline:2px solid #fff;outline-offset:2px}
+.nav-btn.active{background:#fff;color:var(--blue);box-shadow:0 8px 20px #07153845}
+.nav-btn::after{
+  content:attr(aria-label);position:absolute;left:62px;top:50%;transform:translateY(-50%);
+  white-space:nowrap;background:#172442;color:#fff;border-radius:8px;padding:7px 10px;
+  font-size:12px;opacity:0;pointer-events:none;transition:.15s
+}
+.nav-btn:hover::after{opacity:1}
+.rail-user{width:38px;height:38px;border-radius:50%;background:#dbe6ff;color:#173681;display:grid;place-items:center;font-weight:800}
+.page{display:none;min-height:100vh}
+.page.active{display:block;animation:enter .28s ease-out}
+@keyframes enter{from{opacity:.25;transform:translateY(5px)}to{opacity:1;transform:none}}
+.page-head{
+  min-height:78px;background:#fff;border-bottom:1px solid var(--line);padding:15px 28px;
+  display:flex;align-items:center;justify-content:space-between;gap:18px;position:sticky;top:0;z-index:10
+}
+.head-title{display:flex;align-items:center;gap:13px;min-width:0}
+.head-title h1{font-size:20px;color:var(--ink);margin:0;white-space:nowrap}
+.step-tag{font-size:12px;color:var(--blue);background:#edf2ff;padding:5px 9px;border-radius:999px;font-weight:700}
+.head-actions{display:flex;align-items:center;gap:9px}
+.sync{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px #def4eb}
+.icon-btn,.secondary,.primary,.ghost{
+  min-height:40px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--body);
+  padding:8px 13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:7px
+}
+.icon-btn{width:40px;padding:0}
+.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.primary:hover{background:#18368f}
+.secondary:hover,.icon-btn:hover{border-color:#91a4cb;color:var(--blue)}
+.primary:focus-visible,.secondary:focus-visible,.icon-btn:focus-visible,.ghost:focus-visible,
+.filter:focus-visible,.clause:focus-visible,.source-card:focus-visible{
+  outline:3px solid #91aefb;outline-offset:2px
+}
+.content{padding:24px 28px 34px;max-width:1700px;margin:auto}
+.eyebrow{font-size:12px;letter-spacing:.12em;color:var(--blue);font-weight:800;text-transform:uppercase}
+.section-title{color:var(--ink);font-size:18px;margin:5px 0 3px}
+.section-sub{color:var(--muted);font-size:13px;margin:0}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 20px rgba(24,48,94,.045)}
+.card-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.card-body{padding:20px}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:800}
+.badge.high{color:var(--red);background:#fff0f1}
+.badge.medium{color:var(--amber);background:#fff6e6}
+.badge.low,.badge.done{color:var(--green);background:#e9f7f1}
+.badge.blue{color:var(--blue);background:#edf2ff}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.kpi{padding:17px 18px;position:relative;overflow:hidden}
+.kpi::after{content:"";position:absolute;right:-18px;bottom:-24px;width:82px;height:82px;border-radius:50%;background:#edf2ff}
+.kpi-label{font-size:12px;color:var(--muted);font-weight:600}
+.kpi-value{font-size:27px;font-weight:800;color:var(--ink);margin:7px 0 4px}
+.kpi-foot{font-size:11px;color:var(--green);font-weight:700}
+.grid-main{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(290px,.8fr);gap:18px}
+.chart{width:100%;height:310px}
+.chart.short{height:250px}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.filter{border:1px solid var(--line);background:#fff;color:var(--muted);padding:7px 11px;border-radius:9px;font-size:12px;font-weight:700}
+.filter.active{background:#eaf0ff;color:var(--blue);border-color:#b5c6f4}
+.conflict-list{display:grid;gap:10px}
+.conflict-item{padding:14px;border:1px solid var(--line);border-radius:12px}
+.conflict-top{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.conflict-item h3{font-size:14px;color:var(--ink);margin:7px 0 5px}
+.conflict-item p{font-size:12px;color:var(--muted);margin:0;line-height:1.55}
+.progress{height:7px;background:#edf0f6;border-radius:10px;overflow:hidden;margin-top:10px}
+.progress span{display:block;height:100%;background:var(--blue);border-radius:inherit}
+.owner-row{display:flex;align-items:center;gap:9px;margin-top:12px;font-size:12px}
+.avatar{width:29px;height:29px;border-radius:9px;background:#e7edfc;color:var(--blue);display:grid;place-items:center;font-weight:800;font-size:11px}
+
+/* difference screen */
+.diff-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:18px}
+.diff-side{padding:15px}
+.diff-side h2{font-size:13px;color:var(--ink);margin:4px 5px 12px}
+.clause{
+  width:100%;text-align:left;border:1px solid transparent;background:transparent;border-radius:11px;padding:12px;
+  margin-bottom:7px;color:var(--body)
+}
+.clause:hover{background:#f6f8fd}
+.clause.active{background:#edf2ff;border-color:#bed0fb}
+.clause strong{display:block;font-size:13px;color:var(--ink);margin-bottom:5px}
+.clause small{display:flex;justify-content:space-between;color:var(--muted)}
+.diff-work{min-width:0}
+.doc-tabs{display:flex;gap:4px;padding:10px 16px 0;border-bottom:1px solid var(--line);overflow:auto}
+.doc-tab{white-space:nowrap;border:0;background:none;color:var(--muted);padding:10px 12px;border-bottom:3px solid transparent;font-weight:700;font-size:12px}
+.doc-tab.active{color:var(--blue);border-color:var(--blue)}
+.compare{display:grid;grid-template-columns:1fr 1fr}
+.doc-panel{padding:20px;min-width:0}
+.doc-panel+ .doc-panel{border-left:1px solid var(--line)}
+.doc-meta{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted);margin-bottom:17px}
+.doc-panel h3{font-size:15px;color:var(--ink);margin:0 0 13px}
+.document{line-height:2;font-size:13px;color:#35425b}
+.document p{margin:0 0 11px}
+.mark-red{background:#ffe8ea;color:#a92d3b;padding:2px 4px;border-radius:4px;text-decoration:line-through}
+.mark-green{background:#e2f5eb;color:#08704b;padding:2px 4px;border-radius:4px}
+.annotation{border-left:3px solid var(--amber);background:#fff8e9;padding:11px 12px;font-size:12px;line-height:1.6;margin-top:15px;border-radius:0 9px 9px 0}
+.diff-summary{margin-top:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.summary-tile{padding:15px}
+.summary-tile span{font-size:11px;color:var(--muted)}
+.summary-tile strong{display:block;color:var(--ink);font-size:20px;margin-top:6px}
+
+/* graph screen */
+.graph-layout{display:grid;grid-template-columns:minmax(0,1.6fr) 330px;gap:18px}
+.graph-canvas{position:relative;min-height:570px;overflow:hidden;background:linear-gradient(#fff,#fbfcff)}
+.graph-canvas::before{
+  content:"";position:absolute;inset:0;background-image:radial-gradient(#b8c4da 1px,transparent 1px);
+  background-size:22px 22px;opacity:.4
+}
+.graph-svg{position:absolute;inset:0;width:100%;height:100%}
+.graph-svg line{stroke:#a8b7d5;stroke-width:2}
+.graph-svg line.risk{stroke:#dc8a94;stroke-dasharray:6 5}
+.node{
+  position:absolute;transform:translate(-50%,-50%);min-width:124px;max-width:170px;padding:12px;
+  background:#fff;border:1px solid #b9c7e1;border-radius:13px;box-shadow:0 8px 20px #243b7015;text-align:center
+}
+.node strong{display:block;font-size:12px;color:var(--ink);margin-top:4px}
+.node small{font-size:10px;color:var(--muted)}
+.node.main{background:var(--blue);color:#fff;border-color:var(--blue);min-width:152px}
+.node.main strong,.node.main small{color:#fff}
+.node.alert{border:2px solid var(--red);background:#fff8f8}
+.n1{left:50%;top:48%}.n2{left:20%;top:20%}.n3{left:77%;top:18%}.n4{left:21%;top:72%}.n5{left:76%;top:73%}.n6{left:50%;top:87%}
+.graph-legend{position:absolute;left:16px;bottom:14px;background:#fffffff2;padding:9px 11px;border:1px solid var(--line);border-radius:10px;font-size:11px}
+.inspector{display:grid;gap:14px}
+.inspector .card-body h3{font-size:15px;color:var(--ink);margin:0 0 8px}
+.fact{padding:11px 0;border-bottom:1px solid var(--line)}
+.fact:last-child{border:0}
+.fact label{display:block;font-size:10px;color:var(--muted);margin-bottom:4px}
+.fact strong{font-size:12px;color:var(--ink)}
+.trust{display:flex;align-items:center;gap:10px}
+.trust-score{font-size:26px;font-weight:800;color:var(--green)}
+
+/* impact */
+.impact-banner{
+  background:linear-gradient(120deg,#173784,#2458c5);color:#fff;border-radius:17px;padding:22px;
+  display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:18px
+}
+.impact-banner h2{margin:3px 0 7px;font-size:21px}.impact-banner p{margin:0;color:#d8e3ff;font-size:13px}
+.impact-total{text-align:right}.impact-total strong{font-size:31px;display:block}
+.impact-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.75fr);gap:18px}
+.impact-groups{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.impact-group{padding:16px}
+.group-icon{width:38px;height:38px;border-radius:11px;background:#edf2ff;color:var(--blue);display:grid;place-items:center}
+.impact-group h3{font-size:14px;color:var(--ink);margin:12px 0 5px}
+.impact-group p{font-size:11px;color:var(--muted);margin:0}
+.impact-count{font-size:22px;color:var(--ink);font-weight:800;margin-top:13px}
+.task-table{width:100%;border-collapse:collapse;font-size:12px}
+.task-table th{text-align:left;color:var(--muted);padding:11px 10px;border-bottom:1px solid var(--line);font-size:10px}
+.task-table td{padding:13px 10px;border-bottom:1px solid #edf0f5}
+.task-table tr:last-child td{border:0}
+.task-table strong{color:var(--ink)}
+.check{width:18px;height:18px;border:1px solid #aab7ce;border-radius:5px;display:grid;place-items:center;color:#fff}
+.check.checked{background:var(--green);border-color:var(--green)}
+
+/* decision */
+.decision-layout{display:grid;grid-template-columns:minmax(0,1.45fr) 350px;gap:18px}
+.decision-editor{overflow:hidden}
+.editor-toolbar{display:flex;gap:6px;padding:11px 15px;border-bottom:1px solid var(--line);background:#fafbfe}
+.tool{width:33px;height:33px;border:0;border-radius:8px;background:transparent;color:var(--body);font-weight:800}
+.tool:hover{background:#e9eef9;color:var(--blue)}
+.editor-area{padding:22px}
+.editor-area label{font-size:11px;color:var(--muted);display:block;margin-bottom:7px;font-weight:700}
+.title-input,textarea,.select-field{
+  width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);padding:11px 12px;outline:none
+}
+.title-input:focus,textarea:focus,.select-field:focus{border-color:#6d8ee5;box-shadow:0 0 0 3px #dce6ff}
+.title-input{font-size:17px;font-weight:800;margin-bottom:18px}
+textarea{height:190px;resize:vertical;line-height:1.75;font-size:13px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:15px}
+.form-grid label{display:block}
+.ai-note{margin-top:15px;border:1px solid #c9d7fb;background:#f3f6ff;padding:13px;border-radius:11px;font-size:12px;line-height:1.6}
+.ai-note strong{color:var(--blue)}
+.evidence-stack{display:grid;gap:10px}
+.source-card{border:1px solid var(--line);background:#fff;border-radius:12px;padding:13px;text-align:left}
+.source-card:hover{border-color:#9eb2e7}
+.source-card strong{display:block;color:var(--ink);font-size:12px;margin:5px 0}
+.source-card small{color:var(--muted);font-size:10px}
+.approval-line{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.approval-line:last-child{border:0}
+.approval-line .avatar{border-radius:50%}
+.approval-line div:nth-child(2){flex:1}
+.approval-line strong{display:block;color:var(--ink);font-size:12px}
+.approval-line small{color:var(--muted);font-size:10px}
+
+/* publish */
+.publish-hero{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.6fr);gap:18px;margin-bottom:18px}
+.release-card{padding:22px;display:flex;align-items:center;gap:18px}
+.release-icon{width:58px;height:58px;border-radius:17px;background:#e3f5ec;color:var(--green);display:grid;place-items:center}
+.release-icon .material-symbols-outlined{font-size:30px}
+.release-card h2{font-size:18px;color:var(--ink);margin:0 0 5px}
+.release-card p{font-size:12px;color:var(--muted);margin:0}
+.release-meta{margin-left:auto;text-align:right}
+.release-meta strong{display:block;color:var(--ink);font-size:14px}
+.release-meta small{color:var(--muted)}
+.readiness{padding:18px 20px}
+.readiness-row{display:flex;align-items:center;justify-content:space-between}
+.readiness strong{font-size:26px;color:var(--green)}
+.publish-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr);gap:18px}
+.channel-list{display:grid;gap:0}
+.channel{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:11px;padding:14px 0;border-bottom:1px solid var(--line)}
+.channel:last-child{border:0}
+.channel-icon{width:38px;height:38px;border-radius:11px;background:#edf2ff;color:var(--blue);display:grid;place-items:center}
+.channel strong{display:block;font-size:12px;color:var(--ink)}
+.channel small{font-size:10px;color:var(--muted)}
+.timeline{position:relative;margin-left:7px}
+.timeline::before{content:"";position:absolute;left:10px;top:8px;bottom:8px;width:2px;background:#dfe6f3}
+.event{position:relative;padding-left:34px;margin-bottom:20px}
+.event:last-child{margin-bottom:0}
+.event-dot{position:absolute;left:3px;top:2px;width:16px;height:16px;border:4px solid #fff;background:var(--green);border-radius:50%;box-shadow:0 0 0 2px #a4d7c5}
+.event strong{display:block;font-size:12px;color:var(--ink);margin-bottom:4px}
+.event p{font-size:11px;color:var(--muted);margin:0}
+.event time{font-size:10px;color:var(--blue);font-weight:700}
+.toast{
+  position:fixed;right:24px;bottom:24px;background:#172442;color:#fff;border-radius:12px;
+  padding:13px 17px;font-size:12px;box-shadow:0 12px 30px #0b173b45;z-index:50;
+  opacity:0;transform:translateY(12px);pointer-events:none
+}
+.toast.show{animation:toast 2.3s ease}
+@keyframes toast{0%,100%{opacity:0;transform:translateY(12px)}12%,85%{opacity:1;transform:none}}
+@media(max-width:1000px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .grid-main,.graph-layout,.impact-grid,.decision-layout,.publish-grid{grid-template-columns:1fr}
+  .graph-canvas{min-height:500px}
+  .inspector{grid-template-columns:repeat(2,1fr)}
+  .publish-hero{grid-template-columns:1fr}
+}
+@media(max-width:720px){
+  .shell{padding-left:0;padding-bottom:74px}
+  .rail{inset:auto 0 0 0;width:auto;height:66px;flex-direction:row;padding:7px 10px;border-top:1px solid #294578}
+  .brand,.rail-user{display:none}
+  .rail-nav{flex:1;flex-direction:row;justify-content:space-around;margin:0}
+  .nav-btn{width:46px;height:46px}
+  .nav-btn::after{display:none}
+  .page-head{min-height:68px;padding:12px 16px;position:static}
+  .head-title h1{font-size:16px}
+  .step-tag,.sync{display:none}
+  .content{padding:16px}
+  .diff-layout{grid-template-columns:1fr}
+  .diff-side{display:flex;overflow:auto;gap:7px}
+  .diff-side h2{display:none}
+  .clause{min-width:190px;margin:0}
+  .compare{grid-template-columns:1fr}
+  .doc-panel+ .doc-panel{border-left:0;border-top:1px solid var(--line)}
+  .diff-summary{grid-template-columns:1fr}
+  .inspector{grid-template-columns:1fr}
+  .impact-banner{align-items:flex-start}
+  .impact-groups{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+  .release-card{align-items:flex-start;flex-wrap:wrap}
+  .release-meta{margin-left:76px;text-align:left}
+}
+@media(max-width:460px){
+  .kpi-grid{grid-template-columns:1fr 1fr;gap:9px}
+  .kpi{padding:14px}.kpi-value{font-size:22px}
+  .head-actions .secondary{display:none}
+  .card-head,.card-body{padding:15px}
+  .graph-canvas{min-height:520px}
+  .node{min-width:94px;max-width:112px;padding:9px 6px}
+  .node.main{min-width:112px}
+  .n2{left:18%}.n3{left:81%}.n4{left:18%}.n5{left:81%}
+  .impact-banner{display:block}.impact-total{text-align:left;margin-top:15px}
+  .channel{grid-template-columns:38px 1fr}.channel .badge{grid-column:2}
+  .task-table th:nth-child(3),.task-table td:nth-child(3){display:none}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail" aria-label="流程導覽">
+    <div class="brand" aria-label="JVision">JV</div>
+    <nav class="rail-nav">
+      <button class="nav-btn" data-i="0" aria-label="衝突總覽"><span class="material-symbols-outlined">rule</span></button>
+      <button class="nav-btn" data-i="1" aria-label="條文差異"><span class="material-symbols-outlined">difference</span></button>
+      <button class="nav-btn" data-i="2" aria-label="主張脈絡"><span class="material-symbols-outlined">account_tree</span></button>
+      <button class="nav-btn" data-i="3" aria-label="影響追蹤"><span class="material-symbols-outlined">travel_explore</span></button>
+      <button class="nav-btn" data-i="4" aria-label="裁決提案"><span class="material-symbols-outlined">gavel</span></button>
+      <button class="nav-btn" data-i="5" aria-label="核准發布"><span class="material-symbols-outlined">published_with_changes</span></button>
+    </nav>
+    <div class="rail-user">林</div>
+  </aside>
+
+  <main>
+    <section class="page" data-page="0">
+      <header class="page-head">
+        <div class="head-title">
+          <span class="step-tag">流程 1 / 6</span>
+          <h1>高風險矛盾總覽</h1>
+        </div>
+        <div class="head-actions">
+          <span class="sync"><i class="dot"></i>資料已同步 · 09:42</span>
+          <button class="secondary"><span class="material-symbols-outlined">tune</span>篩選條件</button>
+          <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+        </div>
+      </header>
+      <div class="content">
+        <div class="kpi-grid">
+          <article class="card kpi"><div class="kpi-label">待裁決矛盾</div><div class="kpi-value">24</div><div class="kpi-foot">本週新增 6 件</div></article>
+          <article class="card kpi"><div class="kpi-label">高風險項目</div><div class="kpi-value">7</div><div class="kpi-foot" style="color:var(--red)">2 件將於今日逾期</div></article>
+          <article class="card kpi"><div class="kpi-label">受影響知識</div><div class="kpi-value">138</div><div class="kpi-foot">橫跨 5 個系統</div></article>
+          <article class="card kpi"><div class="kpi-label">本月準時率</div><div class="kpi-value">92%</div><div class="kpi-foot">較上月提升 4.8%</div></article>
+        </div>
+        <div class="grid-main">
+          <article class="card">
+            <div class="card-head">
+              <div><div class="eyebrow">Risk landscape</div><h2 class="section-title">矛盾風險與影響分布</h2><p class="section-sub">氣泡大小代表引用次數，越靠右上越需優先處理</p></div>
+              <div class="filters"><button class="filter active">全部</button><button class="filter">規則</button><button class="filter">事實</button></div>
+            </div>
+            <div class="card-body"><div id="riskChart" class="chart"></div></div>
+          </article>
+          <article class="card">
+            <div class="card-head">
+              <div><div class="eyebrow">Priority queue</div><h2 class="section-title">優先裁決佇列</h2></div>
+              <span class="badge high">7 高風險</span>
+            </div>
+            <div class="card-body conflict-list">
+              <div class="conflict-item">
+                <div class="conflict-top"><span class="badge high">嚴重</span><small>KNO-001</small></div>
+                <h3>企業退款上限定義不一致</h3>
+                <p>客服手冊標示 NT$50,000，財務規章仍為 NT$30,000。</p>
+                <div class="progress"><span style="width:92%"></span></div>
+                <div class="owner-row"><span class="avatar">陳</span><span>陳怡君 · 知識主管</span></div>
+              </div>
+              <div class="conflict-item">
+                <div class="conflict-top"><span class="badge high">嚴重</span><small>KNO-002</small></div>
+                <h3>SLA 回覆時限衝突</h3>
+                <p>服務條款與客服作業手冊分別定義 4 小時及 8 小時。</p>
+                <div class="progress"><span style="width:78%"></span></div>
+              </div>
+              <div class="conflict-item">
+                <div class="conflict-top"><span class="badge medium">注意</span><small>KNO-003</small></div>
+                <h3>海外客戶驗證文件</h3>
+                <p>會議決議新增護照要求，但正式規章尚未發布。</p>
+                <div class="progress"><span style="width:61%"></span></div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" data-page="1">
+      <header class="page-head">
+        <div class="head-title"><span class="step-tag">流程 2 / 6</span><h1>規則差異比對</h1></div>
+        <div class="head-actions">
+          <span class="sync"><i class="dot"></i>比對模型完成</span>
+          <button class="secondary"><span class="material-symbols-outlined">download</span>匯出差異</button>
+          <button class="primary" data-next="2">確認差異</button>
+        </div>
+      </header>
+      <div class="content">
+        <div class="diff-layout">
+          <aside class="card diff-side">
+            <h2>偵測到 4 處差異</h2>
+            <button class="clause active"><strong>退款金額上限</strong><small><span>第 4.2 條</span><span class="badge high">嚴重</span></small></button>
+            <button class="clause"><strong>核准權責</strong><small><span>第 4.3 條</span><span class="badge medium">注意</span></small></button>
+            <button class="clause"><strong>例外適用範圍</strong><small><span>附則 A</span><span class="badge medium">注意</span></small></button>
+            <button class="clause"><strong>生效日期</strong><small><span>版本資訊</span><span class="badge low">輕微</span></small></button>
+          </aside>
+          <div class="diff-work">
+            <article class="card">
+              <div class="doc-tabs">
+                <button class="doc-tab active">並排比較</button>
+                <button class="doc-tab">統一差異</button>
+                <button class="doc-tab">版本紀錄</button>
+              </div>
+              <div class="compare">
+                <section class="doc-panel">
+                  <div class="doc-meta"><span>客服退款作業手冊 v3.8</span><span>2026/07/18</span></div>
+                  <h3>4.2 企業客戶退款額度</h3>
+                  <div class="document">
+                    <p>企業方案之單筆退款，客服主管得於申請資料完整後逕行核准。</p>
+                    <p>單筆金額不得超過 <span class="mark-red">新臺幣 30,000 元</span>；超過額度者，應送交財務長複核。</p>
+                    <p>若屬系統重複扣款，得不受前項限制，並於三個工作日內完成退款。</p>
+                  </div>
+                  <div class="annotation"><strong>來源註記</strong><br>此版本引用 2025 年財務規章，最近一次由客服營運部修訂。</div>
+                </section>
+                <section class="doc-panel">
+                  <div class="doc-meta"><span>企業財務授權規章 v5.1</span><span>2026/08/01</span></div>
+                  <h3>4.2 企業客戶退款額度</h3>
+                  <div class="document">
+                    <p>企業方案之單筆退款，客服主管得於申請資料完整且完成風險檢核後逕行核准。</p>
+                    <p>單筆金額不得超過 <span class="mark-green">新臺幣 50,000 元</span>；超過額度者，應送交財務經理複核。</p>
+                    <p>若屬系統重複扣款或服務中斷補償，得不受前項限制，並於五個工作日內完成退款。</p>
+                  </div>
+                  <div class="annotation"><strong>AI 判讀</strong><br>金額門檻提高 66.7%，核准角色與例外條件亦有改變，建議以新版財務規章為權威來源。</div>
+                </section>
+              </div>
+            </article>
+            <div class="diff-summary">
+              <article class="card summary-tile"><span>數值衝突</span><strong>1</strong></article>
+              <article class="card summary-tile"><span>條件新增</span><strong>2</strong></article>
+              <article class="card summary-tile"><span>角色異動</span><strong>1</strong></article>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" data-page="2">
+      <header class="page-head">
+        <div class="head-title"><span class="step-tag">流程 3 / 6</span><h1>事實關係圖</h1></div>
+        <div class="head-actions">
+          <span class="sync"><i class="dot"></i>已解析 46 個知識節點</span>
+          <button class="secondary"><span class="material-symbols-outlined">search</span>搜尋節點</button>
+          <button class="primary" data-next="3">脈絡已確認</button>
+        </div>
+      </header>
+      <div class="content">
+        <div class="graph-layout">
+          <article class="card graph-canvas" aria-label="退款規則知識關係圖">
+            <svg class="graph-svg" viewBox="0 0 800 570" preserveAspectRatio="none" aria-hidden="true">
+              <line x1="400" y1="274" x2="160" y2="114"></line>
+              <line class="risk" x1="400" y1="274" x2="616" y2="103"></line>
+              <line x1="400" y1="274" x2="168" y2="410"></line>
+              <line x1="400" y1="274" x2="608" y2="416"></line>
+              <line x1="400" y1="274" x2="400" y2="496"></line>
+              <line x1="160" y1="114" x2="616" y2="103"></line>
+            </svg>
+            <div class="node main n1"><span class="material-symbols-outlined">hub</span><strong>企業退款上限</strong><small>核心爭議主張</small></div>
+            <div class="node n2"><span class="material-symbols-outlined">description</span><strong>客服手冊 v3.8</strong><small>主張 NT$30,000</small></div>
+            <div class="node alert n3"><span class="material-symbols-outlined">policy</span><strong>財務規章 v5.1</strong><small>主張 NT$50,000</small></div>
+            <div class="node n4"><span class="material-symbols-outlined">mail</span><strong>財務公告 #482</strong><small>支持新版額度</small></div>
+            <div class="node n5"><span class="material-symbols-outlined">record_voice_over</span><strong>7/29 決策會議</strong><small>核准調高門檻</small></div>
+            <div class="node n6"><span class="material-symbols-outlined">support_agent</span><strong>客服回覆範本</strong><small>仍引用舊規則</small></div>
+            <div class="graph-legend">實線：支持或引用　<span style="color:var(--red)">虛線：內容衝突</span></div>
+          </article>
+          <aside class="inspector">
+            <article class="card">
+              <div class="card-head"><div><div class="eyebrow">Selected node</div><h2 class="section-title">財務規章 v5.1</h2></div><span class="badge high">權威來源</span></div>
+              <div class="card-body">
+                <div class="trust"><span class="trust-score">96</span><div><strong>可信度</strong><div class="section-sub">已核准正式文件</div></div></div>
+                <div class="fact"><label>文件擁有者</label><strong>財務治理處 · 黃韻文</strong></div>
+                <div class="fact"><label>生效日期</label><strong>2026 年 8 月 1 日</strong></div>
+                <div class="fact"><label>最後核准紀錄</label><strong>財務委員會 FIN-2026-073</strong></div>
+              </div>
+            </article>
+            <article class="card">
+              <div class="card-head"><div><h2 class="section-title">形成脈絡</h2><p class="section-sub">AI 彙整關鍵事件</p></div></div>
+              <div class="card-body timeline">
+                <div class="event"><span class="event-dot"></span><time>07/29 14:20</time><strong>跨部門會議核准</strong><p>因企業方案額度調整，提高客服主管授權上限。</p></div>
+                <div class="event"><span class="event-dot"></span><time>08/01 09:00</time><strong>財務規章生效</strong><p>文件完成電子簽核並發布至知識庫。</p></div>
+                <div class="event"><span class="event-dot" style="background:var(--red)"></span><time>08/02 11:36</time><strong>同步缺口被偵測</strong><p>客服手冊與 12 份回覆範本未更新。</p></div>
+              </div>
+            </article>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" data-page="3">
+      <header class="page-head">
+        <div class="head-title"><span class="step-tag">流程 4 / 6</span><h1>下游影響追蹤</h1></div>
+        <div class="head-actions">
+          <span class="sync"><i class="dot"></i>掃描完成 · 138 個引用</span>
+          <button class="secondary"><span class="material-symbols-outlined">ios_share</span>指派任務</button>
+          <button class="primary" data-next="4">完成影響評估</button>
+        </div>
+      </header>
+      <div class="content">
+        <section class="impact-banner">
+          <div><div class="eyebrow" style="color:#c7d7ff">Impact assessment</div><h2>退款上限矛盾影響 4 個服務接點</h2><p>若未在 8 月 23 日前更正，預估每週將產生 18 件人工升級案件。</p></div>
+          <div class="impact-total"><strong>高風險</strong><span>整體影響等級</span></div>
+        </section>
+        <div class="impact-grid">
+          <div>
+            <article class="card">
+              <div class="card-head"><div><div class="eyebrow">Dependency flow</div><h2 class="section-title">矛盾內容傳播路徑</h2><p class="section-sub">從權威規章流向各服務接點的引用關係</p></div></div>
+              <div class="card-body"><div id="impactChart" class="chart"></div></div>
+            </article>
+            <div class="impact-groups" style="margin-top:18px">
+              <article class="card impact-group"><div class="group-icon"><span class="material-symbols-outlined">quickreply</span></div><h3>客服回覆範本</h3><p>對外文字仍引用 NT$30,000 舊額度</p><div class="impact-count">12 <small>份</small></div></article>
+              <article class="card impact-group"><div class="group-icon"><span class="material-symbols-outlined">confirmation_number</span></div><h3>進行中工單</h3><p>已進入人工退款審核且金額超過舊門檻</p><div class="impact-count">18 <small>件</small></div></article>
+              <article class="card impact-group"><div class="group-icon"><span class="material-symbols-outlined">smart_toy</span></div><h3>AI 客服知識</h3><p>3 個意圖節點需重新建立索引</p><div class="impact-count">46 <small>節點</small></div></article>
+              <article class="card impact-group"><div class="group-icon"><span class="material-symbols-outlined">code</span></div><h3>核准流程規則</h3><p>自動轉派條件仍使用舊版門檻</p><div class="impact-count">2 <small>條</small></div></article>
+            </div>
+          </div>
+          <aside class="card">
+            <div class="card-head"><div><div class="eyebrow">Action list</div><h2 class="section-title">修正工作清單</h2></div><span class="badge blue">1 / 5 完成</span></div>
+            <div class="card-body">
+              <table class="task-table">
+                <thead><tr><th></th><th>項目</th><th>負責人</th><th>期限</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="check checked">✓</span></td><td><strong>凍結舊版範本</strong><br><small>12 份客服稿</small></td><td>李欣怡</td><td>D+0</td></tr>
+                  <tr><td><span class="check"></span></td><td><strong>重新索引知識</strong><br><small>AI 客服節點</small></td><td>王冠宇</td><td>D+1</td></tr>
+                  <tr><td><span class="check"></span></td><td><strong>更新核准條件</strong><br><small>退款流程引擎</small></td><td>趙敏</td><td>D+1</td></tr>
+                  <tr><td><span class="check"></span></td><td><strong>檢視進行中案件</strong><br><small>18 件需重判</small></td><td>客服一組</td><td>D+2</td></tr>
+                  <tr><td><span class="check"></span></td><td><strong>通知企業客戶</strong><br><small>客戶成功中心</small></td><td>周雨潔</td><td>D+3</td></tr>
+                </tbody>
+              </table>
+              <button class="secondary" style="width:100%;margin-top:16px"><span class="material-symbols-outlined">add_task</span>建立批次修正任務</button>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" data-page="4">
+      <header class="page-head">
+        <div class="head-title"><span class="step-tag">流程 5 / 6</span><h1>裁決工作台</h1></div>
+        <div class="head-actions">
+          <span class="sync"><i class="dot"></i>草稿已儲存</span>
+          <button class="secondary" data-action="save"><span class="material-symbols-outlined">save</span>儲存草稿</button>
+          <button class="primary" data-action="submit">送交核准</button>
+        </div>
+      </header>
+      <div class="content">
+        <div class="decision-layout">
+          <article class="card decision-editor">
+            <div class="card-head">
+              <div><div class="eyebrow">Decision draft</div><h2 class="section-title">AI 裁決草案</h2><p class="section-sub">KNO-001 · 企業退款上限定義不一致</p></div>
+              <span class="badge blue"><span class="material-symbols-outlined" style="font-size:14px">auto_awesome</span>AI 已彙整</span>
+            </div>
+            <div class="editor-toolbar">
+              <button class="tool" aria-label="粗體">B</button><button class="tool" aria-label="斜體"><i>I</i></button>
+              <button class="tool" aria-label="項目符號">☷</button><button class="tool" aria-label="插入連結">↗</button>
+            </div>
+            <div class="editor-area">
+              <label for="decisionTitle">裁決標題</label>
+              <input id="decisionTitle" class="title-input" value="統一企業客戶退款授權上限為 NT$50,000">
+              <label for="decisionBody">權威說法與處置</label>
+              <textarea id="decisionBody">自 2026 年 8 月 25 日起，企業方案之單筆退款授權上限統一為新臺幣 50,000 元。
+
+客服主管須於申請資料完整且完成風險檢核後始得核准；超過額度者，送交財務經理複核。系統重複扣款或服務中斷補償得不受前項限制。
+
+以《企業財務授權規章 v5.1》為權威來源，客服退款作業手冊 v3.8 應停止引用並於三個工作日內完成修訂。</textarea>
+              <div class="form-grid">
+                <label>權威來源<select class="select-field"><option>企業財務授權規章 v5.1</option><option>客服退款作業手冊 v3.8</option></select></label>
+                <label>生效日期<input class="select-field" type="date" value="2026-08-25"></label>
+                <label>裁決類型<select class="select-field"><option>新版本取代舊版本</option><option>依情境並存</option><option>撤銷雙方說法</option></select></label>
+                <label>覆核層級<select class="select-field"><option>知識治理委員會</option><option>財務主管</option></select></label>
+              </div>
+              <div class="ai-note"><strong>AI 完整性檢查：</strong>已包含權威來源、生效日期、適用條件與舊版本處置。建議補充「進行中案件是否溯及適用」。</div>
+            </div>
+          </article>
+          <aside class="evidence-stack">
+            <article class="card">
+              <div class="card-head"><div><h2 class="section-title">裁決證據</h2><p class="section-sub">3 份關鍵來源</p></div></div>
+              <div class="card-body evidence-stack">
+                <button class="source-card"><small>正式文件 · 可信度 96</small><strong>企業財務授權規章 v5.1</strong><span class="badge done">權威來源</span></button>
+                <button class="source-card"><small>會議 · 可信度 88</small><strong>7/29 財務決策會議</strong><span class="badge blue">支持</span></button>
+                <button class="source-card"><small>郵件 · 可信度 81</small><strong>財務公告 FIN-482</strong><span class="badge blue">支持</span></button>
+              </div>
+            </article>
+            <article class="card">
+              <div class="card-head"><div><h2 class="section-title">核准路徑</h2></div><span class="badge medium">待送出</span></div>
+              <div class="card-body">
+                <div class="approval-line"><span class="avatar">黃</span><div><strong>黃韻文</strong><small>財務規章擁有者</small></div><span class="badge done">已確認</span></div>
+                <div class="approval-line"><span class="avatar">張</span><div><strong>張家豪</strong><small>客服營運主管</small></div><span class="badge medium">待核准</span></div>
+                <div class="approval-line"><span class="avatar">林</span><div><strong>林慧真</strong><small>知識治理者</small></div><span class="badge medium">待核准</span></div>
+              </div>
+            </article>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" data-page="5">
+      <header class="page-head">
+        <div class="head-title"><span class="step-tag">流程 6 / 6</span><h1>裁決發布中心</h1></div>
+        <div class="head-actions">
+          <span class="sync"><i class="dot"></i>所有檢核均通過</span>
+          <button class="secondary"><span class="material-symbols-outlined">visibility</span>預覽公告</button>
+          <button class="primary" data-action="publish"><span class="material-symbols-outlined">rocket_launch</span>核准並發布</button>
+        </div>
+      </header>
+      <div class="content">
+        <div class="publish-hero">
+          <article class="card release-card">
+            <div class="release-icon"><span class="material-symbols-outlined">verified</span></div>
+            <div><span class="badge done">已完成雙人覆核</span><h2>退款授權上限統一裁決</h2><p>REL-2026-0821 · 將同步更正 5 個下游系統</p></div>
+            <div class="release-meta"><strong>2026/08/25 09:00</strong><small>預定生效</small></div>
+          </article>
+          <article class="card readiness">
+            <div class="readiness-row"><div><div class="eyebrow">Readiness</div><h2 class="section-title">發布準備度</h2></div><strong>100%</strong></div>
+            <div class="progress"><span style="width:100%;background:var(--green)"></span></div>
+            <p class="section-sub" style="margin-top:10px">規則、權限與通知對象皆已驗證</p>
+          </article>
+        </div>
+        <div class="publish-grid">
+          <div>
+            <article class="card">
+              <div class="card-head"><div><div class="eyebrow">Distribution</div><h2 class="section-title">同步發布範圍</h2><p class="section-sub">核准後依序更新並保留舊規則關係</p></div><span class="badge blue">138 個引用</span></div>
+              <div class="card-body channel-list">
+                <div class="channel"><div class="channel-icon"><span class="material-symbols-outlined">menu_book</span></div><div><strong>企業知識庫</strong><small>取代客服手冊條文並保留版本鏈</small></div><span class="badge done">驗證完成</span></div>
+                <div class="channel"><div class="channel-icon"><span class="material-symbols-outlined">support_agent</span></div><div><strong>客服工作台</strong><small>更新 12 份回覆範本與提示卡</small></div><span class="badge done">驗證完成</span></div>
+                <div class="channel"><div class="channel-icon"><span class="material-symbols-outlined">smart_toy</span></div><div><strong>AI 客服索引</strong><small>重建 46 個知識節點與檢索權重</small></div><span class="badge done">驗證完成</span></div>
+                <div class="channel"><div class="channel-icon"><span class="material-symbols-outlined">account_tree</span></div><div><strong>退款流程引擎</strong><small>調整 2 條金額門檻規則</small></div><span class="badge done">驗證完成</span></div>
+                <div class="channel"><div class="channel-icon"><span class="material-symbols-outlined">campaign</span></div><div><strong>影響對象通知</strong><small>通知客服、財務及客戶成功中心共 86 人</small></div><span class="badge done">名單完成</span></div>
+              </div>
+            </article>
+            <article class="card" style="margin-top:18px">
+              <div class="card-head"><div><div class="eyebrow">KPI forecast</div><h2 class="section-title">準時率改善趨勢</h2></div><span class="badge done">目標 92%</span></div>
+              <div class="card-body"><div id="publishChart" class="chart short"></div></div>
+            </article>
+          </div>
+          <aside>
+            <article class="card">
+              <div class="card-head"><div><div class="eyebrow">Audit trail</div><h2 class="section-title">可追溯操作紀錄</h2></div></div>
+              <div class="card-body timeline">
+                <div class="event"><span class="event-dot"></span><time>08/21 15:42</time><strong>治理者完成核准</strong><p>林慧真確認權威來源、生效日及影響範圍。</p></div>
+                <div class="event"><span class="event-dot"></span><time>08/21 14:18</time><strong>客服主管完成覆核</strong><p>確認進行中案件採新規則重新判定。</p></div>
+                <div class="event"><span class="event-dot"></span><time>08/21 11:05</time><strong>裁決草案提交</strong><p>AI 完整性檢查通過，證據鏈已鎖定。</p></div>
+                <div class="event"><span class="event-dot"></span><time>08/20 16:30</time><strong>影響評估完成</strong><p>辨識 138 個引用及 5 個同步目標。</p></div>
+                <div class="event"><span class="event-dot"></span><time>08/20 09:12</time><strong>矛盾正式立案</strong><p>系統建立 KNO-001 並指派知識主管。</p></div>
+              </div>
+            </article>
+            <article class="card" style="margin-top:18px">
+              <div class="card-head"><div><h2 class="section-title">發布後監測</h2></div></div>
+              <div class="card-body">
+                <div class="fact"><label>監測期間</label><strong>生效後 14 天</strong></div>
+                <div class="fact"><label>成功條件</label><strong>舊版引用歸零、同步成功率 100%</strong></div>
+                <div class="fact"><label>異常負責人</label><strong>知識治理值班小組</strong></div>
+              </div>
+            </article>
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  "use strict";
+  const pages = [...document.querySelectorAll("[data-page]")];
+  const navButtons = [...document.querySelectorAll("[data-i]")];
+  const chartInstances = {};
+  let currentPage = 0;
+
+  function chartBase() {
+    return {
+      textStyle: {fontFamily:'Inter,"Noto Sans TC",sans-serif', color:"#71809d"},
+      tooltip: {trigger:"item", backgroundColor:"#172442", borderWidth:0, textStyle:{color:"#fff"}},
+      animationDuration:700
+    };
+  }
+
+  function initRiskChart() {
+    const el = document.getElementById("riskChart");
+    if (!el || el.clientWidth < 1 || chartInstances.risk) return;
+    const chart = echarts.init(el);
+    chart.setOption({
+      ...chartBase(),
+      grid:{left:48,right:25,top:25,bottom:44},
+      xAxis:{name:"影響範圍",min:0,max:100,splitLine:{lineStyle:{color:"#edf0f6"}},axisLine:{show:false},axisTick:{show:false}},
+      yAxis:{name:"衝突風險",min:0,max:100,splitLine:{lineStyle:{color:"#edf0f6"}},axisLine:{show:false},axisTick:{show:false}},
+      visualMap:{show:false,min:0,max:100,inRange:{color:["#6f8fdc","#1e40af","#c53b49"]}},
+      series:[{
+        type:"scatter",
+        symbolSize:value => Math.max(18,value[2]/2.3),
+        data:[
+          [91,94,72,"退款上限"],[78,86,54,"SLA 時限"],[66,72,43,"海外驗證"],
+          [48,64,31,"升級權責"],[72,45,38,"保留期限"],[38,52,26,"折扣條件"],
+          [55,31,21,"報表口徑"],[27,40,18,"標籤名稱"]
+        ],
+        label:{show:true,formatter:p=>p.data[3],position:"top",fontSize:11,color:"#34425e"},
+        emphasis:{scale:1.12}
+      }]
+    });
+    chartInstances.risk = chart;
+  }
+
+  function initImpactChart() {
+    const el = document.getElementById("impactChart");
+    if (!el || el.clientWidth < 1 || chartInstances.impact) return;
+    const chart = echarts.init(el);
+    chart.setOption({
+      ...chartBase(),
+      tooltip:{trigger:"item",triggerOn:"mousemove"},
+      series:[{
+        type:"sankey",left:8,right:15,top:14,bottom:10,nodeWidth:15,nodeGap:16,
+        data:[
+          {name:"財務規章 v5.1"},{name:"客服手冊"},{name:"退款流程"},{name:"回覆範本"},
+          {name:"AI 知識節點"},{name:"進行中工單"},{name:"客服人員"},{name:"企業客戶"}
+        ],
+        links:[
+          {source:"財務規章 v5.1",target:"客服手冊",value:12},
+          {source:"財務規章 v5.1",target:"退款流程",value:8},
+          {source:"客服手冊",target:"回覆範本",value:10},
+          {source:"客服手冊",target:"AI 知識節點",value:8},
+          {source:"退款流程",target:"進行中工單",value:7},
+          {source:"回覆範本",target:"客服人員",value:9},
+          {source:"AI 知識節點",target:"客服人員",value:6},
+          {source:"進行中工單",target:"企業客戶",value:7},
+          {source:"客服人員",target:"企業客戶",value:12}
+        ],
+        lineStyle:{color:"gradient",curveness:.5,opacity:.35},
+        itemStyle:{color:"#1e40af",borderColor:"#fff",borderWidth:1},
+        label:{fontSize:11,color:"#34425e"}
+      }]
+    });
+    chartInstances.impact = chart;
+  }
+
+  function initPublishChart() {
+    const el = document.getElementById("publishChart");
+    if (!el || el.clientWidth < 1 || chartInstances.publish) return;
+    const chart = echarts.init(el);
+    chart.setOption({
+      ...chartBase(),
+      grid:{left:38,right:18,top:20,bottom:30},
+      xAxis:{type:"category",data:["W1","W2","W3","W4","W5","W6"],boundaryGap:false,axisLine:{lineStyle:{color:"#dce4f1"}},axisTick:{show:false}},
+      yAxis:{type:"value",min:60,max:100,axisLabel:{formatter:"{value}%"},splitLine:{lineStyle:{color:"#edf0f6"}},axisLine:{show:false}},
+      series:[{
+        name:"任務準時率",type:"line",smooth:true,data:[68,72.8,77.6,82.4,87.2,92],
+        symbolSize:8,lineStyle:{width:3,color:"#1e40af"},itemStyle:{color:"#1e40af"},
+        areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"#7393e455"},{offset:1,color:"#7393e405"}]}},
+        markLine:{silent:true,symbol:"none",data:[{yAxis:92,label:{formatter:"目標 92%"},lineStyle:{color:"#14845d",type:"dashed"}}]}
+      }]
+    });
+    chartInstances.publish = chart;
+  }
+
+  function initVisibleChart(index) {
+    if (index === 0) initRiskChart();
+    if (index === 3) initImpactChart();
+    if (index === 5) initPublishChart();
+  }
+
+  function show(index) {
+    const safeIndex = Math.max(0, Math.min(5, Number(index) || 0));
+    currentPage = safeIndex;
+    pages.forEach((page, pageIndex) => page.classList.toggle("active", pageIndex === safeIndex));
+    navButtons.forEach((button, buttonIndex) => {
+      button.classList.toggle("active", buttonIndex === safeIndex);
+      button.setAttribute("aria-current", buttonIndex === safeIndex ? "step" : "false");
+    });
+    requestAnimationFrame(() => initVisibleChart(safeIndex));
+  }
+
+  function hashIndex() {
+    const match = location.hash.match(/(?:go=|v)([0-9]+)/);
+    return match ? Number(match[1]) : 0;
+  }
+
+  function navigate(index) {
+    const safeIndex = Math.max(0, Math.min(5, Number(index) || 0));
+    if (location.hash === "#go=" + safeIndex) show(safeIndex);
+    else location.hash = "go=" + safeIndex;
+  }
+
+  function notify(message) {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.classList.remove("show");
+    void toast.offsetWidth;
+    toast.classList.add("show");
+  }
+
+  navButtons.forEach(button => button.addEventListener("click", () => navigate(button.dataset.i)));
+  document.querySelectorAll("[data-next]").forEach(button => button.addEventListener("click", () => navigate(button.dataset.next)));
+  document.querySelectorAll(".filter").forEach(button => button.addEventListener("click", () => {
+    button.parentElement.querySelectorAll(".filter").forEach(item => item.classList.remove("active"));
+    button.classList.add("active");
+  }));
+  document.querySelectorAll(".clause").forEach(button => button.addEventListener("click", () => {
+    document.querySelectorAll(".clause").forEach(item => item.classList.remove("active"));
+    button.classList.add("active");
+    notify("已切換至「" + button.querySelector("strong").textContent + "」差異");
+  }));
+  document.querySelectorAll("[data-action]").forEach(button => button.addEventListener("click", () => {
+    const action = button.dataset.action;
+    if (action === "save") notify("裁決草稿已安全儲存");
+    if (action === "submit") { notify("裁決提案已送交雙人覆核"); navigate(5); }
+    if (action === "publish") {
+      button.innerHTML = '<span class="material-symbols-outlined">check_circle</span>發布排程完成';
+      notify("裁決已核准，將於 2026/08/25 09:00 同步發布");
+    }
+  }));
+  document.querySelectorAll(".check").forEach(box => box.addEventListener("click", () => {
+    box.classList.toggle("checked");
+    box.textContent = box.classList.contains("checked") ? "✓" : "";
+  }));
+  window.addEventListener("hashchange", () => show(hashIndex()));
+  window.addEventListener("resize", () => {
+    Object.values(chartInstances).forEach(chart => chart.resize());
+  });
+  window.show = show;
+  show(hashIndex());
+})();
+</script>
+</body>
+</html>

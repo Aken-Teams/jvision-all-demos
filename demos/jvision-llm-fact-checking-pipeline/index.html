@@ -1,0 +1,1516 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LLM 事實核對流水線 · operations-console｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --blue:#4d7c0f;
+  --ink:#17210f;
+  --body:#34402e;
+  --muted:#6d7868;
+  --line:#dce5d5;
+  --bg:#f5f8f1;
+  --green:#16825d;
+  --amber:#c47a0b;
+  --red:#c7473c;
+  --white:#fff;
+  --blue-soft:#eef6e3;
+  --shadow:0 16px 40px rgba(36,55,22,.08);
+  --radius:18px
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-width:0;
+  color:var(--body);
+  background:var(--bg);
+  font-family:Inter,"Noto Sans TC",sans-serif;
+  -webkit-font-smoothing:antialiased
+}
+button,input,select,textarea{font:inherit}
+button{color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(77,124,15,.25);
+  outline-offset:2px
+}
+.material-symbols-outlined{
+  font-size:20px;
+  line-height:1;
+  font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24
+}
+.app-shell{
+  min-height:100vh;
+  display:grid;
+  grid-template-columns:220px minmax(0,1fr)
+}
+.side-rail{
+  position:sticky;
+  top:0;
+  height:100vh;
+  padding:22px 16px;
+  border-right:1px solid var(--line);
+  background:#fbfcf9;
+  display:flex;
+  flex-direction:column;
+  z-index:20
+}
+.brand{
+  display:flex;
+  gap:11px;
+  align-items:center;
+  padding:0 8px 22px
+}
+.brand-mark{
+  width:38px;
+  height:38px;
+  border-radius:12px;
+  color:#fff;
+  background:var(--blue);
+  display:grid;
+  place-items:center;
+  box-shadow:0 9px 20px rgba(77,124,15,.25)
+}
+.brand-copy strong{
+  display:block;
+  color:var(--ink);
+  font-size:14px;
+  letter-spacing:.01em
+}
+.brand-copy span{font-size:11px;color:var(--muted)}
+.nav-label{
+  margin:4px 10px 9px;
+  color:#8a9485;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase
+}
+.stage-nav{display:grid;gap:6px}
+.stage-button{
+  width:100%;
+  min-height:54px;
+  border:0;
+  border-radius:13px;
+  background:transparent;
+  display:grid;
+  grid-template-columns:30px 1fr;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  text-align:left;
+  cursor:pointer
+}
+.stage-button:hover{background:#f0f4eb}
+.stage-button.active{
+  color:var(--blue);
+  background:var(--blue-soft);
+  box-shadow:inset 3px 0 var(--blue)
+}
+.stage-number{
+  width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--line);
+  border-radius:9px;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
+  background:#fff
+}
+.stage-button.active .stage-number{
+  color:#fff;
+  border-color:var(--blue);
+  background:var(--blue)
+}
+.stage-title{font-size:12px;font-weight:700;line-height:1.35}
+.rail-foot{
+  margin-top:auto;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:12px;
+  background:#fff
+}
+.rail-foot-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  color:var(--muted);
+  font-size:11px
+}
+.live-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 0 5px rgba(22,130,93,.1);
+  animation:pulse 2.2s ease-in-out infinite
+}
+@keyframes pulse{50%{box-shadow:0 0 0 9px rgba(22,130,93,0)}}
+.workspace{min-width:0}
+.topbar{
+  height:70px;
+  padding:0 clamp(18px,3vw,42px);
+  border-bottom:1px solid var(--line);
+  background:rgba(255,255,255,.87);
+  backdrop-filter:blur(12px);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  position:sticky;
+  top:0;
+  z-index:15
+}
+.breadcrumb{min-width:0}
+.breadcrumb small{
+  display:block;
+  margin-bottom:3px;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.08em
+}
+.breadcrumb strong{
+  color:var(--ink);
+  font-size:15px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  display:block
+}
+.top-actions{display:flex;align-items:center;gap:8px}
+.icon-button,.avatar{
+  width:40px;
+  height:40px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+  display:grid;
+  place-items:center;
+  cursor:pointer
+}
+.avatar{
+  color:#fff;
+  border:0;
+  background:#26351e;
+  font-size:12px;
+  font-weight:800
+}
+.main-area{padding:clamp(18px,3vw,42px);min-width:0}
+.screen{display:none;min-width:0}
+.screen.active{display:block;animation:screen-in .3s ease both}
+@keyframes screen-in{from{opacity:0;transform:translateY(7px)}}
+.screen-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:24px;
+  margin-bottom:22px
+}
+.eyebrow{
+  margin:0 0 8px;
+  color:var(--blue);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase
+}
+h1,h2,h3,p{margin-top:0}
+h1{
+  max-width:780px;
+  margin-bottom:8px;
+  color:var(--ink);
+  font-size:clamp(24px,3vw,36px);
+  line-height:1.15;
+  letter-spacing:-.035em
+}
+.screen-head p{
+  max-width:760px;
+  margin-bottom:0;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.7
+}
+.head-actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+.button{
+  min-height:42px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:9px 14px;
+  background:#fff;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer
+}
+.button:hover{border-color:#abbc9e;background:#fbfdf8}
+.button.primary{color:#fff;border-color:var(--blue);background:var(--blue)}
+.button.primary:hover{background:#3f680b}
+.button.danger{color:var(--red);border-color:#efc7c2;background:#fff8f7}
+.card{
+  min-width:0;
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  background:#fff;
+  box-shadow:0 8px 28px rgba(44,65,31,.045)
+}
+.card-pad{padding:20px}
+.card-head{
+  min-height:44px;
+  padding:16px 18px 12px;
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:16px;
+  border-bottom:1px solid #edf1e9
+}
+.card-head h2,.card-head h3{
+  margin-bottom:3px;
+  color:var(--ink);
+  font-size:14px
+}
+.card-head p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  min-height:24px;
+  border-radius:999px;
+  padding:3px 9px;
+  font-size:10px;
+  font-weight:800;
+  white-space:nowrap
+}
+.badge.high{color:#a3322a;background:#fdecea}
+.badge.medium{color:#995d06;background:#fff2d9}
+.badge.good{color:#0f7250;background:#e7f7f1}
+.badge.neutral{color:#566252;background:#eef2eb}
+.badge.blue{color:var(--blue);background:var(--blue-soft)}
+.metric-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:13px;
+  margin-bottom:16px
+}
+.metric{
+  padding:17px;
+  border:1px solid var(--line);
+  border-radius:15px;
+  background:#fff
+}
+.metric-label{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+  color:var(--muted);
+  font-size:11px
+}
+.metric-value{
+  margin-top:9px;
+  color:var(--ink);
+  font-size:24px;
+  font-weight:800;
+  letter-spacing:-.04em
+}
+.metric-delta{margin-top:5px;color:var(--green);font-size:10px;font-weight:700}
+.grid-intake{
+  display:grid;
+  grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr);
+  gap:16px
+}
+.response-box{
+  margin:18px;
+  padding:18px;
+  border:1px solid #dfe7d8;
+  border-radius:15px;
+  background:#fafcf8
+}
+.request-line{
+  display:flex;
+  gap:10px;
+  justify-content:space-between;
+  align-items:flex-start;
+  padding-bottom:14px;
+  margin-bottom:15px;
+  border-bottom:1px solid var(--line)
+}
+.request-id{color:var(--ink);font-size:12px;font-weight:800}
+.request-meta{color:var(--muted);font-size:10px}
+.prompt{
+  margin-bottom:12px;
+  color:#566151;
+  font-size:11px;
+  font-weight:700
+}
+.response-text{
+  color:#283423;
+  font-size:13px;
+  line-height:1.85
+}
+.claim-mark{
+  border-bottom:2px solid #e0a241;
+  background:#fff4d8;
+  border-radius:3px;
+  padding:1px 3px
+}
+.response-footer{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-top:16px
+}
+.risk-panel{display:grid;gap:16px}
+.risk-score{
+  padding:22px;
+  color:#fff;
+  border-radius:var(--radius);
+  background:linear-gradient(145deg,#26391a,#4d7c0f);
+  box-shadow:var(--shadow)
+}
+.risk-score small{font-size:11px;opacity:.78}
+.score-row{
+  margin:10px 0 8px;
+  display:flex;
+  align-items:flex-end;
+  gap:8px
+}
+.score-row strong{font-size:42px;line-height:1;letter-spacing:-.06em}
+.score-row span{font-size:12px;opacity:.75}
+.risk-bar{
+  height:7px;
+  border-radius:99px;
+  overflow:hidden;
+  background:rgba(255,255,255,.18)
+}
+.risk-bar span{display:block;width:86%;height:100%;background:#dced9f}
+.risk-reasons{padding:5px 18px}
+.reason{
+  display:grid;
+  grid-template-columns:34px 1fr auto;
+  gap:10px;
+  align-items:center;
+  padding:13px 0;
+  border-bottom:1px solid #edf1e9
+}
+.reason:last-child{border-bottom:0}
+.reason-icon{
+  width:34px;height:34px;border-radius:10px;
+  display:grid;place-items:center;
+  color:var(--amber);background:#fff4df
+}
+.reason strong{display:block;color:var(--ink);font-size:11px}
+.reason small{color:var(--muted);font-size:10px}
+.form-strip{
+  margin-top:16px;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr)) auto;
+  gap:11px;
+  align-items:end
+}
+.field label{
+  display:block;
+  margin-bottom:6px;
+  color:#687263;
+  font-size:10px;
+  font-weight:800
+}
+.field input,.field select,.field textarea{
+  width:100%;
+  min-height:42px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  padding:9px 11px;
+  color:var(--body);
+  background:#fff
+}
+.claim-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(270px,.65fr);
+  gap:16px
+}
+.claim-list{padding:8px 18px 16px}
+.claim-row{
+  display:grid;
+  grid-template-columns:38px minmax(180px,1fr) 86px 90px 36px;
+  gap:11px;
+  align-items:center;
+  padding:14px 0;
+  border-bottom:1px solid #edf1e9
+}
+.claim-row:last-child{border-bottom:0}
+.claim-index{
+  width:32px;height:32px;border:1px solid var(--line);border-radius:10px;
+  display:grid;place-items:center;color:var(--blue);font-size:10px;font-weight:800
+}
+.claim-copy strong{display:block;color:var(--ink);font-size:12px;line-height:1.45}
+.claim-copy small{display:block;margin-top:3px;color:var(--muted);font-size:10px}
+.mini-meter{
+  height:5px;border-radius:9px;background:#edf1e9;overflow:hidden;margin-top:5px
+}
+.mini-meter i{display:block;height:100%;border-radius:9px;background:var(--blue)}
+.rank-value{color:var(--ink);font-size:12px;font-weight:800}
+.rank-value small{color:var(--muted);font-size:9px;font-weight:600}
+.row-menu{
+  width:34px;height:34px;border:0;border-radius:9px;background:#f5f7f2;cursor:pointer
+}
+.priority-stack{padding:16px}
+.priority-card{
+  position:relative;
+  overflow:hidden;
+  padding:15px;
+  margin-bottom:10px;
+  border:1px solid var(--line);
+  border-radius:14px
+}
+.priority-card:before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--amber)
+}
+.priority-card.good-edge:before{background:var(--green)}
+.priority-card strong{display:block;margin-bottom:6px;color:var(--ink);font-size:12px}
+.priority-card p{margin-bottom:10px;color:var(--muted);font-size:10px;line-height:1.55}
+.priority-meta{display:flex;justify-content:space-between;gap:8px;font-size:9px}
+.logic-box{
+  margin-top:16px;padding:15px;border-radius:15px;color:#dce8d4;background:#25321f
+}
+.logic-box strong{display:block;margin-bottom:9px;color:#fff;font-size:11px}
+.logic-code{font-family:ui-monospace,SFMono-Regular,monospace;font-size:10px;line-height:1.7}
+.source-layout{
+  display:grid;
+  grid-template-columns:250px minmax(0,1fr);
+  gap:16px
+}
+.source-directory{padding:12px}
+.source-item{
+  width:100%;
+  min-height:58px;
+  border:0;
+  border-radius:13px;
+  padding:10px;
+  background:transparent;
+  display:grid;
+  grid-template-columns:36px 1fr auto;
+  align-items:center;
+  gap:9px;
+  text-align:left;
+  cursor:pointer
+}
+.source-item:hover,.source-item.selected{background:var(--blue-soft)}
+.source-symbol{
+  width:36px;height:36px;border-radius:10px;display:grid;place-items:center;
+  color:var(--blue);background:#f0f5e9
+}
+.source-item strong{display:block;color:var(--ink);font-size:11px}
+.source-item small{color:var(--muted);font-size:9px}
+.sync-state{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.evidence-summary{
+  display:grid;grid-template-columns:1.2fr .8fr;gap:13px;padding:16px
+}
+.record-card{
+  padding:17px;border:1px solid var(--line);border-radius:15px;background:#fbfcfa
+}
+.record-card h3{margin-bottom:5px;color:var(--ink);font-size:12px}
+.record-card p{margin-bottom:12px;color:var(--muted);font-size:10px;line-height:1.6}
+.fact-value{color:var(--ink);font-size:27px;font-weight:800}
+.fact-value span{font-size:11px;color:var(--muted)}
+.match-ring{
+  width:94px;height:94px;margin:auto;border-radius:50%;
+  background:conic-gradient(var(--green) 0 92%,#e9eee5 92% 100%);
+  display:grid;place-items:center
+}
+.match-ring:after{
+  content:"92%";width:72px;height:72px;border-radius:50%;background:#fff;
+  display:grid;place-items:center;color:var(--ink);font-size:18px;font-weight:800
+}
+.data-table-wrap{overflow:auto}
+.data-table{width:100%;border-collapse:collapse;min-width:680px}
+.data-table th{
+  padding:11px 15px;color:var(--muted);background:#fafbf9;
+  font-size:9px;text-align:left;text-transform:uppercase;letter-spacing:.07em
+}
+.data-table td{
+  padding:13px 15px;border-top:1px solid #edf1e9;color:var(--body);font-size:11px
+}
+.data-table td strong{color:var(--ink)}
+.external-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.1fr) minmax(290px,.9fr);
+  gap:16px
+}
+.research-query{
+  margin:16px;padding:13px;border:1px solid var(--line);border-radius:13px;
+  display:flex;align-items:center;gap:9px
+}
+.research-query input{width:100%;border:0;outline:0;color:var(--ink)}
+.source-results{padding:0 16px 16px}
+.result-card{
+  padding:14px 0;border-bottom:1px solid #edf1e9;
+  display:grid;grid-template-columns:38px 1fr auto;gap:11px
+}
+.result-card:last-child{border-bottom:0}
+.domain-icon{
+  width:38px;height:38px;border-radius:11px;background:#f0f4eb;
+  display:grid;place-items:center;color:var(--blue);font-size:11px;font-weight:800
+}
+.result-card strong{color:var(--ink);font-size:11px}
+.result-card p{margin:4px 0;color:var(--muted);font-size:10px;line-height:1.55}
+.result-meta{display:flex;gap:10px;color:#8a9484;font-size:9px}
+.credibility{color:var(--green);font-size:11px;font-weight:800}
+.chart-card{padding:17px}
+.chart-wrap{position:relative;width:100%;height:260px}
+.timeline{margin-top:16px;padding:17px}
+.timeline-item{
+  position:relative;padding:0 0 17px 25px;color:var(--muted);font-size:10px
+}
+.timeline-item:before{
+  content:"";position:absolute;left:4px;top:4px;width:8px;height:8px;
+  border-radius:50%;background:var(--blue);box-shadow:0 0 0 4px var(--blue-soft)
+}
+.timeline-item:after{
+  content:"";position:absolute;left:7px;top:15px;bottom:2px;width:1px;background:var(--line)
+}
+.timeline-item:last-child:after{display:none}
+.timeline-item strong{display:block;margin-bottom:3px;color:var(--ink);font-size:11px}
+.verdict-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(270px,.65fr);
+  gap:16px
+}
+.verdict-board{padding:16px}
+.verdict-card{
+  padding:16px;margin-bottom:11px;border:1px solid var(--line);
+  border-radius:15px;background:#fff
+}
+.verdict-card:last-child{margin-bottom:0}
+.verdict-line{display:flex;justify-content:space-between;gap:14px}
+.verdict-card h3{margin-bottom:5px;color:var(--ink);font-size:12px;line-height:1.5}
+.verdict-card p{margin-bottom:12px;color:var(--muted);font-size:10px}
+.evidence-track{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:7px
+}
+.evidence-cell{
+  padding:8px;border-radius:9px;background:#f4f7f1;color:var(--muted);font-size:9px
+}
+.evidence-cell strong{display:block;margin-top:3px;color:var(--ink);font-size:10px}
+.verdict-side{display:grid;gap:16px}
+.legend-list{padding:8px 17px 16px}
+.legend-row{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:10px 0;border-bottom:1px solid #edf1e9;font-size:10px
+}
+.legend-row:last-child{border-bottom:0}
+.legend-key{display:flex;align-items:center;gap:8px}
+.legend-dot{width:9px;height:9px;border-radius:3px;background:var(--green)}
+.note-area{padding:16px}
+.note-area textarea{width:100%;height:92px;resize:vertical}
+.deploy-layout{
+  display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr);gap:16px
+}
+.diff-view{padding:16px}
+.diff-columns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.diff-panel{
+  min-width:0;border:1px solid var(--line);border-radius:14px;overflow:hidden
+}
+.diff-label{
+  padding:10px 13px;background:#f7f9f5;color:var(--muted);
+  font-size:10px;font-weight:800
+}
+.diff-content{
+  min-height:190px;padding:14px;color:#465142;font-size:11px;line-height:1.75
+}
+.removed{color:#a33b32;background:#fff0ee;text-decoration:line-through}
+.added{color:#196848;background:#e9f7f0}
+.checklist{padding:8px 17px 16px}
+.check-row{
+  display:grid;grid-template-columns:30px 1fr auto;gap:10px;
+  align-items:center;padding:12px 0;border-bottom:1px solid #edf1e9
+}
+.check-row:last-child{border-bottom:0}
+.check-icon{
+  width:28px;height:28px;border-radius:9px;display:grid;place-items:center;
+  color:var(--green);background:#e8f6ef
+}
+.check-row strong{display:block;color:var(--ink);font-size:10px}
+.check-row small{color:var(--muted);font-size:9px}
+.release-banner{
+  padding:18px;border-radius:17px;color:#fff;
+  background:linear-gradient(135deg,#3e6810,#72a62b)
+}
+.release-banner h3{margin-bottom:7px;font-size:15px}
+.release-banner p{margin-bottom:14px;color:#e8f1df;font-size:10px;line-height:1.6}
+.audit-strip{
+  margin-top:16px;display:grid;grid-template-columns:repeat(4,1fr);
+  gap:0;border:1px solid var(--line);border-radius:16px;background:#fff;overflow:hidden
+}
+.audit-item{padding:15px;border-right:1px solid var(--line)}
+.audit-item:last-child{border-right:0}
+.audit-item small{display:block;color:var(--muted);font-size:9px}
+.audit-item strong{display:block;margin-top:5px;color:var(--ink);font-size:11px}
+.toast{
+  position:fixed;right:22px;bottom:22px;z-index:100;
+  max-width:min(340px,calc(100vw - 32px));
+  padding:13px 15px;border-radius:13px;color:#fff;background:#26351e;
+  box-shadow:0 16px 42px rgba(20,31,14,.25);
+  font-size:11px;transform:translateY(18px);opacity:0;pointer-events:none;
+  transition:.25s ease
+}
+.toast.visible{transform:none;opacity:1}
+.mobile-nav{display:none}
+@media(max-width:1050px){
+  .metric-grid{grid-template-columns:repeat(2,1fr)}
+  .grid-intake,.claim-layout,.external-grid,.verdict-layout,.deploy-layout{grid-template-columns:1fr}
+  .source-layout{grid-template-columns:210px minmax(0,1fr)}
+}
+@media(max-width:768px){
+  .app-shell{display:block}
+  .side-rail{
+    position:static;height:auto;padding:12px 14px;border-right:0;border-bottom:1px solid var(--line)
+  }
+  .brand{padding:0}
+  .brand-copy span,.nav-label,.stage-nav,.rail-foot{display:none}
+  .topbar{top:0;height:62px;padding:0 15px}
+  .top-actions .icon-button:first-child{display:none}
+  .main-area{padding:18px 14px 92px}
+  .screen-head{display:block}
+  .head-actions{margin-top:15px;justify-content:flex-start}
+  .head-actions .button{flex:1}
+  .source-layout{grid-template-columns:1fr}
+  .source-directory{display:grid;grid-template-columns:repeat(2,1fr)}
+  .evidence-summary{grid-template-columns:1fr}
+  .form-strip{grid-template-columns:1fr 1fr}
+  .form-strip .button{grid-column:1/-1}
+  .claim-row{grid-template-columns:36px minmax(150px,1fr) 72px 34px}
+  .claim-row .badge{display:none}
+  .diff-columns{grid-template-columns:1fr}
+  .audit-strip{grid-template-columns:1fr 1fr}
+  .audit-item:nth-child(2){border-right:0}
+  .audit-item:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .mobile-nav{
+    position:fixed;display:grid;grid-template-columns:repeat(6,1fr);
+    left:8px;right:8px;bottom:8px;z-index:50;
+    padding:6px;border:1px solid var(--line);border-radius:16px;
+    background:rgba(255,255,255,.94);backdrop-filter:blur(12px);
+    box-shadow:0 10px 34px rgba(32,48,22,.17)
+  }
+  .mobile-button{
+    min-width:0;height:48px;border:0;border-radius:11px;background:transparent;
+    display:grid;place-items:center;color:var(--muted);cursor:pointer
+  }
+  .mobile-button .material-symbols-outlined{font-size:20px}
+  .mobile-button span:last-child{font-size:8px}
+  .mobile-button.active{color:var(--blue);background:var(--blue-soft)}
+}
+@media(max-width:480px){
+  .metric-grid{grid-template-columns:1fr 1fr;gap:9px}
+  .metric{padding:13px}
+  .metric-value{font-size:20px}
+  .form-strip{grid-template-columns:1fr}
+  .form-strip .button{grid-column:auto}
+  .source-directory{grid-template-columns:1fr 1fr;padding:7px}
+  .source-item{grid-template-columns:32px 1fr;padding:7px}
+  .source-symbol{width:32px;height:32px}
+  .source-item .sync-state{display:none}
+  .evidence-track{grid-template-columns:1fr}
+  .diff-content{min-height:140px}
+  h1{font-size:25px}
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="side-rail">
+    <div class="brand">
+      <div class="brand-mark"><span class="material-symbols-outlined">fact_check</span></div>
+      <div class="brand-copy">
+        <strong>JVision Verify</strong>
+        <span>事實核對營運台</span>
+      </div>
+    </div>
+    <div class="nav-label">查證流水線</div>
+    <nav class="stage-nav" aria-label="流程畫面">
+      <button class="stage-button" data-i="0" type="button">
+        <span class="stage-number">01</span><span class="stage-title">接收高風險回答</span>
+      </button>
+      <button class="stage-button" data-i="1" type="button">
+        <span class="stage-number">02</span><span class="stage-title">拆解並排序主張</span>
+      </button>
+      <button class="stage-button" data-i="2" type="button">
+        <span class="stage-number">03</span><span class="stage-title">查核企業紀錄</span>
+      </button>
+      <button class="stage-button" data-i="3" type="button">
+        <span class="stage-number">04</span><span class="stage-title">交叉查核外部來源</span>
+      </button>
+      <button class="stage-button" data-i="4" type="button">
+        <span class="stage-number">05</span><span class="stage-title">裁定事實狀態</span>
+      </button>
+      <button class="stage-button" data-i="5" type="button">
+        <span class="stage-number">06</span><span class="stage-title">核准更正回寫</span>
+      </button>
+    </nav>
+    <div class="rail-foot">
+      <div class="rail-foot-row"><span>流水線服務</span><span class="live-dot"></span></div>
+      <div class="rail-foot-row" style="margin-top:11px"><strong style="color:var(--ink)">99.0%</strong><span>系統可用率</span></div>
+    </div>
+  </aside>
+
+  <div class="workspace">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <small>LLM GOVERNANCE / PIPELINE 3170</small>
+        <strong id="currentStageLabel">接收高風險回答</strong>
+      </div>
+      <div class="top-actions">
+        <button class="icon-button" type="button" aria-label="搜尋" data-toast="已開啟跨流水線搜尋">
+          <span class="material-symbols-outlined">search</span>
+        </button>
+        <button class="icon-button" type="button" aria-label="通知" data-toast="目前有 3 項查證通知">
+          <span class="material-symbols-outlined">notifications</span>
+        </button>
+        <div class="avatar" aria-label="使用者 AI 架構師">AI</div>
+      </div>
+    </header>
+
+    <main class="main-area">
+      <section class="screen" id="view0" aria-labelledby="view0Title">
+        <div class="screen-head">
+          <div>
+            <p class="eyebrow">01 · 應用負責人</p>
+            <h1 id="view0Title">接收高風險回答</h1>
+            <p>選定需查證的模型回答，檢視高風險訊號，並設定查證時效與風險要求。</p>
+          </div>
+          <div class="head-actions">
+            <button class="button" type="button" data-toast="請求內容已匯出為稽核快照">
+              <span class="material-symbols-outlined">download</span>匯出快照
+            </button>
+            <button class="button primary" type="button" data-next="1">
+              建立查證任務<span class="material-symbols-outlined">arrow_forward</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="metric-grid">
+          <div class="metric">
+            <div class="metric-label"><span>今日模型請求</span><span class="material-symbols-outlined">forum</span></div>
+            <div class="metric-value">1,284</div><div class="metric-delta">較昨日 +8.4%</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label"><span>高風險回答</span><span class="material-symbols-outlined">warning</span></div>
+            <div class="metric-value">37</div><div class="metric-delta" style="color:var(--amber)">2.9% 需人工處理</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label"><span>SLA 內待辦</span><span class="material-symbols-outlined">timer</span></div>
+            <div class="metric-value">24</div><div class="metric-delta">98% 達成率</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label"><span>平均處理</span><span class="material-symbols-outlined">speed</span></div>
+            <div class="metric-value">30<span style="font-size:12px"> 分</span></div><div class="metric-delta">較基準縮短 75%</div>
+          </div>
+        </div>
+
+        <div class="grid-intake">
+          <article class="card">
+            <div class="card-head">
+              <div><h2>待查證模型回應</h2><p>模型請求、提示與回應已建立不可變更快照</p></div>
+              <span class="badge high">高風險</span>
+            </div>
+            <div class="response-box">
+              <div class="request-line">
+                <div><div class="request-id">REQ-20260822-1047</div><div class="request-meta">財務洞察助理 · private-llm-prod-02</div></div>
+                <div class="request-meta">14:32:08 UTC+8</div>
+              </div>
+              <div class="prompt">使用者提示：請摘要本季營運成果，以及市場分析師對明年需求的最新看法。</div>
+              <div class="response-text">
+                本季整體營收達新台幣 128.4 億元，較去年同期成長 18%。
+                其中，<span class="claim-mark">企業雲端業務已連續六季維持 30% 以上成長</span>；
+                此外，<span class="claim-mark">三家主要研究機構均預測明年市場需求將增加 42%</span>。
+                公司目前在亞太區的市占率為 26%，預計新產線於第四季全面量產。
+              </div>
+              <div class="response-footer">
+                <span class="badge neutral">模型回應 182 tokens</span>
+                <span class="badge medium">4 個數值主張</span>
+                <span class="badge medium">2 個外部主張</span>
+                <span class="badge blue">zh-Hant</span>
+              </div>
+            </div>
+            <div class="form-strip" style="padding:0 18px 18px">
+              <div class="field"><label for="riskLevel">風險要求</label><select id="riskLevel"><option>高風險｜全量查證</option><option>中風險｜抽樣查證</option></select></div>
+              <div class="field"><label for="deadline">處理期限</label><select id="deadline"><option>30 分鐘內</option><option>2 小時內</option></select></div>
+              <div class="field"><label for="reviewTeam">指派群組</label><select id="reviewTeam"><option>財務與市場聯合組</option><option>企業資料治理組</option></select></div>
+              <button class="button primary" type="button" data-toast="已儲存風險與時效設定">套用設定</button>
+            </div>
+          </article>
+
+          <aside class="risk-panel">
+            <div class="risk-score">
+              <small>綜合風險分數</small>
+              <div class="score-row"><strong>86</strong><span>/ 100</span></div>
+              <div class="risk-bar"><span></span></div>
+              <p style="margin:12px 0 0;font-size:10px;line-height:1.6;opacity:.8">涉及財務數字與具時效性的外部預測，建議在公開前完成全量核對。</p>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><h3>觸發訊號</h3><p>風險模型判定依據</p></div></div>
+              <div class="risk-reasons">
+                <div class="reason">
+                  <div class="reason-icon"><span class="material-symbols-outlined">finance</span></div>
+                  <div><strong>財務敏感數字</strong><small>營收、成長率、市占率</small></div><span class="badge high">+32</span>
+                </div>
+                <div class="reason">
+                  <div class="reason-icon"><span class="material-symbols-outlined">public</span></div>
+                  <div><strong>未具名外部來源</strong><small>三家研究機構</small></div><span class="badge medium">+26</span>
+                </div>
+                <div class="reason">
+                  <div class="reason-icon"><span class="material-symbols-outlined">update</span></div>
+                  <div><strong>高度時效性</strong><small>明年需求預測</small></div><span class="badge medium">+18</span>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" id="view1" aria-labelledby="view1Title">
+        <div class="screen-head">
+          <div>
+            <p class="eyebrow">02 · 資料科學家</p>
+            <h1 id="view1Title">拆解並排序主張</h1>
+            <p>從回答抽取原子主張，依影響程度、可疑訊號、時效性與傳播風險安排查證順序。</p>
+          </div>
+          <div class="head-actions">
+            <button class="button" type="button" data-toast="已重新執行原子主張抽取">
+              <span class="material-symbols-outlined">refresh</span>重新抽取
+            </button>
+            <button class="button primary" type="button" data-next="2">送往企業查核<span class="material-symbols-outlined">arrow_forward</span></button>
+          </div>
+        </div>
+
+        <div class="claim-layout">
+          <article class="card">
+            <div class="card-head">
+              <div><h2>原子主張佇列</h2><p>已由 182 tokens 回應拆解出 6 項可獨立查證主張</p></div>
+              <span class="badge blue">6 項主張</span>
+            </div>
+            <div class="claim-list">
+              <div class="claim-row">
+                <div class="claim-index">C01</div>
+                <div class="claim-copy"><strong>本季整體營收為新台幣 128.4 億元</strong><small>數值事實 · 企業內部 · 財務</small><div class="mini-meter"><i style="width:96%"></i></div></div>
+                <div class="rank-value">96 <small>/ 100</small></div><span class="badge high">P0</span>
+                <button class="row-menu" type="button" aria-label="主張選單" data-toast="已開啟 C01 主張細節">•••</button>
+              </div>
+              <div class="claim-row">
+                <div class="claim-index">C02</div>
+                <div class="claim-copy"><strong>本季營收較去年同期成長 18%</strong><small>比較事實 · 企業內部 · 財務</small><div class="mini-meter"><i style="width:91%"></i></div></div>
+                <div class="rank-value">91 <small>/ 100</small></div><span class="badge high">P0</span>
+                <button class="row-menu" type="button" aria-label="主張選單" data-toast="已開啟 C02 主張細節">•••</button>
+              </div>
+              <div class="claim-row">
+                <div class="claim-index">C03</div>
+                <div class="claim-copy"><strong>企業雲端業務已連續六季成長逾 30%</strong><small>趨勢事實 · 混合來源 · 營運</small><div class="mini-meter"><i style="width:88%"></i></div></div>
+                <div class="rank-value">88 <small>/ 100</small></div><span class="badge high">P0</span>
+                <button class="row-menu" type="button" aria-label="主張選單" data-toast="已開啟 C03 主張細節">•••</button>
+              </div>
+              <div class="claim-row">
+                <div class="claim-index">C04</div>
+                <div class="claim-copy"><strong>三家主要研究機構預測明年需求增加 42%</strong><small>預測主張 · 外部來源 · 市場</small><div class="mini-meter"><i style="width:84%"></i></div></div>
+                <div class="rank-value">84 <small>/ 100</small></div><span class="badge medium">P1</span>
+                <button class="row-menu" type="button" aria-label="主張選單" data-toast="已開啟 C04 主張細節">•••</button>
+              </div>
+              <div class="claim-row">
+                <div class="claim-index">C05</div>
+                <div class="claim-copy"><strong>公司目前亞太區市占率為 26%</strong><small>市場事實 · 外部來源 · 市占</small><div class="mini-meter"><i style="width:73%"></i></div></div>
+                <div class="rank-value">73 <small>/ 100</small></div><span class="badge medium">P1</span>
+                <button class="row-menu" type="button" aria-label="主張選單" data-toast="已開啟 C05 主張細節">•••</button>
+              </div>
+              <div class="claim-row">
+                <div class="claim-index">C06</div>
+                <div class="claim-copy"><strong>新產線預計於第四季全面量產</strong><small>事件主張 · 企業內部 · 製造</small><div class="mini-meter"><i style="width:61%"></i></div></div>
+                <div class="rank-value">61 <small>/ 100</small></div><span class="badge neutral">P2</span>
+                <button class="row-menu" type="button" aria-label="主張選單" data-toast="已開啟 C06 主張細節">•••</button>
+              </div>
+            </div>
+          </article>
+
+          <aside>
+            <div class="card">
+              <div class="card-head"><div><h3>優先查證清單</h3><p>依綜合分數自動排序</p></div></div>
+              <div class="priority-stack">
+                <div class="priority-card">
+                  <strong>01 · 營收 128.4 億元</strong>
+                  <p>高影響財務數字；若錯誤將直接影響管理報表。</p>
+                  <div class="priority-meta"><span>影響 98</span><span>可疑度 74</span><span>時效 92</span></div>
+                </div>
+                <div class="priority-card">
+                  <strong>02 · 年增率 18%</strong>
+                  <p>需確認比較基期與合併範圍是否一致。</p>
+                  <div class="priority-meta"><span>影響 93</span><span>可疑度 68</span><span>時效 90</span></div>
+                </div>
+                <div class="priority-card good-edge">
+                  <strong>03 · 連續六季成長逾 30%</strong>
+                  <p>涉及跨期資料，需由 BI 與財務倉儲共同驗證。</p>
+                  <div class="priority-meta"><span>影響 81</span><span>可疑度 87</span><span>時效 76</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="logic-box">
+              <strong>排序規則 v3.8</strong>
+              <div class="logic-code">score = impact × 0.35<br>suspicion × 0.30<br>recency × 0.20<br>propagation × 0.15</div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" id="view2" aria-labelledby="view2Title">
+        <div class="screen-head">
+          <div>
+            <p class="eyebrow">03 · 資料治理專員</p>
+            <h1 id="view2Title">查核企業紀錄</h1>
+            <p>比對資料湖、BI 與知識庫中的權威企業紀錄，驗證企業專屬事實與數字。</p>
+          </div>
+          <div class="head-actions">
+            <button class="button danger" type="button" data-toast="已建立補件草稿，尚未送出">
+              <span class="material-symbols-outlined">assignment_return</span>退回補件
+            </button>
+            <button class="button primary" type="button" data-next="3">企業查核通過<span class="material-symbols-outlined">verified</span></button>
+          </div>
+        </div>
+
+        <div class="source-layout">
+          <aside class="card source-directory">
+            <button class="source-item selected" type="button" data-toast="已切換至財務資料湖">
+              <span class="source-symbol material-symbols-outlined">database</span>
+              <span><strong>財務資料湖</strong><small>FIN-DL · 2 分鐘前</small></span><span class="sync-state"></span>
+            </button>
+            <button class="source-item" type="button" data-toast="已切換至營運 BI">
+              <span class="source-symbol material-symbols-outlined">monitoring</span>
+              <span><strong>營運 BI</strong><small>OPS-BI · 5 分鐘前</small></span><span class="sync-state"></span>
+            </button>
+            <button class="source-item" type="button" data-toast="已切換至董事會報告">
+              <span class="source-symbol material-symbols-outlined">description</span>
+              <span><strong>董事會報告</strong><small>BOARD-KB · 已核准</small></span><span class="sync-state"></span>
+            </button>
+            <button class="source-item" type="button" data-toast="已切換至製造主檔">
+              <span class="source-symbol material-symbols-outlined">factory</span>
+              <span><strong>製造主檔</strong><small>MFG-MDM · 12 分鐘前</small></span><span class="sync-state"></span>
+            </button>
+          </aside>
+
+          <div class="card">
+            <div class="card-head">
+              <div><h2>C01 · 本季整體營收為新台幣 128.4 億元</h2><p>主資料：FIN-DL / consolidated_revenue / 2026-Q2</p></div>
+              <span class="badge good">企業紀錄支持</span>
+            </div>
+            <div class="evidence-summary">
+              <div class="record-card">
+                <h3>權威紀錄值</h3>
+                <p>經財務長核准之 2026 Q2 合併營收，排除部門間交易。</p>
+                <div class="fact-value">128.36 <span>億元 TWD</span></div>
+                <div class="response-footer">
+                  <span class="badge neutral">四捨五入 128.4</span>
+                  <span class="badge good">稽核等級 A</span>
+                </div>
+              </div>
+              <div class="record-card">
+                <h3 style="text-align:center">語意與數值吻合</h3>
+                <div class="match-ring"></div>
+                <p style="margin:10px 0 0;text-align:center">允許誤差 ±0.05 億元</p>
+              </div>
+            </div>
+            <div class="data-table-wrap">
+              <table class="data-table">
+                <thead><tr><th>主張</th><th>企業紀錄</th><th>來源</th><th>比對結果</th><th>資料時間</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>C01</strong> 營收 128.4 億</td><td>128.36 億</td><td>財務資料湖</td><td><span class="badge good">支持</span></td><td>2026-07-28</td></tr>
+                  <tr><td><strong>C02</strong> 年增率 18%</td><td>17.6%</td><td>營運 BI</td><td><span class="badge medium">近似</span></td><td>2026-07-28</td></tr>
+                  <tr><td><strong>C03</strong> 六季皆逾 30%</td><td>29.4%–34.8%</td><td>營運 BI</td><td><span class="badge high">反駁</span></td><td>2026-08-20</td></tr>
+                  <tr><td><strong>C06</strong> Q4 全面量產</td><td>Q4 試量產</td><td>製造主檔</td><td><span class="badge high">反駁</span></td><td>2026-08-18</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="audit-strip">
+          <div class="audit-item"><small>資料血緣節點</small><strong>12 個已驗證</strong></div>
+          <div class="audit-item"><small>最新同步</small><strong>14:43:12</strong></div>
+          <div class="audit-item"><small>紀錄擁有者</small><strong>企業資料治理組</strong></div>
+          <div class="audit-item"><small>查核結論</small><strong style="color:var(--amber)">2 支持 / 2 修正</strong></div>
+        </div>
+      </section>
+
+      <section class="screen" id="view3" aria-labelledby="view3Title">
+        <div class="screen-head">
+          <div>
+            <p class="eyebrow">04 · 研究分析師</p>
+            <h1 id="view3Title">交叉查核外部來源</h1>
+            <p>針對市場事件與公開事實搜尋多個可信來源，交叉比對發布時間、獨立性與證據品質。</p>
+          </div>
+          <div class="head-actions">
+            <button class="button danger" type="button" data-toast="已建立外部來源補件要求">
+              <span class="material-symbols-outlined">undo</span>退回補件
+            </button>
+            <button class="button primary" type="button" data-next="4">外部查核通過<span class="material-symbols-outlined">arrow_forward</span></button>
+          </div>
+        </div>
+
+        <div class="external-grid">
+          <article class="card">
+            <div class="card-head">
+              <div><h2>C04 · 明年市場需求將增加 42%</h2><p>搜尋 18 個候選來源，3 個符合獨立性與時效門檻</p></div>
+              <span class="badge medium">證據不一致</span>
+            </div>
+            <div class="research-query">
+              <span class="material-symbols-outlined">travel_explore</span>
+              <input aria-label="外部來源搜尋" value="2027 enterprise AI infrastructure demand forecast APAC">
+              <button class="button" type="button" data-toast="已完成可信來源重新搜尋">搜尋</button>
+            </div>
+            <div class="source-results">
+              <div class="result-card">
+                <div class="domain-icon">IDC</div>
+                <div><strong>Asia/Pacific AI Infrastructure Forecast 2027</strong><p>預估企業 AI 基礎設施支出年增 28.6%，未提及 42% 的整體需求增幅。</p><div class="result-meta"><span>2026-08-14</span><span>一手研究</span><span>方法透明</span></div></div>
+                <div class="credibility">94</div>
+              </div>
+              <div class="result-card">
+                <div class="domain-icon">GRT</div>
+                <div><strong>Market Guide for Enterprise AI Platforms</strong><p>情境區間為 24% 至 35%；42% 僅出現在高成長子產業情境。</p><div class="result-meta"><span>2026-07-30</span><span>獨立研究</span><span>付費摘要</span></div></div>
+                <div class="credibility">89</div>
+              </div>
+              <div class="result-card">
+                <div class="domain-icon">MIC</div>
+                <div><strong>亞太企業生成式 AI 採用調查</strong><p>受訪企業中 42% 表示將增加預算；該數字並非市場需求增幅。</p><div class="result-meta"><span>2026-08-02</span><span>調查資料</span><span>n=640</span></div></div>
+                <div class="credibility">87</div>
+              </div>
+            </div>
+          </article>
+
+          <aside>
+            <div class="card chart-card">
+              <div class="card-head" style="padding:0 0 13px;margin-bottom:13px">
+                <div><h3>來源可信度 × 主張支持度</h3><p>右上區域為高品質支持證據</p></div>
+              </div>
+              <div class="chart-wrap"><canvas id="sourceChart" aria-label="外部來源可信度與支持度散點圖"></canvas></div>
+            </div>
+            <div class="card timeline">
+              <div class="timeline-item"><strong>14:44 · 建立搜尋式</strong>依主張實體、時間與市場範圍展開 6 組查詢。</div>
+              <div class="timeline-item"><strong>14:46 · 排除 11 個來源</strong>移除轉載、未具名摘要與發布日期過舊資料。</div>
+              <div class="timeline-item"><strong>14:49 · 完成獨立性檢查</strong>3 個候選來源無共同上游引用關係。</div>
+              <div class="timeline-item"><strong>14:52 · 建議反駁</strong>42% 為增加預算的企業占比，並非需求成長率。</div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" id="view4" aria-labelledby="view4Title">
+        <div class="screen-head">
+          <div>
+            <p class="eyebrow">05 · 領域審查員</p>
+            <h1 id="view4Title">裁定事實狀態</h1>
+            <p>綜合企業與外部證據，將主張裁定為支持、反駁、資訊不足或已過時，並留下因果說明。</p>
+          </div>
+          <div class="head-actions">
+            <button class="button" type="button" data-toast="裁決草稿已儲存">
+              <span class="material-symbols-outlined">save</span>儲存草稿
+            </button>
+            <button class="button primary" type="button" data-next="5">提交裁決<span class="material-symbols-outlined">gavel</span></button>
+          </div>
+        </div>
+
+        <div class="verdict-layout">
+          <article class="card">
+            <div class="card-head">
+              <div><h2>主張裁決板</h2><p>6 項主張均已取得最低證據組合</p></div>
+              <span class="badge good">證據完整度 96%</span>
+            </div>
+            <div class="verdict-board">
+              <div class="verdict-card">
+                <div class="verdict-line"><div><h3>C01 · 本季整體營收為新台幣 128.4 億元</h3><p>權威財務紀錄為 128.36 億元，合理四捨五入後一致。</p></div><span class="badge good">支持</span></div>
+                <div class="evidence-track">
+                  <div class="evidence-cell">企業證據<strong>FIN-DL · A 級</strong></div>
+                  <div class="evidence-cell">外部證據<strong>財報摘要 · A 級</strong></div>
+                  <div class="evidence-cell">信心分數<strong>98 / 100</strong></div>
+                </div>
+              </div>
+              <div class="verdict-card">
+                <div class="verdict-line"><div><h3>C03 · 企業雲端業務連續六季成長逾 30%</h3><p>其中一季實際成長 29.4%，「六季皆逾 30%」不成立。</p></div><span class="badge high">反駁</span></div>
+                <div class="evidence-track">
+                  <div class="evidence-cell">企業證據<strong>OPS-BI · A 級</strong></div>
+                  <div class="evidence-cell">時間範圍<strong>2025 Q1–2026 Q2</strong></div>
+                  <div class="evidence-cell">信心分數<strong>96 / 100</strong></div>
+                </div>
+              </div>
+              <div class="verdict-card">
+                <div class="verdict-line"><div><h3>C04 · 三家研究機構預測需求增加 42%</h3><p>42% 指增加預算的受訪企業比例，語意被錯誤延伸為需求增幅。</p></div><span class="badge high">反駁</span></div>
+                <div class="evidence-track">
+                  <div class="evidence-cell">外部證據<strong>3 個獨立來源</strong></div>
+                  <div class="evidence-cell">合理區間<strong>24%–35%</strong></div>
+                  <div class="evidence-cell">信心分數<strong>93 / 100</strong></div>
+                </div>
+              </div>
+              <div class="verdict-card">
+                <div class="verdict-line"><div><h3>C06 · 新產線將於第四季全面量產</h3><p>製造主檔僅核准第四季試量產，全面量產時程尚未核定。</p></div><span class="badge medium">資訊不足</span></div>
+                <div class="evidence-track">
+                  <div class="evidence-cell">企業證據<strong>MFG-MDM · A 級</strong></div>
+                  <div class="evidence-cell">缺少文件<strong>量產核准單</strong></div>
+                  <div class="evidence-cell">信心分數<strong>88 / 100</strong></div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <aside class="verdict-side">
+            <div class="card chart-card">
+              <div class="card-head" style="padding:0 0 13px;margin-bottom:13px">
+                <div><h3>裁決分布</h3><p>共 6 項原子主張</p></div>
+              </div>
+              <div class="chart-wrap" style="height:220px"><canvas id="verdictChart" aria-label="事實裁決分布圓環圖"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><h3>裁決摘要</h3><p>狀態與數量</p></div></div>
+              <div class="legend-list">
+                <div class="legend-row"><span class="legend-key"><i class="legend-dot"></i>支持</span><strong>2</strong></div>
+                <div class="legend-row"><span class="legend-key"><i class="legend-dot" style="background:var(--red)"></i>反駁</span><strong>2</strong></div>
+                <div class="legend-row"><span class="legend-key"><i class="legend-dot" style="background:var(--amber)"></i>資訊不足</span><strong>1</strong></div>
+                <div class="legend-row"><span class="legend-key"><i class="legend-dot" style="background:#879182"></i>已過時</span><strong>1</strong></div>
+              </div>
+            </div>
+            <div class="card note-area">
+              <div class="field"><label for="reviewNote">審查說明</label><textarea id="reviewNote">建議修正 C03、C04 與 C06；保留 C01、C02，並將 C05 標示為資料日期已過時。</textarea></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" id="view5" aria-labelledby="view5Title">
+        <div class="screen-head">
+          <div>
+            <p class="eyebrow">06 · AI 架構師</p>
+            <h1 id="view5Title">核准更正回寫</h1>
+            <p>審閱答案修正差異與部署檢查，核准後回寫模型應用並重新驗證完整答案。</p>
+          </div>
+          <div class="head-actions">
+            <button class="button" type="button" data-toast="已將更正方案退回領域審查員">
+              <span class="material-symbols-outlined">rate_review</span>要求調整
+            </button>
+            <button class="button primary" type="button" data-toast="更正方案已核准，準備回寫正式應用">
+              <span class="material-symbols-outlined">published_with_changes</span>核准並回寫
+            </button>
+          </div>
+        </div>
+
+        <div class="deploy-layout">
+          <article class="card">
+            <div class="card-head">
+              <div><h2>答案更正差異</h2><p>PATCH-LLM-001 · 3 項主張修正 · 1 項時效標示</p></div>
+              <span class="badge good">重新驗證通過</span>
+            </div>
+            <div class="diff-view">
+              <div class="diff-columns">
+                <div class="diff-panel">
+                  <div class="diff-label">原始模型回答</div>
+                  <div class="diff-content">
+                    本季整體營收達新台幣 128.4 億元，較去年同期成長 18%。
+                    其中，<span class="removed">企業雲端業務已連續六季維持 30% 以上成長</span>；
+                    此外，<span class="removed">三家主要研究機構均預測明年市場需求將增加 42%</span>。
+                    公司目前在亞太區的市占率為 26%，<span class="removed">預計新產線於第四季全面量產</span>。
+                  </div>
+                </div>
+                <div class="diff-panel">
+                  <div class="diff-label">建議核准版本</div>
+                  <div class="diff-content">
+                    本季整體營收達新台幣 128.4 億元，較去年同期成長約 18%。
+                    其中，<span class="added">企業雲端業務近六季成長率介於 29.4% 至 34.8%</span>；
+                    此外，<span class="added">公開研究預估明年相關市場成長約 24% 至 35%，另有 42% 受訪企業表示將增加預算</span>。
+                    亞太區市占資料仍待最新報告確認，<span class="added">新產線預計第四季進入試量產</span>。
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <aside style="display:grid;gap:16px">
+            <div class="release-banner">
+              <h3>回寫準備完成</h3>
+              <p>目標應用：財務洞察助理<br>環境：production-apac · 版本 2026.08.22.3</p>
+              <button class="button" type="button" data-toast="已完成正式環境連線測試">測試應用連線</button>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><h3>部署前檢查</h3><p>4 / 4 項已通過</p></div></div>
+              <div class="checklist">
+                <div class="check-row"><span class="check-icon material-symbols-outlined">check</span><span><strong>事實裁決已簽署</strong><small>領域審查員 · 14:58</small></span><span class="badge good">通過</span></div>
+                <div class="check-row"><span class="check-icon material-symbols-outlined">check</span><span><strong>敏感資料已遮罩</strong><small>DLP policy 7.4</small></span><span class="badge good">通過</span></div>
+                <div class="check-row"><span class="check-icon material-symbols-outlined">check</span><span><strong>完整答案重新驗證</strong><small>6 項主張 · 96 分</small></span><span class="badge good">通過</span></div>
+                <div class="check-row"><span class="check-icon material-symbols-outlined">check</span><span><strong>復原版本已建立</strong><small>snapshot #88421</small></span><span class="badge good">通過</span></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="card chart-card" style="margin-top:16px">
+          <div class="card-head" style="padding:0 0 13px;margin-bottom:13px">
+            <div><h3>近六週系統可用率</h3><p>由 97% 提升至 99%，目標線 99%</p></div>
+            <span class="badge good">+2.0%</span>
+          </div>
+          <div class="chart-wrap" style="height:230px"><canvas id="availabilityChart" aria-label="近六週系統可用率折線圖"></canvas></div>
+        </div>
+
+        <div class="audit-strip">
+          <div class="audit-item"><small>查證案件</small><strong>LLM-001</strong></div>
+          <div class="audit-item"><small>總處理時間</small><strong>27 分 18 秒</strong></div>
+          <div class="audit-item"><small>SLA 狀態</small><strong style="color:var(--green)">期限內完成</strong></div>
+          <div class="audit-item"><small>操作紀錄</small><strong>38 筆可追溯事件</strong></div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<nav class="mobile-nav" aria-label="行動版流程">
+  <button class="mobile-button" data-i="0" type="button"><span class="material-symbols-outlined">move_to_inbox</span><span>接收</span></button>
+  <button class="mobile-button" data-i="1" type="button"><span class="material-symbols-outlined">format_list_numbered</span><span>拆分</span></button>
+  <button class="mobile-button" data-i="2" type="button"><span class="material-symbols-outlined">domain</span><span>企業</span></button>
+  <button class="mobile-button" data-i="3" type="button"><span class="material-symbols-outlined">public</span><span>外部</span></button>
+  <button class="mobile-button" data-i="4" type="button"><span class="material-symbols-outlined">grading</span><span>裁決</span></button>
+  <button class="mobile-button" data-i="5" type="button"><span class="material-symbols-outlined">published_with_changes</span><span>回寫</span></button>
+</nav>
+
+<div class="toast" id="toastMessage" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  const stageLabels = [
+    "接收高風險回答",
+    "拆解並排序主張",
+    "查核企業紀錄",
+    "交叉查核外部來源",
+    "裁定事實狀態",
+    "核准更正回寫"
+  ];
+
+  const chartInstances = {};
+  let toastFrame = 0;
+
+  function chartTextColor() {
+    return "#6d7868";
+  }
+
+  function baseChartOptions() {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 650 },
+      plugins: {
+        legend: {
+          labels: {
+            color: chartTextColor(),
+            boxWidth: 10,
+            boxHeight: 10,
+            usePointStyle: true,
+            font: { family: "Inter, Noto Sans TC", size: 10 }
+          }
+        },
+        tooltip: {
+          backgroundColor: "#25321f",
+          titleFont: { family: "Inter, Noto Sans TC", size: 11 },
+          bodyFont: { family: "Inter, Noto Sans TC", size: 10 },
+          padding: 10,
+          cornerRadius: 9
+        }
+      }
+    };
+  }
+
+  function initializeChart(screenIndex) {
+    if (typeof Chart === "undefined") return;
+
+    if (screenIndex === 3 && !chartInstances.source) {
+      const canvas = document.getElementById("sourceChart");
+      if (!canvas || canvas.parentElement.clientWidth < 20) return;
+      const options = baseChartOptions();
+      options.scales = {
+        x: {
+          min: 0,
+          max: 100,
+          title: { display: true, text: "主張支持度", color: chartTextColor(), font: { size: 10 } },
+          grid: { color: "rgba(220,229,213,.65)" },
+          ticks: { color: chartTextColor(), font: { size: 9 } }
+        },
+        y: {
+          min: 60,
+          max: 100,
+          title: { display: true, text: "來源可信度", color: chartTextColor(), font: { size: 10 } },
+          grid: { color: "rgba(220,229,213,.65)" },
+          ticks: { color: chartTextColor(), font: { size: 9 } }
+        }
+      };
+      chartInstances.source = new Chart(canvas, {
+        type: "scatter",
+        data: {
+          datasets: [
+            {
+              label: "支持來源",
+              data: [{ x: 68, y: 94 }, { x: 63, y: 89 }],
+              backgroundColor: "#4d7c0f",
+              pointRadius: 7,
+              pointHoverRadius: 9
+            },
+            {
+              label: "反駁／釐清",
+              data: [{ x: 18, y: 87 }, { x: 34, y: 78 }, { x: 42, y: 72 }],
+              backgroundColor: "#c7473c",
+              pointRadius: 7,
+              pointHoverRadius: 9
+            }
+          ]
+        },
+        options
+      });
+    }
+
+    if (screenIndex === 4 && !chartInstances.verdict) {
+      const canvas = document.getElementById("verdictChart");
+      if (!canvas || canvas.parentElement.clientWidth < 20) return;
+      const options = baseChartOptions();
+      options.cutout = "68%";
+      options.plugins.legend.position = "bottom";
+      chartInstances.verdict = new Chart(canvas, {
+        type: "doughnut",
+        data: {
+          labels: ["支持", "反駁", "資訊不足", "已過時"],
+          datasets: [{
+            data: [2, 2, 1, 1],
+            backgroundColor: ["#16825d", "#c7473c", "#c47a0b", "#879182"],
+            borderColor: "#ffffff",
+            borderWidth: 4,
+            hoverOffset: 4
+          }]
+        },
+        options
+      });
+    }
+
+    if (screenIndex === 5 && !chartInstances.availability) {
+      const canvas = document.getElementById("availabilityChart");
+      if (!canvas || canvas.parentElement.clientWidth < 20) return;
+      const options = baseChartOptions();
+      options.interaction = { intersect: false, mode: "index" };
+      options.plugins.legend.display = false;
+      options.scales = {
+        x: {
+          grid: { display: false },
+          ticks: { color: chartTextColor(), font: { size: 10 } }
+        },
+        y: {
+          min: 96.5,
+          max: 99.5,
+          grid: { color: "rgba(220,229,213,.7)" },
+          ticks: {
+            color: chartTextColor(),
+            font: { size: 9 },
+            callback: value => value + "%"
+          }
+        }
+      };
+      chartInstances.availability = new Chart(canvas, {
+        type: "line",
+        data: {
+          labels: ["W1", "W2", "W3", "W4", "W5", "W6"],
+          datasets: [{
+            label: "系統可用率 %",
+            data: [97, 97.4, 97.8, 98.2, 98.6, 99],
+            borderColor: "#4d7c0f",
+            backgroundColor: "rgba(77,124,15,.12)",
+            borderWidth: 3,
+            pointBackgroundColor: "#ffffff",
+            pointBorderColor: "#4d7c0f",
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            tension: .35,
+            fill: true
+          }]
+        },
+        options
+      });
+    }
+  }
+
+  function show(indexValue, updateHash = true) {
+    const parsedIndex = Number(indexValue);
+    const screenIndex = Number.isInteger(parsedIndex) && parsedIndex >= 0 && parsedIndex <= 5 ? parsedIndex : 0;
+
+    document.querySelectorAll(".screen").forEach((screenElement, elementIndex) => {
+      const selected = elementIndex === screenIndex;
+      screenElement.classList.toggle("active", selected);
+      screenElement.setAttribute("aria-hidden", selected ? "false" : "true");
+    });
+
+    document.querySelectorAll("[data-i]").forEach(buttonElement => {
+      const selected = Number(buttonElement.dataset.i) === screenIndex;
+      buttonElement.classList.toggle("active", selected);
+      if (selected) buttonElement.setAttribute("aria-current", "step");
+      else buttonElement.removeAttribute("aria-current");
+    });
+
+    document.getElementById("currentStageLabel").textContent = stageLabels[screenIndex];
+    document.title = "LLM 事實核對流水線 · operations-console｜Jvision 系統 Demo";
+
+    if (updateHash) {
+      const desiredHash = "#go=" + screenIndex;
+      if (window.location.hash !== desiredHash) history.pushState(null, "", desiredHash);
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    requestAnimationFrame(() => initializeChart(screenIndex));
+  }
+
+  function showToast(message) {
+    const toastElement = document.getElementById("toastMessage");
+    toastElement.textContent = message;
+    toastElement.classList.add("visible");
+    window.cancelAnimationFrame(toastFrame);
+    let startTime = 0;
+    function monitorToast(timeValue) {
+      if (!startTime) startTime = timeValue;
+      if (timeValue - startTime > 2400) {
+        toastElement.classList.remove("visible");
+        return;
+      }
+      toastFrame = window.requestAnimationFrame(monitorToast);
+    }
+    toastFrame = window.requestAnimationFrame(monitorToast);
+  }
+
+  document.querySelectorAll("[data-i]").forEach(buttonElement => {
+    buttonElement.addEventListener("click", () => show(Number(buttonElement.dataset.i)));
+  });
+
+  document.querySelectorAll("[data-next]").forEach(buttonElement => {
+    buttonElement.addEventListener("click", () => show(Number(buttonElement.dataset.next)));
+  });
+
+  document.querySelectorAll("[data-toast]").forEach(buttonElement => {
+    buttonElement.addEventListener("click", () => showToast(buttonElement.dataset.toast));
+  });
+
+  window.addEventListener("hashchange", () => {
+    const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+    show(match ? Number(match[1]) : 0, false);
+  });
+
+  const initialMatch = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+  show(initialMatch ? Number(initialMatch[1]) : 0, false);
+})();
+</script>
+</body>
+</html>

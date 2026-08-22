@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<link rel="icon" href="../../favicon.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#4d7c0f">
+<title>跨儲存庫 Code Review Agent · it-ops｜Jvision 系統 Demo</title>
+<style>
+:root{
+  --blue:#4d7c0f;
+  --ink:#17210f;
+  --body:#344329;
+  --muted:#718066;
+  --line:#dce6d4;
+  --bg:#f4f7f1;
+  --green:#16845b;
+  --amber:#c27803;
+  --red:#c74444;
+  --white:#fff;
+  --soft:#edf4e7;
+  --shadow:0 12px 34px rgba(32,55,20,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--body);
+  background:var(--bg);
+  font-family:Inter,"Noto Sans TC",sans-serif;
+  overflow-x:hidden;
+}
+button,input,select,textarea{font:inherit}
+button{color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(77,124,15,.25);
+  outline-offset:2px;
+}
+.material-symbols-outlined{
+  font-size:20px;
+  line-height:1;
+  font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24;
+}
+.shell{min-height:100vh;display:grid;grid-template-columns:220px minmax(0,1fr)}
+.sidebar{
+  position:sticky;top:0;height:100vh;padding:24px 16px;
+  background:#fff;border-right:1px solid var(--line);
+  display:flex;flex-direction:column;z-index:10;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 22px}
+.brand-mark{
+  width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
+  color:#fff;background:linear-gradient(145deg,#659d20,var(--blue));
+  box-shadow:0 8px 18px rgba(77,124,15,.24)
+}
+.brand strong{display:block;font-size:14px;color:var(--ink)}
+.brand small{display:block;margin-top:2px;font-size:10px;letter-spacing:.08em;color:var(--muted)}
+.nav-label{padding:0 10px 8px;color:#92a087;font-size:10px;font-weight:800;letter-spacing:.12em}
+.nav{display:grid;gap:5px}
+.nav button{
+  width:100%;min-height:50px;border:0;border-radius:12px;background:transparent;
+  display:grid;grid-template-columns:26px 1fr;align-items:center;text-align:left;
+  padding:8px 10px;cursor:pointer;color:var(--muted);transition:.18s ease;
+}
+.nav button span:last-child{font-size:12px;line-height:1.45;font-weight:700}
+.nav button:hover{background:#f6f8f4;color:var(--ink)}
+.nav button.active{background:var(--soft);color:var(--blue)}
+.nav button.active .material-symbols-outlined{font-variation-settings:"FILL" 1}
+.side-foot{
+  margin-top:auto;padding:14px 10px 2px;border-top:1px solid var(--line);
+  color:var(--muted);font-size:10px;line-height:1.7
+}
+.side-foot b{display:flex;align-items:center;gap:6px;color:var(--green)}
+.main{min-width:0}
+.topbar{
+  height:68px;padding:0 30px;display:flex;align-items:center;justify-content:space-between;
+  background:rgba(244,247,241,.9);border-bottom:1px solid var(--line);
+  backdrop-filter:blur(12px);position:sticky;top:0;z-index:8;
+}
+.crumb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.crumb b{color:var(--ink)}
+.actions{display:flex;align-items:center;gap:10px}
+.live{
+  display:flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid #cfe1c2;
+  border-radius:99px;background:#fff;color:var(--green);font-size:11px;font-weight:700
+}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(22,132,91,.1)}
+.avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#25321d;color:#fff;font-size:11px;font-weight:800}
+.view{display:none;padding:28px 30px 44px;animation:rise .25s ease}
+.view.active{display:block}
+@keyframes rise{from{opacity:.35;transform:translateY(5px)}to{opacity:1;transform:none}}
+.page-head{display:flex;justify-content:space-between;gap:22px;align-items:flex-start;margin-bottom:22px}
+.eyebrow{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--blue);font-weight:800}
+h1,h2,h3,p{margin-top:0}
+h1{margin-bottom:8px;color:var(--ink);font-size:clamp(25px,3vw,38px);line-height:1.18;letter-spacing:-.025em}
+h2{margin-bottom:6px;color:var(--ink);font-size:20px}
+h3{margin-bottom:5px;color:var(--ink);font-size:14px}
+.sub{max-width:720px;margin-bottom:0;color:var(--muted);font-size:13px;line-height:1.75}
+.btn{
+  min-height:42px;border:1px solid var(--line);border-radius:10px;padding:0 15px;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;background:#fff;
+  font-size:12px;font-weight:750;cursor:pointer;white-space:nowrap
+}
+.btn.primary{color:#fff;background:var(--blue);border-color:var(--blue);box-shadow:0 8px 18px rgba(77,124,15,.2)}
+.btn.danger{color:var(--red);border-color:#efcccc}
+.grid{display:grid;gap:16px}
+.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.card{
+  min-width:0;background:#fff;border:1px solid var(--line);border-radius:16px;
+  box-shadow:0 4px 18px rgba(31,45,22,.035)
+}
+.card-pad{padding:19px}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
+.card-head p{margin:2px 0 0;color:var(--muted);font-size:11px}
+.badge{
+  display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:5px 9px;
+  background:#f1f5ee;color:var(--body);font-size:10px;font-weight:800
+}
+.badge.high{background:#fff0ed;color:var(--red)}
+.badge.warn{background:#fff6df;color:var(--amber)}
+.badge.ok{background:#eaf7f0;color:var(--green)}
+.metric{padding:17px}
+.metric .label{color:var(--muted);font-size:11px}
+.metric strong{display:block;margin:7px 0 3px;color:var(--ink);font-size:23px}
+.metric small{color:var(--green);font-size:10px;font-weight:700}
+.progress{height:7px;border-radius:9px;background:#e8eee3;overflow:hidden}
+.progress i{display:block;height:100%;border-radius:9px;background:var(--blue)}
+.repo-name{font-size:12px;font-weight:750;color:var(--ink)}
+.muted{color:var(--muted)}
+.small{font-size:11px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:620px}
+th,td{padding:12px 14px;border-bottom:1px solid var(--line);text-align:left;font-size:11px;white-space:nowrap}
+th{color:var(--muted);font-size:9px;letter-spacing:.08em;text-transform:uppercase;background:#fafbf9}
+tr:last-child td{border-bottom:0}
+.icon-box{
+  width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
+  color:var(--blue);background:var(--soft);flex:0 0 auto
+}
+.chart{width:100%;height:270px}
+.mobile-nav{display:none}
+@media(max-width:1000px){
+  .cols-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cols-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:768px){
+  .shell{display:block}
+  .sidebar{display:none}
+  .topbar{height:60px;padding:0 16px}
+  .view{padding:20px 16px 92px}
+  .page-head{display:block}
+  .page-head .btn{margin-top:14px}
+  .cols-2,.cols-3,.cols-4{grid-template-columns:1fr}
+  .mobile-nav{
+    display:grid;grid-template-columns:repeat(6,1fr);position:fixed;z-index:20;
+    bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);
+    padding:7px max(7px,env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom));
+  }
+  .mobile-nav button{
+    min-width:0;height:48px;border:0;background:transparent;color:var(--muted);
+    display:grid;place-items:center;border-radius:9px;cursor:pointer
+  }
+  .mobile-nav button.active{color:var(--blue);background:var(--soft)}
+  .mobile-nav .material-symbols-outlined{font-size:22px}
+  .actions .live{display:none}
+}
+@media(max-width:430px){
+  .crumb span{display:none}
+  h1{font-size:25px}
+  .view{padding-left:12px;padding-right:12px}
+  .card-pad{padding:15px}
+}
+
+/* v0 */
+.change-layout{grid-template-columns:minmax(0,1.45fr) minmax(290px,.55fr)}
+.set-banner{
+  padding:21px;border-radius:16px;color:#fff;
+  background:linear-gradient(118deg,#283b19 0%,#4d7c0f 72%,#78a83d 100%);
+  display:flex;justify-content:space-between;gap:20px;align-items:center
+}
+.set-banner h2{color:#fff;font-size:22px}
+.set-banner p{margin:0;color:#dce9d3;font-size:12px}
+.set-id{padding:9px 11px;border:1px solid rgba(255,255,255,.25);border-radius:9px;font-size:11px}
+.repo-stack{padding:0 18px}
+.repo-row{
+  padding:16px 0;border-bottom:1px solid var(--line);
+  display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:11px;align-items:center
+}
+.repo-row:last-child{border:0}
+.repo-dot{width:32px;height:32px;border-radius:9px;background:#f1f5ed;display:grid;place-items:center;color:var(--blue)}
+.commit{margin-top:4px;font-size:10px;color:var(--muted)}
+.link-line{position:relative}
+.link-line:after{content:"";position:absolute;left:15px;top:48px;bottom:-17px;width:1px;background:#bbd1a9}
+.link-line:last-child:after{display:none}
+.checklist{display:grid;gap:10px}
+.check{
+  display:grid;grid-template-columns:24px 1fr auto;gap:9px;align-items:center;
+  padding:12px;border:1px solid var(--line);border-radius:11px
+}
+.check .material-symbols-outlined{color:var(--green)}
+@media(max-width:1050px){.change-layout{grid-template-columns:1fr}}
+
+/* v1 */
+.scan-board{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px}
+.scan-menu{padding:8px}
+.scan-menu button{
+  width:100%;border:0;background:transparent;border-radius:10px;padding:12px;
+  display:flex;align-items:center;justify-content:space-between;text-align:left;cursor:pointer
+}
+.scan-menu button.selected{background:var(--soft)}
+.scan-menu b{display:block;color:var(--ink);font-size:11px}
+.scan-menu small{font-size:9px;color:var(--muted)}
+.code-diff{overflow:hidden}
+.diff-head{padding:13px 16px;background:#25301f;color:#dce6d6;display:flex;justify-content:space-between;font-size:11px}
+.diff-body{padding:12px 0;background:#182015;color:#d9e3d4;overflow:auto}
+.diff-line{min-width:650px;padding:4px 15px;font-size:11px;line-height:1.5}
+.diff-line del,.diff-line ins{text-decoration:none}
+.diff-line.minus{background:rgba(199,68,68,.19);color:#ffd5d5}
+.diff-line.plus{background:rgba(22,132,91,.18);color:#cbf5df}
+.line-no{display:inline-block;width:45px;color:#7f9276;user-select:none}
+.finding{display:flex;gap:12px;padding:14px;border-bottom:1px solid var(--line)}
+.finding:last-child{border:0}
+.finding p{margin:4px 0 0;font-size:11px;color:var(--muted);line-height:1.65}
+@media(max-width:900px){.scan-board{grid-template-columns:1fr}.scan-menu{display:grid;grid-template-columns:repeat(2,1fr)}}
+
+/* v2 */
+.impact-shell{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:16px}
+.map{
+  position:relative;min-height:440px;overflow:hidden;
+  background:radial-gradient(circle at 45% 45%,#f7fbf4,#fff 58%)
+}
+.node{
+  position:absolute;width:142px;padding:12px;border:1px solid var(--line);border-radius:13px;
+  background:#fff;box-shadow:var(--shadow);z-index:2
+}
+.node b{display:block;color:var(--ink);font-size:11px}
+.node small{display:block;margin-top:5px;color:var(--muted);font-size:9px}
+.node.main-node{left:39%;top:39%;border-color:var(--blue);background:var(--soft)}
+.node.n1{left:5%;top:10%}.node.n2{right:5%;top:8%}.node.n3{left:7%;bottom:10%}.node.n4{right:6%;bottom:12%}
+.map-lines{position:absolute;inset:0;width:100%;height:100%}
+.owner-item{padding:13px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}
+.owner-item:last-child{border:0}
+.owner-item b{font-size:11px;color:var(--ink)}
+.owner-item p{font-size:10px;color:var(--muted);margin:3px 0 0}
+@media(max-width:950px){.impact-shell{grid-template-columns:1fr}}
+@media(max-width:520px){.map{min-height:510px}.node{width:122px}.node.main-node{left:29%;top:40%}}
+
+/* v3 */
+.review-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:16px}
+.review-item{padding:17px;border-bottom:1px solid var(--line)}
+.review-item:last-child{border:0}
+.review-top{display:flex;justify-content:space-between;gap:12px}
+.review-title{display:flex;gap:11px}
+.severity{width:9px;height:9px;border-radius:50%;background:var(--red);margin-top:5px;box-shadow:0 0 0 5px #ffeded}
+.review-item p{margin:8px 0;color:var(--muted);font-size:11px;line-height:1.7}
+.evidence{
+  padding:10px 12px;border-radius:9px;background:#f6f8f4;border:1px solid #e4eadf;
+  color:#42503a;font-size:10px;overflow:auto
+}
+.review-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.timeline{position:relative;padding-left:21px}
+.timeline:before{content:"";position:absolute;left:5px;top:7px;bottom:8px;width:1px;background:var(--line)}
+.event{position:relative;padding-bottom:19px}
+.event:before{
+  content:"";position:absolute;left:-20px;top:4px;width:9px;height:9px;border-radius:50%;
+  background:#fff;border:2px solid var(--blue)
+}
+.event b{font-size:11px;color:var(--ink)}
+.event p{margin:3px 0 0;font-size:10px;color:var(--muted)}
+@media(max-width:950px){.review-grid{grid-template-columns:1fr}}
+
+/* v4 */
+.migration-board{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
+.phase-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.phase{
+  position:relative;padding:15px;border:1px solid var(--line);border-radius:12px;background:#fff
+}
+.phase:after{content:"arrow_forward";font-family:"Material Symbols Outlined";position:absolute;right:-15px;top:32px;color:#aab6a2;z-index:2}
+.phase:last-child:after{display:none}
+.phase small{font-size:9px;color:var(--muted)}
+.phase b{display:block;margin:6px 0;font-size:12px;color:var(--ink)}
+.team-row{
+  display:grid;grid-template-columns:140px minmax(0,1fr) 62px;gap:12px;
+  align-items:center;padding:14px 0;border-bottom:1px solid var(--line)
+}
+.team-row:last-child{border:0}
+.team-row b{font-size:11px;color:var(--ink)}
+.date-card{padding:15px;border-radius:12px;background:#26361c;color:#fff}
+.date-card small{color:#bdd0af;font-size:10px}
+.date-card strong{display:block;margin-top:7px;font-size:24px}
+.rule{padding:12px 0;border-bottom:1px solid var(--line)}
+.rule:last-child{border:0}
+.rule b{font-size:10px;color:var(--ink)}
+.rule p{margin:4px 0 0;font-size:10px;color:var(--muted);line-height:1.5}
+@media(max-width:950px){.migration-board{grid-template-columns:1fr}}
+@media(max-width:620px){.phase-strip{grid-template-columns:1fr 1fr}.phase:after{display:none}.team-row{grid-template-columns:100px minmax(0,1fr) 48px}}
+
+/* v5 */
+.gate-hero{
+  display:grid;grid-template-columns:190px minmax(0,1fr) auto;gap:24px;align-items:center;
+  padding:24px;background:#fff;border:1px solid var(--line);border-radius:17px
+}
+.score-ring{
+  width:152px;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;
+  background:conic-gradient(var(--amber) 0 78%,#e8eee3 78%);
+  position:relative;margin:auto
+}
+.score-ring:after{content:"";position:absolute;inset:13px;border-radius:50%;background:#fff}
+.score-ring div{position:relative;z-index:2;text-align:center}
+.score-ring strong{display:block;font-size:34px;color:var(--ink)}
+.score-ring small{font-size:10px;color:var(--muted)}
+.gate-list{display:grid;gap:8px}
+.gate-row{
+  display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:9px;align-items:center;
+  padding:10px 12px;border:1px solid var(--line);border-radius:10px
+}
+.gate-row b{font-size:11px;color:var(--ink)}
+.gate-row .material-symbols-outlined{color:var(--green)}
+.gate-row.block .material-symbols-outlined{color:var(--red)}
+.approval-actions{display:grid;gap:9px}
+.approval-actions .btn{width:100%}
+.audit-log{padding:0 18px}
+.audit-row{display:grid;grid-template-columns:78px 120px minmax(0,1fr) auto;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);font-size:10px}
+.audit-row:last-child{border:0}
+@media(max-width:900px){.gate-hero{grid-template-columns:1fr}.approval-actions{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:560px){.approval-actions{grid-template-columns:1fr}.audit-row{grid-template-columns:62px 1fr}.audit-row span:nth-child(3),.audit-row span:nth-child(4){grid-column:2}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"><span class="material-symbols-outlined">account_tree</span></div>
+      <div><strong>CrossRepo AI</strong><small>JVISION REVIEW OPS</small></div>
+    </div>
+    <div class="nav-label">REVIEW WORKFLOW</div>
+    <nav class="nav" aria-label="跨庫審查流程">
+      <button type="button" data-i="0"><span class="material-symbols-outlined">dataset_linked</span><span>建立跨庫變更集</span></button>
+      <button type="button" data-i="1"><span class="material-symbols-outlined">difference</span><span>掃描契約差異</span></button>
+      <button type="button" data-i="2"><span class="material-symbols-outlined">hub</span><span>確認下游影響</span></button>
+      <button type="button" data-i="3"><span class="material-symbols-outlined">rate_review</span><span>處理審查發現</span></button>
+      <button type="button" data-i="4"><span class="material-symbols-outlined">conversion_path</span><span>協調相容遷移</span></button>
+      <button type="button" data-i="5"><span class="material-symbols-outlined">gavel</span><span>核准跨庫合併</span></button>
+    </nav>
+    <div class="side-foot">
+      <b><span class="live-dot"></span>分析引擎運作中</b>
+      最後同步 14:32 · 8 個儲存庫
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="crumb"><b>跨儲存庫 Code Review Agent</b><span>/ IT 維運管理平台</span></div>
+      <div class="actions">
+        <div class="live"><span class="live-dot"></span>契約監控正常</div>
+        <div class="avatar" aria-label="使用者：工程主管">JL</div>
+      </div>
+    </header>
+
+    <section class="view" data-view="0">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">STEP 01 · CHANGE SET</div>
+          <h1>建立跨庫變更集</h1>
+          <p class="sub">關聯多個儲存庫的 PR、提交、套件版本與發布計畫，讓分散改動成為同一個可追溯審查單位。</p>
+        </div>
+        <button class="btn primary" type="button"><span class="material-symbols-outlined">add_link</span>關聯新變更</button>
+      </div>
+
+      <div class="set-banner">
+        <div>
+          <h2>付款事件 v3 遷移</h2>
+          <p>由變更作者林育辰建立 · 預計 08/26 發布 · 目前關聯 4 個儲存庫</p>
+        </div>
+        <div class="set-id mono">CRS-2026-0819</div>
+      </div>
+
+      <div class="grid cols-4" style="margin-top:16px">
+        <div class="card metric"><span class="label">關聯 PR</span><strong>7</strong><small>5 已通過單庫審查</small></div>
+        <div class="card metric"><span class="label">契約檔案</span><strong>12</strong><small>3 個版本待比對</small></div>
+        <div class="card metric"><span class="label">服務範圍</span><strong>8</strong><small>跨 4 個責任團隊</small></div>
+        <div class="card metric"><span class="label">發布窗口</span><strong>5 天</strong><small>倒數 112 小時</small></div>
+      </div>
+
+      <div class="grid change-layout" style="margin-top:16px">
+        <div class="card">
+          <div class="card-head card-pad" style="padding-bottom:0">
+            <div><h2>變更關聯拓撲</h2><p>依套件與事件契約排序</p></div>
+            <span class="badge ok"><span class="material-symbols-outlined">sync</span>已同步</span>
+          </div>
+          <div class="repo-stack">
+            <div class="repo-row link-line">
+              <div class="repo-dot"><span class="material-symbols-outlined">api</span></div>
+              <div><div class="repo-name">payment-contracts</div><div class="commit mono">PR #184 · feat/event-v3 · a81f92c</div></div>
+              <span class="badge high">核心契約</span>
+            </div>
+            <div class="repo-row link-line">
+              <div class="repo-dot"><span class="material-symbols-outlined">payments</span></div>
+              <div><div class="repo-name">checkout-service</div><div class="commit mono">PR #921 · migrate payment.created · d0846aa</div></div>
+              <span class="badge ok">審查通過</span>
+            </div>
+            <div class="repo-row link-line">
+              <div class="repo-dot"><span class="material-symbols-outlined">receipt_long</span></div>
+              <div><div class="repo-name">billing-worker</div><div class="commit mono">PR #446 · consume event v3 · 6b391e0</div></div>
+              <span class="badge warn">待補測試</span>
+            </div>
+            <div class="repo-row">
+              <div class="repo-dot"><span class="material-symbols-outlined">smartphone</span></div>
+              <div><div class="repo-name">merchant-console</div><div class="commit mono">PR #703 · update shared types · f013ae8</div></div>
+              <span class="badge">草稿</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-head">
+            <div><h2>變更集完整度</h2><p>發布前必要資訊</p></div>
+            <b style="color:var(--blue)">82%</b>
+          </div>
+          <div class="progress"><i style="width:82%"></i></div>
+          <div class="checklist" style="margin-top:16px">
+            <div class="check"><span class="material-symbols-outlined">check_circle</span><div><h3>需求連結</h3><span class="small muted">PAY-2148 已關聯</span></div><span class="badge ok">完成</span></div>
+            <div class="check"><span class="material-symbols-outlined">check_circle</span><div><h3>架構決策</h3><span class="small muted">ADR-092 已核准</span></div><span class="badge ok">完成</span></div>
+            <div class="check"><span class="material-symbols-outlined">pending</span><div><h3>回復計畫</h3><span class="small muted">缺 merchant-console 步驟</span></div><span class="badge warn">待補</span></div>
+            <div class="check"><span class="material-symbols-outlined">check_circle</span><div><h3>套件版本</h3><span class="small muted">contracts 3.0.0-rc.2</span></div><span class="badge ok">鎖定</span></div>
+          </div>
+          <button class="btn primary" type="button" data-next="1" style="width:100%;margin-top:16px">儲存並掃描契約<span class="material-symbols-outlined">arrow_forward</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="1">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">STEP 02 · CONTRACT DIFF</div>
+          <h1>掃描契約差異</h1>
+          <p class="sub">檢查 API、事件、Schema 與共享型別的前後版本差異，優先標示破壞性變更及缺少的遷移證據。</p>
+        </div>
+        <button class="btn primary" type="button"><span class="material-symbols-outlined">radar</span>重新掃描</button>
+      </div>
+
+      <div class="grid cols-4">
+        <div class="card metric"><span class="label">掃描檔案</span><strong>146</strong><small>涵蓋 4 種契約</small></div>
+        <div class="card metric"><span class="label">破壞性變更</span><strong style="color:var(--red)">3</strong><small style="color:var(--red)">需人工處理</small></div>
+        <div class="card metric"><span class="label">相容變更</span><strong>18</strong><small>可安全向下相容</small></div>
+        <div class="card metric"><span class="label">掃描信心</span><strong>96%</strong><small>依程式碼與 Schema</small></div>
+      </div>
+
+      <div class="scan-board" style="margin-top:16px">
+        <div class="card scan-menu">
+          <button class="selected" type="button"><span><b>PaymentCreated</b><small>AsyncAPI · 4 處差異</small></span><span class="badge high">2 高風險</span></button>
+          <button type="button"><span><b>PaymentResponse</b><small>OpenAPI · 7 處差異</small></span><span class="badge warn">1 中風險</span></button>
+          <button type="button"><span><b>Money</b><small>Shared type · 3 處差異</small></span><span class="badge ok">相容</span></button>
+          <button type="button"><span><b>InvoiceSchema</b><small>JSON Schema · 6 處差異</small></span><span class="badge high">1 高風險</span></button>
+        </div>
+
+        <div class="card code-diff">
+          <div class="diff-head"><span class="mono">events/payment-created.v2.yaml → v3.yaml</span><span>4 changes</span></div>
+          <div class="diff-body mono">
+            <div class="diff-line"><span class="line-no">38</span>properties:</div>
+            <div class="diff-line minus"><span class="line-no">39 −</span><del>payment_id: { type: string }</del></div>
+            <div class="diff-line plus"><span class="line-no">39 +</span><ins>paymentId: { type: string, format: uuid }</ins></div>
+            <div class="diff-line"><span class="line-no">40</span>merchant_id: { type: string }</div>
+            <div class="diff-line minus"><span class="line-no">41 −</span><del>amount: { type: number }</del></div>
+            <div class="diff-line plus"><span class="line-no">41 +</span><ins>amount: { $ref: "#/components/schemas/Money" }</ins></div>
+            <div class="diff-line plus"><span class="line-no">42 +</span><ins>occurredAt: { type: string, format: date-time }</ins></div>
+            <div class="diff-line"><span class="line-no">43</span>required:</div>
+            <div class="diff-line minus"><span class="line-no">44 −</span><del>[payment_id, merchant_id, amount]</del></div>
+            <div class="diff-line plus"><span class="line-no">44 +</span><ins>[paymentId, merchant_id, amount, occurredAt]</ins></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid cols-2" style="margin-top:16px">
+        <div class="card">
+          <div class="card-head card-pad" style="padding-bottom:0"><div><h2>AI 契約發現</h2><p>具檔案與規則證據</p></div><span class="badge high">3 待處理</span></div>
+          <div class="finding">
+            <div class="icon-box" style="color:var(--red);background:#fff0ed"><span class="material-symbols-outlined">error</span></div>
+            <div><h3>必要欄位重新命名</h3><p><span class="mono">payment_id</span> 改為 <span class="mono">paymentId</span>，現有消費端反序列化會失敗。</p><span class="badge high">BREAKING · CT-104</span></div>
+          </div>
+          <div class="finding">
+            <div class="icon-box"><span class="material-symbols-outlined">data_object</span></div>
+            <div><h3>純量改為物件</h3><p><span class="mono">amount</span> 從 number 改為 Money，billing-worker 仍以 Decimal 接收。</p><span class="badge high">BREAKING · CT-108</span></div>
+          </div>
+        </div>
+        <div class="card card-pad">
+          <div class="card-head"><div><h2>差異分布</h2><p>依契約類型統計</p></div><span class="badge">21 項</span></div>
+          <div id="diffChart" class="chart" role="img" aria-label="契約差異分布圖"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="2">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">STEP 03 · IMPACT GRAPH</div>
+          <h1>確認下游影響</h1>
+          <p class="sub">核對受影響服務、用戶端、部署環境與責任團隊，將契約風險轉為明確的處理責任。</p>
+        </div>
+        <button class="btn primary" type="button"><span class="material-symbols-outlined">person_add</span>指派負責人</button>
+      </div>
+
+      <div class="impact-shell">
+        <div class="card map" aria-label="服務相依關係圖">
+          <svg class="map-lines" viewBox="0 0 700 440" preserveAspectRatio="none" aria-hidden="true">
+            <defs><marker id="arr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7" fill="none" stroke="#8cad71"/></marker></defs>
+            <path d="M160 90 C260 100 275 185 330 210" fill="none" stroke="#8cad71" stroke-width="2" marker-end="url(#arr)"/>
+            <path d="M535 85 C455 105 435 175 405 210" fill="none" stroke="#c27803" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+            <path d="M350 250 C280 280 230 330 160 360" fill="none" stroke="#c74444" stroke-width="2" marker-end="url(#arr)"/>
+            <path d="M410 250 C475 280 510 325 545 355" fill="none" stroke="#8cad71" stroke-width="2" marker-end="url(#arr)"/>
+          </svg>
+          <div class="node n1"><b>checkout-service</b><small>正式環境 · Web API</small><span class="badge ok" style="margin-top:8px">已升級</span></div>
+          <div class="node n2"><b>fraud-engine</b><small>正式環境 · 事件消費</small><span class="badge warn" style="margin-top:8px">需驗證</span></div>
+          <div class="node main-node"><b>PaymentCreated v3</b><small>payment-contracts@3.0</small><span class="badge high" style="margin-top:8px">2 breaking</span></div>
+          <div class="node n3"><b>billing-worker</b><small>正式 / 災備 · 批次服務</small><span class="badge high" style="margin-top:8px">受阻擋</span></div>
+          <div class="node n4"><b>merchant-console</b><small>正式環境 · React Client</small><span class="badge" style="margin-top:8px">待升級</span></div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="card-head"><div><h2>責任確認</h2><p>4 個下游團隊</p></div><b style="color:var(--amber)">3 / 4</b></div>
+          <div class="progress"><i style="width:75%;background:var(--amber)"></i></div>
+          <div class="owner-item"><div><b>Checkout 團隊</b><p>王婉庭 · 已確認 v3</p></div><span class="badge ok">完成</span></div>
+          <div class="owner-item"><div><b>Risk Platform</b><p>陳威廷 · 等待測試結果</p></div><span class="badge warn">驗證中</span></div>
+          <div class="owner-item"><div><b>Billing Core</b><p>吳承哲 · 已提出阻擋</p></div><span class="badge high">阻擋</span></div>
+          <div class="owner-item"><div><b>Merchant UX</b><p>尚未回覆 · 逾期 3 小時</p></div><span class="badge">待確認</span></div>
+          <button class="btn primary" type="button" style="width:100%;margin-top:15px">通知未回覆團隊</button>
+        </div>
+      </div>
+
+      <div class="grid cols-4" style="margin-top:16px">
+        <div class="card metric"><span class="label">直接相依</span><strong>4</strong><small>2 個正式環境服務</small></div>
+        <div class="card metric"><span class="label">間接相依</span><strong>11</strong><small>最深 3 層</small></div>
+        <div class="card metric"><span class="label">受影響環境</span><strong>3</strong><small>正式、災備、沙盒</small></div>
+        <div class="card metric"><span class="label">未確認團隊</span><strong style="color:var(--amber)">1</strong><small style="color:var(--amber)">Merchant UX</small></div>
+      </div>
+    </section>
+
+    <section class="view" data-view="3">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">STEP 04 · REVIEW FINDINGS</div>
+          <h1>處理審查發現</h1>
+          <p class="sub">檢視具程式證據的跨服務風險建議，提交修正、接受建議或以可稽核的技術說明豁免。</p>
+        </div>
+        <button class="btn" type="button"><span class="material-symbols-outlined">filter_list</span>僅看待處理</button>
+      </div>
+
+      <div class="grid cols-4">
+        <div class="card metric"><span class="label">審查發現</span><strong>9</strong><small>跨 6 個檔案</small></div>
+        <div class="card metric"><span class="label">高風險</span><strong style="color:var(--red)">2</strong><small style="color:var(--red)">阻擋合併</small></div>
+        <div class="card metric"><span class="label">已修正</span><strong>5</strong><small>驗證均通過</small></div>
+        <div class="card metric"><span class="label">審查 SLA</span><strong>2h 18m</strong><small>剩餘 42 分鐘</small></div>
+      </div>
+
+      <div class="review-grid" style="margin-top:16px">
+        <div class="card">
+          <div class="card-head card-pad" style="padding-bottom:0">
+            <div><h2>跨庫審查佇列</h2><p>依合併風險排序</p></div><span class="badge high">2 阻擋</span>
+          </div>
+          <article class="review-item">
+            <div class="review-top">
+              <div class="review-title"><span class="severity"></span><div><h3>billing-worker 未處理 Money 物件</h3><span class="small muted mono">src/consumers/payment.ts:84</span></div></div>
+              <span class="badge high">嚴重</span>
+            </div>
+            <p>事件契約 v3 將 amount 由數字改為含 currency 與 value 的物件，但目前仍直接傳入 Decimal。正式環境將產生型別轉換錯誤。</p>
+            <div class="evidence mono">const total = new Decimal(event.amount); // event.amount is now Money</div>
+            <div class="review-actions">
+              <button class="btn primary" type="button">開啟修正 PR</button>
+              <button class="btn" type="button">加入說明</button>
+              <button class="btn" type="button">申請豁免</button>
+            </div>
+          </article>
+          <article class="review-item">
+            <div class="review-top">
+              <div class="review-title"><span class="severity" style="background:var(--amber);box-shadow:0 0 0 5px #fff4d9"></span><div><h3>事件雙讀期缺少 v2 測試</h3><span class="small muted mono">tests/payment-handler.spec.ts:129</span></div></div>
+              <span class="badge warn">中等</span>
+            </div>
+            <p>遷移計畫要求 14 天雙讀，但測試只覆蓋 v3 payload，無法證明舊版消費者在過渡期間仍可運作。</p>
+            <div class="evidence mono">expect(handle(paymentCreatedV3)).resolves.toMatchObject(result)</div>
+            <div class="review-actions"><button class="btn primary" type="button">接受並建立任務</button><button class="btn" type="button">標記誤判</button></div>
+          </article>
+          <article class="review-item">
+            <div class="review-top">
+              <div class="review-title"><span class="severity" style="background:var(--green);box-shadow:0 0 0 5px #e9f7ef"></span><div><h3>共享型別版本已固定</h3><span class="small muted mono">package.json:42</span></div></div>
+              <span class="badge ok">已解決</span>
+            </div>
+            <p>原先的浮動版本已更新為 3.0.0-rc.2，確保跨庫測試與正式建置採用相同契約。</p>
+          </article>
+        </div>
+
+        <div class="grid">
+          <div class="card card-pad">
+            <div class="card-head"><div><h2>處理紀錄</h2><p>可追溯操作時間線</p></div></div>
+            <div class="timeline">
+              <div class="event"><b>AI 重新驗證修正</b><p>14:28 · 共享型別版本已固定</p></div>
+              <div class="event"><b>資深開發者提交說明</b><p>14:11 · 雙讀測試將於 PR #448 補齊</p></div>
+              <div class="event"><b>Billing Core 提出阻擋</b><p>13:47 · Money 物件尚未支援</p></div>
+              <div class="event"><b>跨庫掃描完成</b><p>13:31 · 產生 9 項審查發現</p></div>
+            </div>
+          </div>
+          <div class="card card-pad">
+            <div class="card-head"><div><h2>風險組成</h2><p>依證據來源</p></div></div>
+            <div id="riskChart" class="chart" style="height:220px" role="img" aria-label="審查風險組成圖"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="4">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">STEP 05 · MIGRATION PLAN</div>
+          <h1>協調相容遷移</h1>
+          <p class="sub">核定版本策略、升級順序、淘汰日期與跨團隊任務，確保跨庫改動可分階段安全落地。</p>
+        </div>
+        <button class="btn primary" type="button"><span class="material-symbols-outlined">publish</span>發布遷移計畫</button>
+      </div>
+
+      <div class="phase-strip">
+        <div class="phase"><small>PHASE 1 · 08/22</small><b>發布 v3 契約</b><span class="badge ok">已完成</span></div>
+        <div class="phase"><small>PHASE 2 · 08/26</small><b>雙寫雙讀</b><span class="badge warn">進行中</span></div>
+        <div class="phase"><small>PHASE 3 · 09/09</small><b>下游全面切換</b><span class="badge">已排程</span></div>
+        <div class="phase"><small>PHASE 4 · 09/23</small><b>淘汰 v2</b><span class="badge">待核定</span></div>
+      </div>
+
+      <div class="migration-board" style="margin-top:16px">
+        <div class="card card-pad">
+          <div class="card-head"><div><h2>跨團隊升級進度</h2><p>依相依順序排列</p></div><span class="badge">6 個工作項</span></div>
+          <div class="team-row"><div><b>Platform Contracts</b><span class="small muted">契約發布</span></div><div class="progress"><i style="width:100%"></i></div><span class="badge ok">100%</span></div>
+          <div class="team-row"><div><b>Checkout</b><span class="small muted">生產雙寫</span></div><div class="progress"><i style="width:82%"></i></div><span class="badge ok">82%</span></div>
+          <div class="team-row"><div><b>Risk Platform</b><span class="small muted">消費端雙讀</span></div><div class="progress"><i style="width:68%;background:var(--amber)"></i></div><span class="badge warn">68%</span></div>
+          <div class="team-row"><div><b>Billing Core</b><span class="small muted">Money 型別升級</span></div><div class="progress"><i style="width:35%;background:var(--red)"></i></div><span class="badge high">35%</span></div>
+          <div class="team-row"><div><b>Merchant UX</b><span class="small muted">共享型別更新</span></div><div class="progress"><i style="width:54%;background:var(--amber)"></i></div><span class="badge warn">54%</span></div>
+        </div>
+
+        <div class="grid">
+          <div class="date-card">
+            <small>V2 淘汰期限</small>
+            <strong>2026.09.23</strong>
+            <p style="margin:8px 0 0;color:#d6e4cc;font-size:11px">剩餘 33 天 · 仍有 2 個服務未達切換門檻</p>
+          </div>
+          <div class="card card-pad">
+            <div class="card-head"><div><h2>相容策略</h2><p>工程主管核定</p></div></div>
+            <div class="rule"><b>版本策略</b><p>v2 與 v3 並行 28 天；不得原地覆蓋事件 Schema。</p></div>
+            <div class="rule"><b>雙寫規則</b><p>Checkout 先雙寫，確認事件數量與金額校驗一致。</p></div>
+            <div class="rule"><b>回復條件</b><p>錯誤率超過 0.5% 或延遲 P95 高於 800ms 時回切。</p></div>
+            <div class="rule"><b>核准人</b><p>工程主管周冠宇 · 08/21 14:20 核定</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card-pad" style="margin-top:16px">
+        <div class="card-head"><div><h2>遷移燃盡趨勢</h2><p>剩餘未完成工作項</p></div><span class="badge ok">預計準時完成</span></div>
+        <div id="migrationChart" class="chart" role="img" aria-label="遷移工作燃盡趨勢圖"></div>
+      </div>
+    </section>
+
+    <section class="view" data-view="5">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">STEP 06 · MERGE GATE</div>
+          <h1>核准跨庫合併</h1>
+          <p class="sub">依測試、相容性、責任確認與遷移結果核准、暫停或退回整組變更，留下可稽核的決策紀錄。</p>
+        </div>
+        <span class="badge warn"><span class="material-symbols-outlined">lock_clock</span>等待人工核准</span>
+      </div>
+
+      <div class="gate-hero">
+        <div class="score-ring"><div><strong>78</strong><small>合併信心分數</small></div></div>
+        <div>
+          <h2>付款事件 v3 遷移</h2>
+          <p class="sub" style="margin-bottom:15px">7 個 PR · 4 個儲存庫 · 12 個契約檔案 · 發布窗口 08/26 22:00</p>
+          <div class="gate-list">
+            <div class="gate-row"><span class="material-symbols-outlined">check_circle</span><b>跨庫整合測試</b><span class="badge ok">84 / 84 通過</span></div>
+            <div class="gate-row"><span class="material-symbols-outlined">check_circle</span><b>下游責任確認</b><span class="badge ok">4 / 4 完成</span></div>
+            <div class="gate-row block"><span class="material-symbols-outlined">cancel</span><b>破壞性契約處理</b><span class="badge high">1 項未解</span></div>
+            <div class="gate-row"><span class="material-symbols-outlined">check_circle</span><b>回復演練</b><span class="badge ok">12m 48s</span></div>
+          </div>
+        </div>
+        <div class="approval-actions">
+          <button class="btn primary" type="button"><span class="material-symbols-outlined">verified</span>條件式核准</button>
+          <button class="btn" type="button"><span class="material-symbols-outlined">pause</span>暫停合併</button>
+          <button class="btn danger" type="button"><span class="material-symbols-outlined">undo</span>退回修正</button>
+        </div>
+      </div>
+
+      <div class="grid cols-3" style="margin-top:16px">
+        <div class="card metric"><span class="label">系統可用率</span><strong>99%</strong><small>由 97% 提升</small></div>
+        <div class="card metric"><span class="label">SLA 達成率</span><strong>98%</strong><small>目標已達成</small></div>
+        <div class="card metric"><span class="label">事件平均處理</span><strong>30 分</strong><small>原為 120 分鐘</small></div>
+      </div>
+
+      <div class="grid cols-2" style="margin-top:16px">
+        <div class="card card-pad">
+          <div class="card-head"><div><h2>可用率趨勢</h2><p>W1 至 W6 實際表現</p></div><span class="badge ok">+2.0%</span></div>
+          <div id="availabilityChart" class="chart" role="img" aria-label="系統可用率趨勢圖"></div>
+        </div>
+        <div class="card">
+          <div class="card-head card-pad" style="padding-bottom:0"><div><h2>決策稽核紀錄</h2><p>跨庫操作均已簽章</p></div><span class="badge">CRS-2026-0819</span></div>
+          <div class="audit-log">
+            <div class="audit-row"><span class="mono muted">14:28:19</span><b>AI Review Agent</b><span>重新驗證 84 項整合測試</span><span class="badge ok">通過</span></div>
+            <div class="audit-row"><span class="mono muted">14:20:03</span><b>周冠宇</b><span>核定 v2 / v3 並行策略</span><span class="badge ok">已簽章</span></div>
+            <div class="audit-row"><span class="mono muted">14:11:45</span><b>吳承哲</b><span>提交 Money 型別修正說明</span><span class="badge warn">待驗證</span></div>
+            <div class="audit-row"><span class="mono muted">13:48:27</span><b>陳威廷</b><span>確認 fraud-engine 下游影響</span><span class="badge ok">已確認</span></div>
+            <div class="audit-row"><span class="mono muted">13:31:06</span><b>Contract Scanner</b><span>完成 146 個檔案契約掃描</span><span class="badge ok">完成</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card table-wrap" style="margin-top:16px">
+        <div class="card-head card-pad" style="padding-bottom:8px"><div><h2>跨儲存庫 Code Review Agent 資料列表</h2><p>完整流程追蹤</p></div></div>
+        <table>
+          <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">CRO-001</td><td>建立跨庫變更集</td><td>變更作者</td><td>D+1</td><td><span class="badge warn">處理中</span></td></tr>
+            <tr><td class="mono">CRO-002</td><td>掃描契約差異</td><td>Code 基礎設</td><td>D+2</td><td><span class="badge warn">待確認</span></td></tr>
+            <tr><td class="mono">CRO-003</td><td>確認下游影響</td><td>服務負責人</td><td>D+3</td><td><span class="badge warn">待確認</span></td></tr>
+            <tr><td class="mono">CRO-004</td><td>處理審查發現</td><td>資深開發者</td><td>D+4</td><td><span class="badge ok">已完成</span></td></tr>
+            <tr><td class="mono">CRO-005</td><td>協調相容遷移</td><td>工程主管</td><td>D+5</td><td><span class="badge ok">已完成</span></td></tr>
+            <tr><td class="mono">CRO-006</td><td>核准跨庫合併</td><td>發布負責人</td><td>D+6</td><td><span class="badge ok">已完成</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<nav class="mobile-nav" aria-label="行動版流程導覽">
+  <button type="button" data-i="0" aria-label="建立跨庫變更集"><span class="material-symbols-outlined">dataset_linked</span></button>
+  <button type="button" data-i="1" aria-label="掃描契約差異"><span class="material-symbols-outlined">difference</span></button>
+  <button type="button" data-i="2" aria-label="確認下游影響"><span class="material-symbols-outlined">hub</span></button>
+  <button type="button" data-i="3" aria-label="處理審查發現"><span class="material-symbols-outlined">rate_review</span></button>
+  <button type="button" data-i="4" aria-label="協調相容遷移"><span class="material-symbols-outlined">conversion_path</span></button>
+  <button type="button" data-i="5" aria-label="核准跨庫合併"><span class="material-symbols-outlined">gavel</span></button>
+</nav>
+
+<script>
+(function(){
+  "use strict";
+
+  var chartInstances = {};
+  var chartBuilders = {
+    1:function(){
+      createChart("diffChart",{
+        tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},
+        grid:{left:36,right:18,top:18,bottom:32},
+        xAxis:{type:"category",data:["AsyncAPI","OpenAPI","Schema","共享型別"],axisLine:{lineStyle:{color:"#dce6d4"}},axisLabel:{color:"#718066",fontSize:10}},
+        yAxis:{type:"value",splitLine:{lineStyle:{color:"#edf1ea"}},axisLabel:{color:"#718066",fontSize:9}},
+        series:[
+          {name:"相容",type:"bar",stack:"diff",barWidth:25,data:[2,6,5,5],itemStyle:{color:"#8db766",borderRadius:[0,0,3,3]}},
+          {name:"破壞性",type:"bar",stack:"diff",data:[2,0,1,0],itemStyle:{color:"#c74444",borderRadius:[3,3,0,0]}}
+        ]
+      });
+    },
+    3:function(){
+      createChart("riskChart",{
+        tooltip:{trigger:"item"},
+        legend:{bottom:0,textStyle:{color:"#718066",fontSize:9}},
+        series:[{
+          type:"pie",radius:["50%","72%"],center:["50%","42%"],
+          label:{show:false},
+          data:[
+            {value:4,name:"程式碼",itemStyle:{color:"#4d7c0f"}},
+            {value:3,name:"需求",itemStyle:{color:"#87ad61"}},
+            {value:2,name:"架構",itemStyle:{color:"#c27803"}}
+          ]
+        }]
+      });
+    },
+    4:function(){
+      createChart("migrationChart",{
+        tooltip:{trigger:"axis"},
+        grid:{left:38,right:18,top:20,bottom:30},
+        xAxis:{type:"category",boundaryGap:false,data:["08/22","08/26","09/02","09/09","09/16","09/23"],axisLine:{lineStyle:{color:"#dce6d4"}},axisLabel:{color:"#718066",fontSize:10}},
+        yAxis:{type:"value",min:0,max:24,splitLine:{lineStyle:{color:"#edf1ea"}},axisLabel:{color:"#718066",fontSize:9}},
+        series:[
+          {name:"預計",type:"line",data:[24,20,15,9,4,0],symbol:"none",lineStyle:{color:"#aab6a2",type:"dashed"}},
+          {name:"實際",type:"line",smooth:true,data:[24,18,12,7,null,null],symbolSize:7,lineStyle:{width:3,color:"#4d7c0f"},itemStyle:{color:"#4d7c0f"},areaStyle:{color:"rgba(77,124,15,.10)"}}
+        ]
+      });
+    },
+    5:function(){
+      createChart("availabilityChart",{
+        tooltip:{trigger:"axis",valueFormatter:function(value){return value+"%";}},
+        grid:{left:42,right:18,top:20,bottom:30},
+        xAxis:{type:"category",boundaryGap:false,data:["W1","W2","W3","W4","W5","W6"],axisLine:{lineStyle:{color:"#dce6d4"}},axisLabel:{color:"#718066"}},
+        yAxis:{type:"value",min:96.5,max:99.5,splitNumber:3,splitLine:{lineStyle:{color:"#edf1ea"}},axisLabel:{color:"#718066",formatter:"{value}%"}},
+        series:[{name:"系統可用率",type:"line",smooth:true,data:[97,97.4,97.8,98.2,98.6,99],symbolSize:7,lineStyle:{width:3,color:"#4d7c0f"},itemStyle:{color:"#4d7c0f"},areaStyle:{color:"rgba(77,124,15,.12)"},markLine:{symbol:"none",label:{formatter:"目標 99%",color:"#718066"},lineStyle:{color:"#c27803",type:"dashed"},data:[{yAxis:99}]}}]
+      });
+    }
+  };
+
+  function createChart(elementId,option){
+    var chartElement=document.getElementById(elementId);
+    if(!chartElement||chartElement.clientWidth===0||typeof echarts==="undefined"){return;}
+    if(chartInstances[elementId]){chartInstances[elementId].resize();return;}
+    chartInstances[elementId]=echarts.init(chartElement);
+    chartInstances[elementId].setOption(option);
+  }
+
+  function show(viewIndex){
+    var safeIndex=Math.max(0,Math.min(5,Number(viewIndex)||0));
+    document.querySelectorAll("[data-view]").forEach(function(viewElement){
+      viewElement.classList.toggle("active",Number(viewElement.getAttribute("data-view"))===safeIndex);
+    });
+    document.querySelectorAll("[data-i]").forEach(function(navButton){
+      var selected=Number(navButton.getAttribute("data-i"))===safeIndex;
+      navButton.classList.toggle("active",selected);
+      navButton.setAttribute("aria-current",selected?"step":"false");
+    });
+    if(chartBuilders[safeIndex]){
+      requestAnimationFrame(function(){chartBuilders[safeIndex]();});
+    }
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+
+  function indexFromHash(){
+    var hashMatch=window.location.hash.match(/(?:go=|v)([0-9]+)/);
+    return hashMatch?Math.max(0,Math.min(5,Number(hashMatch[1]))):0;
+  }
+
+  document.querySelectorAll("[data-i]").forEach(function(navButton){
+    navButton.addEventListener("click",function(){
+      var selectedIndex=Number(navButton.getAttribute("data-i"));
+      if(window.location.hash==="#go="+selectedIndex){show(selectedIndex);}
+      else{window.location.hash="go="+selectedIndex;}
+    });
+  });
+
+  document.querySelectorAll("[data-next]").forEach(function(nextButton){
+    nextButton.addEventListener("click",function(){
+      window.location.hash="go="+nextButton.getAttribute("data-next");
+    });
+  });
+
+  window.addEventListener("hashchange",function(){show(indexFromHash());});
+  window.addEventListener("resize",function(){
+    Object.keys(chartInstances).forEach(function(chartKey){chartInstances[chartKey].resize();});
+  });
+
+  show(indexFromHash());
+})();
+</script>
+</body>
+</html>

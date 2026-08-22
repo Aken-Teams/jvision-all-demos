@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LLM 結構化輸出守門員 · it-ops｜Jvision 系統 Demo</title>
+  <link rel="icon" href="../../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --blue:#1e40af;
+      --ink:#111827;
+      --body:#334155;
+      --muted:#64748b;
+      --line:#dbe3ef;
+      --bg:#f4f7fb;
+      --green:#059669;
+      --amber:#d97706;
+      --red:#dc2626;
+      --white:#fff;
+      --soft:#eef3ff;
+      --shadow:0 12px 32px rgba(15,23,42,.08);
+      --radius:18px
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--body);font-family:Inter,"Noto Sans TC",sans-serif}
+    body{overflow-x:hidden}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(30,64,175,.24);outline-offset:2px}
+    .material-symbols-outlined{font-size:21px;line-height:1;vertical-align:middle}
+    .shell{display:grid;grid-template-columns:78px minmax(0,1fr);min-height:100vh}
+    .rail{position:fixed;inset:0 auto 0 0;width:78px;background:#102a79;color:#fff;display:flex;flex-direction:column;align-items:center;z-index:20;border-right:1px solid rgba(255,255,255,.12)}
+    .brand{width:48px;height:48px;margin:18px 0 25px;border-radius:15px;background:#fff;color:var(--blue);display:grid;place-items:center;font-size:17px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.16)}
+    .rail-nav{display:flex;flex-direction:column;gap:9px;width:100%;align-items:center}
+    .nav-btn{width:54px;height:54px;border:0;border-radius:15px;background:transparent;color:#bfcef8;display:grid;place-items:center;position:relative}
+    .nav-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+    .nav-btn.active{background:#fff;color:var(--blue);box-shadow:0 8px 18px rgba(0,0,0,.16)}
+    .nav-btn::after{content:attr(aria-label);position:absolute;left:64px;white-space:nowrap;background:var(--ink);color:#fff;padding:7px 10px;border-radius:8px;font-size:12px;opacity:0;pointer-events:none;transform:translateX(-4px);transition:.18s}
+    .nav-btn:hover::after{opacity:1;transform:none}
+    .rail-foot{margin-top:auto;margin-bottom:18px;width:38px;height:38px;border-radius:50%;background:#dbeafe;color:var(--blue);display:grid;place-items:center;font-size:12px;font-weight:800}
+    main{grid-column:2;min-width:0}
+    .mast{height:72px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;background:rgba(255,255,255,.88);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)}
+    .mast-title{display:flex;align-items:center;gap:12px;min-width:0}
+    .mast-title strong{display:block;color:var(--ink);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .mast-title small{display:block;color:var(--muted);margin-top:3px}
+    .live{display:flex;align-items:center;gap:8px;color:var(--green);font-size:13px;font-weight:700;white-space:nowrap}
+    .live i{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(5,150,105,.1);animation:pulse 2s infinite}
+    @keyframes pulse{50%{box-shadow:0 0 0 9px rgba(5,150,105,0)}}
+    .screen{display:none;min-height:calc(100vh - 72px);padding:26px 28px 42px}
+    .screen.active{display:block;animation:rise .28s ease}
+    @keyframes rise{from{opacity:.35;transform:translateY(5px)}}
+    .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:22px}
+    .eyebrow{display:flex;align-items:center;gap:7px;color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+    h1,h2,h3,p{margin-top:0}
+    h1{color:var(--ink);font-size:clamp(24px,3vw,35px);line-height:1.18;margin:8px 0}
+    h2{color:var(--ink);font-size:20px;margin-bottom:5px}
+    h3{color:var(--ink);font-size:15px;margin-bottom:5px}
+    .page-head p{color:var(--muted);margin:0;max-width:720px;line-height:1.7}
+    .stage-chip{padding:9px 13px;border-radius:999px;background:var(--soft);color:var(--blue);font-size:13px;font-weight:700;white-space:nowrap}
+    .card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 5px 18px rgba(15,23,42,.035)}
+    .card-pad{padding:20px}
+    .card-head{padding:17px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .card-head h2,.card-head h3{margin:0}
+    .btn{min-height:42px;border:1px solid var(--line);border-radius:11px;padding:0 15px;background:#fff;color:var(--body);font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+    .btn:hover{border-color:#9db0e4;color:var(--blue)}
+    .btn.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+    .btn.danger{color:var(--red);background:#fff7f7;border-color:#fecaca}
+    .tag{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:800}
+    .tag.blue{color:var(--blue);background:#eaf0ff}.tag.green{color:var(--green);background:#ecfdf5}
+    .tag.amber{color:var(--amber);background:#fff7ed}.tag.red{color:var(--red);background:#fef2f2}.tag.gray{color:#475569;background:#f1f5f9}
+    .metric-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+    .metric{padding:17px}
+    .metric .label{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+    .metric .value{font-size:26px;color:var(--ink);font-weight:800;margin:8px 0 3px}
+    .metric small{font-size:12px;color:var(--green)}
+    .form-label{display:block;font-size:12px;color:var(--muted);font-weight:700;margin-bottom:7px}
+    .field{width:100%;min-height:42px;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#fff;color:var(--body)}
+    .mono{font-family:"SFMono-Regular",Consolas,monospace}
+    .tiny{font-size:12px;color:var(--muted)}
+    .divider{height:1px;background:var(--line);margin:16px 0}
+    .empty-safe{min-width:0}
+    .desktop-only{display:inline-flex}
+
+    /* v0 contract studio */
+    .contract-layout{display:grid;grid-template-columns:240px minmax(0,1fr) 300px;gap:16px}
+    .contract-list{padding:10px}
+    .contract-item{width:100%;border:0;border-radius:12px;background:transparent;text-align:left;padding:13px;margin-bottom:4px;color:var(--body)}
+    .contract-item.active{background:var(--soft);color:var(--blue)}
+    .contract-item strong{display:block;font-size:13px;margin-bottom:5px}
+    .schema-bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+    .schema-editor{background:#111827;color:#dbeafe;border-radius:13px;padding:18px;font-size:12px;line-height:1.75;overflow:auto;min-height:392px;white-space:pre}
+    .code-key{color:#93c5fd}.code-str{color:#86efac}.code-num{color:#fbbf24}
+    .check-list{display:grid;gap:10px}
+    .check{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;gap:10px}
+    .check .material-symbols-outlined{color:var(--green)}
+    .check strong{font-size:13px;color:var(--ink);display:block}
+    .check span:last-child{font-size:11px;color:var(--muted)}
+    .version-box{background:#f8fafc;border-radius:12px;padding:13px;margin-top:14px}
+
+    /* v1 rule builder */
+    .rule-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px}
+    .rule-canvas{padding:20px;background-image:radial-gradient(#cbd5e1 1px,transparent 1px);background-size:20px 20px}
+    .rule-node{background:#fff;border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:14px;padding:15px;margin:0 auto 14px;max-width:660px;box-shadow:0 8px 22px rgba(15,23,42,.06)}
+    .rule-node.condition{border-left-color:var(--amber)}.rule-node.action{border-left-color:var(--green)}
+    .node-line{display:grid;grid-template-columns:100px 1fr 120px;gap:9px;margin-top:12px}
+    .connector{height:20px;width:2px;background:#9db0e4;margin:-14px auto 0}
+    .rule-summary{padding:18px}
+    .coverage{height:9px;background:#e5e7eb;border-radius:10px;overflow:hidden;margin:8px 0}
+    .coverage span{display:block;height:100%;background:var(--blue);border-radius:inherit;width:86%}
+    .sample-box{border:1px dashed #9db0e4;background:#f8faff;border-radius:12px;padding:13px;font-size:12px;line-height:1.7}
+    .rule-test{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+
+    /* v2 validation console */
+    .validation-layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px}
+    .request-list{padding:8px;max-height:590px;overflow:auto}
+    .request{padding:13px;border-radius:12px;border:1px solid transparent;display:grid;grid-template-columns:11px 1fr auto;gap:10px;align-items:start}
+    .request.active{background:#f2f5ff;border-color:#c7d2fe}
+    .request-dot{width:9px;height:9px;border-radius:50%;background:var(--red);margin-top:5px}
+    .request-dot.ok{background:var(--green)}
+    .request strong{color:var(--ink);font-size:13px;display:block}
+    .request small{color:var(--muted)}
+    .validation-main{display:grid;gap:16px}
+    .trace{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:18px}
+    .trace-step{position:relative;text-align:center;padding:12px 6px;border-radius:11px;background:#f8fafc;font-size:12px;font-weight:700}
+    .trace-step.pass{background:#ecfdf5;color:var(--green)}.trace-step.fail{background:#fef2f2;color:var(--red)}
+    .trace-step:not(:last-child)::after{content:"→";position:absolute;right:-9px;color:#94a3b8}
+    .split-code{display:grid;grid-template-columns:1fr 1fr;min-width:0}
+    .json-pane{padding:17px;min-width:0;overflow:auto}
+    .json-pane:first-child{border-right:1px solid var(--line)}
+    .error-line{display:block;background:rgba(220,38,38,.08);color:#991b1b;padding:2px 6px;margin:0 -6px;border-radius:5px}
+    .issue{padding:12px;border-top:1px solid var(--line);display:flex;gap:11px}
+    .issue:first-child{border-top:0}.issue .material-symbols-outlined{color:var(--red)}
+    .issue p{font-size:12px;color:var(--muted);margin:3px 0 0}
+
+    /* v3 repair workshop */
+    .repair-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 300px;gap:16px}
+    .diff-pane{min-width:0}
+    .diff-code{padding:16px;font-size:12px;line-height:1.8;overflow:auto;min-height:350px;background:#fbfcfe}
+    .diff-minus{display:block;background:#fef2f2;color:#991b1b;margin:0 -6px;padding:0 6px}
+    .diff-plus{display:block;background:#ecfdf5;color:#047857;margin:0 -6px;padding:0 6px}
+    .confidence{text-align:center;padding:20px}
+    .score-ring{width:126px;height:126px;margin:8px auto 15px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--green) 0 92%,#e5e7eb 92%)}
+    .score-ring div{width:98px;height:98px;border-radius:50%;background:#fff;display:grid;place-items:center}
+    .score-ring strong{font-size:28px;color:var(--ink)}
+    .change-row{display:flex;gap:9px;padding:10px 0;border-top:1px solid var(--line);font-size:12px}
+    .change-row .material-symbols-outlined{color:var(--green)}
+
+    /* v4 approval */
+    .approval-layout{display:grid;grid-template-columns:290px minmax(0,1fr);gap:16px}
+    .queue-filter{padding:14px;display:flex;gap:8px;flex-wrap:wrap}
+    .queue-item{padding:14px;border-top:1px solid var(--line);cursor:pointer}
+    .queue-item.active{background:#f2f5ff;box-shadow:inset 4px 0 var(--blue)}
+    .queue-item strong{display:flex;justify-content:space-between;gap:10px;color:var(--ink);font-size:13px}
+    .queue-item p{font-size:12px;color:var(--muted);margin:7px 0}
+    .risk-hero{padding:22px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+    .risk-num{font-size:38px;color:var(--red);font-weight:800}
+    .review-tabs{display:flex;gap:4px;padding:0 18px;border-bottom:1px solid var(--line)}
+    .review-tab{border:0;background:transparent;padding:14px 10px;color:var(--muted);font-weight:700}
+    .review-tab.active{color:var(--blue);box-shadow:inset 0 -3px var(--blue)}
+    .evidence-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:18px}
+    .evidence-box{border:1px solid var(--line);border-radius:13px;padding:15px}
+    .audit-line{display:grid;grid-template-columns:82px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:12px}
+
+    /* v5 monitoring */
+    .monitor-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+    .chart-wrap{height:285px;padding:15px}
+    .chart-wrap canvas{width:100%!important;height:100%!important}
+    .endpoint-table{width:100%;border-collapse:collapse}
+    .endpoint-table th,.endpoint-table td{text-align:left;padding:13px 16px;border-bottom:1px solid var(--line);font-size:12px}
+    .endpoint-table th{color:var(--muted);font-weight:700;background:#f8fafc}
+    .endpoint-table tr:last-child td{border-bottom:0}
+    .health-bar{width:82px;height:7px;background:#e5e7eb;border-radius:6px;overflow:hidden}
+    .health-bar span{height:100%;display:block;background:var(--green);border-radius:inherit}
+    .activity{padding:6px 18px}
+    .activity-row{display:grid;grid-template-columns:26px 1fr auto;gap:10px;padding:12px 0;border-bottom:1px solid var(--line);font-size:12px}
+    .activity-row:last-child{border:0}
+    .activity-row .material-symbols-outlined{color:var(--blue)}
+    .output-banner{margin-top:16px;padding:18px 20px;background:linear-gradient(110deg,#102a79,var(--blue));border-radius:var(--radius);color:#fff;display:flex;justify-content:space-between;align-items:center;gap:16px}
+    .output-banner h3{color:#fff;margin-bottom:4px}.output-banner p{margin:0;color:#dbeafe;font-size:12px}
+    .output-banner .btn{border-color:#fff;color:var(--blue)}
+
+    @media(max-width:1150px){
+      .contract-layout{grid-template-columns:210px minmax(0,1fr)}.contract-layout>.card:last-child{grid-column:1/-1}
+      .repair-grid{grid-template-columns:1fr 1fr}.repair-grid>.card:last-child{grid-column:1/-1}
+      .metric-row{grid-template-columns:repeat(2,1fr)}
+    }
+    @media(max-width:850px){
+      .screen{padding:22px 18px 36px}.mast{padding:0 18px}
+      .rule-layout,.validation-layout,.approval-layout,.monitor-grid{grid-template-columns:1fr}
+      .contract-layout{grid-template-columns:1fr}.contract-layout>.card:last-child{grid-column:auto}
+      .contract-list{display:flex;overflow:auto;gap:5px}.contract-item{min-width:180px}
+      .repair-grid{grid-template-columns:1fr}.repair-grid>.card:last-child{grid-column:auto}
+      .node-line{grid-template-columns:1fr}
+      .request-list{display:flex;overflow:auto}.request{min-width:270px}
+      .nav-btn::after{display:none}
+    }
+    @media(max-width:600px){
+      .shell{display:block;padding-bottom:72px}.rail{inset:auto 0 0 0;width:auto;height:68px;flex-direction:row;border:0;border-top:1px solid rgba(255,255,255,.15)}
+      .brand,.rail-foot{display:none}.rail-nav{height:100%;flex-direction:row;justify-content:space-around;gap:2px}
+      .nav-btn{width:48px;height:48px;border-radius:13px}
+      main{display:block}.mast{height:62px}.mast-title small,.live span{display:none}
+      .screen{min-height:calc(100vh - 130px);padding:18px 14px 28px}
+      .page-head{display:block}.stage-chip{display:inline-flex;margin-top:10px}
+      .metric-row{grid-template-columns:1fr 1fr;gap:9px}.metric{padding:13px}.metric .value{font-size:21px}
+      .split-code,.evidence-grid{grid-template-columns:1fr}.json-pane:first-child{border-right:0;border-bottom:1px solid var(--line)}
+      .trace{grid-template-columns:1fr 1fr}.trace-step::after{display:none}
+      .risk-hero,.output-banner{align-items:flex-start;flex-direction:column}
+      .desktop-only{display:none}.card-head,.card-pad{padding:15px}
+      .chart-wrap{height:240px}
+      .endpoint-table{min-width:620px}.table-scroll{overflow:auto}
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail" aria-label="流程導覽">
+      <div class="brand">JG</div>
+      <nav class="rail-nav">
+        <button class="nav-btn" data-i="0" aria-label="輸出契約"><span class="material-symbols-outlined">schema</span></button>
+        <button class="nav-btn" data-i="1" aria-label="規則編排"><span class="material-symbols-outlined">rule</span></button>
+        <button class="nav-btn" data-i="2" aria-label="回應檢測"><span class="material-symbols-outlined">fact_check</span></button>
+        <button class="nav-btn" data-i="3" aria-label="修復提案"><span class="material-symbols-outlined">auto_fix_high</span></button>
+        <button class="nav-btn" data-i="4" aria-label="風險核准"><span class="material-symbols-outlined">approval</span></button>
+        <button class="nav-btn" data-i="5" aria-label="發布監測"><span class="material-symbols-outlined">monitoring</span></button>
+      </nav>
+      <div class="rail-foot">AI</div>
+    </aside>
+
+    <main>
+      <header class="mast">
+        <div class="mast-title">
+          <span class="material-symbols-outlined" style="color:var(--blue)">verified_user</span>
+          <div><strong>LLM 結構化輸出守門員</strong><small>IT 維運管理平台 · Production</small></div>
+        </div>
+        <div class="live"><i></i><span>所有驗證節點正常</span></div>
+      </header>
+
+      <section class="screen" data-view="0">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">schema</span>Contract Studio</div>
+            <h1>定義輸出契約</h1>
+            <p>建立目標 JSON 結構、欄位型別與版本政策，讓每次模型回應都有一致、可驗證的交付標準。</p>
+          </div>
+          <span class="stage-chip">AI 架構師 · v0</span>
+        </div>
+
+        <div class="metric-row">
+          <article class="card metric"><div class="label">啟用契約<span class="material-symbols-outlined">description</span></div><div class="value">24</div><small>本月新增 3 份</small></article>
+          <article class="card metric"><div class="label">Schema 覆蓋率<span class="material-symbols-outlined">donut_large</span></div><div class="value">98.6%</div><small>較上週 +1.4%</small></article>
+          <article class="card metric"><div class="label">相容版本<span class="material-symbols-outlined">difference</span></div><div class="value">7</div><small>無破壞性變更</small></article>
+          <article class="card metric"><div class="label">待發布草稿<span class="material-symbols-outlined">edit_note</span></div><div class="value">2</div><small style="color:var(--amber)">等待架構審查</small></article>
+        </div>
+
+        <div class="contract-layout">
+          <aside class="card">
+            <div class="card-head"><h3>契約目錄</h3><button class="btn" aria-label="新增契約">＋</button></div>
+            <div class="contract-list">
+              <button class="contract-item active"><strong>OrderAction v2.4</strong><span class="tiny">訂單處置 · 正式</span></button>
+              <button class="contract-item"><strong>IncidentTriage v1.8</strong><span class="tiny">事件分類 · 正式</span></button>
+              <button class="contract-item"><strong>AssetLookup v3.1</strong><span class="tiny">資產查詢 · 正式</span></button>
+              <button class="contract-item"><strong>SLAReport v1.2</strong><span class="tiny">SLA 報表 · 草稿</span></button>
+              <button class="contract-item"><strong>AccessDecision v2.0</strong><span class="tiny">存取判定 · 草稿</span></button>
+            </div>
+          </aside>
+
+          <article class="card empty-safe">
+            <div class="card-head">
+              <div><h2>OrderAction</h2><span class="tiny">最後更新：今日 09:42 · Amy Chen</span></div>
+              <div class="schema-bar"><span class="tag green">已發布</span><button class="btn desktop-only"><span class="material-symbols-outlined">history</span>版本紀錄</button><button class="btn primary">儲存 v2.5</button></div>
+            </div>
+            <div class="card-pad">
+              <div class="schema-bar" style="margin-bottom:12px">
+                <span class="tag blue">JSON Schema 2020-12</span><span class="tag gray">嚴格模式</span><span class="tag gray">額外欄位：禁止</span>
+              </div>
+              <div class="schema-editor mono">{
+  <span class="code-key">"$schema"</span>: <span class="code-str">"https://json-schema.org/draft/2020-12/schema"</span>,
+  <span class="code-key">"title"</span>: <span class="code-str">"OrderAction"</span>,
+  <span class="code-key">"type"</span>: <span class="code-str">"object"</span>,
+  <span class="code-key">"required"</span>: [<span class="code-str">"order_id"</span>, <span class="code-str">"action"</span>, <span class="code-str">"confidence"</span>],
+  <span class="code-key">"properties"</span>: {
+    <span class="code-key">"order_id"</span>: {
+      <span class="code-key">"type"</span>: <span class="code-str">"string"</span>, <span class="code-key">"pattern"</span>: <span class="code-str">"^ORD-[0-9]{6}$"</span>
+    },
+    <span class="code-key">"action"</span>: {
+      <span class="code-key">"type"</span>: <span class="code-str">"string"</span>,
+      <span class="code-key">"enum"</span>: [<span class="code-str">"approve"</span>, <span class="code-str">"review"</span>, <span class="code-str">"reject"</span>]
+    },
+    <span class="code-key">"confidence"</span>: {
+      <span class="code-key">"type"</span>: <span class="code-str">"number"</span>, <span class="code-key">"minimum"</span>: <span class="code-num">0</span>, <span class="code-key">"maximum"</span>: <span class="code-num">1</span>
+    },
+    <span class="code-key">"reason"</span>: { <span class="code-key">"type"</span>: <span class="code-str">"string"</span>, <span class="code-key">"maxLength"</span>: <span class="code-num">240</span> }
+  },
+  <span class="code-key">"additionalProperties"</span>: false
+}</div>
+            </div>
+          </article>
+
+          <aside class="card">
+            <div class="card-head"><h3>契約健檢</h3><span class="tag green">6 / 6 通過</span></div>
+            <div class="card-pad">
+              <div class="check-list">
+                <div class="check"><span class="material-symbols-outlined">check_circle</span><div><strong>必填欄位完整</strong><span>3 個關鍵欄位皆有定義</span></div></div>
+                <div class="check"><span class="material-symbols-outlined">check_circle</span><div><strong>型別明確</strong><span>無隱含或聯集型別</span></div></div>
+                <div class="check"><span class="material-symbols-outlined">check_circle</span><div><strong>列舉值封閉</strong><span>action 限定 3 種操作</span></div></div>
+                <div class="check"><span class="material-symbols-outlined">check_circle</span><div><strong>版本向下相容</strong><span>v2.3 用戶端仍可解析</span></div></div>
+              </div>
+              <div class="version-box">
+                <strong style="font-size:13px;color:var(--ink)">發布策略</strong>
+                <p class="tiny" style="line-height:1.6;margin:7px 0 12px">灰度 10% → 觀察 30 分鐘 → 全量發布</p>
+                <label class="form-label" for="compat-policy">相容政策</label>
+                <select class="field" id="compat-policy"><option>允許新增非必填欄位</option></select>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-view="1">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">rule</span>Decision Orchestrator</div>
+            <h1>編排判定規則</h1>
+            <p>把下游執行條件轉成可檢查的業務規則，並以測試樣本確認跨欄位條件不會誤放行。</p>
+          </div>
+          <span class="stage-chip">應用負責人 · v1</span>
+        </div>
+
+        <div class="rule-layout">
+          <article class="card">
+            <div class="card-head">
+              <div><h2>訂單自動處置規則</h2><span class="tiny">RULESET-ORDER-18 · 草稿 08</span></div>
+              <div><button class="btn">測試全部</button> <button class="btn primary">發布規則</button></div>
+            </div>
+            <div class="rule-canvas">
+              <div class="rule-node">
+                <span class="tag blue">觸發</span>
+                <h3 style="margin-top:9px">模型回應通過 JSON Schema</h3>
+                <p class="tiny" style="margin:0">使用 OrderAction v2.4，收到回應後立即判定。</p>
+              </div>
+              <div class="connector"></div>
+              <div class="rule-node condition">
+                <span class="tag amber">IF · 跨欄位條件</span>
+                <div class="node-line">
+                  <select class="field"><option>action</option></select>
+                  <select class="field"><option>等於</option></select>
+                  <select class="field"><option>approve</option></select>
+                </div>
+                <div class="node-line">
+                  <select class="field"><option>confidence</option></select>
+                  <select class="field"><option>大於或等於</option></select>
+                  <input class="field" value="0.92" aria-label="信心門檻">
+                </div>
+              </div>
+              <div class="connector"></div>
+              <div class="rule-node condition">
+                <span class="tag amber">AND · 領域限制</span>
+                <div class="node-line">
+                  <select class="field"><option>order.total</option></select>
+                  <select class="field"><option>小於</option></select>
+                  <input class="field" value="50000" aria-label="訂單上限">
+                </div>
+                <div class="node-line">
+                  <select class="field"><option>customer.risk</option></select>
+                  <select class="field"><option>不等於</option></select>
+                  <select class="field"><option>high</option></select>
+                </div>
+              </div>
+              <div class="connector"></div>
+              <div class="rule-node action">
+                <span class="tag green">THEN · 安全動作</span>
+                <h3 style="margin-top:9px">送往 order-fulfillment-v3</h3>
+                <p class="tiny" style="margin:0">寫入追蹤 ID，保留驗證證據 90 天；其餘回應轉人工核准。</p>
+              </div>
+            </div>
+          </article>
+
+          <aside class="card">
+            <div class="card-head"><h3>規則檢查</h3><span class="tag green">可發布</span></div>
+            <div class="rule-summary">
+              <div style="display:flex;justify-content:space-between"><span class="tiny">條件覆蓋率</span><strong style="color:var(--ink)">86%</strong></div>
+              <div class="coverage"><span></span></div>
+              <p class="tiny">12 個有效分支已覆蓋 10 個，尚缺高額度與空白 reason 樣本。</p>
+              <div class="divider"></div>
+              <h3>即時樣本</h3>
+              <div class="sample-box mono">order_id: "ORD-204817"<br>action: "approve"<br>confidence: 0.96<br>order.total: 18,420<br>customer.risk: "low"</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0">
+                <span class="tiny">模擬判定</span><span class="tag green">允許執行</span>
+              </div>
+              <div class="divider"></div>
+              <h3>測試案例</h3>
+              <div class="rule-test"><div><strong style="font-size:12px">標準核准訂單</strong><div class="tiny">5 個條件皆符合</div></div><span class="tag green">通過</span></div>
+              <div class="rule-test"><div><strong style="font-size:12px">低信心回應</strong><div class="tiny">轉高風險核准</div></div><span class="tag green">通過</span></div>
+              <div class="rule-test"><div><strong style="font-size:12px">高額敏感訂單</strong><div class="tiny">缺少邊界樣本</div></div><span class="tag amber">待補</span></div>
+              <button class="btn" style="width:100%;margin-top:15px"><span class="material-symbols-outlined">add</span>新增測試案例</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-view="2">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">fact_check</span>Validation Console</div>
+            <h1>檢測模型回應</h1>
+            <p>逐筆檢查語法、型別、結構與業務規則，即時定位無法安全送往下游的模型輸出。</p>
+          </div>
+          <span class="stage-chip">可靠性守門員 · v2</span>
+        </div>
+
+        <div class="metric-row">
+          <article class="card metric"><div class="label">今日請求</div><div class="value">18,642</div><small>每分鐘 42.8 筆</small></article>
+          <article class="card metric"><div class="label">首次通過率</div><div class="value">94.7%</div><small>較昨日 +0.8%</small></article>
+          <article class="card metric"><div class="label">驗證 P95</div><div class="value">38 ms</div><small>低於 50 ms 目標</small></article>
+          <article class="card metric"><div class="label">攔截回應</div><div class="value">87</div><small style="color:var(--red)">11 筆高風險</small></article>
+        </div>
+
+        <div class="validation-layout">
+          <aside class="card">
+            <div class="card-head"><h3>即時請求</h3><span class="tag blue">Live</span></div>
+            <div class="request-list">
+              <div class="request active"><i class="request-dot"></i><div><strong>REQ-8F2A91</strong><small>gpt-5-mini · OrderAction</small></div><span class="tag red">3 錯誤</span></div>
+              <div class="request"><i class="request-dot ok"></i><div><strong>REQ-8F2A90</strong><small>private-llm-7b · AssetLookup</small></div><span class="tag green">通過</span></div>
+              <div class="request"><i class="request-dot ok"></i><div><strong>REQ-8F2A8F</strong><small>gpt-5-mini · IncidentTriage</small></div><span class="tag green">通過</span></div>
+              <div class="request"><i class="request-dot"></i><div><strong>REQ-8F2A8E</strong><small>private-llm-7b · SLAReport</small></div><span class="tag amber">1 警告</span></div>
+              <div class="request"><i class="request-dot ok"></i><div><strong>REQ-8F2A8D</strong><small>gpt-5-mini · OrderAction</small></div><span class="tag green">通過</span></div>
+              <div class="request"><i class="request-dot ok"></i><div><strong>REQ-8F2A8C</strong><small>edge-model-v4 · AccessDecision</small></div><span class="tag green">通過</span></div>
+              <div class="request"><i class="request-dot"></i><div><strong>REQ-8F2A8B</strong><small>edge-model-v4 · OrderAction</small></div><span class="tag red">2 錯誤</span></div>
+            </div>
+          </aside>
+
+          <div class="validation-main">
+            <article class="card">
+              <div class="card-head"><div><h2>REQ-8F2A91</h2><span class="tiny">22 Aug 2026 · 10:14:32.184 · ap-northeast</span></div><button class="btn">複製追蹤 ID</button></div>
+              <div class="trace">
+                <div class="trace-step pass">JSON 語法 ✓</div>
+                <div class="trace-step fail">欄位型別 ✕</div>
+                <div class="trace-step fail">Schema 結構 ✕</div>
+                <div class="trace-step fail">業務規則 ✕</div>
+              </div>
+            </article>
+
+            <article class="card empty-safe">
+              <div class="card-head"><h3>回應與契約比對</h3><span class="tag red">已阻擋下游</span></div>
+              <div class="split-code">
+                <div class="json-pane">
+                  <div class="tiny" style="margin-bottom:10px">模型原始回應</div>
+                  <div class="mono" style="font-size:12px;line-height:1.9;white-space:pre">{
+  "order_id": "204817",
+<span class="error-line">  "action": "APPROVED",</span>
+<span class="error-line">  "confidence": "96%",</span>
+  "reason": "符合自動核准條件",
+<span class="error-line">  "execute_now": true</span>
+}</div>
+                </div>
+                <div class="json-pane">
+                  <div class="tiny" style="margin-bottom:10px">目標契約 OrderAction v2.4</div>
+                  <div class="issue"><span class="material-symbols-outlined">error</span><div><strong>格式不符</strong><p>order_id 應符合 ^ORD-[0-9]{6}$</p></div></div>
+                  <div class="issue"><span class="material-symbols-outlined">error</span><div><strong>列舉值無效</strong><p>action 僅接受 approve、review 或 reject</p></div></div>
+                  <div class="issue"><span class="material-symbols-outlined">error</span><div><strong>型別不符</strong><p>confidence 應為 0 至 1 的 number</p></div></div>
+                  <div class="issue"><span class="material-symbols-outlined">block</span><div><strong>未知敏感欄位</strong><p>execute_now 未在契約中定義，禁止直接執行</p></div></div>
+                </div>
+              </div>
+              <div class="card-head">
+                <span class="tiny">驗證耗時 31 ms · 證據保存 90 天</span>
+                <button class="btn primary" onclick="goTo(3)"><span class="material-symbols-outlined">auto_fix_high</span>建立修復提案</button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-view="3">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">auto_fix_high</span>Repair Workshop</div>
+            <h1>生成修復提案</h1>
+            <p>依原始提示與錯誤脈絡提出最小變更，保留模型原意，同時讓修正結果可再次驗證。</p>
+          </div>
+          <span class="stage-chip">修復 Agent · v3</span>
+        </div>
+
+        <div class="repair-grid">
+          <article class="card diff-pane">
+            <div class="card-head"><div><h3>原始輸出</h3><span class="tiny">REQ-8F2A91 · 4 項違規</span></div><span class="tag red">不合格</span></div>
+            <div class="diff-code mono">{
+<span class="diff-minus">- "order_id": "204817",</span>
+<span class="diff-minus">- "action": "APPROVED",</span>
+<span class="diff-minus">- "confidence": "96%",</span>
+  "reason": "符合自動核准條件",
+<span class="diff-minus">- "execute_now": true</span>
+}</div>
+            <div class="card-pad">
+              <label class="form-label">原始提示摘要</label>
+              <p class="tiny" style="line-height:1.7;margin:0">判斷 ORD-204817 是否符合自動核准政策；若可核准，回傳動作、信心分數與理由。</p>
+            </div>
+          </article>
+
+          <article class="card diff-pane">
+            <div class="card-head"><div><h3>最小修復版本</h3><span class="tiny">Patch RP-1042 · 變更 4 行</span></div><span class="tag green">驗證通過</span></div>
+            <div class="diff-code mono">{
+<span class="diff-plus">+ "order_id": "ORD-204817",</span>
+<span class="diff-plus">+ "action": "approve",</span>
+<span class="diff-plus">+ "confidence": 0.96,</span>
+  "reason": "符合自動核准條件"
+<span class="diff-plus">+ /* 移除未授權欄位 execute_now */</span>
+}</div>
+            <div class="card-pad">
+              <div style="display:flex;gap:9px;flex-wrap:wrap">
+                <span class="tag green">Schema ✓</span><span class="tag green">業務規則 ✓</span><span class="tag green">語意一致 ✓</span>
+              </div>
+              <div class="divider"></div>
+              <button class="btn" style="width:100%"><span class="material-symbols-outlined">restart_alt</span>重新驗證修復內容</button>
+            </div>
+          </article>
+
+          <aside class="card">
+            <div class="card-head"><h3>修復信心</h3><span class="tag blue">Agent 評估</span></div>
+            <div class="confidence">
+              <div class="score-ring"><div><strong>92</strong></div></div>
+              <h3>高信心修復</h3>
+              <p class="tiny">欄位格式與型別修正具明確映射；移除執行旗標不改變判定語意。</p>
+            </div>
+            <div class="card-pad" style="padding-top:0">
+              <div class="change-row"><span class="material-symbols-outlined">check_circle</span><div><strong>補齊 ID 前綴</strong><br><span class="tiny">依提示內訂單編號推導</span></div></div>
+              <div class="change-row"><span class="material-symbols-outlined">check_circle</span><div><strong>正規化列舉值</strong><br><span class="tiny">APPROVED → approve</span></div></div>
+              <div class="change-row"><span class="material-symbols-outlined">check_circle</span><div><strong>轉換信心型別</strong><br><span class="tiny">96% → 0.96</span></div></div>
+              <div class="change-row"><span class="material-symbols-outlined">shield</span><div><strong>移除敏感動作</strong><br><span class="tiny">execute_now 未獲授權</span></div></div>
+              <label class="form-label" for="repair-route" style="margin-top:14px">送審路由</label>
+              <select class="field" id="repair-route"><option>高風險核准佇列</option></select>
+              <button class="btn primary" style="width:100%;margin-top:10px" onclick="goTo(4)">提交人工核准</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-view="4">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">approval</span>Human Approval</div>
+            <h1>核准高風險修復</h1>
+            <p>審查低信心或可能改變語意的修復，確認證據、影響範圍與下游動作後才允許發布。</p>
+          </div>
+          <span class="stage-chip">資料科學家 · v4</span>
+        </div>
+
+        <div class="approval-layout">
+          <aside class="card">
+            <div class="card-head"><h3>核准佇列</h3><span class="tag red">7 待處理</span></div>
+            <div class="queue-filter"><button class="btn primary">全部 7</button><button class="btn">高風險 3</button></div>
+            <div class="queue-item active"><strong>APR-1042 <span class="tag red">高</span></strong><p>OrderAction · 移除執行旗標</p><span class="tiny">等待 12 分鐘 · Amy Chen</span></div>
+            <div class="queue-item"><strong>APR-1041 <span class="tag amber">中</span></strong><p>IncidentTriage · 重建優先級</p><span class="tiny">等待 18 分鐘 · David Lin</span></div>
+            <div class="queue-item"><strong>APR-1039 <span class="tag red">高</span></strong><p>AccessDecision · 權限值修正</p><span class="tiny">等待 27 分鐘 · Mina Wu</span></div>
+            <div class="queue-item"><strong>APR-1036 <span class="tag amber">中</span></strong><p>SLAReport · 日期格式修正</p><span class="tiny">等待 34 分鐘 · Leo Wang</span></div>
+          </aside>
+
+          <div style="display:grid;gap:16px;min-width:0">
+            <article class="card">
+              <div class="risk-hero">
+                <div>
+                  <span class="tag red">需人工決策</span>
+                  <h2 style="margin-top:10px">移除未授權的 execute_now 欄位</h2>
+                  <p class="tiny" style="margin:0">修復本身可通過契約，但原始回應曾嘗試觸發下游操作。</p>
+                </div>
+                <div><div class="risk-num">72</div><span class="tiny">風險分數 / 100</span></div>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="review-tabs"><button class="review-tab active">決策證據</button><button class="review-tab">差異內容</button><button class="review-tab">完整追蹤</button></div>
+              <div class="evidence-grid">
+                <div class="evidence-box">
+                  <h3>風險拆解</h3>
+                  <div class="audit-line"><span class="tiny">語意變更</span><div><span class="tag amber">中 · 35</span><p class="tiny">移除執行意圖，但保留核准判定。</p></div></div>
+                  <div class="audit-line"><span class="tiny">操作敏感</span><div><span class="tag red">高 · 88</span><p class="tiny">訂單操作需明確的人機核准邊界。</p></div></div>
+                  <div class="audit-line"><span class="tiny">修復信心</span><div><span class="tag green">92%</span><p class="tiny">格式轉換有可重現的推導依據。</p></div></div>
+                </div>
+                <div class="evidence-box">
+                  <h3>來源與追蹤</h3>
+                  <div class="audit-line"><span class="tiny">模型</span><strong>gpt-5-mini / prod-2</strong></div>
+                  <div class="audit-line"><span class="tiny">契約</span><strong>OrderAction v2.4</strong></div>
+                  <div class="audit-line"><span class="tiny">規則</span><strong>RULESET-ORDER-18</strong></div>
+                  <div class="audit-line"><span class="tiny">請求</span><strong class="mono">REQ-8F2A91</strong></div>
+                  <div class="audit-line"><span class="tiny">提案</span><strong class="mono">RP-1042</strong></div>
+                </div>
+              </div>
+              <div class="card-pad" style="border-top:1px solid var(--line)">
+                <label class="form-label" for="review-note">審查備註</label>
+                <textarea id="review-note" class="field" rows="3">確認 execute_now 不屬於允許輸出；核准移除，並保留原始回應供稽核。</textarea>
+                <div style="display:flex;justify-content:flex-end;gap:9px;margin-top:12px;flex-wrap:wrap">
+                  <button class="btn danger"><span class="material-symbols-outlined">undo</span>退回修復</button>
+                  <button class="btn"><span class="material-symbols-outlined">person_add</span>加簽</button>
+                  <button class="btn primary" onclick="goTo(5)"><span class="material-symbols-outlined">verified</span>核准並發布</button>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-view="5">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">monitoring</span>Reliability Monitor</div>
+            <h1>發布並監測</h1>
+            <p>送出合格結果並持續追蹤模型、版本與端點的失敗率、修復成效及下游執行品質。</p>
+          </div>
+          <span class="stage-chip">應用負責人 · v5</span>
+        </div>
+
+        <div class="metric-row">
+          <article class="card metric"><div class="label">系統可用率</div><div class="value">99.0%</div><small>原 97.0% · 穩定提升</small></article>
+          <article class="card metric"><div class="label">SLA 達成率</div><div class="value">98%</div><small>原 85% · +13%</small></article>
+          <article class="card metric"><div class="label">事件平均處理</div><div class="value">30 分</div><small>原 120 分 · -75%</small></article>
+          <article class="card metric"><div class="label">自動修復率</div><div class="value">81.4%</div><small>本週 1,248 筆成功</small></article>
+        </div>
+
+        <div class="monitor-grid">
+          <article class="card">
+            <div class="card-head"><div><h2>可靠性趨勢</h2><span class="tiny">過去 6 週 · 系統可用率</span></div><span class="tag green">目標 99%</span></div>
+            <div class="chart-wrap"><canvas id="reliabilityChart" aria-label="系統可用率趨勢圖"></canvas></div>
+          </article>
+          <article class="card">
+            <div class="card-head"><h3>最近發布活動</h3><span class="tag blue">即時</span></div>
+            <div class="activity">
+              <div class="activity-row"><span class="material-symbols-outlined">verified</span><div><strong>REQ-8F2A91 已安全發布</strong><br><span class="tiny">OrderAction · 核准 Amy Chen</span></div><span class="tiny">剛剛</span></div>
+              <div class="activity-row"><span class="material-symbols-outlined">auto_fix_high</span><div><strong>修復批次 RB-284 完成</strong><br><span class="tiny">46 / 48 筆自動修復</span></div><span class="tiny">8 分</span></div>
+              <div class="activity-row"><span class="material-symbols-outlined">schema</span><div><strong>AssetLookup v3.1 全量發布</strong><br><span class="tiny">相容性檢查通過</span></div><span class="tiny">24 分</span></div>
+              <div class="activity-row"><span class="material-symbols-outlined">warning</span><div><strong>edge-model-v4 錯誤率升高</strong><br><span class="tiny">已套用降級路由</span></div><span class="tiny">39 分</span></div>
+            </div>
+          </article>
+        </div>
+
+        <article class="card" style="margin-top:16px">
+          <div class="card-head"><div><h2>模型與端點健康度</h2><span class="tiny">跨私有與外部模型的品質、成本、隱私及可用性監控</span></div><button class="btn">匯出 SLA 報表</button></div>
+          <div class="table-scroll">
+            <table class="endpoint-table">
+              <thead><tr><th>模型端點</th><th>請求數</th><th>首次通過</th><th>自動修復</th><th>P95</th><th>可用率</th><th>狀態</th></tr></thead>
+              <tbody>
+                <tr><td><strong>gpt-5-mini / prod-2</strong><br><span class="tiny">外部 · 台灣區路由</span></td><td>8,421</td><td>96.8%</td><td>84.2%</td><td>742 ms</td><td><div class="health-bar"><span style="width:99.8%"></span></div></td><td><span class="tag green">正常</span></td></tr>
+                <tr><td><strong>private-llm-7b</strong><br><span class="tiny">私有 · GPU Cluster A</span></td><td>6,284</td><td>93.1%</td><td>79.7%</td><td>518 ms</td><td><div class="health-bar"><span style="width:99.3%"></span></div></td><td><span class="tag green">正常</span></td></tr>
+                <tr><td><strong>edge-model-v4</strong><br><span class="tiny">私有 · Edge Pool</span></td><td>3,937</td><td>89.4%</td><td>72.8%</td><td>392 ms</td><td><div class="health-bar"><span style="width:97.8%;background:var(--amber)"></span></div></td><td><span class="tag amber">觀察</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <div class="output-banner">
+          <div><h3>已建立安全且可追溯的處理結果</h3><p>模型請求、提示、回應、驗證證據、修復差異與核准紀錄皆已寫入稽核鏈。</p></div>
+          <button class="btn"><span class="material-symbols-outlined">receipt_long</span>查看操作紀錄</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    "use strict";
+
+    const screens = Array.from(document.querySelectorAll("[data-view]"));
+    const navButtons = Array.from(document.querySelectorAll("[data-i]"));
+    const charts = {};
+
+    function chartReady(canvas) {
+      return canvas && canvas.isConnected && canvas.offsetWidth > 0 && canvas.offsetHeight > 0;
+    }
+
+    function initChart(index) {
+      if (index !== 5 || charts.reliability) return;
+      const canvas = document.getElementById("reliabilityChart");
+      if (!chartReady(canvas) || typeof Chart === "undefined") return;
+
+      charts.reliability = new Chart(canvas, {
+        type: "line",
+        data: {
+          labels: ["W1", "W2", "W3", "W4", "W5", "W6"],
+          datasets: [{
+            label: "系統可用率 %",
+            data: [97, 97.4, 97.8, 98.2, 98.6, 99],
+            borderColor: "#1e40af",
+            backgroundColor: "rgba(30,64,175,.12)",
+            pointBackgroundColor: "#ffffff",
+            pointBorderColor: "#1e40af",
+            pointBorderWidth: 3,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            borderWidth: 3,
+            tension: .36,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 650 },
+          interaction: { intersect: false, mode: "index" },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: "#111827",
+              padding: 12,
+              callbacks: { label: function(context) { return "可用率 " + context.parsed.y + "%"; } }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: "#64748b", font: { family: "Inter" } } },
+            y: {
+              min: 96.5,
+              max: 100,
+              ticks: { color: "#64748b", callback: function(value) { return value + "%"; } },
+              grid: { color: "#e8edf5" },
+              border: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    function show(index) {
+      const safeIndex = Math.max(0, Math.min(5, Number(index) || 0));
+      screens.forEach(function(screen, screenIndex) {
+        screen.classList.toggle("active", screenIndex === safeIndex);
+      });
+      navButtons.forEach(function(button, buttonIndex) {
+        const selected = buttonIndex === safeIndex;
+        button.classList.toggle("active", selected);
+        button.setAttribute("aria-current", selected ? "page" : "false");
+      });
+      document.title = "LLM 結構化輸出守門員 · it-ops｜Jvision 系統 Demo";
+      initChart(safeIndex);
+    }
+
+    function parseHash() {
+      const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+      return match ? Math.max(0, Math.min(5, Number(match[1]))) : 0;
+    }
+
+    function goTo(index) {
+      const safeIndex = Math.max(0, Math.min(5, Number(index) || 0));
+      if (window.location.hash === "#go=" + safeIndex) {
+        show(safeIndex);
+      } else {
+        window.location.hash = "go=" + safeIndex;
+      }
+    }
+
+    navButtons.forEach(function(button) {
+      button.addEventListener("click", function() {
+        goTo(Number(button.dataset.i));
+      });
+    });
+
+    window.addEventListener("hashchange", function() {
+      show(parseHash());
+    });
+
+    show(parseHash());
+  </script>
+</body>
+</html>

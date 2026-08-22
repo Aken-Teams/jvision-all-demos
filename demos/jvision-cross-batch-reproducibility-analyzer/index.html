@@ -1,0 +1,1086 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <link rel="icon" href="../../favicon.svg">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="比較多個實驗批次，量化人員、試劑、儀器與環境造成的變異。">
+  <title>跨批次再現性分析器 · analytics-bi｜Jvision 系統 Demo</title>
+  <style>
+    :root{
+      --blue:#0f766e;
+      --ink:#102a2a;
+      --body:#294746;
+      --muted:#6b8381;
+      --line:#dbe7e5;
+      --bg:#f3f8f7;
+      --green:#16875d;
+      --amber:#c97708;
+      --red:#c2413b;
+      --white:#fff;
+      --soft:#e9f6f3;
+      --shadow:0 12px 32px rgba(20,73,68,.08);
+      --radius:18px
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      min-width:0;
+      background:var(--bg);
+      color:var(--body);
+      font-family:Inter,"Noto Sans TC",sans-serif;
+      line-height:1.55
+    }
+    button,input,select{font:inherit}
+    button{color:inherit}
+    button:focus-visible,input:focus-visible,select:focus-visible{
+      outline:3px solid rgba(15,118,110,.24);
+      outline-offset:2px
+    }
+    .material-symbols-outlined{
+      font-size:20px;
+      line-height:1;
+      vertical-align:middle;
+      font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24
+    }
+    .shell{width:min(100%,1440px);margin:auto}
+    .masthead{
+      position:sticky;
+      top:0;
+      z-index:30;
+      background:rgba(255,255,255,.95);
+      border-bottom:1px solid var(--line);
+      backdrop-filter:blur(16px)
+    }
+    .brandbar{
+      min-height:66px;
+      padding:10px clamp(16px,3vw,40px);
+      display:flex;
+      align-items:center;
+      gap:14px
+    }
+    .brandmark{
+      width:42px;
+      height:42px;
+      display:grid;
+      place-items:center;
+      flex:0 0 auto;
+      border-radius:13px;
+      background:linear-gradient(145deg,var(--blue),#12a594);
+      color:#fff;
+      box-shadow:0 8px 20px rgba(15,118,110,.2)
+    }
+    .brandcopy{min-width:0}
+    .brandcopy strong{display:block;color:var(--ink);font-size:16px}
+    .brandcopy span{display:block;color:var(--muted);font-size:12px}
+    .brand-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+    .live-pill,.ghost-btn,.primary-btn,.small-btn{
+      min-height:40px;
+      border-radius:11px;
+      border:1px solid var(--line);
+      padding:8px 13px;
+      background:#fff;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:7px;
+      cursor:pointer
+    }
+    .live-pill{cursor:default;color:var(--green);font-size:13px;font-weight:700}
+    .live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(22,135,93,.1)}
+    .primary-btn{border-color:var(--blue);background:var(--blue);color:#fff;font-weight:700}
+    .small-btn{min-height:34px;padding:5px 10px;font-size:12px;font-weight:700}
+    .tabs-wrap{padding:0 clamp(12px,3vw,40px);overflow-x:auto;scrollbar-width:thin}
+    .tabs{display:flex;gap:4px;min-width:max-content}
+    .tab{
+      min-height:48px;
+      border:0;
+      border-bottom:3px solid transparent;
+      padding:8px 15px;
+      background:transparent;
+      color:var(--muted);
+      cursor:pointer;
+      font-size:14px;
+      font-weight:700
+    }
+    .tab:hover{color:var(--blue);background:#f7fbfa}
+    .tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+    main{padding:clamp(18px,3vw,36px) clamp(14px,3vw,40px) 48px}
+    .view{display:none;animation:arrive .28s ease}
+    .view.active{display:block}
+    @keyframes arrive{from{opacity:.35;transform:translateY(5px)}to{opacity:1;transform:none}}
+    .page-head{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:18px;
+      margin-bottom:22px
+    }
+    .eyebrow{
+      display:flex;
+      align-items:center;
+      gap:7px;
+      color:var(--blue);
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.08em;
+      text-transform:uppercase
+    }
+    h1,h2,h3,p{margin-top:0}
+    h1{margin-bottom:6px;color:var(--ink);font-size:clamp(25px,3vw,38px);line-height:1.2}
+    h2{margin-bottom:5px;color:var(--ink);font-size:clamp(19px,2vw,24px)}
+    h3{margin-bottom:5px;color:var(--ink);font-size:15px}
+    .subtext{max-width:760px;margin:0;color:var(--muted);font-size:14px}
+    .card{
+      min-width:0;
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:#fff;
+      box-shadow:var(--shadow)
+    }
+    .card-pad{padding:clamp(16px,2.2vw,24px)}
+    .card-title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:17px
+    }
+    .card-title p{margin:2px 0 0;color:var(--muted);font-size:12px}
+    .tag,.badge{
+      display:inline-flex;
+      align-items:center;
+      gap:5px;
+      width:max-content;
+      border-radius:999px;
+      padding:5px 9px;
+      color:var(--blue);
+      background:var(--soft);
+      font-size:11px;
+      font-weight:800
+    }
+    .badge.amber{color:#9a5a05;background:#fff5dd}
+    .badge.red{color:var(--red);background:#fff0ee}
+    .badge.green{color:var(--green);background:#eaf8f1}
+    .metric strong{display:block;color:var(--ink);font-size:25px;line-height:1.25}
+    .metric span{color:var(--muted);font-size:12px}
+    .metric small{display:block;margin-top:5px;color:var(--green);font-weight:700}
+    .progress{height:8px;overflow:hidden;border-radius:999px;background:#e8efee}
+    .progress i{display:block;height:100%;border-radius:inherit;background:var(--blue)}
+    .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+    .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+    .split-wide{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(290px,.85fr);gap:18px}
+    .split-even{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+    .stack{display:grid;gap:14px}
+    .chart-box{position:relative;min-height:280px}
+    .chart-box.tall{min-height:340px}
+    .chart-box canvas{position:absolute;inset:0;width:100%!important;height:100%!important}
+    .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+    .select{
+      min-height:40px;
+      max-width:100%;
+      border:1px solid var(--line);
+      border-radius:10px;
+      padding:7px 34px 7px 11px;
+      background:#fff;
+      color:var(--body)
+    }
+    .summary-strip{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:1px;
+      overflow:hidden;
+      margin-bottom:18px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:var(--line)
+    }
+    .summary-item{padding:14px 18px;background:#fff}
+    .summary-item span{display:block;color:var(--muted);font-size:11px}
+    .summary-item strong{display:block;margin-top:3px;color:var(--ink);font-size:14px}
+    .table-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}
+    th{text-align:left;padding:11px 12px;color:var(--muted);background:#f7faf9;font-size:11px}
+    td{padding:13px 12px;border-top:1px solid var(--line)}
+    tr:hover td{background:#fbfdfc}
+    .mono{font-family:Inter,monospace;font-weight:700;color:var(--ink)}
+    .delta-up{color:var(--red);font-weight:800}
+    .delta-down{color:var(--green);font-weight:800}
+    .avatar{
+      width:30px;height:30px;border-radius:10px;display:inline-grid;place-items:center;
+      margin-right:8px;background:#dff2ef;color:var(--blue);font-size:11px;font-weight:800
+    }
+    .notice{
+      display:flex;align-items:flex-start;gap:10px;padding:13px 14px;
+      border:1px solid #f3d39b;border-radius:13px;background:#fffbeb;color:#7b560c;font-size:13px
+    }
+
+    /* v0 — Batch setup */
+    .setup-board{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr);gap:18px}
+    .stepper{display:flex;align-items:center;margin-bottom:22px}
+    .step-node{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:700}
+    .step-node b{width:28px;height:28px;display:grid;place-items:center;border-radius:50%;background:#edf3f2}
+    .step-node.done,.step-node.current{color:var(--blue)}
+    .step-node.done b,.step-node.current b{background:var(--blue);color:#fff}
+    .step-line{height:2px;flex:1;min-width:14px;margin:0 8px;background:var(--line)}
+    .field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .field label{display:block;margin-bottom:6px;color:var(--muted);font-size:11px;font-weight:700}
+    .field-box{min-height:45px;padding:11px 13px;border:1px solid var(--line);border-radius:11px;background:#fbfdfc;color:var(--ink);font-size:13px}
+    .batch-picks{display:grid;gap:9px;margin-top:17px}
+    .batch-pick{
+      display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px;
+      padding:12px;border:1px solid var(--line);border-radius:12px
+    }
+    .check{width:20px;height:20px;display:grid;place-items:center;border-radius:6px;background:var(--blue);color:#fff}
+    .batch-pick strong{display:block;color:var(--ink);font-size:13px}
+    .batch-pick small{color:var(--muted)}
+    .threshold{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin:13px 0}
+    .threshold strong{color:var(--ink)}
+    .scale{display:flex;justify-content:space-between;color:var(--muted);font-size:10px}
+    .rule-list{display:grid;gap:10px}
+    .rule-item{padding:12px;border-left:3px solid var(--blue);border-radius:0 10px 10px 0;background:#f7fbfa;font-size:12px}
+    .rule-item strong{display:block;color:var(--ink)}
+
+    /* v1 — Operator analysis */
+    .operator-row{
+      display:grid;grid-template-columns:36px minmax(90px,1fr) 1.4fr 70px;
+      align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line)
+    }
+    .operator-row:first-child{border-top:0}
+    .operator-score{font-weight:800;text-align:right}
+    .heatmap{display:grid;grid-template-columns:80px repeat(6,minmax(36px,1fr));gap:5px;font-size:10px}
+    .heat-label{display:flex;align-items:center;color:var(--muted)}
+    .heat-cell{
+      min-height:39px;display:grid;place-items:center;border-radius:8px;
+      background:rgba(15,118,110,var(--heat));color:var(--ink);font-weight:800
+    }
+    .heat-cell.dark{color:#fff}
+    .timeline{position:relative;padding-left:26px}
+    .timeline:before{content:"";position:absolute;left:8px;top:8px;bottom:8px;width:2px;background:var(--line)}
+    .event{position:relative;padding:0 0 18px}
+    .event:before{content:"";position:absolute;left:-23px;top:4px;width:12px;height:12px;border:3px solid #fff;border-radius:50%;background:var(--blue);box-shadow:0 0 0 1px var(--line)}
+    .event time{color:var(--blue);font-size:11px;font-weight:800}
+    .event p{margin:3px 0;color:var(--muted);font-size:12px}
+
+    /* v2 — Reagent */
+    .lot-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .lot-card{padding:16px;border:1px solid var(--line);border-radius:15px;background:#fff}
+    .lot-card.flagged{border-color:#edbd71;background:#fffdf7}
+    .lot-head{display:flex;justify-content:space-between;gap:8px}
+    .lot-card dl{display:grid;grid-template-columns:1fr auto;gap:8px;margin:15px 0 0;font-size:12px}
+    .lot-card dt{color:var(--muted)}.lot-card dd{margin:0;color:var(--ink);font-weight:700}
+    .effect-bar{display:grid;grid-template-columns:90px 1fr 54px;align-items:center;gap:9px;margin:12px 0;font-size:12px}
+    .effect-track{height:10px;border-radius:999px;background:#edf2f1}
+    .effect-track i{display:block;height:100%;border-radius:inherit;background:var(--blue)}
+    .storage-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+    .storage-cell{padding:10px 3px;text-align:center;border-radius:9px;background:#edf7f5;font-size:10px}
+    .storage-cell.warn{background:#fff0d2;color:#965b05}
+
+    /* v3 — Instrument */
+    .machine-map{
+      position:relative;min-height:325px;overflow:hidden;padding:28px;
+      background:linear-gradient(135deg,#f8fcfb,#edf7f5)
+    }
+    .machine-map:before{
+      content:"";position:absolute;inset:0;
+      background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+      background-size:28px 28px;opacity:.42
+    }
+    .machine-node{
+      position:absolute;width:135px;padding:13px;border:1px solid var(--line);
+      border-radius:14px;background:#fff;box-shadow:0 8px 22px rgba(20,73,68,.1)
+    }
+    .machine-node strong{display:block;color:var(--ink);font-size:12px}
+    .machine-node small{color:var(--muted)}
+    .machine-node .signal{width:9px;height:9px;display:inline-block;margin-right:5px;border-radius:50%;background:var(--green)}
+    .machine-node.warn .signal{background:var(--amber)}
+    .machine-a{left:8%;top:18%}.machine-b{right:8%;top:17%}.machine-c{left:18%;bottom:13%}.machine-d{right:18%;bottom:13%}
+    .map-core{
+      position:absolute;left:50%;top:50%;width:112px;height:112px;transform:translate(-50%,-50%);
+      display:grid;place-items:center;text-align:center;border:9px solid #d8efeb;border-radius:50%;
+      background:var(--blue);color:#fff;font-weight:800;font-size:12px;box-shadow:0 12px 30px rgba(15,118,110,.22)
+    }
+    .channel{display:grid;grid-template-columns:70px 1fr 55px;gap:10px;align-items:center;margin:13px 0;font-size:12px}
+    .channel-track{height:7px;border-radius:99px;background:#edf2f1;position:relative}
+    .channel-track:before{content:"";position:absolute;left:48%;top:-4px;width:2px;height:15px;background:var(--ink);opacity:.25}
+    .channel-track i{position:absolute;top:-4px;width:15px;height:15px;border:3px solid #fff;border-radius:50%;background:var(--blue);box-shadow:0 0 0 1px var(--line)}
+
+    /* v4 — Environment simulation */
+    .scenario-controls{display:grid;gap:17px}
+    .slider-line{display:grid;grid-template-columns:92px 1fr 68px;align-items:center;gap:10px}
+    .slider-line label{font-size:12px;font-weight:700}
+    .fake-slider{height:8px;border-radius:999px;background:linear-gradient(90deg,var(--blue) var(--fill),#e6efed var(--fill));position:relative}
+    .fake-slider:after{content:"";position:absolute;left:calc(var(--fill) - 8px);top:-4px;width:16px;height:16px;border:3px solid #fff;border-radius:50%;background:var(--blue);box-shadow:0 0 0 1px var(--line)}
+    .slider-value{text-align:right;color:var(--ink);font-size:12px;font-weight:800}
+    .risk-panel{padding:22px;background:linear-gradient(135deg,#0f766e,#115e59);color:#fff}
+    .risk-panel h2,.risk-panel h3{color:#fff}
+    .risk-number{font-size:56px;font-weight:800;line-height:1}
+    .risk-panel p{color:#cfeae6;font-size:12px}
+    .scenario-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .scenario{padding:13px;border:1px solid var(--line);border-radius:13px;background:#fff}
+    .scenario.selected{border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
+    .scenario strong{display:block;color:var(--ink);font-size:12px}
+    .scenario small{color:var(--muted)}
+
+    /* v5 — Root cause */
+    .ranking{display:grid;gap:11px}
+    .rank-item{
+      display:grid;grid-template-columns:36px minmax(120px,.8fr) minmax(160px,1.5fr) 70px 95px;
+      align-items:center;gap:12px;padding:13px;border:1px solid var(--line);border-radius:13px
+    }
+    .rank-num{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:var(--soft);color:var(--blue);font-weight:800}
+    .rank-item strong{font-size:13px;color:var(--ink)}
+    .confidence{font-size:11px;color:var(--muted)}
+    .decision-box{padding:18px;border:1px solid var(--line);border-radius:15px;background:#fbfdfc}
+    .decision-box + .decision-box{margin-top:11px}
+    .decision-route{display:flex;gap:8px;margin-top:12px}
+    .route{
+      flex:1;padding:9px;border-radius:9px;background:#eaf8f1;color:var(--green);
+      text-align:center;font-size:11px;font-weight:800
+    }
+    .route.no{background:#fff0ee;color:var(--red)}
+    .action-item{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:12px 0;border-top:1px solid var(--line)}
+    .action-item:first-child{border-top:0}
+    .action-item p{margin:2px 0;color:var(--muted);font-size:11px}
+    .check-open{width:21px;height:21px;border:2px solid var(--line);border-radius:6px}
+    .footer-note{margin-top:24px;text-align:center;color:var(--muted);font-size:11px}
+    @media(max-width:1050px){
+      .grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .grid-3,.lot-board{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .split-wide,.setup-board{grid-template-columns:1fr}
+      .rank-item{grid-template-columns:36px minmax(100px,1fr) minmax(140px,1.3fr) 60px}
+      .rank-item .badge{display:none}
+    }
+    @media(max-width:740px){
+      .brand-actions .ghost-btn,.live-pill span{display:none}
+      .brandbar{padding:9px 14px}
+      .tabs-wrap{padding:0 7px}
+      .tab{padding:8px 11px;font-size:12px}
+      main{padding-left:12px;padding-right:12px}
+      .page-head{align-items:flex-start;flex-direction:column}
+      .page-head .toolbar{width:100%}
+      .grid-3,.grid-2,.split-even,.lot-board,.scenario-cards{grid-template-columns:1fr}
+      .summary-strip{grid-template-columns:1fr}
+      .field-grid{grid-template-columns:1fr}
+      .step-node span{display:none}
+      .heatmap{grid-template-columns:62px repeat(6,minmax(28px,1fr));gap:3px}
+      .heat-cell{min-height:34px;font-size:9px}
+      .storage-grid{grid-template-columns:repeat(4,1fr)}
+      .machine-map{min-height:420px;padding:10px}
+      .machine-node{width:118px;padding:9px}
+      .machine-a{left:4%;top:7%}.machine-b{right:4%;top:7%}.machine-c{left:4%;bottom:7%}.machine-d{right:4%;bottom:7%}
+      .rank-item{grid-template-columns:32px 1fr 62px}
+      .rank-item .progress,.rank-item .badge{display:none}
+      .slider-line{grid-template-columns:80px 1fr 58px}
+      .chart-box{min-height:245px}
+    }
+    @media(max-width:430px){
+      .grid-4{grid-template-columns:1fr}
+      .brandcopy span{display:none}
+      .primary-btn{padding:8px 10px}
+      .operator-row{grid-template-columns:32px 1fr 56px}
+      .operator-row .progress{display:none}
+      .heatmap{overflow-x:auto}
+      .heat-label,.heat-cell{min-width:34px}
+      .effect-bar{grid-template-columns:74px 1fr 44px}
+      .machine-node{width:106px;font-size:10px}
+      .map-core{width:92px;height:92px}
+    }
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <div class="shell">
+      <div class="brandbar">
+        <div class="brandmark"><span class="material-symbols-outlined">science</span></div>
+        <div class="brandcopy">
+          <strong>跨批次再現性分析器</strong>
+          <span>Cross-batch Reproducibility Intelligence</span>
+        </div>
+        <div class="brand-actions">
+          <div class="live-pill"><i class="live-dot"></i><span>資料同步正常</span></div>
+          <button class="ghost-btn" type="button"><span class="material-symbols-outlined">download</span>匯出報告</button>
+          <button class="primary-btn" type="button"><span class="material-symbols-outlined">add</span>新分析</button>
+        </div>
+      </div>
+      <nav class="tabs-wrap" aria-label="分析流程">
+        <div class="tabs">
+          <button class="tab" type="button" data-i="0">01 建立比較批次</button>
+          <button class="tab" type="button" data-i="1">02 拆解操作變異</button>
+          <button class="tab" type="button" data-i="2">03 評估試劑效應</button>
+          <button class="tab" type="button" data-i="3">04 檢查儀器差異</button>
+          <button class="tab" type="button" data-i="4">05 模擬環境情境</button>
+          <button class="tab" type="button" data-i="5">06 確認不穩定源</button>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="view" data-view="0" aria-labelledby="view0-title">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">view_timeline</span>比較計畫 · CRO-2026-08</div>
+          <h1 id="view0-title">建立比較批次</h1>
+          <p class="subtext">選定分析方法、產品與批次範圍，建立一致的再現性門檻與資料納入規則。</p>
+        </div>
+        <div class="toolbar">
+          <button class="ghost-btn" type="button">儲存草稿</button>
+          <button class="primary-btn" type="button">執行預檢</button>
+        </div>
+      </div>
+
+      <div class="stepper" aria-label="設定進度">
+        <div class="step-node done"><b>1</b><span>分析範圍</span></div><i class="step-line"></i>
+        <div class="step-node done"><b>2</b><span>批次選擇</span></div><i class="step-line"></i>
+        <div class="step-node current"><b>3</b><span>判定門檻</span></div><i class="step-line"></i>
+        <div class="step-node"><b>4</b><span>資料預檢</span></div>
+      </div>
+
+      <div class="setup-board">
+        <article class="card card-pad">
+          <div class="card-title">
+            <div><h2>比較計畫設定</h2><p>分析方法：ELISA 定量法 v3.2</p></div>
+            <span class="tag">草稿已儲存</span>
+          </div>
+          <div class="field-grid">
+            <div class="field"><label>產品 / 檢測項目</label><div class="field-box">JV-IL6 高敏感度檢測套組</div></div>
+            <div class="field"><label>樣品基質</label><div class="field-box">人類血清 · 冷凍保存</div></div>
+            <div class="field"><label>分析區間</label><div class="field-box">2026/07/14 — 2026/08/21</div></div>
+            <div class="field"><label>主要終點</label><div class="field-box">回收率與批內 CV%</div></div>
+          </div>
+
+          <div class="card-title" style="margin-top:22px">
+            <div><h3>納入批次</h3><p>已選擇 4 / 5 個符合條件的批次</p></div>
+            <button class="small-btn" type="button">調整篩選</button>
+          </div>
+          <div class="batch-picks">
+            <div class="batch-pick">
+              <span class="check material-symbols-outlined">check</span>
+              <div><strong>BT-240714-A · 基準批次</strong><small>96 樣品 · Operator 林郁庭 · Reader-03</small></div>
+              <span class="badge green">完整 100%</span>
+            </div>
+            <div class="batch-pick">
+              <span class="check material-symbols-outlined">check</span>
+              <div><strong>BT-240726-B · 交叉人員</strong><small>96 樣品 · Operator 陳威宇 · Reader-03</small></div>
+              <span class="badge green">完整 100%</span>
+            </div>
+            <div class="batch-pick">
+              <span class="check material-symbols-outlined">check</span>
+              <div><strong>BT-240808-C · 新試劑批號</strong><small>92 樣品 · Operator 黃思穎 · Reader-07</small></div>
+              <span class="badge amber">缺值 4 筆</span>
+            </div>
+            <div class="batch-pick">
+              <span class="check material-symbols-outlined">check</span>
+              <div><strong>BT-240819-D · 高濕情境</strong><small>96 樣品 · Operator 林郁庭 · Reader-12</small></div>
+              <span class="badge green">完整 100%</span>
+            </div>
+          </div>
+        </article>
+
+        <aside class="stack">
+          <article class="card card-pad">
+            <div class="card-title"><div><h2>再現性門檻</h2><p>套用 SOP-RP-014 規則</p></div></div>
+            <div class="threshold"><div><span class="subtext">批間 CV 上限</span><strong>≤ 8.0%</strong></div><span class="tag">必要</span></div>
+            <div class="progress"><i style="width:80%"></i></div><div class="scale"><span>0%</span><span>10%</span></div>
+            <div class="threshold"><div><span class="subtext">平均回收率</span><strong>90–110%</strong></div><span class="tag">必要</span></div>
+            <div class="threshold"><div><span class="subtext">ICC 一致性</span><strong>≥ 0.90</strong></div><span class="tag">建議</span></div>
+            <div class="notice" style="margin-top:17px"><span class="material-symbols-outlined">warning</span><span>BT-240808-C 有 4 筆原始訊號缺值；仍可分析，但信賴區間將加寬。</span></div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-title"><div><h2>資料預檢</h2><p>384 筆樣品結果</p></div><span class="badge green">可執行</span></div>
+            <div class="rule-list">
+              <div class="rule-item"><strong>實驗計畫一致</strong>4 個批次皆使用方法 v3.2</div>
+              <div class="rule-item"><strong>樣品可配對</strong>共同樣品 88 組，覆蓋率 91.7%</div>
+              <div class="rule-item"><strong>儀器紀錄可用</strong>校正、通道與維護資料已串接</div>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" data-view="1" aria-labelledby="view1-title">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">person_search</span>操作差異分解</div>
+          <h1 id="view1-title">拆解操作變異</h1>
+          <p class="subtext">比較操作者、步驟順序與操作時間，找出人為操作對跨批次結果的實際貢獻。</p>
+        </div>
+        <div class="toolbar">
+          <select class="select" aria-label="分析指標"><option>回收率 (%)</option><option>批內 CV (%)</option></select>
+          <button class="primary-btn" type="button">建立訓練任務</button>
+        </div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:18px">
+        <article class="card card-pad metric"><span>操作變異貢獻</span><strong>28.4%</strong><small>第二大變異來源</small></article>
+        <article class="card card-pad metric"><span>人員間 CV</span><strong>6.8%</strong><small>門檻內 · 上限 8%</small></article>
+        <article class="card card-pad metric"><span>步驟偏離事件</span><strong>7</strong><small style="color:var(--amber)">2 件需檢視</small></article>
+        <article class="card card-pad metric"><span>平均操作時間</span><strong>47.2 min</strong><small>較基準 +3.4 min</small></article>
+      </div>
+
+      <div class="split-wide">
+        <article class="card card-pad">
+          <div class="card-title">
+            <div><h2>操作者結果分布</h2><p>點位為樣品回收率，中線為操作者平均</p></div>
+            <span class="tag">n = 368</span>
+          </div>
+          <div class="chart-box tall"><canvas id="operatorChart" aria-label="操作者結果分布圖"></canvas></div>
+        </article>
+        <aside class="card card-pad">
+          <div class="card-title"><div><h2>操作者一致性</h2><p>依目標回收率與時間穩定度計分</p></div></div>
+          <div class="operator-row"><span class="avatar">林</span><div><strong>林郁庭</strong><small class="subtext">2 批次 · 184 樣品</small></div><div class="progress"><i style="width:94%"></i></div><span class="operator-score">94</span></div>
+          <div class="operator-row"><span class="avatar">陳</span><div><strong>陳威宇</strong><small class="subtext">1 批次 · 96 樣品</small></div><div class="progress"><i style="width:89%"></i></div><span class="operator-score">89</span></div>
+          <div class="operator-row"><span class="avatar">黃</span><div><strong>黃思穎</strong><small class="subtext">1 批次 · 88 樣品</small></div><div class="progress"><i style="width:76%;background:var(--amber)"></i></div><span class="operator-score" style="color:var(--amber)">76</span></div>
+          <div class="notice" style="margin-top:17px"><span class="material-symbols-outlined">lightbulb</span><span>黃思穎於「洗板等待」步驟平均多 3.8 分鐘，與低回收率呈中度相關。</span></div>
+        </aside>
+      </div>
+
+      <div class="split-even" style="margin-top:18px">
+        <article class="card card-pad">
+          <div class="card-title"><div><h2>步驟 × 批次偏差熱圖</h2><p>數值為相對基準批次的偏移百分比</p></div></div>
+          <div class="heatmap">
+            <span></span><b>配液</b><b>加樣</b><b>孵育</b><b>洗板</b><b>顯色</b><b>讀值</b>
+            <span class="heat-label">BT-A</span><span class="heat-cell" style="--heat:.12">+0.2</span><span class="heat-cell" style="--heat:.18">+0.4</span><span class="heat-cell" style="--heat:.12">−0.1</span><span class="heat-cell" style="--heat:.2">+0.5</span><span class="heat-cell" style="--heat:.15">+0.2</span><span class="heat-cell" style="--heat:.12">0.0</span>
+            <span class="heat-label">BT-B</span><span class="heat-cell" style="--heat:.22">+0.6</span><span class="heat-cell" style="--heat:.3">+1.1</span><span class="heat-cell" style="--heat:.19">−0.4</span><span class="heat-cell" style="--heat:.27">+0.9</span><span class="heat-cell" style="--heat:.18">+0.4</span><span class="heat-cell" style="--heat:.14">+0.1</span>
+            <span class="heat-label">BT-C</span><span class="heat-cell" style="--heat:.35">−1.4</span><span class="heat-cell" style="--heat:.43">−2.1</span><span class="heat-cell" style="--heat:.38">−1.7</span><span class="heat-cell dark" style="--heat:.79">−4.8</span><span class="heat-cell dark" style="--heat:.61">−3.3</span><span class="heat-cell" style="--heat:.28">−0.9</span>
+            <span class="heat-label">BT-D</span><span class="heat-cell" style="--heat:.26">+0.8</span><span class="heat-cell" style="--heat:.21">+0.5</span><span class="heat-cell" style="--heat:.46">+2.2</span><span class="heat-cell" style="--heat:.39">+1.8</span><span class="heat-cell" style="--heat:.3">+1.1</span><span class="heat-cell" style="--heat:.24">+0.7</span>
+          </div>
+        </article>
+        <article class="card card-pad">
+          <div class="card-title"><div><h2>偏離事件時間軸</h2><p>由電子批次紀錄自動彙整</p></div><span class="badge amber">2 項待確認</span></div>
+          <div class="timeline">
+            <div class="event"><time>08:42 · BT-240808-C</time><h3>洗板等待超出 SOP 3.8 分鐘</h3><p>操作者：黃思穎；可能降低低濃度樣品訊號。</p></div>
+            <div class="event"><time>09:17 · BT-240808-C</time><h3>顯色液加樣順序反向</h3><p>8 個孔位的反應時間差擴大至 52 秒。</p></div>
+            <div class="event"><time>14:03 · BT-240819-D</time><h3>第二次孵育提前 1.2 分鐘</h3><p>影響評估低，已納入模型協變數。</p></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="view" data-view="2" aria-labelledby="view2-title">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">vaccines</span>試劑批號效應</div>
+          <h1 id="view2-title">評估試劑效應</h1>
+          <p class="subtext">核對試劑批號、效期與保存條件，估算各物料對結果偏移及不確定性的貢獻。</p>
+        </div>
+        <div class="toolbar">
+          <select class="select" aria-label="試劑類別"><option>全部關鍵試劑</option><option>抗體</option><option>標準品</option></select>
+          <button class="primary-btn" type="button">核對領料紀錄</button>
+        </div>
+      </div>
+
+      <div class="summary-strip">
+        <div class="summary-item"><span>批號效應貢獻</span><strong>19.7% · 第三大來源</strong></div>
+        <div class="summary-item"><span>納入試劑批號</span><strong>8 個批號 / 5 類物料</strong></div>
+        <div class="summary-item"><span>保存異常</span><strong style="color:var(--amber)">1 次溫度短暫偏離</strong></div>
+      </div>
+
+      <div class="lot-board">
+        <article class="lot-card">
+          <div class="lot-head"><div><span class="tag">捕捉抗體</span><h3 style="margin-top:8px">CA-26H071</h3></div><span class="badge green">穩定</span></div>
+          <dl><dt>使用批次</dt><dd>BT-A / BT-B</dd><dt>效期餘裕</dt><dd>146 天</dd><dt>平均偏移</dt><dd>+0.4%</dd><dt>冷藏完整率</dt><dd>100%</dd></dl>
+        </article>
+        <article class="lot-card flagged">
+          <div class="lot-head"><div><span class="tag">偵測抗體</span><h3 style="margin-top:8px">DA-26G188</h3></div><span class="badge amber">需檢視</span></div>
+          <dl><dt>使用批次</dt><dd>BT-C</dd><dt>效期餘裕</dt><dd>39 天</dd><dt>平均偏移</dt><dd class="delta-up">−3.6%</dd><dt>冷藏完整率</dt><dd>98.2%</dd></dl>
+        </article>
+        <article class="lot-card">
+          <div class="lot-head"><div><span class="tag">標準品</span><h3 style="margin-top:8px">STD-26J042</h3></div><span class="badge green">穩定</span></div>
+          <dl><dt>使用批次</dt><dd>BT-D</dd><dt>效期餘裕</dt><dd>203 天</dd><dt>平均偏移</dt><dd>+1.1%</dd><dt>冷藏完整率</dt><dd>100%</dd></dl>
+        </article>
+      </div>
+
+      <div class="split-wide" style="margin-top:18px">
+        <article class="card card-pad">
+          <div class="card-title"><div><h2>試劑批號效果量</h2><p>相對於整體平均值；誤差線代表 95% 信賴區間</p></div><span class="tag">混合效應模型</span></div>
+          <div class="chart-box tall"><canvas id="reagentChart" aria-label="試劑批號效果圖"></canvas></div>
+        </article>
+        <aside class="stack">
+          <article class="card card-pad">
+            <div class="card-title"><div><h2>變異貢獻排序</h2><p>依模型解釋變異占比</p></div></div>
+            <div class="effect-bar"><span>偵測抗體</span><div class="effect-track"><i style="width:78%;background:var(--amber)"></i></div><b>7.8%</b></div>
+            <div class="effect-bar"><span>標準品</span><div class="effect-track"><i style="width:48%"></i></div><b>4.8%</b></div>
+            <div class="effect-bar"><span>捕捉抗體</span><div class="effect-track"><i style="width:36%"></i></div><b>3.6%</b></div>
+            <div class="effect-bar"><span>洗滌液</span><div class="effect-track"><i style="width:21%"></i></div><b>2.1%</b></div>
+            <div class="effect-bar"><span>顯色液</span><div class="effect-track"><i style="width:14%"></i></div><b>1.4%</b></div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-title"><div><h2>冷藏紀錄 · DA-26G188</h2><p>最近 7 個使用日</p></div></div>
+            <div class="storage-grid">
+              <div class="storage-cell">8/02<br><b>4.1°</b></div><div class="storage-cell">8/03<br><b>4.4°</b></div>
+              <div class="storage-cell warn">8/04<br><b>9.2°</b></div><div class="storage-cell">8/05<br><b>4.8°</b></div>
+              <div class="storage-cell">8/06<br><b>4.2°</b></div><div class="storage-cell">8/07<br><b>4.5°</b></div>
+              <div class="storage-cell">8/08<br><b>4.3°</b></div>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" data-view="3" aria-labelledby="view3-title">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">precision_manufacturing</span>儀器偏差分析</div>
+          <h1 id="view3-title">檢查儀器差異</h1>
+          <p class="subtext">比對儀器狀態、校正紀錄與量測通道，量化設備間偏差並檢查是否通過。</p>
+        </div>
+        <div class="toolbar">
+          <span class="badge amber">審查中</span>
+          <button class="primary-btn" type="button">送交技術覆核</button>
+        </div>
+      </div>
+
+      <div class="split-wide">
+        <article class="card machine-map">
+          <div class="machine-node machine-a"><strong><i class="signal"></i>Reader-03</strong><small>基準 · 偏差 +0.2%</small></div>
+          <div class="machine-node machine-b warn"><strong><i class="signal"></i>Reader-07</strong><small>注意 · 偏差 −2.8%</small></div>
+          <div class="machine-node machine-c"><strong><i class="signal"></i>Reader-12</strong><small>正常 · 偏差 +0.9%</small></div>
+          <div class="machine-node machine-d"><strong><i class="signal"></i>Washer-04</strong><small>正常 · CV 1.3%</small></div>
+          <div class="map-core">儀器間變異<br>14.2%</div>
+        </article>
+        <aside class="card card-pad">
+          <div class="card-title"><div><h2>通道偏差</h2><p>相對於校正中心值</p></div><span class="tag">允收 ±2.5%</span></div>
+          <div class="channel"><span>R03 · CH1</span><div class="channel-track"><i style="left:51%"></i></div><b>+0.2%</b></div>
+          <div class="channel"><span>R03 · CH2</span><div class="channel-track"><i style="left:54%"></i></div><b>+0.7%</b></div>
+          <div class="channel"><span>R07 · CH1</span><div class="channel-track"><i style="left:34%;background:var(--amber)"></i></div><b style="color:var(--amber)">−2.8%</b></div>
+          <div class="channel"><span>R07 · CH2</span><div class="channel-track"><i style="left:39%"></i></div><b>−1.9%</b></div>
+          <div class="channel"><span>R12 · CH1</span><div class="channel-track"><i style="left:56%"></i></div><b>+0.9%</b></div>
+          <div class="notice" style="margin-top:19px"><span class="material-symbols-outlined">build</span><span>Reader-07 CH1 超出允收範圍 0.3%；建議重作波長準確度確認。</span></div>
+        </aside>
+      </div>
+
+      <div class="split-even" style="margin-top:18px">
+        <article class="card card-pad">
+          <div class="card-title"><div><h2>儀器一致性曲線</h2><p>共同樣品量測值，虛線區域為規格範圍</p></div></div>
+          <div class="chart-box"><canvas id="instrumentChart" aria-label="儀器一致性曲線圖"></canvas></div>
+        </article>
+        <article class="card card-pad">
+          <div class="card-title"><div><h2>校正與維護證據</h2><p>自設備管理系統串接</p></div><span class="badge green">紀錄完整</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>設備</th><th>最近校正</th><th>標準品</th><th>結果</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">Reader-03</td><td>2026/08/02</td><td>OD-STD-41</td><td><span class="badge green">通過</span></td></tr>
+                <tr><td class="mono">Reader-07</td><td>2026/07/18</td><td>OD-STD-39</td><td><span class="badge amber">複核</span></td></tr>
+                <tr><td class="mono">Reader-12</td><td>2026/08/11</td><td>OD-STD-41</td><td><span class="badge green">通過</span></td></tr>
+                <tr><td class="mono">Washer-04</td><td>2026/08/15</td><td>VOL-25ML</td><td><span class="badge green">通過</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="decision-box" style="margin-top:16px">
+            <h3>檢查儀器差異是否通過？</h3>
+            <div class="decision-route"><div class="route">是 · 進入下一階段</div><div class="route no">否 · 退回技術員</div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="view" data-view="4" aria-labelledby="view4-title">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">thermostat</span>環境變因模擬</div>
+          <h1 id="view4-title">模擬環境情境</h1>
+          <p class="subtext">測試溫度、濕度與操作時段改變時的結果分布，預估規格失敗風險。</p>
+        </div>
+        <div class="toolbar">
+          <button class="ghost-btn" type="button">恢復基準</button>
+          <button class="primary-btn" type="button">儲存情境</button>
+        </div>
+      </div>
+
+      <div class="split-wide">
+        <article class="card card-pad">
+          <div class="card-title"><div><h2>環境情境工作台</h2><p>模型依 24 個歷史批次與 2,164 筆樣品估算</p></div><span class="tag">情境 B · 高濕午後</span></div>
+          <div class="scenario-cards">
+            <div class="scenario"><strong>基準實驗室</strong><small>22°C · 48%RH · 上午</small></div>
+            <div class="scenario selected"><strong>高濕午後</strong><small>24°C · 68%RH · 14:00</small></div>
+            <div class="scenario"><strong>空調重啟</strong><small>26°C · 58%RH · 波動</small></div>
+          </div>
+          <div class="scenario-controls" style="margin-top:24px">
+            <div class="slider-line"><label>室內溫度</label><div class="fake-slider" style="--fill:58%"></div><div class="slider-value">24.0°C</div></div>
+            <div class="slider-line"><label>相對濕度</label><div class="fake-slider" style="--fill:72%"></div><div class="slider-value">68% RH</div></div>
+            <div class="slider-line"><label>平衡時間</label><div class="fake-slider" style="--fill:39%"></div><div class="slider-value">18 min</div></div>
+            <div class="slider-line"><label>開蓋暴露</label><div class="fake-slider" style="--fill:64%"></div><div class="slider-value">11 min</div></div>
+          </div>
+          <div class="chart-box tall" style="margin-top:18px"><canvas id="environmentChart" aria-label="環境情境分布圖"></canvas></div>
+        </article>
+
+        <aside class="stack">
+          <article class="card risk-panel">
+            <span class="badge" style="background:rgba(255,255,255,.15);color:#fff">預測結果</span>
+            <h2 style="margin-top:16px">規格失敗風險</h2>
+            <div class="risk-number">12.8%</div>
+            <p>相較基準情境增加 9.7 個百分點</p>
+            <div class="progress" style="background:rgba(255,255,255,.18)"><i style="width:64%;background:#f7c56d"></i></div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11px"><span>低風險</span><span>需管制</span></div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-title"><div><h2>敏感度分析</h2><p>條件每變動一個標準差的影響</p></div></div>
+            <div class="effect-bar"><span>相對濕度</span><div class="effect-track"><i style="width:86%;background:var(--red)"></i></div><b>+3.9%</b></div>
+            <div class="effect-bar"><span>開蓋暴露</span><div class="effect-track"><i style="width:67%;background:var(--amber)"></i></div><b>+3.0%</b></div>
+            <div class="effect-bar"><span>室內溫度</span><div class="effect-track"><i style="width:42%"></i></div><b>+1.9%</b></div>
+            <div class="effect-bar"><span>平衡時間</span><div class="effect-track"><i style="width:26%"></i></div><b>−1.2%</b></div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-title"><div><h2>建議管制窗</h2><p>維持失敗風險低於 5%</p></div></div>
+            <div class="rule-list">
+              <div class="rule-item"><strong>相對濕度 ≤ 55% RH</strong>超出時延長樣品平衡 8 分鐘</div>
+              <div class="rule-item"><strong>開蓋暴露 ≤ 7 分鐘</strong>採分區加樣並立即覆膜</div>
+              <div class="rule-item"><strong>溫度 21–23.5°C</strong>空調重啟後等待 30 分鐘</div>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" data-view="5" aria-labelledby="view5-title">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">troubleshoot</span>不穩定源排序</div>
+          <h1 id="view5-title">確認不穩定源</h1>
+          <p class="subtext">綜合操作、試劑、儀器與環境證據，審定主要變異來源並指派驗證或改善任務。</p>
+        </div>
+        <div class="toolbar">
+          <button class="ghost-btn" type="button">下載證據包</button>
+          <button class="primary-btn" type="button">核准分析結論</button>
+        </div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:18px">
+        <article class="card card-pad metric"><span>整體批間 CV</span><strong>7.4%</strong><small>門檻內 · 接近上限</small></article>
+        <article class="card card-pad metric"><span>模型解釋率</span><strong>82.6%</strong><small>證據強度：高</small></article>
+        <article class="card card-pad metric"><span>文件版本錯誤</span><strong>1 件/月</strong><small>基準 6 → 目前 1</small></article>
+        <article class="card card-pad metric"><span>專案準時率</span><strong>92%</strong><small>改善前 70%</small></article>
+      </div>
+
+      <div class="split-wide">
+        <article class="card card-pad">
+          <div class="card-title">
+            <div><h2>不穩定來源優先序</h2><p>依變異貢獻、信賴度與改善可行性綜合排序</p></div>
+            <span class="tag">模型更新 16:42</span>
+          </div>
+          <div class="ranking">
+            <div class="rank-item"><span class="rank-num">1</span><div><strong>洗板等待時間</strong><div class="confidence">操作變異 · 信賴度 92%</div></div><div class="progress"><i style="width:88%;background:var(--red)"></i></div><b>24.8%</b><span class="badge red">立即驗證</span></div>
+            <div class="rank-item"><span class="rank-num">2</span><div><strong>偵測抗體 DA-26G188</strong><div class="confidence">試劑效應 · 信賴度 87%</div></div><div class="progress"><i style="width:70%;background:var(--amber)"></i></div><b>19.7%</b><span class="badge amber">優先處理</span></div>
+            <div class="rank-item"><span class="rank-num">3</span><div><strong>Reader-07 CH1</strong><div class="confidence">儀器偏差 · 信賴度 83%</div></div><div class="progress"><i style="width:51%"></i></div><b>14.2%</b><span class="badge">安排校正</span></div>
+            <div class="rank-item"><span class="rank-num">4</span><div><strong>相對濕度</strong><div class="confidence">環境變因 · 信賴度 78%</div></div><div class="progress"><i style="width:39%"></i></div><b>10.9%</b><span class="badge">設定管制</span></div>
+            <div class="rank-item"><span class="rank-num">5</span><div><strong>未解釋殘差</strong><div class="confidence">隨機誤差 · 信賴度 71%</div></div><div class="progress"><i style="width:30%;background:#8aa09e"></i></div><b>8.4%</b><span class="badge">持續監測</span></div>
+          </div>
+          <div style="margin-top:20px">
+            <div class="card-title"><div><h2>文件版本錯誤改善趨勢</h2><p>W1–W6，每月件數由 6 降至 1</p></div></div>
+            <div class="chart-box"><canvas id="trendChart" aria-label="文件版本錯誤趨勢圖"></canvas></div>
+          </div>
+        </article>
+
+        <aside class="stack">
+          <article class="card card-pad">
+            <div class="card-title"><div><h2>判定規則</h2><p>需由實驗室主管完成審定</p></div></div>
+            <div class="decision-box">
+              <h3>檢查儀器差異是否通過？</h3>
+              <p class="subtext">Reader-07 CH1 待技術覆核，其餘設備通過。</p>
+              <div class="decision-route"><div class="route">是 · 下一階段</div><div class="route no">否 · 退回技術員</div></div>
+            </div>
+            <div class="decision-box">
+              <h3>確認不穩定源是否通過？</h3>
+              <p class="subtext">前三項來源合計解釋 58.7% 變異。</p>
+              <div class="decision-route"><div class="route">是 · 結案追蹤</div><div class="route no">否 · 退回主管</div></div>
+            </div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-title"><div><h2>改善任務</h2><p>分析結論核准後自動派送</p></div><span class="badge amber">3 項</span></div>
+            <div class="action-item"><span class="check-open"></span><div><strong>洗板等待時間重現試驗</strong><p>負責：研究員 · 期限 D+2 · 證據：樣品</p></div><span class="badge red">高</span></div>
+            <div class="action-item"><span class="check-open"></span><div><strong>更換偵測抗體批號交叉測試</strong><p>負責：技術員 · 期限 D+3 · 證據：領料紀錄</p></div><span class="badge amber">中</span></div>
+            <div class="action-item"><span class="check-open"></span><div><strong>Reader-07 波長準確度確認</strong><p>負責：技術員 · 期限 D+1 · 證據：儀器</p></div><span class="badge red">高</span></div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-title"><div><h2>可追溯輸出</h2><p>CRO-2026-08 evidence package</p></div></div>
+            <div class="rule-list">
+              <div class="rule-item"><strong>分析模型與參數</strong>版本 RMA-2.4 · SHA 已鎖定</div>
+              <div class="rule-item"><strong>原始資料快照</strong>384 筆樣品 · 17 個資料來源</div>
+              <div class="rule-item"><strong>操作與核准紀錄</strong>28 筆事件 · 電子簽章待完成</div>
+            </div>
+          </article>
+        </aside>
+      </div>
+
+      <article class="card card-pad" style="margin-top:18px">
+        <div class="card-title"><div><h2>跨批次再現性分析器資料列表</h2><p>完整流程責任、期限與階段追蹤</p></div><button class="small-btn" type="button">篩選待辦</button></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">CRO-001</td><td>建立比較批次</td><td>實驗室主管</td><td>D+1</td><td><span class="badge red">處理中</span></td></tr>
+              <tr><td class="mono">CRO-002</td><td>拆解操作變異</td><td>研究員</td><td>D+2</td><td><span class="badge amber">待確認</span></td></tr>
+              <tr><td class="mono">CRO-003</td><td>評估試劑效應</td><td>技術員</td><td>D+3</td><td><span class="badge amber">待確認</span></td></tr>
+              <tr><td class="mono">CRO-004</td><td>檢查儀器差異</td><td>技術員</td><td>D+4</td><td><span class="badge green">已完成</span></td></tr>
+              <tr><td class="mono">CRO-005</td><td>模擬環境情境</td><td>研究員</td><td>D+5</td><td><span class="badge green">已完成</span></td></tr>
+              <tr><td class="mono">CRO-006</td><td>確認不穩定源</td><td>實驗室主管</td><td>D+6</td><td><span class="badge green">已完成</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <p class="footer-note">Jvision Analytics BI · 跨批次再現性分析器 · 示範資料更新於 2026/08/22 16:42</p>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const tabs = Array.from(document.querySelectorAll("[data-i]"));
+      const views = Array.from(document.querySelectorAll("[data-view]"));
+      const charts = {};
+      let currentIndex = 0;
+
+      Chart.defaults.font.family = 'Inter, "Noto Sans TC", sans-serif';
+      Chart.defaults.color = "#6b8381";
+      Chart.defaults.borderColor = "#dbe7e5";
+
+      const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 550 },
+        interaction: { intersect: false, mode: "index" },
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { usePointStyle: true, boxWidth: 8, padding: 18 }
+          },
+          tooltip: {
+            backgroundColor: "#102a2a",
+            padding: 11,
+            cornerRadius: 9
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { maxRotation: 0 } },
+          y: { grid: { color: "#edf3f2" }, border: { display: false } }
+        }
+      };
+
+      function chartReady(canvasId) {
+        const canvas = document.getElementById(canvasId);
+        return canvas && canvas.parentElement.clientWidth > 0;
+      }
+
+      function createOperatorChart() {
+        if (charts.operator || !chartReady("operatorChart")) return;
+        charts.operator = new Chart(document.getElementById("operatorChart"), {
+          type: "bar",
+          data: {
+            labels: ["林郁庭 · A", "陳威宇 · B", "黃思穎 · C", "林郁庭 · D"],
+            datasets: [
+              {
+                label: "平均回收率",
+                data: [101.2, 99.6, 95.1, 102.4],
+                backgroundColor: ["#78bbb3", "#48a498", "#e5a43d", "#0f766e"],
+                borderRadius: 8,
+                barPercentage: .58
+              },
+              {
+                type: "line",
+                label: "目標值",
+                data: [100, 100, 100, 100],
+                borderColor: "#c2413b",
+                borderDash: [6, 5],
+                borderWidth: 2,
+                pointRadius: 0
+              }
+            ]
+          },
+          options: {
+            ...commonOptions,
+            scales: {
+              x: commonOptions.scales.x,
+              y: { min: 90, max: 106, grid: { color: "#edf3f2" }, title: { display: true, text: "回收率 (%)" } }
+            }
+          }
+        });
+      }
+
+      function createReagentChart() {
+        if (charts.reagent || !chartReady("reagentChart")) return;
+        charts.reagent = new Chart(document.getElementById("reagentChart"), {
+          type: "bar",
+          data: {
+            labels: ["CA-26H071", "CA-26J105", "DA-26F092", "DA-26G188", "STD-26H016", "STD-26J042"],
+            datasets: [{
+              label: "相對效果量 (%)",
+              data: [.4, -.2, .8, -3.6, -.5, 1.1],
+              backgroundColor: ["#58aa9f", "#78bbb3", "#58aa9f", "#d59027", "#78bbb3", "#0f766e"],
+              borderRadius: 7
+            }]
+          },
+          options: {
+            ...commonOptions,
+            indexAxis: "y",
+            plugins: commonOptions.plugins,
+            scales: {
+              x: {
+                min: -5,
+                max: 3,
+                grid: { color: context => context.tick.value === 0 ? "#6b8381" : "#edf3f2" },
+                title: { display: true, text: "效果量 (%)" }
+              },
+              y: { grid: { display: false } }
+            }
+          }
+        });
+      }
+
+      function createInstrumentChart() {
+        if (charts.instrument || !chartReady("instrumentChart")) return;
+        charts.instrument = new Chart(document.getElementById("instrumentChart"), {
+          type: "line",
+          data: {
+            labels: ["S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08"],
+            datasets: [
+              { label: "Reader-03", data: [18, 32, 46, 59, 74, 88, 102, 117], borderColor: "#0f766e", backgroundColor: "#0f766e", tension: .24 },
+              { label: "Reader-07", data: [17, 30, 44, 56, 71, 84, 98, 112], borderColor: "#d59027", backgroundColor: "#d59027", tension: .24 },
+              { label: "Reader-12", data: [18, 33, 47, 60, 75, 89, 104, 119], borderColor: "#5e87a6", backgroundColor: "#5e87a6", tension: .24 }
+            ]
+          },
+          options: {
+            ...commonOptions,
+            elements: { point: { radius: 3, hoverRadius: 5 }, line: { borderWidth: 2 } },
+            scales: {
+              x: { grid: { display: false }, title: { display: true, text: "共同樣品" } },
+              y: { grid: { color: "#edf3f2" }, title: { display: true, text: "量測濃度 (pg/mL)" } }
+            }
+          }
+        });
+      }
+
+      function createEnvironmentChart() {
+        if (charts.environment || !chartReady("environmentChart")) return;
+        charts.environment = new Chart(document.getElementById("environmentChart"), {
+          type: "line",
+          data: {
+            labels: ["88", "92", "96", "100", "104", "108", "112"],
+            datasets: [
+              {
+                label: "基準情境",
+                data: [2, 9, 24, 36, 22, 6, 1],
+                borderColor: "#0f766e",
+                backgroundColor: "rgba(15,118,110,.13)",
+                fill: true,
+                tension: .38,
+                pointRadius: 0
+              },
+              {
+                label: "高濕午後",
+                data: [7, 18, 31, 28, 12, 3, 0],
+                borderColor: "#d59027",
+                backgroundColor: "rgba(213,144,39,.12)",
+                fill: true,
+                tension: .38,
+                pointRadius: 0
+              }
+            ]
+          },
+          options: {
+            ...commonOptions,
+            scales: {
+              x: { grid: { display: false }, title: { display: true, text: "預測回收率 (%)" } },
+              y: { grid: { color: "#edf3f2" }, title: { display: true, text: "樣品數" } }
+            }
+          }
+        });
+      }
+
+      function createTrendChart() {
+        if (charts.trend || !chartReady("trendChart")) return;
+        charts.trend = new Chart(document.getElementById("trendChart"), {
+          type: "line",
+          data: {
+            labels: ["W1", "W2", "W3", "W4", "W5", "W6"],
+            datasets: [{
+              label: "文件版本錯誤 件/月",
+              data: [6, 5, 4, 3, 2, 1],
+              borderColor: "#0f766e",
+              backgroundColor: "rgba(15,118,110,.12)",
+              borderWidth: 3,
+              pointRadius: 4,
+              pointBackgroundColor: "#fff",
+              pointBorderWidth: 3,
+              fill: true,
+              tension: .32
+            }]
+          },
+          options: {
+            ...commonOptions,
+            scales: {
+              x: commonOptions.scales.x,
+              y: { beginAtZero: true, suggestedMax: 7, ticks: { stepSize: 1 }, grid: { color: "#edf3f2" } }
+            }
+          }
+        });
+      }
+
+      const chartFactories = [
+        null,
+        createOperatorChart,
+        createReagentChart,
+        createInstrumentChart,
+        createEnvironmentChart,
+        createTrendChart
+      ];
+
+      function show(indexValue, updateHash = false) {
+        const parsedIndex = Number(indexValue);
+        const safeIndex = Number.isInteger(parsedIndex) && parsedIndex >= 0 && parsedIndex < views.length ? parsedIndex : 0;
+        currentIndex = safeIndex;
+
+        views.forEach((view, viewIndex) => {
+          const selected = viewIndex === safeIndex;
+          view.classList.toggle("active", selected);
+          view.setAttribute("aria-hidden", String(!selected));
+        });
+
+        tabs.forEach((tab, tabIndex) => {
+          const selected = tabIndex === safeIndex;
+          tab.classList.toggle("active", selected);
+          tab.setAttribute("aria-selected", String(selected));
+        });
+
+        if (updateHash && window.location.hash !== "#go=" + safeIndex) {
+          window.location.hash = "go=" + safeIndex;
+        }
+
+        const factory = chartFactories[safeIndex];
+        if (factory) {
+          requestAnimationFrame(() => {
+            if (views[safeIndex].clientWidth > 0) factory();
+          });
+        }
+
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      function indexFromHash() {
+        const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+        return match ? Number(match[1]) : 0;
+      }
+
+      tabs.forEach(tab => {
+        tab.addEventListener("click", () => show(Number(tab.dataset.i), true));
+      });
+
+      window.addEventListener("hashchange", () => {
+        const nextIndex = indexFromHash();
+        if (nextIndex !== currentIndex) show(nextIndex, false);
+      });
+
+      show(indexFromHash(), false);
+    })();
+  </script>
+</body>
+</html>

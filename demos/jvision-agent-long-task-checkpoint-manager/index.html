@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<link rel="icon" href="../../favicon.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0">
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#be123c">
+<title>Agent 長任務檢查點 · it-ops｜Jvision 系統 Demo</title>
+<style>
+:root{
+  --blue:#be123c;
+  --ink:#172033;
+  --body:#334155;
+  --muted:#64748b;
+  --line:#e2e8f0;
+  --bg:#f6f8fc;
+  --green:#15803d;
+  --amber:#b45309;
+  --red:#dc2626;
+  --white:#fff;
+  --blue-soft:#fff1f2;
+  --shadow:0 12px 34px rgba(15,23,42,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-width:0;
+  color:var(--body);
+  background:var(--bg);
+  font-family:Inter,"Noto Sans TC",sans-serif;
+  line-height:1.5;
+}
+button,input,select,textarea{font:inherit}
+button{color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(190,18,60,.22);
+  outline-offset:2px;
+}
+.app{min-height:100vh;display:grid;grid-template-columns:78px minmax(0,1fr)}
+.rail{
+  position:sticky;top:0;height:100vh;z-index:20;
+  display:flex;flex-direction:column;align-items:center;
+  padding:16px 10px;background:#111827;color:#fff;
+}
+.brand{
+  width:48px;height:48px;border-radius:15px;display:grid;place-items:center;
+  background:linear-gradient(145deg,#fb7185,var(--blue));font-weight:800;
+  box-shadow:0 9px 24px rgba(190,18,60,.34);letter-spacing:-1px;
+}
+.rail-nav{display:grid;gap:10px;width:100%;margin-top:30px}
+.nav-btn{
+  border:0;background:transparent;color:#94a3b8;cursor:pointer;
+  min-height:48px;border-radius:14px;display:grid;place-items:center;position:relative;
+}
+.nav-btn:hover{background:#1e293b;color:#fff}
+.nav-btn.active{background:var(--blue);color:#fff}
+.nav-btn.active:before{
+  content:"";position:absolute;left:-10px;width:4px;height:25px;border-radius:0 6px 6px 0;background:#fda4af;
+}
+.nav-btn .material-symbols-outlined{font-size:23px}
+.nav-btn span:last-child{display:none}
+.rail-foot{margin-top:auto;color:#64748b}
+.main{min-width:0;padding:0 28px 38px}
+.topbar{
+  height:76px;display:flex;align-items:center;gap:18px;
+  border-bottom:1px solid var(--line);
+}
+.top-title{min-width:0}
+.top-title strong{display:block;color:var(--ink);font-size:16px}
+.top-title span{font-size:12px;color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;gap:10px;align-items:center}
+.health{
+  display:flex;align-items:center;gap:7px;padding:8px 12px;background:#ecfdf5;
+  color:var(--green);font-size:12px;font-weight:700;border-radius:999px;
+}
+.health i{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:pulse 1.8s infinite}
+.icon-btn{
+  border:1px solid var(--line);background:#fff;width:40px;height:40px;border-radius:12px;
+  display:grid;place-items:center;cursor:pointer;
+}
+.avatar{
+  width:40px;height:40px;border-radius:12px;display:grid;place-items:center;
+  background:#ffe4e6;color:var(--blue);font-size:13px;font-weight:800;
+}
+.screen{display:none;min-width:0;padding-top:26px;animation:rise .28s ease}
+.screen.active{display:block}
+.screen-head{display:flex;gap:18px;align-items:flex-start;margin-bottom:22px}
+.eyebrow{color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
+.screen-head h1{margin:5px 0 4px;color:var(--ink);font-size:clamp(25px,3vw,36px);line-height:1.2}
+.screen-head p{margin:0;color:var(--muted);max-width:780px}
+.step-count{
+  margin-left:auto;white-space:nowrap;background:#fff;border:1px solid var(--line);
+  border-radius:14px;padding:9px 13px;font-size:12px;color:var(--muted)
+}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 3px 14px rgba(15,23,42,.035)}
+.card-head{padding:17px 19px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.card-head h2,.card-head h3{font-size:15px;color:var(--ink);margin:0}
+.card-head p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+.card-body{padding:19px}
+.badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700}
+.badge.red{background:#fff1f2;color:var(--blue)}
+.badge.green{background:#ecfdf5;color:var(--green)}
+.badge.amber{background:#fffbeb;color:var(--amber)}
+.badge.gray{background:#f1f5f9;color:#475569}
+.btn{
+  min-height:42px;border-radius:11px;border:1px solid var(--line);background:#fff;
+  padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;display:inline-flex;
+  align-items:center;justify-content:center;gap:7px;
+}
+.btn:hover{border-color:#fda4af;color:var(--blue)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.dark{background:#172033;border-color:#172033;color:#fff}
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.metric{padding:17px}
+.metric small{color:var(--muted);font-size:11px}
+.metric strong{display:block;color:var(--ink);font-size:24px;margin:4px 0}
+.metric .delta{font-size:11px;color:var(--green);font-weight:700}
+.material-symbols-outlined{font-variation-settings:"FILL" 0,"wght" 400,"GRAD" 0,"opsz" 24}
+@keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes pulse{50%{box-shadow:0 0 0 5px rgba(34,197,94,.14)}}
+
+/* v0 — task dependency canvas */
+.overview-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(270px,.7fr);gap:16px}
+.flow-canvas{padding:20px;overflow:hidden}
+.flow-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.flow-toolbar .badge:last-of-type{margin-right:auto}
+.task-map{display:grid;gap:12px;position:relative}
+.map-row{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;align-items:center}
+.map-label{font-size:11px;color:var(--muted);font-weight:700;text-align:right}
+.map-track{display:flex;align-items:center;gap:10px;min-width:0}
+.node{
+  flex:1;min-width:130px;padding:13px;border:1px solid var(--line);border-radius:13px;
+  background:#fff;position:relative;
+}
+.node:after{content:"→";position:absolute;right:-17px;top:50%;transform:translateY(-50%);color:#94a3b8}
+.node:last-child:after{display:none}
+.node b{display:block;color:var(--ink);font-size:12px}
+.node small{font-size:10px;color:var(--muted)}
+.node.risk{border-color:#fda4af;background:#fff7f8}
+.node.check{border-color:#86efac;background:#f0fdf4}
+.node i{display:block;width:7px;height:7px;border-radius:50%;background:#94a3b8;margin-bottom:7px}
+.node.risk i{background:var(--red)}.node.check i{background:var(--green)}
+.side-stack{display:grid;gap:16px}
+.risk-list{display:grid;gap:11px}
+.risk-item{padding:12px;border-radius:12px;background:#f8fafc;border-left:3px solid var(--amber)}
+.risk-item b{display:flex;justify-content:space-between;font-size:12px;color:var(--ink)}
+.risk-item p{font-size:11px;color:var(--muted);margin:4px 0 0}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:6px}.legend i{width:8px;height:8px;border-radius:50%}
+
+/* v1 — policy builder */
+.policy-layout{display:grid;grid-template-columns:minmax(250px,.62fr) minmax(0,1.38fr);gap:16px}
+.policy-menu{padding:12px}
+.policy-tab{
+  width:100%;border:0;background:transparent;border-radius:12px;text-align:left;
+  padding:13px;display:flex;align-items:center;gap:11px;cursor:pointer;margin:2px 0;
+}
+.policy-tab.active{background:#fff1f2;color:var(--blue)}
+.policy-tab .material-symbols-outlined{font-size:20px}
+.policy-tab b{display:block;font-size:12px}.policy-tab small{display:block;color:var(--muted);font-size:10px}
+.policy-form{padding:22px}
+.form-title{display:flex;justify-content:space-between;gap:15px;align-items:start;margin-bottom:20px}
+.form-title h2{margin:0;color:var(--ink);font-size:19px}.form-title p{margin:4px 0;color:var(--muted);font-size:12px}
+.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.field label{display:block;font-size:11px;color:var(--ink);font-weight:700;margin-bottom:7px}
+.field input,.field select{
+  width:100%;border:1px solid var(--line);border-radius:11px;background:#fff;
+  min-height:42px;padding:8px 11px;color:var(--body)
+}
+.range-line{display:grid;grid-template-columns:minmax(0,1fr) 60px;align-items:center;gap:12px}
+.range-line input{accent-color:var(--blue);padding:0}
+.switch-row{
+  margin-top:16px;padding:13px;border:1px solid var(--line);border-radius:12px;
+  display:flex;align-items:center;gap:12px
+}
+.switch-row b{display:block;color:var(--ink);font-size:12px}.switch-row small{font-size:10px;color:var(--muted)}
+.switch{margin-left:auto;width:42px;height:24px;border-radius:99px;background:var(--blue);position:relative}
+.switch:after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;right:3px;top:3px}
+.policy-preview{margin-top:18px;padding:16px;background:#172033;color:#e2e8f0;border-radius:14px;font:12px/1.8 ui-monospace,SFMono-Regular,monospace}
+.policy-preview .key{color:#fda4af}.policy-preview .val{color:#86efac}
+
+/* v2 — snapshot library */
+.snapshot-hero{
+  display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:18px;padding:22px;
+  background:linear-gradient(125deg,#172033,#2b1730);color:#fff;border-radius:20px;margin-bottom:16px
+}
+.snapshot-hero h2{margin:4px 0;font-size:23px}.snapshot-hero p{margin:0;color:#cbd5e1;font-size:12px}
+.storage{text-align:right}.storage strong{font-size:28px}.storage small{display:block;color:#cbd5e1}
+.progress{height:7px;border-radius:99px;background:#334155;overflow:hidden;margin-top:9px}
+.progress i{display:block;height:100%;background:#fb7185;border-radius:inherit}
+.snapshot-tools{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+.search{
+  min-height:42px;flex:1;display:flex;align-items:center;gap:8px;background:#fff;
+  border:1px solid var(--line);border-radius:11px;padding:0 12px
+}
+.search input{min-width:0;width:100%;border:0;outline:0}
+.snapshot-list{display:grid;gap:10px}
+.snap{
+  display:grid;grid-template-columns:48px minmax(150px,1.3fr) repeat(3,minmax(100px,.6fr)) 36px;
+  align-items:center;gap:12px;padding:13px 15px
+}
+.snap-icon{width:42px;height:42px;border-radius:12px;background:#fff1f2;color:var(--blue);display:grid;place-items:center}
+.snap b{font-size:12px;color:var(--ink)}.snap small{display:block;font-size:10px;color:var(--muted)}
+.snap-data span{display:block;font-size:10px;color:var(--muted)}.snap-data b{font-size:11px}
+.snap button{border:0;background:transparent;cursor:pointer}
+.integrity{height:5px;background:#e2e8f0;border-radius:99px;margin-top:6px}.integrity i{display:block;height:100%;background:var(--green);border-radius:inherit}
+
+/* v3 — incident diagnostics */
+.incident-banner{
+  display:flex;align-items:center;gap:15px;padding:18px;border:1px solid #fecdd3;
+  background:#fff1f2;border-radius:17px;margin-bottom:16px
+}
+.alert-icon{width:48px;height:48px;border-radius:14px;background:#fff;color:var(--red);display:grid;place-items:center}
+.incident-banner h2{font-size:16px;color:var(--ink);margin:0}.incident-banner p{font-size:11px;color:var(--muted);margin:3px 0}
+.incident-banner .btn{margin-left:auto}
+.diag-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:16px}
+.trace{padding:18px}
+.trace-row{display:grid;grid-template-columns:72px 22px minmax(0,1fr);gap:10px;min-height:70px}
+.trace-time{font-size:10px;color:var(--muted);padding-top:3px}
+.trace-line{position:relative}.trace-line:before{content:"";position:absolute;left:9px;top:12px;bottom:-12px;width:2px;background:var(--line)}
+.trace-row:last-child .trace-line:before{display:none}
+.trace-dot{width:20px;height:20px;border-radius:50%;background:#fff;border:5px solid #94a3b8;position:relative;z-index:1}
+.trace-dot.ok{border-color:#22c55e}.trace-dot.fail{border-color:var(--red);box-shadow:0 0 0 5px #ffe4e6}
+.trace-detail b{font-size:12px;color:var(--ink)}.trace-detail p{font-size:11px;color:var(--muted);margin:3px 0}
+.code{background:#111827;color:#cbd5e1;border-radius:9px;padding:8px 10px;font:10px/1.5 ui-monospace,monospace}
+.root-score{display:grid;gap:13px}
+.cause{padding:12px;border:1px solid var(--line);border-radius:12px}
+.cause-head{display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--ink)}
+.scorebar{height:7px;background:#f1f5f9;border-radius:99px;margin-top:8px;overflow:hidden}
+.scorebar i{display:block;height:100%;background:var(--blue);border-radius:inherit}
+.evidence-box{margin-top:14px;padding:13px;background:#f8fafc;border-radius:12px}
+.evidence-box p{font-size:11px;margin:6px 0;color:var(--muted)}
+
+/* v4 — recovery comparison */
+.compare-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:16px}
+.option{padding:17px;position:relative;cursor:pointer}
+.option.selected{border:2px solid var(--blue);padding:16px}
+.option.selected:before{
+  content:"推薦";position:absolute;right:12px;top:12px;background:var(--blue);
+  color:#fff;border-radius:99px;padding:3px 7px;font-size:9px;font-weight:800
+}
+.option-icon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:#f1f5f9;color:var(--ink)}
+.option.selected .option-icon{background:#fff1f2;color:var(--blue)}
+.option h3{font-size:14px;color:var(--ink);margin:12px 0 3px}.option p{font-size:10px;color:var(--muted);min-height:32px}
+.option dl{margin:12px 0 0;display:grid;gap:7px}.option dl div{display:flex;justify-content:space-between;font-size:10px}
+.option dt{color:var(--muted)}.option dd{margin:0;color:var(--ink);font-weight:800}
+.sim-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr);gap:16px}
+.sim-chart{min-height:290px}
+.compensation{display:grid;gap:10px}
+.comp-item{display:flex;align-items:start;gap:10px;padding:11px;border:1px solid var(--line);border-radius:11px}
+.comp-item input{accent-color:var(--blue);margin-top:4px}.comp-item b{font-size:11px;color:var(--ink)}.comp-item small{display:block;font-size:10px;color:var(--muted)}
+.total-box{padding:13px;background:#fff1f2;border-radius:12px;margin-top:12px}
+.total-box span{font-size:10px;color:var(--muted)}.total-box strong{display:block;font-size:20px;color:var(--blue)}
+
+/* v5 — controlled resume */
+.approval-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}
+.resume-main{overflow:hidden}
+.resume-banner{padding:20px;background:linear-gradient(120deg,#fff1f2,#fff);border-bottom:1px solid var(--line)}
+.resume-banner h2{margin:4px 0;color:var(--ink);font-size:20px}.resume-banner p{margin:0;font-size:11px;color:var(--muted)}
+.checklist{padding:18px;display:grid;gap:10px}
+.check-row{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px}
+.checkmark{width:28px;height:28px;border-radius:50%;background:#ecfdf5;color:var(--green);display:grid;place-items:center}
+.check-row b{display:block;color:var(--ink);font-size:11px}.check-row small{font-size:10px;color:var(--muted)}
+.approval-panel{padding:19px}
+.approval-panel h3{margin:0;color:var(--ink);font-size:15px}.approval-panel>p{font-size:11px;color:var(--muted)}
+.approver{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.approver .avatar{width:34px;height:34px;border-radius:50%}.approver b{font-size:11px;color:var(--ink)}.approver small{font-size:9px;color:var(--muted);display:block}
+.approver .badge{margin-left:auto}
+.approval-panel textarea{width:100%;min-height:78px;resize:vertical;border:1px solid var(--line);border-radius:11px;padding:10px;margin:14px 0}
+.action-row{display:grid;grid-template-columns:1fr 1.4fr;gap:8px}
+.audit-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
+.audit-item{padding:15px}.audit-item span{font-size:10px;color:var(--muted)}.audit-item b{display:block;font-size:12px;color:var(--ink);margin-top:3px}
+
+.toast{
+  position:fixed;right:22px;bottom:22px;z-index:50;background:#172033;color:#fff;
+  border-radius:13px;padding:12px 16px;font-size:12px;box-shadow:var(--shadow);
+  opacity:0;transform:translateY(10px);pointer-events:none;transition:.2s
+}
+.toast.show{opacity:1;transform:none}
+@media(max-width:1100px){
+  .metric-grid,.compare-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .overview-grid,.diag-grid,.sim-grid,.approval-layout{grid-template-columns:1fr}
+  .policy-layout{grid-template-columns:220px minmax(0,1fr)}
+  .approval-panel{order:-1}
+}
+@media(max-width:768px){
+  .app{display:block}
+  .rail{
+    position:fixed;left:0;right:0;top:auto;bottom:0;height:68px;width:auto;
+    flex-direction:row;padding:8px 10px;z-index:30;border-top:1px solid #334155
+  }
+  .brand,.rail-foot{display:none}
+  .rail-nav{grid-template-columns:repeat(6,1fr);gap:5px;margin:0}
+  .nav-btn{min-height:50px}
+  .nav-btn.active:before{left:50%;top:-8px;width:25px;height:3px;transform:translateX(-50%);border-radius:0 0 5px 5px}
+  .main{padding:0 16px 94px}
+  .topbar{height:66px}.top-title span,.health{display:none}
+  .screen{padding-top:20px}
+  .screen-head{display:block}.step-count{display:inline-block;margin:12px 0 0}
+  .policy-layout{grid-template-columns:1fr}
+  .policy-menu{display:flex;overflow:auto}.policy-tab{min-width:170px}
+  .snapshot-hero{grid-template-columns:1fr}.storage{text-align:left}
+  .snap{grid-template-columns:42px minmax(130px,1fr) 90px 30px}
+  .snap-data:nth-of-type(2),.snap-data:nth-of-type(3){display:none}
+  .audit-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .map-row{grid-template-columns:1fr}.map-label{text-align:left}
+}
+@media(max-width:500px){
+  .main{padding-left:12px;padding-right:12px}
+  .top-actions .icon-btn{display:none}
+  .screen-head h1{font-size:25px}
+  .metric-grid,.compare-grid,.field-grid,.audit-strip{grid-template-columns:1fr}
+  .map-track{display:grid;padding-left:15px;border-left:2px solid var(--line)}
+  .node:after{content:"↓";right:auto;left:-20px;top:auto;bottom:-18px}
+  .snapshot-tools{align-items:stretch;flex-wrap:wrap}.search{flex-basis:100%}
+  .incident-banner{align-items:flex-start;flex-wrap:wrap}.incident-banner .btn{margin-left:63px}
+  .action-row{grid-template-columns:1fr}
+  .check-row{grid-template-columns:32px minmax(0,1fr)}.check-row>.badge{grid-column:2}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" aria-label="流程導覽">
+    <div class="brand" aria-label="JVision">JV</div>
+    <nav class="rail-nav">
+      <button class="nav-btn" data-i="0" aria-label="解析長任務步驟"><span class="material-symbols-outlined">account_tree</span><span>步驟</span></button>
+      <button class="nav-btn" data-i="1" aria-label="設定保存策略"><span class="material-symbols-outlined">tune</span><span>策略</span></button>
+      <button class="nav-btn" data-i="2" aria-label="建立狀態快照"><span class="material-symbols-outlined">database</span><span>快照</span></button>
+      <button class="nav-btn" data-i="3" aria-label="診斷中斷原因"><span class="material-symbols-outlined">troubleshoot</span><span>診斷</span></button>
+      <button class="nav-btn" data-i="4" aria-label="選擇恢復方案"><span class="material-symbols-outlined">restart_alt</span><span>恢復</span></button>
+      <button class="nav-btn" data-i="5" aria-label="核准續跑驗證"><span class="material-symbols-outlined">verified</span><span>核准</span></button>
+    </nav>
+    <div class="rail-foot"><span class="material-symbols-outlined">shield</span></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="top-title">
+        <strong>Agent 長任務檢查點</strong>
+        <span>IT 維運管理平台 · 任務 RUN-240821-031</span>
+      </div>
+      <div class="top-actions">
+        <div class="health"><i></i>系統正常</div>
+        <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+        <div class="avatar" aria-label="使用者">林</div>
+      </div>
+    </header>
+
+    <section class="screen" data-screen="0">
+      <div class="screen-head">
+        <div><div class="eyebrow">Stage 01 · AI 平台負責人</div><h1>解析長任務步驟</h1><p>標示流程相依、外部副作用與高成本執行區段，找出最值得建立檢查點的位置。</p></div>
+        <div class="step-count">01 / 06 · 步驟圖</div>
+      </div>
+      <div class="metric-grid" style="margin-bottom:16px">
+        <div class="card metric"><small>任務總步驟</small><strong>18</strong><span class="delta">已完成解析</span></div>
+        <div class="card metric"><small>外部副作用</small><strong>4</strong><span class="delta" style="color:var(--amber)">需補償設計</span></div>
+        <div class="card metric"><small>高成本區段</small><strong>3</strong><span class="delta">節省 47 分鐘</span></div>
+        <div class="card metric"><small>建議檢查點</small><strong>6</strong><span class="delta">覆蓋率 92%</span></div>
+      </div>
+      <div class="overview-grid">
+        <div class="card flow-canvas">
+          <div class="flow-toolbar">
+            <span class="badge green"><span class="material-symbols-outlined" style="font-size:14px">check_circle</span>依賴解析完成</span>
+            <span class="badge amber">4 個副作用</span>
+            <button class="btn"><span class="material-symbols-outlined" style="font-size:17px">filter_alt</span>風險篩選</button>
+            <button class="btn primary" data-next="1">確認步驟圖</button>
+          </div>
+          <div class="task-map">
+            <div class="map-row">
+              <div class="map-label">規劃階段</div>
+              <div class="map-track">
+                <div class="node check"><i></i><b>讀取 Agent 定義</b><small>12 秒 · 無副作用</small></div>
+                <div class="node"><i></i><b>拆解工單批次</b><small>42 秒 · 1,284 筆</small></div>
+                <div class="node check"><i></i><b>CP-01 規劃完成</b><small>建議保存 · 18 MB</small></div>
+              </div>
+            </div>
+            <div class="map-row">
+              <div class="map-label">執行階段</div>
+              <div class="map-track">
+                <div class="node risk"><i></i><b>同步 ERP 工單</b><small>外部寫入 · 不可重複</small></div>
+                <div class="node risk"><i></i><b>呼叫排程引擎</b><small>高成本 · 31 分鐘</small></div>
+                <div class="node check"><i></i><b>CP-04 排程完成</b><small>建議保存 · 96 MB</small></div>
+              </div>
+            </div>
+            <div class="map-row">
+              <div class="map-label">交付階段</div>
+              <div class="map-track">
+                <div class="node"><i></i><b>建立派工包</b><small>8 分鐘 · 可重試</small></div>
+                <div class="node risk"><i></i><b>發送供應商通知</b><small>外部副作用 · 86 封</small></div>
+                <div class="node check"><i></i><b>CP-06 交付完成</b><small>最終一致性驗證</small></div>
+              </div>
+            </div>
+          </div>
+          <div class="legend" style="margin-top:20px">
+            <span><i style="background:var(--green)"></i>建議檢查點</span>
+            <span><i style="background:var(--red)"></i>外部副作用</span>
+            <span><i style="background:#94a3b8"></i>一般步驟</span>
+          </div>
+        </div>
+        <div class="side-stack">
+          <div class="card">
+            <div class="card-head"><div><h3>風險焦點</h3><p>依執行成本與不可逆性排序</p></div></div>
+            <div class="card-body risk-list">
+              <div class="risk-item"><b>ERP 寫入重複 <span>高</span></b><p>必須保存冪等鍵與工單版本。</p></div>
+              <div class="risk-item"><b>排程模型逾時 <span>高</span></b><p>建議在模型呼叫前後各設快照。</p></div>
+              <div class="risk-item"><b>通知部分送達 <span>中</span></b><p>保存收件者游標，支援局部續送。</p></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>輸入完整度</h3><span class="badge green" style="margin-left:auto">96%</span></div>
+            <div class="card-body">
+              <div class="cause-head"><span>Agent 定義</span><span>100%</span></div><div class="scorebar"><i style="width:100%;background:var(--green)"></i></div>
+              <div class="cause-head" style="margin-top:13px"><span>任務軌跡</span><span>94%</span></div><div class="scorebar"><i style="width:94%;background:var(--green)"></i></div>
+              <div class="cause-head" style="margin-top:13px"><span>工具呼叫</span><span>92%</span></div><div class="scorebar"><i style="width:92%;background:var(--amber)"></i></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="1">
+      <div class="screen-head">
+        <div><div class="eyebrow">Stage 02 · 可靠性工程師</div><h1>設定保存策略</h1><p>配置檢查點頻率、保留期限與敏感狀態遮罩，平衡恢復速度、儲存成本及資料風險。</p></div>
+        <div class="step-count">02 / 06 · 策略編輯器</div>
+      </div>
+      <div class="policy-layout">
+        <div class="card policy-menu">
+          <button class="policy-tab active"><span class="material-symbols-outlined">schedule</span><span><b>觸發條件</b><small>時間、里程碑與成本</small></span></button>
+          <button class="policy-tab"><span class="material-symbols-outlined">inventory_2</span><span><b>保留與版本</b><small>期限、數量與封存</small></span></button>
+          <button class="policy-tab"><span class="material-symbols-outlined">encrypted</span><span><b>敏感資料遮罩</b><small>憑證、個資與提示詞</small></span></button>
+          <button class="policy-tab"><span class="material-symbols-outlined">payments</span><span><b>成本護欄</b><small>儲存與重算預算</small></span></button>
+          <button class="policy-tab"><span class="material-symbols-outlined">rule</span><span><b>有效性檢查</b><small>結構與工具版本</small></span></button>
+        </div>
+        <div class="card policy-form">
+          <div class="form-title">
+            <div><h2>製造派工 Agent · 生產策略</h2><p>POL-CP-018 · 套用於 30 個數位員工</p></div>
+            <span class="badge green">草稿已驗證</span>
+          </div>
+          <div class="field-grid">
+            <div class="field"><label for="triggerMode">主要觸發模式</label><select id="triggerMode"><option>里程碑 + 風險事件</option><option>固定時間</option><option>成本門檻</option></select></div>
+            <div class="field"><label for="retainDays">快照保留期限</label><select id="retainDays"><option>30 天</option><option>14 天</option><option>90 天</option></select></div>
+            <div class="field"><label for="minuteRange">最長保存間隔</label><div class="range-line"><input id="minuteRange" type="range" min="5" max="60" value="20"><input value="20 分"></div></div>
+            <div class="field"><label for="costRange">重算成本門檻</label><div class="range-line"><input id="costRange" type="range" min="10" max="100" value="45"><input value="$45"></div></div>
+          </div>
+          <div class="switch-row"><span class="material-symbols-outlined">password</span><span><b>遮罩工具憑證與存取權杖</b><small>快照只保存密鑰參照，不寫入實際值</small></span><div class="switch"></div></div>
+          <div class="switch-row"><span class="material-symbols-outlined">difference</span><span><b>資料版本漂移時阻擋自動續跑</b><small>來源版本不同時改由維運工程師審核</small></span><div class="switch"></div></div>
+          <div class="switch-row"><span class="material-symbols-outlined">compress</span><span><b>大型工具結果增量保存</b><small>超過 20 MB 時只保留差異區塊</small></span><div class="switch"></div></div>
+          <div class="policy-preview"><span class="key">checkpoint.when</span>: [<span class="val">"milestone"</span>, <span class="val">"external_side_effect"</span>]<br><span class="key">checkpoint.max_interval</span>: <span class="val">"20m"</span><br><span class="key">retention.days</span>: <span class="val">30</span><br><span class="key">resume.block_on_drift</span>: <span class="val">true</span><br><span class="key">mask</span>: [<span class="val">"credential.*"</span>, <span class="val">"operator.pii"</span>]</div>
+          <div style="display:flex;justify-content:flex-end;gap:9px;margin-top:18px">
+            <button class="btn">儲存草稿</button><button class="btn primary" data-next="2">發布策略並建立快照</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="2">
+      <div class="screen-head">
+        <div><div class="eyebrow">Stage 03 · 任務執行代理</div><h1>建立狀態快照</h1><p>在指定節點保存上下文、工具結果、資料版本、權限與執行游標，形成可驗證的恢復基線。</p></div>
+        <div class="step-count">03 / 06 · 快照庫</div>
+      </div>
+      <div class="snapshot-hero">
+        <div><span class="badge red">RUN-240821-031</span><h2>供應鏈派工批次 · 執行中</h2><p>目前游標 12 / 18 · 下一檢查點：供應商通知完成 · 預估 6 分鐘</p></div>
+        <div class="storage"><small>快照儲存使用量</small><strong>3.8 / 10 GB</strong><div class="progress"><i style="width:38%"></i></div></div>
+      </div>
+      <div class="snapshot-tools">
+        <label class="search"><span class="material-symbols-outlined">search</span><input aria-label="搜尋快照" placeholder="搜尋快照 ID、節點或資料版本"></label>
+        <button class="btn"><span class="material-symbols-outlined">filter_list</span>篩選</button>
+        <button class="btn primary" data-toast="已建立手動快照 CP-07"><span class="material-symbols-outlined">add</span>立即建立快照</button>
+      </div>
+      <div class="snapshot-list">
+        <div class="card snap">
+          <div class="snap-icon"><span class="material-symbols-outlined">save</span></div>
+          <div><b>CP-06 · 派工包已建立</b><small>今天 14:32:18 · 增量快照</small></div>
+          <div class="snap-data"><span>執行游標</span><b>12 / 18</b></div>
+          <div class="snap-data"><span>資料版本</span><b>ERP v2841</b></div>
+          <div class="snap-data"><span>完整性</span><b style="color:var(--green)">100%</b><div class="integrity"><i style="width:100%"></i></div></div>
+          <button aria-label="快照選單"><span class="material-symbols-outlined">more_vert</span></button>
+        </div>
+        <div class="card snap">
+          <div class="snap-icon"><span class="material-symbols-outlined">save</span></div>
+          <div><b>CP-05 · 排程結果已驗證</b><small>今天 14:24:03 · 完整快照</small></div>
+          <div class="snap-data"><span>執行游標</span><b>10 / 18</b></div>
+          <div class="snap-data"><span>資料版本</span><b>Model 7.3.2</b></div>
+          <div class="snap-data"><span>完整性</span><b style="color:var(--green)">100%</b><div class="integrity"><i style="width:100%"></i></div></div>
+          <button aria-label="快照選單"><span class="material-symbols-outlined">more_vert</span></button>
+        </div>
+        <div class="card snap">
+          <div class="snap-icon"><span class="material-symbols-outlined">database</span></div>
+          <div><b>CP-04 · 排程引擎輸出</b><small>今天 14:21:44 · 工具結果快照</small></div>
+          <div class="snap-data"><span>執行游標</span><b>9 / 18</b></div>
+          <div class="snap-data"><span>資料版本</span><b>Dataset 58A</b></div>
+          <div class="snap-data"><span>完整性</span><b style="color:var(--green)">98%</b><div class="integrity"><i style="width:98%"></i></div></div>
+          <button aria-label="快照選單"><span class="material-symbols-outlined">more_vert</span></button>
+        </div>
+        <div class="card snap">
+          <div class="snap-icon"><span class="material-symbols-outlined">encrypted</span></div>
+          <div><b>CP-03 · ERP 同步前</b><small>今天 13:49:09 · 安全基線</small></div>
+          <div class="snap-data"><span>執行游標</span><b>6 / 18</b></div>
+          <div class="snap-data"><span>資料版本</span><b>ERP v2839</b></div>
+          <div class="snap-data"><span>完整性</span><b style="color:var(--green)">100%</b><div class="integrity"><i style="width:100%"></i></div></div>
+          <button aria-label="快照選單"><span class="material-symbols-outlined">more_vert</span></button>
+        </div>
+        <div class="card snap">
+          <div class="snap-icon"><span class="material-symbols-outlined">flag</span></div>
+          <div><b>CP-01 · 規劃完成</b><small>今天 13:42:31 · 里程碑快照</small></div>
+          <div class="snap-data"><span>執行游標</span><b>3 / 18</b></div>
+          <div class="snap-data"><span>資料版本</span><b>Agent 4.9</b></div>
+          <div class="snap-data"><span>完整性</span><b style="color:var(--green)">100%</b><div class="integrity"><i style="width:100%"></i></div></div>
+          <button aria-label="快照選單"><span class="material-symbols-outlined">more_vert</span></button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="btn primary" data-next="3">前往中斷診斷</button></div>
+    </section>
+
+    <section class="screen" data-screen="3">
+      <div class="screen-head">
+        <div><div class="eyebrow">Stage 04 · 維運工程師</div><h1>診斷中斷原因</h1><p>定位逾時或失敗來源，檢查工具、權限與資料漂移，判斷現有快照能否安全恢復。</p></div>
+        <div class="step-count">04 / 06 · 根因工作台</div>
+      </div>
+      <div class="incident-banner">
+        <div class="alert-icon"><span class="material-symbols-outlined">error</span></div>
+        <div><h2>供應商通知工具於第 13 步中斷</h2><p>INC-8842 · 發生於 14:38:21 · 已停止後續 5 個步驟，未偵測到重複寫入</p></div>
+        <button class="btn dark" data-toast="診斷封包已匯出">匯出診斷封包</button>
+      </div>
+      <div class="diag-grid">
+        <div class="card trace">
+          <div class="card-head" style="padding:0 0 16px;margin-bottom:17px"><div><h3>工具呼叫軌跡</h3><p>中斷前後 90 秒的事件序列</p></div><span class="badge red" style="margin-left:auto">1 個錯誤</span></div>
+          <div class="trace-row"><div class="trace-time">14:37:12</div><div class="trace-line"><div class="trace-dot ok"></div></div><div class="trace-detail"><b>載入 CP-06 執行上下文</b><p>雜湊與狀態結構驗證通過，游標定位至 12 / 18。</p></div></div>
+          <div class="trace-row"><div class="trace-time">14:37:18</div><div class="trace-line"><div class="trace-dot ok"></div></div><div class="trace-detail"><b>取得供應商收件者批次</b><p>86 筆資料，來源版本 supplier-directory@581。</p></div></div>
+          <div class="trace-row"><div class="trace-time">14:37:26</div><div class="trace-line"><div class="trace-dot ok"></div></div><div class="trace-detail"><b>建立通知冪等鍵</b><p>已寫入 42 筆完成標記，剩餘 44 筆待處理。</p></div></div>
+          <div class="trace-row"><div class="trace-time">14:38:21</div><div class="trace-line"><div class="trace-dot fail"></div></div><div class="trace-detail"><b>notification.sendBatch 回傳 504</b><p>工具閘道於 55 秒後逾時，未取得下游確認。</p><div class="code">GatewayTimeout: upstream did not respond<br>request_id: req_9f21c · retryable: true</div></div></div>
+          <div class="trace-row"><div class="trace-time">14:38:22</div><div class="trace-line"><div class="trace-dot ok"></div></div><div class="trace-detail"><b>安全停止與游標封存</b><p>已凍結 Agent 權限並保存失敗前工具參數。</p></div></div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-head"><div><h3>根因可信度</h3><p>依軌跡、監控數據與權限記錄推定</p></div></div>
+            <div class="card-body root-score">
+              <div class="cause"><div class="cause-head"><span>通知閘道容量不足</span><span>82%</span></div><div class="scorebar"><i style="width:82%"></i></div></div>
+              <div class="cause"><div class="cause-head"><span>工具權杖失效</span><span>11%</span></div><div class="scorebar"><i style="width:11%;background:var(--amber)"></i></div></div>
+              <div class="cause"><div class="cause-head"><span>收件資料格式異常</span><span>7%</span></div><div class="scorebar"><i style="width:7%;background:#94a3b8"></i></div></div>
+              <div class="evidence-box"><span class="badge green">快照可用</span><p>CP-06 結構完整，ERP 版本一致，工具權限仍有效至 16:00。</p><p><b style="color:var(--ink)">建議：</b>從收件者游標 43 局部重試，並將批次降至 10 筆。</p></div>
+            </div>
+          </div>
+          <button class="btn primary" data-next="4" style="width:100%;margin-top:14px">比較恢復方案</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="4">
+      <div class="screen-head">
+        <div><div class="eyebrow">Stage 05 · 流程主管</div><h1>選擇恢復方案</h1><p>比較原點重跑、檢查點續跑、局部重試與人工接管的時間、成本、風險及補償需求。</p></div>
+        <div class="step-count">05 / 06 · 恢復模擬器</div>
+      </div>
+      <div class="compare-grid">
+        <div class="card option"><div class="option-icon"><span class="material-symbols-outlined">first_page</span></div><h3>原點重跑</h3><p>清除本次結果，從第一步重新執行完整任務。</p><dl><div><dt>預估時間</dt><dd>67 分</dd></div><div><dt>重算成本</dt><dd>$84</dd></div><div><dt>重複風險</dt><dd style="color:var(--red)">高</dd></div></dl></div>
+        <div class="card option"><div class="option-icon"><span class="material-symbols-outlined">restore_page</span></div><h3>檢查點續跑</h3><p>由 CP-06 恢復，再次執行通知與後續驗證。</p><dl><div><dt>預估時間</dt><dd>18 分</dd></div><div><dt>重算成本</dt><dd>$12</dd></div><div><dt>重複風險</dt><dd style="color:var(--amber)">中</dd></div></dl></div>
+        <div class="card option selected"><div class="option-icon"><span class="material-symbols-outlined">replay</span></div><h3>局部重試</h3><p>從收件者游標 43 續送，保留已確認的 42 筆。</p><dl><div><dt>預估時間</dt><dd>9 分</dd></div><div><dt>重算成本</dt><dd>$4</dd></div><div><dt>重複風險</dt><dd style="color:var(--green)">低</dd></div></dl></div>
+        <div class="card option"><div class="option-icon"><span class="material-symbols-outlined">front_hand</span></div><h3>人工接管</h3><p>暫停 Agent，由維運人員手動完成剩餘通知。</p><dl><div><dt>預估時間</dt><dd>35 分</dd></div><div><dt>人力成本</dt><dd>$48</dd></div><div><dt>操作風險</dt><dd style="color:var(--amber)">中</dd></div></dl></div>
+      </div>
+      <div class="sim-grid">
+        <div class="card">
+          <div class="card-head"><div><h3>方案時間與成本比較</h3><p>數值依最近 30 次同類任務模擬</p></div><span class="badge green" style="margin-left:auto">局部重試最佳</span></div>
+          <div class="card-body"><div id="recoveryChart" class="sim-chart"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><h3>補償與護欄</h3><p>續跑前一併執行</p></div></div>
+          <div class="card-body">
+            <div class="compensation">
+              <label class="comp-item"><input type="checkbox" checked><span><b>查詢 42 筆已送達回執</b><small>排除未確認但實際送達的通知</small></span></label>
+              <label class="comp-item"><input type="checkbox" checked><span><b>批次限制為每次 10 筆</b><small>降低工具閘道尖峰負載</small></span></label>
+              <label class="comp-item"><input type="checkbox" checked><span><b>啟用冪等鍵強制驗證</b><small>阻擋相同供應商重複通知</small></span></label>
+              <label class="comp-item"><input type="checkbox"><span><b>改由人工確認每批結果</b><small>增加約 12 分鐘作業時間</small></span></label>
+            </div>
+            <div class="total-box"><span>選定方案預估恢復時間</span><strong>9 分鐘</strong><span>成功率 96.8% · 額外成本 $4</span></div>
+            <button class="btn primary" data-next="5" style="width:100%;margin-top:12px">送交核准</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="5">
+      <div class="screen-head">
+        <div><div class="eyebrow">Stage 06 · 任務核准人</div><h1>核准續跑驗證</h1><p>核對恢復點、補償動作與目標系統狀態，核准後受控續跑並保留完整操作紀錄。</p></div>
+        <div class="step-count">06 / 06 · 受控續跑中心</div>
+      </div>
+      <div class="approval-layout">
+        <div class="card resume-main">
+          <div class="resume-banner"><span class="badge red">等待核准</span><h2>由 CP-06 執行局部重試</h2><p>恢復游標：供應商 43 / 86 · 方案版本 REC-8842-v3 · 建立人：流程主管 王怡文</p></div>
+          <div class="checklist">
+            <div class="check-row"><div class="checkmark"><span class="material-symbols-outlined" style="font-size:17px">done</span></div><div><b>來源快照完整性驗證</b><small>上下文、工具結果與游標雜湊全部一致</small></div><span class="badge green">通過</span></div>
+            <div class="check-row"><div class="checkmark"><span class="material-symbols-outlined" style="font-size:17px">done</span></div><div><b>ERP 與供應商目錄版本核對</b><small>ERP v2841 · supplier-directory@581，無資料漂移</small></div><span class="badge green">通過</span></div>
+            <div class="check-row"><div class="checkmark"><span class="material-symbols-outlined" style="font-size:17px">done</span></div><div><b>工具權限與容量預檢</b><small>權杖有效，通知閘道目前負載 34%</small></div><span class="badge green">通過</span></div>
+            <div class="check-row"><div class="checkmark"><span class="material-symbols-outlined" style="font-size:17px">done</span></div><div><b>補償動作模擬</b><small>42 筆回執已核對，未發現重複通知</small></div><span class="badge green">通過</span></div>
+            <div class="check-row"><div class="checkmark"><span class="material-symbols-outlined" style="font-size:17px">done</span></div><div><b>最終一致性驗證規則</b><small>完成後比對 ERP 派工、通知回執與 Agent 游標</small></div><span class="badge green">已設定</span></div>
+          </div>
+        </div>
+        <div class="card approval-panel">
+          <h3>核准簽核</h3><p>此操作將解除任務凍結並對外呼叫通知工具。</p>
+          <div class="approver"><div class="avatar">王</div><div><b>王怡文</b><small>流程主管 · 方案提出人</small></div><span class="badge green">已簽</span></div>
+          <div class="approver"><div class="avatar">林</div><div><b>林冠宇</b><small>任務核准人 · 當前使用者</small></div><span class="badge amber">待簽</span></div>
+          <textarea aria-label="核准意見">同意由 CP-06 局部續跑；若連續兩批回執低於 95%，立即停止並改由人工接管。</textarea>
+          <div class="action-row">
+            <button class="btn" data-toast="已退回流程主管補件">退回補件</button>
+            <button class="btn primary" data-toast="續跑已核准，受控任務已啟動"><span class="material-symbols-outlined" style="font-size:18px">play_circle</span>核准並續跑</button>
+          </div>
+          <div class="evidence-box"><p><b style="color:var(--ink)">決策規則：</b>核准驗證通過則進入受控續跑；未通過則退回補件並通知任務核准人。</p></div>
+        </div>
+      </div>
+      <div class="audit-strip">
+        <div class="card audit-item"><span>追蹤編號</span><b>AUD-20260821-8842</b></div>
+        <div class="card audit-item"><span>來源快照</span><b>CP-06 · SHA 已驗證</b></div>
+        <div class="card audit-item"><span>恢復目標</span><b>游標 43 / 86</b></div>
+        <div class="card audit-item"><span>預計完成</span><b>今天 15:06</b></div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" role="status" aria-live="polite"></div>
+<script>
+(function(){
+  "use strict";
+
+  var chartInstances = {};
+  var toastTimerId = 0;
+
+  function validIndex(value){
+    var parsedIndex = Number(value);
+    return Number.isInteger(parsedIndex) && parsedIndex >= 0 && parsedIndex <= 5 ? parsedIndex : 0;
+  }
+
+  function hashIndex(){
+    var matchResult = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+    return matchResult ? validIndex(matchResult[1]) : 0;
+  }
+
+  function drawRecoveryChart(){
+    var chartElement = document.getElementById("recoveryChart");
+    if (!chartElement || chartElement.clientWidth < 40 || chartInstances.recovery || typeof ApexCharts === "undefined") return;
+
+    var chartOptions = {
+      chart:{
+        type:"bar",
+        height:290,
+        toolbar:{show:false},
+        fontFamily:'Inter,"Noto Sans TC",sans-serif'
+      },
+      series:[
+        {name:"時間（分鐘）",data:[67,18,9,35]},
+        {name:"成本（美元）",data:[84,12,4,48]}
+      ],
+      colors:["#be123c","#fda4af"],
+      plotOptions:{
+        bar:{borderRadius:5,columnWidth:"48%"}
+      },
+      dataLabels:{enabled:false},
+      stroke:{show:true,width:2,colors:["transparent"]},
+      xaxis:{
+        categories:["原點重跑","檢查點續跑","局部重試","人工接管"],
+        labels:{style:{colors:"#64748b",fontSize:"11px"}}
+      },
+      yaxis:{labels:{style:{colors:"#64748b"}}},
+      grid:{borderColor:"#e2e8f0",strokeDashArray:4},
+      legend:{position:"top",horizontalAlign:"right",fontSize:"11px"},
+      tooltip:{shared:true,intersect:false}
+    };
+
+    chartInstances.recovery = new ApexCharts(chartElement, chartOptions);
+    chartInstances.recovery.render();
+  }
+
+  function show(screenIndex){
+    var selectedIndex = validIndex(screenIndex);
+    document.querySelectorAll("[data-screen]").forEach(function(screenElement){
+      screenElement.classList.toggle("active", Number(screenElement.getAttribute("data-screen")) === selectedIndex);
+    });
+    document.querySelectorAll("[data-i]").forEach(function(navElement){
+      var isActive = Number(navElement.getAttribute("data-i")) === selectedIndex;
+      navElement.classList.toggle("active", isActive);
+      navElement.setAttribute("aria-current", isActive ? "step" : "false");
+    });
+    if (selectedIndex === 4) {
+      window.requestAnimationFrame(drawRecoveryChart);
+    }
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+
+  function navigate(screenIndex){
+    var selectedIndex = validIndex(screenIndex);
+    var nextHash = "#go=" + selectedIndex;
+    if (window.location.hash === nextHash) {
+      show(selectedIndex);
+    } else {
+      window.location.hash = nextHash;
+    }
+  }
+
+  function notify(messageText){
+    var toastElement = document.querySelector(".toast");
+    if (!toastElement) return;
+    window.clearTimeout(toastTimerId);
+    toastElement.textContent = messageText;
+    toastElement.classList.add("show");
+    toastTimerId = window.setTimeout(function(){
+      toastElement.classList.remove("show");
+    },2200);
+  }
+
+  document.querySelectorAll("[data-i]").forEach(function(navElement){
+    navElement.addEventListener("click",function(){
+      navigate(navElement.getAttribute("data-i"));
+    });
+  });
+
+  document.querySelectorAll("[data-next]").forEach(function(nextElement){
+    nextElement.addEventListener("click",function(){
+      navigate(nextElement.getAttribute("data-next"));
+    });
+  });
+
+  document.querySelectorAll("[data-toast]").forEach(function(actionElement){
+    actionElement.addEventListener("click",function(){
+      notify(actionElement.getAttribute("data-toast"));
+    });
+  });
+
+  document.querySelectorAll(".option").forEach(function(optionElement){
+    optionElement.addEventListener("click",function(){
+      document.querySelectorAll(".option").forEach(function(itemElement){
+        itemElement.classList.remove("selected");
+      });
+      optionElement.classList.add("selected");
+    });
+  });
+
+  window.addEventListener("hashchange",function(){
+    show(hashIndex());
+  });
+
+  show(hashIndex());
+})();
+</script>
+</body>
+</html>

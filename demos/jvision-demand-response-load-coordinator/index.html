@@ -1,0 +1,1273 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>需量反應自動協調器 · esg-energy｜Jvision 系統 Demo</title>
+  <link rel="icon" href="../../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+  <style>
+    :root{
+      --blue:#1e40af;
+      --ink:#172033;
+      --body:#334155;
+      --muted:#64748b;
+      --line:#dbe3ef;
+      --bg:#f5f7fb;
+      --green:#15803d;
+      --amber:#b45309;
+      --red:#b91c1c;
+      --white:#fff;
+      --blue-soft:#eef2ff;
+      --green-soft:#ecfdf3;
+      --amber-soft:#fff7e8;
+      --red-soft:#fff1f2;
+      --shadow:0 12px 32px rgba(30,64,175,.08);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      color:var(--body);
+      background:var(--bg);
+      font-family:Inter,"Noto Sans TC",sans-serif;
+      font-size:14px;
+      line-height:1.55;
+    }
+    button,input{font:inherit}
+    button{color:inherit}
+    button:focus-visible,input:focus-visible{
+      outline:3px solid rgba(30,64,175,.24);
+      outline-offset:2px;
+    }
+    .app{min-height:100vh;display:grid;grid-template-columns:78px minmax(0,1fr)}
+    .rail{
+      position:fixed;
+      inset:0 auto 0 0;
+      width:78px;
+      z-index:20;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:8px;
+      padding:16px 10px;
+      border-right:1px solid var(--line);
+      background:#fff;
+    }
+    .brand{
+      width:48px;height:48px;border-radius:15px;
+      display:grid;place-items:center;
+      background:var(--blue);color:#fff;font-weight:800;font-size:18px;
+      box-shadow:0 8px 20px rgba(30,64,175,.28);
+      margin-bottom:12px;
+    }
+    .rail-nav{display:grid;gap:7px;width:100%}
+    .nav-btn{
+      position:relative;
+      width:56px;height:52px;
+      border:0;border-radius:14px;
+      display:grid;place-items:center;
+      background:transparent;color:#718096;
+      cursor:pointer;
+    }
+    .nav-btn .material-symbols-outlined{font-size:23px}
+    .nav-btn:hover{background:#f1f5f9;color:var(--blue)}
+    .nav-btn.active{background:var(--blue-soft);color:var(--blue)}
+    .nav-btn.active::before{
+      content:"";position:absolute;left:-10px;width:4px;height:26px;
+      border-radius:0 5px 5px 0;background:var(--blue);
+    }
+    .nav-btn::after{
+      content:attr(aria-label);
+      position:absolute;left:64px;white-space:nowrap;
+      padding:6px 9px;border-radius:8px;
+      background:var(--ink);color:#fff;font-size:12px;
+      opacity:0;pointer-events:none;transform:translateX(-4px);
+      transition:.18s;
+    }
+    .nav-btn:hover::after{opacity:1;transform:none}
+    .rail-foot{
+      margin-top:auto;width:42px;height:42px;
+      border-radius:50%;display:grid;place-items:center;
+      color:var(--blue);background:var(--blue-soft);font-weight:700;
+    }
+    .main{grid-column:2;min-width:0}
+    .topbar{
+      height:70px;position:sticky;top:0;z-index:15;
+      display:flex;align-items:center;justify-content:space-between;
+      gap:18px;padding:0 30px;
+      background:rgba(255,255,255,.92);
+      border-bottom:1px solid var(--line);
+      backdrop-filter:blur(12px);
+    }
+    .top-title{display:flex;align-items:center;gap:12px;min-width:0}
+    .top-title strong{color:var(--ink);font-size:16px;white-space:nowrap}
+    .event-chip{
+      display:inline-flex;align-items:center;gap:7px;
+      padding:7px 11px;border-radius:999px;
+      background:var(--red-soft);color:var(--red);font-weight:700;font-size:12px;
+    }
+    .event-chip i{
+      width:7px;height:7px;border-radius:50%;background:var(--red);
+      box-shadow:0 0 0 5px rgba(185,28,28,.08);
+      animation:pulse 2s infinite;
+    }
+    @keyframes pulse{50%{box-shadow:0 0 0 9px rgba(185,28,28,0)}}
+    .top-actions{display:flex;align-items:center;gap:10px}
+    .icon-btn{
+      width:40px;height:40px;border:1px solid var(--line);
+      border-radius:12px;background:#fff;display:grid;place-items:center;cursor:pointer;
+    }
+    .profile{
+      display:flex;align-items:center;gap:9px;padding-left:4px;
+      color:var(--ink);font-weight:600;
+    }
+    .avatar{
+      width:36px;height:36px;border-radius:12px;
+      display:grid;place-items:center;background:var(--blue);color:#fff;
+    }
+    .screen{display:none;padding:28px 30px 42px;max-width:1600px;margin:auto}
+    .screen.active{display:block;animation:appear .24s ease}
+    @keyframes appear{from{opacity:.2;transform:translateY(5px)}}
+    .page-head{
+      display:flex;justify-content:space-between;align-items:flex-start;
+      gap:24px;margin-bottom:22px;
+    }
+    .eyebrow{
+      margin:0 0 5px;color:var(--blue);font-weight:800;
+      font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+    }
+    h1,h2,h3,p{margin-top:0}
+    h1{margin-bottom:7px;color:var(--ink);font-size:27px;line-height:1.25}
+    h2{margin-bottom:5px;color:var(--ink);font-size:18px}
+    h3{margin-bottom:5px;color:var(--ink);font-size:15px}
+    .subtext{margin:0;color:var(--muted);max-width:760px}
+    .stamp{font-size:12px;color:var(--muted);white-space:nowrap}
+    .btn{
+      min-height:42px;border:1px solid var(--line);border-radius:11px;
+      padding:9px 14px;background:#fff;font-weight:700;cursor:pointer;
+      display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    }
+    .btn:hover{border-color:#aebbd0;background:#f8fafc}
+    .btn.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+    .btn.danger{color:var(--red);border-color:#fecaca}
+    .btn.small{min-height:34px;padding:6px 10px;font-size:12px}
+    .material-symbols-outlined{font-size:20px;vertical-align:middle}
+    .card{
+      background:#fff;border:1px solid var(--line);
+      border-radius:var(--radius);box-shadow:var(--shadow);
+    }
+    .card-pad{padding:20px}
+    .card-head{
+      display:flex;align-items:flex-start;justify-content:space-between;
+      gap:14px;padding:18px 20px;border-bottom:1px solid var(--line);
+    }
+    .card-head p{margin:2px 0 0;color:var(--muted);font-size:12px}
+    .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+    .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+    .metric{padding:17px 18px;position:relative;overflow:hidden}
+    .metric-label{color:var(--muted);font-weight:600;font-size:12px}
+    .metric-value{margin:8px 0 3px;color:var(--ink);font-weight:800;font-size:26px}
+    .metric-note{font-size:12px;color:var(--muted)}
+    .metric-icon{
+      position:absolute;right:14px;top:14px;
+      width:36px;height:36px;border-radius:11px;
+      display:grid;place-items:center;background:var(--blue-soft);color:var(--blue);
+    }
+    .up{color:var(--green);font-weight:700}
+    .down{color:var(--red);font-weight:700}
+    .badge{
+      display:inline-flex;align-items:center;gap:5px;
+      border-radius:999px;padding:4px 9px;
+      font-size:11px;font-weight:700;white-space:nowrap;
+    }
+    .badge.blue{background:var(--blue-soft);color:var(--blue)}
+    .badge.green{background:var(--green-soft);color:var(--green)}
+    .badge.amber{background:var(--amber-soft);color:var(--amber)}
+    .badge.red{background:var(--red-soft);color:var(--red)}
+    .status-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+    .progress{height:8px;border-radius:9px;background:#e8edf5;overflow:hidden}
+    .progress span{display:block;height:100%;width:var(--progress);border-radius:inherit;background:var(--blue)}
+    .progress.green span{background:var(--green)}
+    .progress.amber span{background:var(--amber)}
+    .progress.red span{background:var(--red)}
+    .empty-note{color:var(--muted);text-align:center;padding:30px}
+
+    /* v0 command center */
+    .command-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(310px,.72fr);gap:18px;margin-top:18px}
+    .event-banner{
+      padding:22px;color:#fff;border-radius:20px;
+      background:linear-gradient(125deg,#172554,#1e40af 64%,#2563eb);
+      box-shadow:0 18px 38px rgba(30,64,175,.22);
+    }
+    .event-banner-top{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+    .event-banner h2{color:#fff;font-size:22px}
+    .event-banner p{color:#dbeafe}
+    .event-number{font-size:12px;letter-spacing:.08em;color:#bfdbfe}
+    .event-goal{display:flex;align-items:end;gap:8px;margin:18px 0}
+    .event-goal strong{font-size:42px;line-height:1}
+    .event-goal span{font-size:16px;color:#bfdbfe}
+    .timeline{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:18px}
+    .time-block{border-top:3px solid rgba(255,255,255,.3);padding-top:8px;color:#bfdbfe;font-size:11px}
+    .time-block.active{border-color:#fde68a;color:#fff}
+    .time-block strong{display:block;font-size:13px;color:#fff}
+    .signal-list{padding:7px 20px}
+    .signal-row{
+      display:grid;grid-template-columns:auto 1fr auto;gap:11px;
+      align-items:center;padding:14px 0;border-bottom:1px solid var(--line);
+    }
+    .signal-row:last-child{border-bottom:0}
+    .signal-icon{
+      width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
+      color:var(--blue);background:var(--blue-soft);
+    }
+    .signal-row strong{display:block;color:var(--ink)}
+    .signal-row small{color:var(--muted)}
+    .checklist{padding:8px 20px}
+    .check-item{display:flex;gap:11px;padding:13px 0;border-bottom:1px solid var(--line)}
+    .check-item:last-child{border-bottom:0}
+    .check-mark{
+      width:22px;height:22px;flex:0 0 auto;border-radius:7px;
+      display:grid;place-items:center;color:#fff;background:var(--green);
+    }
+    .check-mark.pending{background:var(--amber-soft);color:var(--amber)}
+    .mini-chart{height:245px}
+
+    /* v1 inventory */
+    .filterbar{
+      display:flex;align-items:center;justify-content:space-between;
+      gap:12px;padding:12px 14px;margin-bottom:16px;
+    }
+    .filters{display:flex;gap:8px;flex-wrap:wrap}
+    .filter{
+      min-height:36px;border:1px solid var(--line);border-radius:10px;
+      background:#fff;padding:6px 11px;cursor:pointer;font-weight:600;font-size:12px;
+    }
+    .filter.active{background:var(--blue);border-color:var(--blue);color:#fff}
+    .inventory-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,.65fr);gap:18px}
+    .load-list{display:grid;gap:12px}
+    .load-item{
+      padding:17px;display:grid;
+      grid-template-columns:44px minmax(130px,1.2fr) minmax(140px,1fr) auto;
+      align-items:center;gap:15px;
+    }
+    .load-item.selected{border-color:#93c5fd;box-shadow:0 0 0 2px #dbeafe}
+    .load-icon{
+      width:44px;height:44px;border-radius:13px;
+      display:grid;place-items:center;background:#f1f5f9;color:var(--blue);
+    }
+    .load-main strong{display:block;color:var(--ink);margin-bottom:2px}
+    .load-main small{color:var(--muted)}
+    .capacity strong{display:block;color:var(--ink);margin-bottom:5px}
+    .capacity small{color:var(--muted)}
+    .switch{
+      width:46px;height:26px;border:0;border-radius:99px;
+      padding:3px;background:#cbd5e1;cursor:pointer;transition:.2s;
+    }
+    .switch::after{
+      content:"";display:block;width:20px;height:20px;border-radius:50%;
+      background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:.2s;
+    }
+    .switch.on{background:var(--blue)}
+    .switch.on::after{transform:translateX(20px)}
+    .selection-panel{padding:20px;position:sticky;top:90px}
+    .selection-total{
+      padding:18px;border-radius:15px;margin:14px 0;
+      background:var(--blue-soft);text-align:center;
+    }
+    .selection-total strong{display:block;color:var(--blue);font-size:32px}
+    .summary-line{display:flex;justify-content:space-between;gap:15px;padding:10px 0;border-bottom:1px solid var(--line)}
+    .summary-line span{color:var(--muted)}
+    .summary-line strong{color:var(--ink)}
+    .constraint{
+      display:flex;gap:9px;margin-top:13px;padding:12px;
+      border-radius:12px;background:var(--amber-soft);color:#7c4608;font-size:12px;
+    }
+
+    /* v2 safety */
+    .safety-hero{
+      display:grid;grid-template-columns:auto 1fr auto;gap:16px;
+      align-items:center;padding:20px;margin-bottom:18px;
+    }
+    .shield{
+      width:62px;height:62px;border-radius:18px;
+      display:grid;place-items:center;background:var(--green-soft);color:var(--green);
+    }
+    .shield .material-symbols-outlined{font-size:32px}
+    .safety-score{text-align:right}
+    .safety-score strong{display:block;color:var(--green);font-size:28px}
+    .guard-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(310px,.8fr);gap:18px}
+    .guard-list{padding:4px 20px}
+    .guard-row{
+      display:grid;grid-template-columns:1fr auto;gap:16px;
+      align-items:center;padding:16px 0;border-bottom:1px solid var(--line);
+    }
+    .guard-row:last-child{border-bottom:0}
+    .guard-info{display:flex;gap:12px;align-items:flex-start}
+    .guard-num{
+      width:28px;height:28px;flex:0 0 auto;border-radius:9px;
+      display:grid;place-items:center;background:var(--blue-soft);color:var(--blue);font-weight:800;
+    }
+    .guard-info strong{display:block;color:var(--ink)}
+    .guard-info small{color:var(--muted)}
+    .limit-box{padding:18px}
+    .limit-item{margin-bottom:20px}
+    .limit-label{display:flex;justify-content:space-between;margin-bottom:8px}
+    .limit-label strong{color:var(--ink)}
+    .limit-label span{color:var(--blue);font-weight:700}
+    input[type=range]{width:100%;accent-color:var(--blue)}
+    .recipe-card{padding:18px;margin-top:18px}
+    .recipe-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+    .recipe-cell{padding:12px;border:1px solid var(--line);border-radius:12px}
+    .recipe-cell span{display:block;color:var(--muted);font-size:11px}
+    .recipe-cell strong{color:var(--ink)}
+    .lock-list{display:grid;gap:9px;margin-top:14px}
+    .lock-row{
+      display:flex;justify-content:space-between;gap:12px;
+      padding:11px 12px;border-radius:11px;background:#f8fafc;
+    }
+
+    /* v3 plans */
+    .plan-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+    .plan{padding:20px;position:relative;overflow:hidden}
+    .plan.recommended{border:2px solid var(--blue)}
+    .ribbon{
+      position:absolute;right:-35px;top:16px;width:130px;
+      text-align:center;transform:rotate(38deg);
+      background:var(--blue);color:#fff;font-size:10px;font-weight:800;padding:4px;
+    }
+    .plan-letter{
+      width:38px;height:38px;border-radius:12px;
+      display:grid;place-items:center;background:#f1f5f9;color:var(--ink);font-weight:800;
+    }
+    .plan.recommended .plan-letter{background:var(--blue-soft);color:var(--blue)}
+    .plan h2{margin-top:13px}
+    .plan-power{color:var(--ink);font-size:30px;font-weight:800;margin:14px 0 2px}
+    .plan-power span{font-size:13px;color:var(--muted)}
+    .plan-facts{margin:16px 0}
+    .fact{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line)}
+    .fact span{color:var(--muted)}
+    .fact strong{color:var(--ink)}
+    .risk-bar{display:flex;gap:4px;margin:8px 0 17px}
+    .risk-bar i{height:7px;flex:1;border-radius:5px;background:#e2e8f0}
+    .risk-bar.low i:nth-child(-n+1){background:var(--green)}
+    .risk-bar.mid i:nth-child(-n+2){background:var(--amber)}
+    .risk-bar.high i{background:var(--red)}
+    .plan .btn{width:100%}
+    .decision-strip{
+      display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;
+      padding:20px;margin-top:18px;
+    }
+    .decision-actions{display:flex;gap:9px}
+    .comparison{margin-top:18px;overflow:hidden}
+    .comparison table,.records table{width:100%;border-collapse:collapse}
+    th,td{text-align:left;padding:13px 16px;border-bottom:1px solid var(--line);white-space:nowrap}
+    th{background:#f8fafc;color:var(--muted);font-size:11px;letter-spacing:.03em}
+    td{color:var(--body)}
+    tr:last-child td{border-bottom:0}
+
+    /* v4 execution */
+    .live-banner{
+      display:flex;align-items:center;justify-content:space-between;
+      gap:20px;padding:17px 20px;margin-bottom:17px;
+      border-color:#bfdbfe;background:linear-gradient(90deg,#eff6ff,#fff);
+    }
+    .live-state{display:flex;align-items:center;gap:12px}
+    .live-state-icon{
+      width:44px;height:44px;border-radius:50%;display:grid;place-items:center;
+      background:var(--blue);color:#fff;animation:softpulse 2s infinite;
+    }
+    @keyframes softpulse{50%{box-shadow:0 0 0 10px rgba(30,64,175,.06)}}
+    .exec-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(310px,.75fr);gap:18px}
+    .power-chart{height:310px}
+    .live-stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line)}
+    .live-stat{padding:15px 18px;border-right:1px solid var(--line)}
+    .live-stat:last-child{border-right:0}
+    .live-stat span{display:block;color:var(--muted);font-size:11px}
+    .live-stat strong{color:var(--ink);font-size:20px}
+    .control-list{padding:7px 18px}
+    .control-row{padding:13px 0;border-bottom:1px solid var(--line)}
+    .control-row:last-child{border-bottom:0}
+    .control-top{display:flex;justify-content:space-between;gap:9px;margin-bottom:8px}
+    .control-top strong{color:var(--ink)}
+    .console{
+      margin-top:18px;background:#111827;color:#d1d5db;border-radius:18px;
+      overflow:hidden;box-shadow:var(--shadow);
+    }
+    .console-head{display:flex;justify-content:space-between;padding:13px 17px;background:#1f2937;color:#fff}
+    .logs{padding:13px 17px;font:12px/1.8 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .log-time{color:#6b9bff}.log-ok{color:#86efac}.log-warn{color:#fcd34d}
+    .manual-box{padding:18px;margin-top:18px;border-color:#fed7aa;background:#fffbeb}
+    .manual-box p{color:#80520b;font-size:12px}
+    .manual-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+
+    /* v5 verification */
+    .result-hero{
+      display:grid;grid-template-columns:auto 1fr auto;gap:18px;
+      align-items:center;padding:23px;margin-bottom:18px;
+      background:linear-gradient(105deg,#f0fdf4,#fff 62%);
+      border-color:#bbf7d0;
+    }
+    .result-check{
+      width:62px;height:62px;border-radius:50%;
+      display:grid;place-items:center;background:var(--green);color:#fff;
+    }
+    .result-check .material-symbols-outlined{font-size:34px}
+    .revenue{text-align:right}
+    .revenue span{display:block;color:var(--muted);font-size:12px}
+    .revenue strong{font-size:28px;color:var(--green)}
+    .verify-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:18px;margin-top:18px}
+    .verify-chart{height:290px}
+    .score-ring{
+      width:150px;height:150px;margin:18px auto;
+      border-radius:50%;display:grid;place-items:center;
+      background:conic-gradient(var(--green) 0 97%,#e5e7eb 97% 100%);
+      position:relative;
+    }
+    .score-ring::after{
+      content:"";position:absolute;inset:13px;border-radius:50%;background:#fff;
+    }
+    .score-ring div{position:relative;z-index:1;text-align:center}
+    .score-ring strong{display:block;color:var(--ink);font-size:31px}
+    .score-ring span{color:var(--muted);font-size:11px}
+    .benefit-list{padding:0 20px 15px}
+    .benefit-row{display:flex;gap:11px;padding:13px 0;border-bottom:1px solid var(--line)}
+    .benefit-row:last-child{border-bottom:0}
+    .benefit-row .material-symbols-outlined{color:var(--green)}
+    .records{margin-top:18px;overflow:auto}
+    .audit-path{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:13px}
+    .audit-node{
+      padding:9px 11px;border:1px solid var(--line);border-radius:10px;
+      background:#fff;color:var(--ink);font-weight:600;font-size:12px;
+    }
+    .audit-arrow{color:#94a3b8}
+    .toast{
+      position:fixed;right:24px;bottom:24px;z-index:50;
+      max-width:340px;padding:13px 16px;border-radius:13px;
+      background:var(--ink);color:#fff;box-shadow:0 14px 30px rgba(15,23,42,.24);
+      opacity:0;transform:translateY(12px);pointer-events:none;transition:.25s;
+    }
+    .toast.show{opacity:1;transform:none}
+
+    @media(max-width:1100px){
+      .grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .command-layout,.inventory-layout,.guard-layout,.exec-layout,.verify-layout{grid-template-columns:1fr}
+      .selection-panel{position:static}
+      .plan-grid{grid-template-columns:1fr}
+    }
+    @media(max-width:760px){
+      .app{display:block;padding-bottom:70px}
+      .main{display:block}
+      .rail{
+        inset:auto 0 0 0;width:auto;height:68px;
+        padding:7px 8px;border-right:0;border-top:1px solid var(--line);
+        flex-direction:row;justify-content:center;
+      }
+      .brand,.rail-foot{display:none}
+      .rail-nav{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;width:100%}
+      .nav-btn{width:100%;height:52px}
+      .nav-btn.active::before{left:calc(50% - 12px);top:-7px;width:24px;height:3px;border-radius:0 0 5px 5px}
+      .nav-btn::after{display:none}
+      .topbar{height:62px;padding:0 16px}
+      .top-title strong{font-size:14px}
+      .profile span,.event-chip span{display:none}
+      .screen{padding:21px 16px 30px}
+      .page-head{display:block}
+      .page-head .btn,.page-head .stamp{margin-top:14px}
+      h1{font-size:23px}
+      .grid-3,.grid-2{grid-template-columns:1fr}
+      .load-item{grid-template-columns:40px 1fr auto}
+      .capacity{grid-column:2/4}
+      .safety-hero,.result-hero{grid-template-columns:auto 1fr}
+      .safety-score,.revenue{grid-column:1/3;text-align:left;padding-left:78px}
+      .decision-strip{grid-template-columns:1fr}
+      .decision-actions{flex-wrap:wrap}
+      .live-banner{align-items:flex-start;flex-direction:column}
+      .live-stats{grid-template-columns:1fr}
+      .live-stat{border-right:0;border-bottom:1px solid var(--line)}
+      .live-stat:last-child{border-bottom:0}
+    }
+    @media(max-width:470px){
+      .grid-4{grid-template-columns:1fr}
+      .top-actions .icon-btn{display:none}
+      .event-banner-top{display:block}
+      .event-banner-top .badge{margin-top:8px}
+      .timeline{grid-template-columns:repeat(2,1fr)}
+      .filterbar{align-items:flex-start;flex-direction:column}
+      .recipe-grid{grid-template-columns:1fr}
+      .manual-actions{grid-template-columns:1fr}
+      th,td{padding:11px 12px}
+      .metric-value{font-size:23px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="rail" aria-label="流程導覽">
+      <div class="brand" aria-label="JVision">JV</div>
+      <nav class="rail-nav">
+        <button class="nav-btn" data-i="0" aria-label="接收削峰事件"><span class="material-symbols-outlined">notifications_active</span></button>
+        <button class="nav-btn" data-i="1" aria-label="盤點可調負載"><span class="material-symbols-outlined">electrical_services</span></button>
+        <button class="nav-btn" data-i="2" aria-label="設定安全邊界"><span class="material-symbols-outlined">shield_lock</span></button>
+        <button class="nav-btn" data-i="3" aria-label="核准降載方案"><span class="material-symbols-outlined">tune</span></button>
+        <button class="nav-btn" data-i="4" aria-label="執行動態調節"><span class="material-symbols-outlined">bolt</span></button>
+        <button class="nav-btn" data-i="5" aria-label="驗證履約收益"><span class="material-symbols-outlined">verified</span></button>
+      </nav>
+      <div class="rail-foot">林</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="top-title">
+          <strong>需量反應自動協調器</strong>
+          <div class="event-chip"><i></i><span>DR 事件執行中</span></div>
+        </div>
+        <div class="top-actions">
+          <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+          <button class="icon-btn" aria-label="說明"><span class="material-symbols-outlined">help</span></button>
+          <div class="profile"><div class="avatar">林</div><span>林廠長</span></div>
+        </div>
+      </header>
+
+      <section class="screen" data-screen="0">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Stage 01 · Event Command</p>
+            <h1>接收削峰事件</h1>
+            <p class="subtext">確認事件時段、降載目標、電價誘因與營運優先序，建立本次協調任務。</p>
+          </div>
+          <button class="btn primary" data-action="confirm-event"><span class="material-symbols-outlined">task_alt</span>確認接收事件</button>
+        </div>
+
+        <div class="grid-4">
+          <article class="card metric">
+            <span class="metric-icon material-symbols-outlined">bolt</span>
+            <div class="metric-label">即時契約需量</div>
+            <div class="metric-value">4,286 <small>kW</small></div>
+            <div class="metric-note"><span class="down">↓ 142 kW</span> 過去 15 分鐘</div>
+          </article>
+          <article class="card metric">
+            <span class="metric-icon material-symbols-outlined">target</span>
+            <div class="metric-label">本次削峰目標</div>
+            <div class="metric-value">620 <small>kW</small></div>
+            <div class="metric-note">基線需量的 14.2%</div>
+          </article>
+          <article class="card metric">
+            <span class="metric-icon material-symbols-outlined">schedule</span>
+            <div class="metric-label">距執行開始</div>
+            <div class="metric-value">00:42</div>
+            <div class="metric-note">事件 14:00–16:00</div>
+          </article>
+          <article class="card metric">
+            <span class="metric-icon material-symbols-outlined">payments</span>
+            <div class="metric-label">預估履約收益</div>
+            <div class="metric-value">$38.6K</div>
+            <div class="metric-note"><span class="up">+8.4%</span> 較上次事件</div>
+          </article>
+        </div>
+
+        <div class="command-layout">
+          <div>
+            <article class="event-banner">
+              <div class="event-banner-top">
+                <div>
+                  <div class="event-number">台電 DR EVENT · DR-2026-0822-07</div>
+                  <h2>夏季尖峰抑低事件</h2>
+                  <p>北區供電餘裕偏低，請於通知容量內完成需量抑低。</p>
+                </div>
+                <span class="badge red">高優先</span>
+              </div>
+              <div class="event-goal"><strong>620</strong><span>kW 目標降載</span></div>
+              <div class="progress"><span style="--progress:68%"></span></div>
+              <div class="timeline">
+                <div class="time-block active"><strong>13:18</strong>訊號接收</div>
+                <div class="time-block"><strong>13:35</strong>方案核准</div>
+                <div class="time-block"><strong>14:00</strong>開始降載</div>
+                <div class="time-block"><strong>16:00</strong>恢復負載</div>
+              </div>
+            </article>
+
+            <article class="card" style="margin-top:18px">
+              <div class="card-head">
+                <div><h2>廠區需量與事件基線</h2><p>最近 60 分鐘，每 5 分鐘取樣</p></div>
+                <span class="badge blue">智慧電表正常</span>
+              </div>
+              <div id="eventChart" class="mini-chart"></div>
+            </article>
+          </div>
+
+          <div>
+            <article class="card">
+              <div class="card-head">
+                <div><h2>事件訊號摘要</h2><p>來源與合約條件已交叉驗證</p></div>
+              </div>
+              <div class="signal-list">
+                <div class="signal-row">
+                  <div class="signal-icon"><span class="material-symbols-outlined">cell_tower</span></div>
+                  <div><strong>OpenADR 閘道</strong><small>簽章驗證完成</small></div>
+                  <span class="badge green">正常</span>
+                </div>
+                <div class="signal-row">
+                  <div class="signal-icon"><span class="material-symbols-outlined">contract</span></div>
+                  <div><strong>契約容量</strong><small>本月可執行 6 次</small></div>
+                  <strong>700 kW</strong>
+                </div>
+                <div class="signal-row">
+                  <div class="signal-icon"><span class="material-symbols-outlined">paid</span></div>
+                  <div><strong>抑低回饋</strong><small>依實績容量計算</small></div>
+                  <strong>$31/kWh</strong>
+                </div>
+              </div>
+            </article>
+
+            <article class="card" style="margin-top:18px">
+              <div class="card-head"><div><h2>啟動前確認</h2><p>責任人：林廠長</p></div><span class="badge amber">2 / 3</span></div>
+              <div class="checklist">
+                <div class="check-item">
+                  <span class="check-mark material-symbols-outlined">check</span>
+                  <div><strong>事件時段與目標已核對</strong><small>13:21 由林廠長確認</small></div>
+                </div>
+                <div class="check-item">
+                  <span class="check-mark material-symbols-outlined">check</span>
+                  <div><strong>當班生產優先序已同步</strong><small>A 線急單列為不可中斷</small></div>
+                </div>
+                <div class="check-item">
+                  <span class="check-mark pending material-symbols-outlined">more_horiz</span>
+                  <div><strong>可調負載容量待盤點</strong><small>指派工業工程師處理</small></div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="1">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Stage 02 · Load Inventory</p>
+            <h1>盤點可調負載</h1>
+            <p class="subtext">依容量、可中斷時間與復載條件，挑選本次可參與削峰的非關鍵負載。</p>
+          </div>
+          <span class="stamp">感測資料更新：13:24:18</span>
+        </div>
+
+        <div class="card filterbar">
+          <div class="filters">
+            <button class="filter active">全部負載 12</button>
+            <button class="filter">空壓系統 3</button>
+            <button class="filter">空調系統 4</button>
+            <button class="filter">充電設備 3</button>
+            <button class="filter">輔機 2</button>
+          </div>
+          <span class="badge green"><span class="status-dot"></span>11 台連線</span>
+        </div>
+
+        <div class="inventory-layout">
+          <div class="load-list">
+            <article class="card load-item selected">
+              <div class="load-icon"><span class="material-symbols-outlined">compress</span></div>
+              <div class="load-main"><strong>空壓機 AC-03</strong><small>二廠空壓站 · 目前負載 81%</small></div>
+              <div class="capacity"><strong>可降載 180 kW</strong><small>最長 45 分鐘 · 需輪替</small><div class="progress green"><span style="--progress:88%"></span></div></div>
+              <button class="switch on" aria-label="選取空壓機 AC-03"></button>
+            </article>
+            <article class="card load-item selected">
+              <div class="load-icon"><span class="material-symbols-outlined">ac_unit</span></div>
+              <div class="load-main"><strong>冰水主機 CH-02</strong><small>行政暨製程空調 · 出水 7.2°C</small></div>
+              <div class="capacity"><strong>可降載 145 kW</strong><small>最長 90 分鐘 · 溫升限制 1.5°C</small><div class="progress green"><span style="--progress:72%"></span></div></div>
+              <button class="switch on" aria-label="選取冰水主機 CH-02"></button>
+            </article>
+            <article class="card load-item selected">
+              <div class="load-icon"><span class="material-symbols-outlined">ev_station</span></div>
+              <div class="load-main"><strong>AGV 充電群 B</strong><small>18 座充電樁 · 平均電量 76%</small></div>
+              <div class="capacity"><strong>可降載 126 kW</strong><small>可中斷 120 分鐘 · 16:20 復載</small><div class="progress green"><span style="--progress:94%"></span></div></div>
+              <button class="switch on" aria-label="選取 AGV 充電群 B"></button>
+            </article>
+            <article class="card load-item">
+              <div class="load-icon"><span class="material-symbols-outlined">air</span></div>
+              <div class="load-main"><strong>集塵風機 DC-07</strong><small>C 線後處理區 · 目前負載 62%</small></div>
+              <div class="capacity"><strong>可降載 92 kW</strong><small>最長 30 分鐘 · PM2.5 聯鎖</small><div class="progress amber"><span style="--progress:58%"></span></div></div>
+              <button class="switch" aria-label="選取集塵風機 DC-07"></button>
+            </article>
+            <article class="card load-item selected">
+              <div class="load-icon"><span class="material-symbols-outlined">water_pump</span></div>
+              <div class="load-main"><strong>冷卻水泵 CW-04</strong><small>公用系統東側 · 備援泵可用</small></div>
+              <div class="capacity"><strong>可降載 84 kW</strong><small>最長 60 分鐘 · 分段降頻</small><div class="progress green"><span style="--progress:79%"></span></div></div>
+              <button class="switch on" aria-label="選取冷卻水泵 CW-04"></button>
+            </article>
+            <article class="card load-item">
+              <div class="load-icon"><span class="material-symbols-outlined">precision_manufacturing</span></div>
+              <div class="load-main"><strong>A 線烘箱 OV-01</strong><small>急單 WO-82391 生產中</small></div>
+              <div class="capacity"><strong>不可降載</strong><small>配方溫度保持 · 品質關鍵設備</small><div class="progress red"><span style="--progress:100%"></span></div></div>
+              <span class="badge red">已鎖定</span>
+            </article>
+          </div>
+
+          <aside class="card selection-panel">
+            <p class="eyebrow">Selected Portfolio</p>
+            <h2>已選降載組合</h2>
+            <div class="selection-total"><span>可調容量</span><strong id="selectedPower">535 kW</strong><small>目標 620 kW，尚缺 85 kW</small></div>
+            <div class="summary-line"><span>選取負載</span><strong id="selectedCount">4 / 12</strong></div>
+            <div class="summary-line"><span>平均可中斷</span><strong>78 分鐘</strong></div>
+            <div class="summary-line"><span>預估製程影響</span><strong class="up">低</strong></div>
+            <div class="summary-line"><span>復載尖峰</span><strong>472 kW</strong></div>
+            <div class="constraint">
+              <span class="material-symbols-outlined">warning</span>
+              <span>目前容量未達事件目標。建議加入集塵風機 DC-07，並由安全護欄確認環境限制。</span>
+            </div>
+            <button class="btn primary" style="width:100%;margin-top:16px" data-go-next="2">送交安全邊界檢核</button>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="2">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Stage 03 · Production Guardrails</p>
+            <h1>設定安全邊界</h1>
+            <p class="subtext">鎖定關鍵製程、品質條件與設備最低運轉限制，避免削峰影響生產結果。</p>
+          </div>
+          <button class="btn primary" data-action="lock-guards"><span class="material-symbols-outlined">lock</span>鎖定本次護欄</button>
+        </div>
+
+        <article class="card safety-hero">
+          <div class="shield"><span class="material-symbols-outlined">verified_user</span></div>
+          <div><h2>生產安全檢核通過</h2><p class="subtext">已檢核 14 張工單、6 組配方與 23 個設備聯鎖；2 項條件需持續監控。</p></div>
+          <div class="safety-score"><strong>92 / 100</strong><span>安全信心分數</span></div>
+        </article>
+
+        <div class="guard-layout">
+          <div>
+            <article class="card">
+              <div class="card-head">
+                <div><h2>不可突破的製程護欄</h2><p>依工單、配方與設備即時狀態產生</p></div>
+                <span class="badge green">5 項生效</span>
+              </div>
+              <div class="guard-list">
+                <div class="guard-row">
+                  <div class="guard-info"><span class="guard-num">01</span><div><strong>A 線烘箱溫度不得低於 178°C</strong><small>配方 RF-AL-442 · 批次 B260822-17</small></div></div>
+                  <span class="badge red">硬性鎖定</span>
+                </div>
+                <div class="guard-row">
+                  <div class="guard-info"><span class="guard-num">02</span><div><strong>空壓主管壓力維持 6.2 bar 以上</strong><small>供應 CNC 夾治具與氣動閥門</small></div></div>
+                  <span class="badge red">PLC 聯鎖</span>
+                </div>
+                <div class="guard-row">
+                  <div class="guard-info"><span class="guard-num">03</span><div><strong>無塵室溫度不得高於 24.5°C</strong><small>目前 23.1°C · 預估可維持 74 分鐘</small></div></div>
+                  <span class="badge amber">持續監控</span>
+                </div>
+                <div class="guard-row">
+                  <div class="guard-info"><span class="guard-num">04</span><div><strong>冷卻水回水溫不得高於 31°C</strong><small>目前 27.8°C · 備援泵 CW-05 待命</small></div></div>
+                  <span class="badge amber">持續監控</span>
+                </div>
+                <div class="guard-row">
+                  <div class="guard-info"><span class="guard-num">05</span><div><strong>AGV 平均電量保留 42% 以上</strong><small>確保 16:00 前完成 WIP 搬運 38 趟</small></div></div>
+                  <span class="badge blue">排程聯動</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="card recipe-card">
+              <div class="card-head" style="padding:0 0 13px">
+                <div><h2>關鍵配方快照</h2><p>RF-AL-442 · 鋁件固化製程</p></div>
+                <span class="badge blue">版本 8.3</span>
+              </div>
+              <div class="recipe-grid">
+                <div class="recipe-cell"><span>設定溫度</span><strong>185 ± 7°C</strong></div>
+                <div class="recipe-cell"><span>保溫時間</span><strong>48 分鐘</strong></div>
+                <div class="recipe-cell"><span>最大中斷</span><strong>0 分鐘</strong></div>
+              </div>
+            </article>
+          </div>
+
+          <div>
+            <article class="card limit-box">
+              <h2>動態限制參數</h2>
+              <p class="subtext">調整值會即時反映於方案模擬。</p>
+              <div class="limit-item" style="margin-top:20px">
+                <div class="limit-label"><strong>最低空壓壓力</strong><span id="pressureValue">6.2 bar</span></div>
+                <input id="pressureRange" type="range" min="58" max="68" value="62" aria-label="最低空壓壓力">
+              </div>
+              <div class="limit-item">
+                <div class="limit-label"><strong>無塵室溫度上限</strong><span id="tempValue">24.5°C</span></div>
+                <input id="tempRange" type="range" min="235" max="255" value="245" aria-label="無塵室溫度上限">
+              </div>
+              <div class="limit-item">
+                <div class="limit-label"><strong>單批最大降載時間</strong><span id="durationValue">45 分</span></div>
+                <input id="durationRange" type="range" min="20" max="60" value="45" aria-label="單批最大降載時間">
+              </div>
+            </article>
+
+            <article class="card card-pad" style="margin-top:18px">
+              <h2>設備鎖定清單</h2>
+              <div class="lock-list">
+                <div class="lock-row"><span>A 線烘箱 OV-01</span><span class="badge red">配方鎖定</span></div>
+                <div class="lock-row"><span>CNC 氣源 AC-01</span><span class="badge red">製程鎖定</span></div>
+                <div class="lock-row"><span>品保恆溫機 QC-02</span><span class="badge red">環境鎖定</span></div>
+                <div class="lock-row"><span>消防泵 FP-01</span><span class="badge red">法規鎖定</span></div>
+              </div>
+            </article>
+
+            <article class="card card-pad" style="margin-top:18px">
+              <h2>決策依據</h2>
+              <p class="subtext">RULE-03：設定安全邊界由製程工程師負責，證據來源為配方。</p>
+              <div class="audit-path">
+                <span class="audit-node">RF-AL-442</span><span class="audit-arrow">→</span>
+                <span class="audit-node">MES 工單</span><span class="audit-arrow">→</span>
+                <span class="audit-node">PLC 聯鎖</span>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="3">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Stage 04 · Plan Approval</p>
+            <h1>核准降載方案</h1>
+            <p class="subtext">比較建議組合的收益、風險與目標達成率，選定可安全執行的降載策略。</p>
+          </div>
+          <span class="badge amber">等待廠長核准</span>
+        </div>
+
+        <div class="plan-grid">
+          <article class="card plan">
+            <div class="plan-letter">A</div>
+            <h2>保守穩產</h2>
+            <p class="subtext">僅使用高信心非關鍵負載，保留最多生產緩衝。</p>
+            <div class="plan-power">535 <span>kW 可降載</span></div>
+            <span class="badge red">目標達成 86%</span>
+            <div class="plan-facts">
+              <div class="fact"><span>預估收益</span><strong>$31,820</strong></div>
+              <div class="fact"><span>參與設備</span><strong>4 台／群</strong></div>
+              <div class="fact"><span>生產影響</span><strong>幾乎無</strong></div>
+              <div class="fact"><span>復載時間</span><strong>16:18</strong></div>
+            </div>
+            <small>風險等級</small><div class="risk-bar low"><i></i><i></i><i></i></div>
+            <button class="btn" data-plan="A">選擇方案 A</button>
+          </article>
+
+          <article class="card plan recommended">
+            <div class="ribbon">AI 建議</div>
+            <div class="plan-letter">B</div>
+            <h2>平衡履約</h2>
+            <p class="subtext">加入集塵風機輪替，兼顧履約目標與製程安全。</p>
+            <div class="plan-power">627 <span>kW 可降載</span></div>
+            <span class="badge green">目標達成 101%</span>
+            <div class="plan-facts">
+              <div class="fact"><span>預估收益</span><strong>$38,640</strong></div>
+              <div class="fact"><span>參與設備</span><strong>5 台／群</strong></div>
+              <div class="fact"><span>生產影響</span><strong>低</strong></div>
+              <div class="fact"><span>復載時間</span><strong>16:24</strong></div>
+            </div>
+            <small>風險等級</small><div class="risk-bar mid"><i></i><i></i><i></i></div>
+            <button class="btn primary" data-plan="B">選擇方案 B</button>
+          </article>
+
+          <article class="card plan">
+            <div class="plan-letter">C</div>
+            <h2>收益優先</h2>
+            <p class="subtext">擴大冰水與輔機降載幅度，取得較高事件收益。</p>
+            <div class="plan-power">704 <span>kW 可降載</span></div>
+            <span class="badge blue">目標達成 114%</span>
+            <div class="plan-facts">
+              <div class="fact"><span>預估收益</span><strong>$42,910</strong></div>
+              <div class="fact"><span>參與設備</span><strong>7 台／群</strong></div>
+              <div class="fact"><span>生產影響</span><strong>中度</strong></div>
+              <div class="fact"><span>復載時間</span><strong>16:42</strong></div>
+            </div>
+            <small>風險等級</small><div class="risk-bar high"><i></i><i></i><i></i></div>
+            <button class="btn" data-plan="C">選擇方案 C</button>
+          </article>
+        </div>
+
+        <article class="card decision-strip">
+          <div>
+            <h2>核准降載方案是否通過？</h2>
+            <p class="subtext">目前選擇方案 B；通過後進入動態調節，退回則通知廠長補充條件。</p>
+          </div>
+          <div class="decision-actions">
+            <button class="btn danger" data-action="return-plan"><span class="material-symbols-outlined">undo</span>退回補件</button>
+            <button class="btn primary" data-action="approve-plan"><span class="material-symbols-outlined">approval</span>核准方案 B</button>
+          </div>
+        </article>
+
+        <article class="card comparison">
+          <div class="card-head"><div><h2>負載組合比較</h2><p>依安全護欄模擬後的設備指令</p></div></div>
+          <div style="overflow:auto">
+            <table>
+              <thead><tr><th>負載設備</th><th>方案 A</th><th>方案 B</th><th>方案 C</th><th>安全條件</th></tr></thead>
+              <tbody>
+                <tr><td>空壓機 AC-03</td><td>−180 kW</td><td>−180 kW</td><td>−205 kW</td><td>主管壓力 ≥ 6.2 bar</td></tr>
+                <tr><td>冰水主機 CH-02</td><td>−145 kW</td><td>−145 kW</td><td>−178 kW</td><td>無塵室 ≤ 24.5°C</td></tr>
+                <tr><td>AGV 充電群 B</td><td>−126 kW</td><td>−126 kW</td><td>−126 kW</td><td>平均電量 ≥ 42%</td></tr>
+                <tr><td>冷卻水泵 CW-04</td><td>−84 kW</td><td>−84 kW</td><td>−103 kW</td><td>回水溫 ≤ 31°C</td></tr>
+                <tr><td>集塵風機 DC-07</td><td>—</td><td>−92 kW</td><td>−92 kW</td><td>PM2.5 ≤ 25 μg/m³</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="screen" data-screen="4">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Stage 05 · Live Orchestration</p>
+            <h1>執行動態調節</h1>
+            <p class="subtext">監控功率回饋與安全條件，依偏差逐段調節，必要時轉由能源值班工程師處置。</p>
+          </div>
+          <button class="btn danger" data-action="pause-run"><span class="material-symbols-outlined">pause</span>暫停自動調節</button>
+        </div>
+
+        <article class="card live-banner">
+          <div class="live-state">
+            <div class="live-state-icon"><span class="material-symbols-outlined">bolt</span></div>
+            <div><h2>方案 B 正在執行</h2><p class="subtext">第 3 / 5 段 · 目前降載 498 kW · 安全護欄皆正常</p></div>
+          </div>
+          <div><span class="badge green"><span class="status-dot"></span>自動模式</span> <span class="badge blue">已執行 00:38:24</span></div>
+        </article>
+
+        <div class="grid-4">
+          <article class="card metric"><div class="metric-label">實際抑低量</div><div class="metric-value">498 <small>kW</small></div><div class="metric-note">目標進度 80.3%</div></article>
+          <article class="card metric"><div class="metric-label">目前廠區需量</div><div class="metric-value">3,812 <small>kW</small></div><div class="metric-note"><span class="up">基線下方 11.6%</span></div></article>
+          <article class="card metric"><div class="metric-label">指令成功率</div><div class="metric-value">100%</div><div class="metric-note">12 / 12 指令已回覆</div></article>
+          <article class="card metric"><div class="metric-label">安全告警</div><div class="metric-value">0</div><div class="metric-note">2 項接近注意值</div></article>
+        </div>
+
+        <div class="exec-layout" style="margin-top:18px">
+          <div>
+            <article class="card">
+              <div class="card-head">
+                <div><h2>即時需量追蹤</h2><p>基線、目標與實際功率，每 5 分鐘取樣</p></div>
+                <span class="badge blue">13:18–14:40</span>
+              </div>
+              <div id="powerChart" class="power-chart"></div>
+              <div class="live-stats">
+                <div class="live-stat"><span>基線需量</span><strong>4,310 kW</strong></div>
+                <div class="live-stat"><span>目標需量</span><strong>3,690 kW</strong></div>
+                <div class="live-stat"><span>目前偏差</span><strong class="down">+122 kW</strong></div>
+              </div>
+            </article>
+
+            <div class="console">
+              <div class="console-head"><strong>SCADA 指令紀錄</strong><span>Gateway DR-GW-02</span></div>
+              <div class="logs">
+                <div><span class="log-time">14:36:02</span> <span class="log-ok">ACK</span> CW-04 frequency_limit=42Hz</div>
+                <div><span class="log-time">14:34:18</span> <span class="log-ok">SAFE</span> chilled_water_return=27.8°C</div>
+                <div><span class="log-time">14:31:45</span> <span class="log-warn">WATCH</span> clean_room_temp=23.9°C limit=24.5°C</div>
+                <div><span class="log-time">14:29:03</span> <span class="log-ok">ACK</span> AGV-B charge_suspend=enabled</div>
+                <div><span class="log-time">14:26:22</span> <span class="log-ok">ACK</span> AC-03 unload_ratio=35%</div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <article class="card">
+              <div class="card-head"><div><h2>負載執行序列</h2><p>依功率缺口逐段啟動</p></div><span class="badge amber">第 3 段</span></div>
+              <div class="control-list">
+                <div class="control-row"><div class="control-top"><strong>1. AGV 充電群 B</strong><span class="badge green">−126 kW</span></div><div class="progress green"><span style="--progress:100%"></span></div></div>
+                <div class="control-row"><div class="control-top"><strong>2. 空壓機 AC-03</strong><span class="badge green">−180 kW</span></div><div class="progress green"><span style="--progress:100%"></span></div></div>
+                <div class="control-row"><div class="control-top"><strong>3. 冰水主機 CH-02</strong><span class="badge blue">−108 / 145 kW</span></div><div class="progress"><span style="--progress:74%"></span></div></div>
+                <div class="control-row"><div class="control-top"><strong>4. 冷卻水泵 CW-04</strong><span class="badge amber">等待 02:18</span></div><div class="progress amber"><span style="--progress:8%"></span></div></div>
+                <div class="control-row"><div class="control-top"><strong>5. 集塵風機 DC-07</strong><span class="badge amber">待命</span></div><div class="progress"><span style="--progress:0%"></span></div></div>
+              </div>
+            </article>
+
+            <article class="card manual-box">
+              <h2>人工處置區</h2>
+              <p>僅在自動策略無法維持安全護欄或通訊中斷時使用，所有操作均納入稽核紀錄。</p>
+              <div class="manual-actions">
+                <button class="btn" data-action="hold-load">保持目前負載</button>
+                <button class="btn danger" data-action="restore-load">安全復載</button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="5">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Stage 06 · Performance Verification</p>
+            <h1>驗證履約收益</h1>
+            <p class="subtext">比對基線與實際需量，確認削峰量、節能收益，以及復載後的生產穩定性。</p>
+          </div>
+          <button class="btn" data-action="export-report"><span class="material-symbols-outlined">download</span>匯出履約報告</button>
+        </div>
+
+        <article class="card result-hero">
+          <div class="result-check"><span class="material-symbols-outlined">done_all</span></div>
+          <div><h2>DR-2026-0822-07 履約成功</h2><p class="subtext">有效削峰 634 kW，達成合約目標 102.3%；復載後未發生品質或產能異常。</p></div>
+          <div class="revenue"><span>本次確認收益</span><strong>$39,204</strong></div>
+        </article>
+
+        <div class="grid-4">
+          <article class="card metric"><div class="metric-label">有效削峰量</div><div class="metric-value">634 <small>kW</small></div><div class="metric-note"><span class="up">+14 kW</span> 高於目標</div></article>
+          <article class="card metric"><div class="metric-label">履約達成率</div><div class="metric-value">102.3%</div><div class="metric-note">合約門檻 95%</div></article>
+          <article class="card metric"><div class="metric-label">生產損失</div><div class="metric-value">0</div><div class="metric-note">無停線、無報廢</div></article>
+          <article class="card metric"><div class="metric-label">額外碳減量</div><div class="metric-value">0.42 <small>tCO₂e</small></div><div class="metric-note">依最新電力係數估算</div></article>
+        </div>
+
+        <div class="verify-layout">
+          <article class="card">
+            <div class="card-head">
+              <div><h2>六週改善趨勢</h2><p>準時交付率由 80% 提升至 95%</p></div>
+              <span class="badge green">穩定改善</span>
+            </div>
+            <div id="benefitChart" class="verify-chart"></div>
+          </article>
+
+          <article class="card card-pad">
+            <h2>事件履約評分</h2>
+            <div class="score-ring"><div><strong>97</strong><span>綜合分數</span></div></div>
+            <div class="summary-line"><span>削峰精準度</span><strong>98</strong></div>
+            <div class="summary-line"><span>生產穩定度</span><strong>100</strong></div>
+            <div class="summary-line"><span>復載平滑度</span><strong>93</strong></div>
+            <div class="summary-line"><span>紀錄完整度</span><strong>99</strong></div>
+          </article>
+        </div>
+
+        <div class="grid-3" style="margin-top:18px">
+          <article class="card card-pad"><span class="material-symbols-outlined" style="color:var(--blue)">notifications_active</span><h3 style="margin-top:10px">削峰事件指揮台</h3><p class="subtext">集中掌握事件、目標功率、執行時段與收益，從訊號到核准平均縮短 41 分鐘。</p></article>
+          <article class="card card-pad"><span class="material-symbols-outlined" style="color:var(--blue)">electrical_services</span><h3 style="margin-top:10px">非關鍵負載盤點</h3><p class="subtext">可調容量即時可見，設備限制與復載條件不再散落於人工試算表。</p></article>
+          <article class="card card-pad"><span class="material-symbols-outlined" style="color:var(--blue)">shield_lock</span><h3 style="margin-top:10px">生產安全護欄</h3><p class="subtext">工單、配方與 PLC 聯鎖共同防護，本次事件維持零停線、零品質異常。</p></article>
+        </div>
+
+        <article class="card records">
+          <div class="card-head">
+            <div><h2>需量反應自動協調器資料列表</h2><p>流程結果與可追溯操作紀錄</p></div>
+            <span class="badge blue">6 筆紀錄</span>
+          </div>
+          <table>
+            <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
+            <tbody>
+              <tr><td>DEM-001</td><td>接收削峰事件</td><td>廠長</td><td>D+1</td><td><span class="badge blue">處理中</span></td></tr>
+              <tr><td>DEM-002</td><td>盤點可調負載</td><td>工業工程師</td><td>D+2</td><td><span class="badge amber">待確認</span></td></tr>
+              <tr><td>DEM-003</td><td>設定安全邊界</td><td>製程工程師</td><td>D+3</td><td><span class="badge amber">待確認</span></td></tr>
+              <tr><td>DEM-004</td><td>核准降載方案</td><td>廠長</td><td>D+4</td><td><span class="badge green">已完成</span></td></tr>
+              <tr><td>DEM-005</td><td>執行動態調節</td><td>能源值班工程師</td><td>D+5</td><td><span class="badge green">已完成</span></td></tr>
+              <tr><td>DEM-006</td><td>驗證履約收益</td><td>工業工程師</td><td>D+6</td><td><span class="badge green">已完成</span></td></tr>
+            </tbody>
+          </table>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const screens = Array.from(document.querySelectorAll("[data-screen]"));
+      const navigationButtons = Array.from(document.querySelectorAll("[data-i]"));
+      const chartRegistry = {};
+      let activePlan = "B";
+
+      function chartBase() {
+        return {
+          chart: {
+            fontFamily: 'Inter, "Noto Sans TC", sans-serif',
+            toolbar: { show: false },
+            animations: { enabled: true, speed: 450 }
+          },
+          colors: ["#1e40af", "#15803d", "#b45309"],
+          dataLabels: { enabled: false },
+          grid: { borderColor: "#e5eaf2", strokeDashArray: 4 },
+          legend: { fontSize: "12px", labels: { colors: "#64748b" } },
+          tooltip: { theme: "light" },
+          xaxis: {
+            labels: { style: { colors: "#64748b", fontSize: "11px" } },
+            axisBorder: { color: "#dbe3ef" },
+            axisTicks: { color: "#dbe3ef" }
+          },
+          yaxis: { labels: { style: { colors: "#64748b", fontSize: "11px" } } }
+        };
+      }
+
+      function initializeChart(screenIndex) {
+        if (typeof ApexCharts === "undefined") return;
+
+        if (screenIndex === 0 && !chartRegistry.event) {
+          const chartElement = document.querySelector("#eventChart");
+          if (!chartElement || chartElement.clientWidth === 0) return;
+          const options = chartBase();
+          options.chart.type = "area";
+          options.chart.height = 245;
+          options.series = [
+            { name: "實際需量", data: [4180,4215,4260,4302,4288,4340,4315,4296,4328,4310,4286,4286] },
+            { name: "事件目標", data: [3690,3690,3690,3690,3690,3690,3690,3690,3690,3690,3690,3690] }
+          ];
+          options.stroke = { curve: "smooth", width: [3,2], dashArray: [0,6] };
+          options.fill = { type: "gradient", gradient: { opacityFrom: .25, opacityTo: .02 } };
+          options.xaxis.categories = ["12:20","12:25","12:30","12:35","12:40","12:45","12:50","12:55","13:00","13:05","13:10","13:15"];
+          options.yaxis.min = 3500;
+          options.yaxis.max = 4500;
+          chartRegistry.event = new ApexCharts(chartElement, options);
+          chartRegistry.event.render();
+        }
+
+        if (screenIndex === 4 && !chartRegistry.power) {
+          const chartElement = document.querySelector("#powerChart");
+          if (!chartElement || chartElement.clientWidth === 0) return;
+          const options = chartBase();
+          options.chart.type = "line";
+          options.chart.height = 310;
+          options.series = [
+            { name: "事件基線", data: [4288,4305,4310,4320,4315,4312,4310,4310,4310,4310,4310] },
+            { name: "實際需量", data: [4288,4305,4250,4168,4092,4015,3950,3906,3862,3830,3812] },
+            { name: "目標需量", data: [4310,4310,4190,4070,3950,3830,3690,3690,3690,3690,3690] }
+          ];
+          options.stroke = { curve: "smooth", width: [2,3,2], dashArray: [6,0,5] };
+          options.markers = { size: [0,3,0] };
+          options.xaxis.categories = ["13:50","14:00","14:05","14:10","14:15","14:20","14:25","14:30","14:35","14:38","14:40"];
+          options.yaxis.min = 3500;
+          options.yaxis.max = 4450;
+          chartRegistry.power = new ApexCharts(chartElement, options);
+          chartRegistry.power.render();
+        }
+
+        if (screenIndex === 5 && !chartRegistry.benefit) {
+          const chartElement = document.querySelector("#benefitChart");
+          if (!chartElement || chartElement.clientWidth === 0) return;
+          const options = chartBase();
+          options.chart.type = "area";
+          options.chart.height = 290;
+          options.series = [{ name: "準時交付率 %", data: [80,83,86,89,92,95] }];
+          options.stroke = { curve: "smooth", width: 4 };
+          options.fill = { type: "gradient", gradient: { opacityFrom: .32, opacityTo: .03 } };
+          options.markers = { size: 5, colors: ["#fff"], strokeColors: "#1e40af", strokeWidth: 3 };
+          options.xaxis.categories = ["W1","W2","W3","W4","W5","W6"];
+          options.yaxis.min = 75;
+          options.yaxis.max = 100;
+          options.annotations = {
+            yaxis: [{ y: 95, borderColor: "#15803d", label: { text: "本期 95%", style: { background: "#15803d", color: "#fff" } } }]
+          };
+          chartRegistry.benefit = new ApexCharts(chartElement, options);
+          chartRegistry.benefit.render();
+        }
+      }
+
+      function show(screenIndex) {
+        const safeIndex = Math.max(0, Math.min(5, Number(screenIndex) || 0));
+        screens.forEach((screenElement, itemIndex) => {
+          screenElement.classList.toggle("active", itemIndex === safeIndex);
+        });
+        navigationButtons.forEach((buttonElement, itemIndex) => {
+          buttonElement.classList.toggle("active", itemIndex === safeIndex);
+          buttonElement.setAttribute("aria-current", itemIndex === safeIndex ? "step" : "false");
+        });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+        requestAnimationFrame(() => initializeChart(safeIndex));
+      }
+
+      function readHash() {
+        const hashMatch = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+        return hashMatch ? Math.max(0, Math.min(5, Number(hashMatch[1]))) : 0;
+      }
+
+      function navigate(screenIndex) {
+        const nextHash = "#go=" + screenIndex;
+        if (window.location.hash === nextHash) {
+          show(screenIndex);
+        } else {
+          window.location.hash = nextHash;
+        }
+      }
+
+      function announce(message) {
+        const toastElement = document.querySelector("#toast");
+        toastElement.textContent = message;
+        toastElement.classList.remove("show");
+        requestAnimationFrame(() => toastElement.classList.add("show"));
+      }
+
+      navigationButtons.forEach((buttonElement) => {
+        buttonElement.addEventListener("click", () => navigate(Number(buttonElement.dataset.i)));
+      });
+
+      document.querySelectorAll("[data-go-next]").forEach((buttonElement) => {
+        buttonElement.addEventListener("click", () => navigate(Number(buttonElement.dataset.goNext)));
+      });
+
+      document.querySelectorAll(".switch").forEach((switchElement) => {
+        switchElement.addEventListener("click", () => {
+          switchElement.classList.toggle("on");
+          switchElement.closest(".load-item").classList.toggle("selected", switchElement.classList.contains("on"));
+          const enabledCount = document.querySelectorAll(".load-item .switch.on").length;
+          document.querySelector("#selectedCount").textContent = enabledCount + " / 12";
+          announce(switchElement.classList.contains("on") ? "已加入降載組合" : "已自降載組合移除");
+        });
+      });
+
+      document.querySelectorAll(".filter").forEach((filterElement) => {
+        filterElement.addEventListener("click", () => {
+          document.querySelectorAll(".filter").forEach((itemElement) => itemElement.classList.remove("active"));
+          filterElement.classList.add("active");
+          announce("已套用篩選：" + filterElement.textContent.trim());
+        });
+      });
+
+      document.querySelectorAll("[data-plan]").forEach((buttonElement) => {
+        buttonElement.addEventListener("click", () => {
+          activePlan = buttonElement.dataset.plan;
+          document.querySelectorAll("[data-plan]").forEach((itemElement) => {
+            itemElement.classList.remove("primary");
+            itemElement.textContent = "選擇方案 " + itemElement.dataset.plan;
+          });
+          buttonElement.classList.add("primary");
+          buttonElement.textContent = "已選擇方案 " + activePlan;
+          announce("已選擇方案 " + activePlan + "，可進行核准");
+        });
+      });
+
+      const rangeBindings = [
+        ["#pressureRange", "#pressureValue", (value) => (Number(value) / 10).toFixed(1) + " bar"],
+        ["#tempRange", "#tempValue", (value) => (Number(value) / 10).toFixed(1) + "°C"],
+        ["#durationRange", "#durationValue", (value) => value + " 分"]
+      ];
+      rangeBindings.forEach(([inputSelector, outputSelector, formatter]) => {
+        const inputElement = document.querySelector(inputSelector);
+        inputElement.addEventListener("input", () => {
+          document.querySelector(outputSelector).textContent = formatter(inputElement.value);
+        });
+      });
+
+      const actionMessages = {
+        "confirm-event":"事件已確認接收，已通知工業工程師盤點負載",
+        "lock-guards":"5 項安全護欄已鎖定並同步至 PLC 閘道",
+        "return-plan":"方案已退回補件，廠長將收到通知",
+        "approve-plan":"方案已核准，執行指令已排入佇列",
+        "pause-run":"已送出暫停要求，等待目前控制段安全完成",
+        "hold-load":"已保持目前負載，不再啟動下一控制段",
+        "restore-load":"已建立安全復載程序，需值班工程師再次確認",
+        "export-report":"履約報告已建立，包含基線、指令與稽核紀錄"
+      };
+
+      document.querySelectorAll("[data-action]").forEach((buttonElement) => {
+        buttonElement.addEventListener("click", () => {
+          const actionKey = buttonElement.dataset.action;
+          if (actionKey === "approve-plan") {
+            announce("方案 " + activePlan + " 已核准，執行指令已排入佇列");
+          } else {
+            announce(actionMessages[actionKey] || "操作已完成");
+          }
+        });
+      });
+
+      document.querySelectorAll(".icon-btn").forEach((buttonElement) => {
+        buttonElement.addEventListener("click", () => announce(buttonElement.getAttribute("aria-label") + "功能已開啟"));
+      });
+
+      window.addEventListener("hashchange", () => show(readHash()));
+      show(readHash());
+    })();
+  </script>
+</body>
+</html>

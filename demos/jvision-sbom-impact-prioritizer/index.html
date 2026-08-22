@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="結合可達性、暴露面與業務重要度排序 SBOM 弱點，優先修補真正風險。">
+<title>SBOM 影響優先器 · security-soc｜Jvision 系統 Demo</title>
+<style>
+:root{
+  --blue:#7c3aed;
+  --ink:#18122b;
+  --body:#312b41;
+  --muted:#756d85;
+  --line:#e8e3ef;
+  --bg:#f7f5fa;
+  --green:#15966c;
+  --amber:#d97706;
+  --red:#dc3f55;
+  --white:#fff;
+  --violet-soft:#f2edff;
+  --shadow:0 12px 34px rgba(41,27,68,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--body);
+  font-family:Inter,"Noto Sans TC",sans-serif;
+  font-size:14px;line-height:1.55;overflow-x:hidden
+}
+button,input,select{font:inherit}
+button{color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible{
+  outline:3px solid rgba(124,58,237,.24);outline-offset:2px
+}
+.material-symbols-outlined{font-size:20px;line-height:1;font-variation-settings:"FILL" 0,"wght" 500}
+.shell{min-height:100vh;display:grid;grid-template-columns:220px minmax(0,1fr)}
+.sidebar{
+  position:sticky;top:0;height:100vh;background:#fff;border-right:1px solid var(--line);
+  padding:22px 14px;display:flex;flex-direction:column;z-index:20
+}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 21px}
+.brand-mark{
+  width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
+  color:#fff;background:linear-gradient(145deg,#8b5cf6,var(--blue));
+  box-shadow:0 8px 18px rgba(124,58,237,.25)
+}
+.brand strong{display:block;color:var(--ink);font-size:15px}
+.brand small{color:var(--muted);font-size:11px}
+.nav-label{padding:0 10px 8px;color:#9991a5;font-size:10px;font-weight:800;letter-spacing:.12em}
+.nav{display:grid;gap:5px}
+.nav button{
+  border:0;background:transparent;border-radius:11px;min-height:48px;padding:9px 10px;
+  display:grid;grid-template-columns:28px 1fr;align-items:center;text-align:left;cursor:pointer
+}
+.nav button span:last-child small{display:block;color:var(--muted);font-size:10px;font-weight:500}
+.nav button:hover{background:#faf8fc}
+.nav button.active{background:var(--violet-soft);color:var(--blue);font-weight:700}
+.nav button.active small{color:#6d51a6}
+.sidebar-foot{
+  margin-top:auto;border:1px solid var(--line);background:#faf9fc;border-radius:13px;padding:12px
+}
+.health{display:flex;align-items:center;gap:8px;color:var(--ink);font-weight:700;font-size:12px}
+.health-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(21,150,108,.1)}
+.sidebar-foot p{margin:7px 0 0;color:var(--muted);font-size:10px}
+.main{min-width:0}
+.topbar{
+  min-height:68px;background:rgba(255,255,255,.9);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);padding:10px clamp(18px,3vw,38px);
+  display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;z-index:12
+}
+.breadcrumb{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
+.breadcrumb b{color:var(--ink)}
+.top-actions{display:flex;align-items:center;gap:9px}
+.icon-btn,.ghost-btn,.primary-btn{
+  border:1px solid var(--line);background:#fff;border-radius:10px;min-height:40px;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;cursor:pointer
+}
+.icon-btn{width:40px}
+.ghost-btn,.primary-btn{padding:0 14px;font-weight:700}
+.primary-btn{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 8px 18px rgba(124,58,237,.18)}
+.content{padding:clamp(20px,3vw,38px);max-width:1540px;margin:auto}
+.view{display:none;animation:rise .34s ease}
+.view.active{display:block}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:22px}
+.eyebrow{color:var(--blue);font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+h1,h2,h3,p{margin-top:0}
+h1{margin-bottom:7px;color:var(--ink);font-size:clamp(25px,3vw,36px);line-height:1.18}
+h2{color:var(--ink);font-size:19px}
+h3{color:var(--ink);font-size:14px}
+.page-head p{margin:0;color:var(--muted);max-width:720px}
+.chip,.stage-chip,.severity{
+  display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 9px;
+  font-size:11px;font-weight:700;white-space:nowrap
+}
+.chip{background:var(--violet-soft);color:var(--blue)}
+.stage-chip.pending{background:#fff6e7;color:var(--amber)}
+.stage-chip.running{background:#eee9ff;color:var(--blue)}
+.stage-chip.done{background:#e9f8f2;color:var(--green)}
+.severity.critical{background:#fff0f2;color:var(--red)}
+.severity.high{background:#fff6e7;color:var(--amber)}
+.severity.medium{background:#f1eff5;color:#665e73}
+.card{
+  min-width:0;background:#fff;border:1px solid var(--line);border-radius:16px;
+  box-shadow:0 6px 22px rgba(35,25,55,.04)
+}
+.card-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.card-head h2,.card-head h3{margin:0}
+.card-body{padding:20px}
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.metric{padding:17px}
+.metric-top{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:11px}
+.metric strong{display:block;color:var(--ink);font-size:24px;margin:8px 0 3px}
+.metric small{color:var(--muted)}
+.delta{color:var(--green);font-weight:700}
+.two-col{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,.8fr);gap:16px}
+.three-col{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.stack{display:grid;gap:14px}
+.muted{color:var(--muted)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.progress{height:7px;background:#eeeaf3;border-radius:99px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--blue);border-radius:inherit}
+.divider{height:1px;background:var(--line);margin:16px 0}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:680px}
+th,td{padding:13px 15px;text-align:left;border-bottom:1px solid var(--line)}
+th{color:var(--muted);background:#fbfafc;font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+td{font-size:12px}
+tr:last-child td{border-bottom:0}
+tr:hover td{background:#fcfbfd}
+.person{display:flex;align-items:center;gap:9px}
+.avatar{width:30px;height:30px;border-radius:9px;background:var(--violet-soft);color:var(--blue);display:grid;place-items:center;font-weight:800;font-size:11px}
+.notice{border-left:3px solid var(--blue);background:var(--violet-soft);padding:12px 14px;border-radius:0 10px 10px 0;color:#574271}
+.legend{display:flex;align-items:center;gap:13px;flex-wrap:wrap;color:var(--muted);font-size:10px}
+.legend i{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+.chart-box{height:270px;position:relative}
+.mobile-stage{display:none}
+
+/* v0 component inventory */
+.inventory-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
+.component-map{padding:22px;min-height:390px;position:relative;overflow:hidden}
+.map-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.dependency-flow{display:grid;grid-template-columns:1fr 50px 1fr 50px 1fr;align-items:center}
+.node{
+  border:1px solid var(--line);border-radius:14px;background:#fff;padding:16px;
+  box-shadow:0 8px 20px rgba(34,23,55,.05);position:relative
+}
+.node.affected{border-color:#f2a9b4;background:#fffafb}
+.node.selected{border-color:#a98af0;background:#faf7ff}
+.node-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--violet-soft);color:var(--blue);margin-bottom:12px}
+.node b{display:block;color:var(--ink)}
+.node small{color:var(--muted)}
+.connector{height:2px;background:#d8d1e0;position:relative}
+.connector:after{content:"";position:absolute;right:0;top:-4px;border-left:7px solid #b1a6bc;border-top:5px solid transparent;border-bottom:5px solid transparent}
+.deployments{display:grid;gap:9px;margin-top:22px}
+.deploy-row{display:grid;grid-template-columns:130px 1fr auto;align-items:center;gap:12px;padding:10px 12px;background:#faf9fc;border-radius:10px}
+.risk-list{display:grid;gap:11px}
+.risk-item{border:1px solid var(--line);border-radius:12px;padding:13px}
+.risk-item header{display:flex;justify-content:space-between;gap:8px;margin-bottom:8px}
+.risk-item p{margin:0;color:var(--muted);font-size:11px}
+
+/* v1 reachability */
+.code-layout{display:grid;grid-template-columns:minmax(320px,.9fr) minmax(360px,1.1fr);gap:16px}
+.code-panel{background:#201a2d;color:#ded8e8;border-radius:16px;overflow:hidden}
+.code-tabs{display:flex;background:#181320;border-bottom:1px solid #393041}
+.code-tabs span{padding:12px 15px;font-size:11px}
+.code-tabs .on{color:#fff;border-bottom:2px solid #a78bfa}
+pre{margin:0;padding:20px;overflow:auto;font-size:12px;line-height:1.85}
+.line-risk{display:block;background:rgba(220,63,85,.14);margin:0 -20px;padding:0 20px;border-left:3px solid #fb7185}
+.keyword{color:#c4b5fd}.call{color:#7dd3fc}.string{color:#86efac}
+.trace{padding:21px}
+.trace-step{display:grid;grid-template-columns:32px 1fr;gap:12px;position:relative;padding-bottom:18px}
+.trace-step:not(:last-child):before{content:"";position:absolute;left:15px;top:31px;bottom:0;width:2px;background:var(--line)}
+.trace-dot{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--violet-soft);color:var(--blue);z-index:1;font-size:11px;font-weight:800}
+.trace-step.danger .trace-dot{background:#fff0f2;color:var(--red)}
+.trace-step p{margin:3px 0 0;color:var(--muted);font-size:11px}
+.verdict{display:grid;grid-template-columns:auto 1fr auto;gap:13px;align-items:center;border:1px solid #f5c0c8;background:#fff8f9;border-radius:14px;padding:16px}
+.verdict-icon{width:42px;height:42px;border-radius:12px;background:#ffe8ec;color:var(--red);display:grid;place-items:center}
+
+/* v2 exposure */
+.exposure-board{display:grid;grid-template-columns:260px minmax(0,1fr) 290px;gap:16px}
+.surface-list{padding:10px}
+.surface-btn{width:100%;border:0;background:transparent;border-radius:11px;padding:12px;text-align:left;display:flex;gap:10px;cursor:pointer}
+.surface-btn.on{background:var(--violet-soft)}
+.surface-btn b{display:block;color:var(--ink);font-size:12px}
+.surface-btn small{color:var(--muted)}
+.network-canvas{min-height:440px;padding:22px;position:relative;background-image:radial-gradient(#ddd6e7 1px,transparent 1px);background-size:20px 20px}
+.zone{border:1px dashed #cbbfe0;border-radius:15px;padding:16px;margin-bottom:14px;background:rgba(255,255,255,.84)}
+.zone-label{font-size:10px;font-weight:800;color:var(--muted);margin-bottom:11px;letter-spacing:.08em}
+.network-row{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
+.net-node{min-width:112px;padding:13px;border:1px solid var(--line);border-radius:12px;background:#fff;text-align:center}
+.net-node.open{border-color:#f1adba;box-shadow:0 0 0 4px rgba(220,63,85,.06)}
+.net-node .material-symbols-outlined{display:block;margin-bottom:7px;color:var(--blue)}
+.net-arrow{color:var(--muted)}
+.checks{padding:17px}
+.check-row{display:grid;grid-template-columns:24px 1fr auto;gap:9px;padding:12px 0;border-bottom:1px solid var(--line)}
+.check-row:last-child{border:0}
+.check-mark{color:var(--green)}
+.check-mark.bad{color:var(--red)}
+
+/* v3 business impact */
+.impact-hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:16px}
+.score-ring{
+  width:170px;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;margin:auto;
+  background:conic-gradient(var(--red) 0 82%,#eeeaf3 82%);position:relative
+}
+.score-ring:before{content:"";position:absolute;inset:15px;border-radius:50%;background:#fff}
+.score-ring div{position:relative;text-align:center}
+.score-ring strong{display:block;color:var(--ink);font-size:42px;line-height:1}
+.weight-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.weight{padding:15px;border:1px solid var(--line);border-radius:12px}
+.weight header{display:flex;justify-content:space-between;gap:8px;margin-bottom:10px}
+.service-row{display:grid;grid-template-columns:1.1fr .7fr .8fr .7fr;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.service-row:last-child{border:0}
+.data-tags{display:flex;flex-wrap:wrap;gap:6px}
+.data-tags span{font-size:10px;padding:4px 7px;border-radius:6px;background:#f1eff5;color:#625a70}
+
+/* v4 priority queue */
+.queue-grid{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:16px}
+.queue-tools{display:flex;gap:9px;flex-wrap:wrap}
+.queue-tools button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 11px;cursor:pointer}
+.queue-tools button.on{color:var(--blue);border-color:#b9a0ee;background:var(--violet-soft)}
+.risk-score{font-size:19px;color:var(--ink);font-weight:800}
+.score-bar{width:72px;height:5px;border-radius:10px;background:#eeeaf3;margin-top:4px}
+.score-bar i{display:block;height:100%;border-radius:inherit;background:var(--red)}
+.rule-card{padding:14px;border:1px solid var(--line);border-radius:12px}
+.rule-card b{color:var(--blue);font-size:11px}
+.rule-card p{font-size:11px;margin:6px 0;color:var(--muted)}
+.approval{background:#241b34;color:#fff;border-radius:14px;padding:18px}
+.approval h3{color:#fff}
+.approval p{color:#bdb3c9;font-size:11px}
+.approval .primary-btn{width:100%}
+
+/* v5 verification */
+.verify-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px}
+.release-banner{padding:20px;display:flex;justify-content:space-between;gap:16px;align-items:center;background:linear-gradient(125deg,#21172f,#4c287c);color:#fff;border-radius:16px}
+.release-banner h2{color:#fff;margin-bottom:4px}
+.release-banner p{color:#c9bfd3;margin:0;font-size:11px}
+.test-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.test-tile{padding:16px;border:1px solid var(--line);border-radius:13px}
+.test-tile header{display:flex;justify-content:space-between;align-items:center}
+.test-tile strong{font-size:22px;color:var(--ink);display:block;margin-top:11px}
+.test-tile small{color:var(--muted)}
+.pass{color:var(--green)}
+.timeline{padding:18px}
+.time-row{display:grid;grid-template-columns:62px 14px 1fr;gap:10px;padding-bottom:17px;position:relative}
+.time-row:not(:last-child):after{content:"";position:absolute;left:68px;top:15px;bottom:0;width:2px;background:var(--line)}
+.time-dot{width:10px;height:10px;background:var(--green);border-radius:50%;margin-top:5px;z-index:1}
+.time-row p{margin:0;color:var(--muted);font-size:11px}
+.gauge-wrap{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.gauge{border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+.gauge strong{display:block;color:var(--ink);font-size:24px}
+.gauge small{color:var(--muted)}
+@media(max-width:1100px){
+  .metric-grid{grid-template-columns:repeat(2,1fr)}
+  .inventory-layout,.queue-grid,.verify-layout{grid-template-columns:1fr}
+  .exposure-board{grid-template-columns:220px minmax(0,1fr)}
+  .exposure-board>aside:last-child{grid-column:1/-1}
+}
+@media(max-width:820px){
+  .shell{grid-template-columns:1fr}
+  .sidebar{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;height:72px;padding:7px 8px;border-right:0;border-top:1px solid var(--line)}
+  .brand,.nav-label,.sidebar-foot{display:none}
+  .nav{grid-template-columns:repeat(6,1fr);gap:2px}
+  .nav button{min-height:56px;padding:6px 2px;display:flex;flex-direction:column;gap:3px;text-align:center;font-size:9px}
+  .nav button span:last-child small{display:none}
+  .main{padding-bottom:74px}
+  .topbar{top:0}
+  .desktop-stage{display:none}.mobile-stage{display:inline}
+  .two-col,.code-layout,.impact-hero{grid-template-columns:1fr}
+  .exposure-board{grid-template-columns:1fr}
+  .dependency-flow{grid-template-columns:1fr;gap:9px}
+  .connector{width:2px;height:24px;margin:auto}
+  .connector:after{right:-4px;top:auto;bottom:0;border-top:7px solid #b1a6bc;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:0}
+  .weight-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:560px){
+  .content{padding:18px 13px}
+  .topbar{padding:10px 13px}
+  .breadcrumb span:not(.material-symbols-outlined),.ghost-btn{display:none}
+  .page-head{align-items:flex-start;flex-direction:column}
+  .page-head .primary-btn{width:100%}
+  .metric-grid,.three-col,.test-grid,.weight-grid,.gauge-wrap{grid-template-columns:1fr}
+  .inventory-layout{grid-template-columns:1fr}
+  .deploy-row{grid-template-columns:1fr auto}
+  .deploy-row .progress{grid-column:1/-1}
+  .service-row{grid-template-columns:1fr 1fr}
+  .service-row>*:first-child{grid-column:1/-1}
+  .release-banner{align-items:flex-start;flex-direction:column}
+  .card-head{padding:15px}.card-body{padding:15px}
+  .chart-box{height:235px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"><span class="material-symbols-outlined">security</span></div>
+      <div><strong>JV SecureOps</strong><small>SBOM Impact Center</small></div>
+    </div>
+    <div class="nav-label">修補作業流程</div>
+    <nav class="nav" aria-label="SBOM 修補流程">
+      <button type="button" data-i="0"><span class="material-symbols-outlined">inventory_2</span><span>元件盤點<small>受影響範圍</small></span></button>
+      <button type="button" data-i="1"><span class="material-symbols-outlined">route</span><span>可達驗證<small>執行路徑</small></span></button>
+      <button type="button" data-i="2"><span class="material-symbols-outlined">public</span><span>暴露評估<small>攻擊入口</small></span></button>
+      <button type="button" data-i="3"><span class="material-symbols-outlined">business_center</span><span>業務衝擊<small>關鍵度加權</small></span></button>
+      <button type="button" data-i="4"><span class="material-symbols-outlined">priority_high</span><span>修補核定<small>優先佇列</small></span></button>
+      <button type="button" data-i="5"><span class="material-symbols-outlined">published_with_changes</span><span>風險解除<small>驗證與稽核</small></span></button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="health"><span class="health-dot"></span>資料同步正常</div>
+      <p>最後更新 14:32 · 3 個來源<br>資安報表、事件紀錄、合規稽核</p>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <span class="material-symbols-outlined">shield_lock</span>
+        <span>資安 SOC 平台</span><span>／</span><b>SBOM 影響優先器</b>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" type="button" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+        <button class="ghost-btn" type="button"><span class="material-symbols-outlined">download</span>匯出稽核包</button>
+        <span class="chip desktop-stage">生產環境</span>
+      </div>
+    </header>
+
+    <div class="content">
+      <section class="view" data-view="0">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 01 · Component inventory</div><h1>盤點受影響元件</h1><p>確認弱點涉及的元件、版本、映像與實際部署位置，建立完整影響邊界。</p></div>
+          <button class="primary-btn" type="button"><span class="material-symbols-outlined">add</span>匯入新版 SBOM</button>
+        </div>
+        <div class="metric-grid">
+          <article class="card metric"><div class="metric-top"><span>掃描元件</span><span class="material-symbols-outlined">deployed_code</span></div><strong>1,284</strong><small>跨 42 個工作負載</small></article>
+          <article class="card metric"><div class="metric-top"><span>受影響版本</span><span class="material-symbols-outlined">warning</span></div><strong>17</strong><small class="delta">7 個可立即定位</small></article>
+          <article class="card metric"><div class="metric-top"><span>關鍵弱點</span><span class="material-symbols-outlined">crisis_alert</span></div><strong>6</strong><small>CVSS 9.0 以上</small></article>
+          <article class="card metric"><div class="metric-top"><span>盤點覆蓋率</span><span class="material-symbols-outlined">verified</span></div><strong>96.8%</strong><small>目標 98%</small></article>
+        </div>
+        <div style="height:16px"></div>
+        <div class="inventory-layout">
+          <article class="card component-map">
+            <div class="map-title"><div><h2 style="margin-bottom:3px">CVE-2026-1842 相依圖譜</h2><span class="muted">付款 API · production · asia-east1</span></div><span class="severity critical">極高風險</span></div>
+            <div class="dependency-flow">
+              <div class="node selected"><div class="node-icon"><span class="material-symbols-outlined">api</span></div><b>payment-api</b><small>服務版本 4.18.2</small></div>
+              <div class="connector"></div>
+              <div class="node"><div class="node-icon"><span class="material-symbols-outlined">package_2</span></div><b>spring-web</b><small>6.1.4 · direct</small></div>
+              <div class="connector"></div>
+              <div class="node affected"><div class="node-icon" style="color:var(--red);background:#fff0f2"><span class="material-symbols-outlined">bug_report</span></div><b>netty-codec-http</b><small>4.1.106 · vulnerable</small></div>
+            </div>
+            <div class="deployments">
+              <div class="deploy-row"><b>prod-payment-7d9</b><div class="progress"><i style="width:100%"></i></div><span class="severity critical">12 pods</span></div>
+              <div class="deploy-row"><b>stg-payment-286</b><div class="progress"><i style="width:58%"></i></div><span class="severity high">4 pods</span></div>
+              <div class="deploy-row"><b>batch-settlement</b><div class="progress"><i style="width:34%"></i></div><span class="severity medium">2 jobs</span></div>
+            </div>
+            <div class="notice" style="margin-top:18px">映像 <span class="mono">registry/jv/payment:4.18.2</span> 於 3 個環境中共找到 18 個執行個體。</div>
+          </article>
+          <aside class="card">
+            <div class="card-head"><h2>待盤點弱點</h2><span class="chip">17 項</span></div>
+            <div class="card-body risk-list">
+              <div class="risk-item"><header><b>CVE-2026-1842</b><span class="severity critical">9.8</span></header><p>netty-codec-http 4.1.106<br>18 個部署 · 直接相依</p></div>
+              <div class="risk-item"><header><b>CVE-2025-55182</b><span class="severity critical">9.6</span></header><p>react-server-dom 19.0.0<br>7 個部署 · 間接相依</p></div>
+              <div class="risk-item"><header><b>CVE-2026-0921</b><span class="severity high">8.7</span></header><p>openssl 3.2.1<br>11 個映像 · 系統套件</p></div>
+              <div class="risk-item"><header><b>CVE-2025-7784</b><span class="severity medium">6.8</span></header><p>jackson-core 2.16.1<br>3 個部署 · 間接相依</p></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" data-view="1">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 02 · Reachability analysis</div><h1>驗證程式可達性</h1><p>檢視真實呼叫路徑與執行情境，判斷弱點函式能否由產品程式觸發。</p></div>
+          <span class="stage-chip running"><span class="material-symbols-outlined">sync</span>分析完成 94%</span>
+        </div>
+        <div class="code-layout">
+          <article class="code-panel">
+            <div class="code-tabs"><span class="on">PaymentHandler.java</span><span>HttpDecoder.java</span></div>
+            <pre><span class="keyword">public</span> PaymentResult process(Request req) {
+  PaymentContext ctx = contextFactory.create(req);
+  Channel channel = gateway.open(ctx);
+
+  <span class="keyword">if</span> (req.hasSignedPayload()) {
+    ByteBuf payload = channel.read();
+<span class="line-risk">    return <span class="call">decodeChunkedContent</span>(payload);</span>
+  }
+
+  return fallback.execute(ctx);
+}
+
+<span class="keyword">private</span> PaymentResult decodeChunkedContent(ByteBuf data) {
+  HttpObjectDecoder decoder =
+    <span class="keyword">new</span> HttpObjectDecoder(config);
+  return mapper.map(decoder.<span class="call">decode</span>(data));
+}</pre>
+          </article>
+          <div class="stack">
+            <article class="card trace">
+              <div class="card-head" style="padding:0 0 17px"><h2>實際呼叫路徑</h2><span class="chip">Trace #8F21</span></div>
+              <div style="padding-top:18px">
+                <div class="trace-step"><div class="trace-dot">1</div><div><b>POST /api/v2/payment/confirm</b><p>外部請求進入 PaymentController · 近 24h 18,420 次</p></div></div>
+                <div class="trace-step"><div class="trace-dot">2</div><div><b>PaymentHandler.process()</b><p>簽章載荷條件命中率 71%，非測試分支</p></div></div>
+                <div class="trace-step"><div class="trace-dot">3</div><div><b>GatewayChannel.read()</b><p>讀取可由請求者控制的 chunked body</p></div></div>
+                <div class="trace-step danger"><div class="trace-dot">4</div><div><b>HttpObjectDecoder.decode()</b><p>觸達受影響函式 · netty-codec-http:4.1.106</p></div></div>
+              </div>
+            </article>
+            <div class="verdict">
+              <div class="verdict-icon"><span class="material-symbols-outlined">warning</span></div>
+              <div><b style="color:var(--ink)">判定：弱點可達</b><div class="muted" style="font-size:11px">具備 2 條生產呼叫路徑，證據可信度 96%</div></div>
+              <span class="severity critical">須升級</span>
+            </div>
+          </div>
+        </div>
+        <div style="height:16px"></div>
+        <div class="three-col">
+          <article class="card metric"><div class="metric-top"><span>靜態分析</span><span class="material-symbols-outlined">account_tree</span></div><strong>2 條</strong><small>從公開端點到弱點函式</small></article>
+          <article class="card metric"><div class="metric-top"><span>執行追蹤</span><span class="material-symbols-outlined">timeline</span></div><strong>18.4K</strong><small>24 小時內命中呼叫</small></article>
+          <article class="card metric"><div class="metric-top"><span>測試覆蓋</span><span class="material-symbols-outlined">experiment</span></div><strong>87%</strong><small class="delta">證據足以核定</small></article>
+        </div>
+      </section>
+
+      <section class="view" data-view="2">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 03 · Exposure assessment</div><h1>評估外部暴露</h1><p>核對網路入口、權限邊界、執行環境與攻擊前置條件，確認可利用面。</p></div>
+          <button class="ghost-btn" type="button"><span class="material-symbols-outlined">refresh</span>重新掃描入口</button>
+        </div>
+        <div class="exposure-board">
+          <aside class="card surface-list">
+            <div class="card-head"><h3>工作負載</h3><span class="chip">3</span></div>
+            <button class="surface-btn on" type="button"><span class="material-symbols-outlined">api</span><span><b>payment-api</b><small>Internet facing · prod</small></span></button>
+            <button class="surface-btn" type="button"><span class="material-symbols-outlined">database</span><span><b>settlement-worker</b><small>Private subnet · prod</small></span></button>
+            <button class="surface-btn" type="button"><span class="material-symbols-outlined">webhook</span><span><b>callback-router</b><small>Partner network · prod</small></span></button>
+            <div class="divider"></div>
+            <div style="padding:8px"><div class="muted" style="font-size:10px">綜合暴露分數</div><strong style="font-size:34px;color:var(--red)">86</strong><span class="muted"> / 100</span><div class="progress"><i style="width:86%;background:var(--red)"></i></div></div>
+          </aside>
+          <article class="card network-canvas">
+            <div class="zone">
+              <div class="zone-label">PUBLIC INTERNET</div>
+              <div class="network-row"><div class="net-node open"><span class="material-symbols-outlined">language</span><b>公開使用者</b><small class="muted">0.0.0.0/0</small></div><span class="material-symbols-outlined net-arrow">east</span><div class="net-node open"><span class="material-symbols-outlined">dns</span><b>api.jvision.tw</b><small class="muted">HTTPS :443</small></div></div>
+            </div>
+            <div class="zone">
+              <div class="zone-label">EDGE / WAF</div>
+              <div class="network-row"><div class="net-node"><span class="material-symbols-outlined">shield</span><b>Cloud WAF</b><small class="muted">Managed rules</small></div><span class="material-symbols-outlined net-arrow">east</span><div class="net-node"><span class="material-symbols-outlined">balance</span><b>Public LB</b><small class="muted">TLS terminated</small></div></div>
+            </div>
+            <div class="zone" style="border-color:#f0a5b2">
+              <div class="zone-label" style="color:var(--red)">PRODUCTION CLUSTER · AFFECTED</div>
+              <div class="network-row"><div class="net-node open"><span class="material-symbols-outlined">deployed_code</span><b>payment-api</b><small class="muted">12 pods · no auth precheck</small></div><span class="material-symbols-outlined net-arrow">east</span><div class="net-node"><span class="material-symbols-outlined">database</span><b>payment-db</b><small class="muted">service identity</small></div></div>
+            </div>
+          </article>
+          <aside class="card checks">
+            <div class="card-head" style="padding:0 0 15px"><h2>攻擊條件</h2><span class="severity critical">3 / 4 成立</span></div>
+            <div class="check-row"><span class="material-symbols-outlined check-mark bad">cancel</span><div><b>外部入口</b><div class="muted">公開 DNS 可直接到達</div></div><b style="color:var(--red)">成立</b></div>
+            <div class="check-row"><span class="material-symbols-outlined check-mark bad">cancel</span><div><b>身份驗證</b><div class="muted">解析前未驗證載荷</div></div><b style="color:var(--red)">繞過</b></div>
+            <div class="check-row"><span class="material-symbols-outlined check-mark bad">cancel</span><div><b>使用者輸入</b><div class="muted">Chunk body 可控</div></div><b style="color:var(--red)">成立</b></div>
+            <div class="check-row"><span class="material-symbols-outlined check-mark">check_circle</span><div><b>執行權限</b><div class="muted">容器為非 root</div></div><b style="color:var(--green)">受限</b></div>
+            <div class="notice" style="margin-top:15px">建議先以 WAF 規則封鎖異常 chunk，再於 24 小時內完成元件升版。</div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" data-view="3">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 04 · Business weighting</div><h1>標定業務衝擊</h1><p>依服務等級、資料敏感度、營收影響與停機代價調整技術風險。</p></div>
+          <span class="chip"><span class="material-symbols-outlined">person</span>服務負責人已確認</span>
+        </div>
+        <div class="impact-hero">
+          <article class="card card-body" style="display:grid;grid-template-columns:auto 1fr;align-items:center;gap:28px">
+            <div class="score-ring"><div><strong>82</strong><small class="muted">業務衝擊</small></div></div>
+            <div>
+              <h2>付款服務 · Tier 0</h2>
+              <p class="muted">此弱點影響結帳主路徑；尖峰每分鐘處理 4,800 筆交易，停機 15 分鐘即觸發重大事件程序。</p>
+              <div class="data-tags"><span>PCI-DSS</span><span>個人資料</span><span>交易金流</span><span>24×7 SLA</span></div>
+              <div class="divider"></div>
+              <div class="legend"><span><i style="background:var(--red)"></i>重大 75–100</span><span><i style="background:var(--amber)"></i>高 50–74</span><span><i style="background:var(--green)"></i>一般 0–49</span></div>
+            </div>
+          </article>
+          <article class="card card-body">
+            <h2>衝擊構成</h2>
+            <div class="chart-box"><canvas id="impactChart" aria-label="業務衝擊雷達圖"></canvas></div>
+          </article>
+        </div>
+        <div style="height:16px"></div>
+        <div class="weight-grid">
+          <article class="weight card"><header><b>服務關鍵度</b><strong>30 / 30</strong></header><div class="progress"><i style="width:100%;background:var(--red)"></i></div><small class="muted">核心交易不可由其他服務替代</small></article>
+          <article class="weight card"><header><b>資料敏感度</b><strong>22 / 25</strong></header><div class="progress"><i style="width:88%;background:var(--red)"></i></div><small class="muted">涉及持卡人識別與交易紀錄</small></article>
+          <article class="weight card"><header><b>營收影響</b><strong>18 / 25</strong></header><div class="progress"><i style="width:72%;background:var(--amber)"></i></div><small class="muted">估算每小時暴露營收 NT$ 860 萬</small></article>
+          <article class="weight card"><header><b>復原成本</b><strong>12 / 20</strong></header><div class="progress"><i style="width:60%;background:var(--amber)"></i></div><small class="muted">需跨區流量切換與資料核對</small></article>
+        </div>
+        <div style="height:16px"></div>
+        <article class="card">
+          <div class="card-head"><h2>受影響服務清單</h2><span class="muted">依業務關鍵度排序</span></div>
+          <div class="card-body">
+            <div class="service-row"><div><b>付款授權 API</b><div class="muted">owner · 數位金流組</div></div><span class="severity critical">Tier 0</span><span>4,800 txn/min</span><b style="color:var(--red)">衝擊 82</b></div>
+            <div class="service-row"><div><b>交易對帳批次</b><div class="muted">owner · 財務平台組</div></div><span class="severity high">Tier 1</span><span>每晚 02:00</span><b style="color:var(--amber)">衝擊 64</b></div>
+            <div class="service-row"><div><b>商戶通知中心</b><div class="muted">owner · 商戶體驗組</div></div><span class="severity medium">Tier 2</span><span>320 msg/min</span><b>衝擊 41</b></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="view" data-view="4">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 05 · Remediation priority</div><h1>核定修補順序</h1><p>綜合可達性、外部暴露與業務衝擊，產生可解釋且可稽核的修補批次。</p></div>
+          <button class="primary-btn" type="button"><span class="material-symbols-outlined">approval</span>核准本批次</button>
+        </div>
+        <div class="queue-grid">
+          <article class="card">
+            <div class="card-head">
+              <div><h2>修補優先佇列</h2><span class="muted">6 項 · 模型與人工規則共同排序</span></div>
+              <div class="queue-tools"><button class="on" type="button">全部</button><button type="button">極高</button><button type="button">可達</button></div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>順位</th><th>弱點與項目</th><th>風險分數</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
+                <tbody>
+                  <tr><td><b>#1</b></td><td><b>CVE-2026-1842</b><br><span class="muted">盤點受影響元件 · payment-api</span></td><td><span class="risk-score">94</span><div class="score-bar"><i style="width:94%"></i></div></td><td><div class="person"><span class="avatar">應</span>應用安全工程師</div></td><td>D+1</td><td><span class="stage-chip running">處理中</span></td></tr>
+                  <tr><td><b>#2</b></td><td><b>CVE-2025-55182</b><br><span class="muted">驗證程式可達性 · portal-web</span></td><td><span class="risk-score">88</span><div class="score-bar"><i style="width:88%"></i></div></td><td><div class="person"><span class="avatar">開</span>開發者</div></td><td>D+2</td><td><span class="stage-chip pending">待確認</span></td></tr>
+                  <tr><td><b>#3</b></td><td><b>CVE-2026-0921</b><br><span class="muted">評估外部暴露 · gateway</span></td><td><span class="risk-score">76</span><div class="score-bar"><i style="width:76%;background:var(--amber)"></i></div></td><td><div class="person"><span class="avatar">雲</span>雲端安全工程師</div></td><td>D+3</td><td><span class="stage-chip pending">待確認</span></td></tr>
+                  <tr><td><b>#4</b></td><td><b>CVE-2025-7784</b><br><span class="muted">標定業務衝擊 · report-api</span></td><td><span class="risk-score">62</span><div class="score-bar"><i style="width:62%;background:var(--amber)"></i></div></td><td><div class="person"><span class="avatar">服</span>服務負責人</div></td><td>D+4</td><td><span class="stage-chip done">已完成</span></td></tr>
+                  <tr><td><b>#5</b></td><td><b>SBO-005</b><br><span class="muted">核定修補順序 · settlement</span></td><td><span class="risk-score">51</span><div class="score-bar"><i style="width:51%;background:var(--amber)"></i></div></td><td><div class="person"><span class="avatar">資</span>資安主管</div></td><td>D+5</td><td><span class="stage-chip done">已完成</span></td></tr>
+                  <tr><td><b>#6</b></td><td><b>SBO-006</b><br><span class="muted">確認風險解除 · callback</span></td><td><span class="risk-score">38</span><div class="score-bar"><i style="width:38%;background:var(--green)"></i></div></td><td><div class="person"><span class="avatar">測</span>測試工程師</div></td><td>D+6</td><td><span class="stage-chip done">已完成</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+          <aside class="stack">
+            <div class="approval">
+              <span class="chip" style="background:rgba(255,255,255,.12);color:#ddd0f5">待資安主管核定</span>
+              <h3 style="margin:14px 0 7px">批次 RMD-260821-A</h3>
+              <p>包含 2 項極高風險、1 項高風險。預計維護窗：8 月 22 日 01:00–03:00。</p>
+              <div class="divider" style="background:#493b58"></div>
+              <button class="primary-btn" type="button">核准並通知工程團隊</button>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>排序證據</h3><span class="material-symbols-outlined">fact_check</span></div>
+              <div class="card-body stack">
+                <div class="rule-card"><b>RULE-01 · 程式碼</b><p>應用安全工程師確認元件、版本與部署位置。</p><span class="stage-chip done">證據完整</span></div>
+                <div class="rule-card"><b>RULE-02 · 需求</b><p>開發者確認呼叫路徑可觸達弱點函式。</p><span class="stage-chip done">證據完整</span></div>
+                <div class="rule-card"><b>RULE-03 · 架構</b><p>雲端安全工程師確認公開入口與攻擊條件。</p><span class="stage-chip done">證據完整</span></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" data-view="5">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 06 · Risk verification</div><h1>確認風險解除</h1><p>驗證元件升版、緩解措施與部署結果，同時確認產品功能未發生回歸。</p></div>
+          <span class="stage-chip done"><span class="material-symbols-outlined">verified</span>風險已解除</span>
+        </div>
+        <div class="release-banner">
+          <div><h2>payment-api 4.18.3 已安全發布</h2><p>netty-codec-http 4.1.106 → 4.1.112 · 部署 12/12 pods · 驗證人：測試工程師 林怡君</p></div>
+          <button class="ghost-btn" type="button"><span class="material-symbols-outlined">description</span>查看驗證報告</button>
+        </div>
+        <div style="height:16px"></div>
+        <div class="test-grid">
+          <article class="test-tile card"><header><span class="muted">弱點重掃</span><span class="material-symbols-outlined pass">check_circle</span></header><strong>0 項</strong><small>受影響版本已不存在</small></article>
+          <article class="test-tile card"><header><span class="muted">自動化測試</span><span class="material-symbols-outlined pass">check_circle</span></header><strong>428 / 428</strong><small>功能與安全測試全數通過</small></article>
+          <article class="test-tile card"><header><span class="muted">部署健康度</span><span class="material-symbols-outlined pass">check_circle</span></header><strong>100%</strong><small>錯誤率與延遲無回歸</small></article>
+        </div>
+        <div style="height:16px"></div>
+        <div class="verify-layout">
+          <div class="stack">
+            <article class="card">
+              <div class="card-head"><h2>系統可用率趨勢</h2><div class="legend"><span><i style="background:var(--blue)"></i>系統可用率 %</span></div></div>
+              <div class="card-body"><div class="chart-box"><canvas id="trendChart" aria-label="系統可用率趨勢圖"></canvas></div></div>
+            </article>
+            <div class="gauge-wrap">
+              <article class="gauge card"><span class="muted">事件平均處理</span><strong>30 分鐘</strong><div class="progress"><i style="width:97%"></i></div><small>原 120 分鐘 · 改善 75%</small></article>
+              <article class="gauge card"><span class="muted">SLA 達成率</span><strong>98%</strong><div class="progress"><i style="width:98%;background:var(--green)"></i></div><small>原 85% · 提升 13pp</small></article>
+            </div>
+          </div>
+          <aside class="card timeline">
+            <div class="card-head" style="padding:0 0 17px"><h2>可追溯操作紀錄</h2><span class="chip">完整</span></div>
+            <div style="padding-top:18px">
+              <div class="time-row"><span class="muted">01:08</span><span class="time-dot"></span><div><b>新版映像部署完成</b><p>registry/jv/payment:4.18.3 · SHA 已驗證</p></div></div>
+              <div class="time-row"><span class="muted">01:16</span><span class="time-dot"></span><div><b>弱點重掃通過</b><p>CVE-2026-1842 未出現在執行中映像</p></div></div>
+              <div class="time-row"><span class="muted">01:28</span><span class="time-dot"></span><div><b>安全測試通過</b><p>惡意 chunked payload 已無法觸發</p></div></div>
+              <div class="time-row"><span class="muted">01:41</span><span class="time-dot"></span><div><b>產品回歸完成</b><p>付款、退款、對帳共 428 項測試通過</p></div></div>
+              <div class="time-row"><span class="muted">01:48</span><span class="time-dot"></span><div><b>測試工程師簽核</b><p>風險狀態由「修補中」變更為「已解除」</p></div></div>
+            </div>
+            <div class="notice">輸出：SBOM 影響優先器處理結果與可追溯的操作紀錄。</div>
+          </aside>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const buttons = Array.from(document.querySelectorAll("[data-i]"));
+  const views = Array.from(document.querySelectorAll("[data-view]"));
+  const chartCache = {};
+  let activeIndex = 0;
+
+  function chartReady(canvas) {
+    return canvas && canvas.parentElement && canvas.parentElement.clientWidth > 0;
+  }
+
+  function initImpactChart() {
+    if (chartCache.impact) return;
+    const canvas = document.getElementById("impactChart");
+    if (!chartReady(canvas) || typeof Chart === "undefined") return;
+    chartCache.impact = new Chart(canvas, {
+      type: "radar",
+      data: {
+        labels: ["服務關鍵度", "資料敏感度", "營收影響", "復原成本", "合規範圍"],
+        datasets: [{
+          label: "衝擊評分",
+          data: [100, 88, 72, 60, 90],
+          backgroundColor: "rgba(124,58,237,.15)",
+          borderColor: "#7c3aed",
+          pointBackgroundColor: "#7c3aed",
+          pointRadius: 3,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {duration: 500},
+        scales: {
+          r: {
+            beginAtZero: true,
+            max: 100,
+            ticks: {display: false, stepSize: 25},
+            grid: {color: "#e8e3ef"},
+            angleLines: {color: "#e8e3ef"},
+            pointLabels: {color: "#756d85", font: {family: "Noto Sans TC", size: 11}}
+          }
+        },
+        plugins: {legend: {display: false}}
+      }
+    });
+  }
+
+  function initTrendChart() {
+    if (chartCache.trend) return;
+    const canvas = document.getElementById("trendChart");
+    if (!chartReady(canvas) || typeof Chart === "undefined") return;
+    chartCache.trend = new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: ["W1", "W2", "W3", "W4", "W5", "W6"],
+        datasets: [{
+          label: "系統可用率 %",
+          data: [97, 97.4, 97.8, 98.2, 98.6, 99],
+          borderColor: "#7c3aed",
+          backgroundColor: "rgba(124,58,237,.11)",
+          fill: true,
+          tension: .35,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: "#fff",
+          pointBorderColor: "#7c3aed",
+          pointBorderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {duration: 550},
+        interaction: {intersect: false, mode: "index"},
+        scales: {
+          y: {
+            min: 96,
+            max: 100,
+            grid: {color: "#eeeaf3"},
+            ticks: {color: "#756d85", callback: value => value + "%"}
+          },
+          x: {grid: {display: false}, ticks: {color: "#756d85"}}
+        },
+        plugins: {
+          legend: {display: false},
+          tooltip: {callbacks: {label: context => " 可用率 " + context.parsed.y + "%"}}
+        }
+      }
+    });
+  }
+
+  function initializeVisibleChart(index) {
+    requestAnimationFrame(() => {
+      if (index === 3) initImpactChart();
+      if (index === 5) initTrendChart();
+    });
+  }
+
+  function show(index) {
+    const parsed = Number(index);
+    const safeIndex = Number.isInteger(parsed) && parsed >= 0 && parsed < views.length ? parsed : 0;
+    activeIndex = safeIndex;
+    views.forEach((view, viewIndex) => {
+      const selected = viewIndex === safeIndex;
+      view.classList.toggle("active", selected);
+      view.setAttribute("aria-hidden", String(!selected));
+    });
+    buttons.forEach((button, buttonIndex) => {
+      const selected = buttonIndex === safeIndex;
+      button.classList.toggle("active", selected);
+      button.setAttribute("aria-current", selected ? "step" : "false");
+    });
+    initializeVisibleChart(safeIndex);
+    window.scrollTo({top: 0, behavior: "smooth"});
+  }
+
+  function indexFromHash() {
+    const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+    return match ? Number(match[1]) : 0;
+  }
+
+  buttons.forEach(button => {
+    button.addEventListener("click", () => {
+      const nextIndex = Number(button.dataset.i);
+      const nextHash = "#go=" + nextIndex;
+      if (window.location.hash === nextHash) show(nextIndex);
+      else window.location.hash = nextHash;
+    });
+  });
+
+  document.querySelectorAll(".surface-btn").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".surface-btn").forEach(item => item.classList.remove("on"));
+      button.classList.add("on");
+    });
+  });
+
+  document.querySelectorAll(".queue-tools button").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".queue-tools button").forEach(item => item.classList.remove("on"));
+      button.classList.add("on");
+    });
+  });
+
+  window.addEventListener("hashchange", () => show(indexFromHash()));
+  window.addEventListener("resize", () => {
+    const chart = activeIndex === 3 ? chartCache.impact : activeIndex === 5 ? chartCache.trend : null;
+    if (chart) chart.resize();
+  });
+
+  show(indexFromHash());
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>服務邊界異味偵測器 · it-ops｜Jvision 系統 Demo</title>
+  <link rel="icon" href="../../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --blue:#1e40af;
+      --ink:#101828;
+      --body:#344054;
+      --muted:#667085;
+      --line:#e4e7ec;
+      --bg:#f5f7fb;
+      --green:#079455;
+      --amber:#dc6803;
+      --red:#d92d20;
+      --white:#fff;
+      --soft:#eef2ff;
+      --shadow:0 12px 30px rgba(16,24,40,.08);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;background:var(--bg);color:var(--body);
+      font-family:Inter,"Noto Sans TC",sans-serif;overflow-x:hidden
+    }
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    .material-symbols-outlined{font-size:21px;line-height:1}
+    .app{min-height:100vh;display:grid;grid-template-columns:78px minmax(0,1fr)}
+    .rail{
+      position:fixed;inset:0 auto 0 0;width:78px;background:#10245f;color:#fff;
+      display:flex;flex-direction:column;align-items:center;padding:18px 10px;
+      z-index:20;box-shadow:4px 0 18px rgba(16,36,95,.13)
+    }
+    .brand{
+      width:46px;height:46px;border-radius:14px;background:#fff;color:var(--blue);
+      display:grid;place-items:center;font-size:17px;font-weight:800;letter-spacing:-1px
+    }
+    .rail-nav{display:grid;gap:9px;margin-top:31px;width:100%}
+    .nav-btn{
+      width:54px;height:50px;border:0;border-radius:13px;margin:auto;
+      color:#b9c5e7;background:transparent;display:grid;place-items:center;
+      position:relative;transition:.2s
+    }
+    .nav-btn:hover,.nav-btn:focus-visible{background:rgba(255,255,255,.12);color:#fff;outline:2px solid #93a7e5}
+    .nav-btn.active{color:#173681;background:#fff}
+    .nav-btn::after{
+      content:attr(aria-label);position:absolute;left:61px;white-space:nowrap;
+      background:#101828;color:#fff;padding:7px 9px;border-radius:7px;
+      font-size:12px;opacity:0;pointer-events:none;transform:translateX(-4px);transition:.15s
+    }
+    .nav-btn:hover::after{opacity:1;transform:none}
+    .rail-foot{margin-top:auto;color:#8fa3dc;font-size:11px;font-weight:700}
+    main{grid-column:2;min-width:0;padding:0 30px 34px}
+    .mast{
+      height:74px;display:flex;align-items:center;justify-content:space-between;
+      gap:18px;border-bottom:1px solid var(--line)
+    }
+    .mast-title{display:flex;align-items:center;gap:12px;min-width:0}
+    .mast-title strong{font-size:17px;color:var(--ink);white-space:nowrap}
+    .mast-title span{font-size:12px;color:var(--blue);background:#e8edff;padding:5px 9px;border-radius:20px;font-weight:700}
+    .mast-tools{display:flex;align-items:center;gap:10px}
+    .live{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--green);font-weight:700}
+    .live::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px #d1fadf}
+    .icon-btn{width:38px;height:38px;border:1px solid var(--line);background:#fff;border-radius:10px;color:var(--body)}
+    .screen{display:none;animation:enter .28s ease}
+    .screen.active{display:block}
+    @keyframes enter{from{opacity:.25;transform:translateY(8px)}to{opacity:1;transform:none}}
+    .page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;padding:28px 0 20px}
+    .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--blue);font-weight:800}
+    h1,h2,h3,p{margin-top:0}
+    h1{margin:7px 0 6px;color:var(--ink);font-size:29px;line-height:1.25;letter-spacing:-.04em}
+    h2{color:var(--ink);font-size:20px;letter-spacing:-.02em}
+    h3{color:var(--ink);font-size:15px}
+    .sub{margin:0;color:var(--muted);font-size:14px;line-height:1.7}
+    .actions{display:flex;gap:9px;flex-wrap:wrap}
+    .btn{
+      min-height:40px;border-radius:10px;border:1px solid var(--line);
+      background:#fff;color:var(--body);padding:9px 14px;font-weight:700;
+      display:inline-flex;align-items:center;gap:7px
+    }
+    .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+    .btn:focus-visible,.filter:focus-visible,.tab:focus-visible{outline:3px solid #a5b4fc;outline-offset:2px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 2px 7px rgba(16,24,40,.03)}
+    .metric-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px}
+    .metric{padding:17px}
+    .metric-label{font-size:12px;color:var(--muted);font-weight:600}
+    .metric-value{font-size:24px;color:var(--ink);font-weight:800;margin:7px 0 4px}
+    .delta{font-size:12px;color:var(--green);font-weight:700}
+    .delta.warn{color:var(--amber)}
+    .chip{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:5px 9px;font-size:11px;font-weight:700}
+    .chip.red{background:#fef3f2;color:var(--red)}
+    .chip.amber{background:#fffaeb;color:var(--amber)}
+    .chip.green{background:#ecfdf3;color:var(--green)}
+    .chip.blue{background:#eef2ff;color:var(--blue)}
+    .split-hero{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.55fr);gap:16px}
+    .topology{padding:20px;min-height:465px;position:relative;overflow:hidden}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
+    .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+    .legend i{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+    .map{
+      height:352px;border-radius:13px;background:
+      linear-gradient(rgba(30,64,175,.035) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(30,64,175,.035) 1px,transparent 1px),#fafbff;
+      background-size:28px 28px;position:relative
+    }
+    .node{
+      position:absolute;width:112px;padding:12px 8px;background:#fff;border:1px solid #cfd6e7;
+      border-radius:12px;text-align:center;font-size:12px;font-weight:700;color:var(--ink);
+      box-shadow:0 5px 14px rgba(16,24,40,.08);z-index:2
+    }
+    .node span{display:block;margin:auto auto 6px;color:var(--blue)}
+    .node.hot{border:2px solid var(--red);box-shadow:0 0 0 5px #fee4e2}
+    .n1{left:5%;top:38%}.n2{left:29%;top:8%}.n3{left:29%;bottom:8%}.n4{right:25%;top:34%}.n5{right:3%;top:8%}.n6{right:2%;bottom:9%}
+    .edge{position:absolute;height:2px;background:#94a3c9;transform-origin:left;z-index:1}
+    .e1{width:27%;left:16%;top:43%;transform:rotate(-29deg)}
+    .e2{width:26%;left:16%;top:49%;transform:rotate(28deg)}
+    .e3{width:29%;left:39%;top:23%;transform:rotate(25deg);background:var(--red)}
+    .e4{width:29%;left:39%;bottom:22%;transform:rotate(-24deg)}
+    .e5{width:23%;right:11%;top:39%;transform:rotate(-31deg)}
+    .e6{width:23%;right:10%;top:52%;transform:rotate(30deg)}
+    .side-stack{display:grid;gap:16px}
+    .panel{padding:19px}
+    .scope-list,.feed,.rule-list{display:grid;gap:10px}
+    .scope-item,.feed-item{
+      display:flex;justify-content:space-between;align-items:center;gap:10px;
+      padding:11px 0;border-bottom:1px solid var(--line);font-size:13px
+    }
+    .scope-item:last-child,.feed-item:last-child{border-bottom:0}
+    .progress{height:7px;background:#edf0f6;border-radius:10px;overflow:hidden;margin-top:9px}
+    .progress b{display:block;height:100%;background:var(--blue);border-radius:10px}
+    .radar-layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px}
+    .filters{padding:18px;align-self:start}
+    .filter-group{padding:15px 0;border-top:1px solid var(--line)}
+    .filter-group:first-of-type{border-top:0;padding-top:2px}
+    .filter-group label{font-size:12px;font-weight:800;color:var(--ink);display:block;margin-bottom:9px}
+    .filter{width:100%;height:40px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:0 10px;color:var(--body)}
+    .checks{display:grid;gap:9px;font-size:13px}
+    .checks span{display:flex;align-items:center;gap:8px}
+    .checks i{width:16px;height:16px;border:1px solid #b8c0d0;border-radius:4px}
+    .checks .checked i{background:var(--blue);border-color:var(--blue);box-shadow:inset 0 0 0 3px #fff}
+    .risk-board{padding:19px;min-width:0}
+    .risk-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:17px}
+    .risk-box{padding:13px;border:1px solid var(--line);border-radius:11px}
+    .risk-box b{font-size:21px;color:var(--ink);display:block;margin-top:5px}
+    .risk-list{display:grid;gap:10px}
+    .risk-card{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:12px}
+    .score{width:42px;height:42px;border-radius:11px;background:#fef3f2;color:var(--red);display:grid;place-items:center;font-weight:800}
+    .risk-card h3{margin:0 0 4px}.risk-card p{font-size:12px;color:var(--muted);margin:0}
+    .barline{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11px;color:var(--muted)}
+    .barline .progress{width:150px;margin:0}
+    .ownership-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(310px,.75fr);gap:16px}
+    .data-table{overflow:hidden}
+    .table-title{padding:18px 19px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center}
+    .table-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;min-width:650px}
+    th,td{text-align:left;padding:13px 16px;border-bottom:1px solid var(--line);font-size:12px}
+    th{color:var(--muted);background:#fafbfc;font-weight:700}
+    td{color:var(--body)} td strong{color:var(--ink)}
+    tr.selected{background:#f4f6ff}
+    .owner-side{display:grid;gap:16px}
+    .donut-wrap{height:210px;position:relative}
+    .conflict{padding:15px;border-left:4px solid var(--red);background:#fff7f6;border-radius:10px;margin-bottom:10px}
+    .conflict h3{margin-bottom:5px}.conflict p{font-size:12px;margin:0;color:var(--muted);line-height:1.6}
+    .commit-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}
+    .heat-card{padding:19px;overflow:hidden}
+    .heat-scroll{overflow-x:auto}
+    .heatmap{min-width:690px;display:grid;grid-template-columns:140px repeat(12,1fr);gap:5px;align-items:center}
+    .heatmap span{font-size:11px;color:var(--muted);text-align:center}
+    .heatmap .service{text-align:left;font-weight:700;color:var(--body)}
+    .cell{height:28px;border-radius:5px;background:#eef2ff}
+    .cell.l2{background:#c7d2fe}.cell.l3{background:#818cf8}.cell.l4{background:#1e40af}.cell.alert{background:var(--red)}
+    .commit-side{display:grid;gap:16px}
+    .pair{padding:13px 0;border-bottom:1px solid var(--line)}
+    .pair:last-child{border:0}
+    .pair-head{display:flex;justify-content:space-between;gap:8px;font-size:12px}
+    .pair-head strong{color:var(--ink)}
+    .timeline{padding:19px}
+    .event{display:grid;grid-template-columns:48px 12px minmax(0,1fr);gap:9px;min-height:63px;font-size:12px}
+    .event time{color:var(--muted)}
+    .event i{width:10px;height:10px;border-radius:50%;background:var(--blue);position:relative;margin-top:3px}
+    .event i::after{content:"";position:absolute;width:2px;height:54px;background:#dbe1f0;left:4px;top:10px}
+    .event:last-child i::after{display:none}
+    .sim-layout{display:grid;grid-template-columns:330px minmax(0,1fr);gap:16px}
+    .scenario-list{padding:15px}
+    .scenario{
+      width:100%;border:1px solid var(--line);background:#fff;border-radius:12px;
+      padding:14px;text-align:left;margin-bottom:9px;color:var(--body)
+    }
+    .scenario.active{border-color:var(--blue);background:#f4f6ff;box-shadow:inset 3px 0 var(--blue)}
+    .scenario strong{display:block;color:var(--ink);margin-bottom:5px}
+    .scenario small{color:var(--muted)}
+    .scenario-metrics{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+    .sim-main{display:grid;gap:16px}
+    .chart-card{padding:19px;min-width:0}
+    .chart-box{height:260px;position:relative}
+    .compare-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+    .compare{padding:15px;border:1px solid var(--line);border-radius:12px}
+    .compare b{font-size:22px;color:var(--ink);display:block;margin:7px 0}
+    .compare small{color:var(--muted)}
+    .blueprint-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px}
+    .roadmap{padding:19px}
+    .phase-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+    .phase{border:1px solid var(--line);border-radius:13px;padding:15px;position:relative}
+    .phase::before{content:"";position:absolute;left:0;top:0;right:0;height:4px;background:var(--blue);border-radius:13px 13px 0 0}
+    .phase-num{font-size:11px;color:var(--blue);font-weight:800;margin-bottom:10px}
+    .task{padding:10px 0;border-bottom:1px solid var(--line);font-size:12px}
+    .task:last-child{border:0}.task strong{display:block;color:var(--ink);margin-bottom:4px}.task small{color:var(--muted)}
+    .approval-side{display:grid;gap:16px}
+    .approval{padding:19px}
+    .person{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+    .avatar{width:34px;height:34px;border-radius:50%;background:#e8edff;color:var(--blue);display:grid;place-items:center;font-size:12px;font-weight:800}
+    .person div:nth-child(2){font-size:12px;flex:1}.person strong{display:block;color:var(--ink)}
+    .decision{
+      padding:16px;background:#f4f6ff;border:1px solid #c7d2fe;border-radius:12px;
+      margin-top:14px;font-size:12px;line-height:1.6
+    }
+    .decision strong{color:var(--ink);display:block;margin-bottom:3px}
+    .next-nav{
+      margin-top:18px;padding:14px 17px;display:flex;justify-content:space-between;
+      align-items:center;gap:15px;background:#10245f;color:#fff;border-radius:14px
+    }
+    .next-nav p{margin:0;font-size:12px;color:#c8d3f0}.next-nav strong{display:block;font-size:14px;margin-bottom:3px}
+    .next-nav .btn{border-color:#fff}
+    @media(max-width:1050px){
+      .metric-row{grid-template-columns:repeat(2,1fr)}
+      .split-hero,.ownership-layout,.commit-layout,.sim-layout,.blueprint-layout{grid-template-columns:1fr}
+      .radar-layout{grid-template-columns:240px minmax(0,1fr)}
+      .commit-side{grid-template-columns:1fr 1fr}
+    }
+    @media(max-width:760px){
+      .app{display:block}.rail{inset:auto 0 0;width:auto;height:68px;flex-direction:row;padding:8px 12px}
+      .brand,.rail-foot{display:none}.rail-nav{display:flex;margin:0;width:100%;justify-content:space-between;gap:3px}
+      .nav-btn{width:48px;height:48px}.nav-btn::after{display:none}
+      main{padding:0 17px 88px}.mast{height:62px}.mast-title strong{font-size:14px}.mast-title span,.live{display:none}
+      .page-head{align-items:flex-start;flex-direction:column;padding-top:21px}
+      h1{font-size:24px}.radar-layout{grid-template-columns:1fr}.filters{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+      .risk-card{grid-template-columns:42px minmax(0,1fr)}.risk-card>.chip{grid-column:2}
+      .phase-grid,.compare-grid{grid-template-columns:1fr}.commit-side{grid-template-columns:1fr}
+      .map{height:390px}.node{width:94px;font-size:10px}.n2,.n3{left:34%}.n4{right:2%;top:40%}.n5{right:5%;top:3%}.n6{right:5%;bottom:2%}
+    }
+    @media(max-width:460px){
+      .metric-row{grid-template-columns:1fr 1fr;gap:9px}.metric{padding:13px}.metric-value{font-size:19px}
+      .actions{width:100%}.actions .btn{flex:1;justify-content:center}
+      .filters{grid-template-columns:1fr}.risk-summary{grid-template-columns:1fr 1fr}.risk-summary .risk-box:last-child{grid-column:1/-1}
+      .mast-tools .icon-btn:first-of-type{display:none}.topbar{align-items:flex-start;flex-direction:column}
+      .topology{padding:13px}.map{height:430px}.node{width:88px;padding:9px 5px}
+      .n1{left:2%;top:41%}.n2{left:35%;top:5%}.n3{left:35%;bottom:5%}.n4{right:1%;top:42%}.n5{right:2%;top:5%}.n6{right:2%;bottom:5%}
+      .page-head .btn .label{display:none}.next-nav{align-items:flex-start;flex-direction:column}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="rail">
+      <div class="brand">JV</div>
+      <nav class="rail-nav" aria-label="流程導覽">
+        <button class="nav-btn" data-i="0" aria-label="服務拓撲"><span class="material-symbols-outlined">hub</span></button>
+        <button class="nav-btn" data-i="1" aria-label="異味雷達"><span class="material-symbols-outlined">warning</span></button>
+        <button class="nav-btn" data-i="2" aria-label="資料所有權"><span class="material-symbols-outlined">dataset_linked</span></button>
+        <button class="nav-btn" data-i="3" aria-label="共同變更"><span class="material-symbols-outlined">difference</span></button>
+        <button class="nav-btn" data-i="4" aria-label="情境模擬"><span class="material-symbols-outlined">experiment</span></button>
+        <button class="nav-btn" data-i="5" aria-label="改善藍圖"><span class="material-symbols-outlined">architecture</span></button>
+      </nav>
+      <div class="rail-foot">IT OPS</div>
+    </aside>
+
+    <main>
+      <header class="mast">
+        <div class="mast-title"><strong>服務邊界異味偵測器</strong><span>架構治理工作區</span></div>
+        <div class="mast-tools">
+          <div class="live">資料已同步</div>
+          <button class="icon-btn" aria-label="搜尋"><span class="material-symbols-outlined">search</span></button>
+          <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+        </div>
+      </header>
+
+      <section class="screen" data-screen="0">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 01 · 架構師</div><h1>建立服務拓撲</h1><p class="sub">彙整跨服務呼叫、共享資料與共同變更，建立可追溯的互動全貌。</p></div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">upload</span><span class="label">匯入架構</span></button><button class="btn primary"><span class="material-symbols-outlined">sync</span>重新分析</button></div>
+        </div>
+        <div class="metric-row">
+          <div class="card metric"><div class="metric-label">納管服務</div><div class="metric-value">24</div><div class="delta">↑ 3 個本週新增</div></div>
+          <div class="card metric"><div class="metric-label">跨服務呼叫</div><div class="metric-value">186</div><div class="delta warn">14 條需釐清</div></div>
+          <div class="card metric"><div class="metric-label">共享資料表</div><div class="metric-value">11</div><div class="delta warn">5 個所有權衝突</div></div>
+          <div class="card metric"><div class="metric-label">拓撲完整度</div><div class="metric-value">92%</div><div class="delta">↑ 8% 較上次</div></div>
+        </div>
+        <div class="split-hero">
+          <article class="card topology">
+            <div class="topbar"><div><h2 style="margin-bottom:4px">Order Domain 互動拓撲</h2><p class="sub">近 30 日正式環境 · 2.8M traces</p></div><span class="chip red">3 個高耦合群</span></div>
+            <div class="legend"><span><i style="background:#1e40af"></i>服務</span><span><i style="background:#d92d20"></i>高風險關係</span><span><i style="background:#94a3c9"></i>一般呼叫</span></div>
+            <div class="map">
+              <div class="edge e1"></div><div class="edge e2"></div><div class="edge e3"></div><div class="edge e4"></div><div class="edge e5"></div><div class="edge e6"></div>
+              <div class="node n1"><span class="material-symbols-outlined">shopping_cart</span>Checkout</div>
+              <div class="node n2"><span class="material-symbols-outlined">receipt_long</span>Order API</div>
+              <div class="node n3"><span class="material-symbols-outlined">payments</span>Payment</div>
+              <div class="node n4 hot"><span class="material-symbols-outlined">inventory_2</span>Inventory</div>
+              <div class="node n5"><span class="material-symbols-outlined">local_shipping</span>Shipping</div>
+              <div class="node n6"><span class="material-symbols-outlined">campaign</span>Notification</div>
+            </div>
+          </article>
+          <div class="side-stack">
+            <article class="card panel">
+              <div class="topbar"><h2 style="margin:0">資料來源</h2><span class="chip green">3/3 正常</span></div>
+              <div class="scope-list">
+                <div class="scope-item"><span>程式碼與提交</span><strong>8 repos</strong></div>
+                <div class="scope-item"><span>需求與發布</span><strong>142 tickets</strong></div>
+                <div class="scope-item"><span>架構與 traces</span><strong>2.8M</strong></div>
+              </div>
+            </article>
+            <article class="card panel">
+              <h2>分析覆蓋</h2>
+              <p class="sub">呼叫關係</p><div class="progress"><b style="width:96%"></b></div>
+              <p class="sub" style="margin-top:14px">資料所有權</p><div class="progress"><b style="width:78%"></b></div>
+              <p class="sub" style="margin-top:14px">共同變更</p><div class="progress"><b style="width:88%"></b></div>
+            </article>
+          </div>
+        </div>
+        <div class="next-nav"><div><strong>拓撲基線已建立</strong><p>SER-001 · 架構師 · 預計 D+1 完成</p></div><button class="btn" data-next="1">前往篩選異味 <span class="material-symbols-outlined">arrow_forward</span></button></div>
+      </section>
+
+      <section class="screen" data-screen="1">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 02 · 工程主管</div><h1>篩選邊界異味</h1><p class="sub">依風險、耦合強度與事故影響，聚焦真正需要重切的服務群。</p></div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">tune</span>儲存篩選器</button><button class="btn primary"><span class="material-symbols-outlined">assignment_add</span>建立檢視任務</button></div>
+        </div>
+        <div class="radar-layout">
+          <aside class="card filters">
+            <h2>異味篩選器</h2>
+            <div class="filter-group"><label for="riskLevel">最低風險</label><select class="filter" id="riskLevel"><option>中度以上</option><option>高度</option><option>全部</option></select></div>
+            <div class="filter-group"><label>異味類型</label><div class="checks"><span class="checked"><i></i>聊天式服務</span><span class="checked"><i></i>循環依賴</span><span class="checked"><i></i>分散式單體</span><span><i></i>錯置資料所有權</span></div></div>
+            <div class="filter-group"><label for="domainSelect">業務域</label><select class="filter" id="domainSelect"><option>全部業務域</option><option>訂單域</option><option>會員域</option></select></div>
+            <div class="filter-group"><label>事故影響</label><div class="checks"><span class="checked"><i></i>P1 / P2</span><span><i></i>P3</span></div></div>
+          </aside>
+          <article class="card risk-board">
+            <div class="topbar"><div><h2 style="margin-bottom:4px">異味雷達結果</h2><p class="sub">已由 18 個候選群組縮小至 6 個</p></div><span class="chip blue">風險排序</span></div>
+            <div class="risk-summary">
+              <div class="risk-box"><span class="metric-label">高風險</span><b style="color:var(--red)">3</b></div>
+              <div class="risk-box"><span class="metric-label">中風險</span><b style="color:var(--amber)">3</b></div>
+              <div class="risk-box"><span class="metric-label">受影響事故</span><b>14</b></div>
+            </div>
+            <div class="risk-list">
+              <div class="risk-card"><div class="score">92</div><div><h3>Order ↔ Inventory ↔ Payment</h3><p>循環同步呼叫 17 條 · 共享 4 張資料表 · 近月 6 次共同發布</p><div class="barline"><span>耦合</span><div class="progress"><b style="width:92%;background:var(--red)"></b></div><strong>極高</strong></div></div><span class="chip red">分散式單體</span></div>
+              <div class="risk-card"><div class="score">86</div><div><h3>Customer ↔ Loyalty</h3><p>每筆交易平均往返 12 次 · P95 延遲增加 380ms</p><div class="barline"><span>耦合</span><div class="progress"><b style="width:86%;background:var(--red)"></b></div><strong>高</strong></div></div><span class="chip red">聊天式服務</span></div>
+              <div class="risk-card"><div class="score" style="background:#fffaeb;color:var(--amber)">74</div><div><h3>Catalog ↔ Pricing</h3><p>雙向依賴 5 條 · 版本升級需同步部署</p><div class="barline"><span>耦合</span><div class="progress"><b style="width:74%;background:var(--amber)"></b></div><strong>中高</strong></div></div><span class="chip amber">循環依賴</span></div>
+              <div class="risk-card"><div class="score" style="background:#fffaeb;color:var(--amber)">68</div><div><h3>Shipping ↔ Notification</h3><p>事件契約欄位跨域維護 · 共同變更率 61%</p><div class="barline"><span>耦合</span><div class="progress"><b style="width:68%;background:var(--amber)"></b></div><strong>中</strong></div></div><span class="chip amber">責任混雜</span></div>
+            </div>
+          </article>
+        </div>
+        <div class="next-nav"><div><strong>已選定 3 個高風險服務群</strong><p>SER-002 · 工程主管 · 待確認</p></div><button class="btn" data-next="2">核對資料所有權 <span class="material-symbols-outlined">arrow_forward</span></button></div>
+      </section>
+
+      <section class="screen" data-screen="2">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 03 · 後端開發者</div><h1>核對資料所有權</h1><p class="sub">逐項確認共享資料、跨域交易與事件契約的真實責任歸屬。</p></div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">download</span>匯出衝突</button><button class="btn primary"><span class="material-symbols-outlined">verified</span>提交核對</button></div>
+        </div>
+        <div class="metric-row">
+          <div class="card metric"><div class="metric-label">盤點資產</div><div class="metric-value">32</div><div class="delta">資料表與事件</div></div>
+          <div class="card metric"><div class="metric-label">單一所有權</div><div class="metric-value">21</div><div class="delta">65.6% 已明確</div></div>
+          <div class="card metric"><div class="metric-label">所有權衝突</div><div class="metric-value" style="color:var(--red)">5</div><div class="delta warn">需補充佐證</div></div>
+          <div class="card metric"><div class="metric-label">待確認</div><div class="metric-value">6</div><div class="delta warn">期限 D+3</div></div>
+        </div>
+        <div class="ownership-layout">
+          <article class="card data-table">
+            <div class="table-title"><div><h2 style="margin-bottom:4px">共享資料剖析</h2><p class="sub">Order Domain · 最近更新 10:42</p></div><span class="chip red">5 個衝突</span></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>資料資產</th><th>類型</th><th>讀取服務</th><th>寫入服務</th><th>建議擁有者</th><th>判定</th></tr></thead>
+                <tbody>
+                  <tr class="selected"><td><strong>orders.payment_state</strong></td><td>資料表</td><td>Order, CS</td><td>Order, Payment</td><td>Payment</td><td><span class="chip red">衝突</span></td></tr>
+                  <tr><td><strong>inventory_reservations</strong></td><td>資料表</td><td>Order, Warehouse</td><td>Order, Inventory</td><td>Inventory</td><td><span class="chip red">衝突</span></td></tr>
+                  <tr><td><strong>OrderConfirmed.v3</strong></td><td>事件</td><td>Shipping, CRM</td><td>Order</td><td>Order</td><td><span class="chip green">明確</span></td></tr>
+                  <tr><td><strong>customers.credit_level</strong></td><td>欄位</td><td>Order, Loyalty</td><td>CRM, Loyalty</td><td>CRM</td><td><span class="chip amber">待確認</span></td></tr>
+                  <tr><td><strong>shipment_address</strong></td><td>資料表</td><td>Order, Shipping</td><td>Order, Shipping</td><td>Shipping</td><td><span class="chip red">衝突</span></td></tr>
+                  <tr><td><strong>PriceChanged.v2</strong></td><td>事件</td><td>Catalog, Order</td><td>Pricing</td><td>Pricing</td><td><span class="chip green">明確</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+          <div class="owner-side">
+            <article class="card panel">
+              <div class="topbar"><h2 style="margin:0">所有權分布</h2><span class="chip blue">32 資產</span></div>
+              <div class="donut-wrap"><canvas id="ownershipChart" aria-label="資料所有權分布圖"></canvas></div>
+            </article>
+            <article class="card panel">
+              <h2>選取項目核對</h2>
+              <div class="conflict"><h3>orders.payment_state</h3><p>Order 與 Payment 皆可直接寫入，造成退款與訂單狀態可能短暫不一致。</p></div>
+              <div class="scope-item"><span>建議所有者</span><strong>Payment Service</strong></div>
+              <div class="scope-item"><span>佐證</span><strong>ADR-042 · 3 traces</strong></div>
+              <div class="decision"><strong>核對規則 RULE-03</strong>所有跨域寫入須改由 Payment API 或 PaymentStateChanged 事件完成。</div>
+            </article>
+          </div>
+        </div>
+        <div class="next-nav"><div><strong>決策：資料所有權核對是否通過？</strong><p>通過進入下一階段；否則退回補件並通知後端開發者。</p></div><button class="btn" data-next="3">通過並檢視共同變更 <span class="material-symbols-outlined">arrow_forward</span></button></div>
+      </section>
+
+      <section class="screen" data-screen="3">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 04 · 開發者</div><h1>檢視共同變更</h1><p class="sub">從提交、需求與發布紀錄，驗證高頻綁定修改是否源於不合理邊界。</p></div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">calendar_month</span>近 90 日</button><button class="btn primary"><span class="material-symbols-outlined">add_link</span>連結需求</button></div>
+        </div>
+        <div class="commit-layout">
+          <article class="card heat-card">
+            <div class="topbar"><div><h2 style="margin-bottom:4px">共同變更熱度</h2><p class="sub">每格代表該週服務提交數；紅色為同步發布事件</p></div><span class="chip red">3 組強耦合</span></div>
+            <div class="heat-scroll">
+              <div class="heatmap">
+                <span></span><span>W1</span><span>W2</span><span>W3</span><span>W4</span><span>W5</span><span>W6</span><span>W7</span><span>W8</span><span>W9</span><span>W10</span><span>W11</span><span>W12</span>
+                <span class="service">Order API</span><i class="cell l3"></i><i class="cell l2"></i><i class="cell l4"></i><i class="cell alert"></i><i class="cell l3"></i><i class="cell l4"></i><i class="cell l2"></i><i class="cell alert"></i><i class="cell l3"></i><i class="cell l4"></i><i class="cell l3"></i><i class="cell alert"></i>
+                <span class="service">Inventory</span><i class="cell l2"></i><i class="cell l2"></i><i class="cell l3"></i><i class="cell alert"></i><i class="cell l3"></i><i class="cell l4"></i><i class="cell"></i><i class="cell alert"></i><i class="cell l2"></i><i class="cell l4"></i><i class="cell l3"></i><i class="cell alert"></i>
+                <span class="service">Payment</span><i class="cell"></i><i class="cell l3"></i><i class="cell l4"></i><i class="cell alert"></i><i class="cell l2"></i><i class="cell l4"></i><i class="cell l2"></i><i class="cell alert"></i><i class="cell l3"></i><i class="cell l3"></i><i class="cell l2"></i><i class="cell alert"></i>
+                <span class="service">Shipping</span><i class="cell"></i><i class="cell l2"></i><i class="cell"></i><i class="cell l2"></i><i class="cell l3"></i><i class="cell"></i><i class="cell l2"></i><i class="cell l3"></i><i class="cell"></i><i class="cell l2"></i><i class="cell l3"></i><i class="cell l2"></i>
+                <span class="service">Notification</span><i class="cell l2"></i><i class="cell"></i><i class="cell l2"></i><i class="cell"></i><i class="cell l2"></i><i class="cell l2"></i><i class="cell"></i><i class="cell l3"></i><i class="cell"></i><i class="cell l2"></i><i class="cell"></i><i class="cell l2"></i>
+                <span class="service">Customer</span><i class="cell l2"></i><i class="cell l3"></i><i class="cell"></i><i class="cell l2"></i><i class="cell"></i><i class="cell l3"></i><i class="cell"></i><i class="cell l2"></i><i class="cell l4"></i><i class="cell"></i><i class="cell l2"></i><i class="cell"></i>
+              </div>
+            </div>
+            <div class="legend" style="margin-top:18px"><span><i style="background:#eef2ff"></i>1–2</span><span><i style="background:#818cf8"></i>5–8</span><span><i style="background:#1e40af"></i>9+</span><span><i style="background:#d92d20"></i>同步發布</span></div>
+          </article>
+          <div class="commit-side">
+            <article class="card panel">
+              <h2>高頻共變組合</h2>
+              <div class="pair"><div class="pair-head"><strong>Order + Inventory</strong><span class="chip red">82%</span></div><div class="progress"><b style="width:82%;background:var(--red)"></b></div></div>
+              <div class="pair"><div class="pair-head"><strong>Order + Payment</strong><span class="chip red">76%</span></div><div class="progress"><b style="width:76%;background:var(--red)"></b></div></div>
+              <div class="pair"><div class="pair-head"><strong>Customer + Loyalty</strong><span class="chip amber">64%</span></div><div class="progress"><b style="width:64%;background:var(--amber)"></b></div></div>
+              <div class="pair"><div class="pair-head"><strong>Shipping + Notification</strong><span class="chip blue">41%</span></div><div class="progress"><b style="width:41%"></b></div></div>
+            </article>
+            <article class="card timeline">
+              <h2>變更證據</h2>
+              <div class="event"><time>08/18</time><i></i><div><strong>REQ-842 訂單保留庫存</strong><br><span class="sub">3 services · 11 commits</span></div></div>
+              <div class="event"><time>08/12</time><i></i><div><strong>INC-219 付款狀態修復</strong><br><span class="sub">2 services · 緊急發布</span></div></div>
+              <div class="event"><time>08/04</time><i></i><div><strong>REQ-811 部分退款</strong><br><span class="sub">4 services · 2 schemas</span></div></div>
+            </article>
+          </div>
+        </div>
+        <div class="next-nav"><div><strong>決策：共同變更檢視是否通過？</strong><p>通過進入情境模擬；否則退回補件並通知開發者。</p></div><button class="btn" data-next="4">通過並比較方案 <span class="material-symbols-outlined">arrow_forward</span></button></div>
+      </section>
+
+      <section class="screen" data-screen="4">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 05 · 架構師</div><h1>比較重切方案</h1><p class="sub">模擬合併、拆分或責任移轉後的耦合、可靠性與改造成本。</p></div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">restart_alt</span>重設參數</button><button class="btn primary"><span class="material-symbols-outlined">play_arrow</span>執行模擬</button></div>
+        </div>
+        <div class="sim-layout">
+          <aside class="card scenario-list">
+            <div class="topbar"><h2 style="margin:0">候選方案</h2><span class="chip blue">3</span></div>
+            <button class="scenario active"><strong>A · 移轉庫存責任</strong><small>Order 僅透過 Inventory API 操作保留量</small><span class="scenario-metrics"><span class="chip green">風險 -38%</span><span class="chip blue">8 週</span></span></button>
+            <button class="scenario"><strong>B · 合併訂單與庫存</strong><small>建立 Fulfillment 核心服務</small><span class="scenario-metrics"><span class="chip green">風險 -51%</span><span class="chip amber">16 週</span></span></button>
+            <button class="scenario"><strong>C · 拆出交易協調器</strong><small>以 Saga 協調跨域交易流程</small><span class="scenario-metrics"><span class="chip green">風險 -44%</span><span class="chip amber">12 週</span></span></button>
+            <div class="decision"><strong>模擬假設</strong>維持現有團隊編制；每週 3 人投入；事件平台沿用 Kafka；不計算前端改造。</div>
+          </aside>
+          <div class="sim-main">
+            <article class="card chart-card">
+              <div class="topbar"><div><h2 style="margin-bottom:4px">方案效益比較</h2><p class="sub">分數越高越佳；成本分數已反向換算</p></div><span class="chip green">建議 A</span></div>
+              <div class="chart-box"><canvas id="scenarioChart" aria-label="重切方案雷達比較圖"></canvas></div>
+            </article>
+            <div class="compare-grid">
+              <div class="card compare"><span class="metric-label">跨服務呼叫</span><b>186 → 128</b><span class="chip green">減少 31%</span><small style="display:block;margin-top:9px">移除 58 條同步呼叫</small></div>
+              <div class="card compare"><span class="metric-label">預估可用率</span><b>97% → 99%</b><span class="chip green">提升 2%</span><small style="display:block;margin-top:9px">故障半徑縮小至 2 服務</small></div>
+              <div class="card compare"><span class="metric-label">實施成本</span><b>24 人週</b><span class="chip blue">8 週</span><small style="display:block;margin-top:9px">含雙寫驗證與資料回填</small></div>
+            </div>
+          </div>
+        </div>
+        <div class="next-nav"><div><strong>推薦方案 A：移轉庫存責任</strong><p>在成本、風險與交付速度間取得最佳平衡。</p></div><button class="btn" data-next="5">建立改善藍圖 <span class="material-symbols-outlined">arrow_forward</span></button></div>
+      </section>
+
+      <section class="screen" data-screen="5">
+        <div class="page-head">
+          <div><div class="eyebrow">Stage 06 · 工程主管</div><h1>核准改善藍圖</h1><p class="sub">確認優先序、影響範圍與遷移步驟，核准建立重構任務。</p></div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">description</span>預覽 ADR</button><button class="btn primary"><span class="material-symbols-outlined">task_alt</span>核准並建立任務</button></div>
+        </div>
+        <div class="metric-row">
+          <div class="card metric"><div class="metric-label">改善任務</div><div class="metric-value">12</div><div class="delta">分為 3 個階段</div></div>
+          <div class="card metric"><div class="metric-label">影響服務</div><div class="metric-value">4</div><div class="delta warn">1 個核心路徑</div></div>
+          <div class="card metric"><div class="metric-label">預估週期</div><div class="metric-value">8 週</div><div class="delta">24 人週</div></div>
+          <div class="card metric"><div class="metric-label">目標可用率</div><div class="metric-value">99%</div><div class="delta">目前 97%</div></div>
+        </div>
+        <div class="blueprint-layout">
+          <article class="card roadmap">
+            <div class="topbar"><div><h2 style="margin-bottom:4px">邊界改善路線圖</h2><p class="sub">Blueprint SB-2026-014 · 方案 A</p></div><span class="chip green">準備核准</span></div>
+            <div class="phase-grid">
+              <section class="phase"><div class="phase-num">PHASE 01 · W1–W2</div><h3>契約先行</h3><div class="task"><strong>定義 Inventory API v2</strong><small>負責：庫存小組 · ADR-052</small></div><div class="task"><strong>建立契約測試</strong><small>負責：測試 · 18 cases</small></div><div class="task"><strong>加入呼叫遙測</strong><small>負責：平台組 · SLO 儀表板</small></div></section>
+              <section class="phase"><div class="phase-num">PHASE 02 · W3–W5</div><h3>責任移轉</h3><div class="task"><strong>停止 Order 直接寫入</strong><small>負責：訂單小組 · feature flag</small></div><div class="task"><strong>保留量資料回填</strong><small>負責：資料小組 · 8.2M rows</small></div><div class="task"><strong>雙軌驗證結果</strong><small>負責：測試 · 誤差 &lt; 0.1%</small></div></section>
+              <section class="phase"><div class="phase-num">PHASE 03 · W6–W8</div><h3>切換與收斂</h3><div class="task"><strong>分批切換流量</strong><small>10% → 50% → 100%</small></div><div class="task"><strong>移除舊寫入路徑</strong><small>負責：訂單小組</small></div><div class="task"><strong>同步架構文件</strong><small>C4、資料目錄與 Runbook</small></div></section>
+            </div>
+          </article>
+          <aside class="approval-side">
+            <article class="card approval">
+              <div class="topbar"><h2 style="margin:0">核准鏈</h2><span class="chip amber">2/3</span></div>
+              <div class="person"><div class="avatar">林</div><div><strong>林怡君 · 架構師</strong>方案與 ADR</div><span class="chip green">已核可</span></div>
+              <div class="person"><div class="avatar">陳</div><div><strong>陳柏翰 · 測試主管</strong>驗證與回復計畫</div><span class="chip green">已核可</span></div>
+              <div class="person"><div class="avatar">王</div><div><strong>王思齊 · 工程主管</strong>資源與排程</div><span class="chip amber">待核准</span></div>
+            </article>
+            <article class="card approval">
+              <h2>成功門檻</h2>
+              <div class="scope-item"><span>事件平均處理</span><strong>120 → 30 分</strong></div>
+              <div class="scope-item"><span>系統可用率</span><strong>97 → 99%</strong></div>
+              <div class="scope-item"><span>SLA 達成率</span><strong>85 → 98%</strong></div>
+              <div class="scope-item"><span>盤點工時</span><strong>20 → 4 小時/月</strong></div>
+              <div class="decision"><strong>可追溯輸出</strong>核准後建立 12 張重構任務、ADR-052、架構快照與完整操作紀錄。</div>
+            </article>
+          </aside>
+        </div>
+        <div class="next-nav"><div><strong>服務邊界改善藍圖已備妥</strong><p>SER-006 · 工程主管 · 核准後同步架構文件與任務系統</p></div><button class="btn" data-next="0"><span class="material-symbols-outlined">replay</span>返回服務拓撲</button></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const screens = [...document.querySelectorAll("[data-screen]")];
+      const navButtons = [...document.querySelectorAll("[data-i]")];
+      const chartRegistry = {};
+
+      function makeOwnershipChart() {
+        if (chartRegistry.ownership || typeof Chart === "undefined") return;
+        const canvas = document.getElementById("ownershipChart");
+        if (!canvas || canvas.clientWidth === 0) return;
+        chartRegistry.ownership = new Chart(canvas, {
+          type: "doughnut",
+          data: {
+            labels: ["單一所有權", "所有權衝突", "待確認"],
+            datasets: [{
+              data: [21, 5, 6],
+              backgroundColor: ["#1e40af", "#d92d20", "#f59e0b"],
+              borderColor: "#ffffff",
+              borderWidth: 4,
+              hoverOffset: 3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "67%",
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: { usePointStyle: true, boxWidth: 8, color: "#667085", font: { family: "Inter, Noto Sans TC", size: 11 } }
+              },
+              tooltip: { callbacks: { label: context => `${context.label}：${context.raw} 項` } }
+            }
+          }
+        });
+      }
+
+      function makeScenarioChart() {
+        if (chartRegistry.scenario || typeof Chart === "undefined") return;
+        const canvas = document.getElementById("scenarioChart");
+        if (!canvas || canvas.clientWidth === 0) return;
+        chartRegistry.scenario = new Chart(canvas, {
+          type: "radar",
+          data: {
+            labels: ["降低耦合", "可靠性", "交付速度", "資料一致性", "團隊自主性"],
+            datasets: [
+              {
+                label: "方案 A · 移轉責任",
+                data: [78, 84, 88, 86, 82],
+                borderColor: "#1e40af",
+                backgroundColor: "rgba(30,64,175,.14)",
+                pointBackgroundColor: "#1e40af",
+                borderWidth: 2
+              },
+              {
+                label: "方案 B · 合併服務",
+                data: [92, 76, 48, 94, 55],
+                borderColor: "#dc6803",
+                backgroundColor: "rgba(220,104,3,.07)",
+                pointBackgroundColor: "#dc6803",
+                borderWidth: 2
+              },
+              {
+                label: "方案 C · 交易協調器",
+                data: [85, 90, 62, 81, 74],
+                borderColor: "#079455",
+                backgroundColor: "rgba(7,148,85,.06)",
+                pointBackgroundColor: "#079455",
+                borderWidth: 2
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              r: {
+                min: 0,
+                max: 100,
+                ticks: { display: false, stepSize: 20 },
+                grid: { color: "#e4e7ec" },
+                angleLines: { color: "#e4e7ec" },
+                pointLabels: { color: "#475467", font: { family: "Inter, Noto Sans TC", size: 11, weight: "600" } }
+              }
+            },
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: { usePointStyle: true, boxWidth: 8, color: "#667085", font: { family: "Inter, Noto Sans TC", size: 11 } }
+              }
+            }
+          }
+        });
+      }
+
+      function initializeChart(index) {
+        requestAnimationFrame(() => {
+          if (index === 2) makeOwnershipChart();
+          if (index === 4) makeScenarioChart();
+        });
+      }
+
+      function show(index) {
+        const safeIndex = Math.max(0, Math.min(5, Number(index) || 0));
+        screens.forEach((screen, screenIndex) => {
+          screen.classList.toggle("active", screenIndex === safeIndex);
+          screen.setAttribute("aria-hidden", screenIndex === safeIndex ? "false" : "true");
+        });
+        navButtons.forEach((button, buttonIndex) => {
+          button.classList.toggle("active", buttonIndex === safeIndex);
+          button.setAttribute("aria-current", buttonIndex === safeIndex ? "step" : "false");
+        });
+        initializeChart(safeIndex);
+        document.title = `${screens[safeIndex].querySelector("h1").textContent} · 服務邊界異味偵測器｜Jvision 系統 Demo`;
+      }
+
+      function indexFromHash() {
+        const match = location.hash.match(/(?:go=|v)([0-9]+)/);
+        return match ? Math.max(0, Math.min(5, Number(match[1]))) : 0;
+      }
+
+      function navigate(index) {
+        const safeIndex = Math.max(0, Math.min(5, Number(index) || 0));
+        if (location.hash === `#go=${safeIndex}`) {
+          show(safeIndex);
+        } else {
+          location.hash = `go=${safeIndex}`;
+        }
+      }
+
+      navButtons.forEach(button => {
+        button.addEventListener("click", () => navigate(button.dataset.i));
+      });
+
+      document.querySelectorAll("[data-next]").forEach(button => {
+        button.addEventListener("click", () => navigate(button.dataset.next));
+      });
+
+      document.querySelectorAll(".scenario").forEach(button => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll(".scenario").forEach(item => item.classList.remove("active"));
+          button.classList.add("active");
+        });
+      });
+
+      window.addEventListener("hashchange", () => show(indexFromHash()));
+      show(indexFromHash());
+    })();
+  </script>
+</body>
+</html>

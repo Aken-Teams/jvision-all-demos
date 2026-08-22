@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<link rel="icon" href="../../favicon.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<title>需求可測試性重構器 · collaboration-pm｜Jvision 系統 Demo</title>
+<style>
+:root{
+  --blue:#9333ea;
+  --ink:#20162b;
+  --body:#473b52;
+  --muted:#7e7188;
+  --line:#e7dff0;
+  --bg:#f8f6fb;
+  --green:#16a36a;
+  --amber:#e69a13;
+  --red:#dc4c64;
+  --white:#fff;
+  --purple-soft:#f3e8ff;
+  --shadow:0 12px 34px rgba(54,31,72,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-width:0;
+  background:var(--bg);
+  color:var(--body);
+  font-family:Inter,"Noto Sans TC",sans-serif;
+  line-height:1.5;
+}
+button,input,textarea{font:inherit}
+button{color:inherit}
+button:focus-visible,input:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(147,51,234,.24);
+  outline-offset:2px;
+}
+.material-symbols-outlined{
+  font-size:20px;
+  line-height:1;
+  font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24;
+}
+.shell{min-height:100vh;display:grid;grid-template-columns:244px minmax(0,1fr)}
+.sidebar{
+  position:sticky;top:0;height:100vh;padding:22px 16px;
+  background:#251532;color:#f8efff;border-right:1px solid #3b214d;
+  display:flex;flex-direction:column;z-index:10;
+}
+.brand{display:flex;align-items:center;gap:11px;padding:2px 8px 22px}
+.brand-mark{
+  width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
+  background:linear-gradient(145deg,#b65cff,var(--blue));box-shadow:0 8px 22px rgba(147,51,234,.35);
+}
+.brand strong{display:block;color:#fff;font-size:15px}
+.brand small{display:block;color:#beaeca;font-size:11px;margin-top:2px}
+.nav-caption{font-size:11px;color:#9885a7;text-transform:uppercase;letter-spacing:.12em;padding:0 10px 9px}
+.stage-nav{display:grid;gap:6px}
+.nav-btn{
+  width:100%;border:0;background:transparent;color:#cabed2;min-height:50px;
+  border-radius:12px;padding:8px 10px;display:grid;grid-template-columns:28px minmax(0,1fr) 18px;
+  gap:8px;align-items:center;text-align:left;cursor:pointer;
+}
+.nav-btn .num{
+  width:25px;height:25px;border-radius:8px;display:grid;place-items:center;
+  font-size:11px;font-weight:800;background:#3b244a;color:#c9b8d6;
+}
+.nav-btn .nav-copy{min-width:0}
+.nav-btn .nav-copy strong{display:block;font-size:12px;color:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-btn .nav-copy small{display:block;font-size:10px;color:#9885a7;margin-top:2px}
+.nav-btn .arrow{font-size:16px;opacity:0}
+.nav-btn:hover{background:#321d41;color:#fff}
+.nav-btn.active{background:#fff;color:var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.16)}
+.nav-btn.active .num{background:var(--blue);color:#fff}
+.nav-btn.active .nav-copy small{color:var(--blue)}
+.nav-btn.active .arrow{opacity:1;color:var(--blue)}
+.sidebar-foot{margin-top:auto;padding:14px 9px 0;border-top:1px solid #442b55}
+.sidebar-foot .team{display:flex;align-items:center;gap:9px}
+.avatar{
+  width:32px;height:32px;border-radius:50%;display:grid;place-items:center;
+  background:#ead6fa;color:#622096;font-size:11px;font-weight:800;flex:0 0 auto;
+}
+.sidebar-foot strong{font-size:11px;color:#fff;display:block}
+.sidebar-foot small{font-size:10px;color:#9f8cab;display:block}
+.workspace{min-width:0}
+.topbar{
+  height:70px;padding:0 28px;background:rgba(255,255,255,.93);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;gap:18px;position:sticky;top:0;z-index:8;
+  backdrop-filter:blur(12px);
+}
+.crumb{display:flex;align-items:center;gap:8px;min-width:0}
+.crumb .home{color:var(--blue)}
+.crumb span{font-size:12px;color:var(--muted)}
+.crumb strong{font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-actions{display:flex;gap:8px}
+.icon-btn,.ghost-btn,.primary-btn,.soft-btn,.danger-btn{
+  min-height:40px;border-radius:10px;border:1px solid var(--line);background:#fff;
+  padding:8px 13px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  font-size:12px;font-weight:700;cursor:pointer;
+}
+.icon-btn{width:40px;padding:0}
+.primary-btn{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 7px 18px rgba(147,51,234,.22)}
+.soft-btn{background:var(--purple-soft);border-color:#e5c8fb;color:#7122a9}
+.danger-btn{background:#fff2f4;border-color:#ffd1d8;color:var(--red)}
+.content{padding:24px 28px 38px;max-width:1600px;margin:auto}
+.screen{display:none;animation:rise .26s ease}
+.screen.active{display:block}
+@keyframes rise{from{opacity:.35;transform:translateY(5px)}to{opacity:1;transform:none}}
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:20px}
+.eyebrow{display:flex;align-items:center;gap:7px;color:var(--blue);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.page-head h1{font-size:27px;line-height:1.25;margin:5px 0 6px;color:var(--ink)}
+.page-head p{font-size:13px;color:var(--muted);margin:0;max-width:720px}
+.head-meta{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.pill{
+  min-height:30px;padding:5px 10px;border-radius:999px;background:#fff;border:1px solid var(--line);
+  display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;white-space:nowrap;
+}
+.pill.green{background:#edfbf5;border-color:#bcebd5;color:#087948}
+.pill.amber{background:#fff8e8;border-color:#f3dfaa;color:#996408}
+.pill.red{background:#fff1f3;border-color:#f7c8d0;color:#b62e45}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+.card-title{font-size:13px;font-weight:800;color:var(--ink);margin:0}
+.card-sub{font-size:11px;color:var(--muted);margin:3px 0 0}
+.section-title{font-size:12px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px}
+.grid-2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);gap:16px}
+.grid-even{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.split-rail{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}
+.stat-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.stat{padding:15px}
+.stat-label{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.stat-value{font-size:23px;color:var(--ink);font-weight:800;margin-top:7px}
+.stat-delta{font-size:10px;color:var(--green);font-weight:700}
+.progress{height:7px;border-radius:99px;background:#eee9f2;overflow:hidden}
+.progress>span{display:block;height:100%;background:var(--blue);border-radius:inherit}
+.sep{height:1px;background:var(--line)}
+.chip{display:inline-flex;padding:4px 8px;border-radius:7px;background:#f4f1f6;color:#65586e;font-size:10px;font-weight:700}
+.tag-purple{background:var(--purple-soft);color:#7023a8}
+.tag-green{background:#e9f9f1;color:#087849}
+.tag-amber{background:#fff5dc;color:#9a6507}
+.tag-red{background:#fff0f2;color:#bd354c}
+.empty-note{padding:12px;background:#faf8fc;border:1px dashed #d7cae0;border-radius:11px;color:var(--muted);font-size:11px}
+.mobile-stage{display:none}
+
+/* v0 diagnosis */
+.diagnosis-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(290px,.7fr);gap:16px}
+.requirement-editor{padding:0;overflow:hidden}
+.editor-toolbar{padding:14px 17px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
+.file-line{display:flex;align-items:center;gap:9px;min-width:0}
+.file-line strong{color:var(--ink);font-size:13px}
+.file-line small{color:var(--muted);font-size:10px;display:block}
+.editor-body{padding:20px}
+.req-context{background:#faf8fc;border-left:3px solid #c6a4df;padding:12px 14px;font-size:12px;color:#5d5066;margin-bottom:16px}
+.req-copy{font-size:15px;line-height:2.1;color:#382b42;margin:0}
+.mark{
+  border-radius:5px;padding:2px 4px;position:relative;font-weight:600;
+}
+.mark.subjective{background:#ffe8b2;border-bottom:2px solid var(--amber)}
+.mark.missing{background:#ffdfe5;border-bottom:2px solid var(--red)}
+.mark.undefined{background:#edddfb;border-bottom:2px solid var(--blue)}
+.mark.measure{background:#dff6eb;border-bottom:2px solid var(--green)}
+.issue-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:20px}
+.issue-box{border:1px solid var(--line);border-radius:11px;padding:10px;background:#fff}
+.issue-box strong{font-size:18px;color:var(--ink)}
+.issue-box span{font-size:10px;color:var(--muted);display:block}
+.comment-card{padding:15px}
+.comment-card+.comment-card{margin-top:10px}
+.comment-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.comment-user{display:flex;align-items:center;gap:8px}
+.comment-user strong{font-size:11px;color:var(--ink)}
+.comment-card p{font-size:11px;margin:10px 0;color:var(--body)}
+.risk-meter{padding:16px;margin-bottom:12px;background:linear-gradient(135deg,#fff,#fbf5ff)}
+.risk-score{display:flex;justify-content:space-between;align-items:end;margin:10px 0}
+.risk-score strong{font-size:33px;color:var(--red)}
+.legend-list{display:grid;gap:8px;margin-top:13px}
+.legend-item{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+.legend-item b{color:var(--body)}
+
+/* v1 glossary */
+.glossary-board{display:grid;grid-template-columns:250px minmax(0,1fr) 300px;gap:14px}
+.source-panel,.term-panel,.mapping-panel{padding:16px}
+.source-list{display:grid;gap:8px;margin-top:14px}
+.source-item{
+  border:1px solid var(--line);border-radius:11px;padding:11px;display:flex;align-items:center;gap:9px;cursor:pointer;
+}
+.source-item.selected{border-color:#c683f5;background:#faf4ff}
+.source-item strong{font-size:11px;color:var(--ink);display:block}
+.source-item small{font-size:9px;color:var(--muted);display:block}
+.source-icon{width:30px;height:30px;border-radius:9px;background:var(--purple-soft);color:var(--blue);display:grid;place-items:center;flex:0 0 auto}
+.term-table{width:100%;border-collapse:collapse;margin-top:12px}
+.term-table th{text-align:left;font-size:10px;color:var(--muted);padding:9px;border-bottom:1px solid var(--line)}
+.term-table td{font-size:11px;padding:11px 9px;border-bottom:1px solid #f0ebf3;vertical-align:middle}
+.term-table tr:last-child td{border:0}
+.term-table strong{color:var(--ink)}
+.confidence{min-width:70px}
+.confidence small{display:block;text-align:right;color:var(--muted);margin-bottom:3px}
+.map-chain{display:grid;gap:9px;margin-top:13px}
+.map-node{border:1px solid var(--line);border-radius:11px;padding:11px;background:#fff}
+.map-node small{font-size:9px;color:var(--blue);font-weight:800}
+.map-node strong{font-size:11px;color:var(--ink);display:block;margin-top:3px}
+.map-arrow{text-align:center;color:#b294c6;height:14px}
+.conflict{padding:12px;border-radius:11px;background:#fff7e6;border:1px solid #f0dcaa;margin-top:12px}
+.conflict strong{font-size:11px;color:#8d5a05}
+.conflict p{font-size:10px;margin:4px 0 0;color:#755f39}
+
+/* v2 behavior */
+.behavior-canvas{display:grid;grid-template-columns:210px minmax(0,1fr) 270px;gap:14px}
+.palette,.canvas-card,.inspector{padding:15px}
+.block-list{display:grid;gap:8px;margin-top:12px}
+.block{
+  min-height:50px;border:1px solid var(--line);border-radius:11px;padding:10px;
+  display:flex;align-items:center;gap:9px;background:#fff;
+}
+.block .material-symbols-outlined{color:var(--blue)}
+.block strong{font-size:10px;color:var(--ink);display:block}
+.block small{font-size:9px;color:var(--muted);display:block}
+.flow-canvas{margin-top:12px;background:#faf9fb;border:1px dashed #d8cce0;border-radius:13px;padding:16px;min-height:406px}
+.flow-node{position:relative;border:1px solid var(--line);border-radius:12px;background:#fff;padding:11px 13px;max-width:410px;margin:auto;box-shadow:0 5px 16px rgba(39,20,51,.05)}
+.flow-node b{font-size:10px;color:var(--blue);display:block}
+.flow-node strong{font-size:12px;color:var(--ink);display:block;margin:2px 0}
+.flow-node span{font-size:10px;color:var(--muted)}
+.flow-link{width:2px;height:24px;background:#ceb8dc;margin:auto;position:relative}
+.flow-link:after{content:"";position:absolute;bottom:-1px;left:-3px;border:4px solid transparent;border-top-color:#a77cbc}
+.branch-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.branch{border-top:3px solid var(--green)}
+.branch.fail{border-top-color:var(--red)}
+.field{margin-top:12px}
+.field label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bottom:5px}
+.field input,.field textarea{
+  width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;background:#fcfbfd;color:var(--ink);font-size:11px;
+}
+.field textarea{resize:none;min-height:70px}
+.rule-check{display:flex;align-items:center;gap:8px;font-size:10px;margin-top:10px}
+.rule-check input{accent-color:var(--blue)}
+
+/* v3 GWT */
+.gwt-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
+.scenario-stack{display:grid;gap:12px}
+.scenario-card{padding:0;overflow:hidden}
+.scenario-head{padding:12px 15px;display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+.scenario-head strong{font-size:12px;color:var(--ink)}
+.gwt-lines{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.gwt-line{padding:14px;min-height:115px;border-right:1px solid var(--line)}
+.gwt-line:last-child{border:0}
+.keyword{font-size:10px;font-weight:800;color:var(--blue);letter-spacing:.08em}
+.gwt-line p{font-size:11px;color:var(--body);margin:7px 0 0}
+.scenario-foot{padding:9px 14px;background:#faf8fc;display:flex;gap:6px;flex-wrap:wrap}
+.generator{padding:16px;position:sticky;top:91px}
+.type-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:13px}
+.type-option{padding:10px;border:1px solid var(--line);border-radius:10px;text-align:center;font-size:10px;font-weight:700}
+.type-option.active{color:var(--blue);border-color:#c783f5;background:#faf4ff}
+.cover-ring{height:185px;margin-top:8px}
+.gen-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.gen-summary div{background:#faf8fc;border-radius:9px;padding:9px;text-align:center}
+.gen-summary strong{font-size:16px;color:var(--ink);display:block}
+.gen-summary span{font-size:9px;color:var(--muted)}
+
+/* v4 coverage */
+.coverage-top{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr);gap:16px;margin-bottom:16px}
+.heatmap-card,.rule-summary{padding:17px}
+.heatmap{height:286px;width:100%}
+.review-grid{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:16px}
+.matrix{padding:0;overflow:hidden}
+.matrix-head{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}
+.matrix-row{
+  display:grid;grid-template-columns:90px minmax(170px,1fr) repeat(4,68px);
+  align-items:center;min-width:620px;border-bottom:1px solid #f1edf3;
+}
+.matrix-row:last-child{border:0}
+.matrix-row>div{padding:11px;font-size:10px}
+.matrix-label{font-weight:800;color:var(--ink)}
+.dot-check{width:24px;height:24px;margin:auto;border-radius:8px;display:grid;place-items:center;background:#eaf9f2;color:var(--green)}
+.dot-check.miss{background:#fff0f2;color:var(--red)}
+.dot-check.partial{background:#fff6df;color:var(--amber)}
+.review-panel{padding:16px}
+.review-item{padding:11px 0;border-bottom:1px solid var(--line)}
+.review-item:last-child{border:0}
+.review-item strong{font-size:11px;color:var(--ink)}
+.review-item p{font-size:10px;color:var(--muted);margin:4px 0 8px}
+.reviewer{display:flex;align-items:center;gap:7px}
+
+/* v5 publish */
+.release-hero{
+  padding:20px;background:linear-gradient(125deg,#3a174f,#72219e 58%,#9333ea);color:#fff;
+  display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:16px;
+}
+.release-hero h2{font-size:20px;margin:4px 0 5px}
+.release-hero p{font-size:11px;color:#e5d5ed;margin:0}
+.release-score{width:112px;height:112px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;background:conic-gradient(#65e7b3 0 94%,rgba(255,255,255,.16) 94%)}
+.release-score>div{width:88px;height:88px;border-radius:50%;background:#541b70;display:grid;place-items:center;text-align:center}
+.release-score strong{font-size:25px;display:block;line-height:1}
+.release-score span{font-size:9px;color:#d9c4e3}
+.publish-layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:16px}
+.destination-list{padding:16px}
+.destination{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:11px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line)}
+.destination:last-child{border:0}
+.destination-icon{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:var(--purple-soft);color:var(--blue)}
+.destination strong{font-size:11px;color:var(--ink);display:block}
+.destination small{font-size:9px;color:var(--muted);display:block;margin-top:2px}
+.switch{width:38px;height:21px;border-radius:99px;background:#dcd5e1;position:relative}
+.switch:after{content:"";position:absolute;width:15px;height:15px;top:3px;left:3px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #887b91}
+.switch.on{background:var(--blue)}
+.switch.on:after{left:20px}
+.approval{padding:16px}
+.timeline{margin-top:14px}
+.timeline-item{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;padding-bottom:15px;position:relative}
+.timeline-item:before{content:"";position:absolute;left:13px;top:25px;bottom:0;width:1px;background:var(--line)}
+.timeline-item:last-child:before{display:none}
+.timeline-dot{width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#eaf9f2;color:var(--green);z-index:1}
+.timeline-dot.wait{background:#f1edf3;color:#8c7d96}
+.timeline-item strong{font-size:10px;color:var(--ink);display:block}
+.timeline-item small{font-size:9px;color:var(--muted);display:block}
+.audit{margin-top:16px;padding:16px}
+.audit-grid{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));gap:9px;overflow:auto;padding-bottom:4px}
+.audit-step{padding:11px;border:1px solid var(--line);border-radius:10px;background:#fff;min-width:110px}
+.audit-step b{font-size:9px;color:var(--blue)}
+.audit-step strong{font-size:10px;color:var(--ink);display:block;margin:4px 0}
+.audit-step small{font-size:8px;color:var(--muted)}
+
+@media(max-width:1080px){
+  .shell{grid-template-columns:82px minmax(0,1fr)}
+  .sidebar{padding:20px 10px}
+  .brand{padding:2px 11px 20px}
+  .brand-copy,.nav-caption,.nav-copy,.nav-btn .arrow,.sidebar-foot .team>div{display:none}
+  .stage-nav{justify-items:center}
+  .nav-btn{width:50px;display:grid;grid-template-columns:1fr;padding:8px;justify-items:center}
+  .nav-btn .num{width:31px;height:31px}
+  .sidebar-foot{padding:14px 14px 0}
+  .glossary-board{grid-template-columns:210px minmax(0,1fr)}
+  .mapping-panel{grid-column:1/-1}
+  .behavior-canvas{grid-template-columns:180px minmax(0,1fr)}
+  .inspector{grid-column:1/-1}
+}
+@media(max-width:780px){
+  .shell{display:block}
+  .sidebar{
+    position:fixed;top:auto;bottom:0;left:0;right:0;width:auto;height:70px;padding:8px 7px;
+    display:block;border-right:0;border-top:1px solid #402451;
+  }
+  .brand,.nav-caption,.sidebar-foot{display:none}
+  .stage-nav{display:grid;grid-template-columns:repeat(6,1fr);gap:3px}
+  .nav-btn{width:100%;height:53px;min-height:53px;padding:5px;display:grid;grid-template-columns:1fr}
+  .nav-btn .num{width:29px;height:29px;border-radius:9px}
+  .mobile-stage{display:block;font-size:8px;margin-top:1px;white-space:nowrap}
+  .topbar{height:60px;padding:0 16px}
+  .top-actions .ghost-btn{display:none}
+  .content{padding:18px 15px 92px}
+  .page-head{display:block}
+  .page-head h1{font-size:22px}
+  .head-meta{justify-content:flex-start;margin-top:12px}
+  .grid-2,.grid-even,.grid-3,.split-rail,.diagnosis-layout,.glossary-board,
+  .behavior-canvas,.gwt-layout,.coverage-top,.review-grid,.publish-layout{grid-template-columns:1fr}
+  .stat-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .source-panel,.mapping-panel,.inspector{grid-column:auto}
+  .gwt-lines{grid-template-columns:1fr}
+  .gwt-line{border-right:0;border-bottom:1px solid var(--line);min-height:0}
+  .gwt-line:last-child{border:0}
+  .generator{position:static}
+  .release-hero{align-items:flex-start}
+  .release-score{width:88px;height:88px}
+  .release-score>div{width:68px;height:68px}
+  .issue-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:440px){
+  .content{padding-left:12px;padding-right:12px}
+  .topbar{padding:0 12px}
+  .crumb span,.top-actions .icon-btn:first-child{display:none}
+  .page-head h1{font-size:20px}
+  .stat-row{grid-template-columns:1fr 1fr;gap:8px}
+  .stat{padding:12px}
+  .stat-value{font-size:19px}
+  .branch-row{grid-template-columns:1fr}
+  .release-hero{display:block}
+  .release-score{margin-top:15px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" aria-label="流程導覽">
+    <div class="brand">
+      <div class="brand-mark"><span class="material-symbols-outlined">fact_check</span></div>
+      <div class="brand-copy"><strong>Requirement Lab</strong><small>JVision 協作工作台</small></div>
+    </div>
+    <div class="nav-caption">重構流程</div>
+    <nav class="stage-nav">
+      <button class="nav-btn" data-i="0" type="button">
+        <span class="num">01</span><span class="nav-copy"><strong>診斷需求歧義</strong><small>產品經理</small></span>
+        <span class="material-symbols-outlined arrow">chevron_right</span><span class="mobile-stage">診斷</span>
+      </button>
+      <button class="nav-btn" data-i="1" type="button">
+        <span class="num">02</span><span class="nav-copy"><strong>校準領域詞彙</strong><small>系統分析師</small></span>
+        <span class="material-symbols-outlined arrow">chevron_right</span><span class="mobile-stage">詞彙</span>
+      </button>
+      <button class="nav-btn" data-i="2" type="button">
+        <span class="num">03</span><span class="nav-copy"><strong>拆解可驗證行為</strong><small>需求工程師</small></span>
+        <span class="material-symbols-outlined arrow">chevron_right</span><span class="mobile-stage">拆解</span>
+      </button>
+      <button class="nav-btn" data-i="3" type="button">
+        <span class="num">04</span><span class="nav-copy"><strong>生成 GWT 情境</strong><small>測試工程師</small></span>
+        <span class="material-symbols-outlined arrow">chevron_right</span><span class="mobile-stage">生成</span>
+      </button>
+      <button class="nav-btn" data-i="4" type="button">
+        <span class="num">05</span><span class="nav-copy"><strong>審查規則覆蓋</strong><small>開發主管</small></span>
+        <span class="material-symbols-outlined arrow">chevron_right</span><span class="mobile-stage">審查</span>
+      </button>
+      <button class="nav-btn" data-i="5" type="button">
+        <span class="num">06</span><span class="nav-copy"><strong>核准並發布測試</strong><small>產品負責人</small></span>
+        <span class="material-symbols-outlined arrow">chevron_right</span><span class="mobile-stage">發布</span>
+      </button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="team"><div class="avatar">JV</div><div><strong>Platform Engineering</strong><small>6 位成員在線</small></div></div>
+    </div>
+  </aside>
+
+  <main class="workspace">
+    <header class="topbar">
+      <div class="crumb">
+        <span class="material-symbols-outlined home">hub</span><span>需求中心</span>
+        <span class="material-symbols-outlined">chevron_right</span>
+        <strong id="crumbLabel">診斷需求歧義</strong>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" type="button" aria-label="搜尋"><span class="material-symbols-outlined">search</span></button>
+        <button class="icon-btn" type="button" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+        <button class="ghost-btn" type="button"><span class="material-symbols-outlined">history</span>操作紀錄</button>
+      </div>
+    </header>
+
+    <div class="content">
+      <section class="screen" id="v0">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">text_snippet</span>Step 01 · 模糊需求診斷</div>
+            <h1>先找出這條需求「不可測」的原因</h1>
+            <p>選取需求並確認模糊用語、隱含假設與待釐清範圍，建立後續重構的證據基線。</p>
+          </div>
+          <div class="head-meta"><span class="pill amber">風險偏高</span><span class="pill">REQ-001</span></div>
+        </div>
+
+        <div class="stat-row">
+          <div class="card stat"><div class="stat-label">歧義標記 <span class="material-symbols-outlined">warning</span></div><div class="stat-value">8</div><div class="stat-delta">4 類問題</div></div>
+          <div class="card stat"><div class="stat-label">可測試性分數 <span class="material-symbols-outlined">speed</span></div><div class="stat-value">42<span style="font-size:12px"> / 100</span></div><div class="progress"><span style="width:42%;background:var(--red)"></span></div></div>
+          <div class="card stat"><div class="stat-label">待確認假設 <span class="material-symbols-outlined">help</span></div><div class="stat-value">5</div><div class="stat-delta" style="color:var(--amber)">2 項阻擋驗收</div></div>
+          <div class="card stat"><div class="stat-label">關聯來源 <span class="material-symbols-outlined">account_tree</span></div><div class="stat-value">12</div><div class="stat-delta">需求 · 架構 · 程式碼</div></div>
+        </div>
+
+        <div class="diagnosis-layout">
+          <article class="card requirement-editor">
+            <div class="editor-toolbar">
+              <div class="file-line"><span class="material-symbols-outlined" style="color:var(--blue)">description</span><div><strong>會員登入風險控管</strong><small>PRD-24 · 第 3.2 節 · 12 分鐘前同步</small></div></div>
+              <button class="soft-btn" type="button"><span class="material-symbols-outlined">auto_fix_high</span>AI 重新掃描</button>
+            </div>
+            <div class="editor-body">
+              <div class="req-context">目標：降低異常登入造成的帳戶風險，同時避免影響一般會員的登入成功率。</div>
+              <p class="req-copy">
+                系統應在會員登入時<span class="mark subjective">快速判斷</span>是否為
+                <span class="mark undefined">高風險行為</span>。若發現異常，應
+                <span class="mark missing">適時要求額外驗證</span>，並將相關資訊通知管理員。
+                對於<span class="mark undefined">重要客戶</span>，不得造成
+                <span class="mark subjective">明顯延遲</span>。驗證失敗多次時，系統需要
+                <span class="mark measure">暫時限制</span>該帳號。
+              </p>
+              <div class="issue-strip">
+                <div class="issue-box"><strong style="color:var(--amber)">3</strong><span>主觀形容詞</span></div>
+                <div class="issue-box"><strong style="color:var(--red)">2</strong><span>缺少觸發條件</span></div>
+                <div class="issue-box"><strong style="color:var(--blue)">2</strong><span>未定義名詞</span></div>
+                <div class="issue-box"><strong style="color:var(--green)">1</strong><span>不可量測結果</span></div>
+              </div>
+            </div>
+          </article>
+
+          <aside>
+            <div class="card risk-meter">
+              <p class="card-title">歧義風險評估</p>
+              <p class="card-sub">依 12 項可測試性檢查規則</p>
+              <div class="risk-score"><div><strong>高</strong><span class="chip tag-red">需補件</span></div><span style="font-size:11px;color:var(--muted)">58% 未明確</span></div>
+              <div class="progress"><span style="width:58%;background:var(--red)"></span></div>
+              <div class="legend-list">
+                <div class="legend-item"><span>角色與權限</span><b>75%</b></div>
+                <div class="legend-item"><span>觸發條件</span><b>38%</b></div>
+                <div class="legend-item"><span>可觀察結果</span><b>46%</b></div>
+                <div class="legend-item"><span>量化門檻</span><b>29%</b></div>
+              </div>
+            </div>
+            <div class="card comment-card">
+              <div class="comment-head"><div class="comment-user"><div class="avatar">林</div><strong>林芷晴 · 產品經理</strong></div><span class="chip tag-amber">待回覆</span></div>
+              <p>「快速」是否採 API P95 回應時間？建議先用 800ms 作為驗收門檻。</p>
+              <button class="ghost-btn" type="button">查看討論 3</button>
+            </div>
+            <div class="card comment-card">
+              <div class="comment-head"><div class="comment-user"><div class="avatar">AI</div><strong>診斷助理</strong></div><span class="chip tag-purple">建議</span></div>
+              <p>「失敗多次」缺少次數與計算窗格。架構文件中已有 10 分鐘內 5 次的限制規則。</p>
+              <button class="primary-btn" type="button">採用來源規則</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" id="v1">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">dictionary</span>Step 02 · 領域詞彙對齊</div>
+            <h1>讓需求、架構與程式碼說同一種語言</h1>
+            <p>對照既有規格與程式模型，統一角色、狀態、事件及業務名詞，消除同義詞與衝突定義。</p>
+          </div>
+          <div class="head-meta"><span class="pill green">18 / 21 已對齊</span><button class="primary-btn" type="button">確認詞彙表</button></div>
+        </div>
+
+        <div class="glossary-board">
+          <aside class="card source-panel">
+            <p class="card-title">證據來源</p><p class="card-sub">選擇要交叉比對的內容</p>
+            <div class="source-list">
+              <div class="source-item selected"><div class="source-icon"><span class="material-symbols-outlined">article</span></div><div><strong>需求規格 PRD-24</strong><small>8 個相關詞彙</small></div></div>
+              <div class="source-item"><div class="source-icon"><span class="material-symbols-outlined">schema</span></div><div><strong>登入領域模型</strong><small>11 個類別與事件</small></div></div>
+              <div class="source-item"><div class="source-icon"><span class="material-symbols-outlined">code</span></div><div><strong>auth-risk-service</strong><small>版本 v2.8.4</small></div></div>
+              <div class="source-item"><div class="source-icon"><span class="material-symbols-outlined">menu_book</span></div><div><strong>安全政策 KB-109</strong><small>3 條有效規則</small></div></div>
+            </div>
+            <div class="sep" style="margin:16px 0"></div>
+            <p class="section-title">來源健康度</p>
+            <div class="legend-list">
+              <div class="legend-item"><span>更新於 30 天內</span><b>3 / 4</b></div>
+              <div class="legend-item"><span>具負責人</span><b>4 / 4</b></div>
+              <div class="legend-item"><span>可追溯版本</span><b>4 / 4</b></div>
+            </div>
+          </aside>
+
+          <article class="card term-panel">
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+              <div><p class="card-title">候選領域詞彙</p><p class="card-sub">AI 已依語意與程式模型建立映射</p></div>
+              <span class="pill"><span class="material-symbols-outlined">filter_list</span>全部類型</span>
+            </div>
+            <div style="overflow:auto">
+              <table class="term-table">
+                <thead><tr><th>需求用語</th><th>標準詞彙</th><th>類型</th><th>信心</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>重要客戶</strong></td><td>高價值會員</td><td><span class="chip">角色</span></td><td class="confidence"><small>96%</small><div class="progress"><span style="width:96%"></span></div></td></tr>
+                  <tr><td><strong>額外驗證</strong></td><td>步進式驗證</td><td><span class="chip tag-purple">事件</span></td><td class="confidence"><small>92%</small><div class="progress"><span style="width:92%"></span></div></td></tr>
+                  <tr><td><strong>高風險行為</strong></td><td>風險分數 ≥ 70</td><td><span class="chip tag-amber">規則</span></td><td class="confidence"><small>88%</small><div class="progress"><span style="width:88%"></span></div></td></tr>
+                  <tr><td><strong>暫時限制</strong></td><td>帳號風險鎖定</td><td><span class="chip tag-red">狀態</span></td><td class="confidence"><small>83%</small><div class="progress"><span style="width:83%"></span></div></td></tr>
+                  <tr><td><strong>異常登入</strong></td><td>LoginRiskDetected</td><td><span class="chip tag-purple">事件</span></td><td class="confidence"><small>78%</small><div class="progress"><span style="width:78%"></span></div></td></tr>
+                  <tr><td><strong>管理員</strong></td><td>安全營運人員</td><td><span class="chip">角色</span></td><td class="confidence"><small>64%</small><div class="progress"><span style="width:64%;background:var(--amber)"></span></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <aside class="card mapping-panel">
+            <p class="card-title">「高風險行為」映射</p><p class="card-sub">選取詞彙的跨來源追溯鏈</p>
+            <div class="map-chain">
+              <div class="map-node"><small>需求 · PRD-24</small><strong>高風險行為</strong></div>
+              <div class="map-arrow"><span class="material-symbols-outlined">south</span></div>
+              <div class="map-node"><small>架構 · RiskDecision</small><strong>riskLevel = HIGH</strong></div>
+              <div class="map-arrow"><span class="material-symbols-outlined">south</span></div>
+              <div class="map-node"><small>程式碼 · RiskPolicy</small><strong>riskScore &gt;= 70</strong></div>
+            </div>
+            <div class="conflict"><strong>偵測到門檻衝突</strong><p>安全政策 KB-109 仍記載風險分數 ≥ 75，需由系統分析師選定有效版本。</p></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+              <button class="ghost-btn" type="button">標記例外</button><button class="primary-btn" type="button">採用 70</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" id="v2">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">schema</span>Step 03 · 行為條件拆解</div>
+            <h1>把一句需求拆成可觀察的行為鏈</h1>
+            <p>定義前置條件、操作觸發、規則分支與可觀察結果，讓每個節點都能被驗證。</p>
+          </div>
+          <div class="head-meta"><span class="pill">自動儲存完成</span><button class="primary-btn" type="button">驗證行為圖</button></div>
+        </div>
+
+        <div class="behavior-canvas">
+          <aside class="card palette">
+            <p class="card-title">行為元件</p><p class="card-sub">拖曳至中央工作區</p>
+            <div class="block-list">
+              <div class="block"><span class="material-symbols-outlined">flag</span><div><strong>前置狀態</strong><small>已存在的可驗證條件</small></div></div>
+              <div class="block"><span class="material-symbols-outlined">bolt</span><div><strong>觸發事件</strong><small>使用者或系統操作</small></div></div>
+              <div class="block"><span class="material-symbols-outlined">alt_route</span><div><strong>規則分支</strong><small>明確門檻與判斷</small></div></div>
+              <div class="block"><span class="material-symbols-outlined">visibility</span><div><strong>可觀察結果</strong><small>介面、資料或事件</small></div></div>
+              <div class="block"><span class="material-symbols-outlined">error</span><div><strong>失敗路徑</strong><small>錯誤與回復行為</small></div></div>
+            </div>
+            <div class="empty-note" style="margin-top:14px">目前行為鏈包含 1 個分支、2 個結果；仍缺少稽核事件的驗證條件。</div>
+          </aside>
+
+          <article class="card canvas-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+              <div><p class="card-title">風險登入行為圖</p><p class="card-sub">版本 B-03 · 需求工程師 王廷宇</p></div>
+              <span class="pill green">結構有效</span>
+            </div>
+            <div class="flow-canvas">
+              <div class="flow-node"><b>GIVEN · 前置狀態</b><strong>會員帳號為啟用狀態</strong><span>且最近 10 分鐘內登入失敗次數少於 5 次</span></div>
+              <div class="flow-link"></div>
+              <div class="flow-node"><b>WHEN · 觸發事件</b><strong>會員提交有效帳密登入</strong><span>風險引擎於 P95 800ms 內回傳分數</span></div>
+              <div class="flow-link"></div>
+              <div class="flow-node"><b>RULE · 規則分支</b><strong>風險分數是否 ≥ 70？</strong><span>依 RiskPolicy v2.8.4 判定</span></div>
+              <div class="flow-link"></div>
+              <div class="branch-row">
+                <div class="flow-node branch"><b>NO · 一般路徑</b><strong>建立登入工作階段</strong><span>導向會員首頁並記錄成功事件</span></div>
+                <div class="flow-node branch fail"><b>YES · 高風險路徑</b><strong>要求步進式驗證</strong><span>不得在驗證前建立完整權限工作階段</span></div>
+              </div>
+            </div>
+          </article>
+
+          <aside class="card inspector">
+            <p class="card-title">節點檢查器</p><p class="card-sub">已選取：高風險規則分支</p>
+            <div class="field"><label for="ruleTitle">規則名稱</label><input id="ruleTitle" value="風險分數門檻判定"></div>
+            <div class="field"><label for="expression">可執行條件</label><input id="expression" value="riskScore >= 70"></div>
+            <div class="field"><label for="ruleSource">證據來源</label><input id="ruleSource" value="RiskPolicy v2.8.4 / line 82"></div>
+            <div class="field"><label for="observable">可觀察結果</label><textarea id="observable">回傳 STEP_UP_REQUIRED，顯示驗證選項，且不簽發完整權限 token。</textarea></div>
+            <label class="rule-check"><input type="checkbox" checked>包含等於邊界值 70 的案例</label>
+            <label class="rule-check"><input type="checkbox" checked>已定義逾時與服務失敗路徑</label>
+            <label class="rule-check"><input type="checkbox">已定義稽核事件欄位</label>
+            <button class="primary-btn" style="width:100%;margin-top:15px" type="button">套用節點變更</button>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" id="v3">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">fact_check</span>Step 04 · GWT 情境生成</div>
+            <h1>從行為圖生成完整驗收情境</h1>
+            <p>產生正常、邊界、錯誤及權限相關的 Given-When-Then 草案，並保留規則來源。</p>
+          </div>
+          <div class="head-meta"><span class="pill green">12 個情境已生成</span><button class="primary-btn" type="button"><span class="material-symbols-outlined">auto_awesome</span>重新生成</button></div>
+        </div>
+
+        <div class="gwt-layout">
+          <div class="scenario-stack">
+            <article class="card scenario-card">
+              <div class="scenario-head"><div><span class="chip tag-green">正常</span> <strong>低風險會員成功登入</strong></div><span class="pill green">可自動化</span></div>
+              <div class="gwt-lines">
+                <div class="gwt-line"><span class="keyword">GIVEN</span><p>啟用中的會員帳號，最近 10 分鐘登入失敗少於 5 次，風險分數為 35。</p></div>
+                <div class="gwt-line"><span class="keyword">WHEN</span><p>會員提交正確帳號密碼，且風險服務於 800ms 內回應。</p></div>
+                <div class="gwt-line"><span class="keyword">THEN</span><p>建立完整權限工作階段、導向首頁，並寫入 LoginSucceeded 事件。</p></div>
+              </div>
+              <div class="scenario-foot"><span class="chip">RULE-01</span><span class="chip">AUTH-API</span><span class="chip">P0 驗收</span></div>
+            </article>
+
+            <article class="card scenario-card">
+              <div class="scenario-head"><div><span class="chip tag-amber">邊界</span> <strong>風險分數正好等於門檻</strong></div><span class="pill green">可自動化</span></div>
+              <div class="gwt-lines">
+                <div class="gwt-line"><span class="keyword">GIVEN</span><p>會員帳號為啟用狀態，風險引擎計算所得分數正好為 70。</p></div>
+                <div class="gwt-line"><span class="keyword">WHEN</span><p>會員以新裝置提交有效帳密登入。</p></div>
+                <div class="gwt-line"><span class="keyword">THEN</span><p>回傳 STEP_UP_REQUIRED，不簽發完整 token，並顯示兩種驗證選項。</p></div>
+              </div>
+              <div class="scenario-foot"><span class="chip">RULE-03</span><span class="chip tag-amber">門檻值</span><span class="chip">Security</span></div>
+            </article>
+
+            <article class="card scenario-card">
+              <div class="scenario-head"><div><span class="chip tag-red">錯誤</span> <strong>風險服務逾時採安全降級</strong></div><span class="pill amber">需 Mock</span></div>
+              <div class="gwt-lines">
+                <div class="gwt-line"><span class="keyword">GIVEN</span><p>風險服務已超過 800ms 未回應，會員帳密驗證成功。</p></div>
+                <div class="gwt-line"><span class="keyword">WHEN</span><p>登入協調器收到 RiskTimeout 錯誤。</p></div>
+                <div class="gwt-line"><span class="keyword">THEN</span><p>要求步進式驗證、記錄降級原因，且不可略過風險控管直接登入。</p></div>
+              </div>
+              <div class="scenario-foot"><span class="chip">NFR-08</span><span class="chip tag-red">失敗路徑</span><span class="chip">Resilience</span></div>
+            </article>
+
+            <article class="card scenario-card">
+              <div class="scenario-head"><div><span class="chip tag-purple">權限</span> <strong>未完成驗證不得存取敏感功能</strong></div><span class="pill green">可自動化</span></div>
+              <div class="gwt-lines">
+                <div class="gwt-line"><span class="keyword">GIVEN</span><p>高風險會員僅持有 step-up pending 的受限工作階段。</p></div>
+                <div class="gwt-line"><span class="keyword">WHEN</span><p>會員請求變更收款帳戶或下載個人資料。</p></div>
+                <div class="gwt-line"><span class="keyword">THEN</span><p>回傳 403 與 VERIFICATION_REQUIRED，且不洩露敏感資料內容。</p></div>
+              </div>
+              <div class="scenario-foot"><span class="chip">ACL-12</span><span class="chip tag-purple">授權</span><span class="chip">P0 驗收</span></div>
+            </article>
+          </div>
+
+          <aside class="card generator">
+            <p class="card-title">情境生成器</p><p class="card-sub">依風險與測試策略調整組合</p>
+            <div class="type-grid">
+              <div class="type-option active">正常 3</div><div class="type-option active">邊界 4</div>
+              <div class="type-option active">錯誤 3</div><div class="type-option active">權限 2</div>
+            </div>
+            <div id="scenarioChart" class="cover-ring" aria-label="情境類型分布圖"></div>
+            <div class="gen-summary">
+              <div><strong>12</strong><span>總情境</span></div>
+              <div><strong>9</strong><span>可自動化</span></div>
+              <div><strong>3</strong><span>需測試資料</span></div>
+            </div>
+            <div class="sep" style="margin:14px 0"></div>
+            <p class="section-title">生成品質</p>
+            <div class="legend-list">
+              <div class="legend-item"><span>Given 可建立</span><b>100%</b></div>
+              <div class="legend-item"><span>When 單一觸發</span><b>92%</b></div>
+              <div class="legend-item"><span>Then 可觀察</span><b>100%</b></div>
+              <div class="legend-item"><span>來源可追溯</span><b>100%</b></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" id="v4">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">rule_folder</span>Step 05 · 驗收覆蓋檢查</div>
+            <h1>確認每條規則都有對應的驗收證據</h1>
+            <p>檢查業務規則、例外與非功能限制的情境覆蓋，重要失敗路徑不可留白。</p>
+          </div>
+          <div class="head-meta"><span class="pill amber">2 項待補件</span><button class="soft-btn" type="button">要求補件</button><button class="primary-btn" type="button">通過審查</button></div>
+        </div>
+
+        <div class="coverage-top">
+          <article class="card heatmap-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+              <div><p class="card-title">規則 × 情境覆蓋熱圖</p><p class="card-sub">深色代表同類規則具更多驗收情境</p></div>
+              <span class="pill">更新於 14:32</span>
+            </div>
+            <div id="coverageChart" class="heatmap" aria-label="規則覆蓋熱圖"></div>
+          </article>
+          <aside class="card rule-summary">
+            <p class="card-title">審查摘要</p><p class="card-sub">開發主管檢核結果</p>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin:15px 0">
+              <div class="issue-box"><strong style="color:var(--green)">94%</strong><span>整體覆蓋率</span></div>
+              <div class="issue-box"><strong>18</strong><span>規則總數</span></div>
+              <div class="issue-box"><strong style="color:var(--red)">1</strong><span>缺少情境</span></div>
+              <div class="issue-box"><strong style="color:var(--amber)">1</strong><span>部分覆蓋</span></div>
+            </div>
+            <p class="section-title">品質閘門</p>
+            <div class="legend-list">
+              <div class="legend-item"><span>P0 業務規則</span><b style="color:var(--green)">100%</b></div>
+              <div class="legend-item"><span>安全與權限</span><b style="color:var(--green)">100%</b></div>
+              <div class="legend-item"><span>錯誤回復</span><b style="color:var(--amber)">83%</b></div>
+              <div class="legend-item"><span>效能限制</span><b style="color:var(--red)">75%</b></div>
+            </div>
+            <div class="empty-note" style="margin-top:14px">若審查未通過，將退回補件並通知開發主管與情境負責人。</div>
+          </aside>
+        </div>
+
+        <div class="review-grid">
+          <article class="card matrix">
+            <div class="matrix-head"><div><p class="card-title">規則覆蓋矩陣</p><p class="card-sub">逐條檢視必要情境類型</p></div><span class="chip">顯示 5 / 18</span></div>
+            <div style="overflow:auto">
+              <div class="matrix-row" style="background:#faf8fc"><div class="matrix-label">規則</div><div>驗收敘述</div><div>正常</div><div>邊界</div><div>錯誤</div><div>權限</div></div>
+              <div class="matrix-row"><div class="matrix-label">RULE-01</div><div>低風險登入建立完整工作階段</div><div><span class="dot-check">✓</span></div><div><span class="dot-check">✓</span></div><div><span class="dot-check">✓</span></div><div><span class="dot-check partial">—</span></div></div>
+              <div class="matrix-row"><div class="matrix-label">RULE-02</div><div>高風險登入要求步進式驗證</div><div><span class="dot-check">✓</span></div><div><span class="dot-check">✓</span></div><div><span class="dot-check">✓</span></div><div><span class="dot-check">✓</span></div></div>
+              <div class="matrix-row"><div class="matrix-label">RULE-03</div><div>風險門檻包含分數 70</div><div><span class="dot-check">✓</span></div><div><span class="dot-check">✓</span></div><div><span class="dot-check partial">—</span></div><div><span class="dot-check partial">—</span></div></div>
+              <div class="matrix-row"><div class="matrix-label">NFR-08</div><div>風險判斷 P95 不超過 800ms</div><div><span class="dot-check">✓</span></div><div><span class="dot-check partial">!</span></div><div><span class="dot-check miss">×</span></div><div><span class="dot-check partial">—</span></div></div>
+              <div class="matrix-row"><div class="matrix-label">ACL-12</div><div>受限工作階段禁止敏感操作</div><div><span class="dot-check">✓</span></div><div><span class="dot-check">✓</span></div><div><span class="dot-check">✓</span></div><div><span class="dot-check">✓</span></div></div>
+            </div>
+          </article>
+
+          <aside class="card review-panel">
+            <p class="card-title">審查意見</p><p class="card-sub">需處理後才能核准發布</p>
+            <div class="review-item">
+              <div class="reviewer"><div class="avatar">陳</div><div><strong>陳柏謙 · 開發主管</strong><span class="chip tag-red">阻擋</span></div></div>
+              <p>NFR-08 缺少風險服務回應超過 2 秒後的斷路器行為，需補上可觀察事件與復原條件。</p>
+              <button class="danger-btn" type="button">指派需求工程師</button>
+            </div>
+            <div class="review-item">
+              <div class="reviewer"><div class="avatar">周</div><div><strong>周昕儀 · 資安</strong><span class="chip tag-amber">建議</span></div></div>
+              <p>建議增加受限 token 過期後重送敏感請求的權限情境。</p>
+              <button class="ghost-btn" type="button">轉為待辦</button>
+            </div>
+            <div class="review-item">
+              <div class="reviewer"><div class="avatar">AI</div><div><strong>覆蓋檢查器</strong><span class="chip tag-green">通過</span></div></div>
+              <p>RULE-01 至 RULE-03 均可追溯至需求、架構與程式碼證據。</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" id="v5">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">playlist_add_check</span>Step 06 · 測試任務發布</div>
+            <h1>核准驗收準則並同步到交付鏈</h1>
+            <p>將核准情境同步至需求票、測試案例與 CI 自動化待辦，保存可追溯的操作紀錄。</p>
+          </div>
+          <div class="head-meta"><span class="pill green">所有閘門通過</span><button class="primary-btn" type="button"><span class="material-symbols-outlined">rocket_launch</span>核准並發布</button></div>
+        </div>
+
+        <div class="card release-hero">
+          <div>
+            <span class="chip" style="background:rgba(255,255,255,.16);color:#fff">發布候選 RC-2026.08.22-03</span>
+            <h2>會員登入風險控管 · 驗收情境套件</h2>
+            <p>12 個 GWT 情境 · 18 條規則 · 9 個自動化任務 · 3 個人工驗收案例</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+              <span class="pill green">✓ 規則覆蓋</span><span class="pill green">✓ 權限審查</span><span class="pill green">✓ 來源可追溯</span>
+            </div>
+          </div>
+          <div class="release-score"><div><strong>94</strong><span>發布信心</span></div></div>
+        </div>
+
+        <div class="publish-layout">
+          <article class="card destination-list">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+              <div><p class="card-title">發布目的地</p><p class="card-sub">核准後建立連結並回寫同步編號</p></div>
+              <span class="pill">4 個整合</span>
+            </div>
+            <div class="destination">
+              <div class="destination-icon"><span class="material-symbols-outlined">confirmation_number</span></div>
+              <div><strong>需求票 · REQ-001</strong><small>附加 12 條驗收準則與規則追溯連結</small></div><div class="switch on" aria-label="已啟用"></div>
+            </div>
+            <div class="destination">
+              <div class="destination-icon"><span class="material-symbols-outlined">checklist</span></div>
+              <div><strong>測試案例庫 · Authentication</strong><small>建立 3 個套件、12 個版本化測試案例</small></div><div class="switch on" aria-label="已啟用"></div>
+            </div>
+            <div class="destination">
+              <div class="destination-icon"><span class="material-symbols-outlined">terminal</span></div>
+              <div><strong>CI 自動化待辦 · auth-risk-service</strong><small>建立 9 個 BDD 自動化實作任務</small></div><div class="switch on" aria-label="已啟用"></div>
+            </div>
+            <div class="destination">
+              <div class="destination-icon"><span class="material-symbols-outlined">notifications_active</span></div>
+              <div><strong>團隊通知 · #release-quality</strong><small>通知產品、開發、測試與資安審查人員</small></div><div class="switch on" aria-label="已啟用"></div>
+            </div>
+            <div class="empty-note" style="margin-top:13px">發布後保留需求版本、GWT 快照、核准者與同步結果；任何後續變更都會產生新版本。</div>
+          </article>
+
+          <aside class="card approval">
+            <p class="card-title">核准路徑</p><p class="card-sub">產品負責人完成最終簽核</p>
+            <div class="timeline">
+              <div class="timeline-item"><div class="timeline-dot"><span class="material-symbols-outlined">check</span></div><div><strong>產品經理 · 林芷晴</strong><small>需求內容確認 · 今日 10:24</small></div></div>
+              <div class="timeline-item"><div class="timeline-dot"><span class="material-symbols-outlined">check</span></div><div><strong>系統分析師 · 李俊哲</strong><small>詞彙與模型確認 · 今日 11:08</small></div></div>
+              <div class="timeline-item"><div class="timeline-dot"><span class="material-symbols-outlined">check</span></div><div><strong>開發主管 · 陳柏謙</strong><small>規則覆蓋通過 · 今日 14:32</small></div></div>
+              <div class="timeline-item"><div class="timeline-dot wait"><span class="material-symbols-outlined">pending</span></div><div><strong>產品負責人 · 張書豪</strong><small>等待最終核准</small></div></div>
+            </div>
+            <div class="sep"></div>
+            <div class="field"><label for="releaseNote">發布備註</label><textarea id="releaseNote">已確認風險門檻、逾時降級與受限工作階段行為，核准同步至 Sprint 18。</textarea></div>
+            <label class="rule-check"><input type="checkbox" checked>我已審閱驗收準則與例外路徑</label>
+            <button class="primary-btn" style="width:100%;margin-top:14px" type="button">核准並發布測試</button>
+          </aside>
+        </div>
+
+        <article class="card audit">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px">
+            <div><p class="card-title">完整操作軌跡</p><p class="card-sub">需求可測試性重構器處理結果與可追溯紀錄</p></div>
+            <button class="ghost-btn" type="button"><span class="material-symbols-outlined">download</span>匯出</button>
+          </div>
+          <div class="audit-grid">
+            <div class="audit-step"><b>REQ-001</b><strong>診斷需求歧義</strong><small>產品經理 · 已完成</small></div>
+            <div class="audit-step"><b>REQ-002</b><strong>校準領域詞彙</strong><small>系統分析師 · 已完成</small></div>
+            <div class="audit-step"><b>REQ-003</b><strong>拆解可驗證行為</strong><small>需求工程師 · 已完成</small></div>
+            <div class="audit-step"><b>REQ-004</b><strong>生成 GWT 情境</strong><small>測試工程師 · 已完成</small></div>
+            <div class="audit-step"><b>REQ-005</b><strong>審查規則覆蓋</strong><small>開發主管 · 已完成</small></div>
+            <div class="audit-step"><b>REQ-006</b><strong>核准並發布測試</strong><small>產品負責人 · 待核准</small></div>
+          </div>
+        </article>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const stageLabels = [
+    "診斷需求歧義",
+    "校準領域詞彙",
+    "拆解可驗證行為",
+    "生成 GWT 情境",
+    "審查規則覆蓋",
+    "核准並發布測試"
+  ];
+  const navButtons = Array.from(document.querySelectorAll("[data-i]"));
+  const screens = Array.from(document.querySelectorAll(".screen"));
+  const chartInstances = {};
+
+  function buildScenarioChart(){
+    const chartElement = document.getElementById("scenarioChart");
+    if (!chartElement || chartElement.clientWidth === 0 || chartInstances.scenario) return;
+    chartInstances.scenario = echarts.init(chartElement);
+    chartInstances.scenario.setOption({
+      animationDuration:500,
+      tooltip:{trigger:"item"},
+      series:[{
+        type:"pie",
+        radius:["58%","78%"],
+        center:["50%","50%"],
+        avoidLabelOverlap:true,
+        itemStyle:{borderColor:"#fff",borderWidth:3,borderRadius:5},
+        label:{show:false},
+        data:[
+          {value:3,name:"正常",itemStyle:{color:"#16a36a"}},
+          {value:4,name:"邊界",itemStyle:{color:"#e69a13"}},
+          {value:3,name:"錯誤",itemStyle:{color:"#dc4c64"}},
+          {value:2,name:"權限",itemStyle:{color:"#9333ea"}}
+        ]
+      }],
+      graphic:[
+        {type:"text",left:"center",top:"41%",style:{text:"12",fill:"#20162b",font:"800 25px Inter"}},
+        {type:"text",left:"center",top:"57%",style:{text:"情境",fill:"#7e7188",font:"11px Noto Sans TC"}}
+      ]
+    });
+  }
+
+  function buildCoverageChart(){
+    const chartElement = document.getElementById("coverageChart");
+    if (!chartElement || chartElement.clientWidth === 0 || chartInstances.coverage) return;
+    const xLabels = ["正常","邊界","錯誤","權限"];
+    const yLabels = ["RULE-01","RULE-02","RULE-03","NFR-08","ACL-12"];
+    const matrixValues = [
+      [0,0,3],[1,0,2],[2,0,2],[3,0,0],
+      [0,1,3],[1,1,3],[2,1,2],[3,1,2],
+      [0,2,2],[1,2,3],[2,2,0],[3,2,0],
+      [0,3,2],[1,3,1],[2,3,0],[3,3,0],
+      [0,4,2],[1,4,2],[2,4,2],[3,4,3]
+    ];
+    chartInstances.coverage = echarts.init(chartElement);
+    chartInstances.coverage.setOption({
+      animationDuration:500,
+      grid:{left:74,right:18,top:24,bottom:38},
+      tooltip:{position:"top",formatter:function(params){return yLabels[params.value[1]]+" · "+xLabels[params.value[0]]+"： "+params.value[2]+" 個情境";}},
+      xAxis:{type:"category",data:xLabels,splitArea:{show:true},axisLine:{lineStyle:{color:"#e7dff0"}},axisLabel:{color:"#7e7188",fontSize:10}},
+      yAxis:{type:"category",data:yLabels,splitArea:{show:true},axisLine:{lineStyle:{color:"#e7dff0"}},axisLabel:{color:"#65586e",fontSize:10}},
+      visualMap:{min:0,max:3,show:false,inRange:{color:["#fff0f2","#f2e5fb","#c783f5","#7e22ce"]}},
+      series:[{type:"heatmap",data:matrixValues,label:{show:true,color:"#392743",fontSize:10},itemStyle:{borderColor:"#fff",borderWidth:3,borderRadius:6},emphasis:{itemStyle:{shadowBlur:10,shadowColor:"rgba(147,51,234,.3)"}}}]
+    });
+  }
+
+  function initializeChart(indexValue){
+    if (indexValue === 3) buildScenarioChart();
+    if (indexValue === 4) buildCoverageChart();
+  }
+
+  function show(indexValue, updateHash){
+    let safeIndex = Number(indexValue);
+    if (!Number.isInteger(safeIndex) || safeIndex < 0 || safeIndex > 5) safeIndex = 0;
+    screens.forEach(function(screenElement, screenIndex){
+      screenElement.classList.toggle("active", screenIndex === safeIndex);
+    });
+    navButtons.forEach(function(buttonElement, buttonIndex){
+      const selected = buttonIndex === safeIndex;
+      buttonElement.classList.toggle("active", selected);
+      buttonElement.setAttribute("aria-current", selected ? "step" : "false");
+    });
+    document.getElementById("crumbLabel").textContent = stageLabels[safeIndex];
+    document.title = stageLabels[safeIndex] + " · 需求可測試性重構器｜Jvision 系統 Demo";
+    if (updateHash && window.location.hash !== "#go=" + safeIndex) {
+      window.location.hash = "go=" + safeIndex;
+    }
+    requestAnimationFrame(function(){
+      initializeChart(safeIndex);
+      Object.keys(chartInstances).forEach(function(chartKey){
+        chartInstances[chartKey].resize();
+      });
+    });
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+
+  function readHash(){
+    const hashMatch = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+    return hashMatch ? Number(hashMatch[1]) : 0;
+  }
+
+  navButtons.forEach(function(buttonElement){
+    buttonElement.addEventListener("click",function(){
+      show(Number(buttonElement.dataset.i),true);
+    });
+  });
+
+  window.addEventListener("hashchange",function(){
+    show(readHash(),false);
+  });
+
+  window.addEventListener("resize",function(){
+    Object.keys(chartInstances).forEach(function(chartKey){
+      chartInstances[chartKey].resize();
+    });
+  });
+
+  show(readHash(),false);
+})();
+</script>
+</body>
+</html>

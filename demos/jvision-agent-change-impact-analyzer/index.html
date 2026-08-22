@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agent 變更影響分析器 · it-ops｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --blue:#9333ea;--ink:#21142d;--body:#43384d;--muted:#766d80;--line:#e8dfed;
+  --bg:#f7f4fa;--green:#15966b;--amber:#c7780b;--red:#d4455d;--white:#fff;
+  --violet-soft:#f4eafd;--green-soft:#e9f8f2;--amber-soft:#fff5df;--red-soft:#fff0f2;
+  --shadow:0 10px 32px rgba(57,30,74,.08);--radius:20px
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--body);font-family:Inter,"Noto Sans TC",sans-serif;line-height:1.55}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(147,51,234,.24);outline-offset:2px}
+.shell{min-height:100vh;display:grid;grid-template-columns:250px minmax(0,1fr)}
+.side{position:sticky;top:0;height:100vh;padding:25px 18px;border-right:1px solid var(--line);background:rgba(255,255,255,.94);z-index:10}
+.brand{display:flex;align-items:center;gap:11px;padding:0 8px 24px}
+.brand-mark{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,#a855f7,var(--blue));box-shadow:0 8px 22px rgba(147,51,234,.25)}
+.brand-mark .material-symbols-outlined{font-size:24px}
+.brand strong{display:block;color:var(--ink);font-size:15px}
+.brand span{display:block;color:var(--muted);font-size:11px}
+.nav-label{padding:0 10px 8px;color:#9b91a3;font-size:10px;font-weight:800;letter-spacing:.13em}
+.nav{display:grid;gap:7px}
+.nav button{width:100%;min-height:52px;border:0;border-radius:14px;padding:8px 11px;display:flex;align-items:center;gap:11px;text-align:left;color:var(--muted);background:transparent}
+.nav button:hover{background:#faf7fc;color:var(--ink)}
+.nav button.active{color:var(--blue);background:var(--violet-soft);font-weight:700}
+.nav button .material-symbols-outlined{font-size:21px}
+.nav-no{margin-left:auto;font-size:10px;opacity:.6}
+.side-foot{position:absolute;left:18px;right:18px;bottom:20px;padding:14px;border:1px solid var(--line);border-radius:15px;background:#fbf9fc;font-size:11px;color:var(--muted)}
+.online{display:flex;align-items:center;gap:7px;color:var(--green);font-weight:700;margin-bottom:3px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(21,150,107,.1)}
+.main{min-width:0;padding:26px clamp(18px,3vw,44px) 50px}
+.appbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:23px}
+.crumb{font-size:12px;color:var(--muted)}
+.crumb b{color:var(--ink)}
+.toolbar{display:flex;gap:9px;align-items:center}
+.icon-btn,.ghost-btn,.primary-btn{min-height:42px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--body);display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 14px;font-weight:700;font-size:12px}
+.icon-btn{width:42px;padding:0}
+.primary-btn{border-color:var(--blue);background:var(--blue);color:#fff;box-shadow:0 8px 18px rgba(147,51,234,.2)}
+.primary-btn:hover{filter:brightness(.96)}
+.view{display:none;animation:enter .26s ease}
+.view.active{display:block}
+@keyframes enter{from{opacity:.2;transform:translateY(8px)}to{opacity:1;transform:none}}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:19px}
+.eyebrow{display:flex;align-items:center;gap:7px;color:var(--blue);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.page-head h1{margin:5px 0 4px;color:var(--ink);font-size:clamp(25px,3vw,37px);line-height:1.18;letter-spacing:-.035em}
+.page-head p{max-width:770px;margin:0;color:var(--muted);font-size:13px}
+.pill,.badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:700;white-space:nowrap}
+.pill{color:var(--blue);background:var(--violet-soft)}
+.badge.high,.badge.red{color:var(--red);background:var(--red-soft)}
+.badge.medium,.badge.amber{color:var(--amber);background:var(--amber-soft)}
+.badge.green{color:var(--green);background:var(--green-soft)}
+.badge.gray{color:var(--muted);background:#f0edf2}
+.card{min-width:0;border:1px solid var(--line);border-radius:var(--radius);background:#fff;box-shadow:var(--shadow)}
+.card-pad{padding:20px}
+.card-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
+.card-title h2,.card-title h3{margin:0;color:var(--ink);font-size:15px}
+.card-title small{color:var(--muted)}
+.grid-2{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.75fr);gap:16px}
+.grid-equal{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.metric-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.metric{padding:16px;border:1px solid var(--line);border-radius:17px;background:#fff}
+.metric .label{color:var(--muted);font-size:11px}
+.metric strong{display:block;margin:5px 0 1px;color:var(--ink);font-size:24px;letter-spacing:-.04em}
+.metric small{color:var(--green);font-size:10px;font-weight:700}
+.progress{height:7px;border-radius:8px;background:#eee9f1;overflow:hidden}
+.progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--blue),#c084fc)}
+.muted{color:var(--muted)}
+.material-symbols-outlined{font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24}
+
+/* v0 change intake */
+.change-hero{padding:22px;background:linear-gradient(125deg,#2a1737 0%,#422057 58%,#5e2480 100%);color:#fff;overflow:hidden;position:relative}
+.change-hero:after{content:"";position:absolute;width:270px;height:270px;border-radius:50%;right:-80px;top:-130px;border:50px solid rgba(255,255,255,.06)}
+.change-code{font:700 11px Inter;color:#dab5fa;letter-spacing:.08em}
+.change-hero h2{margin:7px 0 8px;font-size:24px}
+.change-hero p{max-width:660px;margin:0;color:#e8dced;font-size:12px}
+.change-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:17px}
+.change-meta span{padding:7px 10px;border:1px solid rgba(255,255,255,.15);border-radius:10px;background:rgba(255,255,255,.07);font-size:10px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.field{display:grid;gap:6px}
+.field.full{grid-column:1/-1}
+.field label{color:var(--ink);font-size:11px;font-weight:700}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:11px;background:#fcfbfd;color:var(--body);padding:11px 12px;min-height:43px}
+.field textarea{min-height:82px;resize:vertical}
+.diff-list{display:grid;gap:10px}
+.diff{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:13px}
+.diff-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--blue);background:var(--violet-soft)}
+.diff b{display:block;color:var(--ink);font-size:12px}.diff small{color:var(--muted);font-size:10px}
+
+/* v1 dependency map */
+.map-card{min-height:445px;position:relative;overflow:hidden;background-image:radial-gradient(#ded5e3 1px,transparent 1px);background-size:20px 20px}
+.map-stage{position:relative;height:375px;margin-top:5px}
+.node{position:absolute;z-index:2;min-width:125px;padding:12px;border:1px solid var(--line);border-radius:15px;background:#fff;box-shadow:0 7px 18px rgba(45,25,55,.09)}
+.node b{display:block;color:var(--ink);font-size:11px}.node small{font-size:9px;color:var(--muted)}
+.node.core{left:41%;top:39%;border:2px solid var(--blue);background:var(--violet-soft)}
+.node.n1{left:4%;top:8%}.node.n2{right:5%;top:8%}.node.n3{left:8%;bottom:5%}.node.n4{right:7%;bottom:4%}.node.n5{left:42%;top:3%}
+.connector{position:absolute;height:2px;background:#cdbad8;transform-origin:left center;z-index:1}
+.c1{width:38%;left:15%;top:25%;transform:rotate(23deg)}.c2{width:34%;left:50%;top:48%;transform:rotate(-35deg)}
+.c3{width:36%;left:16%;top:75%;transform:rotate(-26deg)}.c4{width:34%;left:50%;top:52%;transform:rotate(30deg)}
+.c5{width:24%;left:48%;top:22%;transform:rotate(90deg)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;color:var(--muted);font-size:10px}
+.legend span:before{content:"";display:inline-block;width:8px;height:8px;border-radius:3px;background:var(--blue);margin-right:5px}
+.path-list{display:grid;gap:9px}
+.path-item{padding:13px;border:1px solid var(--line);border-radius:13px}
+.path-item header{display:flex;justify-content:space-between;gap:8px;margin-bottom:7px}
+.path-item b{color:var(--ink);font-size:11px}.path-item small{font-size:9px;color:var(--muted)}
+.path{font-size:10px;color:var(--muted);white-space:normal}
+
+/* v2 audiences */
+.segment-hero{display:grid;grid-template-columns:180px 1fr;gap:19px;align-items:center;padding:20px}
+.risk-ring{width:152px;height:152px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--red) 0 34%,var(--amber) 34% 72%,#ddd5e2 72%)}
+.risk-ring:after{content:"";width:108px;height:108px;border-radius:50%;background:#fff;position:absolute}
+.risk-ring div{position:relative;z-index:1;text-align:center}.risk-ring strong{display:block;color:var(--ink);font-size:28px}.risk-ring small{color:var(--muted);font-size:10px}
+.segment-list{display:grid;gap:10px}
+.segment{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:11px;align-items:center;padding:13px;border:1px solid var(--line);border-radius:14px}
+.avatar{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--violet-soft);color:var(--blue);font-weight:800}
+.segment b{display:block;color:var(--ink);font-size:12px}.segment small{color:var(--muted);font-size:10px}
+.heatmap{display:grid;grid-template-columns:100px repeat(4,1fr);gap:5px;font-size:9px;align-items:center}
+.heatmap div{min-height:34px;border-radius:8px;display:grid;place-items:center;text-align:center;padding:4px}
+.heat-head{color:var(--muted)}.heat-row{justify-content:start!important;color:var(--ink);font-weight:700}
+.h1{background:#f7effc}.h2{background:#ead2f9;color:#6e239e}.h3{background:#d7a8f3;color:#4b126e}.h4{background:#9333ea;color:#fff}
+
+/* v3 KPI */
+.chart-wrap{position:relative;height:275px}
+.kpi-summary{display:grid;gap:11px}
+.kpi-line{padding:14px;border:1px solid var(--line);border-radius:14px}
+.kpi-line header{display:flex;justify-content:space-between;margin-bottom:9px;font-size:11px}
+.kpi-line b{color:var(--ink)}
+.delta{color:var(--green);font-weight:800}
+.scenario{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px;border-bottom:1px solid var(--line)}
+.scenario:last-child{border:0}.scenario b{display:block;color:var(--ink);font-size:12px}.scenario small{color:var(--muted);font-size:10px}
+.gauge{width:86px;height:43px;border-radius:86px 86px 0 0;background:conic-gradient(from 270deg at 50% 100%,var(--blue) 0 43%,#ebe6ee 43% 50%,transparent 50%);position:relative}
+.gauge span{position:absolute;left:0;right:0;bottom:0;text-align:center;color:var(--ink);font-weight:800;font-size:13px}
+
+/* v4 tests */
+.test-board{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:13px;overflow:auto;padding-bottom:4px}
+.test-col{min-width:220px;padding:13px;border-radius:17px;background:#f7f4f9;border:1px solid var(--line)}
+.test-col>header{display:flex;justify-content:space-between;margin-bottom:11px;color:var(--ink);font-size:11px;font-weight:800}
+.test-card{margin-bottom:9px;padding:13px;border:1px solid var(--line);border-radius:13px;background:#fff}
+.test-card b{display:block;color:var(--ink);font-size:11px;margin:7px 0 5px}
+.test-card p{margin:0 0 9px;color:var(--muted);font-size:9px}
+.test-meta{display:flex;justify-content:space-between;align-items:center;font-size:9px;color:var(--muted)}
+.checklist{display:grid;gap:9px}
+.check{display:flex;gap:9px;align-items:flex-start;padding:11px;border-radius:12px;background:#faf8fb}
+.check .material-symbols-outlined{color:var(--green);font-size:18px}.check b{display:block;color:var(--ink);font-size:11px}.check small{color:var(--muted);font-size:9px}
+
+/* v5 decision */
+.verdict{padding:24px;text-align:center;background:linear-gradient(145deg,#fff,#f7edfd)}
+.verdict-icon{width:66px;height:66px;margin:auto;border-radius:22px;display:grid;place-items:center;background:var(--amber-soft);color:var(--amber)}
+.verdict-icon span{font-size:34px}.verdict h2{margin:12px 0 4px;color:var(--ink);font-size:22px}.verdict p{max-width:560px;margin:0 auto;color:var(--muted);font-size:11px}
+.verdict-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:9px;margin-top:16px}
+.evidence{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px;border-bottom:1px solid var(--line)}
+.evidence:last-child{border:0}.evidence .material-symbols-outlined{color:var(--blue)}.evidence b{display:block;color:var(--ink);font-size:11px}.evidence small{color:var(--muted);font-size:9px}
+.timeline{display:grid;gap:0}
+.time-item{display:grid;grid-template-columns:24px 1fr;gap:10px;min-height:68px}
+.time-mark{position:relative}.time-mark:before{content:"";position:absolute;left:10px;top:17px;bottom:-3px;width:2px;background:var(--line)}.time-item:last-child .time-mark:before{display:none}
+.time-mark i{position:absolute;top:7px;left:4px;width:14px;height:14px;border-radius:50%;background:var(--blue);border:4px solid #ead8f7}
+.time-body b{display:block;color:var(--ink);font-size:11px}.time-body p{margin:2px 0;color:var(--muted);font-size:9px}
+.rule{padding:12px;border-left:3px solid var(--blue);border-radius:0 11px 11px 0;background:#faf7fc;margin-bottom:9px}.rule b{color:var(--blue);font-size:10px}.rule p{margin:4px 0;color:var(--body);font-size:10px}
+
+/* records */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th,td{padding:12px 13px;border-bottom:1px solid var(--line);text-align:left;font-size:10px}
+th{color:var(--muted);font-weight:700;background:#faf9fb}
+td{color:var(--body)}td strong{color:var(--ink)}
+.mobile-nav{display:none}
+.toast{position:fixed;right:24px;bottom:24px;z-index:30;padding:13px 16px;border-radius:13px;background:#24182b;color:#fff;font-size:11px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transform:translateY(12px);transition:.2s}
+.toast.on{opacity:1;transform:none}
+@media(max-width:980px){
+  .shell{grid-template-columns:82px minmax(0,1fr)}.side{padding:22px 12px}.brand{padding-left:8px}.brand-copy,.nav-label,.nav button span:not(.material-symbols-outlined),.nav-no,.side-foot{display:none}.nav button{justify-content:center;padding:0}.grid-2{grid-template-columns:1fr}.metric-row{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:700px){
+  body{padding-bottom:76px}.shell{display:block}.side{display:none}.main{padding:18px 14px 30px}.appbar{margin-bottom:15px}.crumb{max-width:210px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.toolbar .ghost-btn{display:none}.page-head{display:block}.page-head>.pill{margin-top:10px}.grid-equal,.grid-3,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.metric-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.metric{padding:13px}.metric strong{font-size:20px}.segment-hero{grid-template-columns:1fr}.risk-ring{margin:auto}.heatmap{grid-template-columns:80px repeat(4,1fr);gap:3px}.heatmap div{font-size:8px}.node{min-width:100px;padding:9px}.node.core{left:34%}.node.n2,.node.n4{right:1%}.node.n1,.node.n3{left:1%}.node.n5{left:34%}.mobile-nav{position:fixed;z-index:20;left:0;right:0;bottom:0;height:68px;display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid var(--line);background:rgba(255,255,255,.96);backdrop-filter:blur(15px)}.mobile-nav button{border:0;background:transparent;color:var(--muted);min-width:0}.mobile-nav button.active{color:var(--blue)}.mobile-nav .material-symbols-outlined{font-size:20px}.mobile-nav small{display:block;font-size:8px}.toast{left:14px;right:14px;bottom:82px}
+}
+@media(max-width:420px){
+  .toolbar{gap:5px}.icon-btn{width:40px}.primary-btn{padding:0 10px}.page-head h1{font-size:25px}.card-pad{padding:15px}.metric-row{grid-template-columns:1fr 1fr}.change-hero{padding:18px}.map-stage{height:400px}.node.n5{top:1%}.node.core{top:38%}.heatmap{grid-template-columns:70px repeat(4,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark"><span class="material-symbols-outlined">hub</span></div>
+      <div class="brand-copy"><strong>Impact Lens</strong><span>Agent Change Control</span></div>
+    </div>
+    <div class="nav-label">變更分析流程</div>
+    <nav class="nav" aria-label="主要流程">
+      <button data-i="0"><span class="material-symbols-outlined">difference</span><span>提交元件變更</span><b class="nav-no">01</b></button>
+      <button data-i="1"><span class="material-symbols-outlined">device_hub</span><span>展開相依關係</span><b class="nav-no">02</b></button>
+      <button data-i="2"><span class="material-symbols-outlined">groups</span><span>定位影響族群</span><b class="nav-no">03</b></button>
+      <button data-i="3"><span class="material-symbols-outlined">query_stats</span><span>預測 KPI 衝擊</span><b class="nav-no">04</b></button>
+      <button data-i="4"><span class="material-symbols-outlined">playlist_add_check</span><span>制定聚焦測試</span><b class="nav-no">05</b></button>
+      <button data-i="5"><span class="material-symbols-outlined">assignment_turned_in</span><span>完成變更裁定</span><b class="nav-no">06</b></button>
+    </nav>
+    <div class="side-foot"><div class="online"><i class="dot"></i>分析服務正常</div>資料更新：今日 09:42</div>
+  </aside>
+
+  <main class="main">
+    <header class="appbar">
+      <div class="crumb">JVISION / IT 維運管理平台 / <b id="crumbText">提交元件變更</b></div>
+      <div class="toolbar">
+        <button class="icon-btn" aria-label="通知" onclick="notifyUser('目前沒有新的系統通知')"><span class="material-symbols-outlined">notifications</span></button>
+        <button class="ghost-btn" onclick="notifyUser('分析快照已匯出')"><span class="material-symbols-outlined">download</span>匯出快照</button>
+        <button class="primary-btn" onclick="notifyUser('分析編號 CIA-2408 已同步')"><span class="material-symbols-outlined">sync</span>同步分析</button>
+      </div>
+    </header>
+
+    <section class="view" data-view="0">
+      <div class="page-head">
+        <div><div class="eyebrow"><span class="material-symbols-outlined">difference</span>Step 01 · Agent 開發</div><h1>提交元件變更</h1><p>說明變更內容、原因、預期效益與目標版本，建立可追溯的分析基準。</p></div>
+        <span class="pill">草稿 · CIA-2408</span>
+      </div>
+      <div class="change-hero card">
+        <div class="change-code">CHANGE REQUEST / PROMPT-ROUTER</div>
+        <h2>客服分流 Agent · 推理模型與工具權限調整</h2>
+        <p>將意圖判斷模型升級至 v3.8，新增 ERP 訂單唯讀工具，同步收斂退款工具的可用條件。</p>
+        <div class="change-meta"><span>目標版本 2026.08.2</span><span>提交者 林奕辰</span><span>預計灰度 8/26</span><span>高風險元件 2 項</span></div>
+      </div>
+      <div class="grid-2" style="margin-top:16px">
+        <article class="card card-pad">
+          <div class="card-title"><h2>變更申請內容</h2><span class="badge amber">待完整性檢查</span></div>
+          <div class="form-grid">
+            <div class="field"><label>變更類型</label><select><option>模型 + 工具權限</option></select></div>
+            <div class="field"><label>目標 Agent</label><input value="客服分流 Agent / production"></div>
+            <div class="field full"><label>變更原因</label><textarea>降低模糊意圖的誤分流率，讓查單場景可直接讀取 ERP 狀態，同時避免退款工具被非授權流程呼叫。</textarea></div>
+            <div class="field"><label>預期效益</label><input value="首次解決率提升 4.2%"></div>
+            <div class="field"><label>回復版本</label><input value="prompt-router@3.7.4"></div>
+          </div>
+        </article>
+        <aside class="card card-pad">
+          <div class="card-title"><h3>差異摘要</h3><small>4 個變更</small></div>
+          <div class="diff-list">
+            <div class="diff"><div class="diff-icon"><span class="material-symbols-outlined">model_training</span></div><div><b>推理模型</b><small>orion-3.7 → orion-3.8</small></div><span class="badge high">高</span></div>
+            <div class="diff"><div class="diff-icon"><span class="material-symbols-outlined">terminal</span></div><div><b>系統提示詞</b><small>新增物流延遲判斷規則</small></div><span class="badge medium">中</span></div>
+            <div class="diff"><div class="diff-icon"><span class="material-symbols-outlined">build</span></div><div><b>工具呼叫</b><small>新增 ERP_ORDER_READ</small></div><span class="badge high">高</span></div>
+            <div class="diff"><div class="diff-icon"><span class="material-symbols-outlined">key</span></div><div><b>權限範圍</b><small>退款操作限定主管核可</small></div><span class="badge green">低</span></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" data-view="1">
+      <div class="page-head">
+        <div><div class="eyebrow"><span class="material-symbols-outlined">device_hub</span>Step 02 · 影響分析代理</div><h1>展開相依關係</h1><p>從變更元件追蹤 Agent、任務、流程與企業系統，辨識直接與間接影響。</p></div>
+        <span class="pill">掃描完成 · 42 條路徑</span>
+      </div>
+      <div class="metric-row">
+        <div class="metric"><div class="label">關聯 Agent</div><strong>7</strong><small>2 個高風險</small></div>
+        <div class="metric"><div class="label">任務軌跡</div><strong>1,284</strong><small>近 30 日樣本</small></div>
+        <div class="metric"><div class="label">企業系統</div><strong>5</strong><small>ERP 為新增依賴</small></div>
+        <div class="metric"><div class="label">最長相依鏈</div><strong>4 層</strong><small>需跨域驗證</small></div>
+      </div>
+      <div class="grid-2">
+        <article class="card card-pad map-card">
+          <div class="card-title"><h2>相依關係圖</h2><div class="legend"><span>元件</span><span>Agent</span><span>流程／系統</span></div></div>
+          <div class="map-stage">
+            <i class="connector c1"></i><i class="connector c2"></i><i class="connector c3"></i><i class="connector c4"></i><i class="connector c5"></i>
+            <div class="node n1"><b>客服分流 Agent</b><small>每日 8,420 次</small></div>
+            <div class="node n2"><b>退貨判斷 Agent</b><small>權限鏈間接影響</small></div>
+            <div class="node n3"><b>客服工單流程</b><small>SLA 15 分鐘</small></div>
+            <div class="node n4"><b>SAP ERP</b><small>新增唯讀串接</small></div>
+            <div class="node n5"><b>物流追蹤 Agent</b><small>共用意圖分類</small></div>
+            <div class="node core"><b>prompt-router@3.8</b><small>本次變更核心</small></div>
+          </div>
+        </article>
+        <aside class="card card-pad">
+          <div class="card-title"><h3>高風險路徑</h3><span class="badge red">3 條待處理</span></div>
+          <div class="path-list">
+            <div class="path-item"><header><b>查單意圖 → ERP</b><span class="badge high">92</span></header><div class="path">提示詞 → 客服分流 → 查單任務 → ERP_ORDER_READ</div><div class="progress" style="margin-top:9px"><i style="width:92%"></i></div></div>
+            <div class="path-item"><header><b>退款資格判定</b><span class="badge high">87</span></header><div class="path">權限契約 → 退貨 Agent → 主管核可 → 財務流程</div><div class="progress" style="margin-top:9px"><i style="width:87%"></i></div></div>
+            <div class="path-item"><header><b>物流延遲分流</b><span class="badge medium">68</span></header><div class="path">模型 → 意圖分類 → 物流 Agent → 承運商 API</div><div class="progress" style="margin-top:9px"><i style="width:68%"></i></div></div>
+            <div class="path-item"><header><b>知識庫回答</b><span class="badge green">24</span></header><div class="path">模型 → FAQ 任務 → 向量知識庫</div><div class="progress" style="margin-top:9px"><i style="width:24%"></i></div></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" data-view="2">
+      <div class="page-head">
+        <div><div class="eyebrow"><span class="material-symbols-outlined">groups</span>Step 03 · 產品經理</div><h1>定位影響族群</h1><p>確認受影響部門、使用者類型與關鍵業務場景，優先保護高頻及高價值互動。</p></div>
+        <span class="pill">預估 3,860 名使用者</span>
+      </div>
+      <div class="grid-2">
+        <article class="card segment-hero">
+          <div class="risk-ring"><div><strong>72</strong><small>整體暴露分數</small></div></div>
+          <div>
+            <div class="card-title"><h2>影響面概覽</h2><span class="badge amber">中高風險</span></div>
+            <p class="muted" style="font-size:11px">企業客戶的查單與退款場景同時受模型及工具契約變更影響，建議首波灰度排除 VIP 客群。</p>
+            <div class="grid-3" style="margin-top:14px">
+              <div class="metric"><div class="label">涉及部門</div><strong>4</strong></div>
+              <div class="metric"><div class="label">關鍵場景</div><strong>6</strong></div>
+              <div class="metric"><div class="label">VIP 帳戶</div><strong>184</strong></div>
+            </div>
+          </div>
+        </article>
+        <aside class="card card-pad">
+          <div class="card-title"><h3>使用者族群排序</h3><small>依暴露量 × 業務權重</small></div>
+          <div class="segment-list">
+            <div class="segment"><div class="avatar">EC</div><div><b>電商客服專員</b><small>2,140 人 · 查單／退貨</small></div><span class="badge red">88</span></div>
+            <div class="segment"><div class="avatar">VIP</div><div><b>企業 VIP 客戶</b><small>184 帳戶 · 專屬 SLA</small></div><span class="badge red">84</span></div>
+            <div class="segment"><div class="avatar">OP</div><div><b>物流營運主管</b><small>76 人 · 異常接管</small></div><span class="badge amber">61</span></div>
+            <div class="segment"><div class="avatar">CS</div><div><b>一般消費者</b><small>1,460 人／日</small></div><span class="badge green">42</span></div>
+          </div>
+        </aside>
+      </div>
+      <article class="card card-pad" style="margin-top:16px">
+        <div class="card-title"><h2>族群 × 場景風險熱區</h2><small>深色代表需優先驗證</small></div>
+        <div class="heatmap">
+          <div></div><div class="heat-head">查詢訂單</div><div class="heat-head">物流延遲</div><div class="heat-head">取消訂單</div><div class="heat-head">退款申請</div>
+          <div class="heat-row">客服專員</div><div class="h4">極高 94</div><div class="h3">高 78</div><div class="h2">中 56</div><div class="h4">極高 91</div>
+          <div class="heat-row">VIP 客戶</div><div class="h4">極高 90</div><div class="h3">高 81</div><div class="h2">中 53</div><div class="h3">高 85</div>
+          <div class="heat-row">營運主管</div><div class="h1">低 28</div><div class="h3">高 76</div><div class="h1">低 31</div><div class="h2">中 64</div>
+          <div class="heat-row">一般客戶</div><div class="h2">中 58</div><div class="h2">中 48</div><div class="h1">低 35</div><div class="h2">中 47</div>
+        </div>
+      </article>
+    </section>
+
+    <section class="view" data-view="3">
+      <div class="page-head">
+        <div><div class="eyebrow"><span class="material-symbols-outlined">query_stats</span>Step 04 · 資料分析師</div><h1>預測 KPI 衝擊</h1><p>以任務軌跡與工具呼叫模擬品質、成本、延遲及人工接管率的變化。</p></div>
+        <span class="pill">信賴區間 91%</span>
+      </div>
+      <div class="metric-row">
+        <div class="metric"><div class="label">事件平均處理</div><strong>30 分</strong><small>較現況減少 75%</small></div>
+        <div class="metric"><div class="label">系統可用率</div><strong>99%</strong><small>提升 2 個百分點</small></div>
+        <div class="metric"><div class="label">SLA 達成率</div><strong>98%</strong><small>提升 13 個百分點</small></div>
+        <div class="metric"><div class="label">盤點工時</div><strong>4 小時</strong><small>每月減少 16 小時</small></div>
+      </div>
+      <div class="grid-2">
+        <article class="card card-pad">
+          <div class="card-title"><h2>系統可用率預測</h2><span class="badge green">W6 達標</span></div>
+          <div class="chart-wrap"><canvas id="impactChart" aria-label="系統可用率趨勢"></canvas></div>
+        </article>
+        <aside class="card card-pad">
+          <div class="card-title"><h3>目標差距</h3><small>變更後預估</small></div>
+          <div class="kpi-summary">
+            <div class="kpi-line"><header><b>事件平均處理</b><span class="delta">30 / 29.1</span></header><div class="progress"><i style="width:97%"></i></div></div>
+            <div class="kpi-line"><header><b>系統可用率</b><span class="delta">99 / 102</span></header><div class="progress"><i style="width:97%"></i></div></div>
+            <div class="kpi-line"><header><b>SLA 達成率</b><span class="delta">98 / 98</span></header><div class="progress"><i style="width:100%"></i></div></div>
+          </div>
+        </aside>
+      </div>
+      <article class="card" style="margin-top:16px">
+        <div class="card-title card-pad" style="margin-bottom:0;padding-bottom:8px"><h2>情境模擬比較</h2><small>1,284 筆任務軌跡</small></div>
+        <div class="scenario"><div><b>A · 全量直接發布</b><small>最快取得效益，但退款場景錯誤會放大</small></div><div class="gauge"><span>78 風險</span></div></div>
+        <div class="scenario"><div><b>B · 10% 灰度＋VIP 排除</b><small>兼顧資料可信度與關鍵族群保護</small></div><div class="gauge" style="background:conic-gradient(from 270deg at 50% 100%,var(--green) 0 18%,#ebe6ee 18% 50%,transparent 50%)"><span>36 風險</span></div></div>
+        <div class="scenario"><div><b>C · 僅更新模型</b><small>依賴較少，但無法取得 ERP 查單效益</small></div><div class="gauge" style="background:conic-gradient(from 270deg at 50% 100%,var(--amber) 0 27%,#ebe6ee 27% 50%,transparent 50%)"><span>54 風險</span></div></div>
+      </article>
+    </section>
+
+    <section class="view" data-view="4">
+      <div class="page-head">
+        <div><div class="eyebrow"><span class="material-symbols-outlined">playlist_add_check</span>Step 05 · 品質負責人</div><h1>制定聚焦測試</h1><p>依影響程度挑選回歸案例、邊界條件與驗收門檻，集中測試高風險路徑。</p></div>
+        <span class="pill">18 案例 · 預估 6.5 小時</span>
+      </div>
+      <div class="grid-2">
+        <article class="card card-pad">
+          <div class="card-title"><h2>風險測試看板</h2><span class="badge amber">7 項待執行</span></div>
+          <div class="test-board">
+            <section class="test-col">
+              <header><span>優先驗證</span><span>3</span></header>
+              <div class="test-card"><span class="badge red">P0 · 契約</span><b>ERP 查單欄位缺漏</b><p>驗證訂單狀態為 null、延遲或權限不足時的回復。</p><div class="test-meta"><span>QA-142</span><span>45 分</span></div></div>
+              <div class="test-card"><span class="badge red">P0 · 權限</span><b>未核可退款呼叫</b><p>確認一般客服不可繞過主管核可工具。</p><div class="test-meta"><span>QA-143</span><span>35 分</span></div></div>
+              <div class="test-card"><span class="badge amber">P1 · 模型</span><b>查單與退款混合意圖</b><p>測試模糊語句的正確分流與追問策略。</p><div class="test-meta"><span>QA-147</span><span>50 分</span></div></div>
+            </section>
+            <section class="test-col">
+              <header><span>回歸測試</span><span>2</span></header>
+              <div class="test-card"><span class="badge amber">P1 · 流程</span><b>物流延遲轉接</b><p>確認超過 72 小時能轉交物流營運主管。</p><div class="test-meta"><span>QA-151</span><span>30 分</span></div></div>
+              <div class="test-card"><span class="badge medium">P2 · 回答</span><b>FAQ 知識庫回覆</b><p>確認未受提示詞新增規則造成回答漂移。</p><div class="test-meta"><span>QA-154</span><span>25 分</span></div></div>
+            </section>
+            <section class="test-col">
+              <header><span>已通過</span><span>2</span></header>
+              <div class="test-card"><span class="badge green">通過</span><b>工具逾時降級</b><p>ERP 超過 3 秒時提供查詢編號並建立工單。</p><div class="test-meta"><span>QA-139</span><span>100%</span></div></div>
+              <div class="test-card"><span class="badge green">通過</span><b>個資遮罩</b><p>模型輸入與記錄中的電話、地址維持遮罩。</p><div class="test-meta"><span>QA-140</span><span>100%</span></div></div>
+            </section>
+          </div>
+        </article>
+        <aside class="card card-pad">
+          <div class="card-title"><h3>發布驗收門檻</h3><span class="badge green">4 / 5 就緒</span></div>
+          <div class="checklist">
+            <div class="check"><span class="material-symbols-outlined">check_circle</span><div><b>P0 案例成功率 100%</b><small>目前 6/6 通過</small></div></div>
+            <div class="check"><span class="material-symbols-outlined">check_circle</span><div><b>任務成功率不低於 98%</b><small>模擬結果 98.6%</small></div></div>
+            <div class="check"><span class="material-symbols-outlined">check_circle</span><div><b>P95 延遲低於 2.8 秒</b><small>目前 2.42 秒</small></div></div>
+            <div class="check"><span class="material-symbols-outlined">check_circle</span><div><b>人工接管率低於 12%</b><small>目前 9.8%</small></div></div>
+            <div class="check"><span class="material-symbols-outlined" style="color:var(--amber)">pending</span><div><b>VIP 客群情境簽核</b><small>等待產品經理確認排除名單</small></div></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" data-view="5">
+      <div class="page-head">
+        <div><div class="eyebrow"><span class="material-symbols-outlined">assignment_turned_in</span>Step 06 · 變更核准人</div><h1>完成變更裁定</h1><p>彙整影響分析及測試證據，決定直接發布、灰度驗證或退回修改。</p></div>
+        <span class="pill">裁定編號 CAB-2026-0824</span>
+      </div>
+      <article class="card verdict">
+        <div class="verdict-icon"><span class="material-symbols-outlined">experiment</span></div>
+        <h2>建議：10% 灰度驗證</h2>
+        <p>模型品質與延遲已達門檻；ERP 欄位缺漏及 VIP 退款情境仍需生產流量佐證。首波排除 VIP 客群，觀察 24 小時後再擴量。</p>
+        <div class="verdict-actions">
+          <button class="ghost-btn" onclick="notifyUser('已退回 Agent 開發補件')">退回修改</button>
+          <button class="primary-btn" onclick="notifyUser('灰度裁定已核准並建立稽核紀錄')"><span class="material-symbols-outlined">verified</span>核准灰度</button>
+        </div>
+      </article>
+      <div class="grid-3" style="margin-top:16px">
+        <article class="card card-pad">
+          <div class="card-title"><h3>裁定證據</h3><span class="badge green">完整</span></div>
+          <div class="evidence"><span class="material-symbols-outlined">description</span><div><b>Agent 定義</b><small>版本與差異已簽章</small></div><span class="badge green">有效</span></div>
+          <div class="evidence"><span class="material-symbols-outlined">route</span><div><b>任務軌跡</b><small>1,284 筆樣本</small></div><span class="badge green">有效</span></div>
+          <div class="evidence"><span class="material-symbols-outlined">build</span><div><b>工具呼叫</b><small>ERP／退款共 312 筆</small></div><span class="badge amber">觀察</span></div>
+        </article>
+        <article class="card card-pad">
+          <div class="card-title"><h3>操作紀錄</h3><small>可追溯</small></div>
+          <div class="timeline">
+            <div class="time-item"><div class="time-mark"><i></i></div><div class="time-body"><b>影響分析完成</b><p>09:42 · 影響分析代理 · 42 條路徑</p></div></div>
+            <div class="time-item"><div class="time-mark"><i></i></div><div class="time-body"><b>測試範圍確認</b><p>10:18 · 品質負責人 · 18 個案例</p></div></div>
+            <div class="time-item"><div class="time-mark"><i></i></div><div class="time-body"><b>產品風險覆核</b><p>11:06 · 產品經理 · 排除 VIP</p></div></div>
+            <div class="time-item"><div class="time-mark"><i></i></div><div class="time-body"><b>等待變更核准</b><p>期限 14:00 · CAB 會議</p></div></div>
+          </div>
+        </article>
+        <article class="card card-pad">
+          <div class="card-title"><h3>決策規則</h3><span class="badge gray">3 條</span></div>
+          <div class="rule"><b>RULE-01 · Agent 定義</b><p>Agent 開發須說明變更內容、原因、預期效益與目標版本。</p></div>
+          <div class="rule"><b>RULE-02 · 任務軌跡</b><p>影響分析代理須追蹤元件連結的 Agent、任務、流程與系統。</p></div>
+          <div class="rule"><b>RULE-03 · 工具呼叫</b><p>產品經理須確認受影響部門、使用者類型與關鍵業務場景。</p></div>
+        </article>
+      </div>
+      <article class="card" style="margin-top:16px">
+        <div class="card-title card-pad" style="margin-bottom:0;padding-bottom:8px"><h2>Agent 變更影響分析器資料列表</h2><span class="badge gray">6 筆紀錄</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
+            <tbody>
+              <tr><td><strong>AGE-001</strong></td><td>提交元件變更</td><td>Agent 開發</td><td>D+1</td><td><span class="badge red">處理中</span></td></tr>
+              <tr><td><strong>AGE-002</strong></td><td>展開相依關係</td><td>影響分析代理</td><td>D+2</td><td><span class="badge amber">待確認</span></td></tr>
+              <tr><td><strong>AGE-003</strong></td><td>定位影響族群</td><td>產品經理</td><td>D+3</td><td><span class="badge amber">待確認</span></td></tr>
+              <tr><td><strong>AGE-004</strong></td><td>預測 KPI 衝擊</td><td>資料分析師</td><td>D+4</td><td><span class="badge green">已完成</span></td></tr>
+              <tr><td><strong>AGE-005</strong></td><td>制定聚焦測試</td><td>品質負責人</td><td>D+5</td><td><span class="badge green">已完成</span></td></tr>
+              <tr><td><strong>AGE-006</strong></td><td>完成變更裁定</td><td>變更核准人</td><td>D+6</td><td><span class="badge green">已完成</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+</div>
+
+<nav class="mobile-nav" aria-label="行動版流程">
+  <button data-i="0"><span class="material-symbols-outlined">difference</span><small>提交</small></button>
+  <button data-i="1"><span class="material-symbols-outlined">device_hub</span><small>相依</small></button>
+  <button data-i="2"><span class="material-symbols-outlined">groups</span><small>族群</small></button>
+  <button data-i="3"><span class="material-symbols-outlined">query_stats</span><small>KPI</small></button>
+  <button data-i="4"><span class="material-symbols-outlined">playlist_add_check</span><small>測試</small></button>
+  <button data-i="5"><span class="material-symbols-outlined">assignment_turned_in</span><small>裁定</small></button>
+</nav>
+<div class="toast" id="toastBox" role="status" aria-live="polite"></div>
+
+<script>
+const stageTitles=[
+  "提交元件變更","展開相依關係","定位影響族群",
+  "預測 KPI 衝擊","制定聚焦測試","完成變更裁定"
+];
+let impactChartInstance=null;
+let toastTimerId=null;
+
+function initImpactChart(){
+  const canvas=document.getElementById("impactChart");
+  if(impactChartInstance||!canvas||canvas.clientWidth<1||typeof Chart==="undefined")return;
+  impactChartInstance=new Chart(canvas,{
+    type:"line",
+    data:{
+      labels:["W1","W2","W3","W4","W5","W6"],
+      datasets:[{
+        label:"系統可用率 %",
+        data:[97,97.4,97.8,98.2,98.6,99],
+        borderColor:"#9333ea",
+        backgroundColor:"rgba(147,51,234,.12)",
+        borderWidth:3,
+        pointBackgroundColor:"#fff",
+        pointBorderColor:"#9333ea",
+        pointBorderWidth:2,
+        pointRadius:4,
+        tension:.36,
+        fill:true
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      animation:{duration:500},
+      interaction:{intersect:false,mode:"index"},
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:"#25172e",padding:10,displayColors:false}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{color:"#766d80",font:{size:10}}},
+        y:{
+          min:96.5,max:99.5,
+          grid:{color:"#eee8f1"},
+          ticks:{color:"#766d80",font:{size:10},callback:value=>value+"%"}
+        }
+      }
+    }
+  });
+}
+
+function show(indexValue){
+  const safeIndex=Math.max(0,Math.min(5,Number(indexValue)||0));
+  document.querySelectorAll(".view").forEach((viewElement,viewIndex)=>{
+    viewElement.classList.toggle("active",viewIndex===safeIndex);
+  });
+  document.querySelectorAll("[data-i]").forEach(buttonElement=>{
+    const selected=Number(buttonElement.dataset.i)===safeIndex;
+    buttonElement.classList.toggle("active",selected);
+    buttonElement.setAttribute("aria-current",selected?"step":"false");
+  });
+  document.getElementById("crumbText").textContent=stageTitles[safeIndex];
+  document.title=stageTitles[safeIndex]+"｜Agent 變更影響分析器 · Jvision";
+  if(safeIndex===3)requestAnimationFrame(initImpactChart);
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function indexFromHash(){
+  const match=window.location.hash.match(/(?:go=|v)([0-9]+)/);
+  return match?Math.max(0,Math.min(5,Number(match[1]))):0;
+}
+
+function navigateTo(indexValue){
+  const nextHash="#go="+indexValue;
+  if(window.location.hash===nextHash)show(indexValue);
+  else window.location.hash=nextHash;
+}
+
+function notifyUser(messageText){
+  const toastElement=document.getElementById("toastBox");
+  toastElement.textContent=messageText;
+  toastElement.classList.add("on");
+  window.clearTimeout(toastTimerId);
+  toastTimerId=window.setTimeout(()=>toastElement.classList.remove("on"),2200);
+}
+
+document.querySelectorAll("[data-i]").forEach(buttonElement=>{
+  buttonElement.addEventListener("click",()=>navigateTo(buttonElement.dataset.i));
+});
+window.addEventListener("hashchange",()=>show(indexFromHash()));
+show(indexFromHash());
+</script>
+</body>
+</html>

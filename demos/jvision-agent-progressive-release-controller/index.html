@@ -1,0 +1,1066 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agent 灰度發布控制器 · it-ops｜Jvision 系統 Demo</title>
+  <link rel="icon" href="../../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --blue: #4d7c0f;
+      --ink: #172018;
+      --body: #35413a;
+      --muted: #718078;
+      --line: #dfe6df;
+      --bg: #f4f7f2;
+      --green: #16865f;
+      --amber: #c1770a;
+      --red: #c44c4c;
+      --white: #fff;
+      --blue-soft: #edf5e4;
+      --shadow: 0 16px 42px rgba(34, 54, 31, .08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 0;
+      color: var(--body);
+      background: var(--bg);
+      font-family: Inter, "Noto Sans TC", sans-serif;
+      line-height: 1.55;
+    }
+
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 3px solid rgba(77, 124, 15, .24);
+      outline-offset: 2px;
+    }
+
+    .material-symbols-outlined {
+      font-size: 20px;
+      line-height: 1;
+      vertical-align: middle;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      position: sticky;
+      inset-block-start: 0;
+      height: 100vh;
+      padding: 22px 14px;
+      color: #eef5e8;
+      background:
+        radial-gradient(circle at 10% 10%, rgba(145, 191, 83, .22), transparent 34%),
+        linear-gradient(165deg, #1c2a1b 0%, #24391e 58%, #172217 100%);
+      display: flex;
+      flex-direction: column;
+      z-index: 5;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 8px 24px;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(145deg, #78a936, var(--blue));
+      box-shadow: 0 8px 22px rgba(0, 0, 0, .2);
+    }
+
+    .brand strong { display: block; color: #fff; font-size: 14px; }
+    .brand small { display: block; color: #aebda8; font-size: 10px; letter-spacing: .08em; }
+
+    .nav-label {
+      padding: 0 10px 8px;
+      color: #8fa08a;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .14em;
+    }
+
+    .nav {
+      display: grid;
+      gap: 5px;
+    }
+
+    .nav button {
+      width: 100%;
+      min-height: 48px;
+      border: 0;
+      border-radius: 12px;
+      padding: 9px 10px;
+      text-align: start;
+      color: #aebda8;
+      background: transparent;
+      cursor: pointer;
+      display: grid;
+      grid-template-columns: 25px 1fr;
+      align-items: center;
+      gap: 8px;
+      transition: background .2s ease, color .2s ease, transform .2s ease;
+    }
+
+    .nav button:hover { color: #fff; background: rgba(255, 255, 255, .07); }
+    .nav button[aria-current="page"] {
+      color: #fff;
+      background: rgba(134, 183, 72, .19);
+      box-shadow: inset 3px 0 #93bf5b;
+    }
+
+    .nav button[aria-current="page"] .nav-index { color: #cbe6ab; }
+    .nav-index { font-size: 11px; font-weight: 800; color: #758270; }
+    .nav-copy strong { display: block; font-size: 12px; font-weight: 650; }
+    .nav-copy small { display: block; margin-top: 1px; color: inherit; opacity: .62; font-size: 9px; }
+
+    .side-foot {
+      margin-top: auto;
+      padding: 14px 10px 4px;
+      border-top: 1px solid rgba(255, 255, 255, .09);
+    }
+
+    .side-foot span { color: #94a58f; font-size: 10px; }
+    .side-meter {
+      height: 5px;
+      margin: 8px 0;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, .1);
+    }
+    .side-meter i { display: block; width: 42%; height: 100%; background: #8fbd56; }
+    .side-foot strong { color: #e6f0df; font-size: 11px; }
+
+    main { min-width: 0; }
+    .screen { display: none; min-height: 100vh; padding: 22px clamp(18px, 3vw, 42px) 44px; }
+    .screen.active { display: block; animation: screen-in .28s ease both; }
+
+    @keyframes screen-in {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .mast {
+      min-height: 48px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .crumb {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .crumb b { color: var(--blue); }
+    .mast-actions { display: flex; align-items: center; gap: 8px; }
+
+    .live-pill, .soft-pill, .stage-pill, .priority-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .live-pill { padding: 7px 11px; color: var(--green); background: #e9f7f1; border: 1px solid #c9eadc; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(22, 134, 95, .12); }
+    .soft-pill { padding: 6px 9px; color: var(--blue); background: var(--blue-soft); }
+    .stage-pill { padding: 5px 9px; }
+    .stage-pill.running { color: #34620c; background: #eaf4df; }
+    .stage-pill.review { color: #986009; background: #fff4d9; }
+    .stage-pill.done { color: #147353; background: #e5f5ee; }
+    .priority-pill { padding: 4px 8px; color: var(--red); background: #fff0ef; }
+
+    .icon-button {
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #fff;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+
+    .button {
+      min-height: 42px;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      padding: 9px 15px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+
+    .button.primary { color: #fff; background: var(--blue); box-shadow: 0 8px 18px rgba(77, 124, 15, .18); }
+    .button.secondary { color: var(--body); background: #fff; border-color: var(--line); }
+    .button.danger { color: var(--red); background: #fff; border-color: #efcccc; }
+    .button:hover { filter: brightness(.98); transform: translateY(-1px); }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 9px; color: var(--ink); font-size: clamp(25px, 3vw, 38px); line-height: 1.2; letter-spacing: -.035em; }
+    h2 { margin-bottom: 6px; color: var(--ink); font-size: 19px; line-height: 1.3; }
+    h3 { margin-bottom: 5px; color: var(--ink); font-size: 14px; }
+    p { color: var(--muted); font-size: 13px; }
+    .eyebrow { margin-bottom: 9px; color: var(--blue); font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .section-head { display: flex; justify-content: space-between; gap: 16px; align-items: end; margin-bottom: 14px; }
+    .section-head p { margin-bottom: 0; }
+    .card {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: #fff;
+      box-shadow: 0 8px 30px rgba(34, 54, 31, .045);
+    }
+
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(300px, .82fr); gap: 18px; }
+    .release-intro {
+      min-height: 350px;
+      padding: clamp(24px, 4vw, 46px);
+      overflow: hidden;
+      position: relative;
+      color: #fff;
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at 84% 18%, rgba(184, 221, 134, .3), transparent 25%),
+        linear-gradient(135deg, #243c1b, #4d7c0f);
+      box-shadow: var(--shadow);
+    }
+
+    .release-intro::after {
+      content: "";
+      position: absolute;
+      right: -62px;
+      bottom: -80px;
+      width: 260px;
+      height: 260px;
+      border: 1px solid rgba(255, 255, 255, .14);
+      border-radius: 50%;
+      box-shadow: 0 0 0 42px rgba(255, 255, 255, .04), 0 0 0 88px rgba(255, 255, 255, .025);
+    }
+
+    .release-intro .eyebrow { color: #cfe7b4; }
+    .release-intro h1 { max-width: 650px; color: #fff; }
+    .release-intro p { max-width: 650px; color: #dbe8d4; font-size: 14px; }
+    .release-intro .button { position: relative; z-index: 1; margin-top: 12px; color: #315909; background: #fff; }
+
+    .version-stack { padding: 20px; display: grid; gap: 11px; }
+    .version-card { padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: #fbfcfa; }
+    .version-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .version-code { color: var(--ink); font-weight: 800; font-size: 16px; }
+    .version-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 13px; }
+    .version-meta div { padding: 8px; border-radius: 9px; background: #fff; }
+    .version-meta span { display: block; color: var(--muted); font-size: 9px; }
+    .version-meta strong { color: var(--ink); font-size: 11px; }
+    .diff-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+    .diff-list li { display: flex; gap: 8px; color: var(--body); font-size: 11px; }
+    .diff-list .material-symbols-outlined { color: var(--blue); font-size: 17px; }
+
+    .metric-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 18px; }
+    .metric { padding: 16px; }
+    .metric span { display: block; color: var(--muted); font-size: 10px; }
+    .metric strong { display: block; margin: 5px 0 2px; color: var(--ink); font-size: 22px; line-height: 1.2; }
+    .metric small { color: var(--green); font-size: 10px; }
+
+    .cohort-layout { display: grid; grid-template-columns: minmax(0, 1fr) 285px; gap: 16px; }
+    .cohort-board { padding: 18px; }
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
+    .filter-chip {
+      min-height: 35px;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .filter-chip.selected { color: var(--blue); border-color: #bcd39f; background: var(--blue-soft); }
+
+    .cohort-list { display: grid; gap: 10px; }
+    .cohort-item {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .cohort-icon { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; color: var(--blue); background: var(--blue-soft); }
+    .cohort-item p { margin: 2px 0 0; font-size: 10px; }
+    .cohort-score { min-width: 70px; text-align: end; }
+    .cohort-score strong { display: block; color: var(--ink); font-size: 17px; }
+    .cohort-score span { color: var(--muted); font-size: 9px; }
+
+    .matrix { padding: 18px; }
+    .matrix-grid { display: grid; grid-template-columns: 56px repeat(3, 1fr); gap: 7px; margin-top: 14px; }
+    .matrix-grid div { min-height: 44px; padding: 7px 4px; border-radius: 8px; display: grid; place-items: center; text-align: center; font-size: 9px; }
+    .matrix-label { color: var(--muted); background: transparent; }
+    .risk-low { color: #23620d; background: #e9f4df; }
+    .risk-mid { color: #8e5b08; background: #fff1d4; }
+    .risk-high { color: #a63c3c; background: #fde7e5; }
+    .selection-note { margin-top: 14px; padding: 13px; border-radius: 11px; color: #48633e; background: #f1f7ec; font-size: 10px; }
+
+    .ladder-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr); gap: 16px; }
+    .ladder-card { padding: 20px; overflow: hidden; }
+    .ladder {
+      margin: 22px 0 8px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      align-items: end;
+      gap: 9px;
+    }
+    .ladder-step {
+      min-height: var(--step-h);
+      padding: 13px 10px;
+      border: 1px solid #c9d9b8;
+      border-radius: 13px 13px 7px 7px;
+      background: linear-gradient(180deg, #f4f9ee, #e8f2de);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      animation: rise .45s ease both;
+    }
+    @keyframes rise { from { transform: scaleY(.85); transform-origin: bottom; opacity: .5; } }
+    .ladder-step.current { color: #fff; border-color: var(--blue); background: linear-gradient(160deg, #699a2d, var(--blue)); }
+    .ladder-step span { font-size: 9px; opacity: .7; }
+    .ladder-step strong { font-size: 24px; line-height: 1; }
+    .ladder-step small { font-size: 9px; }
+    .ladder-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 9px; }
+
+    .condition-list { padding: 19px; }
+    .condition { padding: 13px 0; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; }
+    .condition:last-child { border-bottom: 0; }
+    .condition-icon { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: var(--blue); background: var(--blue-soft); }
+    .condition strong { color: var(--ink); font-size: 11px; }
+    .condition small { display: block; color: var(--muted); font-size: 9px; }
+    .condition em { color: var(--green); font-size: 10px; font-style: normal; font-weight: 800; }
+
+    .schedule-strip { margin-top: 16px; padding: 16px 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .schedule-node { position: relative; min-width: 0; padding-inline-start: 20px; }
+    .schedule-node::before { content: ""; position: absolute; left: 1px; top: 4px; width: 9px; height: 9px; border: 3px solid #d3e2c4; border-radius: 50%; background: #fff; }
+    .schedule-node.current::before { border-color: var(--blue); }
+    .schedule-node::after { content: ""; position: absolute; left: 12px; right: -9px; top: 10px; height: 1px; background: var(--line); }
+    .schedule-node:last-child::after { display: none; }
+    .schedule-node strong { display: block; color: var(--ink); font-size: 10px; }
+    .schedule-node span { color: var(--muted); font-size: 9px; }
+
+    .monitor-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+    .monitor-score { grid-column: span 3; padding: 18px; }
+    .monitor-score.wide { grid-column: span 6; }
+    .monitor-score span { color: var(--muted); font-size: 10px; }
+    .monitor-score strong { display: block; margin: 6px 0; color: var(--ink); font-size: 25px; }
+    .delta-good { color: var(--green); font-size: 10px; font-weight: 700; }
+    .delta-warn { color: var(--amber); font-size: 10px; font-weight: 700; }
+    .chart-card { grid-column: span 8; padding: 18px; }
+    .guard-card { grid-column: span 4; padding: 18px; }
+    .chart { width: 100%; height: 280px; }
+    .guard-list { display: grid; gap: 13px; margin-top: 15px; }
+    .guard-row { display: grid; gap: 6px; }
+    .guard-copy { display: flex; justify-content: space-between; gap: 8px; font-size: 10px; }
+    .guard-copy strong { color: var(--ink); }
+    .bar { height: 7px; border-radius: 999px; overflow: hidden; background: #edf0ec; }
+    .bar i { display: block; height: 100%; width: var(--bar-w); border-radius: inherit; background: var(--blue); }
+    .bar.warning i { background: var(--amber); }
+    .event-feed { grid-column: span 12; padding: 18px; }
+    .feed-row { display: grid; grid-template-columns: 70px 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 10px; }
+    .feed-row:last-child { border-bottom: 0; }
+    .feed-row time { color: var(--muted); }
+    .feed-dot { width: 27px; height: 27px; border-radius: 8px; display: grid; place-items: center; color: var(--green); background: #e8f5ef; }
+    .feed-dot.alert { color: var(--amber); background: #fff2dc; }
+    .feed-row strong { color: var(--ink); }
+
+    .incident-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; }
+    .incident-hero { padding: 20px; border-left: 5px solid var(--red); }
+    .incident-title { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+    .incident-title h2 { font-size: 21px; }
+    .incident-facts { margin-top: 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .incident-facts div { padding: 11px; border-radius: 10px; background: #f8faf7; }
+    .incident-facts span { display: block; color: var(--muted); font-size: 9px; }
+    .incident-facts strong { color: var(--ink); font-size: 11px; }
+    .rollback-track { margin-top: 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .rollback-step { padding: 12px; border-radius: 10px; color: #657066; background: #eff2ed; font-size: 10px; font-weight: 700; }
+    .rollback-step.complete { color: #fff; background: var(--green); }
+    .rollback-step.active-step { color: #fff; background: var(--amber); animation: pulse 1.8s ease-in-out infinite; }
+    @keyframes pulse { 50% { box-shadow: 0 0 0 5px rgba(193, 119, 10, .12); } }
+
+    .trace-card { margin-top: 14px; padding: 18px; }
+    .trace-line { position: relative; padding: 0 0 17px 25px; font-size: 10px; }
+    .trace-line:last-child { padding-bottom: 0; }
+    .trace-line::before { content: ""; position: absolute; left: 5px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
+    .trace-line::after { content: ""; position: absolute; left: 8px; top: 15px; bottom: 2px; width: 1px; background: var(--line); }
+    .trace-line:last-child::after { display: none; }
+    .trace-line time { color: var(--muted); }
+    .trace-line strong { display: block; color: var(--ink); margin-top: 2px; }
+
+    .runbook { padding: 18px; }
+    .runbook-item { padding: 13px 0; border-bottom: 1px solid var(--line); display: flex; gap: 10px; }
+    .runbook-item:last-child { border-bottom: 0; }
+    .check {
+      flex: 0 0 22px;
+      width: 22px;
+      height: 22px;
+      border: 1px solid #b9c7b4;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      color: var(--green);
+      background: #fff;
+    }
+    .runbook-item strong { display: block; color: var(--ink); font-size: 11px; }
+    .runbook-item span { color: var(--muted); font-size: 9px; }
+    .action-stack { display: grid; gap: 8px; margin-top: 15px; }
+
+    .decision-grid { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 16px; }
+    .verdict { padding: 22px; }
+    .verdict-ring {
+      width: 156px;
+      height: 156px;
+      margin: 18px auto;
+      border-radius: 50%;
+      background: conic-gradient(var(--blue) 0 91%, #e9eee5 91%);
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+    .verdict-ring::before { content: ""; width: 118px; height: 118px; border-radius: 50%; background: #fff; position: absolute; }
+    .verdict-ring div { position: relative; text-align: center; }
+    .verdict-ring strong { display: block; color: var(--ink); font-size: 28px; line-height: 1; }
+    .verdict-ring span { color: var(--muted); font-size: 9px; }
+    .verdict-summary { padding: 13px; border-radius: 12px; background: var(--blue-soft); color: #3b6015; font-size: 10px; }
+    .verdict .button { width: 100%; margin-top: 12px; }
+
+    .records-card { overflow: hidden; }
+    .records-head { padding: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; min-width: 680px; border-collapse: collapse; }
+    th { padding: 11px 15px; text-align: start; color: var(--muted); background: #f8faf7; font-size: 9px; letter-spacing: .04em; }
+    td { padding: 13px 15px; border-top: 1px solid var(--line); color: var(--body); font-size: 10px; }
+    td strong { color: var(--ink); }
+    .decision-options { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .decision-option { min-height: 92px; padding: 14px; border: 1px solid var(--line); border-radius: 13px; background: #fff; cursor: pointer; text-align: start; }
+    .decision-option.selected { border-color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue); background: #f5f9f1; }
+    .decision-option strong { display: block; color: var(--ink); font-size: 11px; }
+    .decision-option span { color: var(--muted); font-size: 9px; }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      max-width: min(340px, calc(100vw - 36px));
+      padding: 12px 15px;
+      color: #fff;
+      background: #20331c;
+      border-radius: 11px;
+      box-shadow: var(--shadow);
+      font-size: 11px;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: .22s ease;
+      z-index: 20;
+    }
+    .toast.visible { opacity: 1; transform: none; }
+
+    @media (max-width: 1050px) {
+      .hero-grid, .ladder-layout { grid-template-columns: 1fr; }
+      .metric-row { grid-template-columns: repeat(2, 1fr); }
+      .monitor-score { grid-column: span 6; }
+      .chart-card, .guard-card { grid-column: span 12; }
+      .incident-layout, .decision-grid { grid-template-columns: 1fr; }
+      .cohort-layout { grid-template-columns: minmax(0, 1fr) 250px; }
+    }
+
+    @media (max-width: 768px) {
+      .app { display: block; }
+      .sidebar { position: sticky; height: auto; padding: 10px 12px; }
+      .brand { padding: 0 4px 9px; }
+      .brand-mark { width: 32px; height: 32px; }
+      .nav-label, .side-foot, .nav-copy small { display: none; }
+      .nav { display: flex; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+      .nav::-webkit-scrollbar { display: none; }
+      .nav button { flex: 0 0 auto; width: auto; min-height: 42px; padding: 7px 10px; grid-template-columns: 18px auto; }
+      .nav-copy strong { font-size: 10px; }
+      .screen { min-height: auto; padding: 16px 18px 34px; }
+      .mast { margin-bottom: 14px; }
+      .cohort-layout { grid-template-columns: 1fr; }
+      .incident-facts { grid-template-columns: repeat(2, 1fr); }
+      .decision-options { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 540px) {
+      .mast-actions .soft-pill, .mast-actions .icon-button { display: none; }
+      .hero-grid { grid-template-columns: 1fr; }
+      .release-intro { min-height: 330px; padding: 26px 21px; }
+      .metric-row { grid-template-columns: 1fr 1fr; }
+      .metric { padding: 13px; }
+      .metric strong { font-size: 18px; }
+      .version-meta { grid-template-columns: 1fr; }
+      .cohort-item { grid-template-columns: 36px minmax(0, 1fr); }
+      .cohort-score { grid-column: 2; text-align: start; }
+      .ladder { grid-template-columns: repeat(2, 1fr); align-items: stretch; }
+      .ladder-step { min-height: 120px; }
+      .schedule-strip { grid-template-columns: 1fr 1fr; }
+      .schedule-node::after { display: none; }
+      .monitor-score, .monitor-score.wide { grid-column: span 12; }
+      .chart { height: 245px; }
+      .feed-row { grid-template-columns: 55px 25px 1fr; }
+      .feed-row .stage-pill { grid-column: 3; justify-self: start; }
+      .incident-title { display: block; }
+      .incident-title .priority-pill { margin-bottom: 10px; }
+      .rollback-track { grid-template-columns: 1fr 1fr; }
+      .matrix-grid { grid-template-columns: 48px repeat(3, 1fr); }
+      .records-head { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="發布流程導覽">
+      <div class="brand">
+        <div class="brand-mark"><span class="material-symbols-outlined">rocket_launch</span></div>
+        <div><strong>JV Release</strong><small>PROGRESSIVE CONTROL</small></div>
+      </div>
+      <div class="nav-label">發布工作區</div>
+      <nav class="nav">
+        <button type="button" data-i="0"><span class="nav-index">01</span><span class="nav-copy"><strong>候選版本</strong><small>登錄差異與相依性</small></span></button>
+        <button type="button" data-i="1"><span class="nav-index">02</span><span class="nav-copy"><strong>發布群組</strong><small>劃分部門與風險</small></span></button>
+        <button type="button" data-i="2"><span class="nav-index">03</span><span class="nav-copy"><strong>流量階梯</strong><small>編排擴量條件</small></span></button>
+        <button type="button" data-i="3"><span class="nav-index">04</span><span class="nav-copy"><strong>護欄監測</strong><small>觀察品質與成本</small></span></button>
+        <button type="button" data-i="4"><span class="nav-index">05</span><span class="nav-copy"><strong>暫停回退</strong><small>處置異常事件</small></span></button>
+        <button type="button" data-i="5"><span class="nav-index">06</span><span class="nav-copy"><strong>發布裁定</strong><small>核准全面擴量</small></span></button>
+      </nav>
+      <div class="side-foot">
+        <span>本次候選版本</span>
+        <div class="side-meter"><i></i></div>
+        <strong>v2.8.0 · 目前流量 25%</strong>
+      </div>
+    </aside>
+
+    <main>
+      <section class="screen" data-screen="0" aria-labelledby="screen-title-0">
+        <header class="mast">
+          <div class="crumb">Agent 灰度發布控制器 / <b>候選版本登錄</b></div>
+          <div class="mast-actions">
+            <span class="soft-pill">AGE-001</span>
+            <span class="live-pill"><i class="live-dot"></i>草稿已同步</span>
+            <button class="icon-button" type="button" aria-label="更多選項"><span class="material-symbols-outlined">more_horiz</span></button>
+          </div>
+        </header>
+
+        <div class="hero-grid">
+          <article class="release-intro">
+            <div class="eyebrow">Candidate registry · v0</div>
+            <h1 id="screen-title-0">登錄 Agent 候選版本</h1>
+            <p>確認模型、提示詞、工具與權限的版本差異，先釐清預期改善與相依風險，再送入灰度發布流程。</p>
+            <button class="button" type="button" data-toast="候選版本 v2.8.0 已完成完整性檢查">
+              <span class="material-symbols-outlined">fact_check</span>執行完整性檢查
+            </button>
+          </article>
+
+          <article class="card version-stack">
+            <div class="section-head">
+              <div><div class="eyebrow">版本比較</div><h2>v2.8.0 → stable</h2></div>
+              <span class="stage-pill running">可進入分群</span>
+            </div>
+            <div class="version-card">
+              <div class="version-line"><span class="version-code">v2.8.0-rc3</span><span class="soft-pill">候選版</span></div>
+              <div class="version-meta">
+                <div><span>模型</span><strong>JV-Agent 4.2</strong></div>
+                <div><span>提示詞</span><strong>prompt-88</strong></div>
+                <div><span>權限包</span><strong>ops-read-v6</strong></div>
+              </div>
+            </div>
+            <ul class="diff-list">
+              <li><span class="material-symbols-outlined">add_circle</span><span>新增設備告警摘要工具，限定唯讀查詢。</span></li>
+              <li><span class="material-symbols-outlined">tune</span><span>工單分類提示詞由 2,104 tokens 降至 1,760。</span></li>
+              <li><span class="material-symbols-outlined">verified_user</span><span>敏感設備資料仍需主管二次授權。</span></li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="metric-row">
+          <article class="card metric"><span>定義完整度</span><strong>96%</strong><small>12 / 12 欄位已驗證</small></article>
+          <article class="card metric"><span>相依工具</span><strong>8</strong><small>全部通過健康檢查</small></article>
+          <article class="card metric"><span>預估成本</span><strong>−11%</strong><small>每千次任務 NT$ 426</small></article>
+          <article class="card metric"><span>預期成功率</span><strong>98.4%</strong><small>較穩定版 +1.2%</small></article>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="1" aria-labelledby="screen-title-1">
+        <header class="mast">
+          <div class="crumb">Agent 灰度發布控制器 / <b>發布分群設計</b></div>
+          <div class="mast-actions">
+            <span class="soft-pill">AGE-002</span>
+            <button class="button primary" type="button" data-toast="發布群組已儲存，共涵蓋 286 位使用者">
+              <span class="material-symbols-outlined">save</span>儲存分群
+            </button>
+          </div>
+        </header>
+
+        <div class="section-head">
+          <div><div class="eyebrow">Cohort designer · v1</div><h1 id="screen-title-1">依部門與任務風險劃分群組</h1><p>流程主管依使用情境、敏感度與可回復性安排發布先後。</p></div>
+          <span class="live-pill"><i class="live-dot"></i>286 位使用者符合</span>
+        </div>
+
+        <div class="cohort-layout">
+          <article class="card cohort-board">
+            <div class="filter-bar" aria-label="分群篩選">
+              <button class="filter-chip selected" type="button">全部群組</button>
+              <button class="filter-chip" type="button">製造部</button>
+              <button class="filter-chip" type="button">供應鏈</button>
+              <button class="filter-chip" type="button">客服中心</button>
+              <button class="filter-chip" type="button">低敏感資料</button>
+            </div>
+            <div class="cohort-list">
+              <div class="cohort-item">
+                <div class="cohort-icon"><span class="material-symbols-outlined">science</span></div>
+                <div><h3>先鋒驗證組</h3><p>AI 卓越中心 · 沙盒任務 · 可即時人工接管</p></div>
+                <div class="cohort-score"><strong>24 人</strong><span>風險分數 18 / 100</span></div>
+              </div>
+              <div class="cohort-item">
+                <div class="cohort-icon"><span class="material-symbols-outlined">precision_manufacturing</span></div>
+                <div><h3>製造營運組</h3><p>設備巡檢摘要 · 只讀工具 · 工作日上午運行</p></div>
+                <div class="cohort-score"><strong>86 人</strong><span>風險分數 36 / 100</span></div>
+              </div>
+              <div class="cohort-item">
+                <div class="cohort-icon"><span class="material-symbols-outlined">local_shipping</span></div>
+                <div><h3>供應鏈協作組</h3><p>交期追蹤 · 跨系統查詢 · 含內部採購資料</p></div>
+                <div class="cohort-score"><strong>72 人</strong><span>風險分數 54 / 100</span></div>
+              </div>
+              <div class="cohort-item">
+                <div class="cohort-icon"><span class="material-symbols-outlined">support_agent</span></div>
+                <div><h3>客戶服務組</h3><p>工單回覆草擬 · 對外內容 · 主管抽樣覆核</p></div>
+                <div class="cohort-score"><strong>104 人</strong><span>風險分數 68 / 100</span></div>
+              </div>
+            </div>
+          </article>
+
+          <aside class="card matrix">
+            <div class="eyebrow">風險矩陣</div>
+            <h2>發布優先序</h2>
+            <p>依資料敏感度與任務影響交叉評估。</p>
+            <div class="matrix-grid" aria-label="風險矩陣">
+              <div></div><div class="matrix-label">唯讀</div><div class="matrix-label">可覆核</div><div class="matrix-label">自動執行</div>
+              <div class="matrix-label">內部</div><div class="risk-low">第 1 波</div><div class="risk-low">第 2 波</div><div class="risk-mid">第 3 波</div>
+              <div class="matrix-label">敏感</div><div class="risk-low">第 2 波</div><div class="risk-mid">第 3 波</div><div class="risk-high">需核准</div>
+              <div class="matrix-label">對外</div><div class="risk-mid">第 3 波</div><div class="risk-high">需核准</div><div class="risk-high">暫不納入</div>
+            </div>
+            <div class="selection-note"><strong>建議：</strong>先鋒驗證組符合低風險、可回復與完整軌跡條件，適合作為 5% 首波流量。</div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="2" aria-labelledby="screen-title-2">
+        <header class="mast">
+          <div class="crumb">Agent 灰度發布控制器 / <b>流量階梯編排</b></div>
+          <div class="mast-actions">
+            <span class="soft-pill">AGE-003</span>
+            <button class="button primary" type="button" data-toast="流量階梯已鎖定，首波將於 09:00 開始">
+              <span class="material-symbols-outlined">play_arrow</span>啟動發布
+            </button>
+          </div>
+        </header>
+
+        <div class="section-head">
+          <div><div class="eyebrow">Traffic orchestration · v2</div><h1 id="screen-title-2">設定流量階梯與晉級門檻</h1><p>每一階段都有獨立觀察期，未達護欄條件不會自動擴量。</p></div>
+          <span class="stage-pill review">待發布經理確認</span>
+        </div>
+
+        <div class="ladder-layout">
+          <article class="card ladder-card">
+            <div class="section-head"><div><h2>四階段擴量計畫</h2><p>候選版 v2.8.0 · 預計 6 天完成</p></div><span class="soft-pill">總樣本 12,400 任務</span></div>
+            <div class="ladder">
+              <div class="ladder-step" style="--step-h:110px"><span>階段 1</span><strong>5%</strong><small>先鋒組 · 6 小時</small></div>
+              <div class="ladder-step current" style="--step-h:145px"><span>階段 2</span><strong>25%</strong><small>製造部 · 24 小時</small></div>
+              <div class="ladder-step" style="--step-h:180px"><span>階段 3</span><strong>60%</strong><small>供應鏈 · 48 小時</small></div>
+              <div class="ladder-step" style="--step-h:220px"><span>階段 4</span><strong>100%</strong><small>全體 · 持續監測</small></div>
+            </div>
+            <div class="ladder-axis"><span>低風險驗證</span><span>全面發布</span></div>
+          </article>
+
+          <article class="card condition-list">
+            <div class="eyebrow">Promotion gates</div>
+            <h2>晉級條件</h2>
+            <div class="condition">
+              <div class="condition-icon"><span class="material-symbols-outlined">task_alt</span></div>
+              <div><strong>任務成功率</strong><small>最近 500 筆需維持門檻</small></div><em>≥ 98%</em>
+            </div>
+            <div class="condition">
+              <div class="condition-icon"><span class="material-symbols-outlined">front_hand</span></div>
+              <div><strong>人工接管率</strong><small>排除演練與抽樣覆核</small></div><em>≤ 4%</em>
+            </div>
+            <div class="condition">
+              <div class="condition-icon"><span class="material-symbols-outlined">speed</span></div>
+              <div><strong>P95 延遲</strong><small>端到端任務完成時間</small></div><em>≤ 4.2s</em>
+            </div>
+            <div class="condition">
+              <div class="condition-icon"><span class="material-symbols-outlined">policy</span></div>
+              <div><strong>政策違規</strong><small>嚴重等級事件零容忍</small></div><em>0 件</em>
+            </div>
+          </article>
+        </div>
+
+        <article class="card schedule-strip">
+          <div class="schedule-node current"><strong>8/22 09:00</strong><span>5% · 先鋒驗證</span></div>
+          <div class="schedule-node"><strong>8/22 15:00</strong><span>25% · 製造營運</span></div>
+          <div class="schedule-node"><strong>8/23 15:00</strong><span>60% · 跨部門</span></div>
+          <div class="schedule-node"><strong>8/25 15:00</strong><span>100% · 全體使用者</span></div>
+        </article>
+      </section>
+
+      <section class="screen" data-screen="3" aria-labelledby="screen-title-3">
+        <header class="mast">
+          <div class="crumb">Agent 灰度發布控制器 / <b>護欄指標監測</b></div>
+          <div class="mast-actions">
+            <span class="soft-pill">AGE-004</span>
+            <span class="live-pill"><i class="live-dot"></i>25% 流量運行中</span>
+          </div>
+        </header>
+
+        <div class="section-head">
+          <div><div class="eyebrow">Live guardrails · v3</div><h1 id="screen-title-3">即時監測品質、成本與安全</h1><p>發布監測代理持續比較候選版與穩定版，異常將阻止下一階段擴量。</p></div>
+          <span class="soft-pill">觀察期 14h 28m / 24h</span>
+        </div>
+
+        <div class="monitor-grid">
+          <article class="card monitor-score"><span>任務成功率</span><strong>98.7%</strong><div class="delta-good">高於護欄 0.7%</div></article>
+          <article class="card monitor-score"><span>人工接管率</span><strong>3.2%</strong><div class="delta-good">低於門檻 0.8%</div></article>
+          <article class="card monitor-score"><span>P95 延遲</span><strong>3.8s</strong><div class="delta-good">餘裕 0.4 秒</div></article>
+          <article class="card monitor-score"><span>每千次成本</span><strong>NT$ 421</strong><div class="delta-warn">較預估高 1.6%</div></article>
+
+          <article class="card chart-card">
+            <div class="section-head"><div><h2>系統可用率趨勢</h2><p>W1–W6 與 99% 目標線</p></div><span class="stage-pill done">目前 99%</span></div>
+            <div id="availability-chart" class="chart" role="img" aria-label="系統可用率趨勢圖"></div>
+          </article>
+
+          <article class="card guard-card">
+            <div class="eyebrow">Guardrail health</div>
+            <h2>護欄餘裕</h2>
+            <div class="guard-list">
+              <div class="guard-row"><div class="guard-copy"><strong>成功率</strong><span>98.7 / 98</span></div><div class="bar" style="--bar-w:92%"><i></i></div></div>
+              <div class="guard-row"><div class="guard-copy"><strong>人工接管</strong><span>3.2 / 4</span></div><div class="bar" style="--bar-w:80%"><i></i></div></div>
+              <div class="guard-row"><div class="guard-copy"><strong>延遲</strong><span>3.8 / 4.2s</span></div><div class="bar warning" style="--bar-w:90%"><i></i></div></div>
+              <div class="guard-row"><div class="guard-copy"><strong>政策安全</strong><span>0 / 0 件</span></div><div class="bar" style="--bar-w:100%"><i></i></div></div>
+            </div>
+          </article>
+
+          <article class="card event-feed">
+            <div class="section-head"><div><h2>監測事件軌跡</h2><p>Agent 定義、任務軌跡與工具呼叫已串聯留存。</p></div><span class="soft-pill">最近 30 分鐘</span></div>
+            <div class="feed-row"><time>14:32:18</time><span class="feed-dot"><span class="material-symbols-outlined">check</span></span><strong>製造巡檢任務完成，回覆品質 4.8 / 5</strong><span class="stage-pill done">正常</span></div>
+            <div class="feed-row"><time>14:27:04</time><span class="feed-dot alert"><span class="material-symbols-outlined">speed</span></span><strong>設備摘要工具延遲達 4.0 秒，尚未超過門檻</strong><span class="stage-pill review">觀察</span></div>
+            <div class="feed-row"><time>14:18:51</time><span class="feed-dot"><span class="material-symbols-outlined">verified_user</span></span><strong>敏感資料遮罩政策驗證通過</strong><span class="stage-pill done">正常</span></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="4" aria-labelledby="screen-title-4">
+        <header class="mast">
+          <div class="crumb">Agent 灰度發布控制器 / <b>暫停與回退</b></div>
+          <div class="mast-actions">
+            <span class="soft-pill">AGE-005</span>
+            <span class="priority-pill"><span class="material-symbols-outlined">warning</span>SEV-2</span>
+          </div>
+        </header>
+
+        <div class="section-head">
+          <div><div class="eyebrow">Rollback center · v4</div><h1 id="screen-title-4">處理護欄異常並安全回退</h1><p>值班工程師可沿完整操作軌跡調查原因，將受影響流量切回穩定版本。</p></div>
+          <button class="button danger" type="button" data-toast="擴量已暫停；目前版本維持於 25% 流量">
+            <span class="material-symbols-outlined">pause_circle</span>暫停擴量
+          </button>
+        </div>
+
+        <div class="incident-layout">
+          <div>
+            <article class="card incident-hero">
+              <div class="incident-title">
+                <div><span class="priority-pill">INC-0822-017</span><h2>供應鏈工具呼叫延遲超過護欄</h2><p>候選版連續 8 分鐘 P95 延遲高於 4.2 秒，擴量已自動鎖定。</p></div>
+                <span class="stage-pill review">調查中</span>
+              </div>
+              <div class="incident-facts">
+                <div><span>受影響任務</span><strong>47 / 1,286</strong></div>
+                <div><span>首次觸發</span><strong>14:41:09</strong></div>
+                <div><span>當前 P95</span><strong>5.6 秒</strong></div>
+                <div><span>穩定版本</span><strong>v2.7.4</strong></div>
+              </div>
+              <div class="rollback-track">
+                <div class="rollback-step complete">1. 鎖定擴量</div>
+                <div class="rollback-step complete">2. 排空新任務</div>
+                <div class="rollback-step active-step">3. 切回穩定版</div>
+                <div class="rollback-step">4. 驗證復原</div>
+              </div>
+            </article>
+
+            <article class="card trace-card">
+              <div class="section-head"><div><h2>事件操作軌跡</h2><p>所有動作均保留執行者與證據。</p></div><span class="soft-pill">可追溯</span></div>
+              <div class="trace-line"><time>14:41:09 · 發布監測代理</time><strong>偵測 P95 延遲連續 3 個窗口超標</strong><span>證據：tool-call-9b21 至 tool-call-9c04</span></div>
+              <div class="trace-line"><time>14:41:12 · 系統策略</time><strong>自動鎖定 25% → 60% 擴量動作</strong><span>依據：RULE-LATENCY-04</span></div>
+              <div class="trace-line"><time>14:43:36 · 值班工程師 林怡君</time><strong>確認問題集中於供應鏈庫存查詢工具</strong><span>工具錯誤率由 0.4% 升至 3.7%</span></div>
+              <div class="trace-line"><time>14:46:10 · 值班工程師 林怡君</time><strong>批准受影響群組切回 v2.7.4</strong><span>預估 4 分鐘完成流量排空</span></div>
+            </article>
+          </div>
+
+          <aside class="card runbook">
+            <div class="eyebrow">Response runbook</div>
+            <h2>回退檢核表</h2>
+            <div class="runbook-item"><span class="check"><span class="material-symbols-outlined">check</span></span><div><strong>停止新群組進入</strong><span>已於 14:41 自動完成</span></div></div>
+            <div class="runbook-item"><span class="check"><span class="material-symbols-outlined">check</span></span><div><strong>保存異常任務軌跡</strong><span>47 筆證據已封存</span></div></div>
+            <div class="runbook-item"><span class="check"><span class="material-symbols-outlined">check</span></span><div><strong>驗證穩定版工具權限</strong><span>ops-read-v5 驗證通過</span></div></div>
+            <div class="runbook-item"><span class="check"></span><div><strong>監測回退後 15 分鐘</strong><span>等待流量切換完成</span></div></div>
+            <div class="action-stack">
+              <button class="button primary" type="button" data-toast="回退指令已送出，受影響群組將切換至 v2.7.4"><span class="material-symbols-outlined">settings_backup_restore</span>執行群組回退</button>
+              <button class="button secondary" type="button" data-toast="事件摘要已建立並指派給平台工程組"><span class="material-symbols-outlined">assignment</span>建立調查工單</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="5" aria-labelledby="screen-title-5">
+        <header class="mast">
+          <div class="crumb">Agent 灰度發布控制器 / <b>全量發布裁定</b></div>
+          <div class="mast-actions">
+            <span class="soft-pill">AGE-006</span>
+            <button class="button secondary" type="button" data-toast="發布證據包已匯出，共 186 筆可追溯紀錄">
+              <span class="material-symbols-outlined">download</span>匯出證據包
+            </button>
+          </div>
+        </header>
+
+        <div class="section-head">
+          <div><div class="eyebrow">Release verdict · v5</div><h1 id="screen-title-5">彙整群組結果，裁定全面發布</h1><p>產品經理依護欄表現、例外處理與業務效益核准擴量、延長觀察或終止。</p></div>
+          <span class="stage-pill done">5 / 6 階段完成</span>
+        </div>
+
+        <div class="decision-grid">
+          <aside class="card verdict">
+            <div class="eyebrow">Readiness score</div>
+            <h2>發布就緒度</h2>
+            <div class="verdict-ring"><div><strong>91</strong><span>滿分 100</span></div></div>
+            <div class="verdict-summary">所有嚴重護欄均通過。延遲事件已回退並完成根因隔離，建議先延長供應鏈群組觀察 24 小時。</div>
+            <button class="button primary" type="button" data-toast="裁定已記錄：延長供應鏈群組觀察 24 小時">
+              <span class="material-symbols-outlined">gavel</span>確認發布裁定
+            </button>
+          </aside>
+
+          <div>
+            <article class="card records-card">
+              <div class="records-head">
+                <div><h2>Agent 灰度發布控制器資料列表</h2><p>各流程負責人、期限與完成階段。</p></div>
+                <span class="soft-pill">6 筆操作紀錄</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
+                  <tbody>
+                    <tr><td><strong>AGE-001</strong></td><td>登錄候選版本</td><td>AI 平台負責人</td><td>D+1</td><td><span class="stage-pill running">處理中</span></td></tr>
+                    <tr><td><strong>AGE-002</strong></td><td>劃分發布群組</td><td>流程主管</td><td>D+2</td><td><span class="stage-pill review">待確認</span></td></tr>
+                    <tr><td><strong>AGE-003</strong></td><td>設定流量階梯</td><td>發布經理</td><td>D+3</td><td><span class="stage-pill review">待確認</span></td></tr>
+                    <tr><td><strong>AGE-004</strong></td><td>監測護欄指標</td><td>發布監測代理</td><td>D+4</td><td><span class="stage-pill done">已完成</span></td></tr>
+                    <tr><td><strong>AGE-005</strong></td><td>處理暫停回退</td><td>值班工程師</td><td>D+5</td><td><span class="stage-pill done">已完成</span></td></tr>
+                    <tr><td><strong>AGE-006</strong></td><td>裁定全面發布</td><td>產品經理</td><td>D+6</td><td><span class="stage-pill done">已完成</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <div class="decision-options" aria-label="發布裁定選項">
+              <button class="decision-option" type="button"><strong>核准全量發布</strong><span>所有群組直接擴至 100%，持續監測 48 小時。</span></button>
+              <button class="decision-option selected" type="button"><strong>延長局部觀察</strong><span>供應鏈群組延長 24 小時，其餘群組依計畫擴量。</span></button>
+              <button class="decision-option" type="button"><strong>終止本次發布</strong><span>全部回到 v2.7.4，候選版本返回修正流程。</span></button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const screens = Array.from(document.querySelectorAll("[data-screen]"));
+      const navButtons = Array.from(document.querySelectorAll("[data-i]"));
+      const toastBox = document.querySelector(".toast");
+      const chartCache = {};
+      let toastHandle;
+
+      function parsedIndex() {
+        const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+        if (!match) return 0;
+        const indexValue = Number(match[1]);
+        return Number.isInteger(indexValue) && indexValue >= 0 && indexValue < screens.length ? indexValue : 0;
+      }
+
+      function renderAvailability() {
+        const chartElement = document.getElementById("availability-chart");
+        if (!chartElement || chartElement.clientWidth === 0 || typeof echarts === "undefined") return;
+
+        if (!chartCache.availability) chartCache.availability = echarts.init(chartElement);
+
+        chartCache.availability.setOption({
+          animationDuration: 650,
+          color: ["#4d7c0f"],
+          grid: { left: 42, right: 18, bottom: 30, top: 28 },
+          tooltip: {
+            trigger: "axis",
+            backgroundColor: "#20331c",
+            borderWidth: 0,
+            textStyle: { color: "#fff", fontFamily: "Inter, Noto Sans TC" },
+            formatter: params => `${params[0].axisValue}<br>系統可用率 <b>${params[0].value}%</b>`
+          },
+          xAxis: {
+            type: "category",
+            boundaryGap: false,
+            data: ["W1", "W2", "W3", "W4", "W5", "W6"],
+            axisLine: { lineStyle: { color: "#dfe6df" } },
+            axisTick: { show: false },
+            axisLabel: { color: "#718078", fontSize: 10 }
+          },
+          yAxis: {
+            type: "value",
+            min: 96.5,
+            max: 99.5,
+            interval: 0.5,
+            axisLine: { show: false },
+            axisTick: { show: false },
+            splitLine: { lineStyle: { color: "#edf1eb" } },
+            axisLabel: { color: "#718078", fontSize: 9, formatter: "{value}%" }
+          },
+          series: [{
+            type: "line",
+            smooth: true,
+            symbol: "circle",
+            symbolSize: 7,
+            data: [97, 97.4, 97.8, 98.2, 98.6, 99],
+            lineStyle: { width: 3 },
+            itemStyle: { borderColor: "#fff", borderWidth: 2 },
+            areaStyle: {
+              color: {
+                type: "linear",
+                x: 0, y: 0, x2: 0, y2: 1,
+                colorStops: [
+                  { offset: 0, color: "rgba(77,124,15,.24)" },
+                  { offset: 1, color: "rgba(77,124,15,.02)" }
+                ]
+              }
+            },
+            markLine: {
+              symbol: "none",
+              label: { color: "#718078", fontSize: 9, formatter: "目標 99%" },
+              lineStyle: { color: "#c1770a", type: "dashed" },
+              data: [{ yAxis: 99 }]
+            }
+          }]
+        });
+      }
+
+      function show(indexValue) {
+        const safeIndex = Number.isInteger(Number(indexValue)) && Number(indexValue) >= 0 && Number(indexValue) < screens.length
+          ? Number(indexValue)
+          : 0;
+
+        screens.forEach((screenElement, screenIndex) => {
+          const isCurrent = screenIndex === safeIndex;
+          screenElement.classList.toggle("active", isCurrent);
+          screenElement.setAttribute("aria-hidden", String(!isCurrent));
+        });
+
+        navButtons.forEach((buttonElement, buttonIndex) => {
+          if (buttonIndex === safeIndex) {
+            buttonElement.setAttribute("aria-current", "page");
+          } else {
+            buttonElement.removeAttribute("aria-current");
+          }
+        });
+
+        if (safeIndex === 3) {
+          requestAnimationFrame(() => {
+            renderAvailability();
+            if (chartCache.availability) chartCache.availability.resize();
+          });
+        }
+
+        window.scrollTo({ left: 0, behavior: "instant" });
+      }
+
+      function flash(message) {
+        window.clearTimeout(toastHandle);
+        toastBox.textContent = message;
+        toastBox.classList.add("visible");
+        toastHandle = window.setTimeout(() => toastBox.classList.remove("visible"), 2300);
+      }
+
+      navButtons.forEach(buttonElement => {
+        buttonElement.addEventListener("click", () => {
+          const targetIndex = Number(buttonElement.dataset.i);
+          const nextHash = `#go=${targetIndex}`;
+          if (window.location.hash === nextHash) {
+            show(targetIndex);
+          } else {
+            window.location.hash = nextHash;
+          }
+        });
+      });
+
+      document.querySelectorAll("[data-toast]").forEach(actionElement => {
+        actionElement.addEventListener("click", () => flash(actionElement.dataset.toast));
+      });
+
+      document.querySelectorAll(".filter-chip").forEach(chipElement => {
+        chipElement.addEventListener("click", () => {
+          document.querySelectorAll(".filter-chip").forEach(itemElement => itemElement.classList.remove("selected"));
+          chipElement.classList.add("selected");
+          flash(`已套用分群條件：${chipElement.textContent.trim()}`);
+        });
+      });
+
+      document.querySelectorAll(".decision-option").forEach(optionElement => {
+        optionElement.addEventListener("click", () => {
+          document.querySelectorAll(".decision-option").forEach(itemElement => itemElement.classList.remove("selected"));
+          optionElement.classList.add("selected");
+        });
+      });
+
+      window.addEventListener("hashchange", () => show(parsedIndex()));
+      window.addEventListener("resize", () => {
+        if (chartCache.availability && screens[3].classList.contains("active")) {
+          chartCache.availability.resize();
+        }
+      });
+
+      show(parsedIndex());
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<link rel="icon" href="../../favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#be123c">
+<title>視覺模型漂移守門員 · quality-qms｜Jvision 系統 Demo</title>
+<style>
+:root{
+  --blue:#be123c;
+  --ink:#172033;
+  --body:#334155;
+  --muted:#718096;
+  --line:#e5e9f0;
+  --bg:#f6f8fb;
+  --green:#15956b;
+  --amber:#d97706;
+  --red:#dc2626;
+  --white:#fff;
+  --soft:#fff1f4;
+  --shadow:0 14px 34px rgba(23,32,51,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-width:0;
+  color:var(--body);
+  background:var(--bg);
+  font-family:Inter,"Noto Sans TC",sans-serif;
+  overflow-x:hidden;
+}
+button,select,input{font:inherit}
+button{color:inherit}
+button:focus-visible,select:focus-visible,input:focus-visible{
+  outline:3px solid rgba(190,18,60,.24);
+  outline-offset:2px;
+}
+.material-symbols-outlined{
+  font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24;
+  line-height:1;
+}
+.shell{display:grid;grid-template-columns:78px minmax(0,1fr);min-height:100vh}
+.rail{
+  position:fixed;
+  inset:0 auto 0 0;
+  width:78px;
+  z-index:20;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:18px 10px;
+  color:#fff;
+  background:#23151b;
+  border-right:1px solid rgba(255,255,255,.08);
+}
+.brand{
+  width:46px;height:46px;border-radius:15px;
+  display:grid;place-items:center;
+  background:linear-gradient(145deg,#e11d48,var(--blue));
+  box-shadow:0 10px 22px rgba(190,18,60,.35);
+}
+.brand .material-symbols-outlined{font-size:25px}
+.rail-nav{display:flex;flex-direction:column;gap:9px;margin:auto 0}
+.nav-btn{
+  position:relative;
+  width:50px;height:50px;border:0;border-radius:14px;
+  display:grid;place-items:center;
+  background:transparent;color:#a99da2;cursor:pointer;
+  transition:.2s ease;
+}
+.nav-btn:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-btn.active{background:#fff;color:var(--blue);box-shadow:0 8px 20px rgba(0,0,0,.22)}
+.nav-btn::after{
+  content:attr(aria-label);
+  position:absolute;left:58px;top:50%;
+  transform:translateY(-50%) translateX(-4px);
+  padding:7px 10px;border-radius:8px;
+  background:#172033;color:#fff;
+  font-size:12px;white-space:nowrap;
+  opacity:0;visibility:hidden;transition:.18s;
+  pointer-events:none;
+}
+.nav-btn:hover::after{opacity:1;visibility:visible;transform:translateY(-50%)}
+.rail-foot{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:#463039;color:#f7bbc8}
+.main{grid-column:2;min-width:0}
+.topbar{
+  min-height:74px;padding:14px 30px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px;
+  background:rgba(255,255,255,.92);
+  border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:12;
+  backdrop-filter:blur(12px);
+}
+.title-wrap{min-width:0}
+.eyebrow{margin:0 0 3px;color:var(--blue);font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase}
+.topbar h1{font-size:20px;line-height:1.25;margin:0;color:var(--ink)}
+.top-actions{display:flex;align-items:center;gap:10px}
+.live{
+  display:flex;align-items:center;gap:7px;
+  padding:8px 11px;border:1px solid #bce5d5;border-radius:999px;
+  color:#087653;background:#f0fdf8;font-size:12px;font-weight:700;
+}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(21,149,107,.12);animation:pulse 2s infinite}
+.icon-btn{width:40px;height:40px;border:1px solid var(--line);border-radius:12px;background:#fff;display:grid;place-items:center;cursor:pointer}
+.avatar{width:40px;height:40px;border-radius:13px;background:#ffe3e9;color:var(--blue);display:grid;place-items:center;font-weight:800}
+.content{padding:24px 30px 40px;max-width:1600px;margin:0 auto}
+.screen{display:none;animation:enter .3s ease}
+.screen.active{display:block}
+.screen-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:20px}
+.screen-head h2{margin:0 0 5px;color:var(--ink);font-size:25px;letter-spacing:-.025em}
+.screen-head p{margin:0;color:var(--muted);font-size:13px}
+.toolbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+.select{
+  min-height:40px;padding:0 34px 0 12px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--body)
+}
+.btn{
+  min-height:40px;padding:0 15px;border:1px solid var(--line);border-radius:11px;
+  background:#fff;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  font-weight:700;font-size:13px;cursor:pointer;transition:.18s;
+}
+.btn:hover{border-color:#d3a2ad;color:var(--blue)}
+.btn.primary{border-color:var(--blue);background:var(--blue);color:#fff}
+.btn.primary:hover{background:#9f1239;color:#fff}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 5px 18px rgba(23,32,51,.035);min-width:0}
+.card-pad{padding:20px}
+.card-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}
+.card-title h3{font-size:15px;color:var(--ink);margin:0}
+.card-title small{color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:800}
+.chip.green{color:#087653;background:#eafaf4}
+.chip.amber{color:#a05205;background:#fff7e6}
+.chip.red{color:#b91c1c;background:#fff0f0}
+.chip.rose{color:var(--blue);background:var(--soft)}
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.metric{padding:17px;background:#fff;border:1px solid var(--line);border-radius:16px;min-width:0}
+.metric-row{display:flex;justify-content:space-between;gap:8px}
+.metric-label{font-size:12px;color:var(--muted);font-weight:600}
+.metric-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--soft);color:var(--blue)}
+.metric-icon .material-symbols-outlined{font-size:19px}
+.metric-value{margin:8px 0 3px;font-size:25px;color:var(--ink);font-weight:800;letter-spacing:-.03em}
+.delta{font-size:11px;color:var(--muted)}
+.delta b{color:var(--green)}
+.grid-2{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.75fr);gap:16px}
+.grid-equal{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.chart-box{position:relative;width:100%;height:270px}
+.chart-box.sm{height:220px}
+.legend-row{display:flex;flex-wrap:wrap;gap:15px;font-size:11px;color:var(--muted)}
+.legend-row span{display:flex;align-items:center;gap:6px}
+.legend-dot{width:8px;height:8px;border-radius:50%;background:var(--blue)}
+.legend-dot.green{background:var(--green)}
+.legend-dot.amber{background:var(--amber)}
+.alert-list{display:flex;flex-direction:column;gap:10px}
+.alert-item{padding:13px;border:1px solid var(--line);border-radius:13px;display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center}
+.alert-icon{width:34px;height:34px;border-radius:10px;background:#fff1f2;color:var(--red);display:grid;place-items:center}
+.alert-icon .material-symbols-outlined{font-size:19px}
+.alert-item strong{display:block;color:var(--ink);font-size:12px;margin-bottom:3px}
+.alert-item small{display:block;color:var(--muted);font-size:10px}
+.heatmap{display:grid;grid-template-columns:58px repeat(8,minmax(24px,1fr));gap:6px;align-items:center}
+.heat-label{font-size:10px;color:var(--muted)}
+.heat-cell{height:28px;border-radius:7px;background:#f7d8df}
+.heat-cell.m1{background:#f4a6b8}.heat-cell.m2{background:#e95d7d}.heat-cell.m3{background:var(--blue)}
+.camera-layout{display:grid;grid-template-columns:minmax(250px,.72fr) minmax(0,1.45fr);gap:16px}
+.camera-list{padding:12px}
+.camera-card{width:100%;padding:13px;border:1px solid transparent;border-radius:13px;background:transparent;display:grid;grid-template-columns:40px 1fr auto;gap:10px;align-items:center;text-align:left;cursor:pointer}
+.camera-card:hover,.camera-card.selected{background:var(--soft);border-color:#f3beca}
+.camera-symbol{width:40px;height:40px;border-radius:12px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;color:var(--blue)}
+.camera-card strong{display:block;font-size:12px;color:var(--ink)}
+.camera-card small{font-size:10px;color:var(--muted)}
+.camera-state{width:9px;height:9px;border-radius:50%;background:var(--green)}
+.camera-state.warn{background:var(--amber)}
+.camera-state.bad{background:var(--red)}
+.machine-panel{padding:22px;background:linear-gradient(145deg,#271921,#3b232d);border-radius:18px;color:#fff;min-height:310px}
+.machine-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+.machine-head h3{font-size:15px;margin:0}
+.camera-visual{display:grid;grid-template-columns:1fr 84px 1fr;align-items:center;gap:18px;margin:28px auto;max-width:650px}
+.lens{width:76px;height:76px;border-radius:50%;border:8px solid #66515a;background:radial-gradient(circle,#7c9bb0 0 18%,#18232d 20% 39%,#563641 41% 58%,#21151b 60%);box-shadow:0 0 0 7px #35232b,0 0 28px rgba(244,63,94,.25)}
+.beam{height:2px;background:linear-gradient(90deg,transparent,#f9a8b8,var(--blue));position:relative}
+.beam.right{background:linear-gradient(90deg,var(--blue),#f9a8b8,transparent)}
+.machine-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.dark-stat{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:10px}
+.dark-stat small{display:block;color:#c7b9bf;font-size:9px}.dark-stat b{font-size:14px}
+.health-row{display:grid;grid-template-columns:110px 1fr 44px;align-items:center;gap:10px;margin:13px 0;font-size:11px}
+.bar{height:8px;border-radius:999px;background:#edf0f4;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:inherit;background:var(--green)}
+.bar i.warn{background:var(--amber)}.bar i.bad{background:var(--red)}
+.product-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.72fr);gap:16px}
+.mix-list{display:flex;flex-direction:column;gap:12px}
+.mix-row{display:grid;grid-template-columns:42px 1fr 60px;gap:11px;align-items:center}
+.product-thumb{width:42px;height:42px;border-radius:11px;background:#f2f4f7;display:grid;place-items:center;color:#64748b}
+.mix-row strong{font-size:12px;color:var(--ink)}.mix-row small{display:block;font-size:10px;color:var(--muted);margin-top:2px}
+.mix-shift{font-size:12px;font-weight:800;text-align:right}.mix-shift.up{color:var(--red)}.mix-shift.down{color:var(--green)}
+.notice{padding:14px;border-radius:13px;background:#fff8e8;border:1px solid #f5dfaa;display:flex;gap:10px;color:#8d5209;font-size:12px;line-height:1.55}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}
+table{width:100%;border-collapse:collapse;min-width:670px}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);font-size:11px;white-space:nowrap}
+th{color:var(--muted);background:#fafbfc;font-weight:700}
+td{color:var(--body)}tbody tr:last-child td{border-bottom:0}
+td strong{color:var(--ink)}
+.drift-workbench{display:grid;grid-template-columns:minmax(0,1.5fr) 310px;gap:16px}
+.scatter-wrap{position:relative;height:420px}
+.tool-stack{display:flex;flex-direction:column;gap:16px}
+.drift-score{text-align:center;padding:20px}
+.score-ring{
+  width:142px;height:142px;margin:5px auto 14px;border-radius:50%;
+  background:conic-gradient(var(--blue) 0 71%,#edf0f4 71% 100%);
+  display:grid;place-items:center;position:relative;
+}
+.score-ring::before{content:"";position:absolute;width:104px;height:104px;border-radius:50%;background:#fff}
+.score-ring div{position:relative}.score-ring b{display:block;font-size:32px;color:var(--ink)}.score-ring small{color:var(--muted)}
+.defect-tags{display:flex;flex-wrap:wrap;gap:7px}
+.defect-tag{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 10px;font-size:11px;cursor:pointer}
+.defect-tag.active{border-color:#f1a8b8;background:var(--soft);color:var(--blue);font-weight:700}
+.matrix{display:grid;grid-template-columns:80px repeat(3,1fr);gap:5px;align-items:center}
+.matrix span{padding:10px 5px;border-radius:8px;text-align:center;font-size:10px;background:#f5f6f8}
+.matrix .head{background:transparent;color:var(--muted);font-weight:700}
+.matrix .hot1{background:#fde8ed;color:#9f1239}.matrix .hot2{background:#f7b7c5;color:#881337}.matrix .hot3{background:#be123c;color:#fff}
+.risk-layout{display:grid;grid-template-columns:minmax(280px,.7fr) minmax(0,1.3fr);gap:16px}
+.risk-panel{padding:24px;background:linear-gradient(155deg,#fff 0,#fff 56%,#fff1f4 100%)}
+.risk-gauge{width:220px;height:115px;overflow:hidden;position:relative;margin:20px auto 8px}
+.risk-arc{width:220px;height:220px;border-radius:50%;background:conic-gradient(from 270deg,var(--green) 0 12%,var(--amber) 12% 27%,var(--red) 27% 50%,#edf0f4 50%);position:absolute}
+.risk-arc::after{content:"";position:absolute;inset:28px;border-radius:50%;background:#fff}
+.needle{position:absolute;width:82px;height:3px;background:var(--ink);left:110px;bottom:0;transform-origin:left center;transform:rotate(154deg);z-index:2;border-radius:3px}
+.needle::before{content:"";width:15px;height:15px;border-radius:50%;background:var(--ink);position:absolute;left:-7px;top:-6px}
+.risk-number{text-align:center}.risk-number b{font-size:42px;color:var(--red)}.risk-number span{font-size:13px;color:var(--muted)}
+.factor{padding:13px 0;border-bottom:1px solid var(--line)}
+.factor:last-child{border-bottom:0}
+.factor-head{display:flex;justify-content:space-between;font-size:11px;margin-bottom:8px}
+.factor-head strong{color:var(--ink)}
+.confusion{display:grid;grid-template-columns:90px repeat(2,1fr);gap:7px}
+.confusion div{padding:17px 8px;text-align:center;border-radius:11px;background:#f4f6f8;font-size:11px}
+.confusion .axis{background:transparent;color:var(--muted);padding:9px 4px}
+.confusion .good{background:#e9f9f3;color:#087653}.confusion .bad{background:#fff0f2;color:#b91c1c}
+.confusion b{display:block;font-size:22px;margin-bottom:3px}
+.decision-box{border:1px solid #f4b7c4;background:#fff7f9;border-radius:15px;padding:16px}
+.decision-box h4{margin:0 0 8px;color:var(--ink);font-size:13px}
+.decision-box p{margin:0 0 14px;color:var(--muted);font-size:11px;line-height:1.6}
+.release-grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px}
+.stepper{padding:18px}
+.release-step{position:relative;display:grid;grid-template-columns:34px 1fr;gap:11px;padding:0 0 22px}
+.release-step:not(:last-child)::after{content:"";position:absolute;left:16px;top:34px;width:2px;height:calc(100% - 25px);background:#dce2e8}
+.step-dot{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#eaf9f3;color:var(--green);z-index:1}
+.step-dot.current{background:var(--blue);color:#fff;box-shadow:0 0 0 5px rgba(190,18,60,.12)}
+.step-dot.pending{background:#edf0f4;color:#94a3b8}
+.release-step strong{display:block;color:var(--ink);font-size:12px;margin:2px 0 3px}.release-step small{color:var(--muted);font-size:10px}
+.version-head{padding:18px 20px;background:#271921;color:#fff;border-radius:18px 18px 0 0;display:flex;justify-content:space-between;gap:12px}
+.version-head h3{margin:0;font-size:15px}.version-head small{color:#c9b9c0}
+.compare-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.compare{padding:14px;border:1px solid var(--line);border-radius:13px}
+.compare small{display:block;color:var(--muted);font-size:10px}.compare b{display:block;color:var(--ink);font-size:20px;margin:4px 0}.compare em{font-style:normal;color:var(--green);font-size:10px;font-weight:700}
+.audit{display:flex;flex-direction:column}
+.audit-row{display:grid;grid-template-columns:75px 32px 1fr auto;gap:9px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);font-size:10px}
+.audit-row:last-child{border-bottom:0}
+.audit-row time{color:var(--muted)}
+.audit-mark{width:27px;height:27px;border-radius:8px;background:var(--soft);color:var(--blue);display:grid;place-items:center}
+.audit-mark .material-symbols-outlined{font-size:15px}
+.audit-row strong{display:block;color:var(--ink);font-size:11px}.audit-row span{color:var(--muted)}
+.toast{
+  position:fixed;right:24px;bottom:24px;z-index:50;
+  max-width:330px;padding:13px 16px;border-radius:12px;
+  color:#fff;background:#172033;box-shadow:var(--shadow);
+  font-size:12px;transform:translateY(24px);opacity:0;pointer-events:none;transition:.25s;
+}
+.toast.open{transform:none;opacity:1}
+@keyframes enter{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes pulse{50%{box-shadow:0 0 0 8px rgba(21,149,107,0)}}
+@media(max-width:1050px){
+  .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid-2,.camera-layout,.product-hero,.drift-workbench,.risk-layout,.release-grid{grid-template-columns:1fr}
+  .tool-stack{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:720px){
+  .shell{display:block;padding-bottom:76px}
+  .main{display:block}
+  .rail{
+    inset:auto 0 0;width:auto;height:68px;padding:8px 9px;
+    flex-direction:row;background:#23151b;border:0;border-top:1px solid rgba(255,255,255,.1)
+  }
+  .brand,.rail-foot{display:none}
+  .rail-nav{width:100%;margin:0;flex-direction:row;justify-content:space-around;gap:3px}
+  .nav-btn{width:47px;height:47px}
+  .nav-btn::after{display:none}
+  .topbar{position:relative;padding:13px 16px;min-height:66px}
+  .topbar h1{font-size:16px}
+  .top-actions .live{display:none}
+  .content{padding:18px 14px 26px}
+  .screen-head{align-items:flex-start;flex-direction:column}
+  .screen-head h2{font-size:22px}
+  .toolbar{width:100%}
+  .select{flex:1;min-width:0}
+  .grid-equal,.tool-stack{grid-template-columns:1fr}
+  .machine-stats,.compare-grid{grid-template-columns:repeat(2,1fr)}
+  .camera-visual{grid-template-columns:1fr 62px 1fr;gap:8px}
+  .lens{width:60px;height:60px}
+  .heatmap{grid-template-columns:44px repeat(8,minmax(18px,1fr));gap:4px}
+  .heat-cell{height:24px}
+  .scatter-wrap{height:340px}
+  .audit-row{grid-template-columns:55px 27px 1fr}.audit-row>.chip{display:none}
+}
+@media(max-width:430px){
+  .metric-grid{grid-template-columns:1fr 1fr;gap:9px}
+  .metric{padding:13px}
+  .metric-value{font-size:20px}
+  .card-pad{padding:15px}
+  .machine-stats{grid-template-columns:1fr 1fr}
+  .confusion{grid-template-columns:68px repeat(2,1fr)}
+  .risk-gauge{transform:scale(.86);margin-left:auto;margin-right:auto}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail" aria-label="流程導覽">
+    <div class="brand" title="Jvision"><span class="material-symbols-outlined">visibility</span></div>
+    <nav class="rail-nav">
+      <button class="nav-btn" data-i="0" aria-label="光照監測"><span class="material-symbols-outlined">wb_sunny</span></button>
+      <button class="nav-btn" data-i="1" aria-label="相機診斷"><span class="material-symbols-outlined">photo_camera</span></button>
+      <button class="nav-btn" data-i="2" aria-label="產品漂移"><span class="material-symbols-outlined">deployed_code</span></button>
+      <button class="nav-btn" data-i="3" aria-label="缺陷分析"><span class="material-symbols-outlined">scatter_plot</span></button>
+      <button class="nav-btn" data-i="4" aria-label="風險評估"><span class="material-symbols-outlined">monitor_heart</span></button>
+      <button class="nav-btn" data-i="5" aria-label="校正回訓"><span class="material-symbols-outlined">model_training</span></button>
+    </nav>
+    <div class="rail-foot"><span class="material-symbols-outlined">verified_user</span></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="title-wrap">
+        <p class="eyebrow">QMS · Vision Guard</p>
+        <h1>視覺模型漂移守門員</h1>
+      </div>
+      <div class="top-actions">
+        <div class="live"><i class="live-dot"></i>產線即時監測</div>
+        <button class="icon-btn action-toast" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+        <div class="avatar" title="品質主管">品</div>
+      </div>
+    </header>
+
+    <div class="content">
+      <section class="screen" data-screen="0">
+        <div class="screen-head">
+          <div><h2>檢查光照偏移</h2><p>視覺工程師 · 確認環境光與照明模組是否偏離基線</p></div>
+          <div class="toolbar">
+            <select class="select" aria-label="產線"><option>A3 精密組裝線</option><option>A2 外觀檢測線</option></select>
+            <button class="btn action-toast"><span class="material-symbols-outlined">tune</span>基線設定</button>
+          </div>
+        </div>
+        <div class="metric-grid">
+          <article class="metric"><div class="metric-row"><span class="metric-label">平均亮度</span><span class="metric-icon"><span class="material-symbols-outlined">brightness_6</span></span></div><div class="metric-value">182.4 <small>lux</small></div><div class="delta"><b>基線內</b> · 180 ± 8 lux</div></article>
+          <article class="metric"><div class="metric-row"><span class="metric-label">色溫偏移</span><span class="metric-icon"><span class="material-symbols-outlined">device_thermostat</span></span></div><div class="metric-value">+246 <small>K</small></div><div class="delta" style="color:var(--amber)">接近警戒值 +300 K</div></article>
+          <article class="metric"><div class="metric-row"><span class="metric-label">陰影覆蓋率</span><span class="metric-icon"><span class="material-symbols-outlined">contrast</span></span></div><div class="metric-value">3.8%</div><div class="delta"><b>改善 0.7%</b> · 較昨日</div></article>
+          <article class="metric"><div class="metric-row"><span class="metric-label">異常工位</span><span class="metric-icon"><span class="material-symbols-outlined">warning</span></span></div><div class="metric-value">2 <small>/ 24</small></div><div class="delta">L-07、L-18 待處置</div></article>
+        </div>
+        <div class="grid-2">
+          <article class="card card-pad">
+            <div class="card-title"><div><h3>24 小時照度穩定趨勢</h3><small>取樣頻率 15 分鐘 · 基線 180 lux</small></div><span class="chip green">穩定度 96.2%</span></div>
+            <div class="chart-box"><canvas id="lightChart"></canvas></div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-title"><h3>即時偏移告警</h3><span class="chip red">2 項待處理</span></div>
+            <div class="alert-list">
+              <div class="alert-item"><span class="alert-icon"><span class="material-symbols-outlined">wb_twilight</span></span><div><strong>L-07 色溫偏高</strong><small>包裝反光區 · 已持續 18 分鐘</small></div><span class="chip amber">中</span></div>
+              <div class="alert-item"><span class="alert-icon"><span class="material-symbols-outlined">flare</span></span><div><strong>L-18 局部過曝</strong><small>右上視野 · 峰值 +12.7%</small></div><span class="chip red">高</span></div>
+              <div class="alert-item"><span class="alert-icon" style="color:var(--green);background:#eafaf4"><span class="material-symbols-outlined">check_circle</span></span><div><strong>L-03 陰影已恢復</strong><small>清潔燈罩後回到基線</small></div><span class="chip green">完成</span></div>
+            </div>
+          </article>
+        </div>
+        <article class="card card-pad" style="margin-top:16px">
+          <div class="card-title"><div><h3>工位光照均勻度熱區</h3><small>數值越深代表相對基線偏差越大</small></div><div class="legend-row"><span><i class="legend-dot" style="background:#f7d8df"></i>正常</span><span><i class="legend-dot"></i>顯著偏移</span></div></div>
+          <div class="heatmap">
+            <span class="heat-label">上視角</span><i class="heat-cell"></i><i class="heat-cell"></i><i class="heat-cell m1"></i><i class="heat-cell"></i><i class="heat-cell"></i><i class="heat-cell m2"></i><i class="heat-cell"></i><i class="heat-cell"></i>
+            <span class="heat-label">正視角</span><i class="heat-cell"></i><i class="heat-cell m1"></i><i class="heat-cell"></i><i class="heat-cell"></i><i class="heat-cell m3"></i><i class="heat-cell m2"></i><i class="heat-cell"></i><i class="heat-cell"></i>
+            <span class="heat-label">側視角</span><i class="heat-cell"></i><i class="heat-cell"></i><i class="heat-cell"></i><i class="heat-cell m1"></i><i class="heat-cell"></i><i class="heat-cell"></i><i class="heat-cell m2"></i><i class="heat-cell"></i>
+          </div>
+        </article>
+      </section>
+
+      <section class="screen" data-screen="1">
+        <div class="screen-head">
+          <div><h2>診斷相機狀態</h2><p>設備工程師 · 排查鏡頭、曝光、焦距、雜訊與震動問題</p></div>
+          <div class="toolbar"><button class="btn action-toast"><span class="material-symbols-outlined">refresh</span>重新檢測</button><button class="btn primary action-toast">建立維護單</button></div>
+        </div>
+        <div class="camera-layout">
+          <aside class="card camera-list">
+            <div class="card-title" style="padding:8px 8px 4px"><h3>相機節點</h3><span class="chip amber">2 警示</span></div>
+            <button class="camera-card selected"><span class="camera-symbol"><span class="material-symbols-outlined">photo_camera</span></span><span><strong>CAM-A3-07</strong><small>正視 · 檢測站 07</small></span><i class="camera-state bad"></i></button>
+            <button class="camera-card"><span class="camera-symbol"><span class="material-symbols-outlined">photo_camera</span></span><span><strong>CAM-A3-08</strong><small>側視 · 檢測站 08</small></span><i class="camera-state"></i></button>
+            <button class="camera-card"><span class="camera-symbol"><span class="material-symbols-outlined">videocam</span></span><span><strong>CAM-A3-12</strong><small>上視 · 檢測站 12</small></span><i class="camera-state warn"></i></button>
+            <button class="camera-card"><span class="camera-symbol"><span class="material-symbols-outlined">photo_camera</span></span><span><strong>CAM-A3-18</strong><small>正視 · 檢測站 18</small></span><i class="camera-state"></i></button>
+            <button class="camera-card"><span class="camera-symbol"><span class="material-symbols-outlined">videocam</span></span><span><strong>CAM-A3-21</strong><small>斜視 · 檢測站 21</small></span><i class="camera-state"></i></button>
+          </aside>
+          <div>
+            <div class="machine-panel">
+              <div class="machine-head"><div><h3>CAM-A3-07 光學鏈路診斷</h3><small style="color:#c7b9bf">最後掃描 10:42:18</small></div><span class="chip red">鏡頭污染疑似</span></div>
+              <div class="camera-visual"><div class="beam"></div><div class="lens"></div><div class="beam right"></div></div>
+              <div class="machine-stats">
+                <div class="dark-stat"><small>曝光時間</small><b>3.6 ms</b></div>
+                <div class="dark-stat"><small>焦距偏差</small><b>+1.8%</b></div>
+                <div class="dark-stat"><small>感測器溫度</small><b>41.2°C</b></div>
+                <div class="dark-stat"><small>振動 RMS</small><b>0.14 g</b></div>
+              </div>
+            </div>
+            <div class="grid-equal" style="margin-top:16px">
+              <article class="card card-pad">
+                <div class="card-title"><h3>健康指標</h3><span class="chip amber">總分 76</span></div>
+                <div class="health-row"><span>對焦銳利度</span><div class="bar"><i style="width:84%"></i></div><b>84</b></div>
+                <div class="health-row"><span>曝光穩定性</span><div class="bar"><i class="warn" style="width:72%"></i></div><b>72</b></div>
+                <div class="health-row"><span>鏡頭潔淨度</span><div class="bar"><i class="bad" style="width:58%"></i></div><b>58</b></div>
+                <div class="health-row"><span>訊號雜訊比</span><div class="bar"><i style="width:91%"></i></div><b>91</b></div>
+              </article>
+              <article class="card card-pad">
+                <div class="card-title"><h3>近 7 日診斷分數</h3><small>CAM-A3-07</small></div>
+                <div class="chart-box sm"><canvas id="cameraChart"></canvas></div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="2">
+        <div class="screen-head">
+          <div><h2>辨識產品變化</h2><p>製程工程師 · 核對新品、換線與產品組合相對訓練集的改變</p></div>
+          <div class="toolbar"><select class="select"><option>批次 B240822-17</option><option>批次 B240822-16</option></select><button class="btn primary action-toast">確認產品組合</button></div>
+        </div>
+        <div class="product-hero">
+          <article class="card card-pad">
+            <div class="card-title"><div><h3>即時產品組合 vs. 訓練基線</h3><small>最近 12,480 件 · PSI 0.238</small></div><span class="chip red">顯著漂移</span></div>
+            <div class="grid-equal">
+              <div class="chart-box"><canvas id="productChart"></canvas></div>
+              <div class="mix-list">
+                <div class="mix-row"><span class="product-thumb"><span class="material-symbols-outlined">memory</span></span><div><strong>AX-7 標準版</strong><small>目前 42% · 基線 55%</small></div><span class="mix-shift down">−13%</span></div>
+                <div class="mix-row"><span class="product-thumb"><span class="material-symbols-outlined">developer_board</span></span><div><strong>AX-7S 霧面版</strong><small>目前 31% · 基線 18%</small></div><span class="mix-shift up">+13%</span></div>
+                <div class="mix-row"><span class="product-thumb"><span class="material-symbols-outlined">settings_input_component</span></span><div><strong>AX-8 新規版</strong><small>目前 18% · 基線 0%</small></div><span class="mix-shift up">新品</span></div>
+                <div class="mix-row"><span class="product-thumb"><span class="material-symbols-outlined">widgets</span></span><div><strong>其他型號</strong><small>目前 9% · 基線 27%</small></div><span class="mix-shift down">−18%</span></div>
+              </div>
+            </div>
+          </article>
+          <aside class="card card-pad">
+            <div class="card-title"><h3>變更事件</h3><span class="chip amber">需核對</span></div>
+            <div class="notice"><span class="material-symbols-outlined">new_releases</span><div><b>偵測到未登錄外觀版本</b><br>AX-8 新規版的邊緣倒角與訓練集距離 0.34，可能提高刮傷誤判。</div></div>
+            <div style="margin-top:17px">
+              <div class="factor"><div class="factor-head"><strong>配方切換時間</strong><span>08:16</span></div><small>RCP-AX8-02 · 操作者 林孟哲</small></div>
+              <div class="factor"><div class="factor-head"><strong>新品首件確認</strong><span class="chip green">已簽核</span></div><small>首件影像 80 張，品質主管 09:05 核可</small></div>
+              <div class="factor"><div class="factor-head"><strong>模型涵蓋率</strong><span style="color:var(--red)">62%</span></div><div class="bar"><i class="bad" style="width:62%"></i></div></div>
+            </div>
+          </aside>
+        </div>
+        <article class="card card-pad" style="margin-top:16px">
+          <div class="card-title"><div><h3>批次分布比對</h3><small>依料號、外觀版本與特徵距離排序</small></div><button class="btn action-toast">匯出比對報告</button></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>批次</th><th>料號 / 版本</th><th>樣本量</th><th>特徵距離</th><th>訓練涵蓋</th><th>判定</th></tr></thead>
+            <tbody>
+              <tr><td><strong>B240822-17</strong></td><td>AX-8 / R02</td><td>2,246</td><td>0.340</td><td>62%</td><td><span class="chip red">顯著漂移</span></td></tr>
+              <tr><td><strong>B240822-16</strong></td><td>AX-7S / M03</td><td>3,869</td><td>0.182</td><td>86%</td><td><span class="chip amber">觀察</span></td></tr>
+              <tr><td><strong>B240822-15</strong></td><td>AX-7 / S11</td><td>5,241</td><td>0.061</td><td>98%</td><td><span class="chip green">正常</span></td></tr>
+              <tr><td><strong>B240822-14</strong></td><td>AX-6 / S08</td><td>1,124</td><td>0.073</td><td>96%</td><td><span class="chip green">正常</span></td></tr>
+            </tbody>
+          </table></div>
+        </article>
+      </section>
+
+      <section class="screen" data-screen="3">
+        <div class="screen-head">
+          <div><h2>分析缺陷分布</h2><p>漂移偵測 AI · 定位缺陷類別、尺寸、位置與特徵空間的顯著漂移</p></div>
+          <div class="toolbar"><select class="select"><option>UMAP 特徵投影</option><option>缺陷位置分布</option></select><button class="btn action-toast">重新計算漂移</button></div>
+        </div>
+        <div class="drift-workbench">
+          <article class="card card-pad">
+            <div class="card-title"><div><h3>缺陷特徵空間</h3><small>當前批次 468 個缺陷樣本 · 基線樣本 2,400</small></div><div class="legend-row"><span><i class="legend-dot" style="background:#94a3b8"></i>訓練基線</span><span><i class="legend-dot"></i>目前批次</span><span><i class="legend-dot amber"></i>新群聚</span></div></div>
+            <div class="scatter-wrap"><canvas id="defectChart"></canvas></div>
+          </article>
+          <aside class="tool-stack">
+            <article class="card drift-score">
+              <div class="card-title"><h3>整體漂移指數</h3><span class="chip red">高風險</span></div>
+              <div class="score-ring"><div><b>71</b><small>/ 100</small></div></div>
+              <small>JS divergence 0.284 · 門檻 0.180</small>
+            </article>
+            <article class="card card-pad">
+              <div class="card-title"><h3>缺陷篩選</h3><small>點選類別聚焦</small></div>
+              <div class="defect-tags"><button class="defect-tag active">刮傷 168</button><button class="defect-tag">髒污 94</button><button class="defect-tag">缺角 63</button><button class="defect-tag">壓痕 51</button><button class="defect-tag">其他 92</button></div>
+            </article>
+            <article class="card card-pad">
+              <div class="card-title"><h3>位置漂移矩陣</h3><small>相對基線增幅</small></div>
+              <div class="matrix">
+                <span class="head"></span><span class="head">左</span><span class="head">中</span><span class="head">右</span>
+                <span class="head">上</span><span>+2%</span><span class="hot1">+14%</span><span class="hot3">+39%</span>
+                <span class="head">中</span><span>−3%</span><span class="hot1">+11%</span><span class="hot2">+27%</span>
+                <span class="head">下</span><span>+1%</span><span>+4%</span><span class="hot1">+16%</span>
+              </div>
+            </article>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="4">
+        <div class="screen-head">
+          <div><h2>評估檢測風險</h2><p>品質主管 · 判斷漂移對漏判、誤判與出貨品質的實際影響</p></div>
+          <div class="toolbar"><button class="btn action-toast">下載風險證據</button><button class="btn primary action-toast">送交處置決策</button></div>
+        </div>
+        <div class="risk-layout">
+          <article class="card risk-panel">
+            <div class="card-title"><h3>生產風險評分</h3><span class="chip red">需立即處置</span></div>
+            <div class="risk-gauge"><div class="risk-arc"></div><i class="needle"></i></div>
+            <div class="risk-number"><b>78</b><span> / 100</span><p style="font-size:11px;color:var(--muted);margin:4px 0 18px">預估每 10,000 件增加 31 件漏判</p></div>
+            <div class="factor"><div class="factor-head"><strong>漏判風險</strong><span>86 / 100</span></div><div class="bar"><i class="bad" style="width:86%"></i></div></div>
+            <div class="factor"><div class="factor-head"><strong>誤判風險</strong><span>63 / 100</span></div><div class="bar"><i class="warn" style="width:63%"></i></div></div>
+            <div class="factor"><div class="factor-head"><strong>批次暴露量</strong><span>72 / 100</span></div><div class="bar"><i class="warn" style="width:72%"></i></div></div>
+          </article>
+          <div>
+            <div class="grid-equal">
+              <article class="card card-pad">
+                <div class="card-title"><div><h3>抽驗混淆矩陣</h3><small>人工複判 1,000 件</small></div><span class="chip amber">F1 91.8%</span></div>
+                <div class="confusion">
+                  <div class="axis"></div><div class="axis">人工：良品</div><div class="axis">人工：缺陷</div>
+                  <div class="axis">模型：良品</div><div class="good"><b>823</b>正確放行</div><div class="bad"><b>31</b>漏判</div>
+                  <div class="axis">模型：缺陷</div><div class="bad"><b>42</b>誤判</div><div class="good"><b>104</b>正確攔截</div>
+                </div>
+              </article>
+              <article class="card card-pad">
+                <div class="card-title"><div><h3>風險趨勢</h3><small>近 6 週準時交付率</small></div><span class="chip green">80% → 95%</span></div>
+                <div class="chart-box sm"><canvas id="riskChart"></canvas></div>
+              </article>
+            </div>
+            <article class="card card-pad" style="margin-top:16px">
+              <div class="card-title"><h3>處置建議</h3><span class="chip rose">AI 建議已產生</span></div>
+              <div class="decision-box">
+                <h4>建議：限制 AX-8 批次自動放行，先完成鏡頭清潔與小樣本回訓</h4>
+                <p>主要依據為右上區刮傷群聚增加 39%、CAM-A3-07 潔淨度降至 58%，以及抽驗漏判率由基線 1.1% 上升至 3.1%。預計校正後可將漏判風險降至 24。</p>
+                <div class="toolbar"><button class="btn action-toast">退回視覺工程師</button><button class="btn primary action-toast">核准處置方案</button></div>
+              </div>
+            </article>
+            <article class="card card-pad" style="margin-top:16px">
+              <div class="card-title"><h3>關鍵品質指標</h3><small>導入前 / 目前</small></div>
+              <div class="compare-grid">
+                <div class="compare"><small>準時交付率</small><b>95%</b><em>80% → 95%</em></div>
+                <div class="compare"><small>缺料停線</small><b>3 次/月</b><em>原 12 次/月</em></div>
+                <div class="compare"><small>設備稼動率</small><b>88%</b><em>原 74%</em></div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="5">
+        <div class="screen-head">
+          <div><h2>執行校正回訓</h2><p>模型管理員 · 核准清潔、重校、調閾值或新模型版本並驗證品質</p></div>
+          <div class="toolbar"><button class="btn action-toast">暫存草稿</button><button class="btn primary action-toast"><span class="material-symbols-outlined">rocket_launch</span>核准灰度發布</button></div>
+        </div>
+        <div class="release-grid">
+          <aside class="card stepper">
+            <div class="card-title"><h3>處置執行進度</h3><span class="chip green">4 / 6</span></div>
+            <div class="release-step"><span class="step-dot"><span class="material-symbols-outlined">check</span></span><div><strong>鏡頭清潔與重校</strong><small>設備工程師 · 11:16 完成</small></div></div>
+            <div class="release-step"><span class="step-dot"><span class="material-symbols-outlined">check</span></span><div><strong>補充漂移樣本</strong><small>新增 AX-8 影像 1,840 張</small></div></div>
+            <div class="release-step"><span class="step-dot"><span class="material-symbols-outlined">check</span></span><div><strong>模型回訓</strong><small>訓練作業 TRN-8821 完成</small></div></div>
+            <div class="release-step"><span class="step-dot"><span class="material-symbols-outlined">check</span></span><div><strong>離線品質驗證</strong><small>全部守門條件通過</small></div></div>
+            <div class="release-step"><span class="step-dot current"><span class="material-symbols-outlined">play_arrow</span></span><div><strong>10% 灰度發布</strong><small>等待模型管理員核准</small></div></div>
+            <div class="release-step"><span class="step-dot pending"><span class="material-symbols-outlined">flag</span></span><div><strong>全線部署</strong><small>灰度觀察 2 小時後執行</small></div></div>
+          </aside>
+          <div>
+            <article class="card">
+              <div class="version-head"><div><h3>模型版本品質比較</h3><small>候選版本 vision-qms-3.9.0-rc2</small></div><span class="chip green">所有門檻通過</span></div>
+              <div class="card-pad">
+                <div class="compare-grid">
+                  <div class="compare"><small>漏判率</small><b>0.72%</b><em>較正式版 −2.38%</em></div>
+                  <div class="compare"><small>誤判率</small><b>2.10%</b><em>較正式版 −2.10%</em></div>
+                  <div class="compare"><small>推論延遲 P95</small><b>37 ms</b><em>門檻 ≤ 45 ms</em></div>
+                </div>
+                <div class="chart-box" style="margin-top:18px"><canvas id="releaseChart"></canvas></div>
+              </div>
+            </article>
+            <div class="grid-equal" style="margin-top:16px">
+              <article class="card card-pad">
+                <div class="card-title"><h3>發布守門條件</h3><span class="chip green">5 / 5 通過</span></div>
+                <div class="health-row"><span>資料完整性</span><div class="bar"><i style="width:100%"></i></div><b>通過</b></div>
+                <div class="health-row"><span>漏判率門檻</span><div class="bar"><i style="width:100%"></i></div><b>通過</b></div>
+                <div class="health-row"><span>偏差公平性</span><div class="bar"><i style="width:100%"></i></div><b>通過</b></div>
+                <div class="health-row"><span>效能基準</span><div class="bar"><i style="width:100%"></i></div><b>通過</b></div>
+                <div class="health-row"><span>回滾演練</span><div class="bar"><i style="width:100%"></i></div><b>通過</b></div>
+              </article>
+              <article class="card card-pad">
+                <div class="card-title"><h3>可追溯操作紀錄</h3><button class="btn action-toast">完整紀錄</button></div>
+                <div class="audit">
+                  <div class="audit-row"><time>11:42</time><span class="audit-mark"><span class="material-symbols-outlined">science</span></span><div><strong>驗證報告完成</strong><span>QA Bot · VAL-3902</span></div><span class="chip green">完成</span></div>
+                  <div class="audit-row"><time>11:16</time><span class="audit-mark"><span class="material-symbols-outlined">cleaning_services</span></span><div><strong>相機清潔確認</strong><span>王志明 · CAM-A3-07</span></div><span class="chip green">完成</span></div>
+                  <div class="audit-row"><time>10:58</time><span class="audit-mark"><span class="material-symbols-outlined">model_training</span></span><div><strong>候選模型建立</strong><span>ModelOps · rc2</span></div><span class="chip green">完成</span></div>
+                  <div class="audit-row"><time>10:31</time><span class="audit-mark"><span class="material-symbols-outlined">approval</span></span><div><strong>回訓方案核准</strong><span>品質主管 · 吳怡君</span></div><span class="chip rose">簽核</span></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<div class="toast" role="status" aria-live="polite">操作已記錄至 QMS 稽核軌跡</div>
+
+<script>
+const chartPool = {};
+const rose = "#be123c";
+const green = "#15956b";
+const amber = "#d97706";
+const muted = "#718096";
+const grid = "rgba(113,128,150,.14)";
+
+Chart.defaults.font.family = 'Inter,"Noto Sans TC",sans-serif';
+Chart.defaults.color = muted;
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.boxWidth = 7;
+
+function baseOptions(){
+  return {
+    responsive:true,
+    maintainAspectRatio:false,
+    animation:{duration:550},
+    interaction:{intersect:false,mode:"index"},
+    plugins:{legend:{display:false},tooltip:{backgroundColor:"#172033",padding:10,cornerRadius:8}},
+    scales:{
+      x:{grid:{display:false},ticks:{font:{size:10}}},
+      y:{grid:{color:grid},border:{display:false},ticks:{font:{size:10}}}
+    }
+  };
+}
+
+function initChart(index){
+  if(index===0 && !chartPool.light){
+    const canvas=document.getElementById("lightChart");
+    if(!canvas || canvas.clientWidth<10)return;
+    chartPool.light=new Chart(canvas,{
+      type:"line",
+      data:{
+        labels:["00","02","04","06","08","10","12","14","16","18","20","22"],
+        datasets:[
+          {label:"實際照度",data:[181,179,180,184,188,186,183,181,185,191,187,183],borderColor:rose,backgroundColor:"rgba(190,18,60,.10)",fill:true,tension:.4,pointRadius:2},
+          {label:"基線",data:Array(12).fill(180),borderColor:"#94a3b8",borderDash:[5,5],pointRadius:0}
+        ]
+      },options:baseOptions()
+    });
+  }
+  if(index===1 && !chartPool.camera){
+    const canvas=document.getElementById("cameraChart");
+    if(!canvas || canvas.clientWidth<10)return;
+    chartPool.camera=new Chart(canvas,{
+      type:"bar",
+      data:{labels:["六","日","一","二","三","四","五"],datasets:[{data:[94,93,91,88,84,80,76],backgroundColor:["#d7efe7","#d7efe7","#d7efe7","#f7dfad","#f7dfad","#f5b5c3",rose],borderRadius:6}]},
+      options:{...baseOptions(),scales:{x:{grid:{display:false}},y:{min:50,max:100,grid:{color:grid},border:{display:false}}}}
+    });
+  }
+  if(index===2 && !chartPool.product){
+    const canvas=document.getElementById("productChart");
+    if(!canvas || canvas.clientWidth<10)return;
+    chartPool.product=new Chart(canvas,{
+      type:"doughnut",
+      data:{labels:["AX-7","AX-7S","AX-8","其他"],datasets:[{data:[42,31,18,9],backgroundColor:[rose,"#e86a87",amber,"#cbd5e1"],borderWidth:4,borderColor:"#fff",hoverOffset:5}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:"67%",plugins:{legend:{position:"bottom",labels:{padding:14,usePointStyle:true,boxWidth:8}},tooltip:{backgroundColor:"#172033"}}}
+    });
+  }
+  if(index===3 && !chartPool.defect){
+    const canvas=document.getElementById("defectChart");
+    if(!canvas || canvas.clientWidth<10)return;
+    const baseline=[{x:-3.1,y:1.2},{x:-2.6,y:2.1},{x:-2.2,y:.8},{x:-1.8,y:1.7},{x:-1.1,y:2.5},{x:-.6,y:1.1},{x:.2,y:2.2},{x:.8,y:1.4},{x:1.3,y:2.7},{x:2.1,y:1.8},{x:-2.8,y:-1.2},{x:-2,y:-2.1},{x:-1.2,y:-1.3},{x:-.3,y:-2.4},{x:.7,y:-1.5},{x:1.5,y:-2.2},{x:2.4,y:-1.1},{x:3,y:-2.5},{x:2.9,y:.4},{x:1.9,y:.2}];
+    const current=[{x:-2.5,y:1.7},{x:-1.7,y:1.2},{x:-.9,y:2.1},{x:.4,y:1.8},{x:1.1,y:1.3},{x:1.8,y:2.2},{x:2.7,y:1.5},{x:3.4,y:2.4},{x:3.9,y:1.6},{x:4.2,y:2.8},{x:3.6,y:3.4},{x:4.5,y:3.2},{x:2.8,y:-1.1},{x:3.7,y:-.6}];
+    chartPool.defect=new Chart(canvas,{
+      type:"scatter",
+      data:{datasets:[
+        {label:"訓練基線",data:baseline,backgroundColor:"rgba(148,163,184,.55)",pointRadius:7},
+        {label:"目前批次",data:current,backgroundColor:"rgba(190,18,60,.72)",pointRadius:8},
+        {label:"新群聚",data:[{x:4.1,y:3},{x:3.8,y:2.6},{x:4.5,y:2.4}],backgroundColor:amber,pointRadius:11,pointStyle:"triangle"}
+      ]},
+      options:{...baseOptions(),plugins:{legend:{display:false},tooltip:{backgroundColor:"#172033"}},scales:{x:{min:-4,max:5,grid:{color:grid},title:{display:true,text:"特徵維度 1"}},y:{min:-3.5,max:4,grid:{color:grid},title:{display:true,text:"特徵維度 2"}}}}
+    });
+  }
+  if(index===4 && !chartPool.risk){
+    const canvas=document.getElementById("riskChart");
+    if(!canvas || canvas.clientWidth<10)return;
+    chartPool.risk=new Chart(canvas,{
+      type:"line",
+      data:{labels:["W1","W2","W3","W4","W5","W6"],datasets:[{data:[80,83,86,89,92,95],borderColor:green,backgroundColor:"rgba(21,149,107,.10)",fill:true,tension:.35,pointBackgroundColor:"#fff",pointBorderColor:green,pointBorderWidth:2,pointRadius:4}]},
+      options:{...baseOptions(),scales:{x:{grid:{display:false}},y:{min:75,max:100,grid:{color:grid},border:{display:false},ticks:{callback:value=>value+"%"}}}}
+    });
+  }
+  if(index===5 && !chartPool.release){
+    const canvas=document.getElementById("releaseChart");
+    if(!canvas || canvas.clientWidth<10)return;
+    chartPool.release=new Chart(canvas,{
+      type:"bar",
+      data:{
+        labels:["精確率","召回率","F1","AX-8 召回","髒污召回"],
+        datasets:[
+          {label:"正式版 3.8.4",data:[94.8,90.7,92.7,81.4,93.2],backgroundColor:"#cbd5e1",borderRadius:5},
+          {label:"候選版 3.9.0",data:[97.1,96.4,96.7,95.8,96.1],backgroundColor:rose,borderRadius:5}
+        ]
+      },
+      options:{...baseOptions(),plugins:{legend:{display:true,position:"bottom",labels:{padding:18,usePointStyle:true,boxWidth:8}},tooltip:{backgroundColor:"#172033"}},scales:{x:{grid:{display:false}},y:{min:75,max:100,grid:{color:grid},border:{display:false},ticks:{callback:value=>value+"%"}}}}
+    });
+  }
+}
+
+function show(index){
+  const safeIndex=Math.max(0,Math.min(5,Number(index)||0));
+  document.querySelectorAll(".screen").forEach((panel,panelIndex)=>{
+    panel.classList.toggle("active",panelIndex===safeIndex);
+  });
+  document.querySelectorAll(".nav-btn").forEach((button,buttonIndex)=>{
+    button.classList.toggle("active",buttonIndex===safeIndex);
+    button.setAttribute("aria-current",buttonIndex===safeIndex?"page":"false");
+  });
+  requestAnimationFrame(()=>initChart(safeIndex));
+}
+
+function routeFromHash(){
+  const match=location.hash.match(/(?:go=|v)([0-9]+)/);
+  show(match?Number(match[1]):0);
+}
+
+document.querySelectorAll("[data-i]").forEach(button=>{
+  button.addEventListener("click",()=>{
+    const index=Number(button.dataset.i);
+    if(location.hash==="#go="+index)show(index);
+    else location.hash="go="+index;
+  });
+});
+
+document.querySelectorAll(".camera-card").forEach(button=>{
+  button.addEventListener("click",()=>{
+    document.querySelectorAll(".camera-card").forEach(item=>item.classList.remove("selected"));
+    button.classList.add("selected");
+  });
+});
+
+document.querySelectorAll(".defect-tag").forEach(button=>{
+  button.addEventListener("click",()=>{
+    document.querySelectorAll(".defect-tag").forEach(item=>item.classList.remove("active"));
+    button.classList.add("active");
+  });
+});
+
+const toast=document.querySelector(".toast");
+document.querySelectorAll(".action-toast").forEach(button=>{
+  button.addEventListener("click",()=>{
+    toast.classList.add("open");
+    toast.addEventListener("transitionend",event=>{
+      if(event.propertyName==="opacity" && toast.classList.contains("open")){
+        requestAnimationFrame(()=>toast.classList.remove("open"));
+      }
+    },{once:true});
+  });
+});
+
+window.addEventListener("hashchange",routeFromHash);
+show(0);
+routeFromHash();
+</script>
+</body>
+</html>

@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI 可解釋性證據庫 · security-soc｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --blue:#7c3aed;
+  --ink:#1d1730;
+  --body:#3f3852;
+  --muted:#766e87;
+  --line:#e6e0ef;
+  --bg:#f7f5fb;
+  --green:#138a63;
+  --amber:#c27803;
+  --red:#c43d55;
+  --white:#fff;
+  --violet-soft:#f0eafe;
+  --shadow:0 12px 34px rgba(47,31,76,.08);
+  --radius:18px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--body);
+  background:var(--bg);
+  font-family:Inter,"Noto Sans TC",sans-serif;
+  overflow-x:hidden;
+}
+button,input,select,textarea{font:inherit}
+button{color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(124,58,237,.28);
+  outline-offset:2px;
+}
+.material-symbols-outlined{
+  font-size:20px;
+  font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24;
+}
+.app-shell{min-height:100vh;display:grid;grid-template-columns:220px minmax(0,1fr)}
+.sidebar{
+  position:sticky;
+  inset-block-start:0;
+  height:100vh;
+  padding:22px 14px;
+  background:#211735;
+  color:#fff;
+  display:flex;
+  flex-direction:column;
+  z-index:20;
+}
+.brand{display:flex;align-items:center;gap:11px;padding:2px 8px 24px}
+.brand-mark{
+  width:38px;height:38px;border-radius:12px;
+  background:linear-gradient(145deg,#a778ff,var(--blue));
+  display:grid;place-items:center;box-shadow:0 8px 22px rgba(124,58,237,.38)
+}
+.brand-mark .material-symbols-outlined{font-size:22px}
+.brand strong{display:block;font-size:14px;letter-spacing:.02em}
+.brand small{display:block;color:#bfb4d2;font-size:10px;margin-top:3px}
+.nav-caption{
+  padding:0 10px 9px;color:#9589aa;font-size:10px;
+  font-weight:700;letter-spacing:.12em;text-transform:uppercase
+}
+.stage-nav{display:grid;gap:5px}
+.stage-nav button{
+  width:100%;min-height:50px;border:0;border-radius:12px;background:transparent;
+  color:#cfc6dd;display:grid;grid-template-columns:28px 1fr;gap:7px;
+  text-align:left;align-items:center;padding:8px 9px;cursor:pointer;
+  transition:background .2s,color .2s,transform .2s
+}
+.stage-nav button:hover{background:rgba(255,255,255,.07);color:#fff;transform:translateX(2px)}
+.stage-nav button.active{background:#fff;color:var(--ink);box-shadow:0 8px 20px rgba(0,0,0,.16)}
+.nav-index{
+  width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,.09);
+  display:grid;place-items:center;font-size:10px;font-weight:800
+}
+.stage-nav button.active .nav-index{background:var(--violet-soft);color:var(--blue)}
+.nav-copy b{display:block;font-size:12px;font-weight:700;line-height:1.35}
+.nav-copy span{display:block;font-size:9px;margin-top:2px;opacity:.68}
+.sidebar-foot{
+  margin-top:auto;padding:14px 10px 2px;border-top:1px solid rgba(255,255,255,.1)
+}
+.sidebar-foot p{font-size:10px;color:#a99dbb;line-height:1.55;margin:0 0 9px}
+.secure-state{font-size:10px;color:#abf0d3;display:flex;align-items:center;gap:6px}
+.secure-state::before{content:"";width:7px;height:7px;border-radius:50%;background:#42d69c;box-shadow:0 0 0 4px rgba(66,214,156,.12)}
+.workspace{min-width:0}
+.mobile-bar{display:none}
+.page{
+  display:none;
+  min-height:100vh;
+  padding:30px clamp(20px,3vw,48px) 42px;
+  animation:rise .34s ease both
+}
+.page.active{display:block}
+@keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.eyebrow{display:flex;align-items:center;gap:8px;color:var(--blue);font-size:11px;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+.eyebrow::before{content:"";width:22px;height:2px;border-radius:2px;background:var(--blue)}
+.page-head{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin:8px 0 24px
+}
+.page-head h1{margin:0;color:var(--ink);font-size:clamp(25px,3vw,38px);line-height:1.2;letter-spacing:-.035em}
+.page-head p{max-width:680px;margin:8px 0 0;color:var(--muted);font-size:13px;line-height:1.7}
+.head-actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+.btn{
+  min-height:42px;padding:9px 14px;border:1px solid var(--line);border-radius:11px;
+  background:#fff;font-size:12px;font-weight:700;display:inline-flex;align-items:center;
+  justify-content:center;gap:7px;cursor:pointer;transition:.2s
+}
+.btn:hover{border-color:#cfc3e2;transform:translateY(-1px);box-shadow:0 7px 18px rgba(47,31,76,.08)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.soft{background:var(--violet-soft);border-color:transparent;color:var(--blue)}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.card-title h2,.card-title h3{margin:0;color:var(--ink);font-size:15px}
+.card-title p{margin:4px 0 0;color:var(--muted);font-size:11px}
+.badge{
+  display:inline-flex;align-items:center;gap:5px;border-radius:999px;
+  padding:5px 9px;background:#f2eff6;color:#625a70;font-size:10px;font-weight:700;white-space:nowrap
+}
+.badge.high{background:#fff0f2;color:var(--red)}
+.badge.review{background:#fff7e6;color:var(--amber)}
+.badge.done{background:#eaf8f2;color:var(--green)}
+.badge.live{background:var(--violet-soft);color:var(--blue)}
+.stat-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:18px}
+.stat{padding:16px}
+.stat .stat-icon{
+  width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+  color:var(--blue);background:var(--violet-soft);margin-bottom:15px
+}
+.stat strong{display:block;color:var(--ink);font-size:24px;line-height:1}
+.stat small{display:block;margin-top:7px;color:var(--muted);font-size:10px}
+.delta{margin-top:10px;font-size:10px;font-weight:700;color:var(--green)}
+.grid-2{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.8fr);gap:18px}
+.grid-even{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.mini-label{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:800}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.progress{height:7px;border-radius:20px;background:#eeeaf3;overflow:hidden}
+.progress span{display:block;height:100%;border-radius:inherit;background:var(--blue)}
+.empty-note{padding:16px;border:1px dashed var(--line);border-radius:14px;color:var(--muted);font-size:12px;text-align:center}
+
+/* v0: case command center */
+.case-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(290px,.8fr);gap:18px}
+.case-table{padding:18px;overflow:hidden}
+.toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px}
+.search{
+  flex:1 1 220px;min-width:0;height:41px;border:1px solid var(--line);
+  border-radius:11px;padding:0 12px 0 38px;background:#fbfafc;
+  background-image:linear-gradient(transparent,transparent)
+}
+.search-wrap{position:relative;flex:1 1 220px}
+.search-wrap .material-symbols-outlined{position:absolute;left:12px;top:11px;color:var(--muted);font-size:18px}
+.filter{height:41px;border:1px solid var(--line);border-radius:11px;background:#fff;padding:0 10px;color:var(--body);font-size:11px}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th{text-align:left;padding:11px 10px;border-bottom:1px solid var(--line);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+td{padding:13px 10px;border-bottom:1px solid #f0edf4;font-size:11px}
+tbody tr{cursor:pointer;transition:background .18s}
+tbody tr:hover,tbody tr.selected{background:#faf7ff}
+td strong{color:var(--ink)}
+.priority-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;background:var(--amber)}
+.priority-dot.high{background:var(--red)}
+.case-detail{padding:20px}
+.case-id{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.case-id h2{font-size:21px;color:var(--ink);margin:5px 0 4px}
+.detail-list{display:grid;gap:0;margin:18px 0}
+.detail-item{padding:12px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:18px;font-size:11px}
+.detail-item span:first-child{color:var(--muted)}
+.detail-item b{color:var(--ink);text-align:right}
+.question-box{padding:14px;border-radius:13px;background:#f8f4ff;border:1px solid #e7dafa;margin:16px 0}
+.question-box strong{font-size:11px;color:var(--blue)}
+.question-box p{font-size:12px;line-height:1.6;margin:7px 0 0;color:var(--ink)}
+.source-chips{display:flex;flex-wrap:wrap;gap:7px}
+.source-chips span{padding:6px 8px;border:1px solid var(--line);border-radius:8px;font-size:9px;background:#fff}
+
+/* v1: feature snapshot */
+.snapshot-hero{padding:20px;display:grid;grid-template-columns:1.2fr .8fr;gap:20px;margin-bottom:18px}
+.snapshot-code{padding:17px;border-radius:14px;background:#241b32;color:#eae4f3;overflow:auto;font-size:10px;line-height:1.75}
+.snapshot-code .key{color:#c6a5ff}.snapshot-code .val{color:#8ee0bb}.snapshot-code .warn{color:#ffd27c}
+.lock-panel{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+.lock-ring{
+  width:108px;height:108px;border-radius:50%;display:grid;place-items:center;
+  background:conic-gradient(var(--blue) 0 94%,#ebe5f2 94%);position:relative
+}
+.lock-ring::after{content:"";position:absolute;inset:9px;border-radius:50%;background:#fff}
+.lock-ring .material-symbols-outlined{z-index:1;color:var(--blue);font-size:36px}
+.lock-panel h3{color:var(--ink);margin:14px 0 3px}
+.lock-panel p{font-size:10px;color:var(--muted);margin:0}
+.feature-board{display:grid;grid-template-columns:1.3fr .7fr;gap:18px}
+.feature-list{padding:20px}
+.feature-row{
+  display:grid;grid-template-columns:minmax(120px,1.15fr) 70px 1fr 80px;
+  align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)
+}
+.feature-row:last-child{border:0}
+.feature-name b{display:block;font-size:11px;color:var(--ink)}
+.feature-name span{font-size:9px;color:var(--muted)}
+.weight{text-align:right;font-size:11px;font-weight:800;color:var(--blue)}
+.data-health{padding:20px}
+.health-score{font-size:42px;color:var(--ink);font-weight:800;letter-spacing:-.05em;margin:8px 0 3px}
+.health-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:17px}
+.health-cell{padding:11px;background:#faf9fc;border-radius:11px}
+.health-cell b{display:block;color:var(--ink);font-size:16px}
+.health-cell span{font-size:9px;color:var(--muted)}
+
+/* v2: rules */
+.rule-workbench{display:grid;grid-template-columns:270px minmax(0,1fr);gap:18px}
+.rule-list{padding:12px}
+.rule-tab{
+  width:100%;border:0;background:transparent;border-radius:12px;padding:13px;
+  display:flex;gap:11px;text-align:left;cursor:pointer;margin-bottom:5px
+}
+.rule-tab.active{background:var(--violet-soft)}
+.rule-tab .material-symbols-outlined{color:var(--blue)}
+.rule-tab b{display:block;color:var(--ink);font-size:11px}
+.rule-tab small{display:block;color:var(--muted);font-size:9px;margin-top:4px}
+.rule-canvas{padding:22px}
+.rule-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}
+.meta-box{padding:12px;border:1px solid var(--line);border-radius:12px}
+.meta-box span{display:block;font-size:9px;color:var(--muted);margin-bottom:5px}
+.meta-box b{font-size:11px;color:var(--ink)}
+.logic{
+  display:flex;align-items:stretch;gap:10px;padding:17px;border-radius:14px;background:#faf8fc;overflow:auto
+}
+.logic-node{
+  min-width:130px;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff;
+  display:flex;flex-direction:column;justify-content:center
+}
+.logic-node b{font-size:10px;color:var(--ink)}
+.logic-node span{font-size:9px;color:var(--muted);margin-top:5px}
+.logic-op{align-self:center;color:var(--blue);font-size:10px;font-weight:800}
+.exception{margin-top:15px;padding:14px;border-left:3px solid var(--amber);background:#fffaf0;border-radius:0 12px 12px 0;font-size:11px;line-height:1.55}
+.approval-strip{
+  margin-top:18px;padding:15px;border:1px solid var(--line);border-radius:14px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px
+}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--violet-soft);color:var(--blue);display:grid;place-items:center;font-size:10px;font-weight:800}
+
+/* v3: lineage */
+.lineage-shell{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(260px,.65fr);gap:18px}
+.lineage-map{padding:20px;min-height:520px;overflow:hidden}
+.lineage-grid{display:grid;grid-template-columns:1fr 45px 1fr 45px 1fr;align-items:center;gap:4px;margin-top:28px}
+.node-column{display:grid;gap:13px}
+.line-node{padding:15px;border:1px solid var(--line);border-radius:13px;background:#fff;box-shadow:0 5px 14px rgba(40,25,69,.05)}
+.line-node.source{border-left:3px solid #6f7ee8}
+.line-node.transform{border-left:3px solid var(--amber)}
+.line-node.output{border-left:3px solid var(--blue)}
+.line-node b{display:block;font-size:10px;color:var(--ink)}
+.line-node span{display:block;margin-top:5px;font-size:9px;line-height:1.5;color:var(--muted)}
+.connector{text-align:center;color:#a79bb8}
+.connector .material-symbols-outlined{font-size:24px}
+.lineage-side{display:grid;gap:18px}
+.citation-card,.integrity-card{padding:18px}
+.quote{padding:13px;background:#faf9fc;border-radius:12px;font-size:10px;line-height:1.7;color:var(--ink)}
+.hash{word-break:break-all;background:#241b32;color:#d8cfea;border-radius:10px;padding:11px;font-size:9px;line-height:1.6}
+.timeline{display:grid;gap:15px;margin-top:15px}
+.timeline-item{display:grid;grid-template-columns:10px 1fr;gap:10px}
+.timeline-item i{width:9px;height:9px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 4px var(--violet-soft);margin-top:3px}
+.timeline-item b{display:block;font-size:10px;color:var(--ink)}
+.timeline-item span{font-size:9px;color:var(--muted)}
+
+/* v4: compare */
+.compare-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:18px}
+.compare-metric{padding:17px;position:relative;overflow:hidden}
+.compare-metric::after{content:"";position:absolute;width:70px;height:70px;border-radius:50%;right:-25px;top:-25px;background:var(--violet-soft)}
+.compare-metric span{font-size:9px;color:var(--muted)}
+.compare-metric b{display:block;font-size:22px;color:var(--ink);margin-top:7px}
+.compare-metric small{font-size:9px;color:var(--green)}
+.compare-main{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(290px,.7fr);gap:18px}
+.chart-card{padding:20px;min-height:370px}
+.chart-box{position:relative;height:285px;width:100%}
+.version-diff{padding:20px}
+.version-head{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:13px}
+.version-pill{padding:11px;border-radius:11px;background:#faf9fc}
+.version-pill.current{background:var(--violet-soft)}
+.version-pill b{display:block;color:var(--ink);font-size:11px}
+.version-pill span{font-size:9px;color:var(--muted)}
+.diff-row{display:grid;grid-template-columns:1fr 70px 70px;gap:9px;padding:12px 0;border-bottom:1px solid var(--line);font-size:10px}
+.diff-row b{color:var(--ink)}.diff-row span{text-align:right}
+.risk-callout{margin-top:17px;padding:14px;border-radius:12px;background:#fff2f4;color:#8f2940;font-size:10px;line-height:1.6}
+
+/* v5: evidence pack */
+.pack-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr);gap:18px}
+.document{padding:30px;min-height:630px}
+.doc-brand{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--ink);padding-bottom:16px}
+.doc-brand b{color:var(--ink);font-size:17px}.doc-brand span{font-size:9px;color:var(--muted)}
+.doc-title{text-align:center;padding:27px 0 20px}
+.doc-title h2{color:var(--ink);margin:0 0 8px;font-size:22px}.doc-title p{font-size:10px;color:var(--muted);margin:0}
+.doc-section{margin-top:21px}
+.doc-section h3{font-size:11px;color:var(--ink);padding-bottom:7px;border-bottom:1px solid var(--line);margin:0 0 10px}
+.doc-section p{font-size:10px;line-height:1.75;margin:0}
+.evidence-table{width:100%;min-width:0}
+.evidence-table td,.evidence-table th{padding:8px;font-size:9px}
+.signature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:28px}
+.signature{padding-top:23px;border-top:1px solid var(--ink);font-size:9px;text-align:center}
+.pack-side{display:grid;gap:18px;align-content:start}
+.checklist,.approval-card{padding:20px}
+.check-item{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.check-item .material-symbols-outlined{color:var(--green);font-size:18px}
+.check-item b{display:block;font-size:10px;color:var(--ink)}
+.check-item span{font-size:9px;color:var(--muted)}
+.approver{display:flex;align-items:center;gap:11px;padding:13px;background:#faf9fc;border-radius:13px;margin:14px 0}
+.approver b{display:block;font-size:11px;color:var(--ink)}.approver span{font-size:9px;color:var(--muted)}
+.seal{
+  width:82px;height:82px;border:2px solid var(--blue);border-radius:50%;color:var(--blue);
+  display:grid;place-items:center;text-align:center;font-size:10px;font-weight:800;
+  transform:rotate(-8deg);margin:17px auto
+}
+.toast{
+  position:fixed;right:24px;bottom:24px;z-index:50;background:#241b32;color:#fff;
+  padding:12px 16px;border-radius:12px;box-shadow:0 15px 35px rgba(0,0,0,.24);
+  font-size:11px;opacity:0;transform:translateY(12px);pointer-events:none
+}
+.toast.on{animation:toastIn 2.4s ease both}
+@keyframes toastIn{0%{opacity:0;transform:translateY(12px)}12%,82%{opacity:1;transform:none}100%{opacity:0;transform:translateY(8px)}}
+
+@media(max-width:1050px){
+  .stat-row{grid-template-columns:repeat(2,1fr)}
+  .case-layout,.feature-board,.lineage-shell,.compare-main,.pack-layout{grid-template-columns:1fr}
+  .rule-workbench{grid-template-columns:230px minmax(0,1fr)}
+  .lineage-side{grid-template-columns:1fr 1fr}
+}
+@media(max-width:768px){
+  .app-shell{display:block}
+  .sidebar{position:sticky;height:auto;top:0;padding:0;background:#211735}
+  .brand,.nav-caption,.sidebar-foot{display:none}
+  .stage-nav{display:flex;overflow-x:auto;gap:5px;padding:9px}
+  .stage-nav button{min-width:50px;width:50px;min-height:44px;display:block;text-align:center;padding:8px}
+  .stage-nav .nav-copy{display:none}
+  .nav-index{margin:auto;background:rgba(255,255,255,.1)}
+  .mobile-bar{display:flex;align-items:center;justify-content:space-between;background:#fff;border-bottom:1px solid var(--line);padding:11px 18px}
+  .mobile-bar strong{color:var(--ink);font-size:12px}
+  .mobile-bar span{color:var(--muted);font-size:9px}
+  .page{padding:22px 18px 34px}
+  .page-head{display:block}
+  .head-actions{justify-content:flex-start;margin-top:14px}
+  .grid-2,.grid-even,.snapshot-hero,.rule-workbench{grid-template-columns:1fr}
+  .rule-list{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+  .rule-tab{display:block;padding:10px}.rule-tab .material-symbols-outlined{display:none}
+  .lineage-grid{grid-template-columns:1fr;gap:9px}
+  .connector{transform:rotate(90deg)}
+  .lineage-side{grid-template-columns:1fr}
+  .feature-row{grid-template-columns:minmax(100px,1fr) 55px 70px}
+  .feature-row .progress{display:none}
+  .document{padding:20px}
+}
+@media(max-width:480px){
+  .stat-row,.compare-summary{grid-template-columns:1fr 1fr}
+  .page-head h1{font-size:25px}
+  .btn{flex:1 1 auto}
+  .rule-meta,.signature-grid{grid-template-columns:1fr}
+  .approval-strip{align-items:flex-start;flex-direction:column}
+  .health-grid{grid-template-columns:1fr 1fr}
+  .document{padding:17px}
+  .doc-brand{align-items:flex-start;gap:12px}
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"><span class="material-symbols-outlined">policy</span></div>
+      <div><strong>JVision Evidence</strong><small>AI EXPLAINABILITY VAULT</small></div>
+    </div>
+    <div class="nav-caption">個案處理流程</div>
+    <nav class="stage-nav" aria-label="證據庫流程">
+      <button type="button" data-i="0"><span class="nav-index">01</span><span class="nav-copy"><b>選定待解釋個案</b><span>資安分析師</span></span></button>
+      <button type="button" data-i="1"><span class="nav-index">02</span><span class="nav-copy"><b>凍結特徵快照</b><span>模型風險分析師</span></span></button>
+      <button type="button" data-i="2"><span class="nav-index">03</span><span class="nav-copy"><b>核對規則版本</b><span>AI 治理主管</span></span></button>
+      <button type="button" data-i="3"><span class="nav-index">04</span><span class="nav-copy"><b>追溯資料來源</b><span>資料治理人員</span></span></button>
+      <button type="button" data-i="4"><span class="nav-index">05</span><span class="nav-copy"><b>比較決策差異</b><span>模型風險分析師</span></span></button>
+      <button type="button" data-i="5"><span class="nav-index">06</span><span class="nav-copy"><b>核准說明證據包</b><span>CISO</span></span></button>
+    </nav>
+    <div class="sidebar-foot">
+      <p>所有特徵、規則與來源均以不可變版本保存，供稽核與事件追溯。</p>
+      <div class="secure-state">Vault 連線正常</div>
+    </div>
+  </aside>
+
+  <main class="workspace">
+    <div class="mobile-bar"><strong>AI 可解釋性證據庫</strong><span id="mobileStage">01 / 06</span></div>
+
+    <section class="page" data-page="0">
+      <div class="eyebrow">Case intake · v0</div>
+      <div class="page-head">
+        <div><h1>選定待解釋個案</h1><p>從 AI 流量事件中指定決策、模型版本與待回答爭點，建立可追溯的說明任務。</p></div>
+        <div class="head-actions"><button class="btn"><span class="material-symbols-outlined">tune</span>儲存篩選</button><button class="btn primary" data-action="create"><span class="material-symbols-outlined">add</span>建立個案</button></div>
+      </div>
+      <div class="stat-row">
+        <article class="card stat"><div class="stat-icon"><span class="material-symbols-outlined">network_check</span></div><strong>18,420</strong><small>今日 AI 流量</small><div class="delta">↑ 12.4% 對比昨日</div></article>
+        <article class="card stat"><div class="stat-icon"><span class="material-symbols-outlined">label</span></div><strong>264</strong><small>敏感資料命中</small><div class="delta" style="color:var(--red)">23 件需解釋</div></article>
+        <article class="card stat"><div class="stat-icon"><span class="material-symbols-outlined">deployed_code</span></div><strong>37</strong><small>納管模型版本</small><div class="delta">100% 已建清單</div></article>
+        <article class="card stat"><div class="stat-icon"><span class="material-symbols-outlined">hourglass</span></div><strong>08</strong><small>待處理個案</small><div class="delta" style="color:var(--amber)">2 件接近期限</div></article>
+      </div>
+      <div class="case-layout">
+        <article class="card case-table">
+          <div class="card-title"><div><h2>待解釋事件佇列</h2><p>依風險、資料敏感度與申訴時效排序</p></div><span class="badge live">即時資料</span></div>
+          <div class="toolbar">
+            <label class="search-wrap"><span class="material-symbols-outlined">search</span><input class="search" id="caseSearch" type="search" placeholder="搜尋編號、項目或負責人" aria-label="搜尋個案"></label>
+            <select class="filter" id="stageFilter" aria-label="階段篩選"><option value="">全部階段</option><option>處理中</option><option>待確認</option><option>已完成</option></select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
+              <tbody id="caseRows">
+                <tr class="selected" data-stage="處理中"><td><span class="priority-dot high"></span><strong>AI--001</strong></td><td>選定待解釋個案</td><td>資安分析師</td><td>D+1</td><td><span class="badge high">處理中</span></td></tr>
+                <tr data-stage="待確認"><td><span class="priority-dot high"></span><strong>AI--002</strong></td><td>凍結特徵快照</td><td>模型風險分析師</td><td>D+2</td><td><span class="badge review">待確認</span></td></tr>
+                <tr data-stage="待確認"><td><span class="priority-dot"></span><strong>AI--003</strong></td><td>核對規則版本</td><td>AI 治理主管</td><td>D+3</td><td><span class="badge review">待確認</span></td></tr>
+                <tr data-stage="已完成"><td><span class="priority-dot"></span><strong>AI--004</strong></td><td>追溯資料來源</td><td>資料治理人員</td><td>D+4</td><td><span class="badge done">已完成</span></td></tr>
+                <tr data-stage="已完成"><td><span class="priority-dot"></span><strong>AI--005</strong></td><td>比較決策差異</td><td>模型風險分析師</td><td>D+5</td><td><span class="badge done">已完成</span></td></tr>
+                <tr data-stage="已完成"><td><span class="priority-dot"></span><strong>AI--006</strong></td><td>核准說明證據包</td><td>CISO</td><td>D+6</td><td><span class="badge done">已完成</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+        <aside class="card case-detail">
+          <div class="case-id"><div><span class="mini-label">目前選取</span><h2>AI--001</h2><span class="badge high">高優先</span></div><button class="btn soft" data-go="1">開始取證</button></div>
+          <div class="detail-list">
+            <div class="detail-item"><span>決策事件</span><b>外部 AI 文件上傳封鎖</b></div>
+            <div class="detail-item"><span>發生時間</span><b>2026-08-22 09:42:17</b></div>
+            <div class="detail-item"><span>模型版本</span><b class="mono">DLP-AI v4.8.2</b></div>
+            <div class="detail-item"><span>資料分類</span><b>機密／客戶身分資料</b></div>
+            <div class="detail-item"><span>觸發管道</span><b>企業瀏覽器代理</b></div>
+          </div>
+          <div class="question-box"><strong>待回答爭點</strong><p>為何此份供應商評估文件被判定含有敏感個資，並阻擋傳送至外部生成式 AI？</p></div>
+          <span class="mini-label">輸入證據</span>
+          <div class="source-chips" style="margin-top:9px"><span>AI 流量</span><span>敏感資料標籤</span><span>模型清單</span></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="page" data-page="1">
+      <div class="eyebrow">Feature snapshot · v1</div>
+      <div class="page-head">
+        <div><h1>凍結特徵快照</h1><p>保存決策當下採用的特徵值、權重、缺失值與轉換方式，形成不可變證據。</p></div>
+        <div class="head-actions"><button class="btn"><span class="material-symbols-outlined">history</span>檢視歷程</button><button class="btn primary" data-action="freeze"><span class="material-symbols-outlined">lock</span>凍結快照</button></div>
+      </div>
+      <article class="card snapshot-hero">
+        <div>
+          <div class="card-title"><div><h2>決策狀態映像</h2><p>AI--001 · DLP-AI v4.8.2 · 推論序號 INF-884102</p></div><span class="badge live">待凍結</span></div>
+          <div class="snapshot-code mono">
+            {<br>
+            &nbsp;&nbsp;<span class="key">"decision"</span>: <span class="val">"BLOCK"</span>,<br>
+            &nbsp;&nbsp;<span class="key">"risk_score"</span>: <span class="warn">0.873</span>,<br>
+            &nbsp;&nbsp;<span class="key">"feature_schema"</span>: <span class="val">"fs-2026.08.4"</span>,<br>
+            &nbsp;&nbsp;<span class="key">"missing_values"</span>: <span class="warn">1</span>,<br>
+            &nbsp;&nbsp;<span class="key">"captured_at"</span>: <span class="val">"2026-08-22T09:42:17+08:00"</span><br>
+            }
+          </div>
+        </div>
+        <div class="lock-panel">
+          <div class="lock-ring"><span class="material-symbols-outlined">enhanced_encryption</span></div>
+          <h3>94% 完整</h3><p>17 / 18 項必要欄位已取得</p>
+        </div>
+      </article>
+      <div class="feature-board">
+        <article class="card feature-list">
+          <div class="card-title"><div><h2>特徵貢獻排序</h2><p>正值提高封鎖機率，負值降低封鎖機率</p></div><span class="badge">18 項特徵</span></div>
+          <div class="feature-row"><div class="feature-name"><b>身分證格式命中</b><span>regex_count → log1p</span></div><div class="progress"><span style="width:94%"></span></div><span class="badge high">+0.312</span><div class="weight">31.2%</div></div>
+          <div class="feature-row"><div class="feature-name"><b>文件機密標籤</b><span>classification → one-hot</span></div><div class="progress"><span style="width:78%"></span></div><span class="badge high">+0.244</span><div class="weight">24.4%</div></div>
+          <div class="feature-row"><div class="feature-name"><b>外部 AI 網域風險</b><span>domain_score → normalize</span></div><div class="progress"><span style="width:63%"></span></div><span class="badge review">+0.186</span><div class="weight">18.6%</div></div>
+          <div class="feature-row"><div class="feature-name"><b>上傳檔案大小</b><span>bytes → standardize</span></div><div class="progress"><span style="width:39%"></span></div><span class="badge">+0.071</span><div class="weight">7.1%</div></div>
+          <div class="feature-row"><div class="feature-name"><b>使用者信任等級</b><span>trust_tier → ordinal</span></div><div class="progress"><span style="width:28%;background:var(--green)"></span></div><span class="badge done">−0.048</span><div class="weight">−4.8%</div></div>
+        </article>
+        <aside class="card data-health">
+          <span class="mini-label">快照資料品質</span>
+          <div class="health-score">98.6</div>
+          <div style="font-size:10px;color:var(--muted)">品質分數 / 100</div>
+          <div class="progress" style="margin-top:14px"><span style="width:98.6%"></span></div>
+          <div class="health-grid">
+            <div class="health-cell"><b>18</b><span>輸入特徵</span></div>
+            <div class="health-cell"><b>01</b><span>缺失值</span></div>
+            <div class="health-cell"><b>06</b><span>轉換器</span></div>
+            <div class="health-cell"><b>0 ms</b><span>時間偏差</span></div>
+          </div>
+          <div class="question-box" style="margin-bottom:0"><strong>缺失值處理</strong><p>部門風險等級無原始值，依當時生效的中位數補值器填入 0.42，已保留補值標記。</p></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="page" data-page="2">
+      <div class="eyebrow">Rule registry · v2</div>
+      <div class="page-head">
+        <div><h1>核對規則版本</h1><p>確認命中規則、門檻、生效區間與例外條件，判斷決策是否符合當時政策。</p></div>
+        <div class="head-actions"><button class="btn" data-action="reject"><span class="material-symbols-outlined">undo</span>退回補件</button><button class="btn primary" data-action="approve-rule"><span class="material-symbols-outlined">verified</span>核對通過</button></div>
+      </div>
+      <div class="rule-workbench">
+        <aside class="card rule-list">
+          <button class="rule-tab active"><span class="material-symbols-outlined">rule</span><span><b>RULE-01</b><small>事件與模型識別</small></span></button>
+          <button class="rule-tab"><span class="material-symbols-outlined">rule</span><span><b>RULE-02</b><small>敏感特徵保存</small></span></button>
+          <button class="rule-tab"><span class="material-symbols-outlined">rule</span><span><b>RULE-03</b><small>封鎖政策門檻</small></span></button>
+        </aside>
+        <article class="card rule-canvas">
+          <div class="card-title"><div><span class="mini-label">命中規則</span><h2 style="margin-top:5px">外部 AI 敏感文件傳輸封鎖</h2><p>POL-DLP-AI-017 · 版本 3.6</p></div><span class="badge done">生效中</span></div>
+          <div class="rule-meta">
+            <div class="meta-box"><span>生效區間</span><b>2026-07-01 → 09-30</b></div>
+            <div class="meta-box"><span>規則雜湊</span><b class="mono">9e41…a82f</b></div>
+            <div class="meta-box"><span>核准人</span><b>AI 治理主管 林婉庭</b></div>
+          </div>
+          <span class="mini-label">命中邏輯</span>
+          <div class="logic" style="margin-top:9px">
+            <div class="logic-node"><b>目的地類型</b><span>外部生成式 AI</span></div>
+            <div class="logic-op">AND</div>
+            <div class="logic-node"><b>敏感標籤</b><span>個資 OR 機密</span></div>
+            <div class="logic-op">AND</div>
+            <div class="logic-node"><b>風險分數</b><span>≥ 0.780</span></div>
+            <div class="logic-op">→</div>
+            <div class="logic-node" style="border-color:#d7c5fb;background:#f8f4ff"><b>處置：BLOCK</b><span>封鎖並建立稽核事件</span></div>
+          </div>
+          <div class="exception"><b>例外條件 E-04</b><br>已核准的沙箱租戶且文件完成去識別化，可降級為「記錄並允許」。本事件目的地不在核准清單，例外未套用。</div>
+          <div class="approval-strip">
+            <div style="display:flex;align-items:center;gap:10px"><div class="avatar">林</div><div><b style="font-size:11px;color:var(--ink)">待 AI 治理主管核對</b><div style="font-size:9px;color:var(--muted);margin-top:3px">決策分數 0.873 高於門檻 0.780，規則版本一致</div></div></div>
+            <span class="badge review">SLA 剩餘 06:18</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="page" data-page="3">
+      <div class="eyebrow">Source lineage · v3</div>
+      <div class="page-head">
+        <div><h1>追溯資料來源</h1><p>將每項關鍵資料連結至原始文件、擷取片段與來源系統欄位，驗證證據鏈完整性。</p></div>
+        <div class="head-actions"><button class="btn"><span class="material-symbols-outlined">account_tree</span>展開全部</button><button class="btn primary" data-action="verify"><span class="material-symbols-outlined">fact_check</span>驗證血緣</button></div>
+      </div>
+      <div class="lineage-shell">
+        <article class="card lineage-map">
+          <div class="card-title"><div><h2>來源血緣圖</h2><p>AI--001 · 3 個來源系統 · 7 段轉換 · 5 項決策證據</p></div><span class="badge done">鏈結完整</span></div>
+          <div class="lineage-grid">
+            <div class="node-column">
+              <div class="line-node source"><b>企業瀏覽器代理</b><span>upload_event.payload<br><span class="mono">EVT-94082217</span></span></div>
+              <div class="line-node source"><b>資料分類目錄</b><span>document.labels[]<br><span class="mono">CAT-SEC-22</span></span></div>
+              <div class="line-node source"><b>模型資產清單</b><span>model.release_version<br><span class="mono">REG-MDL-482</span></span></div>
+            </div>
+            <div class="connector"><span class="material-symbols-outlined">arrow_forward</span></div>
+            <div class="node-column">
+              <div class="line-node transform"><b>文字擷取 v2.9</b><span>PDF 14 頁 → 26,418 字元<br>無 OCR 修正</span></div>
+              <div class="line-node transform"><b>個資辨識 v4.8</b><span>身分證格式 12 筆<br>姓名實體 38 筆</span></div>
+              <div class="line-node transform"><b>風險聚合器</b><span>加權正規化<br>輸出 0.873</span></div>
+            </div>
+            <div class="connector"><span class="material-symbols-outlined">arrow_forward</span></div>
+            <div class="node-column">
+              <div class="line-node output"><b>決策：BLOCK</b><span>命中 POL-DLP-AI-017<br>門檻 0.780</span></div>
+              <div class="line-node output"><b>稽核事件</b><span>已寫入不可變事件簿<br><span class="mono">AUD-778240</span></span></div>
+            </div>
+          </div>
+        </article>
+        <aside class="lineage-side">
+          <article class="card citation-card">
+            <div class="card-title"><h3>原始引用片段</h3><span class="badge">PDF p.7</span></div>
+            <div class="quote">「供應商驗證人員：陳○明，證件編號 A12•••••9；專案聯絡窗口與付款帳戶資訊詳附件。」</div>
+            <div class="detail-list" style="margin-bottom:0">
+              <div class="detail-item"><span>來源文件</span><b>供應商風險評估_0822.pdf</b></div>
+              <div class="detail-item"><span>欄位定位</span><b>頁 7 · 字元 842–904</b></div>
+              <div class="detail-item"><span>擷取信心</span><b>99.4%</b></div>
+            </div>
+          </article>
+          <article class="card integrity-card">
+            <div class="card-title"><h3>證據完整性</h3><span class="badge done">SHA-256</span></div>
+            <div class="hash mono">b7d30930f9e4a13054d241b6d1caa981f450887890a572d8c3c1aa628f572a21</div>
+            <div class="timeline">
+              <div class="timeline-item"><i></i><div><b>事件擷取</b><span>09:42:17.083 · Edge Proxy</span></div></div>
+              <div class="timeline-item"><i></i><div><b>分類完成</b><span>09:42:17.219 · DLP Engine</span></div></div>
+              <div class="timeline-item"><i></i><div><b>證據封存</b><span>09:43:02.610 · Evidence Vault</span></div></div>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="page" data-page="4">
+      <div class="eyebrow">Decision comparison · v4</div>
+      <div class="page-head">
+        <div><h1>比較決策差異</h1><p>比較模型、規則與資料版本變更對結果與解釋內容造成的影響。</p></div>
+        <div class="head-actions"><button class="btn"><span class="material-symbols-outlined">swap_horiz</span>交換基準</button><button class="btn primary" data-action="accept-diff"><span class="material-symbols-outlined">done_all</span>接受差異</button></div>
+      </div>
+      <div class="compare-summary">
+        <article class="card compare-metric"><span>決策結果</span><b>BLOCK → BLOCK</b><small>處置維持一致</small></article>
+        <article class="card compare-metric"><span>風險分數變化</span><b>−0.061</b><small>0.873 → 0.812</small></article>
+        <article class="card compare-metric"><span>解釋排序變動</span><b>2 / 5</b><small>關鍵特徵兩項換位</small></article>
+      </div>
+      <div class="compare-main">
+        <article class="card chart-card">
+          <div class="card-title"><div><h2>版本影響趨勢</h2><p>事件平均處理時間由 12 小時降至 3 小時</p></div><span class="badge live">Chart.js</span></div>
+          <div class="chart-box"><canvas id="impactChart" aria-label="事件平均處理時間趨勢"></canvas></div>
+        </article>
+        <aside class="card version-diff">
+          <div class="card-title"><div><h2>版本差異</h2><p>基準 v4.8.2 / 候選 v4.9.0</p></div></div>
+          <div class="version-head">
+            <div class="version-pill"><b>v4.8.2</b><span>目前封存版本</span></div>
+            <div class="version-pill current"><b>v4.9.0</b><span>重播比較版本</span></div>
+          </div>
+          <div class="diff-row"><b>風險分數</b><span>0.873</span><span>0.812</span></div>
+          <div class="diff-row"><b>規則門檻</b><span>0.780</span><span>0.800</span></div>
+          <div class="diff-row"><b>個資權重</b><span>31.2%</span><span>27.8%</span></div>
+          <div class="diff-row"><b>機密標籤</b><span>24.4%</span><span>29.1%</span></div>
+          <div class="diff-row"><b>缺失值</b><span>1</span><span>0</span></div>
+          <div class="risk-callout"><b>審查提示</b><br>候選版分數下降 7.0%，但仍超過新門檻。處置不變，主要解釋由「身分證格式」轉為「文件機密標籤」。</div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="page" data-page="5">
+      <div class="eyebrow">Evidence package · v5</div>
+      <div class="page-head">
+        <div><h1>核准說明證據包</h1><p>審閱個案敘述、引用清單與版本證明，封存可供稽核與申訴回覆的正式版本。</p></div>
+        <div class="head-actions"><button class="btn"><span class="material-symbols-outlined">download</span>匯出 PDF</button><button class="btn primary" data-action="seal"><span class="material-symbols-outlined">approval</span>核准並封存</button></div>
+      </div>
+      <div class="pack-layout">
+        <article class="card document">
+          <div class="doc-brand"><b>JVISION · 決策說明書</b><span>文件編號 EXP-AI-001-R1<br>機密等級：內部限制</span></div>
+          <div class="doc-title"><h2>外部 AI 文件上傳封鎖決策說明</h2><p>決策事件 AI--001 · 產製日期 2026-08-22 · 正式版 R1</p></div>
+          <div class="doc-section">
+            <h3>一、個案結論</h3>
+            <p>2026 年 8 月 22 日 09:42，企業瀏覽器代理偵測使用者嘗試將「供應商風險評估_0822.pdf」傳送至未核准的外部生成式 AI。系統依 DLP-AI v4.8.2 判定風險分數為 0.873，高於政策門檻 0.780，因此執行封鎖。經特徵、規則及來源核對，決策符合當時生效政策。</p>
+          </div>
+          <div class="doc-section">
+            <h3>二、主要判定依據</h3>
+            <table class="evidence-table">
+              <thead><tr><th>證據</th><th>觀察值</th><th>對決策影響</th><th>來源</th></tr></thead>
+              <tbody>
+                <tr><td>身分證格式命中</td><td>12 筆</td><td>+31.2%</td><td>PDF p.7、p.11</td></tr>
+                <tr><td>文件機密標籤</td><td>機密／個資</td><td>+24.4%</td><td>分類目錄 CAT-SEC-22</td></tr>
+                <tr><td>目的地風險</td><td>未核准外部 AI</td><td>+18.6%</td><td>模型資產清單</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="doc-section">
+            <h3>三、規則與版本證明</h3>
+            <p>命中政策 POL-DLP-AI-017 v3.6，生效期間為 2026-07-01 至 2026-09-30；規則雜湊 9e41…a82f。例外條件 E-04 不適用。所有輸入與轉換均由快照 fs-2026.08.4 保存，完整性雜湊已核驗一致。</p>
+          </div>
+          <div class="doc-section">
+            <h3>四、版本差異聲明</h3>
+            <p>以候選模型 v4.9.0 重播後風險分數為 0.812，仍高於新版門檻 0.800，決策維持封鎖。關鍵特徵排序雖有變動，但不影響本案結論。</p>
+          </div>
+          <div class="signature-grid">
+            <div class="signature">資安分析師<br>陳昱安</div>
+            <div class="signature">AI 治理主管<br>林婉庭</div>
+            <div class="signature">核准人 CISO<br>王志衡</div>
+          </div>
+        </article>
+        <aside class="pack-side">
+          <article class="card checklist">
+            <div class="card-title"><div><h3>證據包完整性</h3><p>6 / 6 必要項目已備妥</p></div><span class="badge done">100%</span></div>
+            <div class="progress"><span style="width:100%;background:var(--green)"></span></div>
+            <div class="check-item"><span class="material-symbols-outlined">check_circle</span><div><b>決策特徵快照</b><span>18 項特徵 · 雜湊一致</span></div></div>
+            <div class="check-item"><span class="material-symbols-outlined">check_circle</span><div><b>規則版本證明</b><span>POL-DLP-AI-017 v3.6</span></div></div>
+            <div class="check-item"><span class="material-symbols-outlined">check_circle</span><div><b>來源引用清單</b><span>3 系統 · 5 項引用</span></div></div>
+            <div class="check-item"><span class="material-symbols-outlined">check_circle</span><div><b>版本差異報告</b><span>基準與候選版已核對</span></div></div>
+            <div class="check-item"><span class="material-symbols-outlined">check_circle</span><div><b>操作稽核紀錄</b><span>24 筆事件 · 時序完整</span></div></div>
+          </article>
+          <article class="card approval-card">
+            <div class="card-title"><h3>最終核准</h3><span class="badge review">待簽署</span></div>
+            <div class="approver"><div class="avatar">王</div><div><b>王志衡 · CISO</b><span>最終核准人 · 簽署期限 D+6</span></div></div>
+            <div class="seal">JVISION<br>待 核 准<br>R1</div>
+            <button class="btn primary" data-action="seal" style="width:100%"><span class="material-symbols-outlined">encrypted</span>核准並封存正式版本</button>
+            <p style="font-size:9px;color:var(--muted);line-height:1.6;margin:12px 0 0">封存後內容將轉為唯讀，任何修訂均會建立新版本並保留完整操作紀錄。</p>
+          </article>
+        </aside>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+(() => {
+  "use strict";
+
+  const pages = Array.from(document.querySelectorAll("[data-page]"));
+  const navButtons = Array.from(document.querySelectorAll("[data-i]"));
+  const mobileStage = document.getElementById("mobileStage");
+  const toastNode = document.getElementById("toast");
+  let impactChart = null;
+
+  function notify(message) {
+    toastNode.textContent = message;
+    toastNode.classList.remove("on");
+    void toastNode.offsetWidth;
+    toastNode.classList.add("on");
+  }
+
+  function buildImpactChart() {
+    if (impactChart || typeof Chart === "undefined") return;
+    const canvas = document.getElementById("impactChart");
+    if (!canvas || canvas.clientWidth < 1) return;
+    impactChart = new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: ["W1", "W2", "W3", "W4", "W5", "W6"],
+        datasets: [{
+          label: "事件平均處理 小時",
+          data: [12, 10.2, 8.4, 6.6, 4.8, 3],
+          borderColor: "#7c3aed",
+          backgroundColor: "rgba(124,58,237,.12)",
+          pointBackgroundColor: "#ffffff",
+          pointBorderColor: "#7c3aed",
+          pointBorderWidth: 3,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          borderWidth: 3,
+          tension: .38,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 700 },
+        interaction: { intersect: false, mode: "index" },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "#241b32",
+            padding: 11,
+            titleFont: { family: "Inter" },
+            bodyFont: { family: "Inter" }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: "#766e87", font: { size: 10, family: "Inter" } },
+            border: { display: false }
+          },
+          y: {
+            beginAtZero: true,
+            suggestedMax: 14,
+            grid: { color: "#eeeaf3" },
+            ticks: { color: "#766e87", stepSize: 3, font: { size: 10, family: "Inter" } },
+            border: { display: false },
+            title: { display: true, text: "小時", color: "#766e87", font: { size: 10 } }
+          }
+        }
+      }
+    });
+  }
+
+  function show(indexValue) {
+    const parsed = Number(indexValue);
+    const safeIndex = Number.isInteger(parsed) && parsed >= 0 && parsed < pages.length ? parsed : 0;
+    pages.forEach((pageNode, pageIndex) => {
+      const active = pageIndex === safeIndex;
+      pageNode.classList.toggle("active", active);
+      pageNode.setAttribute("aria-hidden", String(!active));
+    });
+    navButtons.forEach((buttonNode, buttonIndex) => {
+      const active = buttonIndex === safeIndex;
+      buttonNode.classList.toggle("active", active);
+      buttonNode.setAttribute("aria-current", active ? "step" : "false");
+    });
+    mobileStage.textContent = String(safeIndex + 1).padStart(2, "0") + " / 06";
+    if (safeIndex === 4) requestAnimationFrame(buildImpactChart);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function indexFromHash() {
+    const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+    return match ? Number(match[1]) : 0;
+  }
+
+  function navigate(indexValue) {
+    const targetHash = "#go=" + indexValue;
+    if (window.location.hash === targetHash) show(indexValue);
+    else window.location.hash = targetHash;
+  }
+
+  navButtons.forEach((buttonNode) => {
+    buttonNode.addEventListener("click", () => navigate(buttonNode.dataset.i));
+  });
+
+  document.querySelectorAll("[data-go]").forEach((buttonNode) => {
+    buttonNode.addEventListener("click", () => navigate(buttonNode.dataset.go));
+  });
+
+  window.addEventListener("hashchange", () => show(indexFromHash()));
+
+  const caseSearch = document.getElementById("caseSearch");
+  const stageFilter = document.getElementById("stageFilter");
+  const caseRows = Array.from(document.querySelectorAll("#caseRows tr"));
+
+  function filterCases() {
+    const queryText = caseSearch.value.trim().toLowerCase();
+    const stageValue = stageFilter.value;
+    caseRows.forEach((rowNode) => {
+      const matchesText = rowNode.textContent.toLowerCase().includes(queryText);
+      const matchesStage = !stageValue || rowNode.dataset.stage === stageValue;
+      rowNode.hidden = !(matchesText && matchesStage);
+    });
+  }
+
+  caseSearch.addEventListener("input", filterCases);
+  stageFilter.addEventListener("change", filterCases);
+
+  caseRows.forEach((rowNode) => {
+    rowNode.addEventListener("click", () => {
+      caseRows.forEach((otherRow) => otherRow.classList.remove("selected"));
+      rowNode.classList.add("selected");
+      notify("已選取 " + rowNode.querySelector("strong").textContent);
+    });
+  });
+
+  document.querySelectorAll(".rule-tab").forEach((tabNode) => {
+    tabNode.addEventListener("click", () => {
+      document.querySelectorAll(".rule-tab").forEach((otherTab) => otherTab.classList.remove("active"));
+      tabNode.classList.add("active");
+      notify("已載入 " + tabNode.querySelector("b").textContent + " 版本內容");
+    });
+  });
+
+  const actionMessages = {
+    "create": "已建立待解釋個案草稿",
+    "freeze": "特徵快照已凍結，完整性雜湊已產生",
+    "reject": "已建立補件通知，尚未送出",
+    "approve-rule": "規則版本核對通過，可進入來源追溯",
+    "verify": "來源血緣驗證完成，所有雜湊一致",
+    "accept-diff": "版本差異已接受並加入證據包",
+    "seal": "正式說明版本 R1 已核准封存"
+  };
+
+  document.querySelectorAll("[data-action]").forEach((buttonNode) => {
+    buttonNode.addEventListener("click", () => notify(actionMessages[buttonNode.dataset.action] || "操作完成"));
+  });
+
+  show(0);
+  if (window.location.hash) show(indexFromHash());
+})();
+</script>
+</body>
+</html>

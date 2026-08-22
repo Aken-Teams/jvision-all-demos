@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>訪客滯留異常偵測器 · security-soc｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --blue:#1e40af;
+  --ink:#14213d;
+  --body:#334155;
+  --muted:#64748b;
+  --line:#dbe3ef;
+  --bg:#f4f7fb;
+  --green:#0f9f6e;
+  --amber:#d97706;
+  --red:#dc3c4d;
+  --white:#fff;
+  --navy:#0b1739;
+  --blue-soft:#edf3ff;
+  --shadow:0 16px 40px rgba(15,35,80,.08);
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--body);font-family:Inter,"Noto Sans TC",sans-serif}
+body{overflow-x:hidden}
+button,input{font:inherit}
+button{cursor:pointer}
+.material-symbols-outlined{font-size:21px;line-height:1;font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24}
+.shell{min-height:100vh;display:grid;grid-template-columns:78px minmax(0,1fr)}
+.rail{position:fixed;inset:0 auto 0 0;width:78px;background:var(--navy);display:flex;flex-direction:column;align-items:center;padding:18px 10px;z-index:30}
+.brand{width:46px;height:46px;border-radius:15px;background:linear-gradient(145deg,#3159dc,#17358f);color:#fff;display:grid;place-items:center;font-weight:800;box-shadow:0 8px 20px rgba(30,64,175,.4)}
+.brand small{font-size:10px;margin-left:1px}
+.nav{margin:auto 0;display:grid;gap:10px}
+.nav-btn{position:relative;width:50px;height:50px;border:0;border-radius:14px;background:transparent;color:#91a3cc;display:grid;place-items:center;transition:.2s}
+.nav-btn:hover,.nav-btn:focus-visible{background:#172a55;color:#fff;outline:2px solid #7fa2ff;outline-offset:2px}
+.nav-btn.active{background:#fff;color:var(--blue)}
+.nav-btn.active:after{content:"";position:absolute;right:-14px;width:4px;height:24px;border-radius:4px;background:#7ea0ff}
+.nav-btn .tip{position:absolute;left:60px;white-space:nowrap;background:#101b35;color:#fff;border-radius:8px;padding:7px 9px;font-size:12px;opacity:0;pointer-events:none;transform:translateX(-5px);transition:.2s}
+.nav-btn:hover .tip,.nav-btn:focus-visible .tip{opacity:1;transform:none}
+.rail-foot{width:42px;height:42px;border-radius:50%;background:#d9e5ff;color:var(--blue);display:grid;place-items:center;font-weight:800;font-size:12px}
+.workspace{grid-column:2;min-width:0}
+.header{height:74px;background:rgba(255,255,255,.93);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:18px;padding:0 clamp(18px,3vw,42px);position:sticky;top:0;z-index:20;backdrop-filter:blur(12px)}
+.header-title{min-width:0}
+.header-title b{display:block;color:var(--ink);font-size:15px}
+.header-title span{font-size:12px;color:var(--muted)}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.live{display:flex;align-items:center;gap:7px;color:#087657;background:#e9fbf4;border:1px solid #bcebd9;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:700}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(15,159,110,.12);animation:pulse 2s infinite}
+.icon-btn{width:38px;height:38px;border:1px solid var(--line);background:#fff;border-radius:11px;color:var(--muted)}
+.icon-btn:focus-visible,.action:focus-visible,.filter:focus-visible,.case-row:focus-visible{outline:3px solid rgba(30,64,175,.25);outline-offset:2px}
+main{padding:clamp(18px,3vw,38px);max-width:1640px;margin:auto}
+.view{display:none;animation:rise .35s ease both}
+.view.active{display:block}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--blue)}
+.page-head{display:flex;gap:20px;align-items:flex-end;justify-content:space-between;margin-bottom:24px}
+.page-head h1{font-size:clamp(25px,3vw,38px);line-height:1.15;margin:7px 0;color:var(--ink);letter-spacing:-.03em}
+.page-head p{max-width:720px;margin:0;color:var(--muted);font-size:14px;line-height:1.7}
+.head-actions{display:flex;gap:9px;flex-shrink:0}
+.action{border:0;border-radius:11px;padding:11px 15px;font-weight:700;font-size:13px;background:var(--blue);color:#fff;display:inline-flex;align-items:center;gap:7px}
+.action.ghost{background:#fff;color:var(--body);border:1px solid var(--line)}
+.grid{display:grid;gap:18px}
+.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 4px 18px rgba(15,35,80,.04);min-width:0}
+.card-pad{padding:20px}
+.card-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:17px}
+.card-title h2,.card-title h3{margin:0;color:var(--ink);font-size:16px}
+.card-title small{color:var(--muted)}
+.metric{padding:18px;position:relative;overflow:hidden}
+.metric:before{content:"";position:absolute;width:72px;height:72px;border-radius:50%;background:var(--blue-soft);right:-19px;top:-20px}
+.metric-label{color:var(--muted);font-size:12px;font-weight:600}
+.metric-value{color:var(--ink);font-size:29px;font-weight:800;margin:8px 0 4px}
+.metric-foot{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.up{color:var(--green);font-weight:700}.warn{color:var(--amber);font-weight:700}.danger{color:var(--red);font-weight:700}
+.chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700}
+.chip.red{background:#fff0f1;color:var(--red)}
+.chip.amber{background:#fff7e8;color:#a65d00}
+.chip.green{background:#eafaf4;color:#087657}
+.chip.blue{background:var(--blue-soft);color:var(--blue)}
+.chart-wrap{position:relative;height:260px}
+.map-layout{grid-template-columns:minmax(0,1.55fr) minmax(280px,.65fr)}
+.floor-map{position:relative;min-height:410px;background:#eef2f7;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0}
+.room{position:absolute;border:2px solid #fff;background:#dfe7f2;border-radius:10px;color:#74829a;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;text-align:center}
+.r1{left:4%;top:7%;width:27%;height:35%}.r2{left:33%;top:7%;width:27%;height:35%}
+.r3{left:62%;top:7%;width:34%;height:35%;background:#fae9eb;color:#ad4350}
+.r4{left:4%;top:58%;width:27%;height:35%}.r5{left:33%;top:58%;width:27%;height:35%}
+.r6{left:62%;top:58%;width:34%;height:35%}
+.corridor{position:absolute;left:4%;right:4%;top:45%;height:10%;background:#fff;border-radius:8px;color:#a0aec0;font-size:10px;display:grid;place-items:center}
+.person{position:absolute;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;border:3px solid #fff;box-shadow:0 4px 12px rgba(15,23,42,.2);font-size:10px;font-weight:800}
+.p1{left:20%;top:48%;background:var(--green)}.p2{left:51%;top:25%;background:var(--amber)}
+.p3{left:77%;top:20%;background:var(--red);animation:pulse2 2s infinite}.p4{left:70%;top:69%;background:var(--blue)}
+.legend{display:flex;gap:15px;flex-wrap:wrap;margin-top:14px;font-size:11px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
+.alert-list{display:grid;gap:10px}
+.alert-item{padding:13px;border:1px solid var(--line);border-radius:12px;display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:10px}
+.alert-icon{width:38px;height:38px;border-radius:10px;background:#fff0f1;color:var(--red);display:grid;place-items:center}
+.alert-item b{font-size:13px;color:var(--ink);display:block}
+.alert-item small{font-size:11px;color:var(--muted)}
+.timeline{position:relative;padding-left:26px}
+.timeline:before{content:"";position:absolute;left:7px;top:5px;bottom:5px;width:2px;background:var(--line)}
+.time-event{position:relative;padding:0 0 18px 10px}
+.time-event:before{content:"";position:absolute;left:-23px;top:4px;width:10px;height:10px;border-radius:50%;background:#fff;border:3px solid var(--blue)}
+.time-event b{font-size:13px;color:var(--ink)}
+.time-event p{font-size:12px;color:var(--muted);margin:4px 0}
+.time-event time{font-size:11px;color:var(--blue);font-weight:700}
+.searchbar{display:flex;gap:9px;align-items:center;background:#fff;border:1px solid var(--line);padding:9px 12px;border-radius:12px;min-width:230px}
+.searchbar input{border:0;outline:0;width:100%;color:var(--body);background:transparent}
+.filter{border:1px solid var(--line);background:#fff;color:var(--body);border-radius:10px;padding:9px 12px;font-size:12px}
+.table-wrap{overflow:auto;border-radius:16px;border:1px solid var(--line);background:#fff}
+table{border-collapse:collapse;width:100%;min-width:740px}
+th{text-align:left;padding:12px 15px;background:#f8fafc;color:var(--muted);font-size:11px;letter-spacing:.04em}
+td{padding:14px 15px;border-top:1px solid #edf1f6;font-size:13px}
+td b{color:var(--ink)}
+.avatar{width:31px;height:31px;border-radius:9px;background:var(--blue-soft);color:var(--blue);display:inline-grid;place-items:center;font-size:10px;font-weight:800;margin-right:8px}
+.score{display:flex;align-items:center;gap:8px;font-weight:800}
+.score-bar{width:70px;height:6px;border-radius:9px;background:#e9eef5;overflow:hidden}
+.score-bar i{display:block;height:100%;background:var(--red);border-radius:9px}
+.detail-layout{grid-template-columns:minmax(0,1.2fr) minmax(290px,.8fr)}
+.profile{display:flex;align-items:center;gap:14px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.profile-icon{width:54px;height:54px;border-radius:15px;background:linear-gradient(145deg,#274fca,#132c7b);color:#fff;display:grid;place-items:center;font-size:18px;font-weight:800}
+.profile h2{margin:0;color:var(--ink);font-size:19px}.profile p{margin:4px 0 0;color:var(--muted);font-size:12px}
+.fact-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+.fact{padding:12px;background:#f7f9fc;border-radius:11px}
+.fact span{font-size:10px;color:var(--muted);display:block}.fact b{font-size:13px;color:var(--ink)}
+.route{display:flex;align-items:center;gap:5px;margin:20px 0;overflow:auto;padding-bottom:5px}
+.route-node{min-width:94px;padding:11px 9px;text-align:center;border:1px solid var(--line);border-radius:10px;font-size:11px;font-weight:700;background:#fff}
+.route-node.bad{border-color:#f3a9b1;background:#fff3f4;color:var(--red)}
+.route-arrow{color:#aab5c5}
+.evidence{display:grid;gap:9px}
+.evidence-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:11px;padding:11px}
+.evidence-item .material-symbols-outlined{color:var(--blue)}
+.evidence-item b{font-size:12px;color:var(--ink);display:block}.evidence-item small{font-size:10px;color:var(--muted)}
+.risk-hero{background:linear-gradient(135deg,#12265e,#1e40af);color:#fff;border-radius:18px;padding:23px}
+.risk-hero small{opacity:.72}.risk-number{font-size:58px;font-weight:800;line-height:1;margin:13px 0 7px}.risk-hero p{font-size:12px;opacity:.8;margin:0}
+.radar-grid{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:18px}
+.rule-list{display:grid;gap:10px}
+.rule{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start;padding:13px;border:1px solid var(--line);border-radius:12px}
+.rule-id{font-size:10px;font-weight:800;color:var(--blue);background:var(--blue-soft);padding:5px 7px;border-radius:7px}
+.rule b{font-size:12px;color:var(--ink);display:block}.rule p{font-size:11px;color:var(--muted);margin:4px 0 0;line-height:1.5}
+.conflict{background:#fff8eb;border:1px solid #f5d596;border-radius:13px;padding:14px;display:flex;gap:10px}
+.conflict b{color:#8a4c00;font-size:12px}.conflict p{font-size:11px;margin:4px 0 0;color:#97621f}
+.task-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.task-col{background:#eef2f7;border-radius:15px;padding:12px;min-height:390px}
+.task-col-head{display:flex;justify-content:space-between;align-items:center;padding:4px 3px 12px;font-size:12px;font-weight:800;color:var(--ink)}
+.count{background:#fff;border-radius:20px;padding:3px 7px;color:var(--muted)}
+.task-card{background:#fff;border:1px solid #e0e6ef;border-radius:12px;padding:13px;margin-bottom:10px;box-shadow:0 3px 8px rgba(15,35,80,.04)}
+.task-card .task-kind{font-size:10px;color:var(--blue);font-weight:800}
+.task-card h3{font-size:13px;color:var(--ink);margin:7px 0}
+.task-card p{font-size:11px;color:var(--muted);line-height:1.5;margin:0 0 11px}
+.task-meta{display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--muted)}
+.sla{display:grid;grid-template-columns:80px minmax(0,1fr) auto;gap:9px;align-items:center;margin:13px 0}
+.sla span{font-size:11px}.sla-track{height:7px;background:#e8edf4;border-radius:8px;overflow:hidden}.sla-track i{display:block;height:100%;border-radius:8px;background:var(--blue)}
+.toast-note{padding:13px;border-left:4px solid var(--green);background:#edf9f5;border-radius:8px;font-size:12px;color:#17634f}
+@keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes pulse{50%{box-shadow:0 0 0 7px rgba(15,159,110,0)}}
+@keyframes pulse2{50%{box-shadow:0 0 0 12px rgba(220,60,77,0)}}
+@media(max-width:1050px){
+  .cols-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .map-layout,.detail-layout,.radar-grid{grid-template-columns:1fr}
+  .task-board{grid-template-columns:1fr 1fr}.task-col:last-child{grid-column:1/-1}
+}
+@media(max-width:720px){
+  .shell{display:block;padding-bottom:72px}.workspace{display:block}
+  .rail{inset:auto 0 0 0;width:auto;height:66px;flex-direction:row;padding:7px 10px;border-top:1px solid #263b67}
+  .brand,.rail-foot{display:none}.nav{margin:0;width:100%;display:grid;grid-template-columns:repeat(6,1fr);gap:3px}
+  .nav-btn{width:100%;height:50px}.nav-btn.active:after{right:auto;bottom:-7px;width:24px;height:3px}
+  .nav-btn .tip{display:none}.header{height:64px;padding:0 15px}.header-title span,.icon-btn{display:none}
+  main{padding:17px 14px}.page-head{align-items:flex-start;display:block}.page-head h1{font-size:26px}.head-actions{margin-top:15px}
+  .cols-3,.cols-2{grid-template-columns:1fr}.task-board{grid-template-columns:1fr}.task-col:last-child{grid-column:auto}
+  .floor-map{min-height:340px}.fact-grid{grid-template-columns:1fr 1fr}.chart-wrap{height:230px}
+}
+@media(max-width:460px){
+  .cols-4{grid-template-columns:1fr 1fr;gap:10px}.metric{padding:14px}.metric-value{font-size:23px}
+  .live{padding:6px 8px}.header-title b{font-size:13px}.card-pad{padding:15px}
+  .head-actions{display:grid;grid-template-columns:1fr 1fr}.action{justify-content:center;padding:10px}
+  .alert-item{grid-template-columns:34px minmax(0,1fr)}.alert-item>.chip{grid-column:2}
+  .fact-grid{grid-template-columns:1fr}.risk-number{font-size:48px}.page-head p{font-size:13px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail" aria-label="流程導覽">
+    <div class="brand">JV<small>AI</small></div>
+    <nav class="nav">
+      <button class="nav-btn" data-i="0" aria-label="掌握在場態勢"><span class="material-symbols-outlined">radar</span><span class="tip">在場態勢</span></button>
+      <button class="nav-btn" data-i="1" aria-label="確認逾時異常"><span class="material-symbols-outlined">timer_alert</span><span class="tip">逾時異常</span></button>
+      <button class="nav-btn" data-i="2" aria-label="調查區域偏離"><span class="material-symbols-outlined">wrong_location</span><span class="tip">區域偏離</span></button>
+      <button class="nav-btn" data-i="3" aria-label="追查未簽退者"><span class="material-symbols-outlined">person_off</span><span class="tip">未簽退追查</span></button>
+      <button class="nav-btn" data-i="4" aria-label="完成風險研判"><span class="material-symbols-outlined">fact_check</span><span class="tip">風險研判</span></button>
+      <button class="nav-btn" data-i="5" aria-label="協同安全處置"><span class="material-symbols-outlined">notification_important</span><span class="tip">安全處置</span></button>
+    </nav>
+    <div class="rail-foot">AM</div>
+  </aside>
+
+  <div class="workspace">
+    <header class="header">
+      <div class="header-title">
+        <b>訪客滯留異常偵測器</b>
+        <span>企業場域安全中心 · 台北營運總部</span>
+      </div>
+      <div class="header-right">
+        <span class="live"><i></i>即時監測中</span>
+        <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+        <button class="icon-btn" aria-label="說明"><span class="material-symbols-outlined">help</span></button>
+      </div>
+    </header>
+
+    <main>
+      <section class="view" data-view="0">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">01 · 辦公室經理</div>
+            <h1>掌握在場態勢</h1>
+            <p>檢視即時在場名單、訪客位置、預定離場時間與風險熱點，優先辨識需要行政團隊介入的異常。</p>
+          </div>
+          <div class="head-actions">
+            <button class="action ghost"><span class="material-symbols-outlined">download</span>匯出清冊</button>
+            <button class="action" data-next="1"><span class="material-symbols-outlined">arrow_forward</span>檢視逾時</button>
+          </div>
+        </div>
+
+        <div class="grid cols-4">
+          <div class="card metric"><div class="metric-label">目前在場訪客</div><div class="metric-value">47</div><div class="metric-foot"><span class="up">↑ 6</span> 較一小時前</div></div>
+          <div class="card metric"><div class="metric-label">預定 30 分內離場</div><div class="metric-value">12</div><div class="metric-foot">已發送離場提醒 9 人</div></div>
+          <div class="card metric"><div class="metric-label">疑似逾時</div><div class="metric-value danger">5</div><div class="metric-foot"><span class="danger">2 件高風險</span> 待處理</div></div>
+          <div class="card metric"><div class="metric-label">授權區域偏離</div><div class="metric-value warn">3</div><div class="metric-foot">敏感空間命中 1 件</div></div>
+        </div>
+
+        <div class="grid map-layout" style="margin-top:18px">
+          <div class="card card-pad">
+            <div class="card-title"><h2>3F 即時訪客分布</h2><span class="chip blue"><span class="material-symbols-outlined">sensors</span>門禁同步 10:42</span></div>
+            <div class="floor-map" aria-label="樓層訪客分布圖">
+              <div class="room r1">會議室 A<br>3 位訪客</div><div class="room r2">協作區<br>8 位訪客</div>
+              <div class="room r3">資料中心前室<br>限制區域</div><div class="room r4">接待大廳<br>12 位訪客</div>
+              <div class="room r5">洽談室<br>5 位訪客</div><div class="room r6">開放辦公區<br>4 位訪客</div>
+              <div class="corridor">主要通行動線</div>
+              <div class="person p1">正常</div><div class="person p2">逾時</div><div class="person p3">偏離</div><div class="person p4">正常</div>
+            </div>
+            <div class="legend"><span><i class="dot" style="background:var(--green)"></i>正常</span><span><i class="dot" style="background:var(--amber)"></i>即將逾時</span><span><i class="dot" style="background:var(--red)"></i>高風險</span></div>
+          </div>
+          <div class="grid">
+            <div class="card card-pad">
+              <div class="card-title"><h2>即時風險事件</h2><span class="chip red">5 件</span></div>
+              <div class="alert-list">
+                <div class="alert-item"><span class="alert-icon material-symbols-outlined">wrong_location</span><div><b>VIS-003 進入限制區域</b><small>資料中心前室 · 停留 7 分鐘</small></div><span class="chip red">嚴重</span></div>
+                <div class="alert-item"><span class="alert-icon material-symbols-outlined">timer</span><div><b>VIS-002 已逾時 43 分</b><small>最後出現：3F 協作區</small></div><span class="chip amber">注意</span></div>
+                <div class="alert-item"><span class="alert-icon material-symbols-outlined">person_off</span><div><b>VIS-009 缺少簽退紀錄</b><small>出口門禁無對應事件</small></div><span class="chip amber">追查</span></div>
+              </div>
+            </div>
+            <div class="card card-pad">
+              <div class="card-title"><h2>近 6 小時在場量</h2><small>人次</small></div>
+              <div class="chart-wrap"><canvas id="presenceChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="1">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">02 · 行政人員</div>
+            <h1>確認逾時異常</h1>
+            <p>核對訪客預約、行事曆、門禁與臨時展延紀錄，快速排除合理停留並聚焦真正異常。</p>
+          </div>
+          <div class="head-actions">
+            <button class="action ghost"><span class="material-symbols-outlined">tune</span>條件篩選</button>
+            <button class="action"><span class="material-symbols-outlined">add</span>新增展延</button>
+          </div>
+        </div>
+
+        <div class="grid cols-3">
+          <div class="card metric"><div class="metric-label">待確認案件</div><div class="metric-value">5</div><div class="metric-foot"><span class="danger">2 件</span> 已超過處理 SLA</div></div>
+          <div class="card metric"><div class="metric-label">今日合理展延</div><div class="metric-value">18</div><div class="metric-foot"><span class="up">78%</span> 已由接待人確認</div></div>
+          <div class="card metric"><div class="metric-label">平均確認時間</div><div class="metric-value">4.6<small> 分</small></div><div class="metric-foot">較上週縮短 1.8 分鐘</div></div>
+        </div>
+
+        <div class="card" style="margin-top:18px">
+          <div class="card-pad">
+            <div class="card-title">
+              <h2>逾時訪客工作清單</h2>
+              <div class="searchbar"><span class="material-symbols-outlined">search</span><input aria-label="搜尋訪客" placeholder="搜尋編號、訪客或接待人"></div>
+            </div>
+          </div>
+          <div class="table-wrap" style="border:0;border-top:1px solid var(--line);border-radius:0 0 16px 16px">
+            <table>
+              <thead><tr><th>案件 / 訪客</th><th>接待人</th><th>預定離場</th><th>逾時</th><th>最後門禁</th><th>風險分數</th><th>狀態</th></tr></thead>
+              <tbody>
+                <tr><td><span class="avatar">YL</span><b>VIS-002 · 楊立維</b></td><td>陳怡安</td><td>10:00</td><td class="danger">43 分</td><td>3F 協作區</td><td><div class="score">82<div class="score-bar"><i style="width:82%"></i></div></div></td><td><span class="chip red">優先確認</span></td></tr>
+                <tr><td><span class="avatar">WK</span><b>VIS-011 · 王可晴</b></td><td>林哲宇</td><td>10:15</td><td class="warn">28 分</td><td>5F 會議室</td><td><div class="score">64<div class="score-bar"><i style="width:64%;background:var(--amber)"></i></div></div></td><td><span class="chip amber">待回覆</span></td></tr>
+                <tr><td><span class="avatar">CH</span><b>VIS-017 · 陳浩文</b></td><td>張育誠</td><td>10:20</td><td class="warn">23 分</td><td>1F 接待區</td><td><div class="score">51<div class="score-bar"><i style="width:51%;background:var(--amber)"></i></div></div></td><td><span class="chip blue">查核中</span></td></tr>
+                <tr><td><span class="avatar">RS</span><b>VIS-021 · 任思婷</b></td><td>許嘉容</td><td>10:30</td><td>13 分</td><td>8F 洽談室</td><td><div class="score">34<div class="score-bar"><i style="width:34%;background:var(--green)"></i></div></div></td><td><span class="chip green">已展延</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="grid cols-2" style="margin-top:18px">
+          <div class="card card-pad">
+            <div class="card-title"><h2>VIS-002 查核時間軸</h2><span class="chip red">高風險</span></div>
+            <div class="timeline">
+              <div class="time-event"><time>09:02</time><b>完成訪客報到</b><p>接待櫃台核發 V-3048 臨時證。</p></div>
+              <div class="time-event"><time>09:18</time><b>進入 3F 協作區</b><p>門禁位置符合預約授權。</p></div>
+              <div class="time-event"><time>10:00</time><b>預定離場時間</b><p>行事曆未發現會議延長紀錄。</p></div>
+              <div class="time-event"><time>10:31</time><b>自動提醒未獲回覆</b><p>訪客與接待人皆未確認展延。</p></div>
+            </div>
+          </div>
+          <div class="card card-pad">
+            <div class="card-title"><h2>查核完整度</h2><small>4 項來源</small></div>
+            <div class="chart-wrap"><canvas id="verifyChart"></canvas></div>
+            <div class="toast-note">規則 RULE-02 命中：無合理展延且最後門禁事件仍位於辦公區，建議升級調查。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="2">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">03 · 總務主管</div>
+            <h1>調查區域偏離</h1>
+            <p>比對訪客授權範圍、空間敏感度與門禁移動軌跡，釐清偏離原因及可能接觸的企業資產。</p>
+          </div>
+          <div class="head-actions">
+            <button class="action ghost"><span class="material-symbols-outlined">share</span>分享事件</button>
+            <button class="action"><span class="material-symbols-outlined">lock</span>暫停訪客證</button>
+          </div>
+        </div>
+
+        <div class="grid detail-layout">
+          <div class="card card-pad">
+            <div class="profile">
+              <div class="profile-icon">YL</div>
+              <div><h2>楊立維 · VIS-002</h2><p>晟曜科技供應商｜接待人：陳怡安｜證件 V-3048</p></div>
+              <span class="chip red" style="margin-left:auto">區域偏離</span>
+            </div>
+            <div class="fact-grid">
+              <div class="fact"><span>核准樓層</span><b>1F、3F</b></div>
+              <div class="fact"><span>目前推定位置</span><b class="danger">4F 機房前室</b></div>
+              <div class="fact"><span>偏離持續</span><b>7 分 24 秒</b></div>
+            </div>
+            <div class="card-title"><h3>移動軌跡</h3><small>09:02 — 10:43</small></div>
+            <div class="route">
+              <div class="route-node">1F 接待<br><small>09:02</small></div><span class="route-arrow material-symbols-outlined">arrow_forward</span>
+              <div class="route-node">3F 協作區<br><small>09:18</small></div><span class="route-arrow material-symbols-outlined">arrow_forward</span>
+              <div class="route-node">3F 東梯廳<br><small>10:33</small></div><span class="route-arrow material-symbols-outlined">arrow_forward</span>
+              <div class="route-node bad">4F 機房前室<br><small>10:36</small></div>
+            </div>
+            <div class="card-title"><h3>可能接觸範圍</h3><span class="chip amber">敏感度 A</span></div>
+            <div class="grid cols-3">
+              <div class="fact"><span>機櫃區門禁</span><b>未開啟</b></div>
+              <div class="fact"><span>文件儲存櫃</span><b>距離 4.2m</b></div>
+              <div class="fact"><span>同行員工</span><b>未偵測</b></div>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="card card-pad">
+              <div class="card-title"><h2>偏離風險構成</h2><span class="chip red">風險 82</span></div>
+              <div class="chart-wrap"><canvas id="deviationChart"></canvas></div>
+            </div>
+            <div class="card card-pad">
+              <div class="card-title"><h2>證據鏈</h2><small>最近更新 10:43</small></div>
+              <div class="evidence">
+                <div class="evidence-item"><span class="material-symbols-outlined">badge</span><div><b>訪客證 V-3048</b><small>4F 東側閘門讀取成功 · 10:36</small></div><span class="chip green" style="margin-left:auto">已驗證</span></div>
+                <div class="evidence-item"><span class="material-symbols-outlined">door_sensor</span><div><b>機房前室感測器</b><small>移動事件持續 7 分鐘</small></div><span class="chip green" style="margin-left:auto">已驗證</span></div>
+                <div class="evidence-item"><span class="material-symbols-outlined">approval</span><div><b>授權印章 AUTH-883</b><small>僅核准 1F 與 3F</small></div><span class="chip red" style="margin-left:auto">不符合</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="3">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">04 · 行政人員</div>
+            <h1>追查未簽退者</h1>
+            <p>交叉查驗出口門禁、接待回報、停車場與訪客證歸還資訊，確認訪客是否仍在場並補齊離場證據。</p>
+          </div>
+          <div class="head-actions">
+            <button class="action ghost"><span class="material-symbols-outlined">call</span>批次聯繫</button>
+            <button class="action"><span class="material-symbols-outlined">campaign</span>通知接待人</button>
+          </div>
+        </div>
+
+        <div class="grid cols-4">
+          <div class="card metric"><div class="metric-label">未簽退候選</div><div class="metric-value">9</div><div class="metric-foot">模型已排除 21 件</div></div>
+          <div class="card metric"><div class="metric-label">疑似仍在場</div><div class="metric-value danger">3</div><div class="metric-foot">最近門禁小於 30 分鐘</div></div>
+          <div class="card metric"><div class="metric-label">已確認離場</div><div class="metric-value">4</div><div class="metric-foot">等待補登簽退紀錄</div></div>
+          <div class="card metric"><div class="metric-label">待人工聯繫</div><div class="metric-value warn">2</div><div class="metric-foot">接待人尚未回覆</div></div>
+        </div>
+
+        <div class="grid cols-2" style="margin-top:18px">
+          <div class="card card-pad">
+            <div class="card-title"><h2>離場證據矩陣</h2><span class="chip blue">10:45 更新</span></div>
+            <div class="table-wrap">
+              <table style="min-width:620px">
+                <thead><tr><th>訪客</th><th>出口門禁</th><th>訪客證</th><th>車輛離場</th><th>接待回報</th><th>判定</th></tr></thead>
+                <tbody>
+                  <tr><td><b>任思婷</b><br><small>VIS-021</small></td><td><span class="chip green">10:32</span></td><td><span class="chip green">已歸還</span></td><td><span class="chip green">10:38</span></td><td><span class="chip green">已離場</span></td><td><b class="up">確認離場</b></td></tr>
+                  <tr><td><b>周柏諺</b><br><small>VIS-009</small></td><td><span class="chip red">無紀錄</span></td><td><span class="chip red">未歸還</span></td><td><span class="chip amber">無車號</span></td><td><span class="chip amber">未回覆</span></td><td><b class="danger">疑似在場</b></td></tr>
+                  <tr><td><b>劉品妍</b><br><small>VIS-024</small></td><td><span class="chip amber">無紀錄</span></td><td><span class="chip green">已歸還</span></td><td><span class="chip green">10:11</span></td><td><span class="chip green">已離場</span></td><td><b class="up">補登簽退</b></td></tr>
+                  <tr><td><b>高明遠</b><br><small>VIS-028</small></td><td><span class="chip red">無紀錄</span></td><td><span class="chip red">未歸還</span></td><td><span class="chip amber">停車中</span></td><td><span class="chip amber">聯繫中</span></td><td><b class="danger">優先追查</b></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="grid">
+            <div class="card card-pad">
+              <div class="card-title"><h2>追查結果分布</h2><small>今日 30 件</small></div>
+              <div class="chart-wrap"><canvas id="checkoutChart"></canvas></div>
+            </div>
+            <div class="card card-pad">
+              <div class="card-title"><h2>VIS-009 建議行動</h2><span class="chip red">SLA 剩 08:14</span></div>
+              <div class="evidence">
+                <div class="evidence-item"><span class="material-symbols-outlined">call</span><div><b>聯繫訪客本人</b><small>手機末四碼 6721 · 尚未撥打</small></div><button class="filter">執行</button></div>
+                <div class="evidence-item"><span class="material-symbols-outlined">support_agent</span><div><b>通知接待人確認</b><small>王雅雯 · 已讀未回</small></div><button class="filter">提醒</button></div>
+                <div class="evidence-item"><span class="material-symbols-outlined">search</span><div><b>派員巡查最後區域</b><small>6F 訓練教室 · 10:19</small></div><button class="filter">派發</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="4">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">05 · 總務主管</div>
+            <h1>完成風險研判</h1>
+            <p>綜合模型分數、規則命中、矛盾提示與企業資料引用，決定事件的處置級別並留下可稽核依據。</p>
+          </div>
+          <div class="head-actions">
+            <button class="action ghost"><span class="material-symbols-outlined">undo</span>退回補件</button>
+            <button class="action" data-next="5"><span class="material-symbols-outlined">verified</span>核准處置</button>
+          </div>
+        </div>
+
+        <div class="radar-grid">
+          <div class="grid">
+            <div class="risk-hero">
+              <small>VIS-002 綜合風險分數</small>
+              <div class="risk-number">82</div>
+              <span class="chip red">高風險 · 建議立即介入</span>
+              <p style="margin-top:15px">信心度 91%｜3 項規則命中｜1 項資料矛盾</p>
+            </div>
+            <div class="card card-pad">
+              <div class="card-title"><h2>風險向度</h2><small>0–100</small></div>
+              <div class="chart-wrap" style="height:290px"><canvas id="riskChart"></canvas></div>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="card card-pad">
+              <div class="card-title"><h2>規則與模型佐證</h2><span class="chip blue">模型版本 3.8</span></div>
+              <div class="rule-list">
+                <div class="rule"><span class="rule-id">RULE-01</span><div><b>在場態勢與預定離場時間不符</b><p>預定 10:00 離場，10:43 仍有 4F 門禁活動。證據：空間。</p></div><span class="chip red">+28</span></div>
+                <div class="rule"><span class="rule-id">RULE-02</span><div><b>未發現合理展延</b><p>預約、行事曆與接待回覆均無展延佐證。證據：訪客。</p></div><span class="chip red">+24</span></div>
+                <div class="rule"><span class="rule-id">RULE-03</span><div><b>移動軌跡超出授權範圍</b><p>授權印章 AUTH-883 僅核准 1F、3F，卻出現 4F 紀錄。證據：印章。</p></div><span class="chip red">+30</span></div>
+              </div>
+            </div>
+            <div class="conflict">
+              <span class="material-symbols-outlined" style="color:var(--amber)">warning</span>
+              <div><b>資料矛盾需要人工確認</b><p>接待人口頭表示訪客已離開 3F，但訪客證於 10:36 在 4F 被讀取。請確認是否有證件轉交或尾隨通行情形。</p></div>
+            </div>
+            <div class="card card-pad">
+              <div class="card-title"><h2>研判決策</h2><small>決策將寫入合規稽核</small></div>
+              <div class="grid cols-3">
+                <button class="filter" style="padding:14px;border-color:#efb5bb;color:var(--red)">高風險<br><small>立即處置</small></button>
+                <button class="filter" style="padding:14px;border-color:#f2d08c;color:var(--amber)">中風險<br><small>持續監控</small></button>
+                <button class="filter" style="padding:14px;border-color:#a9ddca;color:var(--green)">低風險<br><small>結案備查</small></button>
+              </div>
+              <p style="font-size:11px;color:var(--muted);line-height:1.7;margin:15px 0 0">目前選擇：高風險。完成後將通知辦公室經理，建立聯繫、現場尋訪與門禁管制任務。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="5">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">06 · 辦公室經理</div>
+            <h1>協同安全處置</h1>
+            <p>派發聯繫與現場尋訪任務，協調接待、門禁及總務人員，保留交接證據並對逾時案件自動升級。</p>
+          </div>
+          <div class="head-actions">
+            <button class="action ghost"><span class="material-symbols-outlined">description</span>事件報告</button>
+            <button class="action"><span class="material-symbols-outlined">add_task</span>新增任務</button>
+          </div>
+        </div>
+
+        <div class="grid cols-3" style="margin-bottom:18px">
+          <div class="card metric"><div class="metric-label">處置進行中</div><div class="metric-value">4</div><div class="metric-foot">跨 3 個協作單位</div></div>
+          <div class="card metric"><div class="metric-label">任務準時率</div><div class="metric-value">92%</div><div class="metric-foot"><span class="up">↑ 24%</span> 導入前為 68%</div></div>
+          <div class="card metric"><div class="metric-label">平均協調工時</div><div class="metric-value">2<small> 小時/週</small></div><div class="metric-foot">導入前為 8 小時/週</div></div>
+        </div>
+
+        <div class="task-board">
+          <div class="task-col">
+            <div class="task-col-head">待執行 <span class="count">2</span></div>
+            <div class="task-card"><span class="task-kind">現場尋訪</span><h3>巡查 4F 機房前室</h3><p>確認 VIS-002 是否仍在限制區域，禁止單獨接觸敏感設備。</p><div class="task-meta"><span>門禁保全 · 未指派</span><span class="chip red">高</span></div></div>
+            <div class="task-card"><span class="task-kind">證據保全</span><h3>保存 4F 門禁事件</h3><p>封存 10:20–10:50 的讀卡與門磁紀錄，供後續稽核。</p><div class="task-meta"><span>系統自動建立</span><span class="chip amber">中</span></div></div>
+          </div>
+          <div class="task-col">
+            <div class="task-col-head">處理中 <span class="count">3</span></div>
+            <div class="task-card"><span class="task-kind">人員聯繫</span><h3>確認訪客目前位置</h3><p>行政人員已撥打訪客電話，等待本人回覆與位置確認。</p><div class="task-meta"><span>林欣怡 · 3 分鐘前</span><span class="chip blue">進行中</span></div></div>
+            <div class="task-card"><span class="task-kind">門禁管制</span><h3>暫停訪客證 V-3048</h3><p>僅保留出口通行權限，限制進入其他辦公樓層。</p><div class="task-meta"><span>門禁中心 · 10:47</span><span class="chip green">已套用</span></div></div>
+            <div class="task-card"><span class="task-kind">接待確認</span><h3>訪談接待人陳怡安</h3><p>釐清會議是否延長，以及訪客證是否曾交由他人使用。</p><div class="task-meta"><span>總務主管 · 處理中</span><span class="chip amber">SLA 12:40</span></div></div>
+          </div>
+          <div class="task-col">
+            <div class="task-col-head">已完成 <span class="count">3</span></div>
+            <div class="task-card"><span class="task-kind">自動化</span><h3>建立高風險事件</h3><p>風險 82 分，已連結門禁、預約與授權印章證據。</p><div class="task-meta"><span>AI 偵測器 · 10:43</span><span class="chip green">完成</span></div></div>
+            <div class="task-card"><span class="task-kind">通知</span><h3>通知場域安全群組</h3><p>辦公室經理、行政與保全已收到案件摘要。</p><div class="task-meta"><span>系統通知 · 10:44</span><span class="chip green">完成</span></div></div>
+          </div>
+        </div>
+
+        <div class="grid cols-2" style="margin-top:18px">
+          <div class="card card-pad">
+            <div class="card-title"><h2>處置 SLA</h2><span class="chip green">整體正常</span></div>
+            <div class="sla"><span>確認位置</span><div class="sla-track"><i style="width:72%;background:var(--amber)"></i></div><b class="warn">12:40</b></div>
+            <div class="sla"><span>限制門禁</span><div class="sla-track"><i style="width:100%;background:var(--green)"></i></div><b class="up">完成</b></div>
+            <div class="sla"><span>保存證據</span><div class="sla-track"><i style="width:44%"></i></div><b>18:20</b></div>
+            <div class="sla"><span>主管覆核</span><div class="sla-track"><i style="width:20%"></i></div><b>25:00</b></div>
+          </div>
+          <div class="card card-pad">
+            <div class="card-title"><h2>六週任務準時率</h2><span class="chip blue">目標 95%</span></div>
+            <div class="chart-wrap"><canvas id="outcomeChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+const chartRegistry = {};
+const chartColors = {
+  blue: "#1e40af",
+  green: "#0f9f6e",
+  amber: "#d97706",
+  red: "#dc3c4d",
+  grid: "#e8edf4",
+  muted: "#64748b"
+};
+
+function baseScales() {
+  return {
+    x: { grid: { display: false }, ticks: { color: chartColors.muted, font: { size: 11 } }, border: { display: false } },
+    y: { beginAtZero: true, grid: { color: chartColors.grid }, ticks: { color: chartColors.muted, font: { size: 11 } }, border: { display: false } }
+  };
+}
+
+function createChart(viewIndex) {
+  if (typeof Chart === "undefined") return;
+  if (viewIndex === 0 && !chartRegistry.presence) {
+    chartRegistry.presence = new Chart(document.getElementById("presenceChart"), {
+      type: "line",
+      data: {
+        labels: ["06:00","07:00","08:00","09:00","10:00","11:00"],
+        datasets: [{
+          label: "在場訪客",
+          data: [3,8,22,39,51,47],
+          borderColor: chartColors.blue,
+          backgroundColor: "rgba(30,64,175,.12)",
+          fill: true,
+          tension: .38,
+          pointRadius: 3,
+          pointBackgroundColor: chartColors.blue
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: baseScales() }
+    });
+  }
+  if (viewIndex === 1 && !chartRegistry.verify) {
+    chartRegistry.verify = new Chart(document.getElementById("verifyChart"), {
+      type: "bar",
+      data: {
+        labels: ["預約資料","行事曆","門禁紀錄","接待回覆"],
+        datasets: [{
+          label: "查核完整度",
+          data: [100,100,92,40],
+          backgroundColor: [chartColors.green,chartColors.green,chartColors.blue,chartColors.amber],
+          borderRadius: 7,
+          barThickness: 18
+        }]
+      },
+      options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { max: 100, grid: { color: chartColors.grid }, ticks: { callback: value => value + "%", color: chartColors.muted } }, y: { grid: { display: false }, ticks: { color: chartColors.muted }, border: { display: false } } } }
+    });
+  }
+  if (viewIndex === 2 && !chartRegistry.deviation) {
+    chartRegistry.deviation = new Chart(document.getElementById("deviationChart"), {
+      type: "doughnut",
+      data: {
+        labels: ["敏感空間","授權偏差","停留時間","同行狀態"],
+        datasets: [{ data: [35,27,23,15], backgroundColor: [chartColors.red,chartColors.amber,chartColors.blue,"#94a3b8"], borderWidth: 0, spacing: 3 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, cutout: "68%", plugins: { legend: { position: "bottom", labels: { usePointStyle: true, boxWidth: 8, color: chartColors.muted, padding: 15, font: { size: 10 } } } } }
+    });
+  }
+  if (viewIndex === 3 && !chartRegistry.checkout) {
+    chartRegistry.checkout = new Chart(document.getElementById("checkoutChart"), {
+      type: "polarArea",
+      data: {
+        labels: ["確認離場","疑似在場","待人工聯繫","補登簽退"],
+        datasets: [{ data: [14,3,2,11], backgroundColor: ["rgba(15,159,110,.75)","rgba(220,60,77,.78)","rgba(217,119,6,.75)","rgba(30,64,175,.72)"], borderWidth: 0 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, scales: { r: { ticks: { display: false }, grid: { color: chartColors.grid } } }, plugins: { legend: { position: "right", labels: { usePointStyle: true, boxWidth: 8, color: chartColors.muted, font: { size: 10 } } } } }
+    });
+  }
+  if (viewIndex === 4 && !chartRegistry.risk) {
+    chartRegistry.risk = new Chart(document.getElementById("riskChart"), {
+      type: "radar",
+      data: {
+        labels: ["逾時程度","區域敏感度","授權偏差","證據一致性","聯繫失敗","資產暴露"],
+        datasets: [{
+          label: "本案",
+          data: [86,91,88,74,67,79],
+          borderColor: chartColors.red,
+          backgroundColor: "rgba(220,60,77,.15)",
+          pointBackgroundColor: chartColors.red,
+          borderWidth: 2
+        },{
+          label: "一般案件",
+          data: [43,31,25,38,29,22],
+          borderColor: "#94a3b8",
+          backgroundColor: "rgba(148,163,184,.08)",
+          pointBackgroundColor: "#94a3b8",
+          borderWidth: 1
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: chartColors.grid }, angleLines: { color: chartColors.grid }, pointLabels: { color: chartColors.muted, font: { size: 10 } } } }, plugins: { legend: { labels: { usePointStyle: true, color: chartColors.muted } } } }
+    });
+  }
+  if (viewIndex === 5 && !chartRegistry.outcome) {
+    chartRegistry.outcome = new Chart(document.getElementById("outcomeChart"), {
+      type: "line",
+      data: {
+        labels: ["W1","W2","W3","W4","W5","W6"],
+        datasets: [{
+          label: "任務準時率 %",
+          data: [68,72.8,77.6,82.4,87.2,92],
+          borderColor: chartColors.blue,
+          backgroundColor: "rgba(30,64,175,.1)",
+          fill: true,
+          tension: .35,
+          pointRadius: 4,
+          pointBackgroundColor: "#fff",
+          pointBorderColor: chartColors.blue,
+          pointBorderWidth: 2
+        },{
+          label: "目標",
+          data: [95,95,95,95,95,95],
+          borderColor: chartColors.green,
+          borderDash: [6,5],
+          pointRadius: 0,
+          borderWidth: 1.5
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { usePointStyle: true, color: chartColors.muted } } }, scales: { x: baseScales().x, y: { min: 60, max: 100, grid: { color: chartColors.grid }, ticks: { color: chartColors.muted, callback: value => value + "%" }, border: { display: false } } } }
+    });
+  }
+}
+
+function show(index) {
+  const safeIndex = Math.max(0, Math.min(5, Number(index) || 0));
+  document.querySelectorAll(".view").forEach((panel, panelIndex) => {
+    panel.classList.toggle("active", panelIndex === safeIndex);
+  });
+  document.querySelectorAll("[data-i]").forEach(button => {
+    const selected = Number(button.dataset.i) === safeIndex;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-current", selected ? "page" : "false");
+  });
+  requestAnimationFrame(() => createChart(safeIndex));
+}
+
+function hashIndex() {
+  const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+  return match ? Math.max(0, Math.min(5, Number(match[1]))) : 0;
+}
+
+document.querySelectorAll("[data-i]").forEach(button => {
+  button.addEventListener("click", () => {
+    const destination = Number(button.dataset.i);
+    if (window.location.hash === "#go=" + destination) show(destination);
+    else window.location.hash = "go=" + destination;
+  });
+});
+
+document.querySelectorAll("[data-next]").forEach(button => {
+  button.addEventListener("click", () => {
+    window.location.hash = "go=" + button.dataset.next;
+  });
+});
+
+window.addEventListener("hashchange", () => show(hashIndex()));
+show(hashIndex());
+</script>
+</body>
+</html>

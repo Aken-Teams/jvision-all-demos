@@ -1,0 +1,1044 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<link rel="icon" href="../../favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="在 MCP Server 或 Client 更新後重跑契約案例，及早阻止不相容變更。">
+<title>MCP 相容性回歸測試器 · it-ops｜Jvision 系統 Demo</title>
+<style>
+:root{
+  --blue:#be123c;
+  --ink:#172033;
+  --body:#334155;
+  --muted:#64748b;
+  --line:#e2e8f0;
+  --bg:#f7f8fc;
+  --green:#16865c;
+  --amber:#d97706;
+  --red:#dc2626;
+  --white:#fff;
+  --soft:#fff1f4;
+  --shadow:0 14px 40px rgba(30,41,59,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-width:0;
+  background:var(--bg);
+  color:var(--body);
+  font-family:Inter,"Noto Sans TC",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select{font:inherit}
+button{color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible{
+  outline:3px solid rgba(190,18,60,.22);
+  outline-offset:2px;
+}
+.material-symbols-outlined{
+  font-size:21px;
+  line-height:1;
+  vertical-align:middle;
+}
+.shell{display:grid;grid-template-columns:78px minmax(0,1fr);min-height:100vh}
+.rail{
+  position:fixed;
+  inset:0 auto 0 0;
+  z-index:20;
+  width:78px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:18px 10px;
+  border-right:1px solid var(--line);
+  background:rgba(255,255,255,.96);
+  backdrop-filter:blur(14px);
+}
+.brand{
+  width:46px;height:46px;
+  display:grid;place-items:center;
+  border-radius:15px;
+  background:var(--blue);
+  color:#fff;
+  font-size:17px;font-weight:800;
+  letter-spacing:-1px;
+  box-shadow:0 8px 18px rgba(190,18,60,.24);
+}
+.rail-nav{display:grid;gap:9px;margin-top:35px}
+.nav-btn{
+  position:relative;
+  width:48px;height:48px;
+  display:grid;place-items:center;
+  border:0;border-radius:14px;
+  background:transparent;
+  color:#8792a5;
+  cursor:pointer;
+  transition:.2s ease;
+}
+.nav-btn:hover{background:#f8e9ee;color:var(--blue)}
+.nav-btn.active{background:var(--soft);color:var(--blue)}
+.nav-btn.active::before{
+  content:"";position:absolute;left:-10px;
+  width:3px;height:24px;border-radius:0 4px 4px 0;background:var(--blue)
+}
+.nav-btn .tip{
+  pointer-events:none;
+  position:absolute;left:58px;
+  padding:7px 10px;border-radius:8px;
+  background:var(--ink);color:#fff;
+  font-size:12px;white-space:nowrap;
+  opacity:0;transform:translateX(-4px);
+  transition:.18s;box-shadow:var(--shadow)
+}
+.nav-btn:hover .tip,.nav-btn:focus-visible .tip{opacity:1;transform:none}
+.rail-foot{margin-top:auto;color:#94a3b8}
+.main{grid-column:2;min-width:0}
+.appbar{
+  height:72px;
+  display:flex;align-items:center;justify-content:space-between;gap:18px;
+  padding:0 32px;
+  border-bottom:1px solid var(--line);
+  background:rgba(247,248,252,.9);
+}
+.app-title{min-width:0}
+.app-title strong{display:block;color:var(--ink);font-size:16px}
+.app-title span{display:block;margin-top:3px;color:var(--muted);font-size:12px}
+.app-tools{display:flex;align-items:center;gap:10px}
+.env{
+  display:flex;align-items:center;gap:7px;
+  padding:8px 11px;border:1px solid var(--line);border-radius:10px;
+  background:#fff;font-size:12px;font-weight:700;color:var(--body)
+}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(22,134,92,.1)}
+.avatar{
+  width:38px;height:38px;display:grid;place-items:center;
+  border-radius:12px;background:#ffe4e9;color:var(--blue);font-weight:800
+}
+.view{display:none;padding:28px 32px 46px;animation:rise .28s ease}
+.view.active{display:block}
+@keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.page-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:20px;
+  margin-bottom:22px;
+}
+.eyebrow{
+  display:flex;align-items:center;gap:7px;
+  margin-bottom:8px;color:var(--blue);
+  font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase
+}
+h1,h2,h3,p{margin-top:0}
+h1{margin-bottom:7px;color:var(--ink);font-size:27px;line-height:1.25;letter-spacing:-.025em}
+h2{margin-bottom:14px;color:var(--ink);font-size:19px;line-height:1.35}
+h3{margin-bottom:6px;color:var(--ink);font-size:15px}
+.subtitle{max-width:760px;margin-bottom:0;color:var(--muted);font-size:14px;line-height:1.65}
+.actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:9px}
+.btn{
+  min-height:42px;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:0 14px;border:1px solid var(--line);border-radius:11px;
+  background:#fff;font-weight:700;font-size:13px;cursor:pointer
+}
+.btn:hover{border-color:#f0a2b6;color:var(--blue)}
+.btn.primary{border-color:var(--blue);background:var(--blue);color:#fff}
+.btn.primary:hover{background:#a81035;color:#fff}
+.btn.ghost{background:transparent}
+.card{
+  min-width:0;padding:20px;
+  border:1px solid var(--line);border-radius:17px;
+  background:#fff;box-shadow:0 8px 24px rgba(30,41,59,.035)
+}
+.card-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-bottom:16px
+}
+.card-head h2,.card-head h3{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.label{display:block;margin-bottom:7px;color:var(--body);font-size:12px;font-weight:700}
+.field,select.field{
+  width:100%;min-height:44px;
+  padding:0 12px;border:1px solid var(--line);border-radius:10px;
+  background:#fff;color:var(--ink)
+}
+.field:focus{border-color:#e77c98}
+.pill,.badge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:5px 8px;border-radius:999px;
+  font-size:11px;font-weight:800;white-space:nowrap
+}
+.pill{background:#f1f5f9;color:#475569}
+.pill.red,.badge.fail{background:#fff0f2;color:var(--blue)}
+.pill.green,.badge.pass{background:#eaf8f2;color:var(--green)}
+.pill.amber,.badge.warn{background:#fff7e8;color:var(--amber)}
+.badge.run{background:#eef2ff;color:#4f46e5}
+.metric{font-size:26px;font-weight:800;color:var(--ink);letter-spacing:-.04em}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.stack{display:grid;gap:14px}
+.divider{height:1px;background:var(--line);margin:16px 0}
+.progress{height:7px;border-radius:99px;background:#f0f2f6;overflow:hidden}
+.progress span{display:block;height:100%;border-radius:inherit;background:var(--blue)}
+.icon-box{
+  width:40px;height:40px;display:grid;place-items:center;flex:0 0 auto;
+  border-radius:12px;background:var(--soft);color:var(--blue)
+}
+.kpi-card{display:flex;align-items:center;gap:13px}
+.kpi-card .metric{font-size:22px}
+.kpi-card p{margin:3px 0 0;font-size:11px;color:var(--muted)}
+.stepper{
+  display:grid;grid-template-columns:repeat(6,minmax(90px,1fr));
+  padding:14px 16px;margin-bottom:20px;
+  border:1px solid var(--line);border-radius:15px;background:#fff;
+  overflow-x:auto
+}
+.step-item{position:relative;display:flex;align-items:center;gap:9px;min-width:115px}
+.step-item:not(:last-child)::after{
+  content:"";position:absolute;left:36px;right:8px;top:15px;height:1px;background:var(--line)
+}
+.step-num{
+  position:relative;z-index:1;
+  width:30px;height:30px;display:grid;place-items:center;flex:0 0 auto;
+  border-radius:50%;background:#f1f5f9;color:#64748b;font-size:11px;font-weight:800
+}
+.step-item.done .step-num{background:#eaf8f2;color:var(--green)}
+.step-item.current .step-num{background:var(--blue);color:#fff;box-shadow:0 0 0 5px var(--soft)}
+.step-copy{position:relative;z-index:2;background:#fff;font-size:11px;font-weight:700;color:var(--muted)}
+.step-item.current .step-copy{color:var(--blue)}
+.table-wrap{width:100%;overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th{
+  padding:11px 12px;border-bottom:1px solid var(--line);
+  color:var(--muted);font-size:11px;text-align:left;text-transform:uppercase;letter-spacing:.05em
+}
+td{padding:13px 12px;border-bottom:1px solid #edf0f4;font-size:12px;color:var(--body)}
+tr:last-child td{border-bottom:0}
+code{
+  padding:2px 6px;border-radius:6px;background:#f1f5f9;
+  color:#9f1239;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px
+}
+.console{
+  padding:16px;border-radius:13px;background:#121826;color:#cbd5e1;
+  font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:auto
+}
+.console .ok{color:#6ee7b7}.console .err{color:#fda4af}.console .dim{color:#64748b}
+
+/* v0 */
+.version-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.75fr);gap:16px}
+.combo-panel{padding:24px}
+.endpoint-grid{display:grid;grid-template-columns:1fr 44px 1fr;gap:14px;align-items:stretch}
+.endpoint{
+  padding:18px;border:1px solid var(--line);border-radius:14px;background:#fbfcfe
+}
+.endpoint.selected{border-color:#e987a0;background:#fff8fa}
+.endpoint-title{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.endpoint-title strong{color:var(--ink);font-size:14px}
+.link-arrow{display:grid;place-items:center;color:var(--blue)}
+.version-list{display:grid;gap:8px;margin-top:14px}
+.version-option{
+  width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:11px;border:1px solid var(--line);border-radius:10px;background:#fff;text-align:left;cursor:pointer
+}
+.version-option.active{border-color:var(--blue);box-shadow:inset 3px 0 var(--blue)}
+.diff-row{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.diff-row:last-child{border-bottom:0}
+.risk-score{
+  min-height:142px;display:flex;align-items:center;justify-content:center;flex-direction:column;
+  border-radius:15px;background:linear-gradient(145deg,#fff2f5,#fff)
+}
+.risk-score b{font-size:42px;color:var(--blue);letter-spacing:-.06em}
+
+/* v1 */
+.builder-layout{display:grid;grid-template-columns:250px minmax(0,1fr) 285px;gap:16px}
+.library-item{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:12px 10px;border-radius:11px;cursor:pointer
+}
+.library-item:hover,.library-item.active{background:var(--soft)}
+.library-item strong{display:block;color:var(--ink);font-size:12px}
+.library-item span{display:block;margin-top:4px;color:var(--muted);font-size:10px}
+.case-canvas{min-height:520px;background-image:radial-gradient(#e5e7eb 1px,transparent 1px);background-size:20px 20px}
+.node{
+  position:relative;margin:0 auto 14px;max-width:470px;padding:15px 16px;
+  border:1px solid var(--line);border-radius:13px;background:#fff;box-shadow:0 7px 18px rgba(15,23,42,.06)
+}
+.node:not(:last-child)::after{
+  content:"";position:absolute;left:50%;bottom:-15px;width:1px;height:15px;background:#cbd5e1
+}
+.node-line{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.node-icon{display:flex;align-items:center;gap:9px;color:var(--ink);font-size:13px;font-weight:700}
+.node-icon .material-symbols-outlined{color:var(--blue)}
+.config-row{padding:11px 0;border-bottom:1px solid var(--line)}
+.config-row:last-child{border-bottom:0}
+.config-row strong{display:block;color:var(--ink);font-size:12px}
+.config-row span{font-size:11px;color:var(--muted)}
+
+/* v2 */
+.run-layout{display:grid;grid-template-columns:minmax(0,1.5fr) 310px;gap:16px}
+.run-banner{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:20px;border-radius:16px;background:linear-gradient(120deg,#881337,#be123c);color:#fff
+}
+.run-banner h2{margin:0 0 5px;color:#fff}
+.run-banner p{margin:0;color:#fecdd6;font-size:12px}
+.run-orb{
+  width:52px;height:52px;display:grid;place-items:center;border-radius:50%;
+  background:rgba(255,255,255,.14);animation:pulse 1.8s infinite
+}
+@keyframes pulse{50%{box-shadow:0 0 0 10px rgba(255,255,255,.06)}}
+.matrix{display:grid;grid-template-columns:150px repeat(4,minmax(76px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.cell{min-height:54px;display:grid;place-items:center;padding:8px;background:#fff;font-size:11px;text-align:center}
+.cell.head{background:#f8fafc;font-weight:800;color:var(--ink)}
+.cell.pass{color:var(--green)}.cell.fail{color:var(--red)}.cell.running{color:#4f46e5}
+.timeline-item{display:grid;grid-template-columns:14px 1fr auto;gap:10px;padding:10px 0}
+.timeline-item i{width:9px;height:9px;margin-top:4px;border-radius:50%;background:var(--green)}
+.timeline-item i.fail{background:var(--red)}
+.timeline-item strong{display:block;font-size:11px;color:var(--ink)}
+.timeline-item span{font-size:10px;color:var(--muted)}
+
+/* v3 */
+.analysis-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr);gap:16px}
+.compat-score{display:flex;align-items:center;gap:20px}
+.score-ring{
+  width:112px;height:112px;display:grid;place-items:center;flex:0 0 auto;
+  border-radius:50%;background:conic-gradient(var(--blue) 0 86%,#f1f5f9 86%);
+  position:relative
+}
+.score-ring::before{content:"";position:absolute;inset:11px;border-radius:50%;background:#fff}
+.score-ring b{position:relative;color:var(--ink);font-size:25px}
+.schema-line{
+  display:grid;grid-template-columns:1fr 120px 120px 90px;gap:10px;align-items:center;
+  padding:12px;border-bottom:1px solid var(--line);font-size:11px
+}
+.schema-line.head{background:#f8fafc;color:var(--muted);font-weight:800}
+.schema-line .change{color:var(--red);font-weight:800}
+.decision-box{padding:18px;border:1px solid #fecdd3;border-radius:14px;background:#fff7f8}
+.check-list{display:grid;gap:10px}
+.check-item{display:flex;align-items:flex-start;gap:9px;font-size:12px}
+.check-item .material-symbols-outlined{color:var(--green);font-size:18px}
+.check-item.bad .material-symbols-outlined{color:var(--red)}
+
+/* v4 */
+.trace-layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px}
+.issue-card{
+  width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;
+  background:#fff;text-align:left;cursor:pointer
+}
+.issue-card.active{border-color:var(--blue);background:#fff8fa}
+.issue-card + .issue-card{margin-top:10px}
+.issue-card strong{display:block;color:var(--ink);font-size:12px}
+.issue-card p{margin:6px 0 9px;color:var(--muted);font-size:11px;line-height:1.5}
+.commit-flow{display:flex;align-items:center;gap:0;overflow-x:auto;padding:10px 0 20px}
+.commit{
+  position:relative;min-width:145px;padding:14px;border:1px solid var(--line);border-radius:11px;background:#fff
+}
+.commit + .commit{margin-left:34px}
+.commit + .commit::before{content:"";position:absolute;right:100%;top:50%;width:34px;height:2px;background:#cbd5e1}
+.commit.breaking{border-color:var(--red);box-shadow:0 0 0 3px #fee2e2}
+.commit b{display:block;color:var(--ink);font-size:11px}
+.commit span{font-size:10px;color:var(--muted)}
+.trace-row{display:grid;grid-template-columns:85px 1fr auto;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);font-size:11px}
+.trace-row:last-child{border-bottom:0}
+.trace-row b{color:var(--ink)}
+
+/* v5 */
+.gate-layout{display:grid;grid-template-columns:minmax(0,1.35fr) 340px;gap:16px}
+.release-hero{
+  padding:24px;border-radius:17px;
+  background:linear-gradient(135deg,#1e293b,#0f172a);color:#fff
+}
+.release-hero h2{color:#fff;font-size:22px}
+.release-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}
+.release-meta div{padding:13px;border:1px solid rgba(255,255,255,.12);border-radius:11px;background:rgba(255,255,255,.04)}
+.release-meta span{display:block;color:#94a3b8;font-size:10px}
+.release-meta b{display:block;margin-top:4px;color:#fff;font-size:13px}
+.gate-row{display:grid;grid-template-columns:38px 1fr auto;gap:11px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line)}
+.gate-row:last-child{border-bottom:0}
+.gate-row strong{display:block;color:var(--ink);font-size:12px}
+.gate-row span{font-size:10px;color:var(--muted)}
+.approver{display:flex;align-items:center;gap:10px;padding:11px 0}
+.approver-avatar{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:#f1f5f9;font-size:11px;font-weight:800;color:var(--ink)}
+.approver strong{display:block;color:var(--ink);font-size:11px}
+.approver span{font-size:10px;color:var(--muted)}
+.decision-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.chart{width:100%;min-height:220px}
+.chart-sm{width:100%;min-height:170px}
+
+.toast{
+  position:fixed;right:22px;bottom:22px;z-index:50;
+  max-width:320px;padding:13px 15px;border-radius:12px;
+  background:var(--ink);color:#fff;font-size:12px;
+  opacity:0;transform:translateY(12px);pointer-events:none;transition:.25s
+}
+.toast.visible{opacity:1;transform:none}
+@media(max-width:1100px){
+  .builder-layout{grid-template-columns:220px minmax(0,1fr)}
+  .builder-layout>aside:last-child{grid-column:1/-1}
+  .grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .version-layout,.analysis-layout,.gate-layout{grid-template-columns:1fr}
+}
+@media(max-width:820px){
+  .shell{grid-template-columns:1fr;padding-bottom:70px}
+  .main{grid-column:1}
+  .rail{
+    inset:auto 0 0 0;width:auto;height:70px;
+    flex-direction:row;justify-content:center;padding:8px 10px;
+    border:1px solid var(--line);border-width:1px 0 0
+  }
+  .brand,.rail-foot{display:none}
+  .rail-nav{display:flex;gap:5px;margin:0}
+  .nav-btn{width:47px;height:48px}
+  .nav-btn.active::before{left:12px;right:12px;top:auto;bottom:-8px;width:auto;height:3px;border-radius:4px 4px 0 0}
+  .nav-btn .tip{display:none}
+  .appbar{height:66px;padding:0 20px}
+  .view{padding:22px 20px 35px}
+  .page-head{display:block}
+  .actions{justify-content:flex-start;margin-top:15px}
+  .grid-3{grid-template-columns:1fr}
+  .run-layout,.trace-layout{grid-template-columns:1fr}
+  .builder-layout{grid-template-columns:1fr}
+  .builder-layout>aside:last-child{grid-column:auto}
+  .library-scroll{display:flex;overflow-x:auto}
+  .library-item{min-width:170px}
+  .endpoint-grid{grid-template-columns:1fr}
+  .link-arrow{transform:rotate(90deg);height:28px}
+  .schema-line{grid-template-columns:1.2fr .8fr .8fr}
+  .schema-line>*:nth-child(4){display:none}
+}
+@media(max-width:520px){
+  .app-title span,.env span{display:none}
+  .appbar{padding:0 14px}
+  .view{padding:18px 14px 30px}
+  h1{font-size:23px}
+  .grid-2,.grid-4{grid-template-columns:1fr}
+  .card{padding:16px;border-radius:14px}
+  .stepper{margin-left:-14px;margin-right:-14px;border-radius:0;border-left:0;border-right:0}
+  .compat-score{align-items:flex-start;flex-direction:column}
+  .matrix{grid-template-columns:110px repeat(4,75px);overflow-x:auto}
+  .release-meta{grid-template-columns:1fr}
+  .decision-actions{grid-template-columns:1fr}
+  .page-head .actions .btn{flex:1}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail" aria-label="流程導覽">
+    <div class="brand" aria-label="JVision">JV</div>
+    <nav class="rail-nav">
+      <button class="nav-btn" data-i="0" aria-label="選定版本組合"><span class="material-symbols-outlined">difference</span><span class="tip">選定版本組合</span></button>
+      <button class="nav-btn" data-i="1" aria-label="建立契約套件"><span class="material-symbols-outlined">contract</span><span class="tip">建立契約套件</span></button>
+      <button class="nav-btn" data-i="2" aria-label="執行回歸測試"><span class="material-symbols-outlined">science</span><span class="tip">執行回歸測試</span></button>
+      <button class="nav-btn" data-i="3" aria-label="判讀相容性"><span class="material-symbols-outlined">schema</span><span class="tip">判讀相容性</span></button>
+      <button class="nav-btn" data-i="4" aria-label="確認破壞來源"><span class="material-symbols-outlined">bug_report</span><span class="tip">確認破壞來源</span></button>
+      <button class="nav-btn" data-i="5" aria-label="裁決發布"><span class="material-symbols-outlined">published_with_changes</span><span class="tip">裁決發布</span></button>
+    </nav>
+    <span class="material-symbols-outlined rail-foot">hub</span>
+  </aside>
+
+  <main class="main">
+    <header class="appbar">
+      <div class="app-title">
+        <strong>MCP 相容性回歸測試器</strong>
+        <span>Contract Lab · IT 維運管理平台</span>
+      </div>
+      <div class="app-tools">
+        <div class="env"><i class="live-dot"></i><span>隔離測試環境</span></div>
+        <div class="avatar" title="平台架構師">林</div>
+      </div>
+    </header>
+
+    <section class="view" data-view="0">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">difference</span>步驟 1 / 6 · 平台架構師</div>
+          <h1>選定版本組合</h1>
+          <p class="subtitle">指定待測 MCP Server、Client 與穩定基準，先從工具清單、能力宣告與 Schema 差異推估回歸風險。</p>
+        </div>
+        <div class="actions">
+          <button class="btn" data-action="save"><span class="material-symbols-outlined">bookmark</span>儲存組合</button>
+          <button class="btn primary" data-next="1">建立契約套件<span class="material-symbols-outlined">arrow_forward</span></button>
+        </div>
+      </div>
+      <div class="stepper" aria-label="流程進度">
+        <div class="step-item current"><span class="step-num">1</span><span class="step-copy">版本組合</span></div>
+        <div class="step-item"><span class="step-num">2</span><span class="step-copy">契約套件</span></div>
+        <div class="step-item"><span class="step-num">3</span><span class="step-copy">回歸測試</span></div>
+        <div class="step-item"><span class="step-num">4</span><span class="step-copy">相容判讀</span></div>
+        <div class="step-item"><span class="step-num">5</span><span class="step-copy">來源定位</span></div>
+        <div class="step-item"><span class="step-num">6</span><span class="step-copy">發布裁決</span></div>
+      </div>
+      <div class="grid-4" style="margin-bottom:16px">
+        <div class="card kpi-card"><div class="icon-box"><span class="material-symbols-outlined">dns</span></div><div><div class="metric">2 × 2</div><p>待測版本矩陣</p></div></div>
+        <div class="card kpi-card"><div class="icon-box"><span class="material-symbols-outlined">construction</span></div><div><div class="metric">24</div><p>已發現 MCP 工具</p></div></div>
+        <div class="card kpi-card"><div class="icon-box"><span class="material-symbols-outlined">change_circle</span></div><div><div class="metric">7</div><p>偵測到定義變更</p></div></div>
+        <div class="card kpi-card"><div class="icon-box"><span class="material-symbols-outlined">shield</span></div><div><div class="metric">中高</div><p>初步相容風險</p></div></div>
+      </div>
+      <div class="version-layout">
+        <div class="card combo-panel">
+          <div class="card-head">
+            <div><h2>版本配對工作台</h2><span class="small muted">基準：2026 Q3 production contract</span></div>
+            <span class="pill green"><span class="material-symbols-outlined">verified</span>憑證有效</span>
+          </div>
+          <div class="endpoint-grid">
+            <div class="endpoint selected">
+              <div class="endpoint-title"><strong>MCP Server</strong><span class="pill">Registry</span></div>
+              <div class="version-list">
+                <button class="version-option active"><span><b>gateway-mcp 2.8.0</b><br><small class="muted">候選版本 · a9c31e2</small></span><span class="badge warn">RC</span></button>
+                <button class="version-option"><span><b>gateway-mcp 2.7.4</b><br><small class="muted">穩定基準 · 63f18bd</small></span><span class="badge pass">Base</span></button>
+              </div>
+            </div>
+            <div class="link-arrow"><span class="material-symbols-outlined">sync_alt</span></div>
+            <div class="endpoint selected">
+              <div class="endpoint-title"><strong>MCP Client</strong><span class="pill">Desktop</span></div>
+              <div class="version-list">
+                <button class="version-option active"><span><b>agent-console 1.14.0</b><br><small class="muted">候選版本 · 48d2af0</small></span><span class="badge warn">RC</span></button>
+                <button class="version-option"><span><b>agent-console 1.13.6</b><br><small class="muted">穩定基準 · e7114ac</small></span><span class="badge pass">Base</span></button>
+              </div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="grid-3">
+            <div><label class="label" for="transport">傳輸協定</label><select class="field" id="transport"><option>Streamable HTTP</option><option>stdio</option><option>SSE</option></select></div>
+            <div><label class="label" for="protocol">MCP 協定版本</label><select class="field" id="protocol"><option>2025-06-18</option><option>2025-03-26</option></select></div>
+            <div><label class="label" for="credential">測試憑證</label><select class="field" id="credential"><option>svc-mcp-regression</option><option>anonymous-boundary</option></select></div>
+          </div>
+        </div>
+        <aside class="stack">
+          <div class="card">
+            <div class="card-head"><h2>版本差異摘要</h2><span class="pill red">7 changes</span></div>
+            <div class="diff-row"><div class="icon-box"><span class="material-symbols-outlined">remove_circle</span></div><div><h3>欄位刪除</h3><span class="small muted">tools/search · limit_hint</span></div><span class="badge fail">重大</span></div>
+            <div class="diff-row"><div class="icon-box"><span class="material-symbols-outlined">data_object</span></div><div><h3>型別變更</h3><span class="small muted">resource.size: string → number</span></div><span class="badge fail">重大</span></div>
+            <div class="diff-row"><div class="icon-box"><span class="material-symbols-outlined">add_circle</span></div><div><h3>新增選填欄位</h3><span class="small muted">meta.trace_id</span></div><span class="badge pass">安全</span></div>
+          </div>
+          <div class="card risk-score">
+            <span class="small muted">預估破壞機率</span>
+            <b>38%</b>
+            <span class="pill red">需完整回歸</span>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" data-view="1">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">contract</span>步驟 2 / 6 · 整合工程師</div>
+          <h1>建立契約套件</h1>
+          <p class="subtitle">依能力發現、參數驗證、授權與錯誤語意組成可重播案例；每個節點保存輸入、斷言與證據來源。</p>
+        </div>
+        <div class="actions">
+          <button class="btn"><span class="material-symbols-outlined">save</span>儲存草稿</button>
+          <button class="btn primary" data-next="2">鎖定並執行<span class="material-symbols-outlined">play_arrow</span></button>
+        </div>
+      </div>
+      <div class="builder-layout">
+        <aside class="card">
+          <div class="card-head"><h2>案例元件庫</h2><span class="pill">18</span></div>
+          <div class="library-scroll">
+            <div class="library-item active"><span class="material-symbols-outlined">travel_explore</span><div><strong>能力發現</strong><span>initialize / tools/list</span></div></div>
+            <div class="library-item"><span class="material-symbols-outlined">input</span><div><strong>參數邊界</strong><span>空值、上限、Unicode</span></div></div>
+            <div class="library-item"><span class="material-symbols-outlined">key</span><div><strong>授權情境</strong><span>scope 與憑證失效</span></div></div>
+            <div class="library-item"><span class="material-symbols-outlined">error</span><div><strong>錯誤回應</strong><span>JSON-RPC error contract</span></div></div>
+            <div class="library-item"><span class="material-symbols-outlined">schema</span><div><strong>Schema 斷言</strong><span>型別與必填欄位</span></div></div>
+            <div class="library-item"><span class="material-symbols-outlined">speed</span><div><strong>效能門檻</strong><span>P95 與 payload size</span></div></div>
+          </div>
+          <div class="divider"></div>
+          <h3>套件涵蓋率</h3>
+          <div class="small muted" style="display:flex;justify-content:space-between;margin-bottom:7px"><span>32 / 36 契約面向</span><b>89%</b></div>
+          <div class="progress"><span style="width:89%"></span></div>
+        </aside>
+        <div class="card case-canvas">
+          <div class="card-head">
+            <div><h2>核心工具相容性 · Suite 12</h2><span class="small muted">拖放式流程預覽 · 目前 6 個節點</span></div>
+            <span class="pill green">已驗證</span>
+          </div>
+          <div class="node">
+            <div class="node-line"><div class="node-icon"><span class="material-symbols-outlined">handshake</span>初始化連線</div><span class="badge pass">必要</span></div>
+            <p class="small muted" style="margin:7px 0 0">協議 2025-06-18 · 驗證 capabilities 與 serverInfo</p>
+          </div>
+          <div class="node">
+            <div class="node-line"><div class="node-icon"><span class="material-symbols-outlined">construction</span>取得工具清單</div><span class="pill">tools/list</span></div>
+            <p class="small muted" style="margin:7px 0 0">斷言 24 個工具存在，名稱與描述不可漂移</p>
+          </div>
+          <div class="node">
+            <div class="node-line"><div class="node-icon"><span class="material-symbols-outlined">call_made</span>呼叫 search_assets</div><span class="pill amber">邊界值</span></div>
+            <p class="small muted" style="margin:7px 0 0">輸入 query、limit=100、含繁體中文與保留字元</p>
+          </div>
+          <div class="node">
+            <div class="node-line"><div class="node-icon"><span class="material-symbols-outlined">rule</span>驗證回應 Schema</div><span class="badge fail">嚴格</span></div>
+            <p class="small muted" style="margin:7px 0 0">禁止額外屬性 · resource.size 必須為 number</p>
+          </div>
+          <div class="node">
+            <div class="node-line"><div class="node-icon"><span class="material-symbols-outlined">no_accounts</span>重播無權限呼叫</div><span class="pill">403</span></div>
+            <p class="small muted" style="margin:7px 0 0">撤除 assets:read scope，檢查錯誤碼與可恢復提示</p>
+          </div>
+        </div>
+        <aside class="card">
+          <div class="card-head"><h2>節點設定</h2><span class="material-symbols-outlined muted">tune</span></div>
+          <label class="label" for="case-id">案例識別碼</label>
+          <input class="field" id="case-id" value="CTR-SCHEMA-014">
+          <div style="height:12px"></div>
+          <label class="label" for="severity">失敗嚴重度</label>
+          <select class="field" id="severity"><option>阻擋發布</option><option>需人工複核</option><option>僅警告</option></select>
+          <div class="divider"></div>
+          <div class="config-row"><strong>輸入依據</strong><span>MCP/Skill 定義 · gateway-mcp@2.8.0</span></div>
+          <div class="config-row"><strong>斷言模式</strong><span>JSON Schema draft 2020-12</span></div>
+          <div class="config-row"><strong>失敗重試</strong><span>0 次，保留原始呼叫軌跡</span></div>
+          <div class="config-row"><strong>敏感資料</strong><span>自動遮罩 token、cookie、secret</span></div>
+          <div class="divider"></div>
+          <h3>套件摘要</h3>
+          <div class="grid-2">
+            <div><div class="metric">48</div><span class="small muted">測試案例</span></div>
+            <div><div class="metric">126</div><span class="small muted">斷言數</span></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" data-view="2">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">science</span>步驟 3 / 6 · AI 應用開發者</div>
+          <h1>執行回歸測試</h1>
+          <p class="subtitle">在隔離環境跨 Server 與 Client 組合重播真實呼叫；追蹤每一項契約的延遲、結果與原始軌跡。</p>
+        </div>
+        <div class="actions">
+          <button class="btn"><span class="material-symbols-outlined">stop_circle</span>停止執行</button>
+          <button class="btn primary" data-next="3">查看相容判讀<span class="material-symbols-outlined">arrow_forward</span></button>
+        </div>
+      </div>
+      <div class="run-banner">
+        <div style="display:flex;align-items:center;gap:15px">
+          <div class="run-orb"><span class="material-symbols-outlined">science</span></div>
+          <div><h2>RUN-20260822-0742 正在執行</h2><p>核心工具相容性 · 版本矩陣 4 組 · sandbox-tpe-03</p></div>
+        </div>
+        <div style="text-align:right"><strong style="font-size:25px">38 / 48</strong><br><span style="font-size:11px;color:#fecdd6">79% 完成</span></div>
+      </div>
+      <div class="grid-4" style="margin:16px 0">
+        <div class="card"><span class="small muted">通過</span><div class="metric" style="color:var(--green)">34</div><div class="progress"><span style="width:71%;background:var(--green)"></span></div></div>
+        <div class="card"><span class="small muted">失敗</span><div class="metric" style="color:var(--red)">3</div><div class="progress"><span style="width:6%;background:var(--red)"></span></div></div>
+        <div class="card"><span class="small muted">執行中</span><div class="metric" style="color:#4f46e5">1</div><div class="progress"><span style="width:2%;background:#4f46e5"></span></div></div>
+        <div class="card"><span class="small muted">P95 延遲</span><div class="metric">482 ms</div><span class="small" style="color:var(--green)">低於門檻 650 ms</span></div>
+      </div>
+      <div class="run-layout">
+        <div class="stack">
+          <div class="card">
+            <div class="card-head"><h2>跨版本執行矩陣</h2><span class="pill">最近更新 10:42:31</span></div>
+            <div class="matrix">
+              <div class="cell head">案例群組</div><div class="cell head">S2.7 / C1.13</div><div class="cell head">S2.8 / C1.13</div><div class="cell head">S2.7 / C1.14</div><div class="cell head">S2.8 / C1.14</div>
+              <div class="cell head">能力發現</div><div class="cell pass">✓ 8/8</div><div class="cell pass">✓ 8/8</div><div class="cell pass">✓ 8/8</div><div class="cell pass">✓ 8/8</div>
+              <div class="cell head">核心呼叫</div><div class="cell pass">✓ 12/12</div><div class="cell fail">✕ 11/12</div><div class="cell pass">✓ 12/12</div><div class="cell fail">✕ 10/12</div>
+              <div class="cell head">授權邊界</div><div class="cell pass">✓ 6/6</div><div class="cell pass">✓ 6/6</div><div class="cell pass">✓ 6/6</div><div class="cell running">◌ 4/6</div>
+              <div class="cell head">錯誤語意</div><div class="cell pass">✓ 5/5</div><div class="cell fail">✕ 4/5</div><div class="cell pass">✓ 5/5</div><div class="cell running">等待</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>即時呼叫軌跡</h2><span class="badge run">LIVE</span></div>
+            <div class="console"><span class="dim">10:42:29.184</span> → tools/call <b>search_assets</b> request_id=7f2c<br><span class="dim">10:42:29.402</span> ← <span class="ok">200 OK</span> duration=218ms payload=14.2KB<br><span class="dim">10:42:30.016</span> → tools/call <b>get_resource</b> request_id=81aa<br><span class="dim">10:42:30.141</span> ← <span class="err">schema mismatch</span> path=$.size expected=number actual=string<br><span class="dim">10:42:31.002</span> → tools/call <b>revoke_access</b> scope=anonymous-boundary<br><span class="dim">10:42:31.173</span> ← <span class="ok">PERMISSION_DENIED</span> recovery_hint=present</div>
+          </div>
+        </div>
+        <aside class="card">
+          <div class="card-head"><h2>執行事件</h2><span class="material-symbols-outlined muted">schedule</span></div>
+          <div class="timeline-item"><i></i><div><strong>無權限錯誤語意通過</strong><span>CTR-AUTH-008 · C1.14</span></div><span class="small muted">剛剛</span></div>
+          <div class="timeline-item"><i class="fail"></i><div><strong>回應型別不符</strong><span>CTR-SCHEMA-014 · S2.8</span></div><span class="small muted">1m</span></div>
+          <div class="timeline-item"><i></i><div><strong>工具發現完成</strong><span>24 tools · 無遺漏</span></div><span class="small muted">3m</span></div>
+          <div class="timeline-item"><i class="fail"></i><div><strong>limit_hint 已移除</strong><span>CTR-INPUT-021 · S2.8</span></div><span class="small muted">4m</span></div>
+          <div class="timeline-item"><i></i><div><strong>憑證注入成功</strong><span>svc-mcp-regression</span></div><span class="small muted">5m</span></div>
+          <div class="divider"></div>
+          <h3>案例耗時分布</h3>
+          <div id="run-chart" class="chart-sm" aria-label="案例耗時圖表"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" data-view="3">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">schema</span>步驟 4 / 6 · 整合工程師</div>
+          <h1>判讀相容性</h1>
+          <p class="subtitle">將 Schema、工具發現與回應語意的結果分級，區分真正的破壞變更、可接受漂移與安全擴充。</p>
+        </div>
+        <div class="actions">
+          <button class="btn"><span class="material-symbols-outlined">download</span>匯出報告</button>
+          <button class="btn primary" data-next="4">確認破壞來源<span class="material-symbols-outlined">arrow_forward</span></button>
+        </div>
+      </div>
+      <div class="analysis-layout">
+        <div class="stack">
+          <div class="card">
+            <div class="compat-score">
+              <div class="score-ring"><b>86%</b></div>
+              <div style="flex:1">
+                <div class="card-head"><div><h2>整體相容分數</h2><span class="small muted">基準版本 S2.7.4 / C1.13.6</span></div><span class="badge fail">未通過</span></div>
+                <p class="small muted">48 項案例中 45 項符合契約；2 項屬阻擋發布，1 項需人工確認。</p>
+                <div class="grid-3">
+                  <div><b style="color:var(--green)">45</b><br><span class="small muted">相容</span></div>
+                  <div><b style="color:var(--red)">2</b><br><span class="small muted">破壞</span></div>
+                  <div><b style="color:var(--amber)">1</b><br><span class="small muted">漂移</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="padding:0;overflow:hidden">
+            <div class="card-head" style="padding:20px 20px 4px"><h2>Schema 差異判讀</h2><span class="pill">JSON Pointer</span></div>
+            <div class="schema-line head"><span>欄位路徑</span><span>基準</span><span>候選</span><span>裁定</span></div>
+            <div class="schema-line"><code>$.result[].size</code><span>string</span><span class="change">number</span><span class="badge fail">破壞</span></div>
+            <div class="schema-line"><code>$.input.limit_hint</code><span>integer?</span><span class="change">removed</span><span class="badge fail">破壞</span></div>
+            <div class="schema-line"><code>$.meta.trace_id</code><span>—</span><span>string?</span><span class="badge pass">安全</span></div>
+            <div class="schema-line"><code>$.error.message</code><span>固定片語</span><span>自然語句</span><span class="badge warn">複核</span></div>
+            <div class="schema-line"><code>$.result[].labels</code><span>array?</span><span>array?</span><span class="badge pass">相容</span></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>相容面向雷達</h2><span class="small muted">門檻 90 分</span></div>
+            <div id="compat-chart" class="chart" aria-label="相容面向雷達圖"></div>
+          </div>
+        </div>
+        <aside class="stack">
+          <div class="decision-box">
+            <span class="pill red">決策規則</span>
+            <h2 style="margin-top:12px">判讀相容性是否通過？</h2>
+            <p class="small muted">目前有 2 項「阻擋發布」失敗，依契約政策不得直接進入發布。</p>
+            <div class="divider"></div>
+            <div class="check-list">
+              <div class="check-item"><span class="material-symbols-outlined">check_circle</span><span>能力發現：24/24 工具可見</span></div>
+              <div class="check-item bad"><span class="material-symbols-outlined">cancel</span><span>Schema：回應欄位型別改變</span></div>
+              <div class="check-item bad"><span class="material-symbols-outlined">cancel</span><span>參數：選填欄位遭移除</span></div>
+              <div class="check-item"><span class="material-symbols-outlined">check_circle</span><span>授權：錯誤碼與 scope 相容</span></div>
+            </div>
+            <div class="divider"></div>
+            <button class="btn primary" data-next="4" style="width:100%">送交平台架構師定位</button>
+            <button class="btn" data-action="return" style="width:100%;margin-top:8px">退回補件並通知整合工程師</button>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>語意漂移證據</h2><span class="badge warn">1 項</span></div>
+            <p class="small muted">錯誤訊息由固定片語改為自然語句，但 error code 與 recovery hint 保持一致。</p>
+            <div class="console"><span class="dim">BASE</span> "Permission denied: assets:read"<br><span class="dim">NEXT</span> "This credential cannot read assets."<br><span class="ok">CODE</span> -32003 · unchanged</div>
+          </div>
+          <div class="card">
+            <h2>判讀依據</h2>
+            <div class="config-row"><strong>RULE-01</strong><span>API 規格 · 版本組合與基準</span></div>
+            <div class="config-row"><strong>RULE-02</strong><span>MCP/Skill 定義 · 契約案例</span></div>
+            <div class="config-row"><strong>RULE-03</strong><span>憑證 · 隔離回歸軌跡</span></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" data-view="4">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">bug_report</span>步驟 5 / 6 · 平台架構師</div>
+          <h1>確認破壞來源</h1>
+          <p class="subtitle">把失敗群組連回版本提交、工具定義與呼叫軌跡，確認是 Server、Client 或契約基準造成的變更。</p>
+        </div>
+        <div class="actions">
+          <button class="btn"><span class="material-symbols-outlined">add_task</span>建立修正工單</button>
+          <button class="btn primary" data-next="5">前往發布裁決<span class="material-symbols-outlined">arrow_forward</span></button>
+        </div>
+      </div>
+      <div class="trace-layout">
+        <aside class="card">
+          <div class="card-head"><h2>失敗群組</h2><span class="badge fail">3</span></div>
+          <button class="issue-card active">
+            <strong>BRK-012 · resource.size 型別</strong>
+            <p>2 個版本組合、6 個案例受影響</p>
+            <span class="badge fail">Server 來源</span>
+          </button>
+          <button class="issue-card">
+            <strong>BRK-013 · limit_hint 移除</strong>
+            <p>舊版 Client 仍傳送已移除參數</p>
+            <span class="badge fail">契約變更</span>
+          </button>
+          <button class="issue-card">
+            <strong>SEM-004 · 錯誤訊息漂移</strong>
+            <p>語意相同但文字斷言不再成立</p>
+            <span class="badge warn">測試來源</span>
+          </button>
+          <div class="divider"></div>
+          <h3>影響範圍</h3>
+          <div class="config-row"><strong>消費端</strong><span>Agent Console、Asset Copilot</span></div>
+          <div class="config-row"><strong>工具</strong><span>get_resource、search_assets</span></div>
+          <div class="config-row"><strong>環境</strong><span>Staging；Production 尚未部署</span></div>
+        </aside>
+        <div class="stack">
+          <div class="card">
+            <div class="card-head">
+              <div><h2>版本提交溯源</h2><span class="small muted">gateway-mcp · release/2.8</span></div>
+              <span class="pill red">信心度 96%</span>
+            </div>
+            <div class="commit-flow">
+              <div class="commit"><b>63f18bd</b><span>v2.7.4 基準<br>08/02 14:10</span></div>
+              <div class="commit"><b>711a0fc</b><span>resource cache<br>08/12 09:24</span></div>
+              <div class="commit breaking"><b>a9c31e2</b><span>normalize size<br>08/19 16:48</span></div>
+              <div class="commit"><b>b1e720a</b><span>v2.8.0-rc.2<br>08/21 11:05</span></div>
+            </div>
+            <div class="decision-box">
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <span class="material-symbols-outlined" style="color:var(--red)">crisis_alert</span>
+                <div><h3>a9c31e2 將序列化型別由字串改為數值</h3><p class="small muted" style="margin:0">提交未同步提升 major version，且既有 Client 會對 <code>size.split(" ")</code> 呼叫失敗，判定為未宣告的破壞變更。</p></div>
+              </div>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-head"><h2>定義差異</h2><span class="pill">tool schema</span></div>
+              <div class="console"><span class="err">- "size": { "type": "string" }</span><br><span class="ok">+ "size": { "type": "number" }</span><br><span class="ok">+ "sizeUnit": { "type": "string" }</span></div>
+              <div class="trace-row"><b>提交作者</b><span>王俊傑 · Platform API</span><span class="pill">Owner</span></div>
+              <div class="trace-row"><b>變更工單</b><span>PLAT-1842 · 資產大小正規化</span><span class="material-symbols-outlined muted">open_in_new</span></div>
+              <div class="trace-row"><b>建議修正</b><span>保留字串欄位，另增 sizeBytes</span><span class="badge pass">安全</span></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2>受影響呼叫</h2><span class="badge fail">6 traces</span></div>
+              <div class="trace-row"><b>7f2c-81aa</b><span>Agent Console 1.13.6</span><span class="badge fail">TypeError</span></div>
+              <div class="trace-row"><b>904b-441c</b><span>Agent Console 1.14.0</span><span class="badge fail">assert</span></div>
+              <div class="trace-row"><b>cc11-2fa8</b><span>Asset Copilot 3.2.1</span><span class="badge warn">fallback</span></div>
+              <div class="trace-row"><b>e351-77d0</b><span>Regression Runner</span><span class="badge fail">schema</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>責任歸屬與處置</h2><span class="badge fail">確認為破壞來源</span></div>
+            <div class="grid-3">
+              <div class="config-row"><strong>主要來源</strong><span>gateway-mcp Server 2.8.0</span></div>
+              <div class="config-row"><strong>修正負責</strong><span>Platform API · 王俊傑</span></div>
+              <div class="config-row"><strong>建議期限</strong><span>D+1 · 2026/08/23 17:00</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="5">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">published_with_changes</span>步驟 6 / 6 · 平台架構師</div>
+          <h1>裁決發布</h1>
+          <p class="subtitle">彙整回歸證據、風險與修正方案，選擇核准發布、要求修正，或將端點安全回滾至相容版本。</p>
+        </div>
+        <div class="actions">
+          <button class="btn"><span class="material-symbols-outlined">history</span>查看裁決紀錄</button>
+          <button class="btn primary" data-action="decision">提交裁決</button>
+        </div>
+      </div>
+      <div class="gate-layout">
+        <div class="stack">
+          <div class="release-hero">
+            <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start">
+              <div><span class="pill red">發布已阻擋</span><h2 style="margin-top:13px">gateway-mcp 2.8.0-rc.2</h2><p style="margin:0;color:#cbd5e1;font-size:12px">Release Gate RG-2026-0822-17 · Production / APAC</p></div>
+              <span class="material-symbols-outlined" style="font-size:42px;color:#fda4af">gpp_bad</span>
+            </div>
+            <div class="release-meta">
+              <div><span>候選 Server</span><b>2.8.0-rc.2</b></div>
+              <div><span>Client 範圍</span><b>1.13.6 – 1.14.0</b></div>
+              <div><span>契約結果</span><b>45 通過 / 3 未過</b></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>發布閘門檢查</h2><span class="small muted">5 項自動規則</span></div>
+            <div class="gate-row"><div class="icon-box"><span class="material-symbols-outlined">fact_check</span></div><div><strong>核心契約套件</strong><span>45/48 通過，未達 100% 強制門檻</span></div><span class="badge fail">阻擋</span></div>
+            <div class="gate-row"><div class="icon-box"><span class="material-symbols-outlined">schema</span></div><div><strong>Schema 向後相容</strong><span>偵測 2 項破壞變更</span></div><span class="badge fail">阻擋</span></div>
+            <div class="gate-row"><div class="icon-box"><span class="material-symbols-outlined">speed</span></div><div><strong>效能基準</strong><span>P95 482ms，優於門檻 650ms</span></div><span class="badge pass">通過</span></div>
+            <div class="gate-row"><div class="icon-box"><span class="material-symbols-outlined">key</span></div><div><strong>授權與憑證</strong><span>scope、撤權與錯誤處理皆相容</span></div><span class="badge pass">通過</span></div>
+            <div class="gate-row"><div class="icon-box"><span class="material-symbols-outlined">assignment</span></div><div><strong>例外核准</strong><span>尚無已核准的風險例外</span></div><span class="badge warn">缺少</span></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>六週可用率趨勢</h2><span class="pill green">目標 99%</span></div>
+            <div id="release-chart" class="chart" aria-label="系統可用率趨勢圖"></div>
+          </div>
+        </div>
+        <aside class="stack">
+          <div class="card">
+            <div class="card-head"><h2>建議裁決</h2><span class="badge fail">要求修正</span></div>
+            <p class="small muted">保留 v2.7.4 為 production 端點，修復兩項破壞契約後重新執行 Suite 12。</p>
+            <div class="decision-actions">
+              <button class="btn" data-action="approve"><span class="material-symbols-outlined">check_circle</span>核准例外</button>
+              <button class="btn primary" data-action="fix"><span class="material-symbols-outlined">build</span>要求修正</button>
+              <button class="btn" data-action="rollback" style="grid-column:1/-1"><span class="material-symbols-outlined">settings_backup_restore</span>安全回滾至 v2.7.4</button>
+            </div>
+            <div class="divider"></div>
+            <label class="label" for="decision-note">裁決備註</label>
+            <textarea id="decision-note" class="field" style="min-height:90px;padding-top:10px;resize:vertical">resource.size 型別與 limit_hint 移除會破壞現行 Client，請完成相容修正後重跑核心套件。</textarea>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>核准鏈</h2><span class="pill">2 / 3</span></div>
+            <div class="approver"><div class="approver-avatar">林</div><div style="flex:1"><strong>林雅雯 · 平台架構師</strong><span>已確認破壞來源 · 10:56</span></div><span class="badge pass">完成</span></div>
+            <div class="approver"><div class="approver-avatar">陳</div><div style="flex:1"><strong>陳志明 · 整合負責人</strong><span>已確認契約判讀 · 10:51</span></div><span class="badge pass">完成</span></div>
+            <div class="approver"><div class="approver-avatar">周</div><div style="flex:1"><strong>周冠宇 · 發布經理</strong><span>等待最終裁決</span></div><span class="badge warn">待簽</span></div>
+          </div>
+          <div class="card">
+            <h2>可追溯輸出</h2>
+            <div class="config-row"><strong>測試報告</strong><span>RUN-20260822-0742.pdf</span></div>
+            <div class="config-row"><strong>證據封存</strong><span>48 cases · 126 assertions · 2.8 MB</span></div>
+            <div class="config-row"><strong>稽核雜湊</strong><span><code>sha256:6ab2…91e4</code></span></div>
+            <div class="config-row"><strong>保留期限</strong><span>365 天 · 不可覆寫</span></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" role="status" aria-live="polite"></div>
+<script>
+(function(){
+  "use strict";
+
+  var renderedCharts = {};
+  var toastNode = document.querySelector(".toast");
+  var toastClock = 0;
+
+  function notify(message){
+    window.clearTimeout(toastClock);
+    toastNode.textContent = message;
+    toastNode.classList.add("visible");
+    toastClock = window.setTimeout(function(){
+      toastNode.classList.remove("visible");
+    }, 1800);
+  }
+
+  function routeIndex(){
+    var match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+    var parsed = match ? Number(match[1]) : 0;
+    return Number.isInteger(parsed) && parsed >= 0 && parsed <= 5 ? parsed : 0;
+  }
+
+  function initializeChart(index){
+    if(renderedCharts[index] || typeof ApexCharts === "undefined"){ return; }
+
+    if(index === 2){
+      var runElement = document.querySelector("#run-chart");
+      if(!runElement || runElement.clientWidth < 1){ return; }
+      renderedCharts[index] = new ApexCharts(runElement,{
+        chart:{type:"bar",height:170,toolbar:{show:false},fontFamily:"Inter, Noto Sans TC"},
+        series:[{name:"案例數",data:[18,14,9,5,2]}],
+        colors:["#be123c"],
+        plotOptions:{bar:{borderRadius:5,columnWidth:"55%"}},
+        dataLabels:{enabled:false},
+        xaxis:{categories:["<200","200–350","350–500","500–650",">650"],labels:{style:{fontSize:"10px",colors:"#64748b"}}},
+        yaxis:{labels:{style:{fontSize:"10px",colors:"#64748b"}}},
+        grid:{borderColor:"#edf0f4",strokeDashArray:4},
+        tooltip:{theme:"light",y:{formatter:function(value){return value+" 個案例";}}}
+      });
+      renderedCharts[index].render();
+    }
+
+    if(index === 3){
+      var compatElement = document.querySelector("#compat-chart");
+      if(!compatElement || compatElement.clientWidth < 1){ return; }
+      renderedCharts[index] = new ApexCharts(compatElement,{
+        chart:{type:"radar",height:250,toolbar:{show:false},fontFamily:"Inter, Noto Sans TC"},
+        series:[{name:"候選版本",data:[100,72,94,100,84,96]},{name:"通過門檻",data:[90,90,90,90,90,90]}],
+        colors:["#be123c","#94a3b8"],
+        xaxis:{categories:["能力發現","Schema","參數","授權","錯誤語意","效能"],labels:{style:{fontSize:"11px",colors:["#475569","#475569","#475569","#475569","#475569","#475569"]}}},
+        yaxis:{show:false,min:0,max:100},
+        stroke:{width:2},
+        fill:{opacity:.12},
+        markers:{size:3},
+        legend:{position:"bottom",fontSize:"11px"},
+        plotOptions:{radar:{polygons:{strokeColors:"#e2e8f0",connectorColors:"#e2e8f0",fill:{colors:["#fff","#fafafa"]}}}}
+      });
+      renderedCharts[index].render();
+    }
+
+    if(index === 5){
+      var releaseElement = document.querySelector("#release-chart");
+      if(!releaseElement || releaseElement.clientWidth < 1){ return; }
+      renderedCharts[index] = new ApexCharts(releaseElement,{
+        chart:{type:"area",height:230,toolbar:{show:false},fontFamily:"Inter, Noto Sans TC"},
+        series:[{name:"系統可用率 %",data:[97,97.4,97.8,98.2,98.6,99]}],
+        colors:["#be123c"],
+        stroke:{curve:"smooth",width:3},
+        fill:{type:"gradient",gradient:{shadeIntensity:1,opacityFrom:.28,opacityTo:.03,stops:[0,90,100]}},
+        dataLabels:{enabled:false},
+        markers:{size:4,strokeWidth:3,strokeColors:"#fff"},
+        xaxis:{categories:["W1","W2","W3","W4","W5","W6"],labels:{style:{fontSize:"11px",colors:"#64748b"}}},
+        yaxis:{min:96.5,max:100,labels:{formatter:function(value){return value.toFixed(1)+"%";},style:{fontSize:"10px",colors:"#64748b"}}},
+        grid:{borderColor:"#edf0f4",strokeDashArray:4},
+        tooltip:{y:{formatter:function(value){return value.toFixed(1)+"%";}}}
+      });
+      renderedCharts[index].render();
+    }
+  }
+
+  function show(index){
+    var safeIndex = Number(index);
+    if(!Number.isInteger(safeIndex) || safeIndex < 0 || safeIndex > 5){ safeIndex = 0; }
+
+    document.querySelectorAll("[data-view]").forEach(function(viewNode){
+      viewNode.classList.toggle("active", Number(viewNode.getAttribute("data-view")) === safeIndex);
+    });
+
+    document.querySelectorAll("[data-i]").forEach(function(buttonNode){
+      var selected = Number(buttonNode.getAttribute("data-i")) === safeIndex;
+      buttonNode.classList.toggle("active", selected);
+      buttonNode.setAttribute("aria-current", selected ? "step" : "false");
+    });
+
+    window.requestAnimationFrame(function(){
+      initializeChart(safeIndex);
+    });
+    window.scrollTo(0,0);
+  }
+
+  window.show = show;
+
+  document.querySelectorAll("[data-i]").forEach(function(buttonNode){
+    buttonNode.addEventListener("click",function(){
+      window.location.hash = "go=" + buttonNode.getAttribute("data-i");
+    });
+  });
+
+  document.querySelectorAll("[data-next]").forEach(function(buttonNode){
+    buttonNode.addEventListener("click",function(){
+      window.location.hash = "go=" + buttonNode.getAttribute("data-next");
+    });
+  });
+
+  document.querySelectorAll("[data-action]").forEach(function(buttonNode){
+    buttonNode.addEventListener("click",function(){
+      var actionKey = buttonNode.getAttribute("data-action");
+      var messages = {
+        save:"版本組合已儲存為草稿",
+        return:"已退回補件並通知整合工程師",
+        approve:"已選擇核准例外，需完成第三位簽核",
+        fix:"已選擇要求修正，發布維持阻擋",
+        rollback:"已建立安全回滾至 v2.7.4 的操作計畫",
+        decision:"裁決已提交並寫入不可覆寫稽核紀錄"
+      };
+      notify(messages[actionKey] || "操作已完成");
+    });
+  });
+
+  document.querySelectorAll(".version-option").forEach(function(optionNode){
+    optionNode.addEventListener("click",function(){
+      var parentList = optionNode.parentElement;
+      parentList.querySelectorAll(".version-option").forEach(function(siblingNode){
+        siblingNode.classList.remove("active");
+      });
+      optionNode.classList.add("active");
+    });
+  });
+
+  document.querySelectorAll(".issue-card").forEach(function(issueNode){
+    issueNode.addEventListener("click",function(){
+      document.querySelectorAll(".issue-card").forEach(function(siblingNode){
+        siblingNode.classList.remove("active");
+      });
+      issueNode.classList.add("active");
+      notify("已切換失敗群組，顯示對應溯源證據");
+    });
+  });
+
+  window.addEventListener("hashchange",function(){
+    show(routeIndex());
+  });
+
+  show(routeIndex());
+})();
+</script>
+</body>
+</html>

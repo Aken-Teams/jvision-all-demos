@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RAG 引用完整性稽核員 · quality-qms｜Jvision 系統 Demo</title>
+<style>
+:root{
+  --blue:#7c3aed;--ink:#172033;--body:#334155;--muted:#64748b;--line:#e2e8f0;
+  --bg:#f6f7fb;--green:#16a34a;--amber:#d97706;--red:#dc2626;
+  --purple-soft:#f3e8ff;--shadow:0 12px 32px rgba(31,41,55,.08)
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--body);font-family:Inter,"Noto Sans TC",sans-serif}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(124,58,237,.28);outline-offset:2px
+}
+.shell{min-height:100vh;display:grid;grid-template-columns:220px minmax(0,1fr)}
+.sidebar{
+  position:sticky;top:0;height:100vh;background:#fff;border-right:1px solid var(--line);
+  padding:24px 14px;display:flex;flex-direction:column;z-index:20
+}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 22px;color:var(--ink);font-weight:800}
+.brand-mark{
+  width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#fff;
+  background:linear-gradient(145deg,#9f67ff,var(--blue));box-shadow:0 8px 20px rgba(124,58,237,.25)
+}
+.brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:.12em;margin-top:2px}
+.nav-label{padding:0 10px 8px;font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:.12em}
+.nav{display:grid;gap:6px}
+.nav button{
+  border:0;background:transparent;color:var(--muted);min-height:46px;border-radius:12px;
+  padding:9px 10px;display:grid;grid-template-columns:28px 1fr;align-items:center;text-align:left
+}
+.nav button .material-symbols-outlined{font-size:20px}
+.nav button span:last-child{font-size:13px;font-weight:650;line-height:1.35}
+.nav button.active{background:var(--purple-soft);color:var(--blue)}
+.sidebar-foot{margin-top:auto;border-top:1px solid var(--line);padding:16px 8px 2px}
+.health{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:650;color:var(--body)}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px #dcfce7}
+.sidebar-foot p{font-size:11px;color:var(--muted);margin:8px 0 0;line-height:1.6}
+.main{min-width:0}
+.topbar{
+  height:68px;padding:0 28px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;z-index:15;
+  backdrop-filter:blur(12px)
+}
+.crumb{min-width:0}
+.crumb small{display:block;color:var(--muted);font-size:11px;margin-bottom:2px}
+.crumb strong{display:block;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-actions{display:flex;align-items:center;gap:9px}
+.icon-btn,.ghost-btn,.primary-btn{
+  min-height:40px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--body);
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:700
+}
+.icon-btn{width:40px;padding:0}.ghost-btn,.primary-btn{padding:0 14px}
+.primary-btn{background:var(--blue);color:#fff;border-color:var(--blue)}
+.workspace{padding:26px 28px 42px;max-width:1480px;margin:auto}
+.screen{display:none;animation:rise .28s ease}
+.screen.active{display:block}
+@keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:22px}
+.eyebrow{font-size:12px;color:var(--blue);font-weight:800;letter-spacing:.08em;margin-bottom:6px}
+h1,h2,h3,p{margin-top:0}
+h1{font-size:clamp(25px,3vw,34px);line-height:1.2;color:var(--ink);margin-bottom:8px}
+h2{font-size:19px;color:var(--ink);margin-bottom:5px}
+h3{font-size:15px;color:var(--ink);margin-bottom:5px}
+.page-head p,.subtle{color:var(--muted);font-size:13px;margin-bottom:0;line-height:1.65}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 2px rgba(15,23,42,.02)}
+.card-pad{padding:20px}
+.badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:750}
+.badge.purple{color:#6d28d9;background:#f3e8ff}.badge.green{color:#15803d;background:#dcfce7}
+.badge.amber{color:#b45309;background:#fef3c7}.badge.red{color:#b91c1c;background:#fee2e2}
+.badge.gray{color:#475569;background:#f1f5f9}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.kicker{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.06em}
+.metric{font-size:27px;color:var(--ink);font-weight:800;letter-spacing:-.03em}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.progress{height:7px;border-radius:99px;background:#ede9fe;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--blue);border-radius:inherit}
+.empty-line{height:1px;background:var(--line)}
+.split-main{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.7fr);gap:18px}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.search{
+  min-height:40px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 12px;
+  display:flex;align-items:center;gap:8px;min-width:240px
+}
+.search input{border:0;outline:0;min-width:0;width:100%;color:var(--ink);background:transparent}
+.select{height:40px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--body);padding:0 34px 0 11px}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:690px}
+th,td{text-align:left;padding:13px 15px;border-bottom:1px solid var(--line);font-size:12px}
+th{color:var(--muted);font-size:11px;background:#fafafa;letter-spacing:.03em}
+tbody tr:hover{background:#fcfaff}
+.check{width:17px;height:17px;accent-color:var(--blue)}
+.material-symbols-outlined{font-variation-settings:"FILL" 0,"wght" 450,"GRAD" 0,"opsz" 24}
+.chart{height:260px;width:100%}
+
+/* v0 */
+.overview-band{
+  padding:22px;background:linear-gradient(125deg,#2e1065 0%,#6d28d9 58%,#8b5cf6 100%);
+  border-radius:18px;color:#fff;display:grid;grid-template-columns:1.3fr .7fr;gap:25px;margin-bottom:18px;
+  box-shadow:0 18px 40px rgba(76,29,149,.18)
+}
+.overview-band h2{font-size:24px;color:#fff;margin:8px 0}
+.overview-band p{color:#ede9fe;line-height:1.7;font-size:13px}
+.band-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:center}
+.band-stat{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.1);padding:14px;border-radius:13px}
+.band-stat strong{font-size:22px;display:block}.band-stat small{color:#ddd6fe}
+.answer-list{display:grid;gap:10px;margin-top:14px}
+.answer-item{
+  border:1px solid var(--line);border-radius:13px;padding:14px;display:grid;
+  grid-template-columns:auto 1fr auto;gap:12px;align-items:center
+}
+.answer-item.selected{border-color:#a78bfa;background:#faf7ff}
+.answer-icon{width:38px;height:38px;border-radius:11px;background:#f1f5f9;display:grid;place-items:center;color:var(--blue)}
+.answer-item strong{color:var(--ink);font-size:13px;display:block;margin-bottom:5px}
+.answer-item p{font-size:11px;color:var(--muted);margin:0}
+.standard{display:grid;gap:12px;margin-top:14px}
+.standard label{font-size:12px;font-weight:700;color:var(--ink)}
+.range-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
+input[type=range]{width:100%;accent-color:var(--blue)}
+.input-box{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--ink);background:#fff}
+.notice{display:flex;gap:10px;padding:12px;border-radius:11px;background:#faf5ff;color:#6b21a8;font-size:12px;line-height:1.55}
+
+/* v1 */
+.claim-layout{display:grid;grid-template-columns:minmax(260px,.75fr) minmax(0,1.4fr);gap:18px}
+.source-answer{padding:20px;position:sticky;top:92px;align-self:start}
+.quote-block{margin:15px 0;padding:16px;border-left:3px solid var(--blue);background:#fafafa;font-size:13px;line-height:1.85}
+.quote-block mark{background:#ede9fe;color:#5b21b6;padding:2px 3px;border-radius:3px}
+.claim-board{display:grid;gap:12px}
+.claim-card{padding:16px;display:grid;grid-template-columns:46px 1fr auto;gap:13px;align-items:start}
+.claim-no{width:42px;height:42px;border-radius:12px;background:var(--purple-soft);color:var(--blue);display:grid;place-items:center;font-weight:800}
+.claim-card p{font-size:12px;color:var(--body);line-height:1.65;margin:7px 0}
+.claim-tags{display:flex;gap:6px;flex-wrap:wrap}
+.claim-type{padding:4px 8px;border-radius:7px;background:#f1f5f9;color:#475569;font-size:10px;font-weight:700}
+.confidence{width:72px;text-align:right;font-size:11px;color:var(--muted)}
+.confidence strong{display:block;font-size:16px;color:var(--green);margin-bottom:5px}
+
+/* v2 */
+.mapping-layout{display:grid;grid-template-columns:minmax(220px,.65fr) 56px minmax(300px,1fr);gap:10px;align-items:start}
+.map-column{display:grid;gap:10px}
+.map-box{padding:14px;border:1px solid var(--line);border-radius:13px;background:#fff}
+.map-box.active{border-color:#a78bfa;box-shadow:0 0 0 3px #f3e8ff}
+.map-box strong{font-size:12px;color:var(--ink);display:block;margin-bottom:6px}
+.map-box p{font-size:11px;color:var(--muted);line-height:1.6;margin:0}
+.connector{display:grid;gap:10px;padding-top:22px}
+.connector div{height:62px;display:flex;align-items:center;color:#a78bfa}
+.connector div:before{content:"";height:2px;background:#c4b5fd;flex:1}
+.connector .material-symbols-outlined{font-size:18px}
+.citation-doc{padding:16px}
+.doc-head{display:flex;justify-content:space-between;gap:12px;align-items:start}
+.snippet{margin-top:12px;padding:13px;border-radius:10px;background:#f8fafc;font-size:12px;line-height:1.7}
+.snippet b{background:#ddd6fe;color:#5b21b6;font-weight:650}
+.coverage-row{display:grid;grid-template-columns:110px 1fr 45px;gap:10px;align-items:center;font-size:11px;margin-top:11px}
+
+/* v3 */
+.verify-top{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.verify-metric{padding:16px;position:relative;overflow:hidden}
+.verify-metric .material-symbols-outlined{position:absolute;right:14px;top:14px;color:#c4b5fd}
+.verify-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(270px,.75fr);gap:18px}
+.matrix{overflow:auto}
+.matrix table{min-width:760px}
+.score{display:inline-grid;place-items:center;width:38px;height:28px;border-radius:8px;font-weight:800}
+.score.good{background:#dcfce7;color:#15803d}.score.mid{background:#fef3c7;color:#b45309}.score.bad{background:#fee2e2;color:#b91c1c}
+.link-state{display:flex;align-items:center;gap:6px;font-weight:650}
+.link-state.ok{color:var(--green)}.link-state.warn{color:var(--amber)}.link-state.fail{color:var(--red)}
+.ring-list{display:grid;gap:16px;margin-top:18px}
+.ring-item{display:grid;grid-template-columns:46px 1fr auto;align-items:center;gap:12px}
+.ring{
+  width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;
+  background:conic-gradient(var(--blue) var(--pct),#ede9fe 0);position:relative
+}
+.ring:after{content:"";position:absolute;inset:6px;border-radius:50%;background:#fff}
+.ring span{z-index:1;color:var(--ink)}
+.log{margin-top:18px;padding:13px;background:#111827;color:#cbd5e1;border-radius:12px;font:11px/1.7 ui-monospace,monospace;overflow:auto}
+
+/* v4 */
+.review-layout{display:grid;grid-template-columns:250px minmax(0,1fr) 300px;gap:16px}
+.issue-list{padding:10px}
+.issue-tab{width:100%;border:0;background:#fff;border-radius:11px;padding:12px;text-align:left;margin-bottom:5px}
+.issue-tab.active{background:#f3e8ff}
+.issue-tab strong{display:flex;justify-content:space-between;color:var(--ink);font-size:12px}
+.issue-tab p{font-size:10px;color:var(--muted);margin:6px 0 0}
+.compare{padding:20px}
+.compare-answer{font-size:13px;line-height:2;color:var(--body)}
+.flag{border-bottom:2px solid var(--red);background:#fef2f2;color:#991b1b;padding:1px 2px}
+.partial{border-bottom:2px solid var(--amber);background:#fffbeb;color:#92400e;padding:1px 2px}
+.evidence-pane{padding:18px}
+.evidence-pane textarea{width:100%;min-height:115px;border:1px solid var(--line);border-radius:10px;padding:11px;resize:vertical}
+.choice{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.choice button{min-height:42px;border:1px solid var(--line);background:#fff;border-radius:10px;font-size:11px;font-weight:700}
+.choice button.active{border-color:var(--blue);color:var(--blue);background:#faf5ff}
+.conflict-card{border:1px solid #fed7aa;background:#fff7ed;border-radius:11px;padding:12px;margin-top:12px;font-size:11px;line-height:1.6}
+
+/* v5 */
+.approval-hero{
+  display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center;padding:22px;
+  background:linear-gradient(120deg,#fff,#faf5ff);border:1px solid #ddd6fe;border-radius:18px;margin-bottom:18px
+}
+.approval-seal{
+  width:76px;height:76px;border-radius:50%;display:grid;place-items:center;background:#dcfce7;color:var(--green);
+  box-shadow:inset 0 0 0 7px #f0fdf4
+}
+.approval-seal .material-symbols-outlined{font-size:38px}
+.approval-hero h2{font-size:21px;margin-bottom:6px}
+.pack-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(290px,.8fr);gap:18px}
+.checklist{padding:18px}
+.check-row{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line)}
+.check-row:last-child{border-bottom:0}
+.check-icon{width:27px;height:27px;border-radius:8px;background:#dcfce7;color:var(--green);display:grid;place-items:center}
+.check-icon .material-symbols-outlined{font-size:17px}
+.check-row strong{font-size:12px;color:var(--ink);display:block}
+.check-row small{font-size:10px;color:var(--muted)}
+.signature{padding:18px;background:#fff}
+.sign-line{display:grid;grid-template-columns:44px 1fr;gap:11px;align-items:center;padding:12px 0}
+.avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#ede9fe;color:var(--blue);font-weight:800}
+.timeline{position:relative;margin-top:12px;padding-left:18px}
+.timeline:before{content:"";position:absolute;left:5px;top:6px;bottom:7px;width:2px;background:#ddd6fe}
+.time-item{position:relative;padding:0 0 15px 10px;font-size:11px;color:var(--muted)}
+.time-item:before{content:"";position:absolute;width:9px;height:9px;border-radius:50%;background:var(--blue);left:-17px;top:3px}
+.time-item strong{color:var(--ink);display:block;margin-bottom:3px}
+
+.mobile-nav{display:none}
+@media(max-width:1100px){
+  .grid-4{grid-template-columns:repeat(2,1fr)}
+  .review-layout{grid-template-columns:220px minmax(0,1fr)}
+  .evidence-pane{grid-column:1/-1}
+}
+@media(max-width:900px){
+  .shell{grid-template-columns:76px minmax(0,1fr)}
+  .sidebar{padding:20px 10px}.brand{padding:0 8px 20px}.brand>div:last-child,.nav-label,.nav button span:last-child,.sidebar-foot p{display:none}
+  .nav button{grid-template-columns:1fr;place-items:center;padding:8px}
+  .sidebar-foot{display:grid;place-items:center}
+  .split-main,.claim-layout,.verify-grid,.pack-layout{grid-template-columns:1fr}
+  .source-answer{position:static}
+  .review-layout{grid-template-columns:1fr}
+  .evidence-pane{grid-column:auto}
+  .mapping-layout{grid-template-columns:1fr}
+  .connector{display:none}
+}
+@media(max-width:640px){
+  .shell{display:block;padding-bottom:72px}
+  .sidebar{display:none}
+  .topbar{height:60px;padding:0 15px}
+  .workspace{padding:18px 14px 28px}
+  .top-actions .ghost-btn{display:none}
+  .page-head{display:block}.page-head .toolbar{margin-top:12px}
+  .overview-band{grid-template-columns:1fr;padding:18px}
+  .grid-3,.grid-4,.verify-top{grid-template-columns:1fr 1fr}
+  .band-stats{grid-template-columns:1fr 1fr}
+  .claim-card{grid-template-columns:40px 1fr}.confidence{grid-column:2;text-align:left;width:auto}
+  .approval-hero{grid-template-columns:auto 1fr}.approval-hero>.primary-btn{grid-column:1/-1}
+  .mobile-nav{
+    display:grid;grid-template-columns:repeat(6,1fr);position:fixed;z-index:30;left:0;right:0;bottom:0;
+    background:rgba(255,255,255,.96);border-top:1px solid var(--line);padding:7px 4px max(7px,env(safe-area-inset-bottom))
+  }
+  .mobile-nav button{border:0;background:transparent;color:#94a3b8;min-height:48px;border-radius:9px}
+  .mobile-nav button.active{color:var(--blue);background:#f3e8ff}
+  .mobile-nav .material-symbols-outlined{font-size:21px}.mobile-nav small{display:block;font-size:8px;font-weight:700}
+  .search{min-width:100%;width:100%}
+}
+@media(max-width:420px){
+  .grid-3,.grid-4,.verify-top{grid-template-columns:1fr}
+  .overview-band .band-stats{grid-template-columns:1fr 1fr}
+  .answer-item{grid-template-columns:auto 1fr}.answer-item>.badge{grid-column:2;justify-self:start}
+  .page-head h1{font-size:24px}.top-actions .icon-btn:first-child{display:none}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"><span class="material-symbols-outlined">verified_user</span></div>
+      <div>JVision<small>RAG QUALITY QMS</small></div>
+    </div>
+    <div class="nav-label">完整性稽核流程</div>
+    <nav class="nav" aria-label="主要流程">
+      <button data-i="0"><span class="material-symbols-outlined">task_alt</span><span>選取待審答案</span></button>
+      <button data-i="1"><span class="material-symbols-outlined">segment</span><span>拆分可驗主張</span></button>
+      <button data-i="2"><span class="material-symbols-outlined">link</span><span>配對引用來源</span></button>
+      <button data-i="3"><span class="material-symbols-outlined">fact_check</span><span>驗證支持與存取</span></button>
+      <button data-i="4"><span class="material-symbols-outlined">rule</span><span>審閱缺引與衝突</span></button>
+      <button data-i="5"><span class="material-symbols-outlined">approval</span><span>簽核完整性結果</span></button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="health"><span class="pulse"></span><span>稽核服務正常</span></div>
+      <p>私有與外部模型來源均已連線<br>最後同步：今天 14:32</p>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="crumb">
+        <small>品質管理系統 / RAG 稽核批次</small>
+        <strong id="screenTitle">選取待審答案</strong>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" aria-label="搜尋"><span class="material-symbols-outlined">search</span></button>
+        <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+        <button class="ghost-btn"><span class="material-symbols-outlined">history</span>操作紀錄</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <section class="screen" data-screen="0">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">01 · 建立稽核範圍</div>
+            <h1>選取待審答案</h1>
+            <p>指定模型回答、評測案例，以及本批次必須達成的引用完整性標準。</p>
+          </div>
+          <div class="toolbar">
+            <span class="badge green"><span class="dot"></span>資料源已同步</span>
+            <button class="primary-btn" data-next="1">開始拆解 <span class="material-symbols-outlined">arrow_forward</span></button>
+          </div>
+        </div>
+
+        <div class="overview-band">
+          <div>
+            <span class="badge" style="background:rgba(255,255,255,.14);color:#fff">AUDIT · RAG-2026-0822</span>
+            <h2>逐項核對答案主張與可開啟來源</h2>
+            <p>本次針對「企業生成式 AI 採用趨勢」回答進行完整性稽核，檢查事實、數字與推論是否均能追溯至有效文件。</p>
+          </div>
+          <div class="band-stats">
+            <div class="band-stat"><strong>4</strong><small>候選回答</small></div>
+            <div class="band-stat"><strong>12</strong><small>引用文件</small></div>
+            <div class="band-stat"><strong>98%</strong><small>目標覆蓋率</small></div>
+            <div class="band-stat"><strong>24h</strong><small>稽核 SLA</small></div>
+          </div>
+        </div>
+
+        <div class="split-main">
+          <div class="card card-pad">
+            <div class="toolbar" style="justify-content:space-between">
+              <div><h2>待審回答佇列</h2><p class="subtle">由應用負責人選定本批次標的</p></div>
+              <div class="search"><span class="material-symbols-outlined">search</span><input aria-label="搜尋回答" placeholder="搜尋案例或模型"></div>
+            </div>
+            <div class="answer-list">
+              <div class="answer-item selected">
+                <div class="answer-icon"><span class="material-symbols-outlined">smart_toy</span></div>
+                <div><strong>企業生成式 AI 採用趨勢摘要</strong><p>GPT-5 Enterprise · 評測集 FIN-KB-28 · 2,146 字</p></div>
+                <span class="badge purple">已選取</span>
+              </div>
+              <div class="answer-item">
+                <div class="answer-icon"><span class="material-symbols-outlined">account_balance</span></div>
+                <div><strong>跨境付款合規問答</strong><p>Private LLM v4 · 評測集 AML-19 · 1,388 字</p></div>
+                <span class="badge amber">高風險</span>
+              </div>
+              <div class="answer-item">
+                <div class="answer-icon"><span class="material-symbols-outlined">clinical_notes</span></div>
+                <div><strong>醫材上市文件差異分析</strong><p>Claude Gateway · 評測集 MDR-07 · 3,024 字</p></div>
+                <span class="badge gray">待排程</span>
+              </div>
+              <div class="answer-item">
+                <div class="answer-icon"><span class="material-symbols-outlined">factory</span></div>
+                <div><strong>供應商交期風險說明</strong><p>Private LLM v4 · 評測集 SCM-42 · 986 字</p></div>
+                <span class="badge gray">待排程</span>
+              </div>
+            </div>
+          </div>
+
+          <aside class="card card-pad">
+            <h2>稽核標準</h2>
+            <p class="subtle">適用規則集：Citation Integrity v3.2</p>
+            <div class="standard">
+              <label>關鍵主張引用覆蓋率</label>
+              <div class="range-row"><input type="range" value="98" min="80" max="100"><strong>98%</strong></div>
+              <label>最低語意支持度</label>
+              <div class="range-row"><input type="range" value="85" min="60" max="100"><strong>0.85</strong></div>
+              <label for="scopeType">審查範圍</label>
+              <select class="input-box" id="scopeType"><option>事實、數字與推論</option><option>僅關鍵事實</option></select>
+              <label for="auditOwner">應用負責人</label>
+              <select class="input-box" id="auditOwner"><option>林映辰 · Knowledge Apps</option><option>陳奕安 · AI Platform</option></select>
+              <div class="notice"><span class="material-symbols-outlined">info</span><span>偵測到 3 份外部來源，將同時驗證公開網址與企業代理權限。</span></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="1">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">02 · 主張原子化</div>
+            <h1>拆分可驗主張</h1>
+            <p>將回答轉換成細粒度且可逐項查核的事實、數字與推論主張。</p>
+          </div>
+          <div class="toolbar">
+            <span class="badge purple">AI 草擬完成</span>
+            <button class="primary-btn" data-next="2">確認 8 項主張</button>
+          </div>
+        </div>
+
+        <div class="claim-layout">
+          <aside class="card source-answer">
+            <div class="kicker">原始回答 · REV 03</div>
+            <h2 style="margin-top:7px">企業 RAG 應用現況</h2>
+            <div class="quote-block">
+              2025 年受訪企業中，<mark>已有 68% 將生成式 AI 導入至少一項正式流程</mark>。
+              採用私有與外部模型混合架構的組織，<mark>平均能降低 31% 推論成本</mark>，
+              並透過檢索增強提高知識問答的可追溯性。金融業仍將資料主權列為首要考量。
+            </div>
+            <div class="empty-line"></div>
+            <div class="grid-3" style="margin-top:15px">
+              <div><div class="kicker">字數</div><strong>2,146</strong></div>
+              <div><div class="kicker">句子</div><strong>14</strong></div>
+              <div><div class="kicker">引用</div><strong>12</strong></div>
+            </div>
+            <div class="notice" style="margin-top:16px"><span class="material-symbols-outlined">psychology</span><span>模型建議拆成 8 項可驗主張，其中 2 項包含比較性推論。</span></div>
+          </aside>
+
+          <div class="claim-board">
+            <div class="card claim-card">
+              <div class="claim-no">C1</div>
+              <div><h3>企業正式流程採用率為 68%</h3><p>2025 年受訪企業中，已有 68% 將生成式 AI 導入至少一項正式流程。</p><div class="claim-tags"><span class="claim-type">數字主張</span><span class="claim-type">時間限定</span><span class="claim-type">需直接引用</span></div></div>
+              <div class="confidence"><strong>97%</strong>拆解信心</div>
+            </div>
+            <div class="card claim-card">
+              <div class="claim-no">C2</div>
+              <div><h3>混合模型架構降低平均推論成本</h3><p>採用私有與外部模型混合架構的組織，平均能降低 31% 推論成本。</p><div class="claim-tags"><span class="claim-type">比較主張</span><span class="claim-type">數字主張</span></div></div>
+              <div class="confidence"><strong>94%</strong>拆解信心</div>
+            </div>
+            <div class="card claim-card">
+              <div class="claim-no">C3</div>
+              <div><h3>RAG 提高知識問答可追溯性</h3><p>檢索增強生成可建立回答與企業知識來源間的引用關係。</p><div class="claim-tags"><span class="claim-type">因果主張</span><span class="claim-type">產品能力</span></div></div>
+              <div class="confidence"><strong>91%</strong>拆解信心</div>
+            </div>
+            <div class="card claim-card">
+              <div class="claim-no">C4</div>
+              <div><h3>金融業優先考量資料主權</h3><p>金融業在生成式 AI 架構決策中，仍將資料主權列為首要考量。</p><div class="claim-tags"><span class="claim-type">排名主張</span><span class="claim-type">產業限定</span></div></div>
+              <div class="confidence"><strong style="color:var(--amber)">82%</strong>待人工確認</div>
+            </div>
+            <div class="card card-pad" style="border-style:dashed;text-align:center">
+              <span class="material-symbols-outlined" style="color:var(--blue)">add_circle</span>
+              <strong style="display:block;color:var(--ink);font-size:12px;margin-top:5px">新增遺漏主張</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="2">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">03 · 建立引用鏈</div>
+            <h1>配對引用來源</h1>
+            <p>追溯每項主張使用的知識片段、原始文件、版本與頁面錨點。</p>
+          </div>
+          <div class="toolbar">
+            <span class="badge green"><span class="dot"></span>7/8 已配對</span>
+            <button class="primary-btn" data-next="3">送交驗證</button>
+          </div>
+        </div>
+
+        <div class="grid-3" style="margin-bottom:16px">
+          <div class="card card-pad"><div class="kicker">主張引用覆蓋</div><div class="metric">87.5%</div><div class="progress"><i style="width:87.5%"></i></div></div>
+          <div class="card card-pad"><div class="kicker">直接來源</div><div class="metric">9 <small style="font-size:12px;color:var(--muted)">份</small></div><span class="badge green">+2 次要佐證</span></div>
+          <div class="card card-pad"><div class="kicker">未配對缺口</div><div class="metric" style="color:var(--red)">1</div><span class="badge red">C4 需要來源</span></div>
+        </div>
+
+        <div class="mapping-layout">
+          <div class="map-column">
+            <div class="kicker">可驗主張</div>
+            <div class="map-box active"><strong>C1 · 正式流程採用率 68%</strong><p>數字主張 · 必須直接支持</p></div>
+            <div class="map-box"><strong>C2 · 推論成本降低 31%</strong><p>比較主張 · 已有兩份來源</p></div>
+            <div class="map-box"><strong>C3 · RAG 提高可追溯性</strong><p>因果主張 · 已配對產品白皮書</p></div>
+            <div class="map-box" style="border-color:#fca5a5"><strong>C4 · 資料主權為首要考量</strong><p style="color:var(--red)">尚未找到直接排名依據</p></div>
+          </div>
+          <div class="connector" aria-hidden="true">
+            <div><span class="material-symbols-outlined">arrow_forward</span></div>
+            <div><span class="material-symbols-outlined">arrow_forward</span></div>
+            <div><span class="material-symbols-outlined">arrow_forward</span></div>
+          </div>
+          <div class="map-column">
+            <div class="kicker">引用片段與原始文件</div>
+            <article class="card citation-doc">
+              <div class="doc-head">
+                <div><h3>Enterprise GenAI Adoption Survey 2025</h3><p class="subtle">JVision Research · v2.1 · 第 14 頁</p></div>
+                <span class="badge green">直接支持</span>
+              </div>
+              <div class="snippet">「在 1,240 家受訪企業中，<b>68% 已將生成式 AI 用於至少一項正式營運流程</b>，較前期增加 17 個百分點。」</div>
+              <div class="coverage-row"><span>語意重疊</span><div class="progress"><i style="width:96%"></i></div><strong>0.96</strong></div>
+            </article>
+            <article class="card citation-doc">
+              <div class="doc-head">
+                <div><h3>Hybrid Model Cost Benchmark</h3><p class="subtle">AI FinOps Council · 2025-Q4 · 表 6</p></div>
+                <span class="badge green">直接支持</span>
+              </div>
+              <div class="snippet">混合路由組相較單一外部模型基準，月均推論支出由 84.2 萬降至 58.1 萬，<b>降幅 31.0%</b>。</div>
+              <div class="coverage-row"><span>語意重疊</span><div class="progress"><i style="width:92%"></i></div><strong>0.92</strong></div>
+            </article>
+            <article class="card citation-doc">
+              <div class="doc-head">
+                <div><h3>RAG Governance Pattern Library</h3><p class="subtle">Internal Architecture Board · v4.3 · §2.4</p></div>
+                <span class="badge amber">部分支持</span>
+              </div>
+              <div class="snippet">檢索流程保留文件 ID、版本與段落錨點，可形成回應至知識來源的追溯紀錄。</div>
+              <div class="coverage-row"><span>語意重疊</span><div class="progress"><i style="width:76%;background:var(--amber)"></i></div><strong>0.76</strong></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="3">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">04 · 自動化驗證</div>
+            <h1>驗證支持與存取</h1>
+            <p>檢查語意支持度、文件版本、存取權限及連結與錨點可用性。</p>
+          </div>
+          <div class="toolbar">
+            <span class="badge amber">2 項需關注</span>
+            <button class="primary-btn" data-next="4">建立審閱清單</button>
+          </div>
+        </div>
+
+        <div class="verify-top">
+          <div class="card verify-metric"><span class="material-symbols-outlined">fact_check</span><div class="kicker">平均支持度</div><div class="metric">0.88</div><span class="badge green">高於 0.85</span></div>
+          <div class="card verify-metric"><span class="material-symbols-outlined">link</span><div class="kicker">連結可用率</div><div class="metric">91.7%</div><span class="badge amber">1 個失效</span></div>
+          <div class="card verify-metric"><span class="material-symbols-outlined">deployed_code_history</span><div class="kicker">版本一致</div><div class="metric">10/12</div><span class="badge amber">2 份有新版</span></div>
+          <div class="card verify-metric"><span class="material-symbols-outlined">policy</span><div class="kicker">權限通過</div><div class="metric">12/12</div><span class="badge green">全數可讀</span></div>
+        </div>
+
+        <div class="verify-grid">
+          <div class="card matrix">
+            <div class="card-pad"><h2>逐項驗證矩陣</h2><p class="subtle">最近檢查：2026/08/22 14:32</p></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>主張</th><th>支持度</th><th>網址</th><th>權限</th><th>版本</th><th>錨點</th><th>判定</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>C1</strong> 採用率 68%</td><td><span class="score good">.96</span></td><td><span class="link-state ok">● 200</span></td><td>可讀</td><td>v2.1</td><td>p.14</td><td><span class="badge green">通過</span></td></tr>
+                  <tr><td><strong>C2</strong> 成本降低 31%</td><td><span class="score good">.92</span></td><td><span class="link-state ok">● 200</span></td><td>可讀</td><td>Q4</td><td>表 6</td><td><span class="badge green">通過</span></td></tr>
+                  <tr><td><strong>C3</strong> 提高可追溯性</td><td><span class="score mid">.76</span></td><td><span class="link-state ok">● 200</span></td><td>可讀</td><td>v4.3</td><td>§2.4</td><td><span class="badge amber">部分</span></td></tr>
+                  <tr><td><strong>C4</strong> 資料主權首要</td><td><span class="score bad">.31</span></td><td><span class="link-state fail">● 404</span></td><td>可讀</td><td>已封存</td><td>—</td><td><span class="badge red">失敗</span></td></tr>
+                  <tr><td><strong>C5</strong> 監管投入增加</td><td><span class="score good">.89</span></td><td><span class="link-state ok">● 200</span></td><td>可讀</td><td>2026.1</td><td>p.8</td><td><span class="badge green">通過</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <aside class="card card-pad">
+            <h2>驗證健康度</h2>
+            <p class="subtle">依完整性規則即時計算</p>
+            <div class="ring-list">
+              <div class="ring-item"><div class="ring" style="--pct:88%"><span>88%</span></div><div><h3>語意支持</h3><p class="subtle">10 項直接或充分支持</p></div><span class="badge green">良好</span></div>
+              <div class="ring-item"><div class="ring" style="--pct:92%"><span>92%</span></div><div><h3>來源存取</h3><p class="subtle">11/12 連結可開啟</p></div><span class="badge amber">注意</span></div>
+              <div class="ring-item"><div class="ring" style="--pct:83%"><span>83%</span></div><div><h3>版本一致</h3><p class="subtle">需更新兩份文件</p></div><span class="badge amber">注意</span></div>
+            </div>
+            <div class="log">
+              <div>[14:32:08] anchor p.14 resolved</div>
+              <div>[14:32:09] access ACL-GENAI passed</div>
+              <div>[14:32:11] WARN source C4 returned 404</div>
+              <div>[14:32:12] version drift detected: GOV-21</div>
+              <div>[14:32:14] audit trace sealed #a73f9c</div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="4">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">05 · 人機協作審閱</div>
+            <h1>審閱缺引與衝突</h1>
+            <p>領域審查員修改 AI 草擬的缺口判定，補充佐證並留下處置理由。</p>
+          </div>
+          <div class="toolbar">
+            <span class="badge red">1 缺引</span><span class="badge amber">1 部分支持</span>
+            <button class="primary-btn" data-next="5">完成審閱</button>
+          </div>
+        </div>
+
+        <div class="review-layout">
+          <aside class="card issue-list">
+            <div class="card-pad" style="padding:10px"><div class="kicker">待審問題 · 2</div></div>
+            <button class="issue-tab active"><strong><span>C4 · 缺少直接引用</span><span class="badge red">高</span></strong><p>金融業將資料主權列為首要考量</p></button>
+            <button class="issue-tab"><strong><span>C3 · 支持範圍不足</span><span class="badge amber">中</span></strong><p>來源說明追溯機制，未證明效果提升</p></button>
+            <button class="issue-tab"><strong><span>C7 · 來源版本差異</span><span class="badge gray">低</span></strong><p>政策文件已有 2026.1 新版</p></button>
+            <div class="empty-line" style="margin:10px"></div>
+            <div style="padding:8px 10px">
+              <div class="kicker">審閱進度</div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;margin:8px 0"><span>已處理 5 / 7</span><strong>71%</strong></div>
+              <div class="progress"><i style="width:71%"></i></div>
+            </div>
+          </aside>
+
+          <article class="card compare">
+            <div class="toolbar" style="justify-content:space-between;margin-bottom:18px">
+              <div><div class="kicker">回答內容定位</div><h2>第 3 段 · 句子 2</h2></div>
+              <span class="badge red">AI 判定：未支持</span>
+            </div>
+            <p class="compare-answer">
+              在金融服務業的導入決策中，模型效能並非唯一因素。
+              <span class="flag">多數金融機構仍將資料主權列為首要考量</span>，
+              因此混合部署與私有推論端點逐漸成為標準架構。
+              同時，<span class="partial">RAG 能顯著提高所有知識問答的可追溯性</span>。
+            </p>
+            <div class="empty-line" style="margin:20px 0"></div>
+            <div class="kicker">現有引用 · Financial AI Governance Survey</div>
+            <div class="snippet">受訪金融機構將資料隱私列為重要考量之一（72%），其次為模型準確性（69%）及整合成本（54%）。</div>
+            <div class="conflict-card"><strong>判定差異</strong><br>來源支持「重要考量」，但未支持「首要考量」及「多數金融機構」的概括範圍。建議降低措辭強度或補入具排名的直接證據。</div>
+          </article>
+
+          <aside class="card evidence-pane">
+            <h2>審查員結論</h2>
+            <p class="subtle">審查員：周佩珊 · 金融風險</p>
+            <div class="choice">
+              <button>接受 AI 判定</button>
+              <button class="active">修改為部分支持</button>
+            </div>
+            <label class="kicker" for="reviewNote">處置說明</label>
+            <textarea id="reviewNote">來源可支持資料主權的重要性，但不足以證明為首要考量。將答案修改為「主要考量之一」，並保留現有引用。</textarea>
+            <label class="kicker" for="newEvidence" style="display:block;margin-top:13px">補充佐證</label>
+            <input class="input-box" id="newEvidence" value="FSI-GOV-2026 / 第 22 頁 / 圖 8">
+            <div class="notice" style="margin-top:13px"><span class="material-symbols-outlined">history_edu</span><span>所有人工修改會保留原判定、修改者與時間戳記。</span></div>
+            <button class="primary-btn" style="width:100%;margin-top:14px">儲存並處理下一項</button>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="5">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">06 · 品質簽核</div>
+            <h1>簽核完整性結果</h1>
+            <p>核准可追溯審核包，確認所有關鍵主張均有可開啟且適切的來源。</p>
+          </div>
+          <span class="badge green"><span class="dot"></span>所有必要檢核已完成</span>
+        </div>
+
+        <div class="approval-hero">
+          <div class="approval-seal"><span class="material-symbols-outlined">verified</span></div>
+          <div>
+            <div class="kicker">稽核包 · RAG-2026-0822</div>
+            <h2>引用完整性達標，可送交品質簽核</h2>
+            <p class="subtle">12 項主張全數可追溯；1 項回答措辭已依領域審閱結果修正。</p>
+          </div>
+          <button class="primary-btn"><span class="material-symbols-outlined">draw</span>核准並封存</button>
+        </div>
+
+        <div class="grid-4" style="margin-bottom:18px">
+          <div class="card card-pad"><div class="kicker">主張覆蓋率</div><div class="metric">100%</div><span class="badge green">目標 ≥ 98%</span></div>
+          <div class="card card-pad"><div class="kicker">平均支持度</div><div class="metric">0.91</div><span class="badge green">目標 ≥ 0.85</span></div>
+          <div class="card card-pad"><div class="kicker">有效來源</div><div class="metric">12/12</div><span class="badge green">全部可開啟</span></div>
+          <div class="card card-pad"><div class="kicker">人工覆核</div><div class="metric">2</div><span class="badge purple">已留存理由</span></div>
+        </div>
+
+        <div class="pack-layout">
+          <div>
+            <div class="card checklist">
+              <div class="toolbar" style="justify-content:space-between">
+                <div><h2>完整性審核包</h2><p class="subtle">輸出包含判定、證據、版本及完整操作紀錄</p></div>
+                <button class="ghost-btn"><span class="material-symbols-outlined">download</span>匯出 PDF</button>
+              </div>
+              <div class="check-row"><div class="check-icon"><span class="material-symbols-outlined">check</span></div><div><strong>答案與 12 項原子主張</strong><small>含原始提示、模型回應與版本雜湊</small></div><span class="badge green">完成</span></div>
+              <div class="check-row"><div class="check-icon"><span class="material-symbols-outlined">check</span></div><div><strong>主張—引用對應矩陣</strong><small>12 項主張、14 個片段、12 份原始文件</small></div><span class="badge green">完成</span></div>
+              <div class="check-row"><div class="check-icon"><span class="material-symbols-outlined">check</span></div><div><strong>存取與版本驗證報告</strong><small>HTTP、ACL、文件版本與錨點檢查</small></div><span class="badge green">完成</span></div>
+              <div class="check-row"><div class="check-icon"><span class="material-symbols-outlined">check</span></div><div><strong>領域審閱與修正紀錄</strong><small>2 項人工判定、1 項措辭修正</small></div><span class="badge green">完成</span></div>
+              <div class="check-row"><div class="check-icon"><span class="material-symbols-outlined">check</span></div><div><strong>不可竄改操作軌跡</strong><small class="mono">SHA-256 · a73f9c8b…04ed</small></div><span class="badge green">已封存</span></div>
+            </div>
+            <div class="card card-pad" style="margin-top:18px">
+              <div class="toolbar" style="justify-content:space-between"><div><h2>稽核品質趨勢</h2><p class="subtle">近六週系統可用率與完整性達標情形</p></div><span class="badge purple">W1–W6</span></div>
+              <div id="qualityChart" class="chart" role="img" aria-label="近六週系統可用率趨勢圖"></div>
+            </div>
+          </div>
+
+          <aside>
+            <div class="card signature">
+              <h2>簽核資訊</h2>
+              <div class="sign-line"><div class="avatar">周</div><div><h3>周佩珊</h3><p class="subtle">領域審查員 · 已簽署 14:18</p></div></div>
+              <div class="sign-line"><div class="avatar">陳</div><div><h3>陳奕安</h3><p class="subtle">AI 架構師 · 已簽署 14:31</p></div></div>
+              <div class="sign-line"><div class="avatar" style="background:#f1f5f9;color:#94a3b8">王</div><div><h3>王俊岳</h3><p class="subtle">品質負責人 · 等待簽署</p></div></div>
+            </div>
+            <div class="card card-pad" style="margin-top:18px">
+              <h2>可追溯時間軸</h2>
+              <div class="timeline">
+                <div class="time-item"><strong>建立稽核批次</strong>09:12 · 林映辰</div>
+                <div class="time-item"><strong>完成主張拆解</strong>10:06 · AI + 資料科學家</div>
+                <div class="time-item"><strong>來源存取驗證</strong>11:42 · QMS 自動檢查</div>
+                <div class="time-item"><strong>領域審閱完成</strong>14:18 · 周佩珊</div>
+                <div class="time-item"><strong>等待品質簽核</strong>現在 · 王俊岳</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<nav class="mobile-nav" aria-label="行動版流程">
+  <button data-i="0"><span class="material-symbols-outlined">task_alt</span><small>選取</small></button>
+  <button data-i="1"><span class="material-symbols-outlined">segment</span><small>拆解</small></button>
+  <button data-i="2"><span class="material-symbols-outlined">link</span><small>配對</small></button>
+  <button data-i="3"><span class="material-symbols-outlined">fact_check</span><small>驗證</small></button>
+  <button data-i="4"><span class="material-symbols-outlined">rule</span><small>審閱</small></button>
+  <button data-i="5"><span class="material-symbols-outlined">approval</span><small>簽核</small></button>
+</nav>
+
+<script>
+const screenNames=[
+  "選取待審答案","拆分可驗主張","配對引用來源",
+  "驗證支持與存取","審閱缺引與衝突","簽核完整性結果"
+];
+let activeScreen=0;
+let qualityChart=null;
+
+function drawQualityChart(){
+  const chartElement=document.getElementById("qualityChart");
+  if(!chartElement||chartElement.clientWidth===0||typeof echarts==="undefined")return;
+  if(!qualityChart)qualityChart=echarts.init(chartElement);
+  qualityChart.setOption({
+    animationDuration:700,
+    grid:{left:42,right:18,top:35,bottom:32},
+    tooltip:{trigger:"axis",backgroundColor:"#172033",borderWidth:0,textStyle:{color:"#fff"}},
+    xAxis:{
+      type:"category",data:["W1","W2","W3","W4","W5","W6"],
+      axisLine:{lineStyle:{color:"#e2e8f0"}},axisTick:{show:false},
+      axisLabel:{color:"#64748b",fontFamily:"Inter"}
+    },
+    yAxis:{
+      type:"value",min:96.5,max:100,interval:1,
+      axisLine:{show:false},axisTick:{show:false},
+      splitLine:{lineStyle:{color:"#eef2f7"}},
+      axisLabel:{color:"#64748b",formatter:"{value}%"}
+    },
+    series:[{
+      name:"系統可用率 %",type:"line",smooth:true,
+      data:[97,97.4,97.8,98.2,98.6,99],
+      symbolSize:8,lineStyle:{width:3,color:"#7c3aed"},
+      itemStyle:{color:"#7c3aed",borderColor:"#fff",borderWidth:2},
+      areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[
+        {offset:0,color:"rgba(124,58,237,.28)"},{offset:1,color:"rgba(124,58,237,.02)"}
+      ])},
+      markLine:{
+        symbol:"none",label:{formatter:"目標 99%",color:"#16a34a"},
+        lineStyle:{color:"#16a34a",type:"dashed"},data:[{yAxis:99}]
+      }
+    }]
+  });
+}
+
+function show(indexValue){
+  const parsed=Number(indexValue);
+  const safeIndex=Number.isFinite(parsed)?Math.max(0,Math.min(5,parsed)):0;
+  activeScreen=safeIndex;
+  document.querySelectorAll(".screen").forEach((element,index)=>{
+    element.classList.toggle("active",index===safeIndex);
+  });
+  document.querySelectorAll("[data-i]").forEach(element=>{
+    const selected=Number(element.dataset.i)===safeIndex;
+    element.classList.toggle("active",selected);
+    element.setAttribute("aria-current",selected?"page":"false");
+  });
+  document.getElementById("screenTitle").textContent=screenNames[safeIndex];
+  document.title=screenNames[safeIndex]+" · RAG 引用完整性稽核員｜JVision";
+  if(safeIndex===5)requestAnimationFrame(drawQualityChart);
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function routeFromHash(){
+  const match=window.location.hash.match(/(?:go=|v)([0-9]+)/);
+  show(match?Number(match[1]):0);
+}
+
+document.querySelectorAll("[data-i]").forEach(element=>{
+  element.addEventListener("click",()=>{
+    const targetIndex=Number(element.dataset.i);
+    if(window.location.hash==="#go="+targetIndex)show(targetIndex);
+    else window.location.hash="go="+targetIndex;
+  });
+});
+document.querySelectorAll("[data-next]").forEach(element=>{
+  element.addEventListener("click",()=>{window.location.hash="go="+element.dataset.next});
+});
+window.addEventListener("hashchange",routeFromHash);
+window.addEventListener("resize",()=>{if(qualityChart&&activeScreen===5)qualityChart.resize()});
+show(0);
+if(window.location.hash)routeFromHash();
+</script>
+</body>
+</html>

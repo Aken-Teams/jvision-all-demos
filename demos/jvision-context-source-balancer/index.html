@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Context 來源平衡器 · operations-console｜Jvision 系統 Demo</title>
+  <link rel="icon" href="../../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --blue:#1e40af;
+      --ink:#172033;
+      --body:#344054;
+      --muted:#667085;
+      --line:#dfe5ee;
+      --bg:#f4f7fb;
+      --green:#15803d;
+      --amber:#b45309;
+      --red:#c2413b;
+      --white:#fff;
+      --blue-soft:#e8eefc;
+      --green-soft:#eaf7ee;
+      --amber-soft:#fff5e7;
+      --red-soft:#fff0ee;
+      --shadow:0 10px 30px rgba(30,64,175,.08);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      color:var(--body);
+      background:var(--bg);
+      font-family:Inter,"Noto Sans TC",sans-serif;
+      overflow-x:hidden;
+    }
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    .material-symbols-outlined{font-size:21px;line-height:1}
+    .app{min-height:100vh}
+    .rail{
+      position:fixed;
+      inset:0 auto 0 0;
+      width:78px;
+      padding:18px 11px;
+      background:#102760;
+      color:#fff;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      z-index:20;
+    }
+    .brand{
+      width:46px;height:46px;border-radius:14px;
+      display:grid;place-items:center;
+      background:#fff;color:var(--blue);
+      font-size:20px;font-weight:800;
+      box-shadow:0 8px 20px rgba(0,0,0,.16);
+      margin-bottom:23px;
+    }
+    .nav-stack{display:grid;gap:10px;width:100%}
+    .nav-btn{
+      width:56px;height:52px;border:0;border-radius:13px;
+      display:grid;place-items:center;
+      background:transparent;color:#bfcdf2;
+      position:relative;
+      transition:.2s ease;
+    }
+    .nav-btn:hover,.nav-btn:focus-visible{background:rgba(255,255,255,.12);color:#fff;outline:2px solid #fff;outline-offset:2px}
+    .nav-btn.active{background:#fff;color:var(--blue)}
+    .nav-btn::after{
+      content:attr(aria-label);
+      position:absolute;left:64px;top:50%;transform:translateY(-50%);
+      padding:7px 9px;border-radius:8px;background:#172033;color:#fff;
+      white-space:nowrap;font-size:12px;opacity:0;pointer-events:none;
+    }
+    .nav-btn:hover::after{opacity:1}
+    .rail-foot{margin-top:auto;font-size:10px;letter-spacing:.12em;color:#91a6dd;writing-mode:vertical-rl}
+    .main{margin-left:78px;min-width:0}
+    .header{
+      min-height:72px;padding:13px 28px;
+      display:flex;align-items:center;gap:18px;
+      background:rgba(255,255,255,.92);
+      border-bottom:1px solid var(--line);
+      position:sticky;top:0;z-index:15;
+      backdrop-filter:blur(12px);
+    }
+    .header-title{min-width:0}
+    .header-title h1{margin:0;color:var(--ink);font-size:18px;line-height:1.3}
+    .header-title p{margin:4px 0 0;color:var(--muted);font-size:12px}
+    .header-actions{margin-left:auto;display:flex;align-items:center;gap:9px}
+    .live{
+      display:flex;align-items:center;gap:7px;
+      padding:8px 11px;border:1px solid #cfe8d7;border-radius:999px;
+      background:var(--green-soft);color:var(--green);font-size:12px;font-weight:700;
+    }
+    .live i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.8s infinite}
+    @keyframes pulse{50%{box-shadow:0 0 0 5px rgba(21,128,61,.12)}}
+    .icon-btn{
+      width:38px;height:38px;border:1px solid var(--line);border-radius:11px;
+      background:#fff;color:var(--body);display:grid;place-items:center;
+    }
+    .icon-btn:focus-visible,.btn:focus-visible,.seg button:focus-visible,.source-row:focus-visible{
+      outline:3px solid rgba(30,64,175,.3);outline-offset:2px
+    }
+    .view{display:none;min-height:calc(100vh - 72px);padding:24px 28px 38px}
+    .view.active{display:block;animation:enter .24s ease}
+    @keyframes enter{from{opacity:.25;transform:translateY(5px)}}
+    .view-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:20px}
+    .eyebrow{color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
+    h2{margin:5px 0;color:var(--ink);font-size:28px;line-height:1.2}
+    .view-head p{margin:7px 0 0;max-width:720px;color:var(--muted);font-size:14px;line-height:1.7}
+    .btn{
+      border:1px solid var(--line);border-radius:10px;padding:10px 14px;
+      background:#fff;color:var(--body);font-weight:700;font-size:13px;
+      display:inline-flex;align-items:center;gap:7px;justify-content:center;
+    }
+    .btn.primary{border-color:var(--blue);background:var(--blue);color:#fff}
+    .btn.danger{border-color:#f1c1bc;color:var(--red);background:var(--red-soft)}
+    .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+    .card-pad{padding:20px}
+    .section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+    .section-title h3{margin:0;color:var(--ink);font-size:15px}
+    .section-title span{font-size:12px;color:var(--muted)}
+    .badge{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:700}
+    .badge.blue{background:var(--blue-soft);color:var(--blue)}
+    .badge.green{background:var(--green-soft);color:var(--green)}
+    .badge.amber{background:var(--amber-soft);color:var(--amber)}
+    .badge.red{background:var(--red-soft);color:var(--red)}
+    .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+    .metric{padding:17px}
+    .metric-label{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px}
+    .metric-value{margin-top:10px;color:var(--ink);font-size:27px;font-weight:800;letter-spacing:-.03em}
+    .metric-value small{font-size:12px;color:var(--muted);font-weight:600}
+    .delta{font-size:11px;font-weight:700;color:var(--green)}
+    .grid-2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:16px}
+    .grid-even{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+    .canvas-wrap{height:270px;position:relative}
+    .muted{color:var(--muted)}
+    .tiny{font-size:11px}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    .progress{height:7px;border-radius:20px;background:#edf0f5;overflow:hidden}
+    .progress span{display:block;height:100%;border-radius:inherit;background:var(--blue)}
+    .queue-list{display:grid;gap:10px}
+    .queue-item{
+      display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center;
+      padding:12px;border:1px solid var(--line);border-radius:12px;
+    }
+    .risk-num{
+      width:40px;height:40px;border-radius:11px;display:grid;place-items:center;
+      color:var(--red);background:var(--red-soft);font-weight:800;
+    }
+    .queue-item strong{display:block;color:var(--ink);font-size:13px;margin-bottom:4px}
+    .filters{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px}
+    .filter-chip{padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--muted);font-size:12px}
+    .filter-chip.active{background:var(--blue-soft);border-color:#b9c8f0;color:var(--blue);font-weight:700}
+    .claim-card{padding:17px;border-left:4px solid var(--red)}
+    .claim-meta{display:flex;justify-content:space-between;gap:12px;margin-bottom:10px}
+    .claim-card h3{margin:0;color:var(--ink);font-size:17px}
+    .claim-card p{font-size:13px;line-height:1.7}
+    .check-list{display:grid;gap:9px;margin-top:14px}
+    .check-row{display:flex;align-items:center;gap:9px;font-size:12px}
+    .check-row .material-symbols-outlined{font-size:18px;color:var(--green)}
+    .map-shell{padding:20px;min-height:480px;position:relative;overflow:hidden}
+    .map-grid{
+      display:grid;grid-template-columns:minmax(180px,.75fr) minmax(250px,1.1fr) minmax(190px,.8fr);
+      gap:52px;align-items:center;min-height:390px;position:relative;z-index:2;
+    }
+    .map-col{display:grid;gap:13px}
+    .node{
+      padding:13px;border:1px solid var(--line);border-radius:12px;background:#fff;
+      box-shadow:0 6px 16px rgba(23,32,51,.05);position:relative;
+    }
+    .node::after{
+      content:"";position:absolute;top:50%;left:100%;width:54px;border-top:2px dashed #b9c8f0;
+    }
+    .map-col:last-child .node::after{display:none}
+    .node.active{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
+    .node.alert{border-color:#efaaa3;background:#fff8f7}
+    .node strong{display:flex;justify-content:space-between;color:var(--ink);font-size:12px}
+    .node p{margin:7px 0 0;font-size:11px;color:var(--muted);line-height:1.5}
+    .source-key{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+    .source-key i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+    .balance-board{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px}
+    .score-ring{
+      width:190px;height:190px;margin:12px auto 22px;border-radius:50%;
+      display:grid;place-items:center;
+      background:conic-gradient(var(--amber) 0 62%,#e9edf4 62%);
+      position:relative;
+    }
+    .score-ring::before{content:"";position:absolute;inset:17px;background:#fff;border-radius:50%}
+    .score-ring div{position:relative;text-align:center}
+    .score-ring strong{display:block;color:var(--ink);font-size:42px}
+    .score-ring small{font-size:11px;color:var(--muted)}
+    .source-list{display:grid;gap:11px}
+    .source-row{
+      padding:13px;border:1px solid var(--line);border-radius:11px;background:#fff;
+      display:grid;grid-template-columns:36px 1fr 52px;gap:10px;align-items:center;text-align:left;
+    }
+    .source-row .logo{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;background:var(--blue-soft);color:var(--blue);font-weight:800;font-size:11px}
+    .source-row strong{font-size:12px;color:var(--ink)}
+    .source-row small{display:block;margin-top:3px;color:var(--muted)}
+    .source-row b{text-align:right;color:var(--ink)}
+    .heat-table{width:100%;border-collapse:separate;border-spacing:5px}
+    .heat-table th{font-size:10px;color:var(--muted);font-weight:600;padding:6px}
+    .heat-table td{padding:14px 6px;text-align:center;border-radius:7px;font-size:11px;font-weight:700}
+    .h1{background:#f0f3fa;color:#64748b}.h2{background:#dce5fa;color:#3153aa}.h3{background:#b9cafa;color:#1e40af}.h4{background:#7899eb;color:#fff}.h5{background:#1e40af;color:#fff}
+    .alert-stream{display:grid;gap:12px}
+    .alert-card{padding:16px;display:grid;grid-template-columns:auto 1fr auto;gap:13px;align-items:start}
+    .alert-icon{width:42px;height:42px;border-radius:12px;background:var(--red-soft);color:var(--red);display:grid;place-items:center}
+    .alert-card h3{margin:1px 0 5px;color:var(--ink);font-size:14px}
+    .alert-card p{margin:0;font-size:12px;line-height:1.6;color:var(--muted)}
+    .alert-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+    .rule-box{padding:16px;border:1px solid var(--line);border-radius:13px}
+    .rule-box + .rule-box{margin-top:10px}
+    .rule-box strong{display:block;color:var(--ink);font-size:13px}
+    .rule-box p{margin:6px 0 10px;color:var(--muted);font-size:11px}
+    .switch{width:38px;height:22px;border-radius:20px;background:var(--blue);padding:3px;margin-left:auto}
+    .switch::after{content:"";display:block;width:16px;height:16px;border-radius:50%;background:#fff;margin-left:16px}
+    .timeline{position:relative;padding-left:30px}
+    .timeline::before{content:"";position:absolute;left:9px;top:8px;bottom:10px;border-left:2px solid #cbd6ee}
+    .event{position:relative;padding:0 0 22px 8px}
+    .event::before{content:"";position:absolute;left:-27px;top:5px;width:10px;height:10px;border:3px solid #fff;border-radius:50%;background:var(--blue);box-shadow:0 0 0 2px var(--blue)}
+    .event time{font-size:10px;color:var(--muted)}
+    .event h3{margin:5px 0;color:var(--ink);font-size:13px}
+    .event p{margin:0;color:var(--muted);font-size:11px;line-height:1.6}
+    .code-panel{background:#101828;color:#d6e0f5;border-radius:14px;padding:18px;overflow:auto;font-size:11px;line-height:1.8}
+    .code-panel .key{color:#93b4ff}.code-panel .val{color:#9be3b1}.code-panel .warn{color:#ffc278}
+    .causal-grid{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:12px;align-items:stretch}
+    .factor{padding:17px;border:1px solid var(--line);border-radius:13px;background:#fff}
+    .factor .material-symbols-outlined{color:var(--blue);padding:8px;border-radius:9px;background:var(--blue-soft)}
+    .factor h3{margin:12px 0 6px;color:var(--ink);font-size:13px}
+    .factor p{font-size:11px;color:var(--muted);line-height:1.6}
+    .arrow{display:grid;place-items:center;color:#8da2d6}
+    .evidence-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
+    .evidence-table{width:100%;border-collapse:collapse}
+    .evidence-table th,.evidence-table td{padding:13px 11px;border-bottom:1px solid var(--line);text-align:left;font-size:12px;vertical-align:top}
+    .evidence-table th{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em}
+    .evidence-table td strong{color:var(--ink)}
+    .evidence-table tr:last-child td{border-bottom:0}
+    .coverage{display:flex;align-items:center;gap:9px;min-width:130px}
+    .coverage .progress{flex:1}
+    .review-note{padding:14px;border-radius:12px;background:#f7f9fc;border:1px solid var(--line);margin-bottom:10px}
+    .review-note strong{display:block;color:var(--ink);font-size:12px}
+    .review-note p{margin:6px 0 0;font-size:11px;line-height:1.6;color:var(--muted)}
+    .plan-hero{padding:22px;background:linear-gradient(135deg,#132c70,#1e40af);color:#fff;border-radius:16px}
+    .plan-hero h3{margin:0 0 8px;font-size:20px}
+    .plan-hero p{margin:0;color:#d8e3ff;font-size:12px;line-height:1.7}
+    .compare{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:17px}
+    .compare div{padding:14px;border-radius:12px;background:rgba(255,255,255,.1)}
+    .compare small{display:block;color:#cbd9ff}
+    .compare strong{display:block;margin-top:4px;font-size:24px}
+    .action-list{display:grid;gap:10px}
+    .action{padding:14px;border:1px solid var(--line);border-radius:12px;display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center}
+    .action-index{width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:800}
+    .action strong{display:block;color:var(--ink);font-size:12px}
+    .action small{color:var(--muted)}
+    .approval{padding:18px;border:1px solid #b8d9c2;background:var(--green-soft);border-radius:14px}
+    .approval h3{color:var(--green);margin:0 0 8px;font-size:15px}
+    .approval p{font-size:11px;line-height:1.6}
+    .seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+    .seg button{border:0;border-right:1px solid var(--line);background:#fff;padding:8px 11px;font-size:11px;color:var(--muted)}
+    .seg button:last-child{border-right:0}.seg button.active{background:var(--blue-soft);color:var(--blue);font-weight:700}
+    @media(max-width:1050px){
+      .metric-grid{grid-template-columns:repeat(2,1fr)}
+      .grid-2,.balance-board,.evidence-layout{grid-template-columns:1fr}
+      .map-grid{gap:28px}.node::after{width:30px}
+    }
+    @media(max-width:760px){
+      .rail{inset:auto 0 0;width:auto;height:72px;padding:8px 10px;flex-direction:row;border-radius:16px 16px 0 0}
+      .brand,.rail-foot{display:none}.nav-stack{grid-template-columns:repeat(6,1fr);gap:4px}
+      .nav-btn{width:100%;height:54px}.nav-btn::after{display:none}
+      .main{margin-left:0;padding-bottom:72px}
+      .header{padding:11px 16px;min-height:64px}.header-title p,.live span{display:none}
+      .view{padding:18px 15px 28px;min-height:calc(100vh - 136px)}
+      .view-head{display:block}.view-head .btn{margin-top:13px}
+      h2{font-size:23px}
+      .grid-even,.grid-3{grid-template-columns:1fr}
+      .map-shell{overflow:auto}
+      .map-grid{grid-template-columns:1fr;gap:14px}
+      .node::after{display:none}
+      .causal-grid{grid-template-columns:1fr}
+      .arrow{transform:rotate(90deg);height:20px}
+      .evidence-table{min-width:680px}
+      .table-scroll{overflow-x:auto}
+    }
+    @media(max-width:460px){
+      .metric-grid{grid-template-columns:1fr 1fr;gap:9px}.metric{padding:13px}.metric-value{font-size:22px}
+      .header-title h1{font-size:15px}.header-actions .icon-btn{display:none}
+      .card-pad{padding:15px}.compare{grid-template-columns:1fr}
+      .alert-card{grid-template-columns:auto 1fr}.alert-card>.badge{grid-column:2}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="rail" aria-label="流程導覽">
+      <div class="brand" aria-label="Jvision">JV</div>
+      <nav class="nav-stack">
+        <button class="nav-btn" data-i="0" aria-label="定位高風險結論"><span class="material-symbols-outlined">target</span></button>
+        <button class="nav-btn" data-i="1" aria-label="繪製來源影響"><span class="material-symbols-outlined">account_tree</span></button>
+        <button class="nav-btn" data-i="2" aria-label="檢測主導偏置"><span class="material-symbols-outlined">warning</span></button>
+        <button class="nav-btn" data-i="3" aria-label="追查形成原因"><span class="material-symbols-outlined">hub</span></button>
+        <button class="nav-btn" data-i="4" aria-label="補齊證據缺口"><span class="material-symbols-outlined">playlist_add_check</span></button>
+        <button class="nav-btn" data-i="5" aria-label="核准再平衡"><span class="material-symbols-outlined">verified</span></button>
+      </nav>
+      <div class="rail-foot">CONTEXT OPS</div>
+    </aside>
+
+    <main class="main">
+      <header class="header">
+        <div class="header-title">
+          <h1>Context 來源平衡器</h1>
+          <p id="stageLabel">01 · 定位高風險結論</p>
+        </div>
+        <div class="header-actions">
+          <div class="live"><i></i><span>分析服務正常</span></div>
+          <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+          <button class="icon-btn" aria-label="說明"><span class="material-symbols-outlined">help</span></button>
+        </div>
+      </header>
+
+      <section class="view" data-view="0">
+        <div class="view-head">
+          <div>
+            <div class="eyebrow">Stage 01 · 應用負責人</div>
+            <h2>定位高風險結論</h2>
+            <p>從模型請求中篩出高影響、低來源多樣性的結論，設定可接受的來源集中門檻。</p>
+          </div>
+          <button class="btn primary"><span class="material-symbols-outlined">add</span>建立分析任務</button>
+        </div>
+
+        <div class="metric-grid">
+          <article class="card metric"><div class="metric-label">今日模型請求<span class="delta">+12.4%</span></div><div class="metric-value">1,284 <small>筆</small></div></article>
+          <article class="card metric"><div class="metric-label">高風險結論<span class="badge red">需處理</span></div><div class="metric-value">37 <small>筆</small></div></article>
+          <article class="card metric"><div class="metric-label">平均來源集中度<span class="delta">-4.1%</span></div><div class="metric-value">48.6 <small>%</small></div></article>
+          <article class="card metric"><div class="metric-label">待補證據<span class="badge amber">14 新增</span></div><div class="metric-value">63 <small>項</small></div></article>
+        </div>
+
+        <div class="grid-2">
+          <article class="card card-pad">
+            <div class="section-title">
+              <h3>風險請求佇列</h3>
+              <div class="seg"><button class="active">風險排序</button><button>最新</button><button>影響範圍</button></div>
+            </div>
+            <div class="filters">
+              <button class="filter-chip active">全部 37</button>
+              <button class="filter-chip">來源集中 18</button>
+              <button class="filter-chip">證據不足 12</button>
+              <button class="filter-chip">高業務影響 7</button>
+            </div>
+            <div class="queue-list">
+              <div class="queue-item">
+                <div class="risk-num">92</div>
+                <div><strong>企業授信模型：建議降低北區零售額度</strong><span class="tiny muted">REQ-88421 · 主要結論由單一產業報告支撐</span></div>
+                <span class="badge red">立即檢查</span>
+              </div>
+              <div class="queue-item">
+                <div class="risk-num">86</div>
+                <div><strong>供應鏈預警：東南亞交期將延長 21 天</strong><span class="tiny muted">REQ-88409 · 三個引用來源內容高度重複</span></div>
+                <span class="badge red">高風險</span>
+              </div>
+              <div class="queue-item">
+                <div class="risk-num" style="color:var(--amber);background:var(--amber-soft)">74</div>
+                <div><strong>客服知識助手：保固條款例外判定</strong><span class="tiny muted">REQ-88396 · 缺少 2026 年新版政策佐證</span></div>
+                <span class="badge amber">待確認</span>
+              </div>
+              <div class="queue-item">
+                <div class="risk-num" style="color:var(--amber);background:var(--amber-soft)">69</div>
+                <div><strong>採購建議：指定雲端供應商續約</strong><span class="tiny muted">REQ-88372 · 成本觀點覆蓋完整，資安觀點不足</span></div>
+                <span class="badge amber">觀察</span>
+              </div>
+            </div>
+          </article>
+
+          <aside class="card card-pad claim-card">
+            <div class="claim-meta"><span class="badge red">風險 92</span><span class="mono tiny muted">REQ-88421</span></div>
+            <h3>高風險結論摘要</h3>
+            <p>模型建議將北區零售客戶的整體授信額度下調 15%，但結論有 71% 影響來自同一份外部產業報告。</p>
+            <div class="section-title"><h3>分析門檻</h3><span>政策集 v3.2</span></div>
+            <div class="check-list">
+              <div class="check-row"><span class="material-symbols-outlined">check_circle</span>單一來源權重不得高於 45%</div>
+              <div class="check-row"><span class="material-symbols-outlined">check_circle</span>至少包含 2 個獨立外部來源</div>
+              <div class="check-row"><span class="material-symbols-outlined">check_circle</span>財務決策須含內部實績資料</div>
+            </div>
+            <div style="margin-top:18px">
+              <div class="metric-label"><span>目前來源集中度</span><strong style="color:var(--red)">71%</strong></div>
+              <div class="progress" style="margin-top:8px"><span style="width:71%;background:var(--red)"></span></div>
+            </div>
+            <button class="btn primary" style="width:100%;margin-top:20px" data-next="1">繪製來源影響</button>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" data-view="1">
+        <div class="view-head">
+          <div>
+            <div class="eyebrow">Stage 02 · 資料科學家</div>
+            <h2>繪製來源影響</h2>
+            <p>解析回答中的主張、知識片段與最終結論，建立可追溯的來源影響地圖。</p>
+          </div>
+          <button class="btn"><span class="material-symbols-outlined">download</span>匯出影響圖</button>
+        </div>
+
+        <div class="card map-shell">
+          <div class="section-title">
+            <h3>REQ-88421 · 授信額度建議的影響路徑</h3>
+            <div class="source-key"><span><i style="background:var(--blue)"></i>內部</span><span><i style="background:var(--amber)"></i>外部</span><span><i style="background:var(--red)"></i>高集中</span></div>
+          </div>
+          <div class="map-grid">
+            <div class="map-col">
+              <div class="node alert"><strong>產業展望 Q2 <span>71%</span></strong><p>外部顧問報告 · 更新於 18 天前</p></div>
+              <div class="node"><strong>逾期實績資料 <span>14%</span></strong><p>內部資料倉儲 · 126,410 筆</p></div>
+              <div class="node"><strong>央行景氣摘要 <span>9%</span></strong><p>政府開放資料 · 月度發布</p></div>
+              <div class="node"><strong>風險政策手冊 <span>6%</span></strong><p>內部規範 · 版本 4.7</p></div>
+            </div>
+            <div class="map-col">
+              <div class="node active"><strong>主張 C-01 <span class="badge red">高影響</span></strong><p>北區零售產業的違約風險已連續兩季增加。</p></div>
+              <div class="node"><strong>主張 C-02 <span class="badge blue">已佐證</span></strong><p>近三個月逾期率由 2.1% 上升至 2.7%。</p></div>
+              <div class="node"><strong>主張 C-03 <span class="badge amber">證據弱</span></strong><p>額度下調 15% 可顯著降低預期損失。</p></div>
+            </div>
+            <div class="map-col">
+              <div class="node alert"><strong>模型結論 <span>0.86</span></strong><p>建議將北區零售客戶整體授信額度下調 15%。</p></div>
+              <div class="node"><strong>限制條件 <span>2 項</span></strong><p>未納入季節性營收與客戶分群差異。</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-3" style="margin-top:16px">
+          <article class="card card-pad"><div class="metric-label">已解析主張<span class="material-symbols-outlined">fact_check</span></div><div class="metric-value">12</div><div class="tiny muted">9 項有交叉佐證，3 項待補證</div></article>
+          <article class="card card-pad"><div class="metric-label">知識片段<span class="material-symbols-outlined">dataset</span></div><div class="metric-value">47</div><div class="tiny muted">來自 4 個來源、3 個資料域</div></article>
+          <article class="card card-pad"><div class="metric-label">可追溯覆蓋率<span class="material-symbols-outlined">route</span></div><div class="metric-value">93 <small>%</small></div><div class="progress" style="margin-top:9px"><span style="width:93%"></span></div></article>
+        </div>
+      </section>
+
+      <section class="view" data-view="2">
+        <div class="view-head">
+          <div>
+            <div class="eyebrow">Stage 03 · AI 架構師</div>
+            <h2>檢測主導偏置</h2>
+            <p>量化來源權重、內容相似性與檢索排序異常，辨識造成結論偏斜的來源群。</p>
+          </div>
+          <button class="btn primary"><span class="material-symbols-outlined">play_arrow</span>重新執行檢測</button>
+        </div>
+
+        <div class="balance-board">
+          <aside class="card card-pad">
+            <div class="section-title"><h3>來源平衡健康度</h3><span class="badge amber">需改善</span></div>
+            <div class="score-ring"><div><strong>62</strong><small>滿分 100</small></div></div>
+            <div class="source-list">
+              <button class="source-row">
+                <span class="logo">ER</span><span><strong>外部產業報告</strong><small>19 個片段 · 重複率 34%</small></span><b style="color:var(--red)">71%</b>
+              </button>
+              <button class="source-row">
+                <span class="logo">DW</span><span><strong>內部逾期實績</strong><small>14 個片段 · 即時同步</small></span><b>14%</b>
+              </button>
+              <button class="source-row">
+                <span class="logo">CB</span><span><strong>央行景氣摘要</strong><small>8 個片段 · 公開資料</small></span><b>9%</b>
+              </button>
+              <button class="source-row">
+                <span class="logo">RP</span><span><strong>風險政策手冊</strong><small>6 個片段 · 內部規範</small></span><b>6%</b>
+              </button>
+            </div>
+          </aside>
+
+          <div style="display:grid;gap:16px">
+            <article class="card card-pad">
+              <div class="section-title"><h3>來源 × 主張影響熱圖</h3><span>權重越深，影響越高</span></div>
+              <div class="table-scroll">
+                <table class="heat-table">
+                  <thead><tr><th>來源</th><th>C-01 風險增加</th><th>C-02 逾期率</th><th>C-03 下調幅度</th><th>最終結論</th></tr></thead>
+                  <tbody>
+                    <tr><th>產業報告</th><td class="h5">88%</td><td class="h3">46%</td><td class="h5">82%</td><td class="h5">71%</td></tr>
+                    <tr><th>逾期實績</th><td class="h2">21%</td><td class="h5">79%</td><td class="h2">18%</td><td class="h2">14%</td></tr>
+                    <tr><th>央行摘要</th><td class="h3">39%</td><td class="h2">24%</td><td class="h1">8%</td><td class="h1">9%</td></tr>
+                    <tr><th>政策手冊</th><td class="h1">4%</td><td class="h1">7%</td><td class="h3">36%</td><td class="h1">6%</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+            <article class="card card-pad">
+              <div class="section-title"><h3>影響分布</h3><span>門檻 45%</span></div>
+              <div class="canvas-wrap"><canvas id="biasChart" aria-label="來源影響分布圖"></canvas></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="alert-stream" style="margin-top:16px">
+          <article class="card alert-card">
+            <div class="alert-icon"><span class="material-symbols-outlined">warning</span></div>
+            <div><h3>單一來源主導</h3><p>「產業展望 Q2」對最終結論影響達 71%，超過治理門檻 26 個百分點。</p><div class="alert-tags"><span class="badge red">嚴重</span><span class="badge blue">RULE-03</span></div></div>
+            <button class="btn" data-next="3">追查原因</button>
+          </article>
+          <article class="card alert-card">
+            <div class="alert-icon"><span class="material-symbols-outlined">content_copy</span></div>
+            <div><h3>內容重複放大</h3><p>外部報告與兩篇新聞摘要的語意重疊率達 82%，可能形成互相引用的假性多樣性。</p></div>
+            <span class="badge amber">需複核</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-view="3">
+        <div class="view-head">
+          <div>
+            <div class="eyebrow">Stage 04 · 資料科學家</div>
+            <h2>追查形成原因</h2>
+            <p>比對提示、檢索、重排序與生成階段，找出來源權重逐步放大的因果線索。</p>
+          </div>
+          <button class="btn"><span class="material-symbols-outlined">compare_arrows</span>比較基準執行</button>
+        </div>
+
+        <div class="causal-grid">
+          <article class="factor"><span class="material-symbols-outlined">prompt_suggestion</span><h3>提示設定</h3><p>要求優先採用「最新產業趨勢」，但未要求獨立來源交叉驗證。</p><span class="badge amber">貢獻 +9%</span></article>
+          <div class="arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
+          <article class="factor"><span class="material-symbols-outlined">search</span><h3>混合檢索</h3><p>外部報告片段獲得高新鮮度分數，佔前 10 筆結果中的 6 筆。</p><span class="badge red">貢獻 +18%</span></article>
+          <div class="arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
+          <article class="factor"><span class="material-symbols-outlined">sort</span><h3>重排序</h3><p>相似片段未完成去重，使同一論點重複進入模型上下文。</p><span class="badge red">貢獻 +14%</span></article>
+        </div>
+
+        <div class="grid-2" style="margin-top:16px">
+          <article class="card card-pad">
+            <div class="section-title"><h3>執行追蹤時間線</h3><span class="mono">trace_7fa2b19</span></div>
+            <div class="timeline">
+              <div class="event"><time>10:42:18.114 · 84 ms</time><h3>接收模型請求</h3><p>業務情境：授信策略；風險等級：高；資料範圍：最近 12 個月。</p></div>
+              <div class="event"><time>10:42:18.198 · 226 ms</time><h3>查詢改寫</h3><p>加入「2026 最新展望」與「北區零售風險」詞組，新鮮度權重提升至 0.42。</p></div>
+              <div class="event"><time>10:42:18.424 · 391 ms</time><h3>檢索 24 個候選片段</h3><p>外部報告 9 筆、內部實績 7 筆、政策 5 筆、公開資料 3 筆。</p></div>
+              <div class="event"><time>10:42:18.815 · 103 ms</time><h3>重排序選入 10 個片段</h3><p>6 個片段源自相同報告；相似度去重規則未命中。</p></div>
+              <div class="event"><time>10:42:18.918 · 1.8 s</time><h3>生成結論與引用</h3><p>結論信心 0.86；來源集中度 71%；觸發高集中警示。</p></div>
+            </div>
+          </article>
+
+          <div style="display:grid;gap:16px">
+            <article class="card card-pad">
+              <div class="section-title"><h3>檢索參數快照</h3><span class="badge blue">可重現</span></div>
+              <div class="code-panel">
+                <span class="key">retrieval_mode</span>: <span class="val">"hybrid"</span><br>
+                <span class="key">candidate_count</span>: <span class="val">24</span><br>
+                <span class="key">context_limit</span>: <span class="val">10</span><br>
+                <span class="key">freshness_weight</span>: <span class="warn">0.42</span><br>
+                <span class="key">source_diversity_weight</span>: <span class="warn">0.08</span><br>
+                <span class="key">semantic_dedupe</span>: <span class="warn">false</span><br>
+                <span class="key">prompt_policy</span>: <span class="val">"credit-risk-v3"</span>
+              </div>
+            </article>
+            <article class="card card-pad">
+              <div class="section-title"><h3>根因貢獻分析</h3><span>總偏移 +41%</span></div>
+              <div class="canvas-wrap" style="height:220px"><canvas id="causeChart" aria-label="根因貢獻分析圖"></canvas></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="4">
+        <div class="view-head">
+          <div>
+            <div class="eyebrow">Stage 05 · 領域審查員</div>
+            <h2>補齊證據缺口</h2>
+            <p>逐項審查缺少獨立佐證、反例或觀點覆蓋不足的主張，建立可執行的補證清單。</p>
+          </div>
+          <button class="btn primary"><span class="material-symbols-outlined">add_task</span>新增補證項目</button>
+        </div>
+
+        <div class="metric-grid">
+          <article class="card metric"><div class="metric-label">主張總數</div><div class="metric-value">12</div></article>
+          <article class="card metric"><div class="metric-label">證據完整</div><div class="metric-value" style="color:var(--green)">7</div></article>
+          <article class="card metric"><div class="metric-label">待補證據</div><div class="metric-value" style="color:var(--amber)">4</div></article>
+          <article class="card metric"><div class="metric-label">關鍵缺口</div><div class="metric-value" style="color:var(--red)">1</div></article>
+        </div>
+
+        <div class="evidence-layout">
+          <article class="card">
+            <div class="section-title" style="padding:18px 18px 0"><h3>證據缺口清單</h3><span>最近更新 10:51</span></div>
+            <div class="table-scroll">
+              <table class="evidence-table">
+                <thead><tr><th>主張</th><th>缺少證據</th><th>覆蓋率</th><th>審查狀態</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>C-03 額度下調 15% 可降低預期損失</strong><br><span class="muted tiny">高業務影響</span></td><td>內部回測、客群反例</td><td><div class="coverage"><div class="progress"><span style="width:32%;background:var(--red)"></span></div><b>32%</b></div></td><td><span class="badge red">關鍵缺口</span></td></tr>
+                  <tr><td><strong>C-05 北區風險高於全國均值</strong><br><span class="muted tiny">區域比較</span></td><td>官方區域統計</td><td><div class="coverage"><div class="progress"><span style="width:58%;background:var(--amber)"></span></div><b>58%</b></div></td><td><span class="badge amber">蒐集中</span></td></tr>
+                  <tr><td><strong>C-07 零售產業進入下行週期</strong><br><span class="muted tiny">趨勢判讀</span></td><td>獨立產業觀點</td><td><div class="coverage"><div class="progress"><span style="width:66%;background:var(--amber)"></span></div><b>66%</b></div></td><td><span class="badge blue">待複核</span></td></tr>
+                  <tr><td><strong>C-09 季節性因素影響有限</strong><br><span class="muted tiny">模型假設</span></td><td>歷史同期反例</td><td><div class="coverage"><div class="progress"><span style="width:74%"></span></div><b>74%</b></div></td><td><span class="badge blue">已指派</span></td></tr>
+                  <tr><td><strong>C-02 逾期率上升至 2.7%</strong><br><span class="muted tiny">內部實績</span></td><td>—</td><td><div class="coverage"><div class="progress"><span style="width:100%;background:var(--green)"></span></div><b>100%</b></div></td><td><span class="badge green">已通過</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <aside class="card card-pad">
+            <div class="section-title"><h3>領域審查意見</h3><span>3 則</span></div>
+            <div class="review-note"><strong>林怡君 · 信用風險</strong><p>建議依客群規模分層回測，不能直接把產業平均套用到所有北區客戶。</p></div>
+            <div class="review-note"><strong>周柏翰 · 財務分析</strong><p>補入央行區域景氣指標，並比較 2024–2026 同期變化。</p></div>
+            <div class="review-note"><strong>陳思穎 · 模型治理</strong><p>新增一個支持維持額度的反方來源，避免只蒐集支持下調的證據。</p></div>
+            <div style="margin-top:18px">
+              <div class="metric-label"><span>整體證據覆蓋</span><strong>71%</strong></div>
+              <div class="progress" style="margin-top:8px"><span style="width:71%"></span></div>
+            </div>
+            <button class="btn primary" style="width:100%;margin-top:18px" data-next="5">送交再平衡核准</button>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" data-view="5">
+        <div class="view-head">
+          <div>
+            <div class="eyebrow">Stage 06 · AI 架構師</div>
+            <h2>核准再平衡</h2>
+            <p>比較調整前後的來源分布與結論穩健性，核准方案並保留完整操作紀錄。</p>
+          </div>
+          <div style="display:flex;gap:9px;flex-wrap:wrap">
+            <button class="btn danger"><span class="material-symbols-outlined">undo</span>退回補件</button>
+            <button class="btn primary"><span class="material-symbols-outlined">verified</span>核准並重測</button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div style="display:grid;gap:16px">
+            <article class="plan-hero">
+              <span class="badge" style="background:rgba(255,255,255,.14);color:#fff">方案 RB-2026-041</span>
+              <h3 style="margin-top:13px">來源多樣性優先方案</h3>
+              <p>降低單一外部報告權重、啟用語意去重，補入內部回測與官方區域統計後重新生成結論。</p>
+              <div class="compare">
+                <div><small>單一來源最高權重</small><strong>71% → 38%</strong></div>
+                <div><small>結論穩健度</small><strong>64 → 91</strong></div>
+              </div>
+            </article>
+
+            <article class="card card-pad">
+              <div class="section-title"><h3>再平衡動作</h3><span>4 項變更</span></div>
+              <div class="action-list">
+                <div class="action"><div class="action-index">01</div><div><strong>產業報告降權</strong><small>來源權重上限設為 38%</small></div><span class="badge green">可執行</span></div>
+                <div class="action"><div class="action-index">02</div><div><strong>啟用語意去重</strong><small>相似度 ≥ 0.86 的片段僅保留一筆</small></div><span class="badge green">可執行</span></div>
+                <div class="action"><div class="action-index">03</div><div><strong>補入獨立來源</strong><small>央行區域統計與內部客群回測</small></div><span class="badge blue">已就緒</span></div>
+                <div class="action"><div class="action-index">04</div><div><strong>提高多樣性權重</strong><small>0.08 調整為 0.31</small></div><span class="badge amber">需核准</span></div>
+              </div>
+            </article>
+          </div>
+
+          <div style="display:grid;gap:16px">
+            <article class="card card-pad">
+              <div class="section-title"><h3>重測模擬結果</h3><span class="badge green">通過門檻</span></div>
+              <div class="canvas-wrap"><canvas id="resultChart" aria-label="再平衡前後比較圖"></canvas></div>
+            </article>
+            <article class="approval">
+              <h3><span class="material-symbols-outlined" style="vertical-align:middle;margin-right:6px">task_alt</span>核准條件已滿足</h3>
+              <p>單一來源權重低於 45%、獨立來源達 4 個、關鍵主張均具反例或交叉佐證。核准後將建立不可竄改的操作紀錄。</p>
+              <div class="grid-even" style="margin-top:13px">
+                <div><span class="tiny muted">預估系統可用率</span><strong style="display:block;color:var(--ink);font-size:19px">99%</strong></div>
+                <div><span class="tiny muted">SLA 達成率</span><strong style="display:block;color:var(--ink);font-size:19px">98%</strong></div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <article class="card card-pad" style="margin-top:16px">
+          <div class="section-title"><h3>可追溯操作紀錄</h3><span class="mono">AUDIT-CON-88421</span></div>
+          <div class="table-scroll">
+            <table class="evidence-table">
+              <thead><tr><th>時間</th><th>動作</th><th>負責人</th><th>階段</th><th>結果</th></tr></thead>
+              <tbody>
+                <tr><td>10:42</td><td>建立高風險分析任務</td><td>王品涵</td><td>定位高風險結論</td><td><span class="badge green">完成</span></td></tr>
+                <tr><td>10:46</td><td>建立 12 個主張的影響地圖</td><td>陳柏宇</td><td>繪製來源影響</td><td><span class="badge green">完成</span></td></tr>
+                <tr><td>10:49</td><td>觸發來源主導與重複警示</td><td>系統</td><td>檢測主導偏置</td><td><span class="badge red">未通過</span></td></tr>
+                <tr><td>11:16</td><td>補入回測、反例與官方資料</td><td>林怡君</td><td>補齊證據缺口</td><td><span class="badge green">完成</span></td></tr>
+                <tr><td>11:24</td><td>提交來源多樣性優先方案</td><td>陳柏宇</td><td>核准再平衡</td><td><span class="badge amber">待核准</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const stageNames = [
+        "01 · 定位高風險結論",
+        "02 · 繪製來源影響",
+        "03 · 檢測主導偏置",
+        "04 · 追查形成原因",
+        "05 · 補齊證據缺口",
+        "06 · 核准再平衡"
+      ];
+      const chartCache = {};
+      const chartColors = {
+        blue: "#1e40af",
+        pale: "#9eb4ed",
+        amber: "#d97706",
+        red: "#c2413b",
+        green: "#15803d",
+        grid: "#e6eaf1",
+        ink: "#344054"
+      };
+
+      function chartDefaults() {
+        return {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 550 },
+          plugins: {
+            legend: {
+              position: "bottom",
+              labels: { usePointStyle: true, boxWidth: 8, color: chartColors.ink, font: { family: "Inter, Noto Sans TC", size: 11 } }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: "#667085", font: { size: 10 } } },
+            y: { beginAtZero: true, grid: { color: chartColors.grid }, ticks: { color: "#667085", font: { size: 10 } } }
+          }
+        };
+      }
+
+      function initChart(viewIndex) {
+        if (typeof Chart === "undefined") return;
+
+        if (viewIndex === 2 && !chartCache.bias) {
+          const canvas = document.getElementById("biasChart");
+          if (!canvas || canvas.clientWidth < 1) return;
+          chartCache.bias = new Chart(canvas, {
+            type: "bar",
+            data: {
+              labels: ["產業報告", "逾期實績", "央行摘要", "政策手冊"],
+              datasets: [{
+                label: "結論影響權重 %",
+                data: [71, 14, 9, 6],
+                backgroundColor: [chartColors.red, chartColors.blue, chartColors.pale, "#cad4eb"],
+                borderRadius: 7,
+                maxBarThickness: 42
+              }]
+            },
+            options: {
+              ...chartDefaults(),
+              plugins: { ...chartDefaults().plugins, legend: { display: false } },
+              scales: {
+                x: chartDefaults().scales.x,
+                y: { ...chartDefaults().scales.y, max: 80, ticks: { callback: value => value + "%", color: "#667085", font: { size: 10 } } }
+              }
+            }
+          });
+        }
+
+        if (viewIndex === 3 && !chartCache.cause) {
+          const canvas = document.getElementById("causeChart");
+          if (!canvas || canvas.clientWidth < 1) return;
+          chartCache.cause = new Chart(canvas, {
+            type: "doughnut",
+            data: {
+              labels: ["檢索新鮮度", "未啟用去重", "提示偏向", "其他因素"],
+              datasets: [{
+                data: [18, 14, 9, 5],
+                backgroundColor: [chartColors.red, chartColors.amber, chartColors.blue, "#d8dfeb"],
+                borderWidth: 0,
+                hoverOffset: 3
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              cutout: "67%",
+              animation: { duration: 550 },
+              plugins: chartDefaults().plugins
+            }
+          });
+        }
+
+        if (viewIndex === 5 && !chartCache.result) {
+          const canvas = document.getElementById("resultChart");
+          if (!canvas || canvas.clientWidth < 1) return;
+          chartCache.result = new Chart(canvas, {
+            type: "radar",
+            data: {
+              labels: ["來源多樣性", "交叉佐證", "內容獨立性", "結論穩健度", "可追溯性"],
+              datasets: [
+                {
+                  label: "調整前",
+                  data: [34, 52, 41, 64, 78],
+                  borderColor: chartColors.amber,
+                  backgroundColor: "rgba(217,119,6,.10)",
+                  pointBackgroundColor: chartColors.amber,
+                  borderWidth: 2
+                },
+                {
+                  label: "調整後",
+                  data: [88, 92, 86, 91, 96],
+                  borderColor: chartColors.blue,
+                  backgroundColor: "rgba(30,64,175,.12)",
+                  pointBackgroundColor: chartColors.blue,
+                  borderWidth: 2
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: { duration: 550 },
+              plugins: chartDefaults().plugins,
+              scales: {
+                r: {
+                  min: 0,
+                  max: 100,
+                  ticks: { display: false, stepSize: 20 },
+                  pointLabels: { color: "#667085", font: { size: 10 } },
+                  grid: { color: chartColors.grid },
+                  angleLines: { color: chartColors.grid }
+                }
+              }
+            }
+          });
+        }
+      }
+
+      function show(index) {
+        const safeIndex = Math.max(0, Math.min(5, Number(index) || 0));
+        document.querySelectorAll("[data-view]").forEach(panel => {
+          panel.classList.toggle("active", Number(panel.dataset.view) === safeIndex);
+        });
+        document.querySelectorAll("[data-i]").forEach(button => {
+          const selected = Number(button.dataset.i) === safeIndex;
+          button.classList.toggle("active", selected);
+          button.setAttribute("aria-current", selected ? "step" : "false");
+        });
+        document.getElementById("stageLabel").textContent = stageNames[safeIndex];
+        document.title = stageNames[safeIndex].replace(/^\d+\s·\s/, "") + " · Context 來源平衡器｜Jvision 系統 Demo";
+        requestAnimationFrame(() => initChart(safeIndex));
+      }
+
+      function indexFromHash() {
+        const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+        return match ? Math.max(0, Math.min(5, Number(match[1]))) : 0;
+      }
+
+      function navigate(index) {
+        const safeIndex = Math.max(0, Math.min(5, Number(index) || 0));
+        if (window.location.hash === "#go=" + safeIndex) {
+          show(safeIndex);
+        } else {
+          window.location.hash = "go=" + safeIndex;
+        }
+      }
+
+      document.querySelectorAll("[data-i]").forEach(button => {
+        button.addEventListener("click", () => navigate(button.dataset.i));
+      });
+
+      document.querySelectorAll("[data-next]").forEach(button => {
+        button.addEventListener("click", () => navigate(button.dataset.next));
+      });
+
+      window.addEventListener("hashchange", () => show(indexFromHash()));
+      show(indexFromHash());
+    })();
+  </script>
+</body>
+</html>
