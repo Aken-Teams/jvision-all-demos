@@ -212,6 +212,7 @@ const categoryIcons = {
   "資訊安全": "security", "專業服務": "gavel", "物流運輸": "local_shipping", "餐飲旅宿": "restaurant",
   "生活服務": "checkroom", "數據分析": "analytics", "客服管理": "support_agent",
   "房地產與物業": "apartment", "宗教服務": "temple_buddhist",
+  "AI 工程平台": "smart_toy",
 };
 function categoryIcon(category) { return categoryIcons[category] || "category"; }
 
@@ -224,6 +225,7 @@ const categoryColors = {
   "資訊科技": "#0ea5e9", "交通運輸": "#0369a1", "設備維護": "#0369a1", "資訊安全": "#475569",
   "專業服務": "#7c3aed", "物流運輸": "#0d9488", "餐飲旅宿": "#ea580c", "生活服務": "#db2777",
   "數據分析": "#4f46e5", "客服管理": "#0ea5e9", "房地產與物業": "#b45309", "宗教服務": "#b45309",
+  "AI 工程平台": "#64748b",
 };
 function categoryColor(category) { return categoryColors[category] || "#1e40af"; }
 
