@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JV Demo 導入與使用分析</title>
+    <meta name="description" content="檢視專案導入時間軸，以及使用者實際開啟各 Demo 的狀況。" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./admin.css" />
+    <style>
+      [hidden]{display:none!important}
+      /* 明確給 minmax(0,1fr)：只寫 display:grid 時軌道寬度會取內容的
+         max-content，讓底下的 .split 把整頁撐開（實測 390px 溢出 708px）。 */
+      .insight-grid{display:grid;gap:18px;grid-template-columns:minmax(0,1fr)}
+      .panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+      .panel > h3{margin:0 0 4px;font-size:1.02rem}
+      .panel > p.hint{margin:0 0 14px;color:var(--muted);font-size:.86rem}
+      .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+      .kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+      .kpi b{display:block;font-size:1.7rem;line-height:1.15;color:var(--navy)}
+      .kpi span{color:var(--muted);font-size:.82rem}
+      .bars{display:grid;gap:6px}
+      .bar-row{display:grid;grid-template-columns:minmax(0,132px) minmax(0,1fr) 56px;align-items:center;gap:10px}
+      .bar-label{color:var(--muted);font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .bar-track{background:#eef2f8;border-radius:5px;height:16px;overflow:hidden;min-width:0}
+      .bar-fill{display:block;height:100%;background:var(--blue);border-radius:5px}
+      .bar-fill.alt{background:var(--accent)}
+      .bar-value{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;font-size:.84rem}
+      @media (max-width:520px){.bar-row{grid-template-columns:minmax(0,84px) minmax(0,1fr) 48px}}
+      table.data{width:100%;border-collapse:collapse;font-size:.88rem}
+      table.data th,table.data td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+      table.data th{color:var(--muted);font-weight:600;white-space:nowrap}
+      table.data tbody tr:hover{background:#f7faff}
+      .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+      .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.76rem;border:1px solid var(--line);color:var(--muted)}
+      .pill.new{border-color:#c7d9f5;background:#eff5ff;color:var(--blue)}
+      .notice{border:1px dashed var(--line);border-radius:12px;padding:16px;color:var(--muted);font-size:.9rem;line-height:1.7}
+      .notice code{background:#eef2f8;padding:2px 6px;border-radius:5px;color:var(--text)}
+      .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+      .toolbar input,.toolbar select{border:1px solid var(--line);border-radius:8px;padding:9px 11px;min-height:42px;background:#fff}
+      .toolbar input[type=search]{flex:1;min-width:180px}
+      .table-scroll{overflow-x:auto;max-height:520px;overflow-y:auto}
+      .split{display:grid;gap:18px;min-width:0;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr))}
+      @media (max-width:720px){.admin-shell{grid-template-columns:minmax(0,1fr)}}
+    </style>
+  </head>
+  <body>
+    <header class="admin-header">
+      <a class="brand" href="./index.html"><span>JV</span><b>CATALOG ADMIN</b></a>
+      <nav><a href="./admin.html">專案目錄</a><a href="./index.html">返回展示站</a></nav>
+    </header>
+
+    <main class="admin-shell">
+      <aside class="admin-sidebar">
+        <p class="eyebrow">INSIGHT</p>
+        <h1>導入與使用分析</h1>
+        <p>專案什麼時候進來的，使用者實際又在看哪幾套。</p>
+        <nav aria-label="管理功能">
+          <a href="./admin.html">專案目錄</a>
+          <button class="active" type="button">導入與使用</button>
+          <a href="./project-expert.html">品質檢查</a>
+        </nav>
+        <div class="sidebar-note">
+          <b>不記錄 IP</b>
+          <span>使用統計只保存訪客雜湊，重啟服務後即無法關聯，紀錄檔也不進版控。</span>
+        </div>
+      </aside>
+
+      <section class="admin-content">
+        <header class="page-heading">
+          <div>
+            <p class="eyebrow">IMPORT &amp; USAGE</p>
+            <h2>導入與使用分析</h2>
+            <p id="pageSummary">載入中…</p>
+          </div>
+          <div class="heading-actions">
+            <select id="windowSelect" aria-label="使用統計時間範圍">
+              <option value="1">最近 24 小時</option>
+              <option value="7">最近 7 天</option>
+              <option value="14" selected>最近 14 天</option>
+              <option value="90">最近 90 天</option>
+            </select>
+            <button id="refreshBtn" class="primary" type="button">重新整理</button>
+          </div>
+        </header>
+
+        <div class="insight-grid">
+          <!-- 導入 -->
+          <section class="panel">
+            <h3>專案導入時間軸</h3>
+            <p class="hint" id="importHint"></p>
+            <div id="importChart"></div>
+          </section>
+
+          <div class="split">
+            <section class="panel">
+              <h3>各批次導入</h3>
+              <p class="hint">同一天進來的視為一批，說明取自當時的 commit 訊息。</p>
+              <div class="table-scroll">
+                <table class="data">
+                  <thead><tr><th>日期</th><th class="num">數量</th><th>內容</th></tr></thead>
+                  <tbody id="batchRows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <h3>使用概況</h3>
+              <p class="hint" id="usageHint"></p>
+              <div id="usageBody"></div>
+            </section>
+          </div>
+
+          <!-- 使用 -->
+          <section class="panel" id="usagePanels" hidden>
+            <h3>使用者實際開啟的 Demo</h3>
+            <p class="hint">依瀏覽次數排序；「不重複訪客」以雜湊計算，同一台機器多次開啟只算一人。</p>
+            <div class="table-scroll">
+              <table class="data">
+                <thead><tr><th>Demo</th><th class="num">瀏覽</th><th class="num">不重複訪客</th><th>最後開啟</th></tr></thead>
+                <tbody id="topDemoRows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- 專案清單 -->
+          <section class="panel">
+            <h3>專案導入明細</h3>
+            <p class="hint">1011 個專案的導入時間、上架時間與被開啟次數。</p>
+            <div class="toolbar">
+              <input id="search" type="search" placeholder="搜尋名稱、repo、分類…" />
+              <select id="batchFilter" aria-label="批次篩選"><option value="">全部批次</option></select>
+              <select id="sortBy" aria-label="排序">
+                <option value="importedAt">依導入時間（新到舊）</option>
+                <option value="views">依瀏覽次數</option>
+                <option value="title">依名稱</option>
+              </select>
+            </div>
+            <div class="table-scroll">
+              <table class="data">
+                <thead><tr><th>專案</th><th>分類</th><th>導入時間</th><th>上架時間</th><th class="num">瀏覽</th></tr></thead>
+                <tbody id="projectRows"></tbody>
+              </table>
+            </div>
+            <p class="hint" id="listSummary" style="margin-top:12px"></p>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script src="./admin-insight.js"></script>
+  </body>
+</html>
