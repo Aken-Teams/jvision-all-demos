@@ -14,7 +14,7 @@ const ROOT = path.resolve(import.meta.dirname, "..", "..");
 const BASE = `http://127.0.0.1:${PORT}/demos/`;
 
 const browser = await chromium.launch();
-const context = await browser.newContext();
+const context = await browser.newContext({ viewport: { width: 1360, height: 900 } });
 let allOk = true;
 
 for (const repo of repos) {
@@ -42,10 +42,13 @@ for (const repo of repos) {
     signatures.add(await page.evaluate(() => (document.body.innerText || "").replace(/\s+/g, "").slice(0, 3000)));
   }
 
-  /* 圖表與溢出都必須逐畫面量測。
+  /* 圖表逐畫面量測（只在最後一個畫面量會漏報）。
      只在最後一個 stage 量會漏報：ApexCharts 畫的是 SVG，隱藏畫面上的
      SVG getBoundingClientRect().width 為 0 會被濾掉，而 Chart.js／ECharts
      用 canvas、點陣圖在隱藏後仍在，於是同樣的 demo 會因圖表庫不同而結果相反。 */
+  /* 不要在量之前等 animation frame：實測加了兩個 rAF 之後，同一頁的
+     canvas 每次都量成 0（不加是 1）。headless 下等 frame 反而讓量測落在
+     ECharts 清畫布、還沒重畫完的那一刻。 */
   const measure = () => page.evaluate(() => {
     const vis = (el) => el.getBoundingClientRect().width > 40;
     let painted = 0;
@@ -63,20 +66,52 @@ for (const repo of repos) {
     return painted;
   });
 
+  /* 單次取樣不可靠：多數 demo 是切到該畫面才建圖表，260ms 內有沒有畫完
+     並不確定，同一個 demo 連跑三次會得到 charts=6 或 charts=0 兩種結果
+     （實測可重現）。改成輪詢，量到就停，量不到才花滿 1.2 秒確認是真的空白。 */
+  const measureStable = async () => {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const n = await measure();
+      if (n > 0) return n;
+      await page.waitForTimeout(150);
+    }
+    return 0;
+  };
+
   const screenCount = Math.max(stages.length, 6);
+
+  /* 圖表要在任何 setViewportSize 之前量完。改變視窗大小會讓 ECharts 清掉
+     並重畫 canvas，量測落在清掉、還沒畫回來的空檔，同一個 demo 連跑三次
+     只有一次量得到（實測）。所以先在固定視窗下把六個畫面的圖表量完，
+     再另跑一輪只量溢出。 */
   let chartPixels = 0;
+  for (let v = 0; v < screenCount; v += 1) {
+    await page.evaluate((n) => { location.hash = `#go=${n}`; }, v);
+    await page.waitForTimeout(260);
+    chartPixels += await measureStable();
+  }
+
+  /* 每個寬度都重新開一個分頁載入，不用 setViewportSize 把 1360 縮到 390。
+     縮視窗會留下以載入寬度算出來的東西——最明顯的是 ECharts 的 canvas，
+     它在 1360 建好之後不會自己縮，於是報出手機根本不會發生的溢出
+     （實測 56 個「溢出」裡有 45 個是這樣來的假陽性）。真實手機使用者是
+     直接以 390 載入，所以要照那個情境量。 */
   const overflow = [];
   for (const width of [1360, 768, 390]) {
-    await page.setViewportSize({ width, height: 900 });
+    const wp = width === 1360 ? page : await context.newPage();
+    if (wp !== page) {
+      await wp.setViewportSize({ width, height: 900 });
+      await wp.goto(`${BASE}${repo}/`, { waitUntil: "domcontentloaded", timeout: 40000 });
+    }
     let worst = 0;
     for (let v = 0; v < screenCount; v += 1) {
-      await page.evaluate((n) => { location.hash = `#go=${n}`; }, v);
-      await page.waitForTimeout(260);
-      if (width === 1360) chartPixels += await measure();
-      const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      await wp.evaluate((n) => { location.hash = `#go=${n}`; }, v);
+      await wp.waitForTimeout(260);
+      const over = await wp.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       if (over > worst) worst = over;
     }
     if (worst > 2) overflow.push(`${width}px:+${worst}`);
+    if (wp !== page) await wp.close();
   }
 
   const distinctOk = stages.length > 0 && signatures.size === stages.length;

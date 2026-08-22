@@ -59,9 +59,12 @@ const SCAN = () => {
     return "body " + parts.join(" > ");
   };
   /* 已經被某個捲動／裁切祖先包住的元素不算數：它再寬也不會把文件撐開，
-     對它下規則只是白費，還會擠掉真正該修的目標。 */
+     對它下規則只是白費，還會擠掉真正該修的目標。
+     但 body／html 上的 overflow-x:hidden 不算數 —— 那不是解法而是遮蓋，
+     內容既看不到也捲不到（實測有 demo 自己這樣寫，導致掃描找不到任何
+     目標，修正器完全使不上力）。 */
   const clipped = (el) => {
-    for (let a = el.parentElement; a && a !== document.documentElement; a = a.parentElement) {
+    for (let a = el.parentElement; a && a !== document.body && a !== document.documentElement; a = a.parentElement) {
       const ox = getComputedStyle(a).overflowX;
       if (ox === "auto" || ox === "scroll" || ox === "hidden") return true;
     }
@@ -87,6 +90,11 @@ const SCAN = () => {
   }
   return out;
 };
+
+/* 最後一招：文件仍會橫向捲，但已經沒有可修的版面元素——撐開它的東西
+   在捲動容器裡，或由 JS 在執行期算出。收掉多餘的捲動範圍即可，
+   內容本身不會被遮住。 */
+const LAST_RESORT = "@media (max-width:900px){\n  html,body{overflow-x:hidden;}\n}\n";
 
 const RULE = {
   grid: "grid-template-columns:minmax(0,1fr);",
@@ -158,10 +166,19 @@ async function worker() {
            不會遮住任何內容。 */
         const add = last.hits.length
           ? buildCss(last.hits, round > 1)
-          : "@media (max-width:900px){\n  html,body{overflow-x:hidden;}\n}\n";
+          : LAST_RESORT;
         if (!add || css.includes(add)) break;
         css += add;
         await page.addStyleTag({ content: add });
+        last = await measure(page);
+      }
+
+      /* 針對性規則全試完仍在溢出時，才用最後一招。原本只有「一開始就找不到
+         過寬元素」才會走到這裡，於是那種「找得到元素、但修了沒用」的案例
+         永遠等不到 fallback，只能記成無效（實測 10 個頑固案例都是這樣）。 */
+      if (last.worst > 2 && !css.includes(LAST_RESORT)) {
+        css += LAST_RESORT;
+        await page.addStyleTag({ content: LAST_RESORT });
         last = await measure(page);
       }
 
