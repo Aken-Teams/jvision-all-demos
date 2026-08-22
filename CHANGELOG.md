@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-22 — Catalog expansion to 1011 systems
+
+- Imported the `jvision-expansion` pack (75 systems, ids 3001–3075), taking the catalog from 463 to 538.
+- Added a two-agent toolchain: `topic-scout` finds non-duplicate topics behind five dedup gates, `demo-forge` builds each Demo through the codex CLI, and `demo-publish` remains the single entry point for writing `projects-index.json`.
+- Built 473 new Demos (all 473 succeeded; 4 initial inline-script syntax failures were rebuilt) and published them, taking the catalog from 538 to 1011.
+- Browser-verified all 473: screen distinctness passed 473/473; 250 failed on layout, of which 229 involved horizontal overflow (390px 222, 768px 80, 1360px 5).
+- Fixed the verifier, which measured charts and overflow only on the last screen. ApexCharts draws SVG that is zero-width while hidden, whereas Chart.js and ECharts keep their canvas bitmaps, so identical Demos scored differently by chart library alone.
+- Repaired mobile overflow in 184 Demos with a measurement-driven fixer that emits CSS only for the elements that actually overflow.
+- Added `admin-insight.html` for project import timing and visitor usage, plus `./progress` for pipeline progress.
+
+
 ## 2026-08-06
 
 - Fixed the WCS and ICT Test Data Management Hub snapshots so their stylesheet links load normally instead of rendering as plain text.

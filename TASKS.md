@@ -1,8 +1,12 @@
 # JVision All Demos — Task Queue
 
-Last updated: 2026-07-30
+Last updated: 2026-08-22
 
 ## Now
+
+- [ ] Repair the remaining 201 published Demos that overflow horizontally at 390px (`node tools/fix-demo-overflow.mjs --from-log=docs/_state/verify-all.log`), then re-verify.
+- [ ] Investigate the 19 Demos whose charts render no pixels and the 2 with console errors.
+- [ ] Open a delivery PR for `feat/import-expansion-75`; nothing has been pushed yet.
 
 - [x] Repair the WCS and ICT Test Data Management snapshots whose malformed description metadata prevented Demo stylesheets from loading.
 

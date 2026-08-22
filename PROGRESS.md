@@ -1,10 +1,10 @@
 # JVision All Demos — Progress
 
-Last updated: 2026-07-30
+Last updated: 2026-08-22
 
 ## Current state
 
-- **Catalog:** 463 projects are represented in `projects-index.json` and the Hub.
+- **Catalog:** 1011 projects are represented in `projects-index.json` and the Hub (463 original, 75 from the expansion pack, 473 newly generated).
 - **Single-domain access:** Demo links use `/demos/<repo>/`; the Hub does not direct visitors to the old per-project Vercel URLs.
 - **Homepage:** Reworked into the JV Demo search interface with live suggestions, business-category filtering, sorting, chips and sharable URL state.
 - **Classification:** All projects use one primary business category; combined labels such as education/care were split into distinct education and healthcare categories. Public cards no longer show implementation frameworks.
@@ -83,3 +83,11 @@ Last updated: 2026-07-30
 - Final report: `docs/E2E_ALL_DEMOS_REPORT.md` (463 passed, 0 failed). The 52 known recoverable React #418 hydration warnings remain compatibility warnings.
 
 Review the refreshed catalog and representative domain workflows in a normal browser session before opening a delivery PR.
+
+## 2026-08-22 — 473 generated Demos and the generation toolchain
+
+- The catalog now holds 1011 systems. `tools/topic-scout.mjs` sources non-duplicate topics, `tools/demo-forge.mjs` builds each Demo through the codex CLI, and `tools/demo-publish.mjs` stays the only writer of `projects-index.json`.
+- All 473 new Demos build and pass the static gate. Screen distinctness passed 473/473 in the browser — every Demo really does have six different screens.
+- Known gap: 201 of the published Demos still overflow horizontally at 390px and 19 render blank charts. Desktop is unaffected. `tools/fix-demo-overflow.mjs` repairs these by measurement; 184 are already fixed.
+- `admin-insight.html` reports when each project was imported and which Demos visitors actually open. Usage is recorded by the `npm run dev` gateway and stores only a salted visitor hash, never an IP.
+- Run `./progress` at any time for pipeline state; it reads committed artifacts, so it works even when nothing is running.
