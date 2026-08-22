@@ -84,6 +84,28 @@ export function loadClassifier() {
  * 各 systemType 的既有專案數，由少到多排序。
  * 注意 classify() 吃「整個 project 物件」，不是分開的字串。
  */
+/**
+ * 依產業分類統計覆蓋率。
+ *
+ * 與 coverageByType 的差別很關鍵：systemType 是「技術骨架」（表單、看板、
+ * 稽核流程），category 才是「買方在哪個產業」。只看 systemType 算缺口，
+ * 會把題目全部灌進同一個產業——實測 473 套新題有 141 套落在資訊科技，
+ * 而餐飲旅宿、房地產這些終端產業一套都沒增加。
+ */
+export function coverageByCategory(projects) {
+  const counts = new Map();
+  const titles = new Map();
+  for (const project of projects) {
+    const key = project.category || "未分類";
+    counts.set(key, (counts.get(key) || 0) + 1);
+    if (!titles.has(key)) titles.set(key, []);
+    titles.get(key).push(project.title);
+  }
+  return [...counts.entries()]
+    .map(([category, count]) => ({ category, count, titles: titles.get(category) }))
+    .sort((a, b) => a.count - b.count);
+}
+
 export function coverageByType(projects, JV) {
   const counts = Object.fromEntries(Object.keys(JV.TYPES).map((t) => [t, 0]));
   const titles = Object.fromEntries(Object.keys(JV.TYPES).map((t) => [t, []]));

@@ -14,7 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   ROOT, EXIT, CANDIDATES_PATH, parseArgs, num, list, makeLogger,
-  loadCatalog, loadClassifier, coverageByType, writeJson, SLUG_RE, existingRepoDirs,
+  loadCatalog, loadClassifier, coverageByType, coverageByCategory, writeJson, SLUG_RE, existingRepoDirs,
 } from "./lib/forge-common.mjs";
 import { runCodexWithRetry } from "./lib/codex-run.mjs";
 import { buildExistingIndex, screenCandidates } from "./lib/topic-similarity.mjs";
@@ -47,27 +47,70 @@ const quota = weights.map((r) => ({
   quota: Math.max(1, Math.round((r.weight / totalWeight) * POOL)),
 }));
 
+/* ── 產業缺口（配額的實際依據）─────────────────────────────
+   只用 systemType 算缺口的後果實測過一次：473 套新題有 141 套落在
+   資訊科技，而餐飲旅宿、零售電商、醫療照護、營建工程、金融保險、
+   房地產這些終端產業「一套都沒增加」。因為 systemType 只描述技術骨架，
+   同一個「稽核流程」骨架可以套在任何產業，模型自然挑它最熟的 IT 題目。
+
+   MARKET_WEIGHT 是台灣中小企業的家數密度與 IT 採購意願的粗略估計，
+   用來算「這個產業應該佔目錄的幾成」。權重 0 代表不再增題。 */
+const MARKET_WEIGHT = {
+  生產製造: 10, 業務銷售: 9, 零售電商: 9, 餐飲旅宿: 8, 專業服務: 8,
+  營建工程: 8, 採購供應鏈: 7, 人力資源: 7, 財務會計: 7, 醫療照護: 7,
+  倉儲物流: 6, 物流運輸: 6, 交通運輸: 6, 教育: 6, 金融保險: 6,
+  客服管理: 6, 房地產與物業: 6, 品質管理: 5, 設備維護: 5, 生活服務: 5,
+  企業協作: 4, 經營管理: 4, 研發管理: 4, 數據分析: 3, 資訊安全: 3,
+  "ESG 永續": 3, 資訊科技: 2, 宗教服務: 2,
+  // 已有 87 套且買方稀少（企業內部 AI 平台團隊），不再增題
+  "AI 工程平台": 0,
+};
+
+const catCoverage = coverageByCategory(catalog.projects);
+const weightSum = Object.values(MARKET_WEIGHT).reduce((a, b) => a + b, 0);
+const catRows = Object.entries(MARKET_WEIGHT).map(([category, w]) => {
+  const have = catCoverage.find((r) => r.category === category)?.count || 0;
+  // 依市場權重換算「應有的套數」，不足的部分才是真缺口
+  const target = Math.round((w / weightSum) * catalog.projects.length);
+  return { category, have, target, deficit: Math.max(0, target - have), weight: w };
+}).sort((a, b) => b.deficit - a.deficit);
+
+const deficitSum = catRows.reduce((sum, r) => sum + r.deficit, 0) || 1;
+const catQuota = catRows
+  .filter((r) => r.deficit > 0)
+  .map((r) => ({ ...r, quota: Math.max(1, Math.round((r.deficit / deficitSum) * POOL)) }));
+
 log.step(`既有專案 ${catalog.projects.length} 筆，${rows.length} 種系統類型，中位數 ${median} 筆`);
-log.info("  缺口由大到小（前 10）：");
-for (const r of quota.slice(0, 10)) {
-  log.info(`   ${String(r.count).padStart(3)} 筆  ${r.type.padEnd(20)} ${r.label}  → 配額 ${r.quota}`);
+log.info("  產業缺口由大到小（前 10）：");
+for (const r of catQuota.slice(0, 10)) {
+  log.info(`   ${r.category.padEnd(12)} 現有 ${String(r.have).padStart(3)}　應有 ${String(r.target).padStart(3)}　缺 ${String(r.deficit).padStart(3)}  → 配額 ${r.quota}`);
 }
 
 if (args["gap-only"]) {
-  console.log(JSON.stringify({ total: catalog.projects.length, median, coverage: rows.map(({ type, count, label }) => ({ type, count, label })) }, null, 2));
+  console.log(JSON.stringify({
+    total: catalog.projects.length,
+    byCategory: catRows,
+    bySystemType: rows.map(({ type, count, label }) => ({ type, count, label })),
+  }, null, 2));
   process.exit(EXIT.OK);
 }
 
 /* ── 2. 組 prompt ────────────────────────────────────────── */
 function buildPrompt(round, negatives) {
-  const coverageBlock = quota.map((r) =>
-    `${r.type}（${r.label}｜已有 ${r.count} 題${r.count <= median ? "・缺口" : ""}）：${r.titles.join("、") || "（無）"}`
-  ).join("\n");
+  /* 只餵缺口產業的既有標題。全部 1011 個標題會把 context 撐爆，而且
+     模型看到滿滿的 IT 題目就會繼續往那邊靠——這正是上一批全部灌進
+     資訊科技的原因之一。 */
+  const coverageBlock = catQuota.map((r) => {
+    const have = catCoverage.find((c) => c.category === r.category)?.titles || [];
+    return `${r.category}（已有 ${r.have} 題，應有 ${r.target} 題・缺 ${r.deficit}）：${have.join("、") || "（無）"}`;
+  }).join("\n");
 
-  const quotaBlock = quota
-    .filter((r) => r.count <= median)
-    .map((r) => `- ${r.type}：${r.quota} 題`)
-    .join("\n");
+  const quotaBlock = catQuota.map((r) => `- ${r.category}：${r.quota} 題`).join("\n");
+
+  const saturatedBlock = catRows
+    .filter((r) => r.deficit === 0)
+    .map((r) => `${r.category}（${r.have}）`)
+    .join("、");
 
   const negativeBlock = negatives.length
     ? `\n## 上一輪被判定重複的題目（請避開這些方向）\n${negatives.map((n) => `- ${n.title}（撞到「${n.matchedTitle}」，相似度 ${n.score}）`).join("\n")}\n`
@@ -79,14 +122,20 @@ function buildPrompt(round, negatives) {
 每個題目會做成一個「純 UI 展示」的單頁系統 demo：繁體中文、6 個可切換的操作畫面、擬真假資料、無後端。
 客群是台灣的中小企業與工廠，題目必須是**企業內部真的會採購導入的系統**。
 
-## 目前已有 ${catalog.projects.length} 個題目，依系統類型分布如下
+## 缺題的產業，以及該產業已有的題目（請避開這些，並補足同產業其他場景）
 ${coverageBlock}
 
-## 這次要出 ${POOL} 題，配額集中在缺口類型
+## 這次要出 ${POOL} 題，**只出以下產業**，配額如下
 ${quotaBlock}
+
+## 以下產業已經飽和，這次一題都不要出
+${saturatedBlock}
 ${negativeBlock}
 ## 好題目的硬性條件
 1. **不可以是既有題目的換句話說**。每題都要在 differentiator 說明「跟哪一個既有題目最像、差在哪」。
+1-1. **category 必須是上面配額表裡的產業之一**，不可自創、不可寫飽和產業。
+1-2. 題目要貼著該產業的真實作業場景（例如餐飲要講排班、備料、訂位、外送抽成，
+     而不是把一套通用的「稽核流程」換個名字掛到餐飲底下）。
 2. 必須是企業會付錢買的內部系統，不是消費者 App、不是純資訊網站。
 3. 不可依賴真實後端、硬體或即時裝置才成立（demo 是純 UI）。
 4. 必須能自然拆成 **6 個彼此不同的操作畫面**，而不是同一個畫面換資料。
