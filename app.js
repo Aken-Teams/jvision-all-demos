@@ -34,6 +34,11 @@ const sourceLabels = {
   "ai-case": "AI 產業案例",
   "smart-manufacturing": "智慧製造系統",
   "jv-integrated": "JV 整合專案",
+  "hr-expansion": "人資擴充系統",
+  "wh-expansion": "倉儲物流擴充系統",
+  "rd-expansion": "研發管理擴充系統",
+  "mg-expansion": "經營管理擴充系統",
+  "sg-expansion": "ESG 永續擴充系統",
 };
 
 function normalize(value) {
