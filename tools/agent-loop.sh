@@ -39,6 +39,32 @@ say() { printf '\n\033[1m═══ %s\033[0m  %s\n' "$1" "$(date '+%m-%d %H:%M:%
 # 每個階段都寫進後台的動作紀錄。後台要的是「站上發生了什麼」，
 # 而 agent 是站上動作的最大來源——只記在 log 檔的話，後台看不到它。
 act() { node tools/action-log.mjs Agent "$@" >/dev/null 2>&1 || true; }
+
+# 把剛上架的那一套提交起來。沒有 commit 的話，PR 裡什麼都看不到，
+# 而且工作區會累積上千個未追蹤檔，任何 git 操作都變得難以判讀。
+#
+# 用 git commit --only 而不是先 git add 再 git commit：後者會把使用者原本
+# 就 staged 的檔案一起掃進來（實測發生過三次，每次都要事後從 blob 還原）。
+# --only 會用 HEAD 加上指定路徑另外組一份索引，其餘 staged 內容原封不動。
+commit_demo() {
+  local repo="$1" title="$2" after="$3"
+  local branch; branch=$(git rev-parse --abbrev-ref HEAD)
+  if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
+    echo "  ⚠ 目前在 $branch，依規定不直接提交"; return 0
+  fi
+  local paths=("demos/$repo" "content/details/$repo.json" projects-index.json
+               docs/DEMO_FORGE_MANIFEST.json content/import-timeline.json
+               index.html catalog.html agents.html)
+  local exist=()
+  for p in "${paths[@]}"; do [ -e "$p" ] && exist+=("$p"); done
+  [ ${#exist[@]} -eq 0 ] && return 0
+  git add -- "${exist[@]}" >/dev/null 2>&1
+  if git commit --only -q -m "新增《$title》（$repo），站上 $after 套" -- "${exist[@]}" >/dev/null 2>&1; then
+    act "已提交" "$repo" 200 "$(git rev-parse --short HEAD)"
+  else
+    echo "  ⚠ 提交失敗或無變更"
+  fi
+}
 count_site() { node -e 'console.log(require("./projects-index.json").projects.length)'; }
 queue_len() { node -e 'try{console.log((require("./'"$QUEUE"'").accepted||[]).length)}catch{console.log(0)}'; }
 
@@ -65,6 +91,17 @@ bump_today() {
 rest_until_tomorrow() {
   say "今天的 $DAILY 套已完成，休息到明天（每 5 分鐘檢查一次停止訊號）"
   act "今日額度完成" "" 200 "$DAILY 套"
+
+  # 一天推一次、更新同一個 PR。每上架一套就推一次太吵，而且 PR 內文是依
+  # 當下狀態重算的，一天更新一次就足以反映當天的全部產出。
+  if node tools/open-pr.mjs >> "$STATE/agent-pr.log" 2>&1; then
+    act "已更新 PR" "" 200 "$(tail -1 "$STATE/agent-pr.log")"
+    say "PR 已更新：$(tail -1 "$STATE/agent-pr.log")"
+  else
+    act "PR 更新失敗" "" 500 "$(tail -1 "$STATE/agent-pr.log")"
+    say "PR 未更新（見 $STATE/agent-pr.log）"
+    tail -6 "$STATE/agent-pr.log"
+  fi
   local start; start=$(today)
   while [ "$(today)" = "$start" ]; do
     [ -f "$STOP" ] && return 1
@@ -176,6 +213,7 @@ fs.appendFileSync("'"$CYCLES"'",JSON.stringify({cycle:Number(n),tag:repo,title,c
   at:new Date().toISOString(),before:Number(before),after:Number(after),
   added:Number(after)-Number(before)})+"\n");' "$made" "$REPO" "$TITLE" "$CAT" "$BEFORE" "$AFTER"
   act "上架" "$REPO" 200 "《$TITLE》　站上 $AFTER 套　今日 $(made_today)/$DAILY"
+  commit_demo "$REPO" "$TITLE" "$AFTER"
   say "《$TITLE》完成並上架　站上 $AFTER 套　今日 $(made_today)/$DAILY　本次啟動共 $made 套"
 done
 
