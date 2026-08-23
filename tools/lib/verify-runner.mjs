@@ -7,23 +7,33 @@
 import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
+import * as staticServer from "./static-server.mjs";
 
 const [, , portArg, ...repos] = process.argv;
 const PORT = Number(portArg) || 4599;
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
 const BASE = `http://127.0.0.1:${PORT}/demos/`;
 
+/* 這支工具原本假設 port 上已經有人起了站，連不上就整個拋例外中止。實際上
+   呼叫它的產線（run-batch.sh、agent-loop.sh）都沒有起站，靠的是環境裡剛好
+   有一個別處留下的站；那個程序一沒了，每一套都會被記成「驗收未過」——工具
+   崩潰被讀成 demo 有問題（實測連續 20 套全被誤判，其實全部乾淨通過）。
+   改成自己確保站台存在，已經有人在聽就沿用（start() 內建 probe）。 */
+const server = await staticServer.start({ root: ROOT, port: PORT });
+
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1360, height: 900 } });
 let allOk = true;
 
 for (const repo of repos) {
+ let page = null;
+ try {
   const detailPath = path.join(ROOT, "content", "details", `${repo}.json`);
   const stages = fs.existsSync(detailPath)
     ? (JSON.parse(fs.readFileSync(detailPath, "utf8")).flow?.stages || []).map((s) => s.demo)
     : [];
 
-  const page = await context.newPage();
+  page = await context.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text().slice(0, 100)); });
   page.on("pageerror", (e) => errors.push(String(e).slice(0, 100)));
@@ -120,8 +130,16 @@ for (const repo of repos) {
 
   console.log(`${ok ? "OK " : "XX "}${repo.padEnd(44)} stages=${stages.length} distinct=${signatures.size} firstPaint=${firstPaint ? "y" : "n"} charts=${chartPixels} overflow=${overflow.join(",") || "none"} err=${errors.length}`);
   if (errors.length) errors.slice(0, 2).forEach((e) => console.log(`      ${e}`));
-  await page.close();
+ } catch (error) {
+  /* 單一 demo 讓驗收器出錯時不要把整批拖垮：記成該套未過，其餘照跑。
+     原本一個例外會終止整個行程，後面幾百套完全沒被驗到。 */
+  allOk = false;
+  console.log(`XX ${repo.padEnd(44)} 驗收器錯誤：${String(error.message).split("\n")[0].slice(0, 90)}`);
+ } finally {
+  if (page) await page.close().catch(() => {});
+ }
 }
 
 await browser.close();
+await server.close();
 process.exit(allOk ? 0 : 1);

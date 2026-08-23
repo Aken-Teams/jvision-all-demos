@@ -106,9 +106,16 @@ function buildPrompt(round, negatives) {
   /* 只餵缺口產業的既有標題。全部 1011 個標題會把 context 撐爆，而且
      模型看到滿滿的 IT 題目就會繼續往那邊靠——這正是上一批全部灌進
      資訊科技的原因之一。 */
+  /* 每個產業最多列 20 個標題。站上內容一多，這段會無上限成長——實測站上
+     從 1011 長到 1311 時 prompt 由 8.8KB 漲到 17.5KB，codex 的結構化輸出
+     連續六輪逾時，出題整個停擺。去重本來就在腳本端做，這裡只需要讓模型
+     知道「這個產業大致已經有哪些東西」。 */
+  const TITLE_CAP = 20;
   const coverageBlock = catQuota.map((r) => {
     const have = catCoverage.find((c) => c.category === r.category)?.titles || [];
-    return `${r.category}（已有 ${r.have} 題，應有 ${r.target} 題・缺 ${r.deficit}）：${have.join("、") || "（無）"}`;
+    const shown = have.slice(-TITLE_CAP);
+    const more = have.length > TITLE_CAP ? `⋯等 ${have.length} 題` : "";
+    return `${r.category}（已有 ${r.have} 題，應有 ${r.target} 題・缺 ${r.deficit}）：${shown.join("、") || "（無）"}${more}`;
   }).join("\n");
 
   const quotaBlock = catQuota.map((r) => `- ${r.category}：${r.quota} 題`).join("\n");
@@ -156,7 +163,31 @@ ${negativeBlock}
 }
 
 /* ── 3. 呼叫 codex + 去重 ────────────────────────────────── */
-const existingIndex = buildExistingIndex(catalog.projects, (p) => JV.classify(p));
+/* 去重池不能只有已上架的專案。已經建好、還沒上架的 demo 對標題與全文比對
+   完全隱形（G1 只比得到 repoName），於是出題會反覆撞上自己昨天做過的東西
+   ——實測佇列裡出現「旅宿早餐產能調度台」，而 demos/ 裡早就躺著同一套。
+   把它們的 details JSON 一併讀進來補上標題與描述。 */
+function unpublishedProjects() {
+  const published = new Set(catalog.projects.map((p) => p.repoName));
+  const out = [];
+  for (const repo of dirs) {
+    if (published.has(repo)) continue;
+    const detail = path.join(ROOT, "content", "details", repo + ".json");
+    if (!fs.existsSync(detail)) continue;
+    try {
+      const d = JSON.parse(fs.readFileSync(detail, "utf8"));
+      if (d.title) out.push({ repoName: repo, title: d.title, description: d.hero?.tagline || "", category: d.category, systemType: d.systemType });
+    } catch { /* 壞掉的 details 不影響出題 */ }
+  }
+  return out;
+}
+
+const drafts = unpublishedProjects();
+if (drafts.length) log.info("去重池另納入 " + drafts.length + " 套已建置未上架的 demo");
+const existingIndex = buildExistingIndex(
+  [...catalog.projects, ...drafts],
+  (p) => (p.systemType && JV.TYPES[p.systemType] ? p.systemType : JV.classify(p)),
+);
 const accepted = [];
 const rejected = [];
 let generated = 0;
@@ -190,7 +221,7 @@ for (let round = 1; round <= ROUNDS && accepted.length < COUNT; round += 1) {
     cwd: ROOT,
     sandbox: "read-only",
     schemaPath: SCHEMA,
-    timeoutMs: num(args.timeout, 300) * 1000,
+    timeoutMs: num(args.timeout, 900) * 1000,
     model: args.model,
     onLog: () => process.stderr.write("."),
   }, { retries: 2 });

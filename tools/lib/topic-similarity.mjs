@@ -23,6 +23,10 @@ export const THRESHOLDS = {
   // 同批 LLM 產出天然互相回聲，門檻必須比對外部更低才擋得住。
   batchTitle: 0.55,
   batchFull: 0.35,
+  /* G6：同 category 內的標題門檻，沿用上面同一組校準——無關配對標題最高
+     0.500、≥0.55 為零，而實測抓到的真重複「旅宿早餐產能調度台 ⇄ 規劃台」
+     是 0.57。0.55 正好落在乾淨的分界上。 */
+  sameCategoryTitle: 0.55,
 };
 
 /** 模板噪音；只剝固定短語，不剝「管理」「系統」這類語意字。 */
@@ -78,6 +82,7 @@ export function buildExistingIndex(projects, classify) {
   return projects.map((project) => ({
     repoName: project.repoName,
     title: project.title,
+    category: project.category,
     systemType: classify(project),
     titleGrams: trigrams(project.title),
     fullGrams: trigrams(`${project.title} ${project.description || ""}`),
@@ -88,6 +93,7 @@ function entryOf(candidate) {
   return {
     repoName: candidate.repoName || `jvision-${candidate.slug || ""}`,
     title: candidate.title,
+    category: candidate.category,
     systemType: candidate.systemType,
     titleGrams: trigrams(candidate.title),
     fullGrams: trigrams(`${candidate.title} ${candidate.description || ""}`),
@@ -120,6 +126,17 @@ export function findNearest(candidate, index, options = {}) {
     const ts = titleScore(candidate.title, entry.title);
     if (ts >= T.title) { consider(entry, ts, "G2"); continue; }
 
+    /* G6：同產業內的標題近似。實測「旅宿早餐產能調度台」與「旅宿早餐產能
+       規劃台」是同一個題目換個動詞，但標題只有 0.57、全文只有 0.30（既有
+       description 是模板產的，剝掉 boilerplate 後反而不像），G2/G3/G4 一道
+       都攔不到。分開看不夠、合起來才夠：同 category 且標題過半重疊就算重複。
+       跨 category 不套用——「手術室周轉協調台」與「旅宿房務周轉協調台」同樣
+       是 0.50，卻是兩個完全不同的產品。 */
+    if (entry.category && me.category && entry.category === me.category && ts >= T.sameCategoryTitle) {
+      consider(entry, ts, "G6");
+      continue;
+    }
+
     // G3 / G4：全文，同型較嚴、跨型較寬
     const fs = containment(me.fullGrams, entry.fullGrams);
     const sameType = entry.systemType === me.systemType;
@@ -151,6 +168,7 @@ const REASONS = {
   G3: "同類型全文重複",
   G4: "跨類型全文重複",
   G5: "與本批次其他候選重複",
+  G6: "同產業內標題近似",
 };
 
 /**

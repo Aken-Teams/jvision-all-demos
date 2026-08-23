@@ -171,8 +171,20 @@ export function diffGuard(before, allowPrefixes) {
   return { trackedViolations, untrackedExtras };
 }
 
+/* 只有 demos/ 與 content/ 底下的檔案會自動還原——那是 codex 唯一可能誤寫的
+   範圍。其餘一律只回報不動手：護欄分不出「codex 越界」與「另一個程序正在
+   正常工作」，實測它在同一小時內還原掉 5 筆已上架紀錄、驗收器的修正，以及
+   這個檔案自己的上一版修正。何況 codex 在本環境是 read-only、根本寫不了檔，
+   這條還原路徑實務上只會誤傷自己人。偵測與中止保留，動手還原收掉。 */
+const RESTORABLE = (file) => file.startsWith("demos/") || file.startsWith("content/");
+
 /** 還原被越界修改的已追蹤檔。 */
 export function gitRestore(files) {
+  files = files.filter((f) => {
+    if (RESTORABLE(f)) return true;
+    console.error("  \u26a0 " + f + " 有異動，但不在自動還原範圍內——只回報，請人工確認");
+    return false;
+  });
   if (!files.length) return;
   try { execFileSync("git", ["checkout", "--", ...files], { cwd: ROOT }); } catch { /* 還原失敗交由上層報錯 */ }
 }

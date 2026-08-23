@@ -45,6 +45,10 @@ function render() {
   for (const e of manifest.entries) byState[e.state] = (byState[e.state] || 0) + 1;
   const totalDemos = manifest.entries.filter((e) => e.state !== "discarded").length;
 
+  /* 持續開發 Agent 的輪次紀錄（有跑才顯示）。 */
+  const cycleFile = path.join(STATE, "agent-cycles.jsonl");
+  const cycles = lines(cycleFile).filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+
   const job = readJson(JOB, null);
   const out = [];
   out.push("");
@@ -68,7 +72,14 @@ function render() {
   const xxCount = results.size - okCount;
   out.push(`  驗收　${String(results.size).padStart(3)} / ${totalDemos}   ${bar(pct(results.size, totalDemos))} ${pct(results.size, totalDemos).toFixed(1)}%`);
   out.push(`  　　　${green("通過 " + okCount)}　${xxCount ? red("未過 " + xxCount) : "未過 0"}　通過率 ${pct(okCount, results.size || 1).toFixed(0)}%`);
-  out.push("");
+  if (cycles.length) {
+    const added = cycles.reduce((sum, c) => sum + c.added, 0);
+    const stopping = fs.existsSync(path.join(STATE, "AGENT_STOP"));
+    out.push(`  ${bold("持續開發 Agent")}　已跑 ${cycles.length} 輪，累計新增 ${added} 套` +
+      (stopping ? dim("（已送出停止訊號，本輪結束後停下）") : ""));
+    out.push("  " + dim(cycles.slice(-3).map((c) => `#${c.cycle} +${c.added}`).join("　")));
+    out.push("");
+  }
 
   /* ── 目前這輪 ── */
   if (!job) { out.push("  目前沒有進行中的工作。"); return out.join("\n"); }
