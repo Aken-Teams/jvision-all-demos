@@ -104,6 +104,17 @@ rest_until_tomorrow() {
     grep -A 12 '空白或載入失敗 ──' "$STATE/agent-preview.log" | tail -12
   fi
 
+  # 順便掃一次全站的 console 錯誤。一套不到一秒，1337 套約兩分鐘。
+  # 這比逐套跑完整驗收便宜太多，而且抓得到「共用檔案改動後才壞掉」的情況
+  # ——原本那 538 套舊 demo 就有兩套帶著 ReferenceError 上架了很久沒人發現。
+  if node tools/scan-console-errors.mjs >> "$STATE/agent-console.log" 2>&1; then
+    act "console 全站檢查" "" 200 "無錯誤"
+  else
+    act "console 檢查發現錯誤" "" 500 "$(grep -E '有錯誤' "$STATE/agent-console.log" | tail -1 | tr -s ' ')"
+    say "⚠ 有 demo 會噴 console 錯誤（見 $STATE/agent-console.log）"
+    grep -A 8 '出錯的 demo ──' "$STATE/agent-console.log" | tail -8
+  fi
+
   # 一天推一次、更新同一個 PR。每上架一套就推一次太吵，而且 PR 內文是依
   # 當下狀態重算的，一天更新一次就足以反映當天的全部產出。
   if node tools/open-pr.mjs >> "$STATE/agent-pr.log" 2>&1; then
