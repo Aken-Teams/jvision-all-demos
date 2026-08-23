@@ -75,10 +75,16 @@ const catRows = Object.entries(MARKET_WEIGHT).map(([category, w]) => {
   return { category, have, target, deficit: Math.max(0, target - have), weight: w };
 }).sort((a, b) => b.deficit - a.deficit);
 
-const deficitSum = catRows.reduce((sum, r) => sum + r.deficit, 0) || 1;
-const catQuota = catRows
-  .filter((r) => r.deficit > 0)
-  .map((r) => ({ ...r, quota: Math.max(1, Math.round((r.deficit / deficitSum) * POOL)) }));
+/* 用最大餘額法分配，讓各產業配額「精確加總等於 POOL」。
+   逐項 Math.round 會湊不齊——實測配額合計 199、prompt 卻說要出 200 題，
+   模型把這個矛盾當成阻斷條件，整輪不出題只回一則「請先確認配額」。 */
+const deficitRows = catRows.filter((r) => r.deficit > 0);
+const deficitSum = deficitRows.reduce((sum, r) => sum + r.deficit, 0) || 1;
+const exact = deficitRows.map((r) => ({ ...r, raw: (r.deficit / deficitSum) * POOL }));
+const catQuota = exact.map((r) => ({ ...r, quota: Math.max(1, Math.floor(r.raw)) }));
+let remainder = POOL - catQuota.reduce((sum, r) => sum + r.quota, 0);
+const byFraction = [...catQuota].sort((a, b) => (b.raw - Math.floor(b.raw)) - (a.raw - Math.floor(a.raw)));
+for (let i = 0; remainder > 0; i = (i + 1) % byFraction.length) { byFraction[i].quota += 1; remainder -= 1; }
 
 log.step(`既有專案 ${catalog.projects.length} 筆，${rows.length} 種系統類型，中位數 ${median} 筆`);
 log.info("  產業缺口由大到小（前 10）：");
@@ -125,8 +131,11 @@ function buildPrompt(round, negatives) {
 ## 缺題的產業，以及該產業已有的題目（請避開這些，並補足同產業其他場景）
 ${coverageBlock}
 
-## 這次要出 ${POOL} 題，**只出以下產業**，配額如下
+## 配額表（**只出以下產業**，總數以本表加總為準）
 ${quotaBlock}
+
+配額是分配建議。若加總與你的計算有出入，**以本表逐列的數字為準直接產出**，
+不要為此停下來詢問或改出其他題目。
 
 ## 以下產業已經飽和，這次一題都不要出
 ${saturatedBlock}
@@ -203,7 +212,10 @@ for (let round = 1; round <= ROUNDS && accepted.length < COUNT; round += 1) {
   for (const item of screened.accepted) {
     if (accepted.length >= COUNT) break;
     accepted.push(item);
-    existingIndex.push({ repoName: item.repoName, title: item.title, systemType: item.systemType, grams: buildExistingIndex([item], () => item.systemType)[0].grams });
+    /* 用 buildExistingIndex 產生完整索引項再推回池裡。先前這裡手寫成
+       { ...grams } —— 那是舊版的欄位名，而 findNearest 讀的是 fullGrams，
+       於是第 2 輪一比對就 TypeError，整個出題流程從第 2 輪起必掛。 */
+    existingIndex.push(buildExistingIndex([item], () => item.systemType)[0]);
   }
   rejected.push(...screened.rejected.map((r) => ({ ...r, round })));
   log.info(`  本輪 ${topics.length} 題 → 通過 ${screened.accepted.length}、重複/不合格 ${topics.length - screened.accepted.length}`);

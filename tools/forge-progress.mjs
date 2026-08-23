@@ -76,8 +76,12 @@ function render() {
   const running = alive(job.pid);
   const list = lines(path.join(ROOT, job.listPath)).filter(Boolean);
   const logLines = lines(path.join(ROOT, job.logPath));
+  /* 出題階段不是逐項輸出，只有「已收 N/M」這種累計行；用逐項規則去數會
+     永遠停在 0，而且會把 listPath 裡不相干的名字當成「正在處理」。 */
+  const tally = [...logLines.join("\n").matchAll(/已收\s+(\d+)\s*\/\s*(\d+)/g)].pop();
   const doneNames = logLines.map((l) => (l.match(/^(?:OK|XX|\s+[✓·])\s+(\S+)/) || [])[1]).filter(Boolean);
-  const done = doneNames.length;
+  const done = tally ? Number(tally[1]) : doneNames.length;
+  const itemised = !tally;
   const total = job.total || list.length;
   const elapsed = (Date.now() - job.startedAt) / 1000;
   const rate = done > 0 ? elapsed / done : 0;
@@ -95,13 +99,13 @@ function render() {
   out.push("");
 
   /* ── 正在處理哪些 ── */
-  if (running) {
+  if (running && itemised) {
     const inFlight = list.slice(done, done + (job.concurrency || 1));
     out.push(`    正在處理（並行 ${job.concurrency || 1}）：`);
     for (const r of inFlight) out.push(`      ${cyan("⟳")} ${bold(r)}`);
     out.push(`        ${dim(job.action)}`);
   }
-  const tail = logLines.filter((l) => /^(OK|XX|\s+[✓·])\s+\S/.test(l)).slice(-3);
+  const tail = logLines.filter((l) => /^(OK|XX|\s+[✓·])\s+\S/.test(l) || /本輪\s+\d+\s*題/.test(l)).slice(-3);
   if (tail.length) {
     out.push("");
     out.push("    最近完成：");

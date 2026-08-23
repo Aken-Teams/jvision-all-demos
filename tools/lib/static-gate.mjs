@@ -11,7 +11,11 @@ import path from "node:path";
 import vm from "node:vm";
 import { ROOT, DEMOS_DIR, DETAILS_DIR } from "./forge-common.mjs";
 
-const GLOBAL_CLASH = /\b(?:var|let|const|function)\s+(top|name|location|status|open|close|parent|self|length)\b/;
+/* 只攔「頂層」宣告。函式內的 const parent = el.parentElement 只在該作用域
+   遮蔽 window.parent，完全安全，卻被原本不分作用域的規則攔下三套 demo。
+   以行首無縮排作為頂層的判斷依據——內嵌 script 都是格式化過的程式碼，
+   頂層宣告一律頂格。 */
+const GLOBAL_CLASH = /^(?:var|let|const|function)\s+(top|name|location|status|open|close|parent|self|length)\b/m;
 
 export function staticGate(repoName) {
   const file = path.join(DEMOS_DIR, repoName, "index.html");
