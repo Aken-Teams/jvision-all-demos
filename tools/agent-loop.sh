@@ -92,6 +92,18 @@ rest_until_tomorrow() {
   say "今天的 $DAILY 套已完成，休息到明天（每 5 分鐘檢查一次停止訊號）"
   act "今日額度完成" "" 200 "$DAILY 套"
 
+  # 每天全站掃一次預覽畫面。單套的驗收在建置時就做過了，但共用檔案的變動
+  # 或目錄資料出錯會讓「本來好好的卡片」變空白——那不會報錯，目錄照樣顯示、
+  # 連結照樣能點，只有畫面是空的，不主動查就不會發現。
+  if node tools/check-previews.mjs --render >> "$STATE/agent-preview.log" 2>&1; then
+    act "預覽全站檢查" "" 200 "$(grep -E '畫得出畫面' "$STATE/agent-preview.log" | tail -1 | tr -s ' ')"
+    say "預覽檢查通過：全部專案都有預覽畫面"
+  else
+    act "預覽檢查發現空白卡片" "" 500 "$(tail -1 "$STATE/agent-preview.log")"
+    say "⚠ 有專案看不到預覽畫面（見 $STATE/agent-preview.log）"
+    grep -A 12 '空白或載入失敗 ──' "$STATE/agent-preview.log" | tail -12
+  fi
+
   # 一天推一次、更新同一個 PR。每上架一套就推一次太吵，而且 PR 內文是依
   # 當下狀態重算的，一天更新一次就足以反映當天的全部產出。
   if node tools/open-pr.mjs >> "$STATE/agent-pr.log" 2>&1; then
