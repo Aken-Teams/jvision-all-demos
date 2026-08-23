@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>動作紀錄 · JV Demo 管理後台</title>
+<link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{ --bg:#0f172a; --card:#1e293b; --line:#334155; --ink:#e2e8f0;
+         --muted:#94a3b8; --accent:#38bdf8; --ok:#4ade80; --bad:#f87171; --warn:#fbbf24; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans TC",system-ui,sans-serif;font-size:14px;line-height:1.6}
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+         padding:14px 22px;border-bottom:1px solid var(--line);background:#111c33;
+         position:sticky;top:0;z-index:5}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700}
+  .brand b{background:var(--accent);color:#082f49;padding:3px 8px;border-radius:7px;font-size:13px}
+  nav{display:flex;flex-wrap:wrap;gap:8px}
+  nav a,nav button{padding:6px 12px;border-radius:8px;border:1px solid var(--line);
+       background:transparent;color:var(--ink);font-size:13px;text-decoration:none;
+       font-family:inherit;cursor:pointer}
+  nav a.on{background:var(--accent);color:#082f49;border-color:transparent;font-weight:700}
+  main{padding:22px;max-width:1240px;margin:0 auto}
+  /* 明確給一條軌，不然 grid 會依 max-content 撐開，窄螢幕整頁橫捲 */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:20px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+  .kpi span{display:block;font-size:12.5px;color:var(--muted)}
+  .kpi b{display:block;font-size:26px;margin-top:4px;font-variant-numeric:tabular-nums}
+  .kpi i{font-style:normal;font-size:12px;color:var(--muted)}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+  select,input[type=search]{padding:7px 11px;border-radius:9px;border:1px solid var(--line);
+       background:var(--card);color:var(--ink);font-family:inherit;font-size:13.5px;min-width:0}
+  input[type=search]{flex:1 1 200px}
+  .live{margin-left:auto;font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+  /* 表格自己捲，頁面 body 永遠不橫捲 */
+  .tablewrap{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;min-width:720px}
+  th,td{padding:9px 13px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{font-size:12.5px;color:var(--muted);font-weight:500;position:sticky;top:0;background:#243248}
+  tr:last-child td{border-bottom:0}
+  td.target{white-space:normal;word-break:break-all;max-width:420px}
+  .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;border:1px solid var(--line)}
+  .tag.訪客{color:#93c5fd;border-color:#1e40af}
+  .tag.後台{color:#fbbf24;border-color:#78350f}
+  .tag.Agent{color:#4ade80;border-color:#14532d}
+  .tag.系統{color:#c4b5fd;border-color:#4c1d95}
+  .s2{color:var(--ok)} .s4{color:var(--warn)} .s5{color:var(--bad)}
+  .empty{padding:28px;text-align:center;color:var(--muted)}
+  .muted{color:var(--muted);font-size:12.5px}
+  footer{padding:18px 22px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);margin-top:24px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>JV</b><span>DEMO ADMIN</span></div>
+  <nav>
+    <a class="on" href="./admin-actions.html">動作紀錄</a>
+    <a href="./admin-insight.html">導入與使用</a>
+    <a href="./admin.html">專案目錄</a>
+    <a href="./index.html">展示站</a>
+    <button id="logout" type="button">登出</button>
+  </nav>
+</header>
+
+<main>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="bar">
+    <select id="actor">
+      <option value="">全部來源</option>
+      <option value="訪客">訪客</option>
+      <option value="Agent">Agent</option>
+      <option value="後台">後台</option>
+      <option value="系統">系統</option>
+    </select>
+    <select id="limit">
+      <option value="200">最近 200 筆</option>
+      <option value="500" selected>最近 500 筆</option>
+      <option value="2000">最近 2000 筆</option>
+    </select>
+    <input id="q" type="search" placeholder="篩選動作或對象（例如 demos/、上架、登入）" />
+    <span class="live"><span class="dot"></span><span id="tick">每 10 秒自動更新</span></span>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>時間</th><th>來源</th><th>動作</th><th>對象</th><th>狀態</th><th>耗時</th><th>裝置</th><th>訪客碼</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="8" class="empty">載入中…</td></tr></tbody>
+    </table>
+  </div>
+
+  <footer>
+    紀錄存在 <code>var/actions.jsonl</code>（已 gitignore）。不儲存 IP，訪客碼是「IP + 本次啟動隨機鹽」的雜湊前 8 碼，
+    gateway 重啟後同一台機器會換一組碼。靜態資源（css / js / 圖檔）不記錄，否則真正的動作會被淹沒。
+  </footer>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const pad = (n) => String(n).padStart(2, "0");
+const fmt = (iso) => { const d = new Date(iso);
+  return `${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+
+let timer = null;
+
+async function load() {
+  const params = new URLSearchParams();
+  if ($("#actor").value) params.set("actor", $("#actor").value);
+  params.set("limit", $("#limit").value);
+  const r = await fetch("/api/admin/actions?" + params);
+  if (r.status === 401) { location.href = "/admin-login.html?next=/admin-actions.html"; return; }
+  const data = await r.json();
+  render(data);
+}
+
+function render(data) {
+  const rows = data.rows || [];
+  const q = $("#q").value.trim();
+  const shown = q ? rows.filter((r) =>
+    [r.action, r.target, r.note, r.actor].filter(Boolean).join(" ").includes(q)) : rows;
+
+  const today = new Date().toDateString();
+  const todayRows = rows.filter((r) => new Date(r.at).toDateString() === today);
+  const visitors = new Set(rows.filter((r) => r.actor === "訪客").map((r) => r.visitor));
+  const agent = rows.filter((r) => r.actor === "Agent");
+  const last = agent[0];
+
+  $("#kpis").innerHTML = [
+    ["今日動作", todayRows.length, `讀入最近 ${rows.length} 筆`],
+    ["不重複訪客", visitors.size, "以雜湊碼計算，不存 IP"],
+    ["Agent 事件", agent.length, last ? `最後：${last.action}` : "尚無紀錄"],
+    ["顯示中", shown.length, q ? `篩選「${q}」` : "未篩選"],
+  ].map(([k, v, note]) => `<div class="kpi"><span>${k}</span><b>${v}</b><i>${note}</i></div>`).join("");
+
+  $("#rows").innerHTML = shown.length ? shown.map((r) => {
+    const sc = String(r.status || "")[0];
+    return `<tr>
+      <td class="muted">${fmt(r.at)}</td>
+      <td><span class="tag ${r.actor}">${r.actor || "—"}</span></td>
+      <td>${esc(r.action || "")}</td>
+      <td class="target">${esc(r.target || "")}${r.note ? ` <span class="muted">· ${esc(r.note)}</span>` : ""}</td>
+      <td class="s${sc}">${r.status ?? "—"}</td>
+      <td class="muted">${r.ms != null ? r.ms + " ms" : "—"}</td>
+      <td class="muted">${r.device || "—"}</td>
+      <td class="muted">${r.visitor || "—"}</td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="8" class="empty">沒有符合的紀錄</td></tr>`;
+}
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+$("#actor").onchange = load;
+$("#limit").onchange = load;
+$("#q").oninput = () => load();
+$("#logout").onclick = async () => {
+  await fetch("/api/admin/logout", { method: "POST" });
+  location.href = "/admin-login.html";
+};
+
+load();
+timer = setInterval(load, 10000);
+document.addEventListener("visibilitychange", () => {
+  // 分頁在背景時不要繼續打 API，回到前景再更新一次。
+  if (document.hidden) { clearInterval(timer); timer = null; }
+  else if (!timer) { load(); timer = setInterval(load, 10000); }
+});
+</script>
+</body>
+</html>

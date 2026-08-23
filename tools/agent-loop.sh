@@ -35,6 +35,10 @@ fi
 rm -f "$STOP"
 
 say() { printf '\n\033[1m═══ %s\033[0m  %s\n' "$1" "$(date '+%m-%d %H:%M:%S')"; }
+
+# 每個階段都寫進後台的動作紀錄。後台要的是「站上發生了什麼」，
+# 而 agent 是站上動作的最大來源——只記在 log 檔的話，後台看不到它。
+act() { node tools/action-log.mjs Agent "$@" >/dev/null 2>&1 || true; }
 count_site() { node -e 'console.log(require("./projects-index.json").projects.length)'; }
 queue_len() { node -e 'try{console.log((require("./'"$QUEUE"'").accepted||[]).length)}catch{console.log(0)}'; }
 
@@ -60,6 +64,7 @@ bump_today() {
 # 休息到明天。每 5 分鐘醒來看一次停止訊號，不然叫停之後還要等到半夜才生效。
 rest_until_tomorrow() {
   say "今天的 $DAILY 套已完成，休息到明天（每 5 分鐘檢查一次停止訊號）"
+  act "今日額度完成" "" 200 "$DAILY 套"
   local start; start=$(today)
   while [ "$(today)" = "$start" ]; do
     [ -f "$STOP" ] && return 1
@@ -69,9 +74,11 @@ rest_until_tomorrow() {
   return 0
 }
 
+act "啟動" "" 200 "每日額度 $DAILY 套"
+
 made=0
 while true; do
-  [ -f "$STOP" ] && { say "收到停止訊號，Agent 結束"; rm -f "$STOP"; break; }
+  [ -f "$STOP" ] && { act "停止" "" 200 "收到停止訊號"; say "收到停止訊號，Agent 結束"; rm -f "$STOP"; break; }
 
   # ── 今日額度 ──
   DONE_TODAY=$(made_today)
@@ -83,18 +90,21 @@ while true; do
   # ── 佇列空了就補題（重算缺口 + 圓桌討論）──
   if [ "$(queue_len)" -eq 0 ]; then
     say "佇列空，重算缺口後開圓桌補 $REFILL 題"
+    act "圓桌出題" "缺口補題" "" "目標 $REFILL 題"
     node tools/topic-scout.mjs --count="$REFILL" --rounds=6 --out="$QUEUE" \
       > "$STATE/agent-scout.log" 2>&1
     if [ "$(queue_len)" -eq 0 ]; then
       # 補題失敗不停 agent。出題會因為 codex 逾時、額度、暫時性錯誤而失敗，
       # 那些都是等一下就好的事；為此把整個 agent 停掉，等於每次小故障都要
       # 人工重啟（實測發生過一次，停了四小時沒人發現）。
+      act "出題失敗" "" 500 "10 分鐘後重試"
       say "補題失敗，10 分鐘後重試（見 $STATE/agent-scout.log）"
       tail -6 "$STATE/agent-scout.log"
       for _ in $(seq 1 20); do [ -f "$STOP" ] && break; sleep 30; done
       continue
     fi
     say "已補 $(queue_len) 題"
+    act "出題完成" "" 200 "佇列 $(queue_len) 題"
   fi
 
   # ── 取出第一題 ──
@@ -105,6 +115,7 @@ while true; do
   LOG="$LOGDIR/$REPO.log"
   BEFORE=$(count_site)
   say "開發《$TITLE》（$CAT）　站上 $BEFORE 套　今日 $DONE_TODAY/$DAILY"
+  act "開始開發" "$REPO" "" "《$TITLE》／$CAT　今日 $DONE_TODAY/$DAILY"
 
   node -e '
 const fs=require("fs");
@@ -124,7 +135,8 @@ fs.writeFileSync("docs/_state/agent-current.txt","'"$REPO"'\n");'
   # ── 建置 ──
   node tools/demo-forge.mjs --from="$QUEUE" --pick="$SLUG" --concurrency=1 --timeout=1800 > "$LOG" 2>&1
   if [ ! -f "demos/$REPO/index.html" ]; then
-    echo "  ✖ 建置失敗，跳過此題（見 $LOG）"; dequeue; continue
+    echo "  ✖ 建置失敗，跳過此題（見 $LOG）"
+    act "建置失敗" "$REPO" 500 "《$TITLE》"; dequeue; continue
   fi
 
   # ── 驗收 → 修 → 重驗（最多兩次修正）──
@@ -133,11 +145,13 @@ fs.writeFileSync("docs/_state/agent-current.txt","'"$REPO"'\n");'
     node tools/lib/verify-runner.mjs 4599 "$REPO" >> "$LOG" 2>&1
     if grep -q "^OK $REPO" "$LOG"; then ok=1; break; fi
     echo "  第 $attempt 次驗收未過，嘗試修正"
+    act "驗收未過，修正中" "$REPO" 409 "第 $attempt 次"
     node tools/fix-demo-overflow.mjs --port=4599 --concurrency=1 "$REPO" >> "$LOG" 2>&1
   done
 
   if [ "$ok" -ne 1 ]; then
     echo "  ✖ 驗收仍未過，保留為草稿不上架（見 $LOG）"
+    act "驗收失敗，未上架" "$REPO" 422 "《$TITLE》"
     grep -E '^XX ' "$LOG" | tail -2
     dequeue; continue
   fi
@@ -161,6 +175,7 @@ const fs=require("fs");const [n,repo,title,cat,before,after]=process.argv.slice(
 fs.appendFileSync("'"$CYCLES"'",JSON.stringify({cycle:Number(n),tag:repo,title,category:cat,
   at:new Date().toISOString(),before:Number(before),after:Number(after),
   added:Number(after)-Number(before)})+"\n");' "$made" "$REPO" "$TITLE" "$CAT" "$BEFORE" "$AFTER"
+  act "上架" "$REPO" 200 "《$TITLE》　站上 $AFTER 套　今日 $(made_today)/$DAILY"
   say "《$TITLE》完成並上架　站上 $AFTER 套　今日 $(made_today)/$DAILY　本次啟動共 $made 套"
 done
 

@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import http from "node:http";
 import * as usage from "./lib/usage-log.mjs";
+import * as actions from "./lib/action-log.mjs";
+import * as auth from "./lib/admin-auth.mjs";
 
 // 對外只開一個 port（PUBLIC_PORT）。靜態站和 Agents 後端都只綁 127.0.0.1，
 // 由下面的 gateway 依路徑分流。這樣區網只要放行 3000，不必再開第二個 port
@@ -59,15 +61,102 @@ function sniffStaticPort(name, chunk) {
   STATIC_PORT = actual;
 }
 
+/* 靜態資源不記。一次開頁會帶出幾十個 css/js/圖，全部記下來會把真正的
+   動作淹沒在雜訊裡；非 GET 一律記，那些都是有副作用的操作。 */
+const ASSET = /\.(css|js|mjs|map|svg|png|jpe?g|webp|gif|ico|woff2?|txt)$/i;
+const shouldLog = (method, p) => method !== "GET" || !ASSET.test(p);
+
 // /run 與 /health 轉給 Agents 後端，其餘轉給靜態站。SSE 要逐塊送出，不能緩衝。
 // /wish 兩邊都有：GET 是靜態的許願池頁面，POST/OPTIONS 才是後端分析 API，所以要看 method。
 function isBackend(method, p) {
   if (p === "/run" || p === "/health") return true;
   return p === "/wish" && (method === "POST" || method === "OPTIONS");
 }
+/* 後台的頁面與 API 都要先登入。判斷寫在這裡而不是散在各處，是為了
+   「哪些東西沒有密碼就看得到」這件事有單一個地方可以核對。
+
+   不能用完整檔名列白名單：serve 有 clean-URL 改寫，/admin-actions.html 會 301
+   到 /admin-actions，而那個路徑不在清單裡——實測未登入直接開 /admin-actions
+   整頁照常回 200。所以改成看正規化後的檔名前綴，admin 開頭的一律要密碼。
+   登入頁自己當然要放行，否則沒有人進得來。 */
+const normalize = (p) => decodeURIComponent(p).replace(/\/+$/, "").replace(/\.html$/, "").toLowerCase();
+const isAdminPath = (p) => {
+  if (p.startsWith("/api/admin/")) return true;
+  if (p === "/api/usage") return true;
+  const n = normalize(p);
+  if (n === "/admin-login") return false;
+  return n === "/admin" || n.startsWith("/admin-") || n.startsWith("/admin.");
+};
+
+const json = (res, code, body) => {
+  res.writeHead(code, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+  res.end(JSON.stringify(body));
+};
+
+const readBody = (req) => new Promise((resolve) => {
+  let raw = "";
+  req.on("data", (c) => { raw += c; if (raw.length > 4096) req.destroy(); });
+  req.on("end", () => { try { resolve(JSON.parse(raw || "{}")); } catch { resolve({}); } });
+});
+
 function startGateway() {
-  const gw = http.createServer((req, res) => {
+  const gw = http.createServer(async (req, res) => {
     const p = req.url.split("?")[0];
+    const t0 = Date.now();
+    const who = actions.visitorOf(req.socket?.remoteAddress);
+
+    // ── 後台認證 ──────────────────────────────────────────
+    if (p === "/api/admin/login" && req.method === "POST") {
+      if (!auth.ready()) return json(res, 503, { error: "後台密碼尚未設定（var/admin.json）" });
+      const wait = auth.throttle(who);
+      if (wait) {
+        actions.record({ actor: "後台", action: "登入被限流", status: 429, visitor: who, note: `還要等 ${wait} 秒` });
+        return json(res, 429, { error: `嘗試太多次，請等 ${wait} 秒` });
+      }
+      const { password } = await readBody(req);
+      if (!auth.passwordMatches(password)) {
+        auth.noteFail(who);
+        actions.record({ actor: "後台", action: "登入失敗", status: 401, visitor: who });
+        return json(res, 401, { error: "管理密碼不正確" });
+      }
+      auth.noteSuccess(who);
+      auth.setCookie(req, res);
+      actions.record({ actor: "後台", action: "登入成功", status: 200, visitor: who });
+      return json(res, 200, { ok: true });
+    }
+    if (p === "/api/admin/logout" && req.method === "POST") {
+      auth.clearCookie(req, res);
+      actions.record({ actor: "後台", action: "登出", status: 200, visitor: who });
+      return json(res, 200, { ok: true });
+    }
+    if (p === "/api/admin/session") {
+      return auth.verify(req)
+        ? json(res, 200, { authenticated: true })
+        : json(res, 401, { authenticated: false, configured: auth.ready() });
+    }
+
+    if (isAdminPath(p) && !auth.verify(req)) {
+      actions.record({ actor: "後台", action: "未登入被擋", target: p, status: 401, visitor: who });
+      /* 頁面導去登入畫面，API 回 401 讓前端自己處理。判斷條件不能用
+         .html 結尾——serve 的 clean-URL 會讓瀏覽器最後停在 /admin-actions，
+         那個路徑就會收到一段 401 JSON 而不是登入畫面。 */
+      if (!p.startsWith("/api/")) {
+        res.writeHead(302, { location: `/admin-login.html?next=${encodeURIComponent(p)}` });
+        return res.end();
+      }
+      return json(res, 401, { error: "請先登入管理後台" });
+    }
+
+    // ── 動作紀錄 API ─────────────────────────────────────
+    if (p === "/api/admin/actions") {
+      const q = new URL(req.url, "http://x").searchParams;
+      return json(res, 200, actions.read({
+        root,
+        limit: Math.min(2000, Number(q.get("limit")) || 300),
+        actor: q.get("actor") || null,
+        action: q.get("action") || null,
+      }));
+    }
 
     // 管理後台的使用統計：gateway 自己回，不轉給靜態站也不依賴 Vercel functions。
     if (p === "/api/usage") {
@@ -91,6 +180,17 @@ function startGateway() {
           h["cache-control"] = "no-cache, no-transform";
         }
         usage.record(req, upRes.statusCode);
+        /* 後台要看得到「全部的動作」，所以每一個請求都記——但靜態資源
+           （css/js/圖檔／字型）一頁就是幾十筆，全記下來只會把真正的動作
+           淹掉，所以交給 shouldLog 判斷。 */
+        if (shouldLog(req.method, p)) {
+          actions.record({
+            actor: "訪客", action: req.method === "GET" ? "瀏覽" : req.method,
+            target: p, status: upRes.statusCode, visitor: who,
+            device: /Mobi|Android|iPhone|iPad/i.test(String(req.headers["user-agent"] || "")) ? "mobile" : "desktop",
+            ms: Date.now() - t0,
+          });
+        }
         res.writeHead(upRes.statusCode, h);
         upRes.on("data", (c) => res.write(c));
         upRes.on("end", () => res.end());
@@ -104,9 +204,16 @@ function startGateway() {
   });
   gw.on("clientError", (_e, socket) => socket.destroy());
   const logFile = usage.open(root);
+  const actionFile = actions.open(root);
+  const authConf = auth.load(root);
   gw.listen(PUBLIC_PORT, "0.0.0.0", () => {
     console.log(`[gateway] 對外服務於 0.0.0.0:${PUBLIC_PORT}`);
     console.log(`[gateway] 使用紀錄 → ${path.relative(root, logFile)}（不含 IP，僅存雜湊）`);
+    console.log(`[gateway] 動作紀錄 → ${path.relative(root, actionFile)}`);
+    console.log(authConf.ready
+      ? `[gateway] 後台密碼已載入（${authConf.source}）`
+      : `[gateway] ⚠ 後台密碼未設定（${authConf.source}）——/admin*.html 一律擋下`);
+    actions.record({ actor: "系統", action: "gateway 啟動", target: `:${PUBLIC_PORT}`, status: 200 });
   });
   procs.push({ kill: () => gw.close() });
 }
