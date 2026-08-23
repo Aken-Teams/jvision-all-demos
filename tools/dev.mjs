@@ -10,7 +10,12 @@ import * as usage from "./lib/usage-log.mjs";
 // 由下面的 gateway 依路徑分流。這樣區網只要放行 3000，不必再開第二個 port
 // ——先前 4610 從別台機器連進來會 ERR_CONNECTION_TIMED_OUT，就是被中間網路擋掉。
 const PUBLIC_PORT = Number(process.env.JV_PORT || 3000);
-const STATIC_PORT = 3100;
+/* serve 綁不到指定的 port 時不會報錯，它會自己換一個然後照常啟動。gateway
+   仍然代理到 3100，於是整站回 502 而 log 看起來一切正常——實測 3100 被上一個
+   還沒收乾淨的程序占住時就是這樣，站台整整黑掉沒人知道原因。所以這裡不寫死，
+   改成讀 serve 自己印出來的位址為準。 */
+let STATIC_PORT = 3100;
+const STATIC_PORT_WANTED = STATIC_PORT;
 const BACKEND_PORT = 4610;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -36,12 +41,24 @@ function pref(tag, buf) {
 function run(name, cmd, args, cwd) {
   const tag = `[${name}]`;
   const p = spawn(cmd, args, { cwd, shell: isWin, env: process.env });
-  p.stdout.on("data", (d) => process.stdout.write(pref(tag, d)));
+  p.stdout.on("data", (d) => { sniffStaticPort(name, d); process.stdout.write(pref(tag, d)); });
   p.stderr.on("data", (d) => process.stdout.write(pref(tag, d)));
   p.on("error", (e) => console.log(`${tag} 無法啟動：${e.message}`));
   p.on("exit", (code) => console.log(`${tag} 已結束（code ${code}）。若是後端 4610 已被占用，代表它可能已在執行。`));
   procs.push(p);
 }
+/* serve 啟動時會印「Accepting connections at http://localhost:NNNN」。
+   那個 NNNN 才是它真正綁上的 port。 */
+function sniffStaticPort(name, chunk) {
+  if (name !== "frontend") return;
+  const m = /Accepting connections at https?:\/\/[^:]+:(\d+)/.exec(String(chunk));
+  if (!m) return;
+  const actual = Number(m[1]);
+  if (actual === STATIC_PORT) return;
+  console.log(`[frontend] ⚠ 要的是 ${STATIC_PORT_WANTED}，serve 實際綁在 ${actual}（那個 port 大概被占著）——gateway 改指向 ${actual}`);
+  STATIC_PORT = actual;
+}
+
 // /run 與 /health 轉給 Agents 後端，其餘轉給靜態站。SSE 要逐塊送出，不能緩衝。
 // /wish 兩邊都有：GET 是靜態的許願池頁面，POST/OPTIONS 才是後端分析 API，所以要看 method。
 function isBackend(method, p) {

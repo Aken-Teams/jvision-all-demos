@@ -102,28 +102,40 @@ if (args["gap-only"]) {
 }
 
 /* ── 2. 組 prompt ────────────────────────────────────────── */
-function buildPrompt(round, negatives) {
-  /* 只餵缺口產業的既有標題。全部 1011 個標題會把 context 撐爆，而且
-     模型看到滿滿的 IT 題目就會繼續往那邊靠——這正是上一批全部灌進
-     資訊科技的原因之一。 */
-  /* 每個產業最多列 20 個標題。站上內容一多，這段會無上限成長——實測站上
-     從 1011 長到 1311 時 prompt 由 8.8KB 漲到 17.5KB，codex 的結構化輸出
-     連續六輪逾時，出題整個停擺。去重本來就在腳本端做，這裡只需要讓模型
-     知道「這個產業大致已經有哪些東西」。 */
-  const TITLE_CAP = 20;
-  const coverageBlock = catQuota.map((r) => {
-    const have = catCoverage.find((c) => c.category === r.category)?.titles || [];
-    const shown = have.slice(-TITLE_CAP);
-    const more = have.length > TITLE_CAP ? `⋯等 ${have.length} 題` : "";
-    return `${r.category}（已有 ${r.have} 題，應有 ${r.target} 題・缺 ${r.deficit}）：${shown.join("、") || "（無）"}${more}`;
-  }).join("\n");
+/* 每個產業最多列 20 個標題。站上內容一多，這段會無上限成長——實測站上
+   從 1011 長到 1311 時 prompt 由 8.8KB 漲到 17.5KB，codex 的結構化輸出
+   連續六輪逾時，出題整個停擺。去重本來就在腳本端做，這裡只需要讓模型
+   知道「這個產業大致已經有哪些東西」。 */
+const TITLE_CAP = 20;
+const coverageBlock = catQuota.map((r) => {
+  const have = catCoverage.find((c) => c.category === r.category)?.titles || [];
+  const shown = have.slice(-TITLE_CAP);
+  const more = have.length > TITLE_CAP ? `⋯等 ${have.length} 題` : "";
+  return `${r.category}（已有 ${r.have} 題，應有 ${r.target} 題・缺 ${r.deficit}）：${shown.join("、") || "（無）"}${more}`;
+}).join("\n");
 
+function buildPrompt(round, negatives, ideas) {
+  /* 只餵缺口產業的既有標題。全部標題會把 context 撐爆，而且模型看到滿滿的
+     IT 題目就會繼續往那邊靠——這正是上一批全部灌進資訊科技的原因之一。 */
   const quotaBlock = catQuota.map((r) => `- ${r.category}：${r.quota} 題`).join("\n");
 
   const saturatedBlock = catRows
     .filter((r) => r.deficit === 0)
     .map((r) => `${r.category}（${r.have}）`)
     .join("、");
+
+  /* 圓桌結論。主席看到的是五個角色各自的提案，任務從「無中生有」變成
+     「收斂與去重」——後者是模型比較擅長、也比較不會往同一個方向偏的事。 */
+  const ideaBlock = ideas && ideas.length
+    ? `\n## 圓桌討論的提案（由五個角色各自提出，尚未收斂）\n${ideas
+        .map((i) => `- 〔${i.persona}〕${i.title}（${i.category}）：${i.pain}　→　${i.whyBuy}`)
+        .join("\n")}\n
+你的工作是**收斂這份提案**，不是重新發想：
+- 把講同一件事的提案合併成一題，用最貼近作業現場的那個講法。
+- 明顯是既有題目換句話說的，直接丟掉。
+- 提案不足配額時才自己補題。
+\n`
+    : "";
 
   const negativeBlock = negatives.length
     ? `\n## 上一輪被判定重複的題目（請避開這些方向）\n${negatives.map((n) => `- ${n.title}（撞到「${n.matchedTitle}」，相似度 ${n.score}）`).join("\n")}\n`
@@ -137,6 +149,7 @@ function buildPrompt(round, negatives) {
 
 ## 缺題的產業，以及該產業已有的題目（請避開這些，並補足同產業其他場景）
 ${coverageBlock}
+${ideaBlock}
 
 ## 配額表（**只出以下產業**，總數以本表加總為準）
 ${quotaBlock}
@@ -160,6 +173,71 @@ ${negativeBlock}
 7. flowStages 剛好 6 個，依序對應那 6 個畫面，每個階段要有負責角色。
 
 只輸出符合 schema 的 JSON，不要 Markdown、不要任何說明文字。`;
+}
+
+/* ── 2.5 圓桌討論 ──────────────────────────────────────────
+   一個模型獨自出題會一直往它最熟的方向靠（實測上一批 473 套裡有 141 套
+   灌進資訊科技）。改成先讓五個角色各自從自己的位置提案，再由主席收斂：
+   不同角色看見的是企業裡不同的作業面，天然把題目撐開。
+   五個角色同時跑且互不相見——先讓其中一個回答再給別人看，後面會全部附和
+   第一個定下的方向，那就退化成一個模型出題。收斂統一交給主席那一輪。 */
+const PERSONAS = [
+  { key: "顧問", role: "在台灣做了十五年中小企業導入的顧問",
+    lens: "你看過很多公司「用 Excel 撐著」的環節。講那些每天有人在手動對帳、手動排、手動抄的作業。" },
+  { key: "現場", role: "工廠與門市的現場主管",
+    lens: "你在意交班、異常、找東西、等簽核。講那些現場真的會卡住產出的事，不要講管理層的儀表板。" },
+  { key: "財會", role: "企業的財務與內部稽核主管",
+    lens: "你在意憑證、對帳、期間關帳、授權與軌跡。講那些出錯要賠錢或被稽核開單的環節。" },
+  { key: "資訊", role: "企業的資訊主管",
+    lens: "你在意資料散在幾套系統之間、誰的主檔說了算、串接失敗怎麼補。講整合與主檔治理的實際場景。" },
+  { key: "產品", role: "做垂直產業 SaaS 的產品經理",
+    lens: "你在意既有套裝軟體沒做、但客戶年年抱怨的縫隙。講那些「大系統做不到、所以另外買一套」的題目。" },
+];
+
+const ROUNDTABLE_SCHEMA = path.join(ROOT, "tools", "schemas", "topic-roundtable.schema.json");
+
+async function roundtable() {
+  const perSeat = Math.max(4, Math.ceil((POOL * 1.2) / PERSONAS.length));
+  const seatPrompt = (p) => `你是${p.role}。現在要為一個 B2B 企業系統 demo 網站提案題目。
+
+${p.lens}
+
+## 這個網站是什麼
+每個題目會做成一個「純 UI 展示」的單頁系統 demo：繁體中文、6 個可切換的操作畫面、擬真假資料、無後端。
+客群是台灣的中小企業與工廠，題目必須是**企業內部真的會採購導入的系統**。
+
+## 缺題的產業，以及該產業已經有的題目（請避開這些）
+${coverageBlock}
+
+## 只能提以下產業的題目
+${catQuota.map((r) => r.category).join("、")}
+
+## 規則
+1. 提 ${perSeat} 個題目，每個都要是**你這個角色親眼看過的作業**，不要提通用的「管理平台」。
+2. 不可以是上面既有題目的換句話說。
+3. 必須能自然拆成 6 個彼此不同的操作畫面。
+4. 不依賴真實後端、硬體或即時裝置才成立。
+5. title 用 6-14 個中文字。
+
+只輸出符合 schema 的 JSON。`;
+
+  log.step(`── 圓桌討論：${PERSONAS.length} 個角色各自提案（每人 ${perSeat} 題）──`);
+  const settled = await Promise.all(PERSONAS.map(async (p) => {
+    const r = await runCodexWithRetry({
+      prompt: seatPrompt(p), cwd: ROOT, sandbox: "read-only",
+      schemaPath: ROUNDTABLE_SCHEMA, timeoutMs: num(args.timeout, 900) * 1000, model: args.model,
+      onLog: () => process.stderr.write("."),
+    }, { retries: 1 });
+    const ideas = Array.isArray(r.json?.ideas) ? r.json.ideas : [];
+    return { persona: p.key, ideas, error: r.ok ? null : r.error };
+  }));
+  process.stderr.write("\n");
+
+  for (const s of settled) log.info(`  ${s.persona}：${s.ideas.length} 個提案${s.error ? `（${s.error}）` : ""}`);
+  const all = settled.flatMap((x) => x.ideas.map((i) => ({ ...i, persona: x.persona })));
+  if (!all.length) { log.warn("  圓桌沒有任何提案，這一輪退回單獨出題"); return null; }
+  log.info(`  合計 ${all.length} 個提案，交給主席收斂`);
+  return all;
 }
 
 /* ── 3. 呼叫 codex + 去重 ────────────────────────────────── */
@@ -214,10 +292,15 @@ function validate(topic) {
   return errors;
 }
 
+/* 圓桌只在第一輪開，之後幾輪是補題——那時已經有負面清單可以導向，再開一次
+   圓桌只是重複付五次呼叫的錢。 */
+let tableIdeas = null;
+if (args.roundtable !== "off") tableIdeas = await roundtable();
+
 for (let round = 1; round <= ROUNDS && accepted.length < COUNT; round += 1) {
   log.step(`── 第 ${round} 輪：呼叫 codex 產題（已收 ${accepted.length}/${COUNT}）──`);
   const result = await runCodexWithRetry({
-    prompt: buildPrompt(round, rejected.slice(-12)),
+    prompt: buildPrompt(round, rejected.slice(-12), round === 1 ? tableIdeas : null),
     cwd: ROOT,
     sandbox: "read-only",
     schemaPath: SCHEMA,
