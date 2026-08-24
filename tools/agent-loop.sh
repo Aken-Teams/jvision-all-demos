@@ -87,15 +87,20 @@ bump_today() {
     fs.writeFileSync("'"$TALLY"'",JSON.stringify(Object.fromEntries(keys.map(k=>[k,t[k]])),null,2)+"\n");'
 }
 
-# 休息到明天。每 5 分鐘醒來看一次停止訊號，不然叫停之後還要等到半夜才生效。
-rest_until_tomorrow() {
-  say "今天的 $DAILY 套已完成，休息到明天（每 5 分鐘檢查一次停止訊號）"
-  act "今日額度完成" "" 200 "$DAILY 套"
+# 每天做滿額度之後的收尾：全站預覽檢查、console 掃描、更新 PR。
+#
+# 用日期標記確保一天只做一次。這段原本寫在 rest_until_tomorrow() 裡面是錯的
+# ——那個函式每次迴圈只要額度已滿就會被呼叫，於是每重啟一次 agent 就重跑一次
+# 十幾分鐘的全站掃描並多推一次分支（實測今天重啟五次，log 裡就留下三行沒有
+# 下文的「推送」，都是掃到一半被 systemctl stop 砍掉的）。
+daily_wrapup() {
+  local mark="$STATE/agent-wrapup-$(today)"
+  [ -f "$mark" ] && return 0
 
   # 每天全站掃一次預覽畫面。單套的驗收在建置時就做過了，但共用檔案的變動
   # 或目錄資料出錯會讓「本來好好的卡片」變空白——那不會報錯，目錄照樣顯示、
   # 連結照樣能點，只有畫面是空的，不主動查就不會發現。
-  if node tools/check-previews.mjs --render >> "$STATE/agent-preview.log" 2>&1; then
+  if node tools/check-previews.mjs --render > "$STATE/agent-preview.log" 2>&1; then
     act "預覽全站檢查" "" 200 "$(grep -E '畫得出畫面' "$STATE/agent-preview.log" | tail -1 | tr -s ' ')"
     say "預覽檢查通過：全部專案都有預覽畫面"
   else
@@ -104,11 +109,12 @@ rest_until_tomorrow() {
     grep -A 12 '空白或載入失敗 ──' "$STATE/agent-preview.log" | tail -12
   fi
 
-  # 順便掃一次全站的 console 錯誤。一套不到一秒，1337 套約兩分鐘。
-  # 這比逐套跑完整驗收便宜太多，而且抓得到「共用檔案改動後才壞掉」的情況
-  # ——原本那 538 套舊 demo 就有兩套帶著 ReferenceError 上架了很久沒人發現。
-  if node tools/scan-console-errors.mjs >> "$STATE/agent-console.log" 2>&1; then
-    act "console 全站檢查" "" 200 "無錯誤"
+  # 掃一次全站的 console 錯誤。一套不到一秒，1337 套約兩分鐘。這比逐套跑完整
+  # 驗收便宜太多，而且抓得到「共用檔案改動後才壞掉」的情況——原本那 538 套舊
+  # demo 就有兩套帶著 ReferenceError 上架了很久沒人發現。
+  if node tools/scan-console-errors.mjs > "$STATE/agent-console.log" 2>&1; then
+    act "console 全站檢查" "" 200 "$(grep -E '無錯誤' "$STATE/agent-console.log" | tail -1 | tr -s ' ')"
+    say "console 檢查通過：全站無錯誤"
   else
     act "console 檢查發現錯誤" "" 500 "$(grep -E '有錯誤' "$STATE/agent-console.log" | tail -1 | tr -s ' ')"
     say "⚠ 有 demo 會噴 console 錯誤（見 $STATE/agent-console.log）"
@@ -117,14 +123,25 @@ rest_until_tomorrow() {
 
   # 一天推一次、更新同一個 PR。每上架一套就推一次太吵，而且 PR 內文是依
   # 當下狀態重算的，一天更新一次就足以反映當天的全部產出。
-  if node tools/open-pr.mjs >> "$STATE/agent-pr.log" 2>&1; then
+  if node tools/open-pr.mjs > "$STATE/agent-pr.log" 2>&1; then
     act "已更新 PR" "" 200 "$(tail -1 "$STATE/agent-pr.log")"
     say "PR 已更新：$(tail -1 "$STATE/agent-pr.log")"
   else
-    act "PR 更新失敗" "" 500 "$(tail -1 "$STATE/agent-pr.log")"
+    act "PR 更新失敗" "" 500 "$(grep -E '✖|error' "$STATE/agent-pr.log" | head -1)"
     say "PR 未更新（見 $STATE/agent-pr.log）"
-    tail -6 "$STATE/agent-pr.log"
+    tail -8 "$STATE/agent-pr.log"
   fi
+
+  : > "$mark"
+  # 標記檔留一週就好，不需要無限累積。
+  find "$STATE" -maxdepth 1 -name 'agent-wrapup-*' -mtime +7 -delete 2>/dev/null || true
+}
+
+# 休息到明天。每 5 分鐘醒來看一次停止訊號，不然叫停之後還要等到半夜才生效。
+rest_until_tomorrow() {
+  say "今天的 $DAILY 套已完成，休息到明天（每 5 分鐘檢查一次停止訊號）"
+  act "今日額度完成" "" 200 "$DAILY 套"
+
   local start; start=$(today)
   while [ "$(today)" = "$start" ]; do
     [ -f "$STOP" ] && return 1
@@ -143,6 +160,7 @@ while true; do
   # ── 今日額度 ──
   DONE_TODAY=$(made_today)
   if [ "${DONE_TODAY:-0}" -ge "$DAILY" ]; then
+    daily_wrapup
     rest_until_tomorrow || { say "休息期間收到停止訊號，Agent 結束"; rm -f "$STOP"; break; }
     continue
   fi
