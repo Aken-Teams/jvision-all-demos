@@ -15,7 +15,10 @@ cd "$(dirname "$0")/.."
 STATE=docs/_state
 LOG="$STATE/agent-loop.log"
 SERVICE=jvdemo-agent.service
-DAILY=5
+# 每日額度只定義在 docs/_state/agent-quota 一個地方。原本 unit 的參數、
+# agent-loop 的預設值、這裡各寫一份 5，改一個地方就會不一致——而不一致的
+# 後果是看門狗在額度已滿時仍判定「該動卻沒動」，每天固定亂重啟一次。
+DAILY=$(cat "$STATE/agent-quota" 2>/dev/null || echo 5)
 STALL_MIN=90            # 一套約 6 分鐘、每日收尾約 12 分鐘，90 分鐘沒動就是卡住了
 
 log() { printf '%s  %s\n' "$(date '+%m-%d %H:%M:%S')" "$1" >> "$STATE/agent-watchdog.log"; }

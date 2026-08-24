@@ -19,7 +19,11 @@ QUEUE="$STATE/agent-queue.json"
 CYCLES="$STATE/agent-cycles.jsonl"
 TALLY="$STATE/agent-daily.json"
 LOGDIR="$STATE/agent-logs"
-DAILY="${1:-5}"            # 每天做幾套
+# 每日額度：參數優先，其次讀 docs/_state/agent-quota，最後才是預設值。
+# 定義在檔案裡而不是寫死在 systemd unit 的參數，是因為看門狗也要知道這個
+# 數字——兩邊各寫一份，改一個地方就會不一致，而不一致的後果是看門狗在
+# 額度已滿時仍判定「該動卻沒動」，每天固定亂重啟一次。改額度只要改那個檔。
+DAILY="${1:-$(cat "$STATE/agent-quota" 2>/dev/null || echo 5)}"
 REFILL=20                  # 佇列補題時一次出幾題
 mkdir -p "$STATE" "$LOGDIR"
 
