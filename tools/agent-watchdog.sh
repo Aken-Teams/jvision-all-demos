@@ -36,8 +36,15 @@ made_today=$(node -e '
   try{t=JSON.parse(fs.readFileSync("'"$STATE"'/agent-daily.json","utf8"))}catch{}
   console.log(t[new Date().toLocaleDateString("sv")]||0);' 2>/dev/null || echo 0)
 
-if [ "${made_today:-0}" -ge "$DAILY" ]; then
-  log "今日已完成 $made_today/$DAILY，休息中，不介入"
+# 額度已滿不代表沒事。做滿之後還有每日收尾（全站預覽檢查、console 掃描、
+# 更新 PR），那一段也會卡——實測 git push 走 SSH 卡了一小時三十八分，收尾停在
+# 那裡、標記檔沒寫、Agent 也沒進入休息，而看門狗連續三次判定「休息中，不介入」，
+# 正好把這種卡法遮住。所以要分辨「收尾做完了」和「還在收尾」：
+#   有標記檔  → 收尾已完成，接下來的安靜是正常的休息
+#   沒有標記檔 → 還在收尾，一樣適用停滯判斷
+WRAPUP_MARK="$STATE/agent-wrapup-$(date +%F)"
+if [ "${made_today:-0}" -ge "$DAILY" ] && [ -f "$WRAPUP_MARK" ]; then
+  log "今日已完成 $made_today/$DAILY，收尾已結束，休息中，不介入"
   exit 0
 fi
 
@@ -45,8 +52,9 @@ if [ ! -f "$LOG" ]; then log "找不到 $LOG，不介入"; exit 0; fi
 idle_min=$(( ( $(date +%s) - $(stat -c %Y "$LOG") ) / 60 ))
 
 if [ "$idle_min" -ge "$STALL_MIN" ]; then
-  log "今日 $made_today/$DAILY 但 log 已 $idle_min 分鐘沒動靜，重啟服務"
-  note "偵測到卡住，已重啟" "" 500 "今日 $made_today/$DAILY，停滯 $idle_min 分鐘"
+  phase="開發中"; [ "${made_today:-0}" -ge "$DAILY" ] && phase="每日收尾中"
+  log "今日 $made_today/$DAILY（$phase）但 log 已 $idle_min 分鐘沒動靜，重啟服務"
+  note "偵測到卡住，已重啟" "" 500 "今日 $made_today/$DAILY（$phase），停滯 $idle_min 分鐘"
   systemctl --user restart "$SERVICE"
 else
   log "今日 $made_today/$DAILY，log $idle_min 分鐘前還有動靜，正常"

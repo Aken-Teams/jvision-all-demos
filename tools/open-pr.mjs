@@ -130,9 +130,22 @@ if (DRY) {
 if (!NO_PUSH) {
   console.log(`推送 ${head} → ${remote}`);
   try {
-    execFileSync("git", ["push", "-u", remote, head], { cwd: ROOT, stdio: "inherit" });
-  } catch {
-    console.error("✖ 推送失敗，PR 內容不會反映最新 commit");
+    /* 一定要有逾時。git push 走 SSH，連線半死不活時它會無限等下去——實測卡了
+       一小時三十八分還在等，整個每日收尾停在這裡、標記檔沒寫、Agent 也沒進入
+       休息。keepalive 讓斷掉的連線在一分鐘內就被判定死亡，timeout 則是最後
+       一道保險：推不上去就下次再推，絕不可以把產線整條卡住。 */
+    execFileSync("git", ["push", "-u", remote, head], {
+      cwd: ROOT,
+      stdio: "inherit",
+      timeout: 10 * 60 * 1000,
+      env: {
+        ...process.env,
+        GIT_SSH_COMMAND: "ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4",
+      },
+    });
+  } catch (error) {
+    const why = error.signal === "SIGTERM" ? "逾時（超過 10 分鐘）" : String(error.message).split("\n")[0].slice(0, 80);
+    console.error(`✖ 推送失敗：${why}　PR 內容不會反映最新 commit`);
     process.exit(1);
   }
 }
