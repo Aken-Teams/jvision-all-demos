@@ -78,7 +78,17 @@ const catRows = Object.entries(MARKET_WEIGHT).map(([category, w]) => {
 /* 用最大餘額法分配，讓各產業配額「精確加總等於 POOL」。
    逐項 Math.round 會湊不齊——實測配額合計 199、prompt 卻說要出 200 題，
    模型把這個矛盾當成阻斷條件，整輪不出題只回一則「請先確認配額」。 */
-const deficitRows = catRows.filter((r) => r.deficit > 0);
+/* 所有產業都達標時 deficitRows 會是空的，配額表跟著變空，codex 拿到一張
+   沒有任何產業的表就不出題了——而且不會報錯，只會安靜地回傳零題。目標是
+   「市場權重 ÷ 權重總和 × 站上總數」，站台愈平衡缺口愈小，所以這一天遲早
+   會到。沒有缺口時就退回純市場權重分配，讓產線繼續跑下去，分佈仍然是照
+   權重走的，只是不再有「補不足」的偏向。 */
+let deficitRows = catRows.filter((r) => r.deficit > 0);
+let deficitBasis = "缺口";
+if (!deficitRows.length) {
+  deficitRows = catRows.filter((r) => r.weight > 0).map((r) => ({ ...r, deficit: r.weight }));
+  deficitBasis = "市場權重（所有產業皆已達標）";
+}
 const deficitSum = deficitRows.reduce((sum, r) => sum + r.deficit, 0) || 1;
 const exact = deficitRows.map((r) => ({ ...r, raw: (r.deficit / deficitSum) * POOL }));
 const catQuota = exact.map((r) => ({ ...r, quota: Math.max(1, Math.floor(r.raw)) }));
@@ -87,6 +97,7 @@ const byFraction = [...catQuota].sort((a, b) => (b.raw - Math.floor(b.raw)) - (a
 for (let i = 0; remainder > 0; i = (i + 1) % byFraction.length) { byFraction[i].quota += 1; remainder -= 1; }
 
 log.step(`既有專案 ${catalog.projects.length} 筆，${rows.length} 種系統類型，中位數 ${median} 筆`);
+log.info(`  配額依據：${deficitBasis}`);
 log.info("  產業缺口由大到小（前 10）：");
 for (const r of catQuota.slice(0, 10)) {
   log.info(`   ${r.category.padEnd(12)} 現有 ${String(r.have).padStart(3)}　應有 ${String(r.target).padStart(3)}　缺 ${String(r.deficit).padStart(3)}  → 配額 ${r.quota}`);

@@ -31,7 +31,7 @@ loginctl enable-linger "$USER"      # 登出後仍繼續執行
 ## 改每日額度
 
 ```bash
-echo 10 > docs/_state/agent-quota
+echo 50 > docs/_state/agent-quota
 systemctl --user restart jvdemo-agent
 ```
 
