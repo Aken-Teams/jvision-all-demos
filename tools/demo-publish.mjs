@@ -109,8 +109,13 @@ saveManifest(manifest);
 /* 首頁的「最近新增」要跟著更新。接在上架這個唯一入口，而不是塞進 agent 腳本——
    任何管道上架（agent、手動、補救）都會更新，不會有某條路徑忘了跑。 */
 {
-  const r = spawnSync(process.execPath, [path.join(ROOT, "tools", "build-recent.mjs")], { cwd: ROOT, encoding: "utf8" });
-  log.info(r.status === 0 ? `  ${(r.stdout || "").trim().split("\n")[0]}` : "  ⚠ 最近新增資料更新失敗（首頁會顯示上一次的內容）");
+  for (const [script, why] of [
+    ["build-recent.mjs", "首頁會顯示上一次的最近新增"],
+    ["build-catalog-index.mjs", "目錄頁會退回讀完整的 projects-index.json，慢但不會壞"],
+  ]) {
+    const r = spawnSync(process.execPath, [path.join(ROOT, "tools", script)], { cwd: ROOT, encoding: "utf8" });
+    log.info(r.status === 0 ? `  ${(r.stdout || "").trim().split("\n")[0]}` : `  ⚠ ${script} 失敗（${why}）`);
+  }
 }
 
 log.step("已寫入 projects-index.json，執行既有稽核：");

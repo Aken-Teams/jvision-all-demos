@@ -515,7 +515,12 @@ function setupHomepageMotion() {
 }
 
 async function boot() {
-  const response = await fetch("./projects-index.json?v=20260730-2");
+  /* 先拿精簡索引：完整的 projects-index.json 帶著詳細頁才用得到的欄位，
+     customerWorkflow 一個就佔 21%，而這一頁只是列表與搜尋。實測那個檔是目錄頁
+     最大的單一資源（傳輸 429 KB）。精簡版讀不到就退回完整版——目錄頁能不能開，
+     不該取決於一個為了加速而生的衍生檔。 */
+  let response = await fetch("./content/catalog-index.json").catch(() => null);
+  if (!response || !response.ok) response = await fetch("./projects-index.json?v=20260730-2");
   if (!response.ok) throw new Error("專案索引無法讀取");
   const index = await response.json();
   state.projects = index.projects

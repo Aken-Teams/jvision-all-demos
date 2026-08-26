@@ -78,6 +78,18 @@ function normalizeNext(url) {
 /* 靜態資源不記。一次開頁會帶出幾十個 css/js/圖，全部記下來會把真正的
    動作淹沒在雜訊裡；非 GET 一律記，那些都是有副作用的操作。 */
 const ASSET = /\.(css|js|mjs|map|svg|png|jpe?g|webp|gif|ico|woff2?|txt)$/i;
+
+/* Cloudflare 預設不快取這個站的任何東西（實測 cf-cache-status: DYNAMIC），
+   於是每個訪客的每一張圖都要穿過隧道回源抓。原站沒有給快取標頭是主因——
+   沒有 Cache-Control，邊緣就只能當成動態內容。
+   圖檔與字型給七天：它們改動時檔名通常也會換（webp 是新檔），不會拿到舊的。
+   HTML 與 JSON 不快取：目錄與最近新增每天都在變，拿到舊的比慢更糟。 */
+const LONG_CACHE = /\.(png|jpe?g|webp|gif|ico|svg|woff2?)$/i;
+const cacheHeaderFor = (p) => {
+  if (LONG_CACHE.test(p)) return "public, max-age=604800, stale-while-revalidate=86400";
+  if (/\.(css|js|mjs)$/i.test(p)) return "public, max-age=3600";
+  return null;
+};
 const shouldLog = (method, p) => method !== "GET" || !ASSET.test(p);
 
 // /run 與 /health 轉給 Agents 後端，其餘轉給靜態站。SSE 要逐塊送出，不能緩衝。
@@ -353,6 +365,9 @@ function startGateway() {
         if (port === BACKEND_PORT) {
           h["x-accel-buffering"] = "no";
           h["cache-control"] = "no-cache, no-transform";
+        } else if (upRes.statusCode === 200) {
+          const cc = cacheHeaderFor(p);
+          if (cc) h["cache-control"] = cc;
         }
         usage.record(req, upRes.statusCode);
         /* 後台要看得到「全部的動作」，所以每一個請求都記——但靜態資源
