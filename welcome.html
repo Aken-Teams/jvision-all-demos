@@ -489,15 +489,30 @@
     })
     .catch(function () {});
 
-  fetch("/api/visitor/me").then(function (r) { return r.json(); }).then(function (d) {
-    if (d.signedIn) { location.replace(next); return; }
-    /* Google 是唯一入口，所以它沒設定好就等於沒有人進得來。要講清楚，
-       不能只留一個空白區塊讓人以為是頁面壞了。 */
-    if (!d.google) { $("#noGoogle").hidden = false; return; }
-    var g = $("#gbtn");
-    g.href = "/api/visitor/google/start?next=" + encodeURIComponent(next);
-    g.hidden = false;
-  }).catch(function () { $("#noGoogle").hidden = false; });
+  /* 查身分失敗要重試再說。站台重啟只需要幾秒，但一次失敗就顯示「尚未開放」
+     的話，剛好撞上重啟的訪客會永遠停在那個訊息——Google 是唯一入口，
+     那等於把人擋在門外。三次都失敗才顯示訊息，且訊息顯示後仍每 5 秒再試。 */
+  var meTries = 0;
+  function checkMe() {
+    fetch("/api/visitor/me").then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    }).then(function (d) {
+      if (d.signedIn) { location.replace(next); return; }
+      if (!d.google) { $("#noGoogle").hidden = false; retryLater(); return; }
+      var g = $("#gbtn");
+      g.href = "/api/visitor/google/start?next=" + encodeURIComponent(next);
+      g.hidden = false;
+      $("#noGoogle").hidden = true;
+    }).catch(function () {
+      meTries += 1;
+      if (meTries < 3) { setTimeout(checkMe, 1200); return; }
+      $("#noGoogle").hidden = false;
+      retryLater();
+    });
+  }
+  function retryLater() { setTimeout(checkMe, 5000); }
+  checkMe();
 
   /* 只有從 Google 被退回來時才直接給結果——他已經看過開場了，現在只想知道
      哪裡錯了。要求減少動態的人一樣看得到四幕，只是沒有淡入。 */

@@ -73,14 +73,20 @@
      沒有訊息的話使用者只會看到自己又回到登入頁，完全不知道發生什麼事。 */
   if (params.get("error")) err.textContent = params.get("error");
 
-  /* 只有真的設定好 Google 登入才顯示那顆按鈕，否則按下去只會拿到 503。 */
-  fetch("/api/admin/session").then((r) => r.json()).then((d) => {
-    if (!d.google) return;
-    const g = document.getElementById("gbtn");
-    g.href = "/api/admin/google/start?next=" + encodeURIComponent(next);
-    g.hidden = false;
-    document.getElementById("divider").hidden = false;
-  }).catch(() => {});
+  /* 只有真的設定好 Google 登入才顯示那顆按鈕，否則按下去只會拿到 503。
+     查詢失敗要重試——站台重啟的幾秒內開頁，按鈕會永遠不出現。 */
+  let sessTries = 0;
+  (function checkSess() {
+    fetch("/api/admin/session").then((r) => r.json()).then((d) => {
+      if (!d.google) return;
+      const g = document.getElementById("gbtn");
+      g.href = "/api/admin/google/start?next=" + encodeURIComponent(next);
+      g.hidden = false;
+      document.getElementById("divider").hidden = false;
+    }).catch(() => {
+      if (++sessTries < 4) setTimeout(checkSess, 1500);
+    });
+  })();
   const go = document.getElementById("go");
   document.getElementById("form").addEventListener("submit", async (e) => {
     e.preventDefault();
