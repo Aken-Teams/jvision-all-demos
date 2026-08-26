@@ -28,6 +28,10 @@ const ROUNDS = num(args.rounds, 2);
 const OUT = args.out ? path.resolve(args.out) : CANDIDATES_PATH;
 const SCHEMA = path.join(ROOT, "tools", "schemas", "topic-scout.schema.json");
 const ONLY_TYPES = args.type ? list(args.type) : null;
+/* 指定產業與自由文字的方向指引。缺口分配是為了「讓站上長得均衡」，但有時
+   需要的是「這一批就是要做某個領域」——那時缺口反而會把題目拉回別的產業。 */
+const ONLY_CATEGORIES = args.categories ? list(args.categories) : null;
+const FOCUS = args.focus ? String(args.focus) : null;
 const EXCLUDE_TYPES = args["exclude-type"] ? list(args["exclude-type"]) : [];
 
 /* ── 1. 缺口分析 ─────────────────────────────────────────── */
@@ -85,6 +89,16 @@ const catRows = Object.entries(MARKET_WEIGHT).map(([category, w]) => {
    權重走的，只是不再有「補不足」的偏向。 */
 let deficitRows = catRows.filter((r) => r.deficit > 0);
 let deficitBasis = "缺口";
+if (ONLY_CATEGORIES) {
+  /* 指定產業時不看缺口——指定本身就是意圖。仍照市場權重在這幾個產業之間
+     分配，權重為 0 的（AI 工程平台）給 1，否則指定了卻分不到配額。 */
+  const unknown = ONLY_CATEGORIES.filter((c) => !catRows.some((r) => r.category === c));
+  if (unknown.length) { log.error(`不存在的產業：${unknown.join("、")}`); process.exit(EXIT.BAD_INPUT); }
+  deficitRows = catRows
+    .filter((r) => ONLY_CATEGORIES.includes(r.category))
+    .map((r) => ({ ...r, deficit: Math.max(1, r.weight) }));
+  deficitBasis = `指定產業（${ONLY_CATEGORIES.join("、")}）`;
+}
 if (!deficitRows.length) {
   deficitRows = catRows.filter((r) => r.weight > 0).map((r) => ({ ...r, deficit: r.weight }));
   deficitBasis = "市場權重（所有產業皆已達標）";
@@ -148,6 +162,8 @@ function buildPrompt(round, negatives, ideas) {
 \n`
     : "";
 
+  const focusBlock = FOCUS ? `\n## 這一批的方向（必須遵守）\n${FOCUS}\n` : "";
+
   const negativeBlock = negatives.length
     ? `\n## 上一輪被判定重複的題目（請避開這些方向）\n${negatives.map((n) => `- ${n.title}（撞到「${n.matchedTitle}」，相似度 ${n.score}）`).join("\n")}\n`
     : "";
@@ -160,7 +176,7 @@ function buildPrompt(round, negatives, ideas) {
 
 ## 缺題的產業，以及該產業已有的題目（請避開這些，並補足同產業其他場景）
 ${coverageBlock}
-${ideaBlock}
+${focusBlock}${ideaBlock}
 
 ## 配額表（**只出以下產業**，總數以本表加總為準）
 ${quotaBlock}
@@ -222,6 +238,7 @@ ${coverageBlock}
 
 ## 只能提以下產業的題目
 ${catQuota.map((r) => r.category).join("、")}
+${FOCUS ? `\n## 這一批的方向（必須遵守）\n${FOCUS}\n` : ""}
 
 ## 規則
 1. 提 ${perSeat} 個題目，每個都要是**你這個角色親眼看過的作業**，不要提通用的「管理平台」。
