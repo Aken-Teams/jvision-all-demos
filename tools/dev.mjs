@@ -120,10 +120,11 @@ function startGateway() {
     const who = actions.visitorOf(req.socket?.remoteAddress);
 
     // ── 進站身分 ──────────────────────────────────────────
+    /* 訪客入口已關閉。端點留著並明確拒絕，而不是直接移除——舊分頁上的按鈕
+       還會打過來，回 404 看起來像站壞了，回 403 才說得清楚發生什麼事。 */
     if (p === "/api/visitor/guest" && req.method === "POST") {
-      visitor.issue(req, res, { kind: "guest" });
-      actions.record({ actor: "訪客", action: "以訪客身分進站", status: 200, visitor: who });
-      return json(res, 200, { ok: true });
+      actions.record({ actor: "訪客", action: "訪客入口已關閉", status: 403, visitor: who });
+      return json(res, 403, { error: "本站需要以 Google 帳號登入", needsGoogle: true });
     }
     if (p === "/api/visitor/google/start") {
       if (!google.configured(auth.conf())) return json(res, 503, { error: "尚未設定 Google 登入" });
@@ -138,13 +139,21 @@ function startGateway() {
     }
     if (p === "/api/visitor/me") {
       const id = visitor.read(req);
-      return json(res, 200, { signedIn: Boolean(id), kind: id?.kind || null,
+      return json(res, 200, { signedIn: visitor.isNamed(id), kind: id?.kind || null,
         email: id?.email || null, name: id?.name || null, google: google.configured(auth.conf()) });
     }
 
+    /* 許願池只給具名使用者。訪客身分看得到站上所有 demo，但許願會進到產線、
+       佔用 codex 與人的時間，而且後台需要知道是誰提的才有辦法回頭聯繫——
+       匿名的需求收進來，做完了也不知道要通知誰。
+       把關一定要在這裡：前端藏起按鈕擋得住手滑，擋不住直接打 API。 */
     if (p === "/api/wish/request" && req.method === "POST") {
       const id = visitor.read(req);
       if (!id) return json(res, 401, { error: "請先選擇身分再送出" });
+      if (id.kind !== "google") {
+        actions.record({ actor: "訪客", action: "訪客身分嘗試許願被擋", status: 403, visitor: who });
+        return json(res, 403, { error: "許願池需要 Google 帳號登入", needsGoogle: true });
+      }
       const body = await readBody(req);
       const r = wishes.create(root, {
         need: body.need, analysis: body.analysis,
@@ -159,7 +168,7 @@ function startGateway() {
 
     /* 進站閘門：沒有身分就先到入口頁選一個。放行的路徑寫在
        visitor-auth 的 needsGate 裡，集中一處才看得出「什麼東西不用登入」。 */
-    if (visitor.needsGate(p) && !visitor.read(req)) {
+    if (visitor.needsGate(p) && !visitor.isNamed(visitor.read(req))) {
       res.writeHead(302, { location: `/welcome?next=${encodeURIComponent(normalizeNext(req.url))}` });
       return res.end();
     }
@@ -320,6 +329,16 @@ function startGateway() {
       const body = JSON.stringify(usage.summarize({ root, days }));
       res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
       return res.end(body);
+    }
+
+    /* /wish 的 POST 是 AI 分析，也要具名才能用——那一次分析是真的在燒算力，
+       而且它就是許願流程的第一步，只擋後半段等於沒擋。 */
+    if (p === "/wish" && (req.method === "POST" || req.method === "OPTIONS")) {
+      const id = visitor.read(req);
+      if (!id || id.kind !== "google") {
+        actions.record({ actor: "訪客", action: "訪客身分嘗試 AI 分析被擋", status: 403, visitor: who });
+        return json(res, 403, { error: "AI 許願池需要 Google 帳號登入", needsGoogle: true });
+      }
     }
 
     const port = isBackend(req.method, p) ? BACKEND_PORT : STATIC_PORT;

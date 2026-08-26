@@ -21,6 +21,10 @@ const cookies = (req) => Object.fromEntries(
   String(req.headers.cookie || "").split(";").map((x) => x.trim().split(/=(.*)/s)).filter((x) => x[0]),
 );
 
+/** 這個身分算不算數。全站已改為只接受 Google 具名登入，訪客身分不再放行。
+    舊的訪客 cookie 還在瀏覽器裡，所以不能只看「有沒有 cookie」——要看 kind。 */
+export const isNamed = (id) => Boolean(id && id.kind === "google");
+
 /** 讀出目前的進站身分；沒有或驗不過回 null。 */
 export function read(req) {
   if (!secret) return null;
