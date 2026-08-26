@@ -68,6 +68,35 @@
            color:var(--stone);text-transform:uppercase;margin-bottom:26px}
 
   .temple{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
+  /* 照片滿版當背景。載不到就自己隱藏，露出底下原本的 SVG 或底色——
+     缺一張圖不該讓整幕變成白畫面。 */
+  .photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+         pointer-events:none;opacity:0;transition:opacity 1.4s ease}
+  .photo.ready{opacity:1}
+  /* 第二幕的照片是一張裱起來的圖版，不是滿版背景：這一幕的主角是那句話，
+     照片是證物。象牙色的窄邊框讓它像放在石桌上的相片。 */
+  .plate{position:relative;width:min(100%,42rem);margin:0 auto 40px;
+         border:1px solid var(--line);background:#fff;padding:10px;
+         box-shadow:0 24px 56px rgba(43,39,35,.10)}
+  .plate img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
+  .plate.empty{display:none}
+  @media(max-width:640px){ .plate{padding:7px;margin-bottom:30px} }
+  /* 第四幕的兩張產業圖交替。兩張構圖相近，慢慢溶接讀起來就是「很多產業」，
+     不必為此多開一幕。 */
+  /* 產業照片滿版當背景，介面浮在上面。三層疊著排會超過一個畫面高——實測
+     SYSTEM 被切掉、套數整行看不到，而因為 body 是 overflow:hidden，
+     scrollHeight 量不出來，看起來還一切正常。 */
+  .swap{position:absolute;inset:0;pointer-events:none}
+  .swap img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .swap img+img{opacity:0;transition:opacity 2.2s ease}
+  .swap img+img.on{opacity:1}
+  .swap.empty{display:none}
+  /* 照片上再鋪一層象牙色，讓深色的產業照不會把整幕拉出這頁的色調，
+     文字也才讀得住。用單一色調的疊層而不是黑色半透明——後者會讓照片發灰。 */
+  #act4::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(180deg,rgba(248,245,239,.90) 0%,rgba(248,245,239,.78) 45%,
+               rgba(248,245,239,.92) 100%)}
+  #act4>.center{z-index:2}
   .veil{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);
         width:min(120%,1100px);height:min(70%,520px);pointer-events:none;
         background:radial-gradient(closest-side,rgba(250,247,241,.94) 0%,
@@ -165,6 +194,7 @@
   <!-- ═══ 一　神殿 ═══ -->
   <section class="act" id="act1" data-dur="4200">
     <img class="temple" src="./assets/art/temple.svg" alt="" aria-hidden="true" />
+    <img class="photo" data-photo src="./assets/photos/01-temple-color.jpg" alt="" aria-hidden="true" />
     <div class="sunshaft" aria-hidden="true"></div>
     <div class="veil" aria-hidden="true"></div>
     <div class="center">
@@ -176,7 +206,10 @@
   <!-- ═══ 二　未完成的石 ═══ -->
   <section class="act" id="act2" data-dur="4600" style="background:linear-gradient(180deg,#EFE8DC 0%,#F6F2EA 100%)">
     <div class="center">
-      <div class="figure rise" style="margin-bottom:44px">
+      <figure class="plate rise" data-plate>
+        <img data-photo src="./assets/photos/02-temple-bw.jpg" alt="建造中的希臘神殿" />
+      </figure>
+      <div class="figure rise" data-fallback style="margin-bottom:44px">
         <svg viewBox="0 0 300 380" aria-hidden="true">
           <defs>
             <linearGradient id="blk" x1="0" y1="0" x2="1" y2="1">
@@ -236,7 +269,11 @@
   </section>
 
   <!-- ═══ 四　成為系統 ═══ -->
-  <section class="act" id="act4" data-dur="5000" style="background:linear-gradient(180deg,#FBF8F2 0%,#F4EFE6 100%)">
+  <section class="act" id="act4" data-dur="5000" style="background:linear-gradient(180deg,#FBF8F2 0%,#F4EFE6 100%);overflow:hidden">
+    <div class="swap" data-swap aria-hidden="true">
+      <img data-photo src="./assets/photos/03-industry-a.jpg" alt="" />
+      <img data-photo src="./assets/photos/04-industry-b.jpg" alt="" />
+    </div>
     <div class="center" style="max-width:54rem">
       <p class="eyebrow rise">Ε Ρ Γ Ο Ν</p>
       <h2 class="rise d1" style="margin-bottom:38px">一個想法。<br />一個可以運作的系統。</h2>
@@ -395,6 +432,46 @@
     if (document.hidden) clearTimers();
     else if (!ended && idx >= 0) play(idx);
   });
+
+  /* 照片載得到才顯示。這些圖是後來才放進去的，缺檔時整幕不該變成白畫面——
+     第一幕退回底下的 SVG 神殿，第二幕退回石塊，第四幕就少一張圖而已。 */
+  [].slice.call(document.querySelectorAll("[data-photo]")).forEach(function (img) {
+    var done = function (ok) {
+      if (ok) { img.classList.add("ready"); return; }
+      img.remove();
+    };
+    if (img.complete) done(img.naturalWidth > 0);
+    else {
+      img.addEventListener("load", function () { done(true); });
+      img.addEventListener("error", function () { done(false); });
+    }
+  });
+  /* 圖版或交替區裡一張都沒活下來，就把整個框收掉，不要留一個空白的相框 */
+  setTimeout(function () {
+    [].slice.call(document.querySelectorAll("[data-plate],[data-swap]")).forEach(function (box) {
+      if (!box.querySelector("img")) box.classList.add("empty");
+    });
+    var plate = document.querySelector("[data-plate]");
+    var fb = document.querySelector("[data-fallback]");
+    // 照片在的話就不必再顯示石塊那張示意圖，兩個一起出現只是重複
+    if (plate && plate.querySelector("img.ready") && fb) fb.remove();
+  }, 1200);
+
+  /* 兩張產業圖每 2.6 秒換一張，只在第四幕亮著時跑 */
+  (function () {
+    var swap = document.querySelector("[data-swap]");
+    if (!swap) return;
+    var imgs = swap.querySelectorAll("img");
+    if (imgs.length < 2) return;
+    var t = null;
+    var flip = function () { imgs[1].classList.toggle("on"); };
+    var obs = new MutationObserver(function () {
+      var on = document.getElementById("act4").classList.contains("on");
+      if (on && !t) t = setInterval(flip, 2600);
+      else if (!on && t) { clearInterval(t); t = null; imgs[1].classList.remove("on"); }
+    });
+    obs.observe(document.getElementById("act4"), { attributes: true, attributeFilter: ["class"] });
+  })();
 
   fetch("/projects-index.json", { cache: "no-store" })
     .then(function (r) { return r.json(); })
