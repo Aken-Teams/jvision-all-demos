@@ -179,12 +179,32 @@
             </div>
             <div id="wishBody" class="px-5 py-4 overflow-y-auto" style="max-height:calc(100dvh - 210px)">
               <div id="wishBuildBox" class="hidden mt-5 pt-4 border-t border-line">
-                <p class="text-[13px] text-muted leading-relaxed mb-3">想看到這個需求變成可以點的系統畫面？我們會把它排進製作清單。</p>
-                <button id="wishBuild" type="button"
-                        class="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl text-white text-[15px] font-black hover:opacity-90 transition shadow-sm"
-                        style="background-image:linear-gradient(90deg,#1e40af,#7c3aed)">
-                  <span class="material-symbols-outlined text-[19px]">auto_fix_high</span> 把這個需求做成系統 Demo
-                </button>
+                <div class="flex items-start gap-2.5 mb-3">
+                  <span class="material-symbols-outlined text-brand2 text-[20px] shrink-0 mt-0.5">construction</span>
+                  <div class="min-w-0">
+                    <p class="text-[14px] font-black text-ink leading-relaxed">要把這個需求做成正式系統嗎？</p>
+                    <p class="text-[12.5px] text-muted leading-relaxed mt-1">
+                      上面是 AI 對你的需求的分析。按下之後會排進製作清單，做成可以搜尋、可以操作、能收進專案目錄的系統。
+                    </p>
+                  </div>
+                </div>
+                <!-- 和 AI 團隊那頁一致：先問要修哪裡，再送出。分析很少一次就對，
+                     這一欄是把「不太對的地方」帶進產線的唯一機會。 -->
+                <label class="block text-[12.5px] font-bold text-muted mb-1.5" for="wishFix">還需要哪些修正？（選填）</label>
+                <textarea id="wishFix" rows="2" maxlength="600"
+                  class="w-full rounded-lg border border-line bg-white px-3 py-2 text-[13.5px] text-ink leading-relaxed focus:outline-none focus:border-brand2 resize-y"
+                  placeholder="例如：不要做成儀表板，要能逐筆處理；加上主管簽核的畫面"></textarea>
+                <div class="flex flex-wrap items-center gap-2.5 mt-3">
+                  <button id="wishBuild" type="button"
+                          class="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl text-white text-[14px] font-black hover:opacity-90 transition shadow-sm"
+                          style="background-image:linear-gradient(90deg,#1e40af,#7c3aed)">
+                    <span class="material-symbols-outlined text-[19px]">auto_fix_high</span> 產生成正式系統
+                  </button>
+                  <button id="wishBuildSkip" type="button"
+                          class="inline-flex items-center h-11 px-4 rounded-xl border border-line text-[13.5px] font-bold text-muted hover:text-ink hover:border-muted transition-colors">
+                    先不用
+                  </button>
+                </div>
                 <p id="wishBuildMsg" class="text-[13px] mt-2.5 leading-relaxed"></p>
               </div>
               <!-- 你的問題 + 建議方向 -->
@@ -298,7 +318,12 @@
           box.classList.remove("hidden");
           buildBtn.disabled = false;
           buildBtn.style.opacity = "";
+          buildBtn.innerHTML = '<span class="material-symbols-outlined text-[19px]">auto_fix_high</span> 產生成正式系統';
           buildMsg.textContent = "";
+          /* 上一次送出後把欄位鎖住了，這次要解開並清空——不然第二次許願會帶著
+             上一次的修正說明送出去。 */
+          $("#wishFix").value = "";
+          $("#wishFix").disabled = false;
         } else {
           box.classList.add("hidden");
         }
@@ -357,6 +382,8 @@
             $("#wishBuildBox").classList.remove("hidden");
             $("#wishBuildBox").classList.add("mt-4");
             buildBtn.disabled = false; buildBtn.style.opacity = ""; buildMsg.textContent = "";
+            buildBtn.innerHTML = String.raw`<span class="material-symbols-outlined text-[19px]">auto_fix_high</span> 產生成正式系統`;
+            $("#wishFix").value = ""; $("#wishFix").disabled = false;
             $("#wishAsk").appendChild($("#wishBuildBox"));
           }
         } finally { busy = false; }
@@ -380,14 +407,27 @@
 
       /* 把需求送去排製作。這裡刻意不等 AI 分析成功才顯示——分析失敗時
          需求本身仍然有價值，管理者看得到就能決定要不要做。 */
+      $("#wishBuildSkip").addEventListener("click", function () {
+        $("#wishBuildBox").classList.add("hidden");
+      });
+
       buildBtn.addEventListener("click", function () {
+        var fix = ($("#wishFix").value || "").trim();
+        /* 三段一起送：原始需求、AI 給的方向、要修什麼。只送需求原文的話，
+           後台看不到使用者其實已經否決了 AI 的哪一個方向。 */
+        var need = [
+          "原始需求：" + lastNeed,
+          lastSummary ? "AI 建議方向：" + lastSummary : "",
+          fix ? "希望修正：" + fix : "",
+        ].filter(Boolean).join("\n");
+
         buildBtn.disabled = true;
         buildBtn.style.opacity = ".6";
         buildMsg.textContent = "送出中…";
         buildMsg.style.color = "#64748b";
         fetch("/api/wish/request", {
           method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({ need: lastNeed, analysis: lastSummary }),
+          body: JSON.stringify({ need: need, analysis: lastSummary }),
         }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
           .then(function (x) {
             if (!x.ok) throw new Error(x.d.error || "送出失敗");
@@ -395,6 +435,8 @@
             buildMsg.textContent = x.d.duplicate
               ? "這個需求已經在製作清單裡了。"
               : "已收到，會排進製作清單。完成後就會出現在專案目錄裡。";
+            $("#wishFix").disabled = true;
+            buildBtn.textContent = "已送出";
           })
           .catch(function (e) {
             buildBtn.disabled = false;
