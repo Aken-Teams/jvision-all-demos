@@ -166,6 +166,35 @@
             <iframe id="resultFrame" title="實際成果畫面" class="w-full bg-white block" style="height:620px;border:0"></iframe>
           </div>
           <p id="resultDesc" class="text-[12px] text-muted mt-2">—</p>
+
+          <!-- 產出之後才問要不要做成正式系統。跑完之前就問，等於在還沒看到東西時
+               要人做決定；而這個決定會佔用產線，值得等他看過再說。 -->
+          <div id="makeReal" hidden class="mt-4 rounded-xl border border-line bg-white p-4">
+            <div class="flex items-start gap-3 mb-3">
+              <span class="material-symbols-outlined text-brand2 text-[22px] shrink-0 mt-0.5">construction</span>
+              <div class="min-w-0">
+                <p class="text-[14px] font-black text-ink leading-relaxed">要把這個結果做成正式系統嗎？</p>
+                <p class="text-[12.5px] text-muted leading-relaxed mt-1">
+                  上面是即時模擬的畫面。按下之後會排進製作清單，做成可以搜尋、可以操作、能收進專案目錄的系統。
+                </p>
+              </div>
+            </div>
+            <label class="block text-[12.5px] font-bold text-muted mb-1.5" for="fixNotes">還需要哪些修正？（選填）</label>
+            <textarea id="fixNotes" rows="2" maxlength="600"
+              class="w-full rounded-lg border border-line bg-white px-3 py-2 text-[13.5px] text-ink leading-relaxed focus:outline-none focus:border-brand2 resize-y"
+              placeholder="例如：不要雷達圖改成趨勢線、要能依班別篩選、加上異常通知的畫面"></textarea>
+            <div class="flex flex-wrap items-center gap-2.5 mt-3">
+              <button id="makeRealBtn" type="button"
+                class="inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-brand text-white text-[13.5px] font-bold hover:bg-brand2 transition-colors shadow-sm">
+                <span class="material-symbols-outlined text-[18px]">auto_fix_high</span> 產生成正式系統
+              </button>
+              <button id="makeRealSkip" type="button"
+                class="inline-flex items-center h-10 px-4 rounded-xl border border-line text-[13.5px] font-bold text-muted hover:text-ink hover:border-muted transition-colors">
+                先不用
+              </button>
+              <span id="makeRealMsg" class="text-[12.5px] leading-relaxed"></span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -219,6 +248,85 @@
         else if (tries++ < 40) setTimeout(auto, 100);
       })();
     }
+  })();
+  </script>
+
+  <script>
+  /* 「要不要做成正式系統」。走的是許願池同一條產線（/api/wish/request），
+     所以後台看得到、可以決定立即製作或排入排程——不另外開一條路徑，
+     兩條路徑會有兩套狀態，遲早不同步。 */
+  (function () {
+    var card = document.getElementById("makeReal");
+    if (!card) return;
+    var btn = document.getElementById("makeRealBtn");
+    var skip = document.getElementById("makeRealSkip");
+    var notes = document.getElementById("fixNotes");
+    var msg = document.getElementById("makeRealMsg");
+    var dismissed = false;
+
+    var text = function (sel) {
+      var el = document.querySelector(sel);
+      var v = el ? (el.value != null ? el.value : el.textContent) : "";
+      return String(v || "").trim();
+    };
+
+    /* 跑完才顯示。用 runStatus / runPct 兩個都看：不同案例的收尾寫法不一樣，
+       只盯其中一個會有案例永遠不顯示這張卡。 */
+    var check = function () {
+      if (dismissed || !card.hidden) return;
+      var pct = text("#runPct");
+      var status = text("#runStatus");
+      var title = text("#resultTitle");
+      var done = /100/.test(pct) || /完成/.test(status);
+      if (done && title && title !== "—") card.hidden = false;
+    };
+    var mo = new MutationObserver(check);
+    ["#runPct", "#runStatus", "#resultTitle"].forEach(function (sel) {
+      var el = document.querySelector(sel);
+      if (el) mo.observe(el, { childList: true, characterData: true, subtree: true });
+    });
+    setInterval(check, 1500);
+
+    skip.addEventListener("click", function () { dismissed = true; card.hidden = true; });
+
+    btn.addEventListener("click", function () {
+      var title = text("#resultTitle");
+      var ask = text("#missInput") || text("#demoQuestion") || text("#missObjective");
+      var fix = notes.value.trim();
+      /* 送出的是「原始需求 + 這次產出的名稱 + 要修什麼」。只送標題的話，
+         後台看不出使用者原本想解決什麼，做出來很可能又不是他要的。 */
+      var need = [
+        ask && ask !== "—" ? "原始需求：" + ask : "",
+        title && title !== "—" ? "AI 產出的系統：" + title : "",
+        fix ? "希望修正：" + fix : "",
+      ].filter(Boolean).join("\n");
+      if (need.length < 8) { msg.style.color = "#b42318"; msg.textContent = "看不出要做什麼，請補一點說明"; return; }
+
+      btn.disabled = true; btn.style.opacity = ".6";
+      msg.style.color = "#64748b"; msg.textContent = "送出中…";
+      fetch("/api/wish/request", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ need: need, analysis: title }),
+      }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, status: r.status, d: d }; }); })
+        .then(function (x) {
+          if (x.status === 403 && x.d.needsGoogle) {
+            msg.style.color = "#b42318";
+            msg.innerHTML = '需要以 Google 帳號登入才能送出　<a class="font-bold text-brand underline" href="/api/visitor/google/start?next='
+              + encodeURIComponent(location.pathname + location.search) + '">前往登入</a>';
+            btn.disabled = false; btn.style.opacity = "";
+            return;
+          }
+          if (!x.ok) throw new Error(x.d.error || "送出失敗");
+          msg.style.color = "#067647";
+          msg.textContent = x.d.duplicate ? "這個需求已經在製作清單裡了。" : "已收到，會排進製作清單。";
+          notes.disabled = true;
+          btn.textContent = "已送出";
+        })
+        .catch(function (e) {
+          msg.style.color = "#b42318"; msg.textContent = e.message;
+          btn.disabled = false; btn.style.opacity = "";
+        });
+    });
   })();
   </script>
 </body>
