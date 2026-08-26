@@ -44,6 +44,8 @@
   th{font-size:12.5px;color:var(--muted);font-weight:500;position:sticky;top:0;background:#243248}
   tr:last-child td{border-bottom:0}
   td.target{white-space:normal;word-break:break-all;max-width:420px}
+  /* 具名登入的信箱可能很長，讓它自己截斷而不是把表格撐寬 */
+  td.who{max-width:190px;overflow:hidden;text-overflow:ellipsis}
   .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;border:1px solid var(--line)}
   .tag.訪客{color:#93c5fd;border-color:#1e40af}
   .tag.後台{color:#fbbf24;border-color:#78350f}
@@ -89,8 +91,8 @@
 
   <div class="tablewrap">
     <table>
-      <thead><tr><th>時間</th><th>來源</th><th>動作</th><th>對象</th><th>狀態</th><th>耗時</th><th>裝置</th><th>訪客碼</th></tr></thead>
-      <tbody id="rows"><tr><td colspan="8" class="empty">載入中…</td></tr></tbody>
+      <thead><tr><th>時間</th><th>來源</th><th>身分</th><th>動作</th><th>對象</th><th>狀態</th><th>耗時</th><th>裝置</th><th>訪客碼</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="9" class="empty">載入中…</td></tr></tbody>
     </table>
   </div>
 
@@ -127,14 +129,15 @@ function render(data) {
   const today = new Date().toDateString();
   const todayRows = rows.filter((r) => new Date(r.at).toDateString() === today);
   const visitors = new Set(rows.filter((r) => r.actor === "訪客").map((r) => r.visitor));
+  const named = new Set(rows.map((r) => r.who).filter((w) => w && w !== "訪客"));
   const agent = rows.filter((r) => r.actor === "Agent");
   const last = agent[0];
 
   $("#kpis").innerHTML = [
     ["今日動作", todayRows.length, `讀入最近 ${rows.length} 筆`],
     ["不重複訪客", visitors.size, "以雜湊碼計算，不存 IP"],
+    ["具名登入", named.size, named.size ? [...named].slice(0, 2).join("、") : "尚無人用 Google 登入"],
     ["Agent 事件", agent.length, last ? `最後：${last.action}` : "尚無紀錄"],
-    ["顯示中", shown.length, q ? `篩選「${q}」` : "未篩選"],
   ].map(([k, v, note]) => `<div class="kpi"><span>${k}</span><b>${v}</b><i>${note}</i></div>`).join("");
 
   $("#rows").innerHTML = shown.length ? shown.map((r) => {
@@ -142,6 +145,7 @@ function render(data) {
     return `<tr>
       <td class="muted">${fmt(r.at)}</td>
       <td><span class="tag ${r.actor}">${r.actor || "—"}</span></td>
+      <td class="who">${esc(r.who || "—")}</td>
       <td>${esc(r.action || "")}</td>
       <td class="target">${esc(r.target || "")}${r.note ? ` <span class="muted">· ${esc(r.note)}</span>` : ""}</td>
       <td class="s${sc}">${r.status ?? "—"}</td>
@@ -149,7 +153,7 @@ function render(data) {
       <td class="muted">${r.device || "—"}</td>
       <td class="muted">${r.visitor || "—"}</td>
     </tr>`;
-  }).join("") : `<tr><td colspan="8" class="empty">沒有符合的紀錄</td></tr>`;
+  }).join("") : `<tr><td colspan="9" class="empty">沒有符合的紀錄</td></tr>`;
 }
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

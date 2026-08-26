@@ -45,11 +45,13 @@ export function originOf(req) {
 export const redirectUri = (req) => `${originOf(req)}/api/admin/google/callback`;
 
 /** 產生授權網址，並把 state / nonce 記下來等回呼比對。 */
-export function startUrl(conf, req, next) {
+export function startUrl(conf, req, next, purpose = "admin") {
   sweep();
   const state = crypto.randomBytes(16).toString("base64url");
   const nonce = crypto.randomBytes(16).toString("base64url");
-  pending.set(state, { nonce, at: Date.now(), next: next || "/admin-actions.html", redirect: redirectUri(req) });
+  /* purpose 決定回呼後發哪一種身分。不記在 state 裡而是記在伺服器端，
+     是因為 state 會出現在網址上——放在網址上的東西使用者就能改。 */
+  pending.set(state, { nonce, purpose, at: Date.now(), next: next || "/", redirect: redirectUri(req) });
   const q = new URLSearchParams({
     client_id: conf.google.clientId,
     redirect_uri: redirectUri(req),

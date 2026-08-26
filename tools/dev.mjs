@@ -8,6 +8,7 @@ import * as usage from "./lib/usage-log.mjs";
 import * as actions from "./lib/action-log.mjs";
 import * as auth from "./lib/admin-auth.mjs";
 import * as google from "./lib/google-auth.mjs";
+import * as visitor from "./lib/visitor-auth.mjs";
 
 // 對外只開一個 port（PUBLIC_PORT）。靜態站和 Agents 後端都只綁 127.0.0.1，
 // 由下面的 gateway 依路徑分流。這樣區網只要放行 3000，不必再開第二個 port
@@ -62,6 +63,15 @@ function sniffStaticPort(name, chunk) {
   STATIC_PORT = actual;
 }
 
+/* 回到原目的地的網址要先把 .html 拿掉。serve 的 clean-URL 會把 /x.html 301
+   到 /x，而那一跳**不帶查詢字串**——/project.html?repo=jvision-crm 登入完會變成
+   /project，詳細頁少了 repo 就開不出東西。先正規化就不會多那一跳。 */
+function normalizeNext(url) {
+  const i = url.indexOf("?");
+  const path = (i < 0 ? url : url.slice(0, i)).replace(/\.html$/, "");
+  return path + (i < 0 ? "" : url.slice(i));
+}
+
 /* 靜態資源不記。一次開頁會帶出幾十個 css/js/圖，全部記下來會把真正的
    動作淹沒在雜訊裡；非 GET 一律記，那些都是有副作用的操作。 */
 const ASSET = /\.(css|js|mjs|map|svg|png|jpe?g|webp|gif|ico|woff2?|txt)$/i;
@@ -106,6 +116,36 @@ function startGateway() {
     const t0 = Date.now();
     const who = actions.visitorOf(req.socket?.remoteAddress);
 
+    // ── 進站身分 ──────────────────────────────────────────
+    if (p === "/api/visitor/guest" && req.method === "POST") {
+      visitor.issue(req, res, { kind: "guest" });
+      actions.record({ actor: "訪客", action: "以訪客身分進站", status: 200, visitor: who });
+      return json(res, 200, { ok: true });
+    }
+    if (p === "/api/visitor/google/start") {
+      if (!google.configured(auth.conf())) return json(res, 503, { error: "尚未設定 Google 登入" });
+      const next = new URL(req.url, "http://x").searchParams.get("next") || "/";
+      res.writeHead(302, { location: google.startUrl(auth.conf(), req, next, "visitor") });
+      return res.end();
+    }
+    if (p === "/api/visitor/logout" && req.method === "POST") {
+      visitor.clear(req, res);
+      actions.record({ actor: "訪客", action: "離開（清除身分）", status: 200, visitor: who });
+      return json(res, 200, { ok: true });
+    }
+    if (p === "/api/visitor/me") {
+      const id = visitor.read(req);
+      return json(res, 200, { signedIn: Boolean(id), kind: id?.kind || null,
+        email: id?.email || null, name: id?.name || null, google: google.configured(auth.conf()) });
+    }
+
+    /* 進站閘門：沒有身分就先到入口頁選一個。放行的路徑寫在
+       visitor-auth 的 needsGate 裡，集中一處才看得出「什麼東西不用登入」。 */
+    if (visitor.needsGate(p) && !visitor.read(req)) {
+      res.writeHead(302, { location: `/welcome?next=${encodeURIComponent(normalizeNext(req.url))}` });
+      return res.end();
+    }
+
     // ── 後台認證 ──────────────────────────────────────────
     if (p === "/api/admin/login" && req.method === "POST") {
       if (!auth.ready()) return json(res, 503, { error: "後台密碼尚未設定（var/admin.json）" });
@@ -134,17 +174,33 @@ function startGateway() {
     }
     if (p === "/api/admin/google/callback") {
       const q = new URL(req.url, "http://x").searchParams;
+      /* state 一次性，比對不過就是偽造的回呼或使用者按了舊連結。
+         要先取出來才知道這次是進站還是後台，錯誤才退得回正確的頁面。 */
+      const rec = google.takePending(q.get("state") || "");
+      const backTo = rec?.purpose === "visitor" ? "/welcome" : "/admin-login";
       const fail = (why) => {
-        actions.record({ actor: "後台", action: "Google 登入失敗", status: 401, visitor: who, note: why });
-        res.writeHead(302, { location: `/admin-login.html?error=${encodeURIComponent(why)}` });
+        actions.record({ actor: rec?.purpose === "visitor" ? "訪客" : "後台",
+          action: "Google 登入失敗", status: 401, visitor: who, note: why });
+        res.writeHead(302, { location: `${backTo}?error=${encodeURIComponent(why)}` });
         res.end();
       };
       if (q.get("error")) return fail(`Google 回報：${q.get("error")}`);
-      /* state 一次性，比對不過就是偽造的回呼或使用者按了舊連結。 */
-      const rec = google.takePending(q.get("state") || "");
       if (!rec) return fail("登入連結已失效，請重新登入");
       try {
         const user = await google.exchange(auth.conf(), q.get("code") || "", rec);
+
+        /* 進站具名：任何 Google 帳號都可以，這只是「願意具名的訪客」。
+           若這個信箱剛好也在後台白名單，順手一併發後台 session——反正他
+           走後台登入也會過，讓他多按一次沒有多換到任何安全性。 */
+        if (rec.purpose === "visitor") {
+          visitor.issue(req, res, { kind: "google", email: user.email, name: user.name });
+          if (google.allowed(auth.conf(), user.email)) auth.setCookie(req, res);
+          actions.record({ actor: "訪客", action: "Google 具名進站", status: 200, visitor: who, note: user.email });
+          res.writeHead(302, { location: rec.next || "/" });
+          return res.end();
+        }
+
+        /* 後台：白名單是唯一的門檻。 */
         if (!google.allowed(auth.conf(), user.email)) {
           return fail(`${user.email} 不在允許清單內`);
         }
@@ -175,7 +231,7 @@ function startGateway() {
          .html 結尾——serve 的 clean-URL 會讓瀏覽器最後停在 /admin-actions，
          那個路徑就會收到一段 401 JSON 而不是登入畫面。 */
       if (!p.startsWith("/api/")) {
-        res.writeHead(302, { location: `/admin-login.html?next=${encodeURIComponent(p)}` });
+        res.writeHead(302, { location: `/admin-login?next=${encodeURIComponent(normalizeNext(req.url))}` });
         return res.end();
       }
       return json(res, 401, { error: "請先登入管理後台" });
@@ -221,6 +277,7 @@ function startGateway() {
           actions.record({
             actor: "訪客", action: req.method === "GET" ? "瀏覽" : req.method,
             target: p, status: upRes.statusCode, visitor: who,
+            who: visitor.labelOf(visitor.read(req)),
             device: /Mobi|Android|iPhone|iPad/i.test(String(req.headers["user-agent"] || "")) ? "mobile" : "desktop",
             ms: Date.now() - t0,
           });
@@ -240,6 +297,9 @@ function startGateway() {
   const logFile = usage.open(root);
   const actionFile = actions.open(root);
   const authConf = auth.load(root);
+  /* 進站 cookie 與後台 cookie 共用同一把簽章金鑰。兩者的內容與 cookie 名稱
+     都不同，共用金鑰不會讓其中一種被拿去偽造成另一種。 */
+  visitor.init(auth.conf()?.secret || "");
   gw.listen(PUBLIC_PORT, "0.0.0.0", () => {
     console.log(`[gateway] 對外服務於 0.0.0.0:${PUBLIC_PORT}`);
     console.log(`[gateway] 使用紀錄 → ${path.relative(root, logFile)}（不含 IP，僅存雜湊）`);
