@@ -126,6 +126,9 @@ for (const [i, p] of todo.entries()) {
           method: "POST",
           body: JSON.stringify({
             name: repo,
+            /* 明講要公開。API 預設雖是公開，但組織可以把預設改成私有——
+               這些 repo 是站上 1,500 個對外連結的目的地，私有等於連結全斷。 */
+            private: false,
             description: `${p.title}｜${p.category || ""}．JVision 系統 Demo`.slice(0, 140),
             homepage: `${SITE}${p.demoUrl || ""}`,
             has_issues: false, has_projects: false, has_wiki: false,
