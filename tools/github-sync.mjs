@@ -108,7 +108,8 @@ let created = 0, pushed = 0, skipped = 0, failed = 0;
 const todo = LIMIT ? projects.slice(0, LIMIT) : projects;
 console.log(`共 ${projects.length} 個專案${LIMIT ? `，本批 ${todo.length}` : ""}${DRY ? "（dry-run）" : ""}`);
 
-for (const [i, p] of todo.entries()) {
+for (let i = 0; i < todo.length; i += 1) {
+  const p = todo[i];
   const repo = p.repoName;
   const hash = hashOf(repo);
   const st = state[repo] || {};
@@ -123,16 +124,18 @@ for (const [i, p] of todo.entries()) {
        速度上限，超過就整段封鎖。實測連建約 140 個 repo 後被擋，之後每一筆都
        403——不退避的話只是把整批刷成失敗。被擋就等（retry-after 或至少 90 秒、
        逐次加倍）再重試同一筆，最多五次。 */
+    /* 內層只處理短暫抖動；確認是長期封鎖就拋訊號交給外層全域冷卻。
+       原本五次退避累計 22 分鐘全打在同一個封鎖上，反而延長封鎖。 */
     const createWithRetry = async (body) => {
-      for (let attempt = 1; attempt <= 5; attempt += 1) {
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
         const r = await api(`/orgs/${ORG}/repos`, { method: "POST", body });
         const secondary = r.status === 403 && /secondary rate limit/i.test(r.data?.message || "");
         if (!secondary) return r;
-        const waitMs = Math.max((r.retryAfter || 0) * 1000, 90000 * attempt);
-        console.log(`  …二級限流，等 ${Math.round(waitMs / 1000)} 秒後重試（第 ${attempt} 次）`);
+        if (attempt === 2) { const err = new Error("SECONDARY_BLOCK"); err.secondary = true; throw err; }
+        const waitMs = Math.max((r.retryAfter || 0) * 1000, 60000);
+        console.log(`  …二級限流，等 ${Math.round(waitMs / 1000)} 秒再試一次`);
         await new Promise((res2) => setTimeout(res2, waitMs));
       }
-      return { status: 403, data: { message: "secondary rate limit（重試五次仍被擋）" } };
     };
 
     let defaultBranch = null;
@@ -196,6 +199,15 @@ for (const [i, p] of todo.entries()) {
     pushed += 1;
     if (pushed % 20 === 0) { saveState(); console.log(`  進度 ${i + 1}/${todo.length}（建立 ${created}、推送 ${pushed}）`); }
   } catch (e) {
+    /* 封鎖未解時換下一筆只會餵養偵測器。全域安靜 45 分鐘（一次 API 都不打），
+       再從同一筆續跑。 */
+    if (e.secondary) {
+      console.log("  …二級封鎖未解，全域冷卻 45 分鐘後從同一筆續跑（" + p.repoName + "）");
+      saveState();
+      await new Promise((res2) => setTimeout(res2, 45 * 60000));
+      i -= 1;
+      continue;
+    }
     failed += 1;
     console.error(`  ✖ ${repo}：${String(e.message).split("\n")[0].slice(0, 100)}`);
     state[repo] = { ...st, error: String(e.message).slice(0, 120) };
