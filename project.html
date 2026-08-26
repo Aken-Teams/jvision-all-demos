@@ -7,12 +7,13 @@
   <meta name="description" content="專案總覽：要解決的問題、系統做什麼、核心功能、運作流程、帶來效益與互動 Demo。" />
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" /></noscript></noscript>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" /></noscript></noscript>
   <script src="./shared/system-content.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <script>
     tailwind.config = { theme: { extend: {
       colors: { ink:"#0f1e46", body:"#334155", muted:"#64748b", line:"#e2e8f0", soft:"#f5f8fc", brand:"#1e40af", brand2:"#3b82f6" },
@@ -883,12 +884,52 @@
       // ---- chart / diagram rendering (lazy, per tab) ----
       const charts = [];
       let mermaidReady = false;
-      try { if (window.mermaid) { mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "base", flowchart: { nodeSpacing: 30, rankSpacing: 48, padding: 12, useMaxWidth: true }, themeVariables: { fontSize: "16px", primaryColor: "#ffffff", primaryBorderColor: accent, primaryTextColor: "#0f1e46", lineColor: "#94a3b8", fontFamily: "Inter, Noto Sans TC, sans-serif" } }); mermaidReady = true; } } catch (e) {}
+
+      /* 用到才載。同一個網址只會發一次請求：Promise 存進 cache，後續呼叫拿到
+         同一個 Promise。失敗回 false 而不是拋錯——圖畫不出來是可以接受的降級，
+         整頁掛掉不是。 */
+      const loadOnce = (function () {
+        const cache = new Map();
+        return function (src) {
+          if (!cache.has(src)) {
+            cache.set(src, new Promise(function (resolve, reject) {
+              const el = document.createElement("script");
+              el.src = src; el.async = true;
+              el.onload = function () { resolve(true); };
+              el.onerror = function () { reject(new Error("載入失敗：" + src)); };
+              document.head.appendChild(el);
+            }));
+          }
+          return cache.get(src);
+        };
+      })();
+
+      function initMermaid() {
+        try { if (window.mermaid) { mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "base", flowchart: { nodeSpacing: 30, rankSpacing: 48, padding: 12, useMaxWidth: true }, themeVariables: { fontSize: "16px", primaryColor: "#ffffff", primaryBorderColor: accent, primaryTextColor: "#0f1e46", lineColor: "#94a3b8", fontFamily: "Inter, Noto Sans TC, sans-serif" } }); mermaidReady = true; } } catch (e) {}
+      }
+      async function ensureMermaid() {
+        if (mermaidReady) return true;
+        try { await loadOnce("https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"); }
+        catch (e) { console.warn(e); return false; }
+        initMermaid();
+        return mermaidReady;
+      }
+      async function ensureD3() {
+        if (window.d3) return true;
+        try { await loadOnce("https://cdn.jsdelivr.net/npm/d3@7"); } catch (e) { console.warn(e); return false; }
+        return Boolean(window.d3);
+      }
+      async function ensureECharts() {
+        if (window.echarts) return true;
+        try { await loadOnce("https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"); }
+        catch (e) { console.warn(e); return false; }
+        return Boolean(window.echarts);
+      }
       async function drawDiagram(elId, spec) {
         const el = document.getElementById(elId); if (!el || el.dataset.done || !spec) return;
         if (spec.engine === "html") { el.innerHTML = spec.html; el.dataset.done = "1"; return; }
         if (spec.engine === "radial") {
-          if (window.d3) {
+          if (await ensureD3()) {
             try {
               const d3 = window.d3, data = spec.data, groups = data.children || [];
               const palette = ["#16a34a", "#dc2626", "#7c3aed", "#0891b2", "#d97706", "#db2777", "#2563eb", "#65a30d", "#0d9488", "#c026d3"];
@@ -922,15 +963,18 @@
               return;
             } catch (e) { console.warn("radial", e); }
           }
-          if (mermaidReady && spec.def) { try { const r = await mermaid.render(elId + "Svg", spec.def); el.innerHTML = r.svg; el.dataset.done = "1"; return; } catch (e) { console.warn("mermaid fallback", e); } }
+          if (spec.def && await ensureMermaid()) { try { const r = await mermaid.render(elId + "Svg", spec.def); el.innerHTML = r.svg; el.dataset.done = "1"; return; } catch (e) { console.warn("mermaid fallback", e); } }
           el.innerHTML = '<p class="text-sm text-muted text-center py-6">心智圖載入失敗</p>'; return;
         }
-        if (!mermaidReady) { el.innerHTML = '<p class="text-sm text-muted text-center py-6">圖表元件未載入</p>'; return; }
+        if (!(await ensureMermaid())) { el.innerHTML = '<p class="text-sm text-muted text-center py-6">圖表元件未載入</p>'; return; }
         try { const { svg } = await mermaid.render(elId + "Svg", spec.def); el.innerHTML = svg; el.dataset.done = "1"; }
         catch (e) { el.innerHTML = '<p class="text-sm text-muted text-center py-6">圖表載入失敗</p>'; console.warn("mermaid", elId, e, spec.def); }
       }
-      function echart(elId, option) {
-        const el = document.getElementById(elId); if (!el || el.dataset.done || !window.echarts) return;
+      async function echart(elId, option) {
+        const el = document.getElementById(elId); if (!el || el.dataset.done) return;
+        if (!(await ensureECharts())) return;
+        /* 等待期間同一個容器可能又被呼叫一次，所以載完要再檢查一次。 */
+        if (el.dataset.done) return;
         const c = echarts.init(el); c.setOption(option); el.dataset.done = "1"; charts.push(c);
       }
       window.addEventListener("resize", () => charts.forEach((c) => c.resize()));
