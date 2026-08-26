@@ -9,6 +9,20 @@
  */
 import crypto from "node:crypto";
 
+/**
+ * 追加一個 Set-Cookie，而不是覆蓋。
+ *
+ * Set-Cookie 是少數可以重複出現的標頭，而 res.setHeader 的語意是「設定」——
+ * 連續發兩個 cookie 時，第二個會把第一個整個蓋掉。實測 Google 回呼裡先發訪客
+ * 身分、再發後台身分（信箱在白名單時），訪客 cookie 就這樣消失了，於是登入
+ * 成功卻進不了站，被進站閘門踢回入口頁，變成無限循環。
+ */
+export function appendCookie(res, value) {
+  const prev = res.getHeader("Set-Cookie");
+  if (!prev) res.setHeader("Set-Cookie", [value]);
+  else res.setHeader("Set-Cookie", (Array.isArray(prev) ? prev : [prev]).concat(value));
+}
+
 const COOKIE = "jv_visitor";
 const TTL_MS = 30 * 24 * 60 * 60 * 1000;   // 30 天，展示站不需要每天重登
 
@@ -47,11 +61,11 @@ const secureFlag = (req) =>
 
 export function issue(req, res, identity) {
   const payload = Buffer.from(JSON.stringify({ ...identity, exp: Date.now() + TTL_MS })).toString("base64url");
-  res.setHeader("Set-Cookie", `${COOKIE}=${payload}.${sign(payload)}; Path=/; HttpOnly${secureFlag(req)}; SameSite=Lax; Max-Age=${TTL_MS / 1000}`);
+  appendCookie(res, `${COOKIE}=${payload}.${sign(payload)}; Path=/; HttpOnly${secureFlag(req)}; SameSite=Lax; Max-Age=${TTL_MS / 1000}`);
 }
 
 export function clear(req, res) {
-  res.setHeader("Set-Cookie", `${COOKIE}=; Path=/; HttpOnly${secureFlag(req)}; SameSite=Lax; Max-Age=0`);
+  appendCookie(res, `${COOKIE}=; Path=/; HttpOnly${secureFlag(req)}; SameSite=Lax; Max-Age=0`);
 }
 
 /* 入口頁自己、身分相關的 API、以及靜態資源要放行。資源不放行的話入口頁

@@ -10,6 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { appendCookie } from "./visitor-auth.mjs";
 
 const COOKIE = "jv_admin";
 const TTL_MS = 8 * 60 * 60 * 1000;
@@ -72,11 +73,11 @@ const secureFlag = (req) =>
 
 export function setCookie(req, res) {
   const payload = Buffer.from(JSON.stringify({ exp: Date.now() + TTL_MS })).toString("base64url");
-  res.setHeader("Set-Cookie", `${COOKIE}=${payload}.${sign(payload)}; Path=/; HttpOnly${secureFlag(req)}; SameSite=Lax; Max-Age=${TTL_MS / 1000}`);
+  appendCookie(res, `${COOKIE}=${payload}.${sign(payload)}; Path=/; HttpOnly${secureFlag(req)}; SameSite=Lax; Max-Age=${TTL_MS / 1000}`);
 }
 
 export function clearCookie(req, res) {
-  res.setHeader("Set-Cookie", `${COOKIE}=; Path=/; HttpOnly${secureFlag(req)}; SameSite=Lax; Max-Age=0`);
+  appendCookie(res, `${COOKIE}=; Path=/; HttpOnly${secureFlag(req)}; SameSite=Lax; Max-Age=0`);
 }
 
 /* 站台是公開網域，單一共用密碼擋得住路過的人，擋不住有心的暴力嘗試。
