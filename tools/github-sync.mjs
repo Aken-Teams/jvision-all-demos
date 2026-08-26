@@ -175,14 +175,25 @@ for (let i = 0; i < todo.length; i += 1) {
       for (const f of fs.readdirSync(src)) {
         if (fs.statSync(path.join(src, f)).isFile()) fs.copyFileSync(path.join(src, f), path.join(tmp, f));
       }
+      /* 推送走 HTTPS 而不是 SSH。實測 systemd unit 內的 22 埠出流量會無限期
+         懸掛（同一個 unit 的 HTTPS 完全正常），每筆白耗 120 秒逾時；HTTPS 走
+         git 智慧協定、用同一把 token，不吃 REST 限額。
+         憑證用 GIT_CONFIG_* 環境變數傳——放在網址或 argv 裡的話，
+         錯誤訊息與 ps 都看得到 token。GIT_TERMINAL_PROMPT=0 保證缺憑證時
+         立刻失敗而不是等待輸入。 */
+      const basic = Buffer.from(`x-access-token:${TOKEN}`).toString("base64");
       const g = (...a) => execFileSync("git", a, { cwd: tmp, stdio: "pipe", timeout: 120000,
-        env: { ...process.env, GIT_SSH_COMMAND: "ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4" } });
+        env: { ...process.env,
+          GIT_TERMINAL_PROMPT: "0",
+          GIT_CONFIG_COUNT: "1",
+          GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
+          GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basic}` } });
       g("init", "-q", "-b", "main");
       g("config", "user.email", "bot@jvision.local");
       g("config", "user.name", "JVision Sync");
       g("add", "-A");
       g("commit", "-q", "-m", `${p.title}（同步自 jvdemo）`);
-      g("push", "-q", "--force", `git@github.com:${ORG}/${repo}.git`, "main");
+      g("push", "-q", "--force", `https://github.com/${ORG}/${repo}.git`, "main");
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
