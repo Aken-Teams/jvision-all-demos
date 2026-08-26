@@ -75,7 +75,7 @@ async function api(pathname, options = {}) {
     await new Promise((r) => setTimeout(r, waitMs));
   }
   const data = res.status === 204 ? {} : await res.json().catch(() => ({}));
-  return { status: res.status, data };
+  return { status: res.status, data, retryAfter: Number(res.headers.get("retry-after") || 0) };
 }
 
 const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, "projects-index.json"), "utf8"));
@@ -123,9 +123,8 @@ for (const [i, p] of todo.entries()) {
     if (!st.created) {
       const chk = await api(`/repos/${ORG}/${repo}`);
       if (chk.status === 404) {
-        const mk = await api(`/orgs/${ORG}/repos`, {
-          method: "POST",
-          body: JSON.stringify({
+        const mk = await createWithRetry(
+          JSON.stringify({
             name: repo,
             /* 明講要公開。API 預設雖是公開，但組織可以把預設改成私有——
                這些 repo 是站上 1,500 個對外連結的目的地，私有等於連結全斷。 */
@@ -133,10 +132,10 @@ for (const [i, p] of todo.entries()) {
             description: `${p.title}｜${p.category || ""}．JVision 系統 Demo`.slice(0, 140),
             homepage: `${SITE}${p.demoUrl || ""}`,
             has_issues: false, has_projects: false, has_wiki: false,
-          }),
-        });
+          }));
         if (mk.status !== 201) throw new Error(`建立失敗 ${mk.status}：${mk.data?.message || ""}`);
         created += 1;
+        await new Promise((res2) => setTimeout(res2, 7000));   // 建立節流
       } else if (chk.status !== 200) {
         throw new Error(`查詢失敗 ${chk.status}：${chk.data?.message || ""}`);
       } else { defaultBranch = chk.data?.default_branch || null; }
