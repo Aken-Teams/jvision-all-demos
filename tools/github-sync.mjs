@@ -119,6 +119,7 @@ for (const [i, p] of todo.entries()) {
   }
   try {
     /* 1. 確保 repo 存在 */
+    let defaultBranch = null;
     if (!st.created) {
       const chk = await api(`/repos/${ORG}/${repo}`);
       if (chk.status === 404) {
@@ -138,7 +139,8 @@ for (const [i, p] of todo.entries()) {
         created += 1;
       } else if (chk.status !== 200) {
         throw new Error(`查詢失敗 ${chk.status}：${chk.data?.message || ""}`);
-      } else if (chk.data?.private) {
+      } else { defaultBranch = chk.data?.default_branch || null; }
+      if (chk.status === 200 && chk.data?.private) {
         /* 組織裡有一批更早手動建的私有 repo。私有等於站上的連結對訪客仍是 404，
            光推內容沒有意義——存在但私有的，一律翻成公開。 */
         const fix = await api(`/repos/${ORG}/${repo}`, { method: "PATCH", body: JSON.stringify({ private: false }) });
@@ -165,6 +167,13 @@ for (const [i, p] of todo.entries()) {
       g("push", "-q", "--force", `git@github.com:${ORG}/${repo}.git`, "main");
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
+    }
+    /* 舊 repo 的預設分支多半是 master——內容推上 main 之後，訪客打開看到的
+       仍是 master 上的舊東西。實測 464 個既存 repo 有 414 個中招。推完把
+       預設分支扳到 main，整批 repo 才長一個樣。 */
+    if (defaultBranch && defaultBranch !== "main") {
+      const fix = await api(`/repos/${ORG}/${repo}`, { method: "PATCH", body: JSON.stringify({ default_branch: "main" }) });
+      if (fix.status !== 200) console.error(`  ⚠ ${repo} 預設分支未能切到 main：${fix.status}`);
     }
     st.hash = hash;
     st.at = new Date().toISOString();
