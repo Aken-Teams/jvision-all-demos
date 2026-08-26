@@ -138,6 +138,11 @@ for (const [i, p] of todo.entries()) {
         created += 1;
       } else if (chk.status !== 200) {
         throw new Error(`查詢失敗 ${chk.status}：${chk.data?.message || ""}`);
+      } else if (chk.data?.private) {
+        /* 組織裡有一批更早手動建的私有 repo。私有等於站上的連結對訪客仍是 404，
+           光推內容沒有意義——存在但私有的，一律翻成公開。 */
+        const fix = await api(`/repos/${ORG}/${repo}`, { method: "PATCH", body: JSON.stringify({ private: false }) });
+        if (fix.status !== 200) throw new Error(`翻公開失敗 ${fix.status}：${fix.data?.message || ""}`);
       }
       st.created = true;
     }
