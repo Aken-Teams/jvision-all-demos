@@ -119,6 +119,22 @@ for (const [i, p] of todo.entries()) {
   }
   try {
     /* 1. 確保 repo 存在 */
+    /* 二級限流（防濫用）與 5,000/hr 的主限流是兩回事：建立內容有獨立的
+       速度上限，超過就整段封鎖。實測連建約 140 個 repo 後被擋，之後每一筆都
+       403——不退避的話只是把整批刷成失敗。被擋就等（retry-after 或至少 90 秒、
+       逐次加倍）再重試同一筆，最多五次。 */
+    const createWithRetry = async (body) => {
+      for (let attempt = 1; attempt <= 5; attempt += 1) {
+        const r = await api(`/orgs/${ORG}/repos`, { method: "POST", body });
+        const secondary = r.status === 403 && /secondary rate limit/i.test(r.data?.message || "");
+        if (!secondary) return r;
+        const waitMs = Math.max((r.retryAfter || 0) * 1000, 90000 * attempt);
+        console.log(`  …二級限流，等 ${Math.round(waitMs / 1000)} 秒後重試（第 ${attempt} 次）`);
+        await new Promise((res2) => setTimeout(res2, waitMs));
+      }
+      return { status: 403, data: { message: "secondary rate limit（重試五次仍被擋）" } };
+    };
+
     let defaultBranch = null;
     if (!st.created) {
       const chk = await api(`/repos/${ORG}/${repo}`);
