@@ -1,0 +1,930 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <link rel="icon" href="../../favicon.svg">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="扣件廠盤元行情、材質附價、成材率、加工費與客戶報價管理系統 Demo">
+  <title>扣件線材價差報價台 · procurement-srm｜Jvision 系統 Demo</title>
+  <style>
+    :root{
+      --blue:#1e40af;
+      --ink:#172033;
+      --body:#344054;
+      --muted:#667085;
+      --line:#dbe2ee;
+      --bg:#f4f7fb;
+      --green:#16845b;
+      --amber:#b66b08;
+      --red:#c43d4b;
+      --white:#fff;
+      --blue-soft:#eef3ff;
+      --shadow:0 10px 28px rgba(24,39,75,.08);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      color:var(--body);
+      background:var(--bg);
+      font-family:Inter,"Noto Sans TC",sans-serif;
+      font-size:14px;
+      line-height:1.55;
+      overflow-x:hidden;
+    }
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    .symbol{
+      font-family:"Material Symbols Outlined";
+      font-weight:normal;
+      font-style:normal;
+      font-size:21px;
+      line-height:1;
+      letter-spacing:normal;
+      text-transform:none;
+      white-space:nowrap;
+      word-wrap:normal;
+      direction:ltr;
+      -webkit-font-feature-settings:"liga";
+      -webkit-font-smoothing:antialiased;
+      font-feature-settings:"liga";
+    }
+    .shell{min-height:100vh;display:grid;grid-template-columns:78px minmax(0,1fr)}
+    .rail{
+      position:fixed;
+      inset:0 auto 0 0;
+      width:78px;
+      z-index:20;
+      padding:18px 10px;
+      background:#132c79;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      box-shadow:8px 0 24px rgba(15,34,89,.12);
+    }
+    .brand{
+      width:46px;height:46px;border-radius:14px;
+      display:grid;place-items:center;
+      color:#fff;background:linear-gradient(145deg,#365ed1,#11286c);
+      border:1px solid rgba(255,255,255,.22);
+      font-weight:800;font-size:15px;
+      box-shadow:0 8px 18px rgba(0,0,0,.18);
+    }
+    .rail-nav{display:flex;flex-direction:column;gap:9px;margin-top:32px;width:100%}
+    .rail-btn{
+      position:relative;width:54px;height:50px;margin:auto;border:0;border-radius:14px;
+      display:grid;place-items:center;color:#bfcdf4;background:transparent;
+      transition:.2s ease;
+    }
+    .rail-btn:hover{color:#fff;background:rgba(255,255,255,.09)}
+    .rail-btn.active{color:#193680;background:#fff;box-shadow:0 7px 18px rgba(3,17,54,.25)}
+    .rail-btn:focus-visible,.action:focus-visible,.text-btn:focus-visible,
+    input:focus-visible,select:focus-visible{
+      outline:3px solid #f3b83f;outline-offset:2px;
+    }
+    .rail-btn::after{
+      content:attr(aria-label);position:absolute;left:62px;
+      padding:6px 9px;border-radius:8px;background:#101828;color:#fff;
+      font-size:12px;white-space:nowrap;opacity:0;pointer-events:none;
+      transform:translateX(-4px);transition:.15s;
+    }
+    .rail-btn:hover::after{opacity:1;transform:translateX(0)}
+    .rail-foot{margin-top:auto;color:#91a8e8;font-size:11px;font-weight:700}
+    .workspace{grid-column:2;min-width:0}
+    .appbar{
+      height:74px;padding:0 clamp(18px,3vw,42px);
+      display:flex;align-items:center;justify-content:space-between;gap:18px;
+      background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);
+      position:sticky;top:0;z-index:12;backdrop-filter:blur(10px);
+    }
+    .app-title{min-width:0}
+    .app-title h1{margin:0;color:var(--ink);font-size:19px;line-height:1.25}
+    .app-title p{margin:3px 0 0;color:var(--muted);font-size:12px}
+    .app-actions{display:flex;align-items:center;gap:10px}
+    .live{
+      display:flex;align-items:center;gap:7px;color:var(--green);
+      border:1px solid #bfe4d4;background:#f0fbf6;border-radius:99px;
+      padding:7px 11px;font-weight:700;font-size:12px;
+    }
+    .live::before{
+      content:"";width:7px;height:7px;border-radius:50%;background:var(--green);
+      box-shadow:0 0 0 4px rgba(22,132,91,.12);
+    }
+    .avatar{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:#e7edfb;color:var(--blue);font-weight:800}
+    main{padding:clamp(18px,3vw,38px);max-width:1560px;margin:auto}
+    .view{display:none;animation:enter .35s ease both}
+    .view.active{display:block}
+    @keyframes enter{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+    .screen-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:22px}
+    .eyebrow{color:var(--blue);font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:11px}
+    .screen-head h2{margin:5px 0 5px;color:var(--ink);font-size:clamp(23px,2.3vw,32px);line-height:1.25}
+    .screen-head p{margin:0;color:var(--muted);max-width:720px}
+    .actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+    .action,.text-btn{
+      min-height:42px;border-radius:11px;border:1px solid var(--line);
+      background:#fff;color:var(--body);padding:9px 14px;font-weight:700;
+      display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    }
+    .action.primary{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 7px 16px rgba(30,64,175,.2)}
+    .action.danger{color:var(--red);border-color:#edc5ca;background:#fff8f8}
+    .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .card-pad{padding:20px}
+    .card-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+    .card-title h3{margin:0;color:var(--ink);font-size:16px}
+    .card-title small{color:var(--muted)}
+    .grid{display:grid;gap:16px}
+    .grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .metric{padding:17px;position:relative;overflow:hidden}
+    .metric .symbol{color:var(--blue);background:var(--blue-soft);border-radius:10px;padding:8px}
+    .metric-label{display:block;margin-top:16px;color:var(--muted);font-size:12px}
+    .metric-value{display:flex;align-items:baseline;gap:7px;margin-top:3px}
+    .metric-value strong{font-size:25px;color:var(--ink);line-height:1.2}
+    .delta{font-size:11px;font-weight:800;color:var(--green)}
+    .delta.warn{color:var(--amber)}
+    .badge{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:99px;font-size:11px;font-weight:800}
+    .badge.green{color:var(--green);background:#eaf8f2}
+    .badge.amber{color:var(--amber);background:#fff5df}
+    .badge.red{color:var(--red);background:#fff0f1}
+    .badge.blue{color:var(--blue);background:var(--blue-soft)}
+    .muted{color:var(--muted)}
+    .mono{font-variant-numeric:tabular-nums}
+    .chart{width:100%;height:285px}
+    .table-wrap{width:100%;overflow:auto}
+    table{width:100%;border-collapse:collapse;min-width:680px}
+    th{text-align:left;color:var(--muted);font-size:11px;letter-spacing:.04em;padding:11px 14px;border-bottom:1px solid var(--line);background:#f8fafc}
+    td{padding:13px 14px;border-bottom:1px solid #edf0f5;color:var(--body)}
+    tr:last-child td{border-bottom:0}
+    tbody tr:hover{background:#f8faff}
+    .progress{height:7px;background:#edf1f7;border-radius:99px;overflow:hidden}
+    .progress span{display:block;height:100%;background:var(--blue);border-radius:inherit}
+    .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .field label{display:block;font-weight:700;color:var(--ink);font-size:12px;margin-bottom:6px}
+    .field input,.field select{
+      width:100%;height:43px;border:1px solid var(--line);border-radius:10px;
+      background:#fff;color:var(--ink);padding:0 12px;min-width:0;
+    }
+    .field small{display:block;margin-top:5px;color:var(--muted)}
+    .divider{height:1px;background:var(--line);margin:18px 0}
+
+    /* v0 行情看板 */
+    .market-layout{grid-template-columns:minmax(0,1.65fr) minmax(280px,.75fr)}
+    .ticker{
+      background:linear-gradient(120deg,#153588,#2453c5);color:#fff;
+      border-radius:18px;padding:21px;display:grid;grid-template-columns:1.2fr repeat(3,.75fr);gap:16px;
+      box-shadow:0 12px 26px rgba(30,64,175,.2);margin-bottom:16px;
+    }
+    .ticker h3{margin:0 0 4px;font-size:17px}.ticker p{margin:0;color:#d8e2ff;font-size:12px}
+    .ticker-stat{border-left:1px solid rgba(255,255,255,.2);padding-left:16px}
+    .ticker-stat small{display:block;color:#cad7fb}
+    .ticker-stat strong{font-size:21px}.ticker-stat em{font-style:normal;color:#a9efce;font-size:11px}
+    .quote-list{display:grid;gap:10px}
+    .quote-row{display:grid;grid-template-columns:1fr auto;gap:10px;padding:13px;border:1px solid var(--line);border-radius:12px}
+    .quote-row strong{color:var(--ink)}.quote-row p{margin:2px 0 0;color:var(--muted);font-size:12px}
+    .quote-price{text-align:right;color:var(--ink);font-weight:800}.quote-price small{display:block;color:var(--green)}
+    .source-note{padding:13px;border-radius:12px;background:#f5f8ff;color:var(--muted);font-size:12px;margin-top:13px}
+
+    /* v1 成本工作台 */
+    .cost-layout{grid-template-columns:minmax(310px,.82fr) minmax(0,1.18fr)}
+    .cost-stack{display:grid;gap:12px}
+    .cost-line{display:grid;grid-template-columns:1fr 112px 70px;align-items:center;gap:10px}
+    .cost-line input{width:100%;height:39px;border:1px solid var(--line);border-radius:9px;padding:0 10px;text-align:right}
+    .cost-line span:last-child{color:var(--muted);font-size:12px}
+    .formula{
+      background:#15213d;color:#eaf0ff;border-radius:15px;padding:18px;margin-top:16px;
+      display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;
+    }
+    .formula small{color:#aebbd6;display:block}.formula strong{font-size:25px}
+    .waterfall{height:320px}
+    .version-list{display:grid;gap:10px}
+    .version{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+    .version:last-child{border:0}.version strong{display:block;color:var(--ink)}.version small{color:var(--muted)}
+
+    /* v2 報價編輯器 */
+    .quote-layout{grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr)}
+    .customer-strip{display:grid;grid-template-columns:1.2fr repeat(3,1fr);gap:12px;padding:16px;background:#f8faff;border-radius:14px;margin-bottom:17px}
+    .customer-strip small{display:block;color:var(--muted);font-size:11px}.customer-strip strong{color:var(--ink)}
+    .price-tiers{display:grid;gap:9px}
+    .tier{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:9px;align-items:center;padding:11px;border:1px solid var(--line);border-radius:11px}
+    .tier input{width:100%;height:38px;border:1px solid var(--line);border-radius:8px;padding:0 9px;text-align:right}
+    .summary-box{padding:17px;background:linear-gradient(145deg,#f0f4ff,#fff);border:1px solid #cbd8fb;border-radius:14px}
+    .sum-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;color:var(--muted)}
+    .sum-row strong{color:var(--ink)}.sum-row.total{border-top:1px solid var(--line);margin-top:6px;padding-top:14px}
+    .sum-row.total strong{font-size:22px;color:var(--blue)}
+    .validity{display:flex;gap:10px;align-items:flex-start;margin-top:14px;padding:13px;background:#fff8e8;border-radius:12px;color:#80500b}
+
+    /* v3 毛利風險室 */
+    .risk-hero{display:grid;grid-template-columns:1fr 1.3fr;gap:16px;margin-bottom:16px}
+    .gauge-wrap{display:grid;grid-template-columns:150px 1fr;align-items:center;gap:12px}
+    .gauge{height:150px}
+    .risk-summary h3{margin:0;color:var(--ink);font-size:17px}.risk-summary .big{font-size:36px;font-weight:800;color:var(--amber)}
+    .thresholds{display:grid;gap:9px;margin-top:12px}
+    .threshold{display:grid;grid-template-columns:90px 1fr 50px;gap:9px;align-items:center;font-size:12px}
+    .risk-matrix{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+    .risk-cell{min-height:104px;border-radius:13px;padding:13px;border:1px solid var(--line)}
+    .risk-cell strong{display:block;color:var(--ink);margin-bottom:6px}.risk-cell p{margin:0;color:var(--muted);font-size:12px}
+    .risk-cell.hot{background:#fff1f2;border-color:#efc5ca}.risk-cell.watch{background:#fff8e8;border-color:#f1d9a7}.risk-cell.safe{background:#effaf5;border-color:#c4e7d8}
+    .check-list{display:grid;gap:10px}
+    .check-item{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:11px;padding:12px;border:1px solid var(--line);border-radius:11px}
+    .check-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:#eaf8f2;color:var(--green)}
+    .check-icon.warn{background:#fff3dd;color:var(--amber)}
+    .check-item strong{display:block;color:var(--ink)}.check-item small{color:var(--muted)}
+
+    /* v4 簽核室 */
+    .approval-layout{grid-template-columns:minmax(0,.75fr) minmax(0,1.25fr)}
+    .approval-timeline{position:relative;display:grid;gap:6px}
+    .approval-step{display:grid;grid-template-columns:38px 1fr;gap:12px;position:relative;padding-bottom:18px}
+    .approval-step:not(:last-child)::after{content:"";position:absolute;left:18px;top:38px;bottom:0;width:2px;background:var(--line)}
+    .approval-dot{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#e9f7f1;color:var(--green);z-index:1}
+    .approval-dot.current{background:var(--blue);color:#fff;box-shadow:0 0 0 5px #e8edfc}
+    .approval-step h4{margin:2px 0;color:var(--ink)}.approval-step p{margin:2px 0;color:var(--muted);font-size:12px}
+    .exception{border-left:4px solid var(--red);padding:15px;background:#fff7f7;border-radius:0 12px 12px 0;margin-bottom:14px}
+    .exception strong{color:var(--red)}.exception p{margin:5px 0 0;color:var(--muted)}
+    .evidence-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .evidence{padding:13px;border:1px solid var(--line);border-radius:11px}.evidence small{display:block;color:var(--muted)}.evidence strong{color:var(--ink);font-size:18px}
+    .comment-box{width:100%;min-height:92px;resize:vertical;border:1px solid var(--line);border-radius:11px;padding:12px;font:inherit}
+    .decision-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:15px;padding-top:15px;border-top:1px solid var(--line)}
+
+    /* v5 效期追蹤 */
+    .expiry-layout{grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr)}
+    .calendar-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-bottom:16px}
+    .day{min-height:82px;padding:9px;border:1px solid var(--line);border-radius:10px;background:#fff}
+    .day span{display:block;color:var(--muted);font-size:11px}.day strong{color:var(--ink)}
+    .day.alert{background:#fff5f1;border-color:#efc9ba}.day.today{border:2px solid var(--blue)}
+    .dot-note{display:block;margin-top:9px;padding:3px 6px;border-radius:6px;background:#fff0e7;color:#a44516;font-size:10px}
+    .expiry-list{display:grid;gap:10px}
+    .expiry-item{display:grid;grid-template-columns:8px 1fr auto;gap:11px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px}
+    .expiry-mark{height:42px;border-radius:6px;background:var(--amber)}.expiry-mark.red{background:var(--red)}.expiry-mark.green{background:var(--green)}
+    .expiry-item strong{display:block;color:var(--ink)}.expiry-item small{color:var(--muted)}
+    .rule-list{display:grid;gap:10px}
+    .rule{padding:13px;border:1px solid var(--line);border-radius:11px}.rule header{display:flex;justify-content:space-between;gap:8px}.rule strong{color:var(--ink)}.rule p{margin:7px 0 0;color:var(--muted);font-size:12px}
+    .empty-note{text-align:center;padding:18px;color:var(--muted)}
+
+    @media(max-width:1080px){
+      .grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .market-layout,.cost-layout,.quote-layout,.approval-layout,.expiry-layout{grid-template-columns:1fr}
+      .ticker{grid-template-columns:repeat(3,1fr)}.ticker>div:first-child{grid-column:1/-1}
+      .risk-hero{grid-template-columns:1fr}
+    }
+    @media(max-width:720px){
+      .shell{display:block;padding-bottom:74px}
+      .workspace{display:block}
+      .rail{
+        inset:auto 0 0 0;width:100%;height:68px;padding:7px 8px;
+        flex-direction:row;background:#132c79;
+      }
+      .brand,.rail-foot{display:none}
+      .rail-nav{margin:0;flex-direction:row;gap:4px;width:100%;justify-content:space-around}
+      .rail-btn{width:48px;height:48px}.rail-btn::after{display:none}
+      .appbar{height:66px;padding:0 16px}.app-title p,.live{display:none}
+      main{padding:18px 14px 24px}
+      .screen-head{display:block}.actions{margin-top:14px;justify-content:flex-start}.action{flex:1}
+      .grid-3,.grid-2{grid-template-columns:1fr}
+      .form-grid{grid-template-columns:1fr}
+      .ticker{grid-template-columns:1fr 1fr;padding:17px}.ticker>div:first-child{grid-column:1/-1}.ticker-stat{padding-left:10px}
+      .customer-strip{grid-template-columns:1fr 1fr}.customer-strip>div:first-child{grid-column:1/-1}
+      .tier{grid-template-columns:1fr 1fr}.tier .action{grid-column:1/-1}
+      .risk-matrix{grid-template-columns:1fr}
+      .gauge-wrap{grid-template-columns:125px 1fr}.gauge{height:125px}
+      .evidence-grid{grid-template-columns:1fr}
+      .calendar-strip{grid-template-columns:repeat(4,1fr)}.day:nth-child(n+5){display:none}
+      .decision-bar{align-items:stretch;flex-direction:column}.decision-bar .actions{margin-top:0}
+      .cost-line{grid-template-columns:1fr 90px 54px}
+      .chart,.waterfall{height:250px}
+    }
+    @media(max-width:430px){
+      .grid-4{grid-template-columns:1fr}
+      .metric{padding:15px}
+      .app-title h1{font-size:16px}
+      .avatar{width:34px;height:34px}
+      .customer-strip{grid-template-columns:1fr}.customer-strip>div:first-child{grid-column:auto}
+      .ticker{grid-template-columns:1fr}.ticker>div:first-child{grid-column:auto}.ticker-stat{border-left:0;border-top:1px solid rgba(255,255,255,.18);padding:9px 0 0}
+      .tier{grid-template-columns:1fr}
+      .gauge-wrap{grid-template-columns:1fr;text-align:center}
+      .calendar-strip{grid-template-columns:repeat(2,1fr)}
+      .day:nth-child(n+5){display:block}
+    }
+  
+
+/* ── 量測式水平溢出修正 ─────────────────────────────
+   由 tools/fix-demo-overflow.mjs 量測產生，只針對實際溢出的元素。 */
+@media (max-width:720px){
+  body div.shell > div.workspace > main > section.view.active > div.grid.grid-2 > article.card.card-pad:nth-child(1){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.shell > div.workspace > main > section.view.active > div.grid.grid-2{overflow-x:auto;min-width:0;max-width:100%;}
+  body div.workspace > main > section.view.active > div.grid.grid-2 > article.card.card-pad:nth-child(1) > div.card-title{min-width:0;flex-wrap:wrap;}
+  body main > section.view.active > div.grid.grid-2 > article.card.card-pad:nth-child(1) > div.card-title > small{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.workspace > main > section.view.active > div.grid.grid-2 > article.card.card-pad:nth-child(1) > div.check-list{grid-template-columns:minmax(0,1fr);}
+  body main > section.view.active > div.grid.grid-2 > article.card.card-pad:nth-child(1) > div.check-list > div.check-item:nth-child(1){grid-template-columns:minmax(0,1fr);}
+  body section.view.active > div.grid.grid-2 > article.card.card-pad:nth-child(1) > div.check-list > div.check-item:nth-child(1) > div{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.grid.grid-2 > article.card.card-pad:nth-child(1) > div.check-list > div.check-item:nth-child(1) > div > strong{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body section.view.active > div.grid.grid-2 > article.card.card-pad:nth-child(1) > div.check-list > div.check-item:nth-child(1) > span.badge.green{min-width:0;flex-wrap:wrap;}
+  body main > section.view.active > div.grid.grid-2 > article.card.card-pad:nth-child(1) > div.check-list > div.check-item:nth-child(2){grid-template-columns:minmax(0,1fr);}
+  body section.view.active > div.grid.grid-2 > article.card.card-pad:nth-child(1) > div.check-list > div.check-item:nth-child(2) > div{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.shell > div.workspace > main > section.view.active > div.grid.expiry-layout > div.grid{grid-template-columns:minmax(0,1fr);}
+  body div.shell > div.workspace > main > section.view.active > div.grid.expiry-layout{overflow-x:auto;min-width:0;max-width:100%;}
+  body div.workspace > main > section.view.active > div.grid.expiry-layout > div.grid > article.card.card-pad:nth-child(1){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body main > section.view.active > div.grid.expiry-layout > div.grid > article.card.card-pad:nth-child(1) > div.card-title{min-width:0;flex-wrap:wrap;}
+  body section.view.active > div.grid.expiry-layout > div.grid > article.card.card-pad:nth-child(1) > div.card-title > small{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body main > section.view.active > div.grid.expiry-layout > div.grid > article.card.card-pad:nth-child(1) > div.calendar-strip{grid-template-columns:minmax(0,1fr);}
+  body section.view.active > div.grid.expiry-layout > div.grid > article.card.card-pad:nth-child(1) > div.calendar-strip > div.day:nth-child(2){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.grid.expiry-layout > div.grid > article.card.card-pad:nth-child(1) > div.calendar-strip > div.day:nth-child(2) > span{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.grid.expiry-layout > div.grid > article.card.card-pad:nth-child(1) > div.calendar-strip > div.day:nth-child(2) > i.dot-note{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body section.view.active > div.grid.expiry-layout > div.grid > article.card.card-pad:nth-child(1) > div.calendar-strip > div.day.alert{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.grid.expiry-layout > div.grid > article.card.card-pad:nth-child(1) > div.calendar-strip > div.day.alert > span{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+}
+@media (max-width:900px){
+  body div.shell > div.workspace > main > section.view.active > div.grid.expiry-layout > div.grid{grid-template-columns:minmax(0,1fr);}
+  body div.shell > div.workspace > main > section.view.active > div.grid.expiry-layout{overflow-x:auto;min-width:0;max-width:100%;}
+  body div.workspace > main > section.view.active > div.grid.expiry-layout > div.grid > article.card.card-pad:nth-child(1){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.workspace > main > section.view.active > div.grid.expiry-layout > div.grid > article.card.card-pad:nth-child(2){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.workspace > main > section.view.active > div.grid.expiry-layout > div.grid > article.card:nth-child(3){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body main > section.view.active > div.grid.expiry-layout > div.grid > article.card:nth-child(3) > div.card-title{min-width:0;flex-wrap:wrap;}
+  body main > section.view.active > div.grid.expiry-layout > div.grid > article.card:nth-child(3) > div.table-wrap{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.shell > div.workspace > main > section.view.active > div.grid.expiry-layout > aside.grid{grid-template-columns:minmax(0,1fr);}
+  body div.workspace > main > section.view.active > div.grid.expiry-layout > aside.grid > article.card.card-pad:nth-child(1){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.workspace > main > section.view.active > div.grid.expiry-layout > aside.grid > article.card.card-pad:nth-child(2){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+}
+</style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail" aria-label="流程導覽">
+      <div class="brand" aria-label="JVision">JV</div>
+      <nav class="rail-nav">
+        <button class="rail-btn" data-i="0" aria-label="更新行情"><span class="symbol">show_chart</span></button>
+        <button class="rail-btn" data-i="1" aria-label="建立成本"><span class="symbol">calculate</span></button>
+        <button class="rail-btn" data-i="2" aria-label="試算報價"><span class="symbol">request_quote</span></button>
+        <button class="rail-btn" data-i="3" aria-label="毛利檢查"><span class="symbol">fact_check</span></button>
+        <button class="rail-btn" data-i="4" aria-label="例外核准"><span class="symbol">approval</span></button>
+        <button class="rail-btn" data-i="5" aria-label="報價追蹤"><span class="symbol">event_busy</span></button>
+      </nav>
+      <div class="rail-foot">SRM 3998</div>
+    </aside>
+
+    <div class="workspace">
+      <header class="appbar">
+        <div class="app-title">
+          <h1>扣件線材價差報價台</h1>
+          <p>盤元行情、成本版本與客戶報價同步控管</p>
+        </div>
+        <div class="app-actions">
+          <div class="live">ERP 已同步</div>
+          <div class="avatar" title="採購人員 林怡君">林</div>
+        </div>
+      </header>
+
+      <main>
+        <section class="view" data-view="0" aria-labelledby="view-title-0">
+          <div class="screen-head">
+            <div>
+              <div class="eyebrow">01 · Wire rod market</div>
+              <h2 id="view-title-0">更新線材行情</h2>
+              <p>採購人員登錄盤元基價、鋼種附價與供應商條件，建立今日可供成本試算引用的行情快照。</p>
+            </div>
+            <div class="actions">
+              <button class="action"><span class="symbol">upload_file</span>匯入供應商報價</button>
+              <button class="action primary"><span class="symbol">add</span>新增行情</button>
+            </div>
+          </div>
+
+          <div class="ticker">
+            <div>
+              <h3>CHQ 盤元市場快照</h3>
+              <p>最後更新：2026/08/26 09:20 · 幣別 TWD / 公噸</p>
+            </div>
+            <div class="ticker-stat"><small>中鋼 CHQ 10B21</small><strong>25,850</strong> <em>▲ 1.6%</em></div>
+            <div class="ticker-stat"><small>豐興 1018A</small><strong>24,920</strong> <em>▲ 0.8%</em></div>
+            <div class="ticker-stat"><small>SCM435 合金線</small><strong>34,680</strong> <em>▲ 2.3%</em></div>
+          </div>
+
+          <div class="grid grid-4" style="margin-bottom:16px">
+            <article class="card metric">
+              <span class="symbol">monitoring</span><span class="metric-label">本月盤元均價</span>
+              <div class="metric-value"><strong class="mono">$27,460</strong><span class="delta warn">+3.2%</span></div>
+            </article>
+            <article class="card metric">
+              <span class="symbol">difference</span><span class="metric-label">待確認附價</span>
+              <div class="metric-value"><strong class="mono">4</strong><span class="delta warn">2 筆今日到期</span></div>
+            </article>
+            <article class="card metric">
+              <span class="symbol">inventory_2</span><span class="metric-label">有效鋼種行情</span>
+              <div class="metric-value"><strong class="mono">18</strong><span class="delta">覆蓋 96%</span></div>
+            </article>
+            <article class="card metric">
+              <span class="symbol">sync</span><span class="metric-label">ERP 同步狀態</span>
+              <div class="metric-value"><strong>正常</strong><span class="delta">09:18</span></div>
+            </article>
+          </div>
+
+          <div class="grid market-layout">
+            <article class="card card-pad">
+              <div class="card-title"><h3>近六週盤元行情</h3><span class="badge blue">TWD / MT</span></div>
+              <div id="marketChart" class="chart" role="img" aria-label="近六週盤元價格趨勢圖"></div>
+            </article>
+            <aside class="card card-pad">
+              <div class="card-title"><h3>供應商即時報價</h3><small>3 家已回覆</small></div>
+              <div class="quote-list">
+                <div class="quote-row">
+                  <div><strong>高昇鋼鐵</strong><p>10B21 · 交期 7 天</p></div>
+                  <div class="quote-price">$25,720<small>最低價</small></div>
+                </div>
+                <div class="quote-row">
+                  <div><strong>東泰線材</strong><p>10B21 · 交期 5 天</p></div>
+                  <div class="quote-price">$25,910<small>品質 A</small></div>
+                </div>
+                <div class="quote-row">
+                  <div><strong>金聯金屬</strong><p>10B21 · 交期 9 天</p></div>
+                  <div class="quote-price">$26,080<small>含運</small></div>
+                </div>
+              </div>
+              <div class="source-note"><strong>行情建議：</strong>鎳附價本週上修 4.1%，SCM435 報價應同步重估，避免沿用 8 月初成本。</div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" data-view="1" aria-labelledby="view-title-1">
+          <div class="screen-head">
+            <div>
+              <div class="eyebrow">02 · Cost build</div>
+              <h2 id="view-title-1">建立成材成本版本</h2>
+              <p>成本人員依線徑、成材率、熱處理與表面處理條件，拆解每千件完整成本並凍結版本。</p>
+            </div>
+            <div class="actions">
+              <button class="action">另存版本</button>
+              <button class="action primary"><span class="symbol">lock</span>凍結 C-0826-03</button>
+            </div>
+          </div>
+
+          <div class="grid cost-layout">
+            <article class="card card-pad">
+              <div class="card-title"><h3>成本參數</h3><span class="badge amber">草稿</span></div>
+              <div class="form-grid">
+                <div class="field"><label for="steel-grade">材質</label><select id="steel-grade"><option>SCM435 合金鋼</option></select></div>
+                <div class="field"><label for="wire-dia">線徑</label><select id="wire-dia"><option>Ø 10.50 mm</option></select></div>
+                <div class="field"><label for="part-weight">單件淨重</label><input id="part-weight" value="0.086" inputmode="decimal"><small>kg / pc</small></div>
+                <div class="field"><label for="yield-rate">預估成材率</label><input id="yield-rate" value="91.5%" inputmode="decimal"><small>歷史中位數 92.1%</small></div>
+              </div>
+              <div class="divider"></div>
+              <div class="cost-stack">
+                <div class="cost-line"><strong>盤元材料</strong><input value="34,680"><span>元 / 噸</span></div>
+                <div class="cost-line"><strong>材質附價</strong><input value="2,450"><span>元 / 噸</span></div>
+                <div class="cost-line"><strong>伸線退火</strong><input value="3.20"><span>元 / kg</span></div>
+                <div class="cost-line"><strong>熱處理</strong><input value="4.80"><span>元 / kg</span></div>
+                <div class="cost-line"><strong>鍍鋅表處</strong><input value="2.35"><span>元 / kg</span></div>
+                <div class="cost-line"><strong>包裝與運輸</strong><input value="0.42"><span>元 / pc</span></div>
+              </div>
+              <div class="formula">
+                <div><small>換算後完整成本（每千件）</small><strong class="mono">$4,186</strong></div>
+                <span class="badge green">較舊版 +2.8%</span>
+              </div>
+            </article>
+
+            <div class="grid">
+              <article class="card card-pad">
+                <div class="card-title"><h3>成本結構拆解</h3><small>SCM435 · M10×80</small></div>
+                <div id="costChart" class="waterfall" role="img" aria-label="成本結構瀑布圖"></div>
+              </article>
+              <article class="card card-pad">
+                <div class="card-title"><h3>近期成本版本</h3><button class="text-btn">查看全部</button></div>
+                <div class="version-list">
+                  <div class="version"><div><strong>C-0826-03 · SCM435</strong><small>林怡君 · 8/26 09:42</small></div><span class="badge amber">草稿</span></div>
+                  <div class="version"><div><strong>C-0820-07 · SCM435</strong><small>王志豪 · 已引用 6 份報價</small></div><span class="badge green">有效</span></div>
+                  <div class="version"><div><strong>C-0804-02 · SCM435</strong><small>行情差異 +6.4%，禁止新引用</small></div><span class="badge red">已逾期</span></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" data-view="2" aria-labelledby="view-title-2">
+          <div class="screen-head">
+            <div>
+              <div class="eyebrow">03 · Quotation studio</div>
+              <h2 id="view-title-2">試算客戶報價</h2>
+              <p>業務人員輸入扣件規格與數量級距，引用有效成本版本，快速產出含效期的報價草案。</p>
+            </div>
+            <div class="actions">
+              <button class="action"><span class="symbol">visibility</span>預覽報價單</button>
+              <button class="action primary"><span class="symbol">send</span>送毛利檢查</button>
+            </div>
+          </div>
+
+          <div class="grid quote-layout">
+            <article class="card card-pad">
+              <div class="customer-strip">
+                <div><small>客戶 / 專案</small><strong>宏亞汽車零件 · EV 底盤專案</strong></div>
+                <div><small>報價編號</small><strong>QT-260826-018</strong></div>
+                <div><small>業務</small><strong>陳冠宇</strong></div>
+                <div><small>幣別</small><strong>TWD</strong></div>
+              </div>
+              <div class="form-grid">
+                <div class="field"><label for="part-spec">品名規格</label><input id="part-spec" value="六角法蘭螺栓 M10×80"></div>
+                <div class="field"><label for="material-ref">引用成本版本</label><select id="material-ref"><option>C-0826-03 · SCM435 · $4,186/千件</option></select></div>
+                <div class="field"><label for="surface">表面處理</label><select id="surface"><option>三價鉻鍍鋅 8μm</option></select></div>
+                <div class="field"><label for="delivery-term">交易條件</label><select id="delivery-term"><option>月結 60 天／台中交貨</option></select></div>
+              </div>
+              <div class="divider"></div>
+              <div class="card-title"><h3>數量級距</h3><button class="text-btn"><span class="symbol">add</span>新增級距</button></div>
+              <div class="price-tiers">
+                <div class="tier"><div><small class="muted">起訂量</small><input value="10,000 件"></div><div><small class="muted">單價</small><input value="5.68"></div><div><small class="muted">預估毛利</small><input value="26.3%"></div><span class="badge green">安全</span></div>
+                <div class="tier"><div><small class="muted">起訂量</small><input value="30,000 件"></div><div><small class="muted">單價</small><input value="5.42"></div><div><small class="muted">預估毛利</small><input value="22.8%"></div><span class="badge green">安全</span></div>
+                <div class="tier"><div><small class="muted">起訂量</small><input value="80,000 件"></div><div><small class="muted">單價</small><input value="5.08"></div><div><small class="muted">預估毛利</small><input value="17.6%"></div><span class="badge amber">需覆核</span></div>
+              </div>
+            </article>
+
+            <aside class="grid">
+              <article class="card card-pad">
+                <div class="card-title"><h3>報價摘要</h3><span class="badge blue">Rev. 03</span></div>
+                <div class="summary-box">
+                  <div class="sum-row"><span>成本 / 千件</span><strong>$4,186</strong></div>
+                  <div class="sum-row"><span>建議售價 / 千件</span><strong>$5,420</strong></div>
+                  <div class="sum-row"><span>月預估數量</span><strong>30,000 件</strong></div>
+                  <div class="sum-row"><span>付款風險準備</span><strong>1.2%</strong></div>
+                  <div class="sum-row total"><span>預估毛利率</span><strong>22.8%</strong></div>
+                </div>
+                <div class="validity"><span class="symbol">schedule</span><div><strong>有效至 2026/09/09</strong><br><small>盤元漲幅超過 3.0% 時自動失效並要求重估。</small></div></div>
+              </article>
+              <article class="card card-pad">
+                <div class="card-title"><h3>敏感度快覽</h3><small>材料波動</small></div>
+                <div id="quoteChart" class="chart" style="height:210px" role="img" aria-label="材料漲幅與毛利率敏感度圖"></div>
+              </article>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" data-view="3" aria-labelledby="view-title-3">
+          <div class="screen-head">
+            <div>
+              <div class="eyebrow">04 · Margin control</div>
+              <h2 id="view-title-3">毛利風險檢查</h2>
+              <p>業務主管檢查成本新鮮度、材料漲價敏感度與客戶條件，攔截可能形成負毛利的報價。</p>
+            </div>
+            <div class="actions">
+              <button class="action danger"><span class="symbol">undo</span>退回調整</button>
+              <button class="action primary"><span class="symbol">verified</span>通過檢查</button>
+            </div>
+          </div>
+
+          <div class="risk-hero">
+            <article class="card card-pad">
+              <div class="card-title"><h3>QT-260826-018 風險分數</h3><span class="badge amber">注意</span></div>
+              <div class="gauge-wrap">
+                <div id="riskGauge" class="gauge" role="img" aria-label="報價風險分數儀表"></div>
+                <div class="risk-summary">
+                  <span class="big">62</span><span class="muted"> / 100</span>
+                  <h3>材料漲幅接近門檻</h3>
+                  <p class="muted">若盤元再上漲 2.6%，80K 級距毛利將跌破核准線。</p>
+                </div>
+              </div>
+              <div class="thresholds">
+                <div class="threshold"><span>現行毛利</span><div class="progress"><span style="width:76%"></span></div><strong>22.8%</strong></div>
+                <div class="threshold"><span>核准底線</span><div class="progress"><span style="width:60%;background:var(--amber)"></span></div><strong>18.0%</strong></div>
+                <div class="threshold"><span>負毛利線</span><div class="progress"><span style="width:18%;background:var(--red)"></span></div><strong>0.0%</strong></div>
+              </div>
+            </article>
+
+            <article class="card card-pad">
+              <div class="card-title"><h3>情境風險矩陣</h3><small>數量 30,000 件 / 月</small></div>
+              <div class="risk-matrix">
+                <div class="risk-cell safe"><strong>盤元持平</strong><p>毛利 22.8%<br>預估毛利額 $37,020</p></div>
+                <div class="risk-cell watch"><strong>盤元 +3%</strong><p>毛利 20.1%<br>接近報價重估門檻</p></div>
+                <div class="risk-cell hot"><strong>盤元 +8%</strong><p>毛利 15.4%<br>需營運主管例外核准</p></div>
+                <div class="risk-cell safe"><strong>成材率 93%</strong><p>毛利 24.0%<br>改善 $5,940 / 月</p></div>
+                <div class="risk-cell watch"><strong>成材率 89%</strong><p>毛利 19.2%<br>建議調高單價 2.1%</p></div>
+                <div class="risk-cell hot"><strong>急單空運</strong><p>毛利 13.8%<br>運費未轉嫁客戶</p></div>
+              </div>
+            </article>
+          </div>
+
+          <div class="grid grid-2">
+            <article class="card card-pad">
+              <div class="card-title"><h3>自動檢核結果</h3><small>5 項規則</small></div>
+              <div class="check-list">
+                <div class="check-item"><span class="check-icon symbol">done</span><div><strong>成本版本仍在有效期</strong><small>C-0826-03 · 剩餘 14 天</small></div><span class="badge green">通過</span></div>
+                <div class="check-item"><span class="check-icon symbol">done</span><div><strong>客戶信用條件已涵蓋</strong><small>風險準備 1.2% 已計入</small></div><span class="badge green">通過</span></div>
+                <div class="check-item"><span class="check-icon warn symbol">priority_high</span><div><strong>最低級距毛利低於 18%</strong><small>80,000 件級距為 17.6%</small></div><span class="badge amber">覆核</span></div>
+                <div class="check-item"><span class="check-icon symbol">done</span><div><strong>加工費完整性</strong><small>熱處理、表處、包裝均已引用</small></div><span class="badge green">通過</span></div>
+              </div>
+            </article>
+            <article class="card card-pad">
+              <div class="card-title"><h3>負毛利攔截紀錄</h3><span class="badge red">本月 $486K</span></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>報價</th><th>觸發原因</th><th>潛在損失</th><th>處置</th></tr></thead>
+                  <tbody>
+                    <tr><td>QT-260824-006</td><td>成本版本逾期</td><td>$128,400</td><td><span class="badge green">已重估</span></td></tr>
+                    <tr><td>QT-260822-031</td><td>成材率低估</td><td>$96,200</td><td><span class="badge blue">已調價</span></td></tr>
+                    <tr><td>QT-260819-014</td><td>熱處理費漏列</td><td>$184,600</td><td><span class="badge green">已補正</span></td></tr>
+                    <tr><td>QT-260816-008</td><td>急單運費未列</td><td>$76,800</td><td><span class="badge amber">待議價</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" data-view="4" aria-labelledby="view-title-4">
+          <div class="screen-head">
+            <div>
+              <div class="eyebrow">05 · Exception approval</div>
+              <h2 id="view-title-4">例外價格核准</h2>
+              <p>營運主管審視低毛利原因、商機價值與補償條件，留下可稽核的核准意見與適用範圍。</p>
+            </div>
+            <div class="actions"><span class="badge red">剩餘 3 小時 18 分</span></div>
+          </div>
+
+          <div class="grid approval-layout">
+            <aside class="card card-pad">
+              <div class="card-title"><h3>簽核進度</h3><small>AP-260826-04</small></div>
+              <div class="approval-timeline">
+                <div class="approval-step"><span class="approval-dot symbol">done</span><div><h4>業務提出</h4><p>陳冠宇 · 08/26 10:14</p><span class="badge green">已完成</span></div></div>
+                <div class="approval-step"><span class="approval-dot symbol">done</span><div><h4>毛利覆核</h4><p>張雅雯 · 08/26 10:42</p><span class="badge green">附條件通過</span></div></div>
+                <div class="approval-step"><span class="approval-dot current symbol">person</span><div><h4>營運主管核准</h4><p>許明哲 · 等待決策</p><span class="badge blue">目前節點</span></div></div>
+                <div class="approval-step"><span class="approval-dot symbol">flag</span><div><h4>正式發行</h4><p>核准後由業務助理發送</p><span class="badge">尚未開始</span></div></div>
+              </div>
+            </aside>
+
+            <article class="card card-pad">
+              <div class="exception">
+                <strong>例外原因：80,000 件級距毛利 17.6%，低於標準線 18.0%</strong>
+                <p>客戶承諾年度採購 960,000 件，且同意盤元累積漲幅達 3% 時重開價格。業務申請維持本次報價以取得量產訂單。</p>
+              </div>
+              <div class="card-title"><h3>決策證據</h3><span class="badge blue">資料完整 100%</span></div>
+              <div class="evidence-grid">
+                <div class="evidence"><small>年度營收機會</small><strong>$4.88M</strong><div class="delta">高價值客戶</div></div>
+                <div class="evidence"><small>最低毛利率</small><strong>17.6%</strong><div class="delta warn">差距 -0.4%</div></div>
+                <div class="evidence"><small>價格有效期</small><strong>14 天</strong><div class="delta">含漲價條款</div></div>
+                <div class="evidence"><small>盤元壓力測試</small><strong>+3.0%</strong><div class="delta warn">觸發重估</div></div>
+                <div class="evidence"><small>歷史準時付款</small><strong>98.4%</strong><div class="delta">信用良好</div></div>
+                <div class="evidence"><small>產能負荷</small><strong>76%</strong><div class="delta">可承接</div></div>
+              </div>
+              <div class="divider"></div>
+              <div class="field">
+                <label for="approval-note">核准意見</label>
+                <textarea id="approval-note" class="comment-box">同意限本專案、80,000 件級距適用；盤元累積漲幅達 3% 或首批訂單逾 2026/09/09 未成立時，報價自動失效並重送毛利檢查。</textarea>
+              </div>
+              <div class="decision-bar">
+                <div><strong style="color:var(--ink)">毛利檢查是否通過？</strong><br><small class="muted">否決將退回補件並通知業務主管。</small></div>
+                <div class="actions">
+                  <button class="action danger"><span class="symbol">close</span>退回補件</button>
+                  <button class="action primary"><span class="symbol">approval</span>附條件核准</button>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" data-view="5" aria-labelledby="view-title-5">
+          <div class="screen-head">
+            <div>
+              <div class="eyebrow">06 · Validity tracker</div>
+              <h2 id="view-title-5">報價效期與重估追蹤</h2>
+              <p>業務助理集中查看即將到期、行情觸發與已完成報價，確保每份對外價格都引用最新成本。</p>
+            </div>
+            <div class="actions">
+              <button class="action"><span class="symbol">download</span>匯出清單</button>
+              <button class="action primary"><span class="symbol">notifications</span>批次提醒</button>
+            </div>
+          </div>
+
+          <div class="grid grid-4" style="margin-bottom:16px">
+            <article class="card metric"><span class="symbol">event_busy</span><span class="metric-label">逾期成本版本</span><div class="metric-value"><strong>7</strong><span class="delta warn">需處理</span></div></article>
+            <article class="card metric"><span class="symbol">schedule</span><span class="metric-label">7 日內到期報價</span><div class="metric-value"><strong>12</strong><span class="delta warn">$3.26M</span></div></article>
+            <article class="card metric"><span class="symbol">shield</span><span class="metric-label">負毛利攔截金額</span><div class="metric-value"><strong>$486K</strong><span class="delta">本月</span></div></article>
+            <article class="card metric"><span class="symbol">trending_up</span><span class="metric-label">報價預估毛利率</span><div class="metric-value"><strong>22.8%</strong><span class="delta">+1.9pt</span></div></article>
+          </div>
+
+          <div class="grid expiry-layout">
+            <div class="grid">
+              <article class="card card-pad">
+                <div class="card-title"><h3>本週到期日曆</h3><small>2026/08/24 — 08/30</small></div>
+                <div class="calendar-strip">
+                  <div class="day"><span>週一</span><strong>24</strong><i class="dot-note">2 份到期</i></div>
+                  <div class="day"><span>週二</span><strong>25</strong><i class="dot-note">1 份重估</i></div>
+                  <div class="day today"><span>今天</span><strong>26</strong><i class="dot-note">3 份待辦</i></div>
+                  <div class="day alert"><span>週四</span><strong>27</strong><i class="dot-note">5 份到期</i></div>
+                  <div class="day"><span>週五</span><strong>28</strong><i class="dot-note">2 份到期</i></div>
+                  <div class="day"><span>週六</span><strong>29</strong></div>
+                  <div class="day"><span>週日</span><strong>30</strong></div>
+                </div>
+                <div class="expiry-list">
+                  <div class="expiry-item"><span class="expiry-mark red"></span><div><strong>QT-260812-022 · 泰隆工業</strong><small>SCM435 法蘭螺栓 · 成本版本已逾期 2 天</small></div><span class="badge red">立即重估</span></div>
+                  <div class="expiry-item"><span class="expiry-mark"></span><div><strong>QT-260818-009 · 宏亞汽車零件</strong><small>10B21 六角螺帽 · 2026/08/27 到期</small></div><span class="badge amber">剩 1 天</span></div>
+                  <div class="expiry-item"><span class="expiry-mark"></span><div><strong>QT-260820-016 · 鉅峰機械</strong><small>SCM440 軸肩螺栓 · 盤元漲幅 2.8%</small></div><span class="badge amber">近門檻</span></div>
+                  <div class="expiry-item"><span class="expiry-mark green"></span><div><strong>QT-260826-018 · 宏亞 EV 專案</strong><small>有效至 2026/09/09 · 附條件核准</small></div><span class="badge green">有效</span></div>
+                </div>
+              </article>
+
+              <article class="card card-pad">
+                <div class="card-title"><h3>準時到貨率改善</h3><span class="badge green">82% → 96%</span></div>
+                <div id="trendChart" class="chart" style="height:240px" role="img" aria-label="六週準時到貨率趨勢圖"></div>
+              </article>
+
+              <article class="card">
+                <div class="card-title" style="padding:18px 18px 0"><h3>扣件線材價差報價台資料列表</h3><small>6 筆流程紀錄</small></div>
+                <div class="table-wrap">
+                  <table>
+                    <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
+                    <tbody>
+                      <tr><td>MET-001</td><td>更新行情</td><td>採購人員</td><td>D+1</td><td><span class="badge blue">處理中</span></td></tr>
+                      <tr><td>MET-002</td><td>建立成本</td><td>成本人員</td><td>D+2</td><td><span class="badge amber">待確認</span></td></tr>
+                      <tr><td>MET-003</td><td>試算報價</td><td>業務人員</td><td>D+3</td><td><span class="badge amber">待確認</span></td></tr>
+                      <tr><td>MET-004</td><td>毛利檢查</td><td>業務主管</td><td>D+4</td><td><span class="badge green">已完成</span></td></tr>
+                      <tr><td>MET-005</td><td>例外核准</td><td>營運主管</td><td>D+5</td><td><span class="badge green">已完成</span></td></tr>
+                      <tr><td>MET-006</td><td>報價追蹤</td><td>業務助理</td><td>D+6</td><td><span class="badge green">已完成</span></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+
+            <aside class="grid">
+              <article class="card card-pad">
+                <div class="card-title"><h3>自動重估規則</h3><span class="badge blue">3 條啟用</span></div>
+                <div class="rule-list">
+                  <div class="rule"><header><strong>RULE-01</strong><span class="badge green">啟用</span></header><p>盤元基價累積漲幅 ≥ 3%，立即凍結未發行報價並通知採購人員。</p></div>
+                  <div class="rule"><header><strong>RULE-02</strong><span class="badge green">啟用</span></header><p>成本版本超過 14 天，禁止建立新報價並列入逾期版本數。</p></div>
+                  <div class="rule"><header><strong>RULE-03</strong><span class="badge green">啟用</span></header><p>預估毛利低於 18%，轉送營運主管進行例外價格核准。</p></div>
+                </div>
+              </article>
+              <article class="card card-pad">
+                <div class="card-title"><h3>改善成果</h3><small>導入後</small></div>
+                <div class="sum-row"><span>採購前置時間</span><strong>12 → 5 天</strong></div>
+                <div class="sum-row"><span>準時到貨率</span><strong>82 → 96%</strong></div>
+                <div class="sum-row"><span>缺料預警覆蓋</span><strong>40 → 92%</strong></div>
+                <div class="sum-row"><span>議價作業工時</span><strong>8 → 2 小時/週</strong></div>
+              </article>
+            </aside>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const chartInstances = {};
+      const chartBuilt = {};
+      const blue = "#1e40af";
+      const green = "#16845b";
+      const amber = "#b66b08";
+      const red = "#c43d4b";
+      const ink = "#172033";
+      const muted = "#667085";
+      const line = "#dbe2ee";
+
+      const axisStyle = {
+        axisLine: { lineStyle: { color: line } },
+        axisTick: { show: false },
+        axisLabel: { color: muted, fontFamily: "Inter, Noto Sans TC" },
+        splitLine: { lineStyle: { color: "#edf1f6" } }
+      };
+
+      function buildChart(chartId, option) {
+        const chartNode = document.getElementById(chartId);
+        if (!chartNode || chartNode.clientWidth < 1 || typeof echarts === "undefined") return;
+        if (!chartInstances[chartId]) chartInstances[chartId] = echarts.init(chartNode);
+        chartInstances[chartId].setOption(option);
+        chartBuilt[chartId] = true;
+      }
+
+      function initViewCharts(viewIndex) {
+        if (viewIndex === 0 && !chartBuilt.marketChart) {
+          buildChart("marketChart", {
+            animationDuration: 700,
+            tooltip: { trigger: "axis", valueFormatter: value => "$" + Number(value).toLocaleString() },
+            legend: { data: ["10B21", "SCM435"], bottom: 0, textStyle: { color: muted } },
+            grid: { left: 50, right: 18, top: 28, bottom: 48 },
+            xAxis: { type: "category", data: ["W1","W2","W3","W4","W5","W6"], ...axisStyle },
+            yAxis: { type: "value", min: 24000, max: 36000, ...axisStyle },
+            series: [
+              { name: "10B21", type: "line", smooth: true, symbolSize: 8, data: [24780,24950,25080,25240,25410,25850], lineStyle: { width: 3, color: blue }, itemStyle: { color: blue }, areaStyle: { color: "rgba(30,64,175,.10)" } },
+              { name: "SCM435", type: "line", smooth: true, symbolSize: 8, data: [32900,33380,33620,33950,34210,34680], lineStyle: { width: 3, color: amber }, itemStyle: { color: amber } }
+            ]
+          });
+        }
+
+        if (viewIndex === 1 && !chartBuilt.costChart) {
+          buildChart("costChart", {
+            tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+            grid: { left: 88, right: 18, top: 12, bottom: 30 },
+            xAxis: { type: "value", ...axisStyle },
+            yAxis: { type: "category", data: ["包裝運輸","表面處理","熱處理","冷鍛加工","材料損耗","盤元材料"], ...axisStyle },
+            series: [{
+              type: "bar",
+              data: [420,202,413,518,338,2295],
+              barWidth: 16,
+              label: { show: true, position: "right", formatter: "${c}", color: ink, fontWeight: 700 },
+              itemStyle: {
+                borderRadius: [0,6,6,0],
+                color: params => [green, "#3a8fc1", "#6e78cc", blue, amber, "#17327f"][params.dataIndex]
+              }
+            }]
+          });
+        }
+
+        if (viewIndex === 2 && !chartBuilt.quoteChart) {
+          buildChart("quoteChart", {
+            tooltip: { trigger: "axis", formatter: values => values[0].axisValue + "<br>毛利率：" + values[0].value + "%" },
+            grid: { left: 42, right: 12, top: 18, bottom: 35 },
+            xAxis: { type: "category", data: ["-3%","持平","+3%","+5%","+8%"], ...axisStyle },
+            yAxis: { type: "value", min: 12, max: 28, axisLabel: { formatter: "{value}%", color: muted }, splitLine: axisStyle.splitLine },
+            series: [{
+              type: "line", smooth: true, data: [25.5,22.8,20.1,18.2,15.4],
+              symbolSize: 8, lineStyle: { width: 3, color: blue }, itemStyle: { color: blue },
+              markLine: { silent: true, symbol: "none", label: { formatter: "核准線 18%", color: red }, lineStyle: { color: red, type: "dashed" }, data: [{ yAxis: 18 }] }
+            }]
+          });
+        }
+
+        if (viewIndex === 3 && !chartBuilt.riskGauge) {
+          buildChart("riskGauge", {
+            series: [{
+              type: "gauge",
+              startAngle: 210,
+              endAngle: -30,
+              min: 0,
+              max: 100,
+              radius: "96%",
+              progress: { show: true, width: 12, itemStyle: { color: amber } },
+              axisLine: { lineStyle: { width: 12, color: [[1,"#edf1f6"]] } },
+              axisTick: { show: false },
+              splitLine: { show: false },
+              axisLabel: { show: false },
+              pointer: { show: false },
+              anchor: { show: false },
+              title: { show: false },
+              detail: { valueAnimation: true, formatter: "{value}", color: ink, fontSize: 28, fontWeight: 800, offsetCenter: [0,"5%"] },
+              data: [{ value: 62 }]
+            }]
+          });
+        }
+
+        if (viewIndex === 5 && !chartBuilt.trendChart) {
+          buildChart("trendChart", {
+            tooltip: { trigger: "axis", valueFormatter: value => value + "%" },
+            grid: { left: 45, right: 16, top: 20, bottom: 32 },
+            xAxis: { type: "category", boundaryGap: false, data: ["W1","W2","W3","W4","W5","W6"], ...axisStyle },
+            yAxis: { type: "value", min: 78, max: 100, axisLabel: { formatter: "{value}%", color: muted }, splitLine: axisStyle.splitLine },
+            series: [{
+              name: "準時到貨率 %",
+              type: "line",
+              smooth: true,
+              data: [82,84.8,87.6,90.4,93.2,96],
+              symbolSize: 8,
+              lineStyle: { width: 4, color: green },
+              itemStyle: { color: green },
+              areaStyle: { color: "rgba(22,132,91,.12)" },
+              label: { show: true, position: "top", formatter: "{c}%", color: ink, fontSize: 10 }
+            }]
+          });
+        }
+      }
+
+      function show(viewIndex, updateHash = false) {
+        const safeIndex = Math.max(0, Math.min(5, Number(viewIndex) || 0));
+        document.querySelectorAll(".view").forEach((viewNode, index) => {
+          viewNode.classList.toggle("active", index === safeIndex);
+          viewNode.setAttribute("aria-hidden", index === safeIndex ? "false" : "true");
+        });
+        document.querySelectorAll("[data-i]").forEach(buttonNode => {
+          const isCurrent = Number(buttonNode.dataset.i) === safeIndex;
+          buttonNode.classList.toggle("active", isCurrent);
+          buttonNode.setAttribute("aria-current", isCurrent ? "page" : "false");
+        });
+        if (updateHash && window.location.hash !== "#go=" + safeIndex) {
+          window.location.hash = "go=" + safeIndex;
+        }
+        requestAnimationFrame(() => {
+          initViewCharts(safeIndex);
+          Object.values(chartInstances).forEach(chart => chart.resize());
+        });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      function hashIndex() {
+        const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+        return match ? Math.min(5, Number(match[1])) : 0;
+      }
+
+      document.querySelectorAll("[data-i]").forEach(buttonNode => {
+        buttonNode.addEventListener("click", () => show(Number(buttonNode.dataset.i), true));
+      });
+
+      window.addEventListener("hashchange", () => show(hashIndex(), false));
+      window.addEventListener("resize", () => {
+        Object.values(chartInstances).forEach(chart => chart.resize());
+      });
+
+      show(hashIndex(), false);
+    })();
+  </script>
+</body>
+</html>
