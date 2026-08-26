@@ -129,6 +129,15 @@ daily_wrapup() {
     grep -A 8 '出錯的 demo ──' "$STATE/agent-console.log" | tail -8
   fi
 
+  # 每天把新上架的專案同步成 JVision-pj 底下的獨立 repo。冪等：
+  # 內容沒變的會整批跳過，所以每天跑一次的成本只有當天新增的那幾套。
+  # 沒有憑證時它會自己說明並退出（exit 3），不影響其他收尾。
+  if node tools/github-sync.mjs --all >> "$STATE/agent-github.log" 2>&1; then
+    act "GitHub 同步" "" 200 "$(tail -1 "$STATE/agent-github.log")"
+  else
+    act "GitHub 同步未完成" "" 500 "$(grep -m1 '✖' "$STATE/agent-github.log" | tail -1)"
+  fi
+
   # 一天推一次、更新同一個 PR。每上架一套就推一次太吵，而且 PR 內文是依
   # 當下狀態重算的，一天更新一次就足以反映當天的全部產出。
   if node tools/open-pr.mjs > "$STATE/agent-pr.log" 2>&1; then
