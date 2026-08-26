@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>門市調貨交接追蹤台 · pos-frontdesk｜Jvision 系統 Demo</title>
+  <link rel="icon" href="../../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --blue:#1e40af;
+      --ink:#172033;
+      --body:#35405a;
+      --muted:#718096;
+      --line:#dce3ef;
+      --bg:#f4f7fb;
+      --green:#15803d;
+      --amber:#b45309;
+      --red:#c2413b;
+      --white:#fff;
+      --soft:#eef3ff;
+      --shadow:0 12px 32px rgba(30,64,175,.08);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--body);font-family:Inter,"Noto Sans TC",sans-serif}
+    body{overflow-x:hidden}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    .material-symbols-outlined{font-size:22px;line-height:1;font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24}
+    .app{min-height:100vh;display:grid;grid-template-columns:78px minmax(0,1fr)}
+    .rail{
+      position:fixed;inset:0 auto 0 0;width:78px;padding:18px 10px;
+      background:#102967;color:#fff;display:flex;flex-direction:column;align-items:center;
+      z-index:20;border-right:1px solid rgba(255,255,255,.1)
+    }
+    .brand{
+      width:46px;height:46px;border-radius:15px;background:#fff;color:var(--blue);
+      display:grid;place-items:center;font-weight:800;font-size:18px;box-shadow:0 8px 20px rgba(0,0,0,.18)
+    }
+    .rail-nav{display:grid;gap:10px;margin-top:34px;width:100%}
+    .rail-btn{
+      width:58px;min-height:54px;border:0;border-radius:14px;background:transparent;color:#bdcaf2;
+      display:grid;place-items:center;position:relative;transition:.2s ease
+    }
+    .rail-btn:hover,.rail-btn:focus-visible{background:rgba(255,255,255,.12);color:#fff;outline:3px solid rgba(255,255,255,.28);outline-offset:2px}
+    .rail-btn.active{background:#fff;color:var(--blue);box-shadow:0 8px 18px rgba(0,0,0,.16)}
+    .rail-btn span:last-child{
+      position:absolute;left:68px;white-space:nowrap;padding:7px 10px;border-radius:8px;
+      background:#111827;color:#fff;font-size:12px;opacity:0;pointer-events:none;transform:translateX(-5px);transition:.2s
+    }
+    .rail-btn:hover span:last-child,.rail-btn:focus-visible span:last-child{opacity:1;transform:none}
+    .rail-foot{margin-top:auto;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#dbeafe;color:#1e3a8a;font-weight:800}
+    .workspace{grid-column:2;min-width:0}
+    .header{
+      height:74px;padding:0 clamp(18px,3vw,42px);display:flex;align-items:center;justify-content:space-between;
+      background:rgba(255,255,255,.93);border-bottom:1px solid var(--line);position:sticky;inset-block-start:0;z-index:10;
+      backdrop-filter:blur(12px)
+    }
+    .header-title{display:flex;align-items:center;gap:13px;min-width:0}
+    .header-title strong{display:block;color:var(--ink);font-size:17px}
+    .header-title small{display:block;color:var(--muted);margin-top:3px;font-size:12px}
+    .live{display:flex;align-items:center;gap:7px;color:var(--green);font-size:12px;font-weight:700;background:#ecfdf3;padding:8px 11px;border-radius:999px}
+    .live::before{content:"";width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 5px rgba(34,197,94,.12)}
+    .stage{display:none;min-height:calc(100vh - 74px);padding:clamp(20px,3vw,38px);animation:rise .35s ease}
+    .stage.active{display:block}
+    @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+    .page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:24px}
+    .eyebrow{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--blue);margin-bottom:8px}
+    h1,h2,h3,p{margin-top:0}
+    h1{font-size:clamp(26px,3vw,38px);line-height:1.18;color:var(--ink);margin-bottom:9px}
+    h2{font-size:20px;color:var(--ink);margin-bottom:5px}
+    h3{font-size:15px;color:var(--ink);margin-bottom:6px}
+    .lead{margin:0;color:var(--muted);line-height:1.75;max-width:780px}
+    .action{
+      border:0;border-radius:11px;padding:11px 16px;background:var(--blue);color:#fff;font-weight:700;
+      display:inline-flex;align-items:center;gap:8px;min-height:44px;box-shadow:0 8px 18px rgba(30,64,175,.2)
+    }
+    .action:hover,.action:focus-visible{background:#17368f;outline:3px solid #bfdbfe;outline-offset:2px}
+    .action.secondary{background:#fff;color:var(--blue);border:1px solid #b9c8ed;box-shadow:none}
+    .grid{display:grid;gap:18px}
+    .cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);min-width:0}
+    .card.flat{box-shadow:none}
+    .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}
+    .card-head h2,.card-head h3{margin:0}
+    .muted{color:var(--muted)}
+    .tiny{font-size:12px}
+    .metric{font-size:29px;font-weight:800;color:var(--ink);line-height:1.1}
+    .metric small{font-size:13px;color:var(--muted);font-weight:600}
+    .delta{font-size:12px;font-weight:700;color:var(--green);margin-top:7px}
+    .chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:6px 9px;font-size:12px;font-weight:700;background:#edf2ff;color:var(--blue)}
+    .chip.green{background:#ecfdf3;color:var(--green)}
+    .chip.amber{background:#fff7e6;color:var(--amber)}
+    .chip.red{background:#fff1f0;color:var(--red)}
+    .icon-box{width:42px;height:42px;border-radius:12px;background:var(--soft);color:var(--blue);display:grid;place-items:center}
+    .chart{height:260px;width:100%;min-width:0}
+    .divider{height:1px;background:var(--line);margin:16px 0}
+    .progress{height:7px;background:#e7ecf5;border-radius:99px;overflow:hidden}
+    .progress i{height:100%;display:block;border-radius:inherit;background:var(--blue)}
+    .person{display:flex;align-items:center;gap:10px}
+    .avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#dbeafe;color:#1e3a8a;font-size:12px;font-weight:800;flex:0 0 auto}
+    .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+    .field label{display:block;color:var(--ink);font-size:12px;font-weight:700;margin-bottom:7px}
+    .field input,.field select,.field textarea{
+      width:100%;border:1px solid #cdd6e5;border-radius:10px;background:#fff;color:var(--body);
+      padding:11px 12px;min-height:44px;outline:0
+    }
+    .field textarea{min-height:84px;resize:vertical}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #dbeafe}
+    .span-2{grid-column:span 2}
+    .product{display:flex;gap:14px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fafcff}
+    .product-art{width:64px;height:72px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,#dbeafe,#eff6ff);color:var(--blue);flex:0 0 auto}
+    .product-art .material-symbols-outlined{font-size:32px}
+    .stock-row{display:grid;grid-template-columns:minmax(120px,1fr) 70px 90px 110px;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+    .stock-row:last-child{border-bottom:0}
+    .radio-card{border:1px solid var(--line);border-radius:14px;padding:14px;transition:.2s}
+    .radio-card.selected{border-color:var(--blue);box-shadow:0 0 0 3px #dbeafe;background:#f8faff}
+    .countdown{font-size:40px;font-weight:800;color:var(--blue);letter-spacing:-.04em}
+    .timeline{position:relative;padding-left:28px}
+    .timeline::before{content:"";position:absolute;left:8px;top:10px;bottom:10px;width:2px;background:#dbe3f1}
+    .event{position:relative;padding-bottom:22px}
+    .event:last-child{padding-bottom:0}
+    .event::before{content:"";position:absolute;left:-25px;top:4px;width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--blue)}
+    .event.done::before{background:var(--green);border-color:#bbf7d0}
+    .event p{font-size:13px;color:var(--muted);margin:4px 0 0;line-height:1.55}
+    .handoff-code{font-size:clamp(28px,5vw,52px);font-weight:800;letter-spacing:.14em;color:var(--ink);text-align:center;padding:25px 10px}
+    .route{display:flex;align-items:center;gap:12px;padding:18px 0}
+    .route-node{flex:1;border:1px solid var(--line);border-radius:15px;padding:16px}
+    .route-line{flex:0 1 110px;height:3px;background:linear-gradient(90deg,var(--blue) 72%,#dbe3f1 72%);position:relative}
+    .route-line::after{content:"›";position:absolute;right:-2px;top:-15px;color:var(--blue);font-size:28px}
+    .phone{max-width:370px;margin:auto;border:9px solid #172033;border-radius:34px;background:#fff;padding:20px;box-shadow:0 22px 50px rgba(23,32,51,.18)}
+    .phone-notch{width:88px;height:7px;border-radius:99px;background:#172033;margin:-10px auto 22px}
+    .message{border-radius:16px 16px 16px 4px;background:#edf2ff;color:#26344f;padding:15px;line-height:1.65;font-size:14px}
+    .contact-list{display:grid;gap:10px}
+    .contact-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;border:1px solid var(--line);border-radius:12px}
+    .checklist{display:grid;gap:10px}
+    .check{display:flex;align-items:center;gap:11px;padding:12px;border-radius:11px;background:#f7f9fc;color:var(--ink)}
+    .check .material-symbols-outlined{color:var(--green)}
+    .receipt{max-width:520px;margin:auto;background:#fff;border:1px solid var(--line);border-radius:8px;padding:28px;box-shadow:0 18px 35px rgba(23,32,51,.1);position:relative}
+    .receipt::after{content:"";position:absolute;left:0;right:0;bottom:-7px;height:14px;background:radial-gradient(circle at 7px 0,transparent 7px,#fff 7.5px) repeat-x;background-size:14px 14px}
+    .receipt-row{display:flex;justify-content:space-between;gap:18px;padding:9px 0;border-bottom:1px dashed #d9dfeb}
+    .receipt-row:last-child{border:0}
+    .decision{border-left:4px solid var(--blue);background:#f4f7ff;padding:15px;border-radius:0 12px 12px 0}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}
+    table{width:100%;border-collapse:collapse;min-width:620px;background:#fff}
+    th,td{padding:13px 15px;text-align:left;border-bottom:1px solid var(--line);font-size:13px}
+    th{color:var(--muted);background:#f8fafc;font-size:12px}
+    tr:last-child td{border-bottom:0}
+    .stepper{display:grid;grid-template-columns:repeat(6,minmax(100px,1fr));gap:0;overflow:auto;padding:4px 0 12px}
+    .step{position:relative;text-align:center;color:var(--muted);font-size:11px}
+    .step::after{content:"";position:absolute;height:2px;background:#cfd8e8;top:16px;left:50%;right:-50%}
+    .step:last-child::after{display:none}
+    .step i{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;margin:0 auto 8px;background:#e7ecf5;color:#64748b;font-style:normal;font-weight:800;position:relative;z-index:1}
+    .step.done i{background:#dcfce7;color:var(--green)}
+    .step.current i{background:var(--blue);color:#fff;box-shadow:0 0 0 5px #dbeafe}
+    .step.done::after{background:#86b49a}
+    .notice{padding:12px 14px;border-radius:12px;background:#fff8e8;color:#8a5108;border:1px solid #f5d48c;font-size:13px;line-height:1.55}
+    @media(max-width:1050px){
+      .cols-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .cols-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+    @media(max-width:767px){
+      .app{display:block;padding-bottom:78px}
+      .workspace{display:block}
+      .rail{inset:auto 0 0 0;width:100%;height:70px;padding:8px 10px;border-right:0;border-top:1px solid rgba(255,255,255,.14)}
+      .brand,.rail-foot{display:none}
+      .rail-nav{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin:0;width:100%}
+      .rail-btn{width:100%;min-height:52px;border-radius:12px}
+      .rail-btn span:last-child{display:none}
+      .header{height:64px;padding:0 16px}
+      .header-title small{display:none}
+      .stage{min-height:calc(100vh - 134px);padding:20px 15px}
+      .page-head{display:block}
+      .page-head .action{margin-top:15px}
+      .cols-3,.cols-2{grid-template-columns:1fr}
+      .form-grid{grid-template-columns:1fr}
+      .span-2{grid-column:auto}
+      .stock-row{grid-template-columns:1fr 54px 82px}
+      .stock-row .action{grid-column:1/-1;width:100%;justify-content:center}
+      .route{align-items:stretch;flex-direction:column}
+      .route-line{height:46px;width:3px;flex:none;margin-left:30px;background:linear-gradient(180deg,var(--blue) 72%,#dbe3f1 72%)}
+      .route-line::after{content:"⌄";right:-9px;top:27px}
+      .chart{height:230px}
+    }
+    @media(max-width:480px){
+      .cols-4{grid-template-columns:1fr}
+      .header-title strong{font-size:14px}
+      .live{padding:7px;font-size:0}
+      .live::before{margin:0}
+      .card{padding:16px;border-radius:15px}
+      .page-head{margin-bottom:18px}
+      h1{font-size:25px}
+      .handoff-code{letter-spacing:.08em}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="rail" aria-label="流程導覽">
+      <div class="brand" aria-label="JVision">JV</div>
+      <nav class="rail-nav">
+        <button class="rail-btn" data-i="0" aria-label="受理需求"><span class="material-symbols-outlined">person_search</span><span>受理需求</span></button>
+        <button class="rail-btn" data-i="1" aria-label="確認貨源"><span class="material-symbols-outlined">store</span><span>確認貨源</span></button>
+        <button class="rail-btn" data-i="2" aria-label="鎖定保留"><span class="material-symbols-outlined">lock</span><span>鎖定保留</span></button>
+        <button class="rail-btn" data-i="3" aria-label="完成交接"><span class="material-symbols-outlined">local_shipping</span><span>完成交接</span></button>
+        <button class="rail-btn" data-i="4" aria-label="通知取件"><span class="material-symbols-outlined">notifications</span><span>通知取件</span></button>
+        <button class="rail-btn" data-i="5" aria-label="完成結案"><span class="material-symbols-outlined">shopping_bag</span><span>完成結案</span></button>
+      </nav>
+      <div class="rail-foot">林</div>
+    </aside>
+
+    <main class="workspace">
+      <header class="header">
+        <div class="header-title">
+          <span class="icon-box"><span class="material-symbols-outlined">conveyor_belt</span></span>
+          <div><strong>門市調貨交接追蹤台</strong><small>POS 門市管理 · TP-20260827-018</small></div>
+        </div>
+        <div class="live">跨店同步中</div>
+      </header>
+
+      <section class="stage" data-view="0" aria-labelledby="view0-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">Step 01 · 銷售店員</div>
+            <h1 id="view0-title">受理顧客調貨需求</h1>
+            <p class="lead">確認商品規格、聯絡方式與承諾日期，建立全店可追溯的調貨案件。</p>
+          </div>
+          <button class="action" type="button" data-next="1"><span class="material-symbols-outlined">search</span>尋找可調貨門市</button>
+        </div>
+
+        <div class="grid cols-4" style="margin-bottom:18px">
+          <article class="card flat"><div class="card-head"><span class="icon-box"><span class="material-symbols-outlined">target</span></span><span class="chip green">本週 +6.4%</span></div><div class="metric">78.6<small>%</small></div><div class="muted tiny">調貨成交率</div></article>
+          <article class="card flat"><div class="card-head"><span class="icon-box"><span class="material-symbols-outlined">schedule</span></span><span class="chip amber">需關注</span></div><div class="metric">8.2<small>%</small></div><div class="muted tiny">承諾逾時率</div></article>
+          <article class="card flat"><div class="card-head"><span class="icon-box"><span class="material-symbols-outlined">notification_important</span></span><span class="chip red">3 件急迫</span></div><div class="metric">7<small> 件</small></div><div class="muted tiny">到貨未通知</div></article>
+          <article class="card flat"><div class="card-head"><span class="icon-box"><span class="material-symbols-outlined">inventory</span></span><span class="chip">跨 5 店</span></div><div class="metric">18<small> 件</small></div><div class="muted tiny">進行中調貨</div></article>
+        </div>
+
+        <div class="grid cols-3">
+          <article class="card" style="grid-column:span 2">
+            <div class="card-head"><div><h2>建立需求單</h2><div class="muted tiny">案件編號將於送出後自動產生</div></div><span class="chip">草稿已儲存</span></div>
+            <div class="product">
+              <div class="product-art"><span class="material-symbols-outlined">apparel</span></div>
+              <div><h3>Urban Shell 防潑水外套</h3><div class="muted tiny">SKU：JV-OW-2408-NV-M · 海軍藍 / M</div><div style="margin-top:8px"><span class="chip red">本店缺貨</span> <span class="chip">售價 NT$ 3,280</span></div></div>
+            </div>
+            <div class="form-grid" style="margin-top:18px">
+              <div class="field"><label for="buyer">顧客姓名</label><input id="buyer" value="陳怡君"></div>
+              <div class="field"><label for="mobile">聯絡手機</label><input id="mobile" value="0912-***-628"></div>
+              <div class="field"><label for="pickup">目的門市</label><select id="pickup"><option>台北信義門市</option><option>台北站前門市</option></select></div>
+              <div class="field"><label for="promise">期望取件日</label><input id="promise" type="date" value="2026-08-30"></div>
+              <div class="field span-2"><label for="memo">服務備註</label><textarea id="memo">顧客週末出國使用，希望最晚週六 18:00 前取件；可接受同款黑色 M 號替代。</textarea></div>
+            </div>
+            <div class="divider"></div>
+            <div class="decision"><strong>承諾檢核</strong><div class="muted tiny" style="margin-top:5px">顧客期望日距今 3 天，符合跨店調貨的 1–4 天服務區間。</div></div>
+          </article>
+
+          <aside class="grid">
+            <article class="card">
+              <div class="card-head"><h2>近期顧客紀錄</h2><span class="material-symbols-outlined muted">history</span></div>
+              <div class="person"><span class="avatar">陳</span><div><strong>銀卡會員</strong><div class="muted tiny">近 12 月消費 NT$ 18,640</div></div></div>
+              <div class="divider"></div>
+              <div class="receipt-row"><span class="muted tiny">成功取件</span><strong>2 次</strong></div>
+              <div class="receipt-row"><span class="muted tiny">未取取消</span><strong>0 次</strong></div>
+              <div class="receipt-row"><span class="muted tiny">偏好聯絡</span><strong>LINE</strong></div>
+            </article>
+            <article class="card">
+              <div class="card-head"><h2>受理檢查</h2><span class="chip green">4 / 4</span></div>
+              <div class="checklist">
+                <div class="check"><span class="material-symbols-outlined">check_circle</span>商品規格已覆誦</div>
+                <div class="check"><span class="material-symbols-outlined">check_circle</span>顧客電話已確認</div>
+                <div class="check"><span class="material-symbols-outlined">check_circle</span>取件門市已確認</div>
+                <div class="check"><span class="material-symbols-outlined">check_circle</span>承諾期限已說明</div>
+              </div>
+            </article>
+          </aside>
+        </div>
+      </section>
+
+      <section class="stage" data-view="1" aria-labelledby="view1-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">Step 02 · 來源店員</div>
+            <h1 id="view1-title">確認來源門市與實物</h1>
+            <p class="lead">比對系統庫存與現場實物，排除展示品、瑕疵品或已被顧客口頭保留的商品。</p>
+          </div>
+          <button class="action" type="button" data-next="2"><span class="material-symbols-outlined">verified</span>確認貨源通過</button>
+        </div>
+
+        <div class="grid cols-3">
+          <article class="card">
+            <div class="card-head"><h2>待尋商品</h2><span class="chip red">信義店缺貨</span></div>
+            <div class="product">
+              <div class="product-art"><span class="material-symbols-outlined">apparel</span></div>
+              <div><h3>Urban Shell 防潑水外套</h3><div class="muted tiny">海軍藍 / M</div><div class="tiny" style="margin-top:8px">SKU JV-OW-2408-NV-M</div></div>
+            </div>
+            <div class="divider"></div>
+            <div class="receipt-row"><span class="muted">需求數量</span><strong>1 件</strong></div>
+            <div class="receipt-row"><span class="muted">承諾送達</span><strong>08/30 15:00</strong></div>
+            <div class="receipt-row"><span class="muted">目的門市</span><strong>台北信義</strong></div>
+            <div class="notice" style="margin-top:17px">系統數量僅供篩選；來源店員必須找到實物並完成品況檢查。</div>
+          </article>
+
+          <article class="card" style="grid-column:span 2">
+            <div class="card-head"><div><h2>候選來源門市</h2><div class="muted tiny">依可售庫存、交接班次與距離排序</div></div><span class="chip">更新於 10:42</span></div>
+            <div class="stock-row">
+              <div class="person"><span class="avatar">站</span><div><strong>台北站前門市</strong><div class="muted tiny">距離 4.2 km · 13:30 有配送</div></div></div>
+              <strong>3 件</strong><span class="chip green">已驗實物</span><button class="action secondary" type="button">選為來源</button>
+            </div>
+            <div class="stock-row">
+              <div class="person"><span class="avatar">南</span><div><strong>台北南西門市</strong><div class="muted tiny">距離 5.8 km · 16:00 有配送</div></div></div>
+              <strong>2 件</strong><span class="chip amber">待盤點</span><button class="action secondary" type="button">催促確認</button>
+            </div>
+            <div class="stock-row">
+              <div class="person"><span class="avatar">復</span><div><strong>台北復興門市</strong><div class="muted tiny">距離 3.6 km · 明日配送</div></div></div>
+              <strong>1 件</strong><span class="chip red">展示品</span><button class="action secondary" type="button" disabled>不可調出</button>
+            </div>
+            <div class="stock-row">
+              <div class="person"><span class="avatar">板</span><div><strong>板橋新站門市</strong><div class="muted tiny">距離 9.7 km · 17:30 有配送</div></div></div>
+              <strong>4 件</strong><span class="chip">尚未回覆</span><button class="action secondary" type="button">發送詢問</button>
+            </div>
+          </article>
+        </div>
+
+        <div class="grid cols-2" style="margin-top:18px">
+          <article class="card">
+            <div class="card-head"><h2>台北站前店 · 實物檢查</h2><span class="chip green">來源店員 王志明</span></div>
+            <div class="grid cols-2">
+              <div class="radio-card selected"><span class="material-symbols-outlined" style="color:var(--green)">check_circle</span><h3 style="margin-top:10px">吊牌與規格相符</h3><div class="muted tiny">款號、色號與尺寸已核對</div></div>
+              <div class="radio-card selected"><span class="material-symbols-outlined" style="color:var(--green)">check_circle</span><h3 style="margin-top:10px">外觀無瑕疵</h3><div class="muted tiny">拉鍊、車線與布面正常</div></div>
+              <div class="radio-card selected"><span class="material-symbols-outlined" style="color:var(--green)">check_circle</span><h3 style="margin-top:10px">非展示商品</h3><div class="muted tiny">取自後倉未拆封庫存</div></div>
+              <div class="radio-card selected"><span class="material-symbols-outlined" style="color:var(--green)">check_circle</span><h3 style="margin-top:10px">無其他保留</h3><div class="muted tiny">未綁定訂單或口頭留貨</div></div>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-head"><h2>門市可售庫存</h2><span class="muted tiny">近 7 日</span></div>
+            <div id="stockChart" class="chart" role="img" aria-label="候選門市可售庫存長條圖"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="stage" data-view="2" aria-labelledby="view2-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">Step 03 · 來源店長</div>
+            <h1 id="view2-title">鎖定商品保留承諾</h1>
+            <p class="lead">將實物從可售庫存中鎖定，指定調出期限與保管位置，避免在等待交接期間被誤售。</p>
+          </div>
+          <button class="action" type="button" data-next="3"><span class="material-symbols-outlined">lock</span>核准並鎖定</button>
+        </div>
+
+        <div class="grid cols-3">
+          <article class="card" style="grid-column:span 2">
+            <div class="card-head"><div><h2>保留核准單</h2><div class="muted tiny">TP-20260827-018 · 台北站前門市</div></div><span class="chip amber">等待店長核准</span></div>
+            <div class="grid cols-3">
+              <div class="card flat"><div class="muted tiny">開始保留</div><div class="metric" style="font-size:20px;margin-top:7px">08/27 10:48</div></div>
+              <div class="card flat"><div class="muted tiny">最晚調出</div><div class="metric" style="font-size:20px;margin-top:7px">08/28 14:00</div></div>
+              <div class="card flat"><div class="muted tiny">保留時數</div><div class="metric" style="font-size:20px;margin-top:7px">27<small> 小時</small></div></div>
+            </div>
+            <div class="divider"></div>
+            <div class="form-grid">
+              <div class="field"><label for="shelf">指定保管位置</label><select id="shelf"><option>後倉 A 區 · 調貨架 03</option><option>店長室保留櫃</option></select></div>
+              <div class="field"><label for="batch">商品序號／批次</label><input id="batch" value="LOT-240821-073"></div>
+              <div class="field"><label for="dispatch">最晚調出時間</label><input id="dispatch" type="datetime-local" value="2026-08-28T14:00"></div>
+              <div class="field"><label for="carrier">預定交接方式</label><select id="carrier"><option>每日店間配送車</option><option>區主管隨車</option></select></div>
+              <div class="field span-2"><label for="approval">核准備註</label><textarea id="approval">已確認今日銷售預估，保留後仍有 2 件安全庫存；請裝入藍色調貨袋並附案件標籤。</textarea></div>
+            </div>
+            <div class="divider"></div>
+            <div class="decision"><strong>確認貨源是否通過？</strong><div class="tiny" style="margin-top:7px"><span class="chip green">是：進入鎖定保留</span> <span class="chip red">否：退回補件並通知來源店員</span></div></div>
+          </article>
+
+          <aside class="grid">
+            <article class="card" style="text-align:center">
+              <div class="muted tiny">距離保留逾時</div>
+              <div class="countdown">26:41</div>
+              <div class="muted tiny">小時：分鐘</div>
+              <div class="progress" style="margin-top:18px"><i style="width:14%"></i></div>
+              <div class="tiny muted" style="margin-top:8px">已使用 3 小時 19 分</div>
+            </article>
+            <article class="card">
+              <div class="card-head"><h2>鎖定影響</h2><span class="material-symbols-outlined muted">inventory_2</span></div>
+              <div class="receipt-row"><span class="muted">帳面庫存</span><strong>3</strong></div>
+              <div class="receipt-row"><span class="muted">本案保留</span><strong style="color:var(--red)">−1</strong></div>
+              <div class="receipt-row"><span class="muted">剩餘可售</span><strong style="color:var(--green)">2 件</strong></div>
+            </article>
+            <article class="card">
+              <div class="card-head"><h2>核准軌跡</h2><span class="chip">店長權限</span></div>
+              <div class="timeline">
+                <div class="event done"><strong>來源店員提交</strong><p>王志明 · 10:46</p></div>
+                <div class="event"><strong>店長核准</strong><p>等待林雅婷確認</p></div>
+                <div class="event"><strong>庫存鎖定</strong><p>核准後立即執行</p></div>
+              </div>
+            </article>
+          </aside>
+        </div>
+      </section>
+
+      <section class="stage" data-view="3" aria-labelledby="view3-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">Step 04 · 調貨人員</div>
+            <h1 id="view3-title">完成店間轉運交接</h1>
+            <p class="lead">掃描交接碼確認實物離店、運送節點與簽收人，讓兩店跨班人員都能掌握去向。</p>
+          </div>
+          <button class="action" type="button" data-next="4"><span class="material-symbols-outlined">qr_code_scanner</span>確認目的店簽收</button>
+        </div>
+
+        <div class="grid cols-3">
+          <article class="card">
+            <div class="card-head"><h2>本批交接碼</h2><span class="chip green">已核驗</span></div>
+            <div class="handoff-code">JV-8142</div>
+            <div style="height:110px;width:110px;margin:0 auto 18px;background:repeating-conic-gradient(#172033 0 25%,#fff 0 50%) 0/22px 22px;border:10px solid #fff;outline:1px solid var(--line)" aria-label="交接示意碼"></div>
+            <div class="muted tiny" style="text-align:center">掃描後綁定配送批次 DS-0827-PM</div>
+          </article>
+
+          <article class="card" style="grid-column:span 2">
+            <div class="card-head"><div><h2>店間運送路徑</h2><div class="muted tiny">預計 14:35 抵達 · 尚餘 18 分鐘</div></div><span class="chip">配送車 07</span></div>
+            <div class="route">
+              <div class="route-node"><div class="icon-box"><span class="material-symbols-outlined">store</span></div><h3 style="margin-top:12px">台北站前門市</h3><div class="muted tiny">13:42 已交給配送員</div><div class="chip green" style="margin-top:10px">來源店已出庫</div></div>
+              <div class="route-line"></div>
+              <div class="route-node"><div class="icon-box"><span class="material-symbols-outlined">local_shipping</span></div><h3 style="margin-top:12px">忠孝西路配送段</h3><div class="muted tiny">14:08 通過節點 2 / 3</div><div class="chip" style="margin-top:10px">運送中</div></div>
+              <div class="route-line" style="background:linear-gradient(90deg,#dbe3f1 100%,#dbe3f1 100%)"></div>
+              <div class="route-node"><div class="icon-box"><span class="material-symbols-outlined">flag</span></div><h3 style="margin-top:12px">台北信義門市</h3><div class="muted tiny">預計 14:35 抵達</div><div class="chip amber" style="margin-top:10px">等待簽收</div></div>
+            </div>
+            <div class="notice">溫馨提醒：目的店簽收時請核對封條編號 SEAL-63918；若封條破損，須先拍照並回報例外。</div>
+          </article>
+        </div>
+
+        <div class="grid cols-2" style="margin-top:18px">
+          <article class="card">
+            <div class="card-head"><h2>交接事件</h2><span class="muted tiny">全程留痕</span></div>
+            <div class="timeline">
+              <div class="event done"><strong>來源店完成包裝</strong><p>王志明 · 13:21 · 調貨袋 B-019</p></div>
+              <div class="event done"><strong>配送員接收</strong><p>周啟文 · 13:42 · 封條 SEAL-63918</p></div>
+              <div class="event done"><strong>中途節點回報</strong><p>忠孝西路段 · 14:08 · 商品正常</p></div>
+              <div class="event"><strong>目的店簽收</strong><p>預計由許家豪於 14:35 接收</p></div>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-head"><h2>今日轉運負載</h2><span class="chip green">準時率 94%</span></div>
+            <div id="transferChart" class="chart" role="img" aria-label="今日各時段轉運件數折線圖"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="stage" data-view="4" aria-labelledby="view4-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">Step 05 · 目的店員</div>
+            <h1 id="view4-title">到貨後通知顧客取件</h1>
+            <p class="lead">完成入店品況確認，依顧客偏好發送訊息並記錄聯絡結果與再次通知時間。</p>
+          </div>
+          <button class="action" type="button" data-next="5"><span class="material-symbols-outlined">send</span>發送並記錄通知</button>
+        </div>
+
+        <div class="grid cols-3">
+          <article class="card">
+            <div class="card-head"><h2>到貨驗收</h2><span class="chip green">14:37 已簽收</span></div>
+            <div class="product">
+              <div class="product-art"><span class="material-symbols-outlined">apparel</span></div>
+              <div><h3>Urban Shell 防潑水外套</h3><div class="muted tiny">海軍藍 / M · 1 件</div></div>
+            </div>
+            <div class="checklist" style="margin-top:16px">
+              <div class="check"><span class="material-symbols-outlined">check_circle</span>封條編號相符</div>
+              <div class="check"><span class="material-symbols-outlined">check_circle</span>商品規格相符</div>
+              <div class="check"><span class="material-symbols-outlined">check_circle</span>到貨外觀正常</div>
+              <div class="check"><span class="material-symbols-outlined">check_circle</span>移入取件櫃 P-08</div>
+            </div>
+          </article>
+
+          <article class="card" style="grid-column:span 2">
+            <div class="grid cols-2">
+              <div>
+                <div class="card-head"><h2>通知內容預覽</h2><span class="chip">LINE</span></div>
+                <div class="phone">
+                  <div class="phone-notch"></div>
+                  <div class="tiny muted" style="text-align:center;margin-bottom:14px">JVision 台北信義門市</div>
+                  <div class="message">陳怡君您好，您調貨的「Urban Shell 防潑水外套／海軍藍 M」已抵達台北信義門市。商品為您保留至 8/30（日）18:00，取件時請出示編號 <strong>TP-018</strong>。如需協助請回覆本訊息。</div>
+                  <div class="tiny muted" style="text-align:right;margin-top:8px">預計立即發送</div>
+                </div>
+              </div>
+              <div>
+                <div class="card-head"><h2>聯絡策略</h2><span class="chip green">會員偏好已套用</span></div>
+                <div class="contact-list">
+                  <div class="contact-item"><div class="person"><span class="icon-box"><span class="material-symbols-outlined">chat</span></span><div><strong>LINE 訊息</strong><div class="muted tiny">主要通知 · 立即</div></div></div><span class="chip green">已選</span></div>
+                  <div class="contact-item"><div class="person"><span class="icon-box"><span class="material-symbols-outlined">sms</span></span><div><strong>簡訊</strong><div class="muted tiny">未讀 2 小時後補送</div></div></div><span class="chip">備援</span></div>
+                  <div class="contact-item"><div class="person"><span class="icon-box"><span class="material-symbols-outlined">call</span></span><div><strong>門市電話</strong><div class="muted tiny">截止日前 24 小時</div></div></div><span class="chip amber">必要時</span></div>
+                </div>
+                <div class="divider"></div>
+                <div class="field"><label for="notify-note">聯絡紀錄備註</label><textarea id="notify-note">顧客偏好晚間聯絡；本次商品因旅遊需求，先即時發送 LINE。</textarea></div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="grid cols-4" style="margin-top:18px">
+          <article class="card flat"><div class="muted tiny">今日到貨</div><div class="metric" style="margin-top:7px">23<small> 件</small></div><div class="delta">較昨日 +4</div></article>
+          <article class="card flat"><div class="muted tiny">已通知</div><div class="metric" style="margin-top:7px">16<small> 件</small></div><div class="progress" style="margin-top:12px"><i style="width:70%"></i></div></article>
+          <article class="card flat"><div class="muted tiny">待通知</div><div class="metric" style="margin-top:7px;color:var(--red)">7<small> 件</small></div><div class="tiny muted" style="margin-top:9px">其中 3 件超過 30 分鐘</div></article>
+          <article class="card flat"><div class="muted tiny">通知後已讀</div><div class="metric" style="margin-top:7px">87<small>%</small></div><div class="delta">目標 85%</div></article>
+        </div>
+      </section>
+
+      <section class="stage" data-view="5" aria-labelledby="view5-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">Step 06 · 目的店長</div>
+            <h1 id="view5-title">取件成交與案件結案</h1>
+            <p class="lead">核對顧客、完成銷售或解除保留，同步保留結果、績效與完整操作紀錄。</p>
+          </div>
+          <button class="action" type="button"><span class="material-symbols-outlined">task_alt</span>確認完成結案</button>
+        </div>
+
+        <div class="stepper" aria-label="案件流程進度">
+          <div class="step done"><i>1</i>受理需求</div>
+          <div class="step done"><i>2</i>確認貨源</div>
+          <div class="step done"><i>3</i>鎖定保留</div>
+          <div class="step done"><i>4</i>完成交接</div>
+          <div class="step done"><i>5</i>通知取件</div>
+          <div class="step current"><i>6</i>完成結案</div>
+        </div>
+
+        <div class="grid cols-3">
+          <article class="card" style="grid-column:span 2">
+            <div class="card-head"><div><h2>案件成果確認</h2><div class="muted tiny">顧客已於 08/29 17:26 到店</div></div><span class="chip green">取件成功</span></div>
+            <div class="grid cols-2">
+              <div class="receipt">
+                <div style="text-align:center;margin-bottom:18px"><div class="brand" style="margin:auto;background:var(--blue);color:#fff">JV</div><h2 style="margin-top:12px">調貨取件摘要</h2><div class="muted tiny">案件 TP-20260827-018</div></div>
+                <div class="receipt-row"><span class="muted">顧客</span><strong>陳怡君</strong></div>
+                <div class="receipt-row"><span class="muted">商品</span><strong>Urban Shell 外套</strong></div>
+                <div class="receipt-row"><span class="muted">規格</span><strong>海軍藍 / M</strong></div>
+                <div class="receipt-row"><span class="muted">商品金額</span><strong>NT$ 3,280</strong></div>
+                <div class="receipt-row"><span class="muted">會員折抵</span><strong>− NT$ 200</strong></div>
+                <div class="receipt-row"><span>成交金額</span><strong style="font-size:20px;color:var(--blue)">NT$ 3,080</strong></div>
+              </div>
+              <div>
+                <h2>結案檢查</h2>
+                <p class="muted tiny">完成後解除來源店保留並歸入本案績效。</p>
+                <div class="checklist">
+                  <div class="check"><span class="material-symbols-outlined">check_circle</span>顧客手機末三碼 628 已核對</div>
+                  <div class="check"><span class="material-symbols-outlined">check_circle</span>POS 銷售單 S-829174 已綁定</div>
+                  <div class="check"><span class="material-symbols-outlined">check_circle</span>商品已由取件櫃移出</div>
+                  <div class="check"><span class="material-symbols-outlined">check_circle</span>來源店保留將自動解除</div>
+                </div>
+                <div class="divider"></div>
+                <div class="field"><label for="close-result">結案結果</label><select id="close-result"><option>成功取件並成交</option><option>顧客取消，釋放保留</option><option>商品異常，退回來源店</option></select></div>
+                <div class="field" style="margin-top:13px"><label for="close-note">店長備註</label><textarea id="close-note">顧客試穿後尺寸合適，使用會員點數折抵並完成刷卡。</textarea></div>
+              </div>
+            </div>
+          </article>
+
+          <aside class="grid">
+            <article class="card">
+              <div class="card-head"><h2>服務週期</h2><span class="chip green">承諾內完成</span></div>
+              <div class="metric">31.8<small> 小時</small></div>
+              <div class="muted tiny" style="margin-top:7px">受理至成交總時間</div>
+              <div class="divider"></div>
+              <div class="receipt-row"><span class="muted">貨源確認</span><strong>18 分</strong></div>
+              <div class="receipt-row"><span class="muted">店間轉運</span><strong>55 分</strong></div>
+              <div class="receipt-row"><span class="muted">到貨至通知</span><strong>6 分</strong></div>
+            </article>
+            <article class="card">
+              <div class="card-head"><h2>熱銷掌握率</h2><span class="chip green">+32 pt</span></div>
+              <div id="resultChart" class="chart" role="img" aria-label="六週熱銷掌握率趨勢圖"></div>
+            </article>
+          </aside>
+        </div>
+
+        <article class="card" style="margin-top:18px">
+          <div class="card-head"><div><h2>門市調貨交接追蹤台資料列表</h2><div class="muted tiny">可追溯的角色、期限與操作階段</div></div><span class="chip">6 筆紀錄</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
+              <tbody>
+                <tr><td>STO-001</td><td>受理需求</td><td>銷售店員</td><td>D+1</td><td><span class="chip">處理中</span></td></tr>
+                <tr><td>STO-002</td><td>確認貨源</td><td>來源店員</td><td>D+2</td><td><span class="chip amber">待確認</span></td></tr>
+                <tr><td>STO-003</td><td>鎖定保留</td><td>來源店長</td><td>D+3</td><td><span class="chip amber">待確認</span></td></tr>
+                <tr><td>STO-004</td><td>完成交接</td><td>調貨人員</td><td>D+4</td><td><span class="chip green">已完成</span></td></tr>
+                <tr><td>STO-005</td><td>通知取件</td><td>目的店員</td><td>D+5</td><td><span class="chip green">已完成</span></td></tr>
+                <tr><td>STO-006</td><td>完成結案</td><td>目的店長</td><td>D+6</td><td><span class="chip green">已完成</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const viewNodes = Array.from(document.querySelectorAll("[data-view]"));
+    const navNodes = Array.from(document.querySelectorAll("[data-i]"));
+    const chartCache = {};
+
+    function drawChart(indexValue) {
+      if (!window.echarts) return;
+      const configs = {
+        1: {
+          id: "stockChart",
+          option: {
+            animationDuration: 700,
+            grid: {left: 42, right: 16, bottom: 32, top: 22},
+            tooltip: {trigger: "axis"},
+            xAxis: {type: "category", data: ["站前", "南西", "復興", "板橋"], axisLine: {lineStyle: {color: "#dce3ef"}}, axisLabel: {color: "#718096"}},
+            yAxis: {type: "value", minInterval: 1, splitLine: {lineStyle: {color: "#edf1f7"}}, axisLabel: {color: "#718096"}},
+            series: [{type: "bar", data: [3, 2, 1, 4], barWidth: "42%", itemStyle: {color: "#1e40af", borderRadius: [6,6,0,0]}, label: {show: true, position: "top", color: "#35405a"}}]
+          }
+        },
+        3: {
+          id: "transferChart",
+          option: {
+            animationDuration: 700,
+            grid: {left: 38, right: 18, bottom: 30, top: 22},
+            tooltip: {trigger: "axis"},
+            xAxis: {type: "category", boundaryGap: false, data: ["10時","11時","12時","13時","14時","15時"], axisLine: {lineStyle: {color: "#dce3ef"}}, axisLabel: {color: "#718096"}},
+            yAxis: {type: "value", minInterval: 1, splitLine: {lineStyle: {color: "#edf1f7"}}, axisLabel: {color: "#718096"}},
+            series: [{type: "line", smooth: true, data: [3,5,4,8,11,7], symbolSize: 8, lineStyle: {width: 3, color: "#1e40af"}, itemStyle: {color: "#1e40af"}, areaStyle: {color: "rgba(30,64,175,.12)"}}]
+          }
+        },
+        5: {
+          id: "resultChart",
+          option: {
+            animationDuration: 700,
+            grid: {left: 42, right: 14, bottom: 30, top: 22},
+            tooltip: {trigger: "axis", valueFormatter: function(valueValue){return valueValue + "%";}},
+            xAxis: {type: "category", boundaryGap: false, data: ["W1","W2","W3","W4","W5","W6"], axisLine: {lineStyle: {color: "#dce3ef"}}, axisLabel: {color: "#718096"}},
+            yAxis: {type: "value", min: 50, max: 100, axisLabel: {formatter: "{value}%", color: "#718096"}, splitLine: {lineStyle: {color: "#edf1f7"}}},
+            series: [{type: "line", smooth: true, data: [60,66.4,72.8,79.2,85.6,92], symbolSize: 7, lineStyle: {width: 3, color: "#15803d"}, itemStyle: {color: "#15803d"}, areaStyle: {color: "rgba(21,128,61,.12)"}}]
+          }
+        }
+      };
+      const configValue = configs[indexValue];
+      if (!configValue) return;
+      const chartNode = document.getElementById(configValue.id);
+      if (!chartNode || chartNode.clientWidth < 1) return;
+      if (!chartCache[configValue.id]) chartCache[configValue.id] = echarts.init(chartNode);
+      chartCache[configValue.id].setOption(configValue.option);
+      chartCache[configValue.id].resize();
+    }
+
+    function show(indexValue) {
+      const safeIndex = Math.max(0, Math.min(5, Number(indexValue) || 0));
+      viewNodes.forEach(function(viewNode, viewIndex) {
+        viewNode.classList.toggle("active", viewIndex === safeIndex);
+        viewNode.setAttribute("aria-hidden", viewIndex === safeIndex ? "false" : "true");
+      });
+      navNodes.forEach(function(navNode, navIndex) {
+        navNode.classList.toggle("active", navIndex === safeIndex);
+        navNode.setAttribute("aria-current", navIndex === safeIndex ? "page" : "false");
+      });
+      requestAnimationFrame(function() { drawChart(safeIndex); });
+    }
+
+    function readRoute() {
+      const matchedValue = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+      show(matchedValue ? matchedValue[1] : 0);
+    }
+
+    navNodes.forEach(function(navNode) {
+      navNode.addEventListener("click", function() {
+        const routeValue = navNode.getAttribute("data-i");
+        if (window.location.hash === "#go=" + routeValue) show(routeValue);
+        else window.location.hash = "go=" + routeValue;
+      });
+    });
+
+    document.querySelectorAll("[data-next]").forEach(function(nextNode) {
+      nextNode.addEventListener("click", function() {
+        window.location.hash = "go=" + nextNode.getAttribute("data-next");
+      });
+    });
+
+    window.addEventListener("hashchange", readRoute);
+    window.addEventListener("resize", function() {
+      Object.keys(chartCache).forEach(function(chartKey) { chartCache[chartKey].resize(); });
+    });
+
+    show(0);
+    readRoute();
+  </script>
+</body>
+</html>
