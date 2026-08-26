@@ -332,11 +332,12 @@
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot"></span> 1506 SYSTEMS · ONE GATEWAY
         </span>
         <h1 class="fu text-ink font-black tracking-tight text-[clamp(2.6rem,4.4vw,4.1rem)] leading-[1.14]" style="animation-delay:.15s">
-          <span class="block whitespace-nowrap">以 AI 驅動企業轉型，</span>
-          <span class="block whitespace-nowrap text-brand mt-3">讓營運決策更快、更準。</span>
+          <span class="block whitespace-nowrap text-brand">讓 AI 創造 AI。</span>
+          <span class="block whitespace-nowrap mt-3">從一個想法，到可運作的系統。</span>
         </h1>
         <p class="hero-sub fu text-[1.1rem] text-muted leading-relaxed max-w-md" style="animation-delay:.28s">
-          1506 個 AI 產業系統，皆可搜尋、可操作、可立即體驗。
+          不是人寫好再交給 AI 展示，而是 AI 自己找題目、自己寫、自己驗收、自己上架。
+          <b class="text-ink font-bold" data-recent-line>站上 1506 套，皆可搜尋、可操作、可立即體驗。</b>
         </p>
         <!-- one tidy credibility line -->
         <div class="fu flex items-center gap-3 text-sm font-bold text-muted" style="animation-delay:.4s">
@@ -345,6 +346,8 @@
           <span><b class="text-ink text-base">29</b> 產業</span>
           <span class="w-1 h-1 rounded-full bg-line"></span>
           <span><b class="text-ink text-base">100%</b> 可操作</span>
+          <span class="w-1 h-1 rounded-full bg-line" data-today-sep hidden></span>
+          <span data-today-wrap hidden><b class="text-emerald-600 text-base" data-today>0</b> 今日新增</span>
         </div>
         <div class="hero-cta fu flex flex-wrap items-center gap-3 sm:gap-4 mt-2" style="animation-delay:.52s">
           <a href="./catalog.html" class="group inline-flex items-center gap-2.5 h-12 px-6 rounded-xl bg-brand text-white font-bold shadow-[0_14px_30px_rgba(30,64,175,.26)] hover:bg-brand2 hover:-translate-y-0.5 transition-all">
@@ -357,6 +360,20 @@
       </div>
     </div>
   </main>
+
+  <!-- ===== 最近新增：上面那句「讓 AI 創造 AI」的證據 ===== -->
+  <section id="recent" class="shrink-0 border-t border-line bg-white/70 backdrop-blur" aria-label="最近新增的系統" hidden>
+    <div class="max-w-shell mx-auto px-6 py-4">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot"></span>
+        <span class="eyebrow text-[11px] font-bold text-brand2 uppercase">最近新增</span>
+        <span class="text-[12.5px] text-muted" data-recent-summary></span>
+        <a href="./catalog.html" class="ml-auto text-[12.5px] font-bold text-brand hover:text-brand2 transition-colors whitespace-nowrap">看全部 →</a>
+      </div>
+      <!-- 橫向捲動而不是換行：首頁高度已經卡在一個螢幕，多一行就把跑馬燈擠出去 -->
+      <div class="flex gap-2.5 overflow-x-auto pb-1" data-recent-list style="scrollbar-width:thin"></div>
+    </div>
+  </section>
 
   <!-- ===== Small carousel (industry marquee) — pinned bottom, inside one screen ===== -->
   <section class="shrink-0 bg-brand overflow-hidden" aria-label="涵蓋產業">
@@ -437,6 +454,57 @@
       document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !menu.hidden) setOpen(false); });
       window.matchMedia("(min-width: 768px)").addEventListener("change", function (e) { if (e.matches) setOpen(false); });
     })();
+  </script>
+
+  <script>
+  /* 最近新增。數字與清單都來自 content/recent-projects.json，由
+     tools/build-recent.mjs 產生——首頁不自己算，因為上架時間只有 manifest 有，
+     而那個檔不該讓瀏覽器下載（它有失敗、被排除的項目）。
+     讀不到就整區隱藏：這一區是加分項，缺了不該讓首頁看起來壞掉。 */
+  (function () {
+    var box = document.getElementById("recent");
+    if (!box) return;
+    fetch("./content/recent-projects.json", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.recent || !d.recent.length) return;
+
+        var today = d.addedToday || 0;
+        if (today > 0) {
+          document.querySelector("[data-today]").textContent = "+" + today;
+          document.querySelector("[data-today-wrap]").hidden = false;
+          document.querySelector("[data-today-sep]").hidden = false;
+        }
+        var line = document.querySelector("[data-recent-line]");
+        if (line) {
+          line.textContent = today > 0
+            ? "今天又多了 " + today + " 套，站上共 " + d.total.toLocaleString("en-US") + " 套，皆可搜尋、可操作、可立即體驗。"
+            : "站上共 " + d.total.toLocaleString("en-US") + " 套，皆可搜尋、可操作、可立即體驗。";
+        }
+        var sum = document.querySelector("[data-recent-summary]");
+        if (sum) sum.textContent = "近七日 " + d.added7d + " 套 · 全站 " + d.total.toLocaleString("en-US") + " 套";
+
+        /* 相對時間比絕對時間好讀：使用者要的是「多新」，不是「幾點幾分」。 */
+        var ago = function (iso) {
+          var m = Math.round((Date.now() - Date.parse(iso)) / 60000);
+          if (m < 60) return Math.max(1, m) + " 分鐘前";
+          if (m < 1440) return Math.round(m / 60) + " 小時前";
+          return Math.round(m / 1440) + " 天前";
+        };
+        var esc = function (t) {
+          return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+          });
+        };
+        document.querySelector("[data-recent-list]").innerHTML = d.recent.slice(0, 12).map(function (p) {
+          return '<a href="' + esc(p.demoUrl) + '" class="group shrink-0 max-w-[15rem] rounded-xl border border-line bg-white px-3.5 py-2.5 hover:border-brand2 hover:shadow-sm transition-all">'
+            + '<span class="block text-[13.5px] font-bold text-ink group-hover:text-brand truncate">' + esc(p.title) + "</span>"
+            + '<span class="block text-[11.5px] text-muted mt-0.5 truncate">' + esc(p.category) + " · " + ago(p.at) + "</span></a>";
+        }).join("");
+        box.hidden = false;
+      })
+      .catch(function () {});
+  })();
   </script>
 </body>
 </html>
