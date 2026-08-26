@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>許願申請 · JV Demo 管理後台</title>
+<link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{ --bg:#0f172a; --card:#1e293b; --line:#334155; --ink:#e2e8f0;
+         --muted:#94a3b8; --accent:#38bdf8; --ok:#4ade80; --bad:#f87171; --warn:#fbbf24; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans TC",system-ui,sans-serif;font-size:14px;line-height:1.6}
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+         padding:14px 22px;border-bottom:1px solid var(--line);background:#111c33;
+         position:sticky;top:0;z-index:5}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700}
+  .brand b{background:var(--accent);color:#082f49;padding:3px 8px;border-radius:7px;font-size:13px}
+  nav{display:flex;flex-wrap:wrap;gap:8px}
+  nav a,nav button{padding:6px 12px;border-radius:8px;border:1px solid var(--line);
+       background:transparent;color:var(--ink);font-size:13px;text-decoration:none;
+       font-family:inherit;cursor:pointer}
+  nav a.on{background:var(--accent);color:#082f49;border-color:transparent;font-weight:700}
+  main{padding:22px;max-width:1120px;margin:0 auto}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+  .kpi span{display:block;font-size:12.5px;color:var(--muted)}
+  .kpi b{display:block;font-size:26px;margin-top:4px}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+  select{padding:7px 11px;border-radius:9px;border:1px solid var(--line);
+         background:var(--card);color:var(--ink);font-family:inherit;font-size:13.5px}
+  .hint{margin-left:auto;font-size:12.5px;color:var(--muted)}
+  /* 一張卡片一筆申請。需求文字長短差很多，用表格會被撐得很難讀 */
+  .list{display:grid;gap:12px}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
+  .tag{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;border:1px solid var(--line)}
+  .s-pending{color:#fbbf24;border-color:#78350f}
+  .s-queued{color:#93c5fd;border-color:#1e40af}
+  .s-building{color:#c4b5fd;border-color:#4c1d95}
+  .s-published{color:#4ade80;border-color:#14532d}
+  .s-rejected{color:#f87171;border-color:#7f1d1d}
+  .who{font-size:12.5px;color:var(--muted)}
+  .when{margin-left:auto;font-size:12.5px;color:var(--muted)}
+  .need{background:#0f172a;border:1px solid var(--line);border-radius:9px;padding:12px 14px;
+        white-space:pre-wrap;word-break:break-word;line-height:1.8}
+  .meta{margin-top:10px;font-size:12.5px;color:var(--muted);word-break:break-all}
+  .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .acts button{padding:8px 14px;border-radius:9px;border:1px solid var(--line);
+               background:transparent;color:var(--ink);font-family:inherit;font-size:13.5px;cursor:pointer}
+  .acts .now{background:var(--accent);color:#082f49;border-color:transparent;font-weight:700}
+  .acts button:disabled{opacity:.5;cursor:progress}
+  .empty{padding:34px;text-align:center;color:var(--muted);background:var(--card);
+         border:1px solid var(--line);border-radius:12px}
+  footer{padding:18px 22px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);margin-top:24px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>JV</b><span>DEMO ADMIN</span></div>
+  <nav>
+    <a href="./admin-actions.html">動作紀錄</a>
+    <a href="./admin-builds.html">生成紀錄</a>
+    <a class="on" href="./admin-wishes.html">許願申請</a>
+    <a href="./admin-insight.html">導入與使用</a>
+    <a href="./admin.html">專案目錄</a>
+    <a href="./index.html">展示站</a>
+    <button id="logout" type="button">登出</button>
+  </nav>
+</header>
+
+<main>
+  <div class="kpis" id="kpis"></div>
+  <div class="bar">
+    <select id="status">
+      <option value="">全部</option>
+      <option value="pending" selected>待處理</option>
+      <option value="queued">已排入</option>
+      <option value="published">已上架</option>
+      <option value="rejected">已婉拒</option>
+    </select>
+    <span class="hint" id="hint">每 15 秒自動更新</span>
+  </div>
+  <div class="list" id="list"><div class="empty">載入中…</div></div>
+  <footer>
+    「立即製作」會把規格書排到佇列最前面，Agent 做完手上這套就換它；「排入排程」則排在最後，輪到才做。
+    產生規格書要呼叫 codex，約需數分鐘，期間狀態會停在「已排入」。
+    申請內容存在 <code>var/wish-requests.json</code>，不進版控。
+  </footer>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const LABEL = { pending: "待處理", queued: "已排入", building: "建置中", published: "已上架", rejected: "已婉拒" };
+let timer = null;
+
+async function load() {
+  const q = new URLSearchParams();
+  if ($("#status").value) q.set("status", $("#status").value);
+  const r = await fetch("/api/admin/wishes?" + q);
+  if (r.status === 401) { location.href = "/admin-login?next=/admin-wishes"; return; }
+  render(await r.json());
+}
+
+function render(d) {
+  const c = d.counts || {};
+  $("#kpis").innerHTML = [
+    ["待處理", c.pending || 0], ["已排入", c.queued || 0],
+    ["已上架", c.published || 0], ["累計申請", d.total || 0],
+  ].map(([k, v]) => `<div class="kpi"><span>${k}</span><b>${v}</b></div>`).join("");
+
+  const rows = d.rows || [];
+  $("#list").innerHTML = rows.length ? rows.map((r) => `
+    <div class="item" data-id="${esc(r.id)}">
+      <div class="top">
+        <span class="tag s-${esc(r.status)}">${LABEL[r.status] || r.status}</span>
+        <span class="who">${esc(r.who)}</span>
+        <span class="when">${new Date(r.createdAt).toLocaleString("zh-TW", { hour12: false })}</span>
+      </div>
+      <div class="need">${esc(r.need)}</div>
+      ${r.topic ? `<div class="meta">已產生規格：《${esc(r.topic.title)}》（${esc(r.topic.category)}）　repo ${esc(r.repoName)}</div>` : ""}
+      ${r.note ? `<div class="meta">${esc(r.note)}</div>` : ""}
+      ${r.status === "pending" ? `<div class="acts">
+        <button class="now" data-act="now">立即製作</button>
+        <button data-act="later">排入排程</button>
+        <button data-act="reject">婉拒</button>
+      </div>` : ""}
+    </div>`).join("") : `<div class="empty">目前沒有這個狀態的申請</div>`;
+}
+
+$("#list").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-act]");
+  if (!btn) return;
+  const id = btn.closest(".item").dataset.id;
+  const act = btn.dataset.act;
+  if (act === "reject" && !confirm("確定婉拒這筆申請？")) return;
+  btn.closest(".acts").querySelectorAll("button").forEach((b) => { b.disabled = true; });
+  btn.textContent = act === "reject" ? "處理中…" : "產生規格中…";
+  try {
+    const r = await fetch("/api/admin/wishes/act", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, action: act }),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "操作失敗");
+    await load();
+  } catch (err) {
+    alert(err.message);
+    await load();
+  }
+});
+
+$("#status").onchange = load;
+$("#logout").onclick = async () => { await fetch("/api/admin/logout", { method: "POST" }); location.href = "/admin-login"; };
+load();
+timer = setInterval(load, 15000);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { clearInterval(timer); timer = null; }
+  else if (!timer) { load(); timer = setInterval(load, 15000); }
+});
+</script>
+</body>
+</html>

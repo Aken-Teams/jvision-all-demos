@@ -153,6 +153,15 @@
               <button id="wishAgain" class="text-brand text-[13px] font-bold inline-flex items-center gap-1 hover:text-brand2 transition-colors"><span class="material-symbols-outlined text-[16px]">replay</span> 重新許願</button>
             </div>
             <div id="wishBody" class="px-5 py-4 overflow-y-auto" style="max-height:calc(100dvh - 210px)">
+              <div id="wishBuildBox" class="hidden mt-5 pt-4 border-t border-line">
+                <p class="text-[13px] text-muted leading-relaxed mb-3">想看到這個需求變成可以點的系統畫面？我們會把它排進製作清單。</p>
+                <button id="wishBuild" type="button"
+                        class="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl text-white text-[15px] font-black hover:opacity-90 transition shadow-sm"
+                        style="background-image:linear-gradient(90deg,#1e40af,#7c3aed)">
+                  <span class="material-symbols-outlined text-[19px]">auto_fix_high</span> 把這個需求做成系統 Demo
+                </button>
+                <p id="wishBuildMsg" class="text-[13px] mt-2.5 leading-relaxed"></p>
+              </div>
               <!-- 你的問題 + 建議方向 -->
               <div id="wishIntro" class="mb-3"></div>
               <!-- 濃縮技術標籤 -->
@@ -222,6 +231,8 @@
       var $ = function (s) { return document.querySelector(s); };
       var API = (location.hostname === "localhost" || location.hostname === "127.0.0.1") ? "http://localhost:4610/wish" : "/wish";
       var btn = $("#wishBtn"), input = $("#wishInput"), busy = false, stepTimer = null;
+      var lastNeed = "", lastSummary = "";
+      var buildBtn = $("#wishBuild"), buildMsg = $("#wishBuildMsg");
       function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); }
       function show(state) {
         $("#wishAsk").classList.toggle("hidden", state !== "ask");
@@ -255,6 +266,17 @@
             '<span class="material-symbols-outlined text-[15px]">bolt</span>' + esc(g) + '</span>';
         }).join("");
         show("result");
+        lastNeed = ($("#wishInput").value || "").trim();
+        lastSummary = r.summary || "";
+        var box = $("#wishBuildBox");
+        if (lastNeed.length >= 8) {
+          box.classList.remove("hidden");
+          buildBtn.disabled = false;
+          buildBtn.style.opacity = "";
+          buildMsg.textContent = "";
+        } else {
+          box.classList.add("hidden");
+        }
         // 雷達圖：5 個「固定面向」對這個需求的評分（不是把技術當軸）
         var el = $("#wishRadar");
         if (radar) { try { radar.dispose(); } catch (e) {} radar = null; }
@@ -292,12 +314,47 @@
           stopThinking(); render(data);
         } catch (e) {
           stopThinking(); show("ask");
-          $("#wishHint").textContent = "分析失敗：" + (e.message || "請稍後再試") + "（請確認後端已啟動）";
+          $("#wishHint").textContent = "分析失敗：" + (e.message || "請稍後再試") + "，但你的需求仍然可以送去製作。";
+          /* 分析失敗不代表需求沒價值——AI 建議只是加值，真正要送去產線的是
+             需求原文。所以這裡照樣把按鈕打開，不要讓後端掛掉就連許願都許不成。 */
+          lastNeed = v; lastSummary = "";
+          if (v.length >= 8) {
+            $("#wishBuildBox").classList.remove("hidden");
+            $("#wishBuildBox").classList.add("mt-4");
+            buildBtn.disabled = false; buildBtn.style.opacity = ""; buildMsg.textContent = "";
+            $("#wishAsk").appendChild($("#wishBuildBox"));
+          }
         } finally { busy = false; }
       }
       btn.addEventListener("click", go);
       input.addEventListener("keydown", function (e) { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") go(); });
       $("#wishAgain").addEventListener("click", function () { show("ask"); });
+
+      /* 把需求送去排製作。這裡刻意不等 AI 分析成功才顯示——分析失敗時
+         需求本身仍然有價值，管理者看得到就能決定要不要做。 */
+      buildBtn.addEventListener("click", function () {
+        buildBtn.disabled = true;
+        buildBtn.style.opacity = ".6";
+        buildMsg.textContent = "送出中…";
+        buildMsg.style.color = "#64748b";
+        fetch("/api/wish/request", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ need: lastNeed, analysis: lastSummary }),
+        }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+          .then(function (x) {
+            if (!x.ok) throw new Error(x.d.error || "送出失敗");
+            buildMsg.style.color = "#067647";
+            buildMsg.textContent = x.d.duplicate
+              ? "這個需求已經在製作清單裡了。"
+              : "已收到，會排進製作清單。完成後就會出現在專案目錄裡。";
+          })
+          .catch(function (e) {
+            buildBtn.disabled = false;
+            buildBtn.style.opacity = "";
+            buildMsg.style.color = "#b42318";
+            buildMsg.textContent = e.message;
+          });
+      });
       window.addEventListener("resize", function () { if (radar) { try { radar.resize(); } catch (e) { } } });
       // 技術標籤浮動說明（fixed 定位、掛在 body，永不被面板 overflow 裁切）
       var tagTip = document.createElement("div");

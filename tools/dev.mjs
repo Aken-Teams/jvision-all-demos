@@ -10,6 +10,8 @@ import * as auth from "./lib/admin-auth.mjs";
 import * as google from "./lib/google-auth.mjs";
 import * as visitor from "./lib/visitor-auth.mjs";
 import * as builds from "./lib/build-records.mjs";
+import * as wishes from "./lib/wish-requests.mjs";
+import { spawn as spawnProc } from "node:child_process";
 
 // 對外只開一個 port（PUBLIC_PORT）。靜態站和 Agents 後端都只綁 127.0.0.1，
 // 由下面的 gateway 依路徑分流。這樣區網只要放行 3000，不必再開第二個 port
@@ -140,6 +142,21 @@ function startGateway() {
         email: id?.email || null, name: id?.name || null, google: google.configured(auth.conf()) });
     }
 
+    if (p === "/api/wish/request" && req.method === "POST") {
+      const id = visitor.read(req);
+      if (!id) return json(res, 401, { error: "請先選擇身分再送出" });
+      const body = await readBody(req);
+      const r = wishes.create(root, {
+        need: body.need, analysis: body.analysis,
+        who: visitor.labelOf(id), visitor: who,
+      });
+      if (!r.ok) return json(res, 400, r);
+      actions.record({ actor: "訪客", action: r.duplicate ? "重複送出許願申請" : "許願申請做成 Demo",
+        status: 200, visitor: who, who: visitor.labelOf(id),
+        note: String(body.need || "").slice(0, 60) });
+      return json(res, 200, { ok: true, id: r.request.id, duplicate: Boolean(r.duplicate) });
+    }
+
     /* 進站閘門：沒有身分就先到入口頁選一個。放行的路徑寫在
        visitor-auth 的 needsGate 裡，集中一處才看得出「什麼東西不用登入」。 */
     if (visitor.needsGate(p) && !visitor.read(req)) {
@@ -236,6 +253,38 @@ function startGateway() {
         return res.end();
       }
       return json(res, 401, { error: "請先登入管理後台" });
+    }
+
+    // ── 許願申請 API（管理端）─────────────────────────────
+    if (p === "/api/admin/wishes") {
+      const q = new URL(req.url, "http://x").searchParams;
+      return json(res, 200, wishes.list(root, {
+        status: q.get("status") || null,
+        limit: Math.min(500, Number(q.get("limit")) || 200),
+      }));
+    }
+    if (p === "/api/admin/wishes/act" && req.method === "POST") {
+      const { id, action } = await readBody(req);
+      const wish = wishes.get(root, id);
+      if (!wish) return json(res, 404, { error: "找不到這筆申請" });
+
+      if (action === "reject") {
+        wishes.update(root, id, { status: "rejected", note: "管理者婉拒" });
+        actions.record({ actor: "後台", action: "婉拒許願申請", target: id, status: 200, visitor: who });
+        return json(res, 200, { ok: true });
+      }
+      if (action !== "now" && action !== "later") return json(res, 400, { error: "action 只能是 now / later / reject" });
+
+      /* 產生規格要呼叫 codex，一次好幾分鐘——不能讓管理者的瀏覽器等在那裡。
+         丟到背景跑，狀態寫回申請紀錄，前端輪詢就看得到。 */
+      wishes.update(root, id, { status: "queued", note: "正在產生規格書…" });
+      const child = spawnProc(process.execPath,
+        ["tools/wish-to-topic.mjs", `--id=${id}`, ...(action === "now" ? ["--front"] : [])],
+        { cwd: root, detached: true, stdio: "ignore" });
+      child.unref();
+      actions.record({ actor: "後台", action: action === "now" ? "立即製作許願申請" : "許願申請排入排程",
+        target: id, status: 200, visitor: who });
+      return json(res, 200, { ok: true, queued: true });
     }
 
     // ── 專案生成紀錄 API ─────────────────────────────────
