@@ -7,6 +7,7 @@ import http from "node:http";
 import * as usage from "./lib/usage-log.mjs";
 import * as actions from "./lib/action-log.mjs";
 import * as auth from "./lib/admin-auth.mjs";
+import * as google from "./lib/google-auth.mjs";
 
 // 對外只開一個 port（PUBLIC_PORT）。靜態站和 Agents 後端都只綁 127.0.0.1，
 // 由下面的 gateway 依路徑分流。這樣區網只要放行 3000，不必再開第二個 port
@@ -124,15 +125,48 @@ function startGateway() {
       actions.record({ actor: "後台", action: "登入成功", status: 200, visitor: who });
       return json(res, 200, { ok: true });
     }
+    // ── Google 登入 ──────────────────────────────────────
+    if (p === "/api/admin/google/start") {
+      if (!google.configured(auth.conf())) return json(res, 503, { error: "尚未設定 Google 登入" });
+      const next = new URL(req.url, "http://x").searchParams.get("next") || "/admin-actions.html";
+      res.writeHead(302, { location: google.startUrl(auth.conf(), req, next) });
+      return res.end();
+    }
+    if (p === "/api/admin/google/callback") {
+      const q = new URL(req.url, "http://x").searchParams;
+      const fail = (why) => {
+        actions.record({ actor: "後台", action: "Google 登入失敗", status: 401, visitor: who, note: why });
+        res.writeHead(302, { location: `/admin-login.html?error=${encodeURIComponent(why)}` });
+        res.end();
+      };
+      if (q.get("error")) return fail(`Google 回報：${q.get("error")}`);
+      /* state 一次性，比對不過就是偽造的回呼或使用者按了舊連結。 */
+      const rec = google.takePending(q.get("state") || "");
+      if (!rec) return fail("登入連結已失效，請重新登入");
+      try {
+        const user = await google.exchange(auth.conf(), q.get("code") || "", rec);
+        if (!google.allowed(auth.conf(), user.email)) {
+          return fail(`${user.email} 不在允許清單內`);
+        }
+        auth.setCookie(req, res);
+        actions.record({ actor: "後台", action: "Google 登入成功", status: 200, visitor: who, note: user.email });
+        res.writeHead(302, { location: rec.next });
+        return res.end();
+      } catch (error) {
+        return fail(String(error.message).slice(0, 120));
+      }
+    }
+
     if (p === "/api/admin/logout" && req.method === "POST") {
       auth.clearCookie(req, res);
       actions.record({ actor: "後台", action: "登出", status: 200, visitor: who });
       return json(res, 200, { ok: true });
     }
     if (p === "/api/admin/session") {
+      const g = google.configured(auth.conf());
       return auth.verify(req)
-        ? json(res, 200, { authenticated: true })
-        : json(res, 401, { authenticated: false, configured: auth.ready() });
+        ? json(res, 200, { authenticated: true, google: g })
+        : json(res, 401, { authenticated: false, configured: auth.ready(), google: g });
     }
 
     if (isAdminPath(p) && !auth.verify(req)) {

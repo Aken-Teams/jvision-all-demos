@@ -33,6 +33,10 @@ export function load(root) {
 
 export const ready = () => Boolean(conf?.password && conf?.secret);
 
+/** 交出設定給其他登入方式用（例如 Google）。回傳的是同一個物件，不要改它。 */
+export const conf_ = () => conf;
+export { conf_ as conf };
+
 const sign = (value) => crypto.createHmac("sha256", conf.secret).update(value).digest("base64url");
 
 const cookies = (req) => Object.fromEntries(
