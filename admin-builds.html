@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>專案生成紀錄 · JV Demo 管理後台</title>
+<link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{ --bg:#0f172a; --card:#1e293b; --line:#334155; --ink:#e2e8f0;
+         --muted:#94a3b8; --accent:#38bdf8; --ok:#4ade80; --bad:#f87171; --warn:#fbbf24; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans TC",system-ui,sans-serif;font-size:14px;line-height:1.6}
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+         padding:14px 22px;border-bottom:1px solid var(--line);background:#111c33;
+         position:sticky;top:0;z-index:5}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700}
+  .brand b{background:var(--accent);color:#082f49;padding:3px 8px;border-radius:7px;font-size:13px}
+  nav{display:flex;flex-wrap:wrap;gap:8px}
+  nav a,nav button{padding:6px 12px;border-radius:8px;border:1px solid var(--line);
+       background:transparent;color:var(--ink);font-size:13px;text-decoration:none;
+       font-family:inherit;cursor:pointer}
+  nav a.on{background:var(--accent);color:#082f49;border-color:transparent;font-weight:700}
+  main{padding:22px;max-width:1320px;margin:0 auto}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:20px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+  .kpi span{display:block;font-size:12.5px;color:var(--muted)}
+  .kpi b{display:block;font-size:26px;margin-top:4px;font-variant-numeric:tabular-nums}
+  .kpi i{font-style:normal;font-size:12px;color:var(--muted)}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+  select,input[type=search]{padding:7px 11px;border-radius:9px;border:1px solid var(--line);
+       background:var(--card);color:var(--ink);font-family:inherit;font-size:13.5px;min-width:0}
+  input[type=search]{flex:1 1 220px}
+  .hint{margin-left:auto;font-size:12.5px;color:var(--muted)}
+  .tablewrap{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;min-width:960px}
+  th,td{padding:9px 13px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{font-size:12.5px;color:var(--muted);font-weight:500;position:sticky;top:0;background:#243248}
+  tr:last-child td{border-bottom:0}
+  td.title{white-space:normal;max-width:260px}
+  .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;border:1px solid var(--line)}
+  .st-published{color:#4ade80;border-color:#14532d}
+  .st-building{color:#fbbf24;border-color:#78350f}
+  .st-failed,.st-rejected,.st-discarded{color:#f87171;border-color:#7f1d1d}
+  .st-verified,.st-built{color:#93c5fd;border-color:#1e40af}
+  .muted{color:var(--muted);font-size:12.5px}
+  .ok{color:var(--ok)} .bad{color:var(--bad)}
+  button.link{background:none;border:0;color:var(--accent);cursor:pointer;font:inherit;padding:0}
+  .empty{padding:28px;text-align:center;color:var(--muted)}
+  /* 詳細紀錄用抽屜，不換頁——比對「這一套的 log」與「清單上下文」時不必來回跳 */
+  .drawer{position:fixed;inset:0;background:#020617cc;display:none;z-index:20}
+  .drawer.open{display:block}
+  .panel{position:absolute;right:0;top:0;bottom:0;width:min(760px,100%);background:var(--card);
+         border-left:1px solid var(--line);display:flex;flex-direction:column}
+  .panel header{position:static;background:#243248}
+  .panel .body{padding:18px 22px;overflow:auto;flex:1}
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+  .fact{background:#0f172a;border:1px solid var(--line);border-radius:9px;padding:10px 12px;min-width:0}
+  .fact span{display:block;font-size:12px;color:var(--muted)}
+  .fact b{display:block;margin-top:3px;font-size:15px;word-break:break-all}
+  pre{background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:14px;
+      overflow-x:auto;font-size:12.5px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+  footer{padding:18px 22px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);margin-top:24px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>JV</b><span>DEMO ADMIN</span></div>
+  <nav>
+    <a href="./admin-actions.html">動作紀錄</a>
+    <a class="on" href="./admin-builds.html">生成紀錄</a>
+    <a href="./admin-insight.html">導入與使用</a>
+    <a href="./admin.html">專案目錄</a>
+    <a href="./index.html">展示站</a>
+    <button id="logout" type="button">登出</button>
+  </nav>
+</header>
+
+<main>
+  <div class="kpis" id="kpis"></div>
+  <div class="bar">
+    <select id="state">
+      <option value="">全部狀態</option>
+      <option value="published">已上架</option>
+      <option value="building">建置中</option>
+      <option value="failed">建置失敗</option>
+      <option value="rejected">已排除</option>
+      <option value="discarded">已捨棄</option>
+    </select>
+    <select id="limit">
+      <option value="200" selected>最近 200 筆</option>
+      <option value="500">最近 500 筆</option>
+      <option value="2000">全部</option>
+    </select>
+    <input id="q" type="search" placeholder="搜尋題目、產業或 repo" />
+    <span class="hint" id="hint"></span>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr>
+        <th>建立時間</th><th>題目</th><th>產業</th><th>狀態</th>
+        <th>codex 耗時</th><th>嘗試</th><th>靜態</th><th>瀏覽器</th>
+        <th>圖表庫</th><th>上架後站上</th><th>完整紀錄</th>
+      </tr></thead>
+      <tbody id="rows"><tr><td colspan="11" class="empty">載入中…</td></tr></tbody>
+    </table>
+  </div>
+
+  <footer>
+    資料來自 <code>docs/DEMO_FORGE_MANIFEST.json</code>、<code>docs/_state/agent-cycles.jsonl</code>
+    與 <code>docs/_state/agent-logs/</code>。早期批次產線沒有逐套留下建置 log，那些會標示「無紀錄」。
+  </footer>
+</main>
+
+<div class="drawer" id="drawer">
+  <div class="panel">
+    <header>
+      <div class="brand"><span id="drawerTitle"></span></div>
+      <nav><a id="openDemo" href="#" target="_blank" rel="noreferrer">開啟 Demo</a><button id="closeDrawer" type="button">關閉</button></nav>
+    </header>
+    <div class="body">
+      <div class="facts" id="facts"></div>
+      <pre id="logText">載入中…</pre>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pad = (n) => String(n).padStart(2, "0");
+const fmt = (iso) => { if (!iso) return "—"; const d = new Date(iso);
+  return `${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const secs = (ms) => (ms == null ? "—" : `${Math.round(ms / 1000)} 秒`);
+const mark = (v) => (v === true ? '<span class="ok">通過</span>' : v === false ? '<span class="bad">未過</span>' : '<span class="muted">—</span>');
+
+let cache = [];
+
+async function load() {
+  const params = new URLSearchParams();
+  if ($("#state").value) params.set("state", $("#state").value);
+  if ($("#q").value.trim()) params.set("q", $("#q").value.trim());
+  params.set("limit", $("#limit").value);
+  const r = await fetch("/api/admin/builds?" + params);
+  if (r.status === 401) { location.href = "/admin-login?next=/admin-builds"; return; }
+  const d = await r.json();
+  cache = d.rows || [];
+  render(d);
+}
+
+function render(d) {
+  const rows = cache;
+  const pub = rows.filter((r) => r.state === "published");
+  const timed = pub.filter((r) => r.codexMs);
+  const avg = timed.length ? Math.round(timed.reduce((a, r) => a + r.codexMs, 0) / timed.length / 1000) : null;
+  const oneShot = pub.filter((r) => r.attempts === 1).length;
+  const today = new Date().toDateString();
+  const todayN = rows.filter((r) => r.createdAt && new Date(r.createdAt).toDateString() === today).length;
+
+  $("#kpis").innerHTML = [
+    ["生成總數", d.total ?? rows.length, `目前列出 ${rows.length} 筆`],
+    ["今日生成", todayN, "以建立時間計算"],
+    ["codex 平均耗時", avg == null ? "—" : avg + " 秒", `取樣 ${timed.length} 套`],
+    ["一次過關", pub.length ? Math.round((oneShot / pub.length) * 100) + "%" : "—", `${oneShot} / ${pub.length} 套沒有重試`],
+  ].map(([k, v, n]) => `<div class="kpi"><span>${k}</span><b>${v}</b><i>${n}</i></div>`).join("");
+  $("#hint").textContent = `${d.withLog ?? 0} 套留有完整建置紀錄`;
+
+  $("#rows").innerHTML = rows.length ? rows.map((r) => `<tr>
+    <td class="muted">${fmt(r.createdAt)}</td>
+    <td class="title">${esc(r.title)}<br><span class="muted">${esc(r.repoName)}</span></td>
+    <td class="muted">${esc(r.category || "—")}</td>
+    <td><span class="tag st-${esc(r.state)}">${esc(r.state)}</span>${r.failReason ? `<br><span class="muted">${esc(r.failReason)}</span>` : ""}</td>
+    <td class="muted">${secs(r.codexMs)}</td>
+    <td class="muted">${r.attempts ?? "—"}</td>
+    <td>${mark(r.staticPass)}</td>
+    <td>${mark(r.browserPass)}</td>
+    <td class="muted">${esc(r.chartLib || "—")}</td>
+    <td class="muted">${r.siteAfter ?? "—"}</td>
+    <td>${r.hasLog ? `<button class="link" data-log="${esc(r.repoName)}">查看</button>` : '<span class="muted">無紀錄</span>'}</td>
+  </tr>`).join("") : `<tr><td colspan="11" class="empty">沒有符合的紀錄</td></tr>`;
+}
+
+$("#rows").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-log]");
+  if (b) openLog(b.dataset.log);
+});
+
+async function openLog(repo) {
+  const row = cache.find((r) => r.repoName === repo) || {};
+  $("#drawerTitle").textContent = row.title || repo;
+  $("#openDemo").href = `/demos/${repo}/`;
+  $("#logText").textContent = "載入中…";
+  $("#facts").innerHTML = "";
+  $("#drawer").classList.add("open");
+  const r = await fetch("/api/admin/build-log?repo=" + encodeURIComponent(repo));
+  const d = await r.json();
+  if (!d.ok) { $("#logText").textContent = d.error || "讀不到紀錄"; return; }
+  const s = d.summary || {};
+  const last = (s.verifyRuns || [])[s.verifyRuns.length - 1];
+  $("#facts").innerHTML = [
+    ["repo", repo],
+    ["檔案大小", s.sizeKB ? s.sizeKB + " KB" : "—"],
+    ["驗收次數", (s.verifyRuns || []).length || "—"],
+    ["最終結果", last ? (last.pass ? "通過" : "未過") : "—"],
+    ["修過溢出", s.fixed ? `+${s.fixed.from} → +${s.fixed.to}` : "沒有溢出"],
+    ["畫面 / 圖表", last ? `${last.distinct || "?"} 個畫面・${last.charts || 0} 圖表` : "—"],
+  ].map(([k, v]) => `<div class="fact"><span>${k}</span><b>${esc(v)}</b></div>`).join("");
+  $("#logText").textContent = d.text;
+}
+
+$("#closeDrawer").onclick = () => $("#drawer").classList.remove("open");
+$("#drawer").addEventListener("click", (e) => { if (e.target.id === "drawer") $("#drawer").classList.remove("open"); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("#drawer").classList.remove("open"); });
+$("#state").onchange = load; $("#limit").onchange = load;
+let t = null;
+$("#q").oninput = () => { clearTimeout(t); t = setTimeout(load, 250); };
+$("#logout").onclick = async () => { await fetch("/api/admin/logout", { method: "POST" }); location.href = "/admin-login"; };
+load();
+</script>
+</body>
+</html>

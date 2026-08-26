@@ -9,6 +9,7 @@ import * as actions from "./lib/action-log.mjs";
 import * as auth from "./lib/admin-auth.mjs";
 import * as google from "./lib/google-auth.mjs";
 import * as visitor from "./lib/visitor-auth.mjs";
+import * as builds from "./lib/build-records.mjs";
 
 // 對外只開一個 port（PUBLIC_PORT）。靜態站和 Agents 後端都只綁 127.0.0.1，
 // 由下面的 gateway 依路徑分流。這樣區網只要放行 3000，不必再開第二個 port
@@ -235,6 +236,22 @@ function startGateway() {
         return res.end();
       }
       return json(res, 401, { error: "請先登入管理後台" });
+    }
+
+    // ── 專案生成紀錄 API ─────────────────────────────────
+    if (p === "/api/admin/builds") {
+      const q = new URL(req.url, "http://x").searchParams;
+      return json(res, 200, builds.list({
+        root,
+        limit: Math.min(2000, Number(q.get("limit")) || 200),
+        state: q.get("state") || null,
+        q: q.get("q") || null,
+      }));
+    }
+    if (p === "/api/admin/build-log") {
+      const repo = new URL(req.url, "http://x").searchParams.get("repo") || "";
+      const r = builds.readLog({ root, repo });
+      return json(res, r.ok ? 200 : 404, r);
     }
 
     // ── 動作紀錄 API ─────────────────────────────────────
