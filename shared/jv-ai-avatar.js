@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "8"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "10"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -275,6 +275,34 @@
       '<div class="t"><div class="f">智</div><b>資料讀取完成,團隊正在撰寫報告</b>' +
       "<small>內容生成後會即時呈現在這裡,你也可以先關閉,完成後從對話面板開啟。</small></div>";
   }
+  /* 完稿永遠接管舞台:就算導覽還在播(報告寫得比導覽快),也立刻中斷、
+     把完整報告呈現出來——不然會發生「導覽播完→任務已結束→舞台自己關掉」,
+     客戶根本沒看到報告畫面。srcdoc 全新解析,圖表腳本必定執行。 */
+  function showFinal(docHtml) {
+    ensureStage();
+    stage.mode = "report";      // playStep 的守衛會就此終止導覽計時鏈
+    stage.playing = false;
+    stage.queue = [];
+    /* 圖表渲染由父視窗主動觸發:文件內的啟動輪詢在 srcdoc iframe 環境
+       實測會啞火(手動呼叫卻必定成功),所以載入後改由這裡每 500ms 催一次,
+       直到所有圖表畫完。HTML 報告(自帶腳本、無 jvRenderCharts)會立即判定完成。 */
+    stage.iframe.onload = function () {
+      var tries = 0;
+      var t = setInterval(function () {
+        tries += 1;
+        var done = false;
+        try {
+          var w2 = stage.iframe.contentWindow, d2 = stage.iframe.contentDocument;
+          if (w2 && w2.jvRenderCharts) w2.jvRenderCharts();
+          done = d2 && !d2.querySelector(".jva-chart:not([data-done])");
+        } catch (e) { }
+        if (done || tries > 30 || stage.mode !== "report") clearInterval(t);
+      }, 500);
+    };
+    stage.iframe.srcdoc = docHtml;
+    showStage();
+    finishReport();
+  }
   function finishReport() {
     if (!stage.el || stage.el.hidden) return;
     stage.sys.textContent = "報告完成";
@@ -463,24 +491,14 @@
       }
       else if (e.type === "page") {
         var html = e.html || acc.page;
-        if (stage.mode === "report" && !stage.stopped) {
-          // 完稿改用 srcdoc 全新解析(與獨立分頁同機制),圖表腳本必定執行
-          stage.iframe.onload = null;
-          stage.iframe.srcdoc = withBase(html);
-          finishReport();
-        }
+        if (!stage.stopped) showFinal(withBase(html));
         var b = line("jva-result", '<b>報告完成</b><button type="button" class="jva-open">開啟報告網頁</button>' +
           '<small>報告底部的「資料來源」可點回各系統畫面,出處會自動高亮。</small>');
         b.querySelector(".jva-open").addEventListener("click", function () { openReport(html); });
       }
       else if (e.type === "report") {
         var md = e.markdown || acc.report;
-        if (stage.mode === "report" && !stage.stopped) {
-          // 完稿改用 srcdoc 全新解析(與獨立分頁同機制),圖表腳本必定執行
-          stage.iframe.onload = null;
-          stage.iframe.srcdoc = textReportDoc(question, md);
-          finishReport();
-        }
+        if (!stage.stopped) showFinal(textReportDoc(question, md));
         var b2 = line("jva-result", '<b>圖文報告完成</b><p class="jva-excerpt">' + esc(excerptOf(md)) + "</p>" +
           '<button type="button" class="jva-open">開啟完整報告</button>' +
           '<small>報告內的「資料來源」可點回各系統畫面,出處會自動高亮。</small>');
