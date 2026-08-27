@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "21"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "23"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -469,9 +469,15 @@
   }
 
   // 站內絕對路徑(/demos/…)在 blob 分頁與 srcdoc 裡都要靠 <base> 才點得回站上
+  /* 空的圖表容器顯示「圖表生成中…」:LLM 產的頁面圖表 div 都帶行內 height,
+     腳本在文件尾端才初始化——初始化前 :empty 成立、提示自動顯示,
+     ECharts 塞入內容後 :empty 失效、提示自動消失,零 JS 記帳。 */
+  // :empty 會被容器內的換行空白打敗,改用 :has(不含元素子節點)
+  var CHART_WAIT_CSS = 'div[style*="height"]:not(:has(*))::before{content:"圖表生成中…";' +
+    "display:grid;place-items:center;height:100%;color:#94a3b8;font-size:13px;letter-spacing:.05em}";
   function withBase(html) {
     return html.replace(/<head([^>]*)>/i, function (m) {
-      return m + '<base href="' + location.origin + '/" target="_blank">';
+      return m + '<base href="' + location.origin + '/" target="_blank"><style>' + CHART_WAIT_CSS + "</style>";
     });
   }
   function openReport(html) {
@@ -485,7 +491,7 @@
 
   function run(question) {
     state.running = true; state.runDone = false;
-    stage.stopped = false; stage.mode = "tour"; stage.reportStarted = false;
+    stage.stopped = false; stage.mode = "tour"; stage.reportStarted = false; stage.chartCss = false;
     clearInterval(stage.idleTimer);
     if (stage.el) { stage.el.classList.remove("jva-stage-done"); stage.skip.textContent = "跳過展示"; }
     var empty = panel.querySelector(".jva-empty");
@@ -511,6 +517,14 @@
       var chunk = acc.page.slice(acc.written);
       acc.written = acc.page.length;
       if (chunk) { try { doc.write(chunk); } catch (e) { } }
+      if (!stage.chartCss && doc.head) {
+        try {
+          var st = doc.createElement("style");
+          st.textContent = CHART_WAIT_CSS;
+          doc.head.appendChild(st);
+          stage.chartCss = true;
+        } catch (e) { }
+      }
     }
     // 圖文報告:節流重渲染 markdown(逐段長出來)
     function streamText(final) {

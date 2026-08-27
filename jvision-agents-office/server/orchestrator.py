@@ -228,7 +228,7 @@ PAGE_SPEC = (
     "依團隊查到的資料，輸出**一份完整、自成一體的 HTML 文件**（<!doctype html> 到 </html>）。\n"
     "## 硬性要求\n"
     "- <head> 放 ECharts CDN `<script src=\"https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js\"></script>` 與一段 <style>。\n"
-    "- **RWD**：grid/flex 子項加 min-width:0、可 wrap、含 @media；390/768/1360px 都不可水平溢出；圖表容器 width:100%。\n"
+    "- **RWD**：grid/flex 子項加 min-width:0、可 wrap、含 @media；390/768/1360px 都不可水平溢出；圖表容器 width:100%,且**一律以行內 style 給定 height(如 style=\"height:300px\")、初始保持空容器**(載入提示由系統自動顯示)。\n"
     "- 數字全部取自下方團隊資料、具體一致；**內部數字自然呈現、不要出現「模擬」；不要說『無法取得資料』**。全程繁體中文（台灣用語）。\n"
     "- **若團隊資料含外部來源連結（http…），報告底部必附一個『資料來源』區塊，用可點的 <a href target=_blank> 列出這些真實連結。**\n"
     "- **若團隊資料行內含「(來源 /demos/…#go=n …)」標記，代表數字讀自站上實際系統畫面：報告底部必附『資料來源』區塊，"
