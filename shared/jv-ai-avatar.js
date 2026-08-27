@@ -230,7 +230,9 @@
   function ensureCss() {
     if (document.querySelector('link[href*="jv-ai-avatar.css"]')) return;
     var l = document.createElement("link");
-    l.rel = "stylesheet"; l.href = "/shared/jv-ai-avatar.css";
+    // ?v= 與 hub 頁的 script 標籤同步遞增:gateway 對 js/css 有 1 小時快取,
+    // 不帶版本參數的話改版後使用者會拿到舊檔
+    l.rel = "stylesheet"; l.href = "/shared/jv-ai-avatar.css?v=2";
     document.head.appendChild(l);
   }
 
