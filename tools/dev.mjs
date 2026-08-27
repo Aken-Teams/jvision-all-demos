@@ -87,6 +87,9 @@ const ASSET = /\.(css|js|mjs|map|svg|png|jpe?g|webp|gif|ico|woff2?|txt)$/i;
 const LONG_CACHE = /\.(png|jpe?g|webp|gif|ico|svg|woff2?)$/i;
 const cacheHeaderFor = (p) => {
   if (LONG_CACHE.test(p)) return "public, max-age=604800, stale-while-revalidate=86400";
+  /* bridge 注入在 1,628 套 demo 裡,快取一小時會讓改版後的功能(如 operate)
+     在使用者端啞火;它只有幾 KB,每次重驗證的代價遠小於「舊版斷功能」 */
+  if (p === "/shared/jv-agent-bridge.js") return "no-cache, must-revalidate";
   if (/\.(css|js|mjs)$/i.test(p)) return "public, max-age=3600";
   return null;
 };

@@ -14,7 +14,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
-const TAG = '<script src="/shared/jv-agent-bridge.js" defer></script>';
+// BRIDGE_VER:bridge 有新能力時遞增並重跑 --all,打破使用者端的舊快取
+const BRIDGE_VER = "2";
+const TAG = `<script src="/shared/jv-agent-bridge.js?v=${BRIDGE_VER}" defer></script>`;
 const MARK = "jv-agent-bridge.js";
 
 const args = process.argv.slice(2);
@@ -42,7 +44,15 @@ for (const repo of repos) {
     done += 1;
     continue;
   }
-  if (html.includes(MARK)) { skipped += 1; continue; }
+  if (html.includes(TAG)) { skipped += 1; continue; }
+  if (html.includes(MARK)) {
+    // 已注入舊版本:原地升級標籤(換版本參數,打破瀏覽器快取)
+    html = html.replace(/<script[^>]*jv-agent-bridge\.js[^>]*><\/script>/, TAG);
+    fs.writeFileSync(p + ".tmp", html);
+    fs.renameSync(p + ".tmp", p);
+    done += 1;
+    continue;
+  }
   // 插在 </body> 前;沒有 </body> 的(極簡舊頁)插在 </html> 前;都沒有就附加檔尾
   if (/<\/body>/i.test(html)) html = html.replace(/<\/body>/i, `${TAG}\n</body>`);
   else if (/<\/html>/i.test(html)) html = html.replace(/<\/html>/i, `${TAG}\n</html>`);
