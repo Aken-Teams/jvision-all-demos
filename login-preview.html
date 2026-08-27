@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>前導動畫預覽|JVision</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;700&display=swap">
+<style>
+  /* 紙雕書前導(預覽版,不影響正式 welcome.html):
+     宮殿 → 眾人雕刻 → AI 加入 → 宮殿+登入。圖層 assets/login/trim(已去背+裁邊)。 */
+  :root { --ivory:#f6f1e7; --taupe:#8a7e6a; --ink:#3f3a30; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: linear-gradient(180deg, #faf7f0 0%, var(--ivory) 55%, #eee5d5 100%);
+    font-family: "Noto Serif TC", serif; color: var(--ink); overflow: hidden; }
+
+  .stage { position: fixed; inset: 0; }
+  .layer { position: absolute; opacity: 0; pointer-events: none;
+    transition: opacity 1.1s ease, transform 1.25s cubic-bezier(.25,.7,.25,1); will-change: transform, opacity; }
+  .layer img { display: block; height: 100%; width: auto; }
+
+  /* ---- 幾何:以「地板頂緣 ≈ 14vh」為站位基準 ---- */
+  .colonnade { left: 50%; top: 21vh; height: 30vh; transform: translateX(-50%); }
+  .temple    { left: 50%; top: 3vh;  height: 66vh; transform: translateX(-50%); }
+  .floor     { left: 50%; bottom: 5vh; height: 9vh; transform: translateX(-50%); }
+  .laurel    { left: 50%; bottom: 2vh; height: 13vh; transform: translateX(-50%); }
+  .statue    { left: 50%; bottom: 13.5vh; height: 38vh; transform: translateX(-50%); }
+  .human-a   { left: calc(50% - 19vw); bottom: 13.5vh; height: 27vh; }
+  .human-b   { left: calc(50% + 4vw);  bottom: 12.6vh; height: 20vh; }
+  .human-c   { left: calc(50% + 13vw); bottom: 14vh;   height: 25vh; }
+  .robot-arm { left: calc(50% + 12vw); bottom: 13.5vh; height: 28vh; transform: translateX(70px); }
+  .robot     { left: calc(50% + 3.5vw); bottom: 12.4vh; height: 19vh; transform: translateX(50px); }
+
+  /* ---- 文案 ---- */
+  .caption { position: fixed; left: 50%; transform: translateX(-50%); text-align: center;
+    width: min(92vw, 860px); opacity: 0; transition: opacity .9s ease .35s; z-index: 5; }
+  .caption .eyebrow { font-family: "Noto Sans TC", sans-serif; font-size: 12px; letter-spacing: .55em;
+    color: var(--taupe); margin-bottom: 14px; }
+  .caption h1 { font-size: clamp(26px, 3.4vw, 42px); font-weight: 500; letter-spacing: .12em; text-wrap: balance; }
+  .caption p  { margin-top: 13px; font-size: clamp(13px, 1.2vw, 16px); color: #6f6552; letter-spacing: .12em; line-height: 2; }
+  .cap-1 { top: 42%; }
+  .cap-2, .cap-3 { top: 10vh; }
+
+  /* ---- 登入卡 ---- */
+  .gate { position: fixed; left: 50%; top: 43%; transform: translate(-50%, -50%); text-align: center; z-index: 6;
+    opacity: 0; pointer-events: none; transition: opacity 1s ease .5s; }
+  .gate .eyebrow { font-family: "Noto Sans TC", sans-serif; font-size: 12px; letter-spacing: .55em; color: var(--taupe); }
+  .gate h1 { font-size: clamp(30px, 3.8vw, 50px); font-weight: 500; letter-spacing: .18em; margin: 16px 0 8px; }
+  .gate .sub { color: #6f6552; letter-spacing: .3em; margin-bottom: 30px; font-size: 14px; }
+  .gate .google { display: inline-flex; align-items: center; gap: 12px; background: #2c2620; color: #f6f1e7;
+    font-family: "Noto Sans TC", sans-serif; font-weight: 700; font-size: 15px; letter-spacing: .08em;
+    padding: 14px 32px; border-radius: 6px; text-decoration: none; box-shadow: 0 10px 28px rgba(63, 58, 48, .28); }
+  .gate .google:hover { background: #3f3a30; }
+  .gate .google img { width: 20px; height: 20px; background: #fff; border-radius: 3px; padding: 2px; }
+  .gate .replay { display: block; margin: 26px auto 0; font-family: "Noto Sans TC", sans-serif; font-size: 11px;
+    letter-spacing: .45em; color: #a59880; cursor: pointer; background: none; border: 0; }
+
+  /* ---- 控制 ---- */
+  .skip { position: fixed; top: 26px; right: 34px; z-index: 9; font-family: "Noto Sans TC", sans-serif;
+    font-size: 11px; letter-spacing: .45em; color: #a59880; background: none; border: 0; cursor: pointer;
+    transition: opacity .6s; }
+  .dots { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 9;
+    transition: opacity .6s; }
+  .dots i { width: 26px; height: 3px; background: #d8cdb8; cursor: pointer; transition: background .4s; }
+  .dots i.on { background: #8a4b2f; }
+
+  /* ================= 場景 ================= */
+  /* S1 宮殿 */
+  [data-scene="1"] .temple { opacity: 1; }
+  [data-scene="1"] .colonnade { opacity: .5; }
+  [data-scene="1"] .floor { opacity: 1; }
+  [data-scene="1"] .cap-1 { opacity: 1; }
+  /* S2 眾人雕刻(宮殿退為淡背景) */
+  [data-scene="2"] .temple, [data-scene="3"] .temple { opacity: .16; }
+  [data-scene="2"] .colonnade, [data-scene="3"] .colonnade { opacity: .1; }
+  [data-scene="2"] .floor, [data-scene="3"] .floor { opacity: 1; }
+  [data-scene="2"] .statue-rough { opacity: 1; }
+  [data-scene="2"] .human-a, [data-scene="2"] .human-b, [data-scene="2"] .human-c { opacity: 1; }
+  [data-scene="2"] .cap-2 { opacity: 1; }
+  /* S3 AI 加入:B、C 退場,機器滑入,粗胚→完成像 */
+  [data-scene="3"] .statue-fine { opacity: 1; }
+  [data-scene="3"] .human-a { opacity: 1; }
+  [data-scene="3"] .human-b, [data-scene="3"] .human-c { opacity: 0; transform: translateY(26px) scale(.92); }
+  [data-scene="3"] .robot-arm, [data-scene="3"] .robot { opacity: 1; transform: translateX(0); }
+  [data-scene="3"] .cap-3 { opacity: 1; }
+  /* S4 宮殿 + 登入 */
+  [data-scene="4"] .temple { opacity: 1; }
+  [data-scene="4"] .colonnade { opacity: .5; }
+  [data-scene="4"] .floor { opacity: 1; }
+  [data-scene="4"] .laurel { opacity: 1; }
+  [data-scene="4"] .gate { opacity: 1; pointer-events: auto; }
+  [data-scene="4"] .dots, [data-scene="4"] .skip { opacity: 0; pointer-events: none; }
+
+  @media (prefers-reduced-motion: reduce) { .layer, .caption, .gate { transition: none; } }
+</style>
+</head>
+<body data-scene="1">
+  <button class="skip" type="button" id="skip">SKIP</button>
+
+  <div class="stage" id="stage">
+    <div class="layer colonnade"><img src="./assets/login/trim/L1.png" alt=""></div>
+    <div class="layer temple"><img src="./assets/login/trim/L2.png" alt=""></div>
+    <div class="layer floor"><img src="./assets/login/trim/L3.png" alt=""></div>
+    <div class="layer statue statue-rough"><img src="./assets/login/trim/L5.png" alt=""></div>
+    <div class="layer statue statue-fine"><img src="./assets/login/trim/L6.png" alt=""></div>
+    <div class="layer human-a"><img src="./assets/login/trim/L7.png" alt=""></div>
+    <div class="layer human-b"><img src="./assets/login/trim/L8.png" alt=""></div>
+    <div class="layer human-c"><img src="./assets/login/trim/L9.png" alt=""></div>
+    <div class="layer robot-arm"><img src="./assets/login/trim/L10.png" alt=""></div>
+    <div class="layer robot"><img src="./assets/login/trim/L11.png" alt=""></div>
+    <div class="layer laurel"><img src="./assets/login/trim/L4.png" alt=""></div>
+  </div>
+
+  <div class="caption cap-1"><div class="eyebrow">Λ Ο Γ Ο Σ</div><h1>文明，始於一個想法。</h1></div>
+  <div class="caption cap-2"><div class="eyebrow">Τ Ε Χ Ν Η</div><h1>思想，需要被賦予形體。</h1>
+    <p>雕刻家不創造形體，他只是把多餘的石頭移開。</p></div>
+  <div class="caption cap-3"><div class="eyebrow">Ε Ρ Γ Ο Ν</div><h1>後來，AI 拿起了刻刀。</h1>
+    <p>你定義問題，剩下的由 AI 與你一起完成。</p></div>
+
+  <div class="gate">
+    <div class="eyebrow">AI SAAS CREATION PLATFORM</div>
+    <h1>從思想，到創造。</h1>
+    <div class="sub">From Thought to Creation</div>
+    <a class="google" href="/api/visitor/google/start?next=%2F">
+      <img alt="" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23FFC107' d='M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34 5.9 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.7-.4-3.9z'/%3E%3Cpath fill='%23FF3D00' d='M6.3 14.7l6.6 4.8C14.7 15.1 18.9 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34 5.9 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z'/%3E%3Cpath fill='%234CAF50' d='M24 44c5.2 0 9.9-1.9 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z'/%3E%3Cpath fill='%231976D2' d='M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.6l6.2 5.2C36.9 40.4 44 35 44 24c0-1.3-.1-2.7-.4-3.9z'/%3E%3C/svg%3E">
+      使用 Google 帳號登入
+    </a>
+    <button class="replay" type="button" id="replay">R E P L A Y</button>
+  </div>
+
+  <div class="dots" id="dots"><i class="on"></i><i></i><i></i><i></i></div>
+
+<script>
+(function () {
+  var DUR = [0, 3400, 4600, 5200];
+  var scene = 1, timer = 0;
+  var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var dots = document.querySelectorAll("#dots i");
+
+  function go(n) {
+    scene = Math.max(1, Math.min(4, n));
+    document.body.dataset.scene = scene;
+    dots.forEach(function (d, i) { d.classList.toggle("on", i < scene); });
+    clearTimeout(timer);
+    if (scene < 4) timer = setTimeout(function () { go(scene + 1); }, DUR[scene]);
+  }
+  document.getElementById("skip").addEventListener("click", function () { go(4); });
+  document.getElementById("replay").addEventListener("click", function () { go(1); });
+  dots.forEach(function (d, i) { d.addEventListener("click", function () { go(i + 1); }); });
+  window.__go = go;
+  go(1);
+
+  if (!reduced) {
+    var stage = document.getElementById("stage");
+    document.addEventListener("mousemove", function (e) {
+      var dx = e.clientX / innerWidth - 0.5, dy = e.clientY / innerHeight - 0.5;
+      stage.style.transform = "translate(" + (-dx * 14) + "px," + (-dy * 8) + "px)";
+    });
+  }
+})();
+</script>
+</body>
+</html>
