@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "30"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "31"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -223,8 +223,15 @@
   /* 招呼氣泡:短句、打字特效、低頻率(首次 4 秒後,之後每 50 秒),
      面板開著或任務進行中不打擾;點氣泡等同點機器人。 */
   var hint = null, hintTyper = 0, hintHide = 0;
-  // 文案呼應主標語(讓 AI 創造 AI/讓 AI 管理 AI)+ 能力差異點
-  var HINTS = ["我就是 AI 造的 AI", "1,627 套系統歸我管", "我能直接操作系統", "報告句句有出處", "說一句,我改給你看"];
+  // 文案呼應主標語(讓 AI 創造 AI/讓 AI 管理 AI)+ 能力差異點。
+  // 套數不寫死:產線每天都在上新,載入時從 recent-projects.json 取即時總數,
+  // 取不到就用保守的「1,600+」(寧可少報,不可報錯)。
+  var HINTS = ["我就是 AI 造的 AI", "1,600+ 套系統歸我管", "我能直接操作系統", "報告句句有出處", "說一句,我改給你看"];
+  fetch("/content/recent-projects.json", { cache: "no-store" })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (d && d.total) HINTS[1] = d.total.toLocaleString("en-US") + " 套系統歸我管";
+    }).catch(function () { });
   function hideHint() {
     if (!hint) return;
     clearInterval(hintTyper); clearTimeout(hintHide);
