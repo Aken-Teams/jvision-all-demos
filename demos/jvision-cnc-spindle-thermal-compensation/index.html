@@ -1,0 +1,1355 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>電腦數控主軸熱位移補償 · manufacturing-mes｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+:root{
+  --blue:#1e40af;
+  --ink:#14213d;
+  --body:#334155;
+  --muted:#718096;
+  --line:#dbe4f0;
+  --bg:#f4f7fb;
+  --green:#138a67;
+  --amber:#c57a0a;
+  --red:#cf3f4f;
+  --white:#fff;
+  --shadow:0 12px 32px rgba(30,64,175,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--body);
+  background:var(--bg);
+  font-family:Inter,"Noto Sans TC",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select{font:inherit}
+button{color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible{
+  outline:3px solid rgba(30,64,175,.26);
+  outline-offset:2px;
+}
+.material-symbols-outlined{
+  font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24;
+  line-height:1;
+}
+.app{min-height:100vh}
+.rail{
+  position:fixed;
+  inset:0 auto 0 0;
+  z-index:20;
+  width:78px;
+  padding:18px 10px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  color:#dce6ff;
+  background:#102b78;
+  border-right:1px solid rgba(255,255,255,.1);
+}
+.brand{
+  width:48px;
+  height:48px;
+  margin-bottom:14px;
+  display:grid;
+  place-items:center;
+  border-radius:15px;
+  color:#102b78;
+  background:#fff;
+  font-weight:800;
+  letter-spacing:-1px;
+  box-shadow:0 7px 20px rgba(0,0,0,.18);
+}
+.nav-btn{
+  position:relative;
+  width:54px;
+  min-height:54px;
+  border:0;
+  border-radius:15px;
+  display:grid;
+  place-items:center;
+  color:#c5d3ff;
+  background:transparent;
+  cursor:pointer;
+  transition:.2s ease;
+}
+.nav-btn:hover{color:#fff;background:rgba(255,255,255,.1)}
+.nav-btn.active{
+  color:#102b78;
+  background:#fff;
+  box-shadow:0 8px 18px rgba(0,0,0,.16);
+}
+.nav-btn::after{
+  content:attr(aria-label);
+  position:absolute;
+  left:64px;
+  top:50%;
+  width:max-content;
+  max-width:170px;
+  padding:7px 10px;
+  border-radius:8px;
+  color:#fff;
+  background:#152657;
+  font-size:12px;
+  line-height:1.3;
+  opacity:0;
+  pointer-events:none;
+  transform:translate(-4px,-50%);
+  transition:.16s ease;
+}
+.nav-btn:hover::after,.nav-btn:focus-visible::after{opacity:1;transform:translate(0,-50%)}
+.rail-foot{
+  margin-top:auto;
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  color:#fff;
+  background:#3155bd;
+  font-size:13px;
+  font-weight:700;
+}
+.shell{min-height:100vh;margin-left:78px}
+.header{
+  height:72px;
+  padding:0 28px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  background:rgba(255,255,255,.94);
+  border-bottom:1px solid var(--line);
+  backdrop-filter:blur(12px);
+}
+.header-title{min-width:0}
+.eyebrow{
+  margin:0 0 3px;
+  color:var(--blue);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.header h1{
+  margin:0;
+  overflow:hidden;
+  color:var(--ink);
+  font-size:20px;
+  line-height:1.25;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.live{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border:1px solid #bfe7dc;
+  border-radius:999px;
+  color:#08684e;
+  background:#effcf7;
+  font-size:12px;
+  font-weight:700;
+}
+.live-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 0 5px rgba(19,138,103,.1);
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{50%{box-shadow:0 0 0 9px rgba(19,138,103,0)}}
+.viewport{padding:24px 28px 38px}
+.screen{display:none;animation:appear .28s ease}
+.screen.active{display:block}
+@keyframes appear{from{opacity:0;transform:translateY(5px)}}
+.page-head{
+  margin-bottom:20px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:18px;
+}
+.page-head h2{
+  margin:0 0 5px;
+  color:var(--ink);
+  font-size:26px;
+  letter-spacing:-.02em;
+}
+.page-head p{margin:0;color:var(--muted);font-size:14px}
+.head-actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{
+  min-height:42px;
+  padding:0 15px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  color:var(--body);
+  background:#fff;
+  font-weight:700;
+  cursor:pointer;
+}
+.btn:hover{border-color:#9eb3df;color:var(--blue)}
+.btn.primary{color:#fff;background:var(--blue);border-color:var(--blue)}
+.btn .material-symbols-outlined{font-size:19px}
+.card{
+  min-width:0;
+  padding:20px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:17px;
+  box-shadow:var(--shadow);
+}
+.card-title{
+  margin:0;
+  color:var(--ink);
+  font-size:16px;
+  font-weight:800;
+}
+.card-sub{margin:5px 0 0;color:var(--muted);font-size:12px}
+.card-bar{
+  margin-bottom:18px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.tag{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:5px 9px;
+  border-radius:999px;
+  color:var(--blue);
+  background:#edf2ff;
+  font-size:11px;
+  font-weight:800;
+}
+.tag.green{color:#087257;background:#eafaf4}
+.tag.amber{color:#946006;background:#fff6df}
+.tag.red{color:#a82839;background:#fff0f2}
+.metric-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+  margin-bottom:18px;
+}
+.metric{
+  min-width:0;
+  padding:17px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:15px;
+}
+.metric-label{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+}
+.metric-label .material-symbols-outlined{font-size:19px;color:var(--blue)}
+.metric-value{
+  margin:10px 0 5px;
+  color:var(--ink);
+  font-size:27px;
+  font-weight:800;
+  letter-spacing:-.03em;
+}
+.metric-value small{font-size:13px;color:var(--muted)}
+.delta{font-size:11px;color:var(--green);font-weight:700}
+.delta.warn{color:var(--amber)}
+.grid-2{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(290px,.8fr);gap:18px}
+.grid-even{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.chart{width:100%;height:320px}
+.chart.tall{height:390px}
+.chart.short{height:245px}
+.machine-list{display:grid;gap:11px}
+.machine{
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:#fbfdff;
+}
+.machine-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.machine strong{color:var(--ink);font-size:13px}
+.machine-data{display:flex;align-items:baseline;gap:6px}
+.machine-data b{color:var(--ink);font-size:22px}
+.machine-data span{color:var(--muted);font-size:11px}
+.progress{
+  height:7px;
+  margin-top:12px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#e9eef7;
+}
+.progress i{display:block;height:100%;border-radius:inherit;background:var(--blue)}
+.alert{
+  margin-top:16px;
+  padding:13px;
+  display:flex;
+  gap:10px;
+  border:1px solid #f4d89b;
+  border-radius:12px;
+  background:#fffaeb;
+  color:#74500a;
+  font-size:12px;
+  line-height:1.6;
+}
+.alert .material-symbols-outlined{flex:0 0 auto;color:var(--amber)}
+.segmented{
+  padding:4px;
+  display:flex;
+  gap:3px;
+  border-radius:12px;
+  background:#edf1f7;
+}
+.segmented button{
+  min-height:34px;
+  padding:0 12px;
+  border:0;
+  border-radius:9px;
+  color:var(--muted);
+  background:transparent;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+}
+.segmented button.on{color:var(--blue);background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.08)}
+.detail-list{display:grid;gap:0}
+.detail-line{
+  padding:13px 0;
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  border-bottom:1px solid var(--line);
+  font-size:12px;
+}
+.detail-line:last-child{border-bottom:0}
+.detail-line span{color:var(--muted)}
+.detail-line strong{color:var(--ink);text-align:right}
+.axis-chips{display:flex;flex-wrap:wrap;gap:8px}
+.axis-chip{
+  padding:7px 10px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  font-size:11px;
+  font-weight:700;
+}
+.axis-chip.x{color:#1e40af;background:#edf2ff}
+.axis-chip.y{color:#a1470b;background:#fff5e8}
+.axis-chip.z{color:#087257;background:#eafaf4}
+.correlation{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.corr-box{
+  padding:15px;
+  border-radius:13px;
+  background:#f6f8fc;
+}
+.corr-box span{display:block;color:var(--muted);font-size:11px}
+.corr-box strong{display:block;margin-top:7px;color:var(--ink);font-size:21px}
+.insight{
+  margin-top:14px;
+  padding:15px;
+  border-left:4px solid var(--blue);
+  border-radius:0 11px 11px 0;
+  background:#f2f5ff;
+  color:#34456f;
+  font-size:12px;
+  line-height:1.65;
+}
+.model-layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:18px}
+.model-stack{display:grid;gap:11px}
+.model-option{
+  width:100%;
+  padding:15px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  display:block;
+  text-align:left;
+  background:#fff;
+  cursor:pointer;
+}
+.model-option:hover{border-color:#a8b9df}
+.model-option.selected{border:2px solid var(--blue);background:#f5f7ff}
+.model-option strong{display:block;color:var(--ink);font-size:13px}
+.model-option span{display:block;margin-top:5px;color:var(--muted);font-size:11px;line-height:1.5}
+.score{
+  margin-top:10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  color:var(--green);
+  font-size:11px;
+  font-weight:800;
+}
+.form-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:15px}
+.field label{
+  display:block;
+  margin-bottom:7px;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:700;
+}
+.field select,.field input{
+  width:100%;
+  height:42px;
+  padding:0 11px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  color:var(--ink);
+  background:#fff;
+}
+.fit-score{
+  min-width:112px;
+  padding:12px;
+  border-radius:13px;
+  text-align:center;
+  background:#ecfaf5;
+}
+.fit-score span{display:block;color:#087257;font-size:10px;font-weight:800}
+.fit-score strong{display:block;margin-top:4px;color:#075c47;font-size:23px}
+.coeff-layout{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px}
+.slider-box{margin-bottom:18px}
+.slider-head{
+  margin-bottom:9px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  font-size:12px;
+}
+.slider-head span{color:var(--muted)}
+.slider-head strong{color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--blue)}
+.node-table{width:100%;border-collapse:collapse;font-size:12px}
+.node-table th{
+  padding:10px 8px;
+  color:var(--muted);
+  background:#f7f9fc;
+  text-align:left;
+}
+.node-table td{padding:11px 8px;border-bottom:1px solid var(--line)}
+.node-table input{
+  width:74px;
+  height:34px;
+  padding:0 7px;
+  border:1px solid var(--line);
+  border-radius:8px;
+}
+.summary-strip{
+  margin-top:15px;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  border:1px solid var(--line);
+  border-radius:13px;
+  overflow:hidden;
+}
+.summary-cell{padding:13px;text-align:center;border-right:1px solid var(--line)}
+.summary-cell:last-child{border-right:0}
+.summary-cell span{display:block;color:var(--muted);font-size:10px}
+.summary-cell strong{display:block;margin-top:5px;color:var(--ink);font-size:17px}
+.compare-hero{
+  margin-bottom:18px;
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  gap:16px;
+  align-items:stretch;
+}
+.compare-box{
+  padding:20px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:#fff;
+}
+.compare-box.after{border-color:#a9dfce;background:#f5fffb}
+.compare-label{color:var(--muted);font-size:11px;font-weight:800}
+.compare-number{margin:9px 0 4px;color:var(--ink);font-size:31px;font-weight:800}
+.compare-arrow{display:grid;place-items:center;color:var(--blue)}
+.compare-arrow .material-symbols-outlined{font-size:32px}
+.checks{display:grid;gap:10px}
+.check{
+  padding:13px;
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+}
+.check .material-symbols-outlined{color:var(--green);font-size:20px}
+.check strong{display:block;color:var(--ink);font-size:12px}
+.check span{display:block;margin-top:3px;color:var(--muted);font-size:11px}
+.publish-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(310px,.75fr);gap:18px}
+.version-head{
+  padding-bottom:16px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  border-bottom:1px solid var(--line);
+}
+.version-id{margin:7px 0 4px;color:var(--ink);font-size:25px;font-weight:800}
+.version-meta{color:var(--muted);font-size:11px}
+.scope-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin-top:16px}
+.scope{
+  padding:14px;
+  border-radius:12px;
+  background:#f7f9fc;
+}
+.scope span{display:block;color:var(--muted);font-size:10px}
+.scope strong{display:block;margin-top:5px;color:var(--ink);font-size:12px}
+.approval{position:relative;padding-left:28px}
+.approval::before{
+  content:"";
+  position:absolute;
+  left:8px;
+  top:12px;
+  bottom:12px;
+  width:2px;
+  background:#dbe4f0;
+}
+.approval-step{
+  position:relative;
+  padding:9px 0 18px;
+}
+.approval-step::before{
+  content:"";
+  position:absolute;
+  left:-25px;
+  top:12px;
+  width:10px;
+  height:10px;
+  border:3px solid #fff;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 0 2px #b6dfd3;
+}
+.approval-step.pending::before{background:var(--amber);box-shadow:0 0 0 2px #f3d58e}
+.approval-step strong{display:block;color:var(--ink);font-size:12px}
+.approval-step span{display:block;margin-top:4px;color:var(--muted);font-size:11px}
+.release-note{
+  margin-top:15px;
+  padding:15px;
+  border-radius:13px;
+  background:#f1f5ff;
+  font-size:12px;
+  line-height:1.65;
+}
+.bottom-action{
+  margin-top:16px;
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+}
+.toast{
+  position:fixed;
+  right:22px;
+  bottom:22px;
+  z-index:40;
+  max-width:300px;
+  padding:13px 16px;
+  border-radius:12px;
+  color:#fff;
+  background:#172554;
+  box-shadow:0 12px 30px rgba(15,23,42,.22);
+  font-size:12px;
+  opacity:0;
+  pointer-events:none;
+  transform:translateY(10px);
+  transition:.2s ease;
+}
+.toast.visible{opacity:1;transform:translateY(0)}
+@media(max-width:1050px){
+  .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid-2,.model-layout,.coeff-layout,.publish-layout{grid-template-columns:1fr}
+  .model-stack{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  body{padding-bottom:70px}
+  .rail{
+    inset:auto 0 0 0;
+    width:auto;
+    height:66px;
+    padding:7px 8px;
+    flex-direction:row;
+    justify-content:space-around;
+    border:0;
+    border-top:1px solid rgba(255,255,255,.12);
+  }
+  .brand,.rail-foot{display:none}
+  .nav-btn{width:48px;min-height:48px;border-radius:13px}
+  .nav-btn::after{display:none}
+  .shell{margin-left:0}
+  .header{height:64px;padding:0 16px}
+  .header h1{font-size:16px}
+  .live{padding:7px 9px;font-size:0}
+  .viewport{padding:18px 15px 26px}
+  .page-head{align-items:flex-start;flex-direction:column}
+  .page-head h2{font-size:23px}
+  .grid-even,.grid-3{grid-template-columns:1fr}
+  .model-stack{grid-template-columns:1fr}
+  .form-row{grid-template-columns:1fr}
+  .compare-hero{grid-template-columns:1fr}
+  .compare-arrow{transform:rotate(90deg)}
+  .chart.tall{height:330px}
+}
+@media(max-width:480px){
+  .metric-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .metric{padding:13px}
+  .metric-value{font-size:22px}
+  .card{padding:16px}
+  .header-title .eyebrow{display:none}
+  .page-head{margin-bottom:16px}
+  .head-actions{width:100%}
+  .head-actions .btn{flex:1}
+  .correlation,.scope-grid{grid-template-columns:1fr}
+  .summary-strip{grid-template-columns:1fr}
+  .summary-cell{border-right:0;border-bottom:1px solid var(--line)}
+  .summary-cell:last-child{border-bottom:0}
+  .chart{height:285px}
+  .chart.short{height:230px}
+  .coeff-layout{gap:14px}
+  .node-table{font-size:11px}
+  .node-table th,.node-table td{padding:9px 4px}
+  .node-table input{width:60px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" aria-label="流程導覽">
+    <div class="brand" aria-label="Jvision">JV</div>
+    <button class="nav-btn" data-i="0" aria-label="掌握主軸熱態"><span class="material-symbols-outlined">device_thermostat</span></button>
+    <button class="nav-btn" data-i="1" aria-label="分析溫升關聯"><span class="material-symbols-outlined">show_chart</span></button>
+    <button class="nav-btn" data-i="2" aria-label="選擇適用模型"><span class="material-symbols-outlined">model_training</span></button>
+    <button class="nav-btn" data-i="3" aria-label="試算補償曲線"><span class="material-symbols-outlined">calculate</span></button>
+    <button class="nav-btn" data-i="4" aria-label="驗證補償效果"><span class="material-symbols-outlined">experiment</span></button>
+    <button class="nav-btn" data-i="5" aria-label="發布補償版本"><span class="material-symbols-outlined">published_with_changes</span></button>
+    <div class="rail-foot">林工</div>
+  </aside>
+
+  <main class="shell">
+    <header class="header">
+      <div class="header-title">
+        <p class="eyebrow">Jvision Manufacturing Intelligence</p>
+        <h1>電腦數控主軸熱位移補償</h1>
+      </div>
+      <div class="live"><i class="live-dot"></i>機台資料同步中</div>
+    </header>
+
+    <div class="viewport">
+      <section class="screen" data-view="0">
+        <div class="page-head">
+          <div>
+            <h2>主軸熱狀態總覽</h2>
+            <p>機台操作員 · 即時掌握暖機階段、預估位移與補償狀態</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn" data-action="refresh"><span class="material-symbols-outlined">refresh</span>重新讀取</button>
+            <button class="btn primary" data-action="machine"><span class="material-symbols-outlined">precision_manufacturing</span>切換機台</button>
+          </div>
+        </div>
+
+        <div class="metric-grid">
+          <article class="metric">
+            <div class="metric-label">主軸前軸承溫度<span class="material-symbols-outlined">device_thermostat</span></div>
+            <div class="metric-value">42.8 <small>°C</small></div>
+            <div class="delta warn">較環境溫度 +17.4°C</div>
+          </article>
+          <article class="metric">
+            <div class="metric-label">Z 軸預估熱位移<span class="material-symbols-outlined">straighten</span></div>
+            <div class="metric-value">+18.6 <small>μm</small></div>
+            <div class="delta">模型信賴度 96.4%</div>
+          </article>
+          <article class="metric">
+            <div class="metric-label">熱穩定預估<span class="material-symbols-outlined">hourglass_top</span></div>
+            <div class="metric-value">14 <small>分鐘</small></div>
+            <div class="delta">預計 10:38 達穩態</div>
+          </article>
+          <article class="metric">
+            <div class="metric-label">目前補償量<span class="material-symbols-outlined">tune</span></div>
+            <div class="metric-value">−16.9 <small>μm</small></div>
+            <div class="delta">殘餘誤差約 +1.7 μm</div>
+          </article>
+        </div>
+
+        <div class="grid-2">
+          <article class="card">
+            <div class="card-bar">
+              <div>
+                <h3 class="card-title">MC-05 即時熱態</h3>
+                <p class="card-sub">今日 08:12 開機 · HSK-A63 · 轉速 9,600 rpm</p>
+              </div>
+              <span class="tag amber"><span class="material-symbols-outlined" style="font-size:15px">partly_cloudy_day</span>暖機後段</span>
+            </div>
+            <div id="overviewChart" class="chart" aria-label="主軸溫度與位移即時趨勢圖"></div>
+          </article>
+
+          <article class="card">
+            <div class="card-bar">
+              <div>
+                <h3 class="card-title">產線機台狀態</h3>
+                <p class="card-sub">A 區高速加工中心</p>
+              </div>
+              <span class="tag green">4 / 5 正常</span>
+            </div>
+            <div class="machine-list">
+              <div class="machine">
+                <div class="machine-row"><strong>MC-03 · 穩態加工</strong><span class="tag green">已補償</span></div>
+                <div class="machine-data"><b>38.4</b><span>°C · +11.2 μm</span></div>
+                <div class="progress"><i style="width:100%"></i></div>
+              </div>
+              <div class="machine">
+                <div class="machine-row"><strong>MC-05 · 暖機後段</strong><span class="tag amber">觀察中</span></div>
+                <div class="machine-data"><b>42.8</b><span>°C · +18.6 μm</span></div>
+                <div class="progress"><i style="width:82%;background:var(--amber)"></i></div>
+              </div>
+              <div class="machine">
+                <div class="machine-row"><strong>MC-07 · 冷機啟動</strong><span class="tag">暖機中</span></div>
+                <div class="machine-data"><b>27.1</b><span>°C · +3.8 μm</span></div>
+                <div class="progress"><i style="width:34%"></i></div>
+              </div>
+            </div>
+            <div class="alert">
+              <span class="material-symbols-outlined">warning</span>
+              <div><strong>MC-05 尚未完全穩態</strong><br>精加工前建議維持 8,000 rpm 暖機 14 分鐘，或啟用核准版 TC-M05-2.4 補償。</div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen" data-view="1">
+        <div class="page-head">
+          <div>
+            <h2>溫升位移分析</h2>
+            <p>設備工程師 · 對照運轉時間、測點溫度與三軸位移關係</p>
+          </div>
+          <div class="head-actions">
+            <div class="segmented">
+              <button class="on">本次暖機</button>
+              <button>近 7 次</button>
+              <button>同機型</button>
+            </div>
+            <button class="btn" data-action="export"><span class="material-symbols-outlined">download</span>匯出分析</button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <article class="card">
+            <div class="card-bar">
+              <div>
+                <h3 class="card-title">溫度與軸向位移疊合趨勢</h3>
+                <p class="card-sub">MC-05 · 2026/08/28 08:12–10:24 · 取樣間隔 2 分鐘</p>
+              </div>
+              <div class="axis-chips">
+                <span class="axis-chip x">X 位移</span>
+                <span class="axis-chip y">Y 位移</span>
+                <span class="axis-chip z">Z 位移</span>
+              </div>
+            </div>
+            <div id="analysisChart" class="chart tall" aria-label="溫升與三軸位移關聯圖"></div>
+          </article>
+
+          <div style="display:grid;gap:18px">
+            <article class="card">
+              <div class="card-bar">
+                <div>
+                  <h3 class="card-title">關聯強度</h3>
+                  <p class="card-sub">Pearson r · 暖機區間</p>
+                </div>
+                <span class="tag green">資料品質佳</span>
+              </div>
+              <div class="correlation">
+                <div class="corr-box"><span>前軸承溫度 × Z</span><strong>0.94</strong></div>
+                <div class="corr-box"><span>馬達溫度 × Z</span><strong>0.81</strong></div>
+                <div class="corr-box"><span>冷卻液溫度 × X</span><strong>0.56</strong></div>
+                <div class="corr-box"><span>環境溫度 × Y</span><strong>0.32</strong></div>
+              </div>
+              <div class="insight">Z 軸熱位移主要由前軸承溫升驅動；溫度超過 38°C 後斜率由 0.62 增至 0.89 μm/°C，建議模型加入分段係數。</div>
+            </article>
+
+            <article class="card">
+              <h3 class="card-title">量測資料完整度</h3>
+              <div class="detail-list">
+                <div class="detail-line"><span>溫度感測點</span><strong>6 / 6 正常</strong></div>
+                <div class="detail-line"><span>主軸負載訊號</span><strong>99.8% 完整</strong></div>
+                <div class="detail-line"><span>雷射位移計</span><strong>132 筆有效</strong></div>
+                <div class="detail-line"><span>異常值排除</span><strong>3 筆 · 2.2%</strong></div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-view="2">
+        <div class="page-head">
+          <div>
+            <h2>熱變位模型選擇</h2>
+            <p>製程工程師 · 依機型、轉速與加工情境比對模型適用範圍</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn" data-action="compare"><span class="material-symbols-outlined">difference</span>比較模型</button>
+            <button class="btn primary" data-action="apply"><span class="material-symbols-outlined">check_circle</span>採用此模型</button>
+          </div>
+        </div>
+
+        <div class="model-layout">
+          <aside class="model-stack">
+            <button class="model-option selected" data-model="piecewise">
+              <strong>M05 分段迴歸 v2.4</strong>
+              <span>高速精加工 · 6,000–12,000 rpm<br>訓練資料 42 次暖機循環</span>
+              <div class="score"><span>推薦</span><span>RMSE 1.7 μm</span></div>
+            </button>
+            <button class="model-option" data-model="poly">
+              <strong>M05 二次多項式 v1.9</strong>
+              <span>一般加工 · 3,000–10,000 rpm<br>訓練資料 58 次暖機循環</span>
+              <div class="score"><span>穩定</span><span>RMSE 2.6 μm</span></div>
+            </button>
+            <button class="model-option" data-model="linear">
+              <strong>M 系列線性基準 v3.1</strong>
+              <span>跨機型基準 · 2,000–8,000 rpm<br>訓練資料 214 次循環</span>
+              <div class="score"><span>備用</span><span>RMSE 4.2 μm</span></div>
+            </button>
+          </aside>
+
+          <article class="card">
+            <div class="card-bar">
+              <div>
+                <h3 class="card-title" id="modelTitle">M05 分段迴歸 v2.4 · 擬合預覽</h3>
+                <p class="card-sub">實測位移與模型預測 · Z 軸 · 高速精加工情境</p>
+              </div>
+              <div class="fit-score"><span>模型適配度</span><strong id="fitValue">96.4%</strong></div>
+            </div>
+
+            <div class="form-row">
+              <div class="field">
+                <label for="machineSelect">機台型號</label>
+                <select id="machineSelect"><option>JV-M500 / MC-05</option><option>JV-M500 / MC-03</option></select>
+              </div>
+              <div class="field">
+                <label for="scenarioSelect">加工情境</label>
+                <select id="scenarioSelect"><option>高速模具精加工</option><option>一般鋁件加工</option><option>長時間鑽孔</option></select>
+              </div>
+              <div class="field">
+                <label for="speedSelect">主軸轉速</label>
+                <select id="speedSelect"><option>9,600 rpm</option><option>8,000 rpm</option><option>12,000 rpm</option></select>
+              </div>
+            </div>
+
+            <div id="modelChart" class="chart" aria-label="熱變位模型實測與預測散點圖"></div>
+            <div class="summary-strip">
+              <div class="summary-cell"><span>平均絕對誤差</span><strong id="maeValue">1.2 μm</strong></div>
+              <div class="summary-cell"><span>最大殘差</span><strong id="residualValue">3.4 μm</strong></div>
+              <div class="summary-cell"><span>適用溫度</span><strong id="rangeValue">24–49°C</strong></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen" data-view="3">
+        <div class="page-head">
+          <div>
+            <h2>補償曲線試算</h2>
+            <p>製程工程師 · 調整係數與溫度節點，預覽控制器補正結果</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn" id="resetCurve"><span class="material-symbols-outlined">restart_alt</span>還原建議值</button>
+            <button class="btn primary" data-action="draft"><span class="material-symbols-outlined">save</span>儲存草稿</button>
+          </div>
+        </div>
+
+        <div class="coeff-layout">
+          <article class="card">
+            <div class="card-bar">
+              <div>
+                <h3 class="card-title">補償參數</h3>
+                <p class="card-sub">TC-M05-2.5 草稿 · 單位 μm</p>
+              </div>
+              <span class="tag amber">未發布</span>
+            </div>
+
+            <div class="slider-box">
+              <div class="slider-head"><span>全域補償比例</span><strong id="ratioText">92%</strong></div>
+              <input id="ratioRange" type="range" min="75" max="105" value="92" aria-label="全域補償比例">
+            </div>
+            <div class="slider-box">
+              <div class="slider-head"><span>反應平滑係數</span><strong id="smoothText">0.68</strong></div>
+              <input id="smoothRange" type="range" min="40" max="90" value="68" aria-label="反應平滑係數">
+            </div>
+
+            <h3 class="card-title" style="margin:20px 0 10px">溫度補償節點</h3>
+            <table class="node-table">
+              <thead><tr><th>節點</th><th>溫度</th><th>Z 補正</th></tr></thead>
+              <tbody>
+                <tr><td>T1</td><td>28°C</td><td><input value="-3.2" aria-label="T1 Z補正"></td></tr>
+                <tr><td>T2</td><td>34°C</td><td><input value="-8.4" aria-label="T2 Z補正"></td></tr>
+                <tr><td>T3</td><td>40°C</td><td><input value="-14.8" aria-label="T3 Z補正"></td></tr>
+                <tr><td>T4</td><td>46°C</td><td><input value="-20.6" aria-label="T4 Z補正"></td></tr>
+              </tbody>
+            </table>
+            <div class="alert">
+              <span class="material-symbols-outlined">info</span>
+              <div>控制器單次補正變化限制為 2.5 μm；目前曲線符合安全斜率與有效溫度範圍。</div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-bar">
+              <div>
+                <h3 class="card-title">補正曲線預覽</h3>
+                <p class="card-sub">藍線為預估熱位移，綠線為補償後殘餘誤差</p>
+              </div>
+              <span class="tag green" id="curveState">安全範圍</span>
+            </div>
+            <div id="curveChart" class="chart tall" aria-label="補償曲線試算圖"></div>
+            <div class="summary-strip">
+              <div class="summary-cell"><span>42.8°C 建議補正</span><strong id="compValue">−16.9 μm</strong></div>
+              <div class="summary-cell"><span>預估殘餘誤差</span><strong id="errorValue">+1.7 μm</strong></div>
+              <div class="summary-cell"><span>過度補正風險</span><strong id="riskValue" style="color:var(--green)">低</strong></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen" data-view="4">
+        <div class="page-head">
+          <div>
+            <h2>補償效果驗證</h2>
+            <p>品保工程師 · 比較補償前後尺寸分布、殘餘誤差與過補風險</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn" data-action="report"><span class="material-symbols-outlined">description</span>驗證報告</button>
+            <button class="btn primary" data-action="approve"><span class="material-symbols-outlined">verified</span>確認驗證</button>
+          </div>
+        </div>
+
+        <div class="compare-hero">
+          <div class="compare-box">
+            <div class="compare-label">補償前 · 尺寸偏差 P95</div>
+            <div class="compare-number">±21.4 μm</div>
+            <span class="tag red">超出 ±10 μm 規格</span>
+          </div>
+          <div class="compare-arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
+          <div class="compare-box after">
+            <div class="compare-label">補償後 · 尺寸偏差 P95</div>
+            <div class="compare-number">±4.8 μm</div>
+            <span class="tag green">改善 77.6%</span>
+          </div>
+        </div>
+
+        <div class="grid-even">
+          <article class="card">
+            <div class="card-bar">
+              <div>
+                <h3 class="card-title">尺寸偏差分布</h3>
+                <p class="card-sub">驗證批次 VAL-0828 · n=60 · 基準尺寸 50.000 mm</p>
+              </div>
+              <span class="tag">規格 ±10 μm</span>
+            </div>
+            <div id="validationChart" class="chart" aria-label="補償前後尺寸偏差分布圖"></div>
+          </article>
+
+          <article class="card">
+            <div class="card-bar">
+              <div>
+                <h3 class="card-title">驗證判定</h3>
+                <p class="card-sub">依 CNC 熱位移補償驗證規範 QP-TH-07</p>
+              </div>
+              <span class="tag green">4 項通過</span>
+            </div>
+            <div class="checks">
+              <div class="check">
+                <span class="material-symbols-outlined">check_circle</span>
+                <div><strong>平均殘餘誤差 +0.6 μm</strong><span>允收範圍 −3.0 至 +3.0 μm</span></div>
+              </div>
+              <div class="check">
+                <span class="material-symbols-outlined">check_circle</span>
+                <div><strong>最大尺寸偏差 +6.2 μm</strong><span>低於製程上限 +10.0 μm</span></div>
+              </div>
+              <div class="check">
+                <span class="material-symbols-outlined">check_circle</span>
+                <div><strong>過度補正率 0%</strong><span>60 件樣本皆未跨越反向容許界線</span></div>
+              </div>
+              <div class="check">
+                <span class="material-symbols-outlined">check_circle</span>
+                <div><strong>長時間漂移 1.9 μm / 4h</strong><span>低於允收門檻 4.0 μm / 4h</span></div>
+              </div>
+            </div>
+            <div class="insight">驗證結論：TC-M05-2.5 適用於 JV-M500 高速精加工情境，可送製造主管審核並限定發布至 MC-03、MC-05。</div>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen" data-view="5">
+        <div class="page-head">
+          <div>
+            <h2>補償版本發布</h2>
+            <p>製造主管 · 審核係數差異、適用機台與生效條件</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn" data-action="reject"><span class="material-symbols-outlined">undo</span>退回修訂</button>
+            <button class="btn primary" id="publishButton"><span class="material-symbols-outlined">publish</span>核准並發布</button>
+          </div>
+        </div>
+
+        <div class="publish-layout">
+          <article class="card">
+            <div class="version-head">
+              <div>
+                <span class="tag amber">待主管核准</span>
+                <div class="version-id">TC-M05-2.5</div>
+                <div class="version-meta">建立者：陳品妤 · 2026/08/28 14:36 · 基於模型 M05 分段迴歸 v2.4</div>
+              </div>
+              <span class="material-symbols-outlined" style="font-size:38px;color:var(--blue)">deployed_code_update</span>
+            </div>
+
+            <div class="scope-grid">
+              <div class="scope"><span>適用機型</span><strong>JV-M500 高速加工中心</strong></div>
+              <div class="scope"><span>指定機台</span><strong>MC-03、MC-05</strong></div>
+              <div class="scope"><span>主軸轉速範圍</span><strong>6,000–12,000 rpm</strong></div>
+              <div class="scope"><span>環境溫度範圍</span><strong>20–30°C</strong></div>
+              <div class="scope"><span>預定生效</span><strong>2026/08/29 06:00</strong></div>
+              <div class="scope"><span>回復版本</span><strong>TC-M05-2.4</strong></div>
+            </div>
+
+            <h3 class="card-title" style="margin:22px 0 10px">與現行版本差異</h3>
+            <table class="node-table">
+              <thead><tr><th>參數</th><th>v2.4 現行</th><th>v2.5 待發布</th><th>差異</th></tr></thead>
+              <tbody>
+                <tr><td>補償比例</td><td>88%</td><td>92%</td><td><span class="tag">+4%</span></td></tr>
+                <tr><td>40°C Z 補正</td><td>−13.9 μm</td><td>−14.8 μm</td><td><span class="tag">−0.9</span></td></tr>
+                <tr><td>46°C Z 補正</td><td>−19.2 μm</td><td>−20.6 μm</td><td><span class="tag">−1.4</span></td></tr>
+                <tr><td>平滑係數</td><td>0.62</td><td>0.68</td><td><span class="tag">+0.06</span></td></tr>
+              </tbody>
+            </table>
+
+            <div class="release-note">
+              <strong style="color:var(--ink)">發布說明</strong><br>
+              修正主軸溫度超過 38°C 後的 Z 軸補償不足，降低高速精加工四小時後的正向尺寸漂移。若感測器中斷超過 30 秒，控制器自動凍結補正並回報警示。
+            </div>
+          </article>
+
+          <div style="display:grid;gap:18px;align-content:start">
+            <article class="card">
+              <div class="card-bar">
+                <div>
+                  <h3 class="card-title">審核軌跡</h3>
+                  <p class="card-sub">所有操作保留版本與時間戳記</p>
+                </div>
+                <span class="tag green">資料完整</span>
+              </div>
+              <div class="approval">
+                <div class="approval-step">
+                  <strong>模型試算完成</strong>
+                  <span>製程工程師 陳品妤 · 14:36</span>
+                </div>
+                <div class="approval-step">
+                  <strong>設備條件確認</strong>
+                  <span>設備工程師 張博凱 · 15:02</span>
+                </div>
+                <div class="approval-step">
+                  <strong>品質驗證通過</strong>
+                  <span>品保工程師 李佩珊 · 16:18</span>
+                </div>
+                <div class="approval-step pending" id="approvalPending">
+                  <strong id="approvalTitle">等待製造主管核准</strong>
+                  <span id="approvalMeta">製造主管 林志豪 · 待處理</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="card">
+              <h3 class="card-title">發布前檢查</h3>
+              <div class="detail-list">
+                <div class="detail-line"><span>係數安全限制</span><strong style="color:var(--green)">通過</strong></div>
+                <div class="detail-line"><span>驗證樣本數</span><strong>60 / 30 最低要求</strong></div>
+                <div class="detail-line"><span>控制器連線</span><strong style="color:var(--green)">2 / 2 就緒</strong></div>
+                <div class="detail-line"><span>回復版本備份</span><strong style="color:var(--green)">已建立</strong></div>
+              </div>
+              <div class="bottom-action">
+                <button class="btn" data-action="history"><span class="material-symbols-outlined">history</span>版本歷程</button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const viewNodes = Array.from(document.querySelectorAll("[data-view]"));
+const navNodes = Array.from(document.querySelectorAll("[data-i]"));
+const chartMap = {};
+let currentView = 0;
+let toastTimer;
+
+function chartBase() {
+  return {
+    textStyle: { fontFamily: 'Inter,"Noto Sans TC",sans-serif', color: "#334155" },
+    animationDuration: 650,
+    tooltip: { trigger: "axis", backgroundColor: "#172554", borderWidth: 0, textStyle: { color: "#fff", fontSize: 11 } },
+    grid: { left: 48, right: 32, top: 48, bottom: 38 },
+    legend: { top: 4, right: 8, itemWidth: 12, itemHeight: 7, textStyle: { color: "#718096", fontSize: 11 } },
+    xAxis: { axisLine: { lineStyle: { color: "#cbd5e1" } }, axisTick: { show: false }, axisLabel: { color: "#718096", fontSize: 10 } },
+    yAxis: { axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: "#edf1f7" } }, axisLabel: { color: "#718096", fontSize: 10 } }
+  };
+}
+
+function initOverview() {
+  const el = document.getElementById("overviewChart");
+  if (!el || el.clientWidth < 1) return;
+  const opt = chartBase();
+  opt.legend.data = ["前軸承溫度", "Z 軸位移"];
+  opt.xAxis = { ...opt.xAxis, type: "category", boundaryGap: false, data: ["08:12","08:32","08:52","09:12","09:32","09:52","10:12","10:24"] };
+  opt.yAxis = [
+    { ...opt.yAxis, type: "value", name: "溫度 °C", min: 20, max: 50 },
+    { ...opt.yAxis, type: "value", name: "位移 μm", min: 0, max: 24, splitLine: { show: false } }
+  ];
+  opt.series = [
+    { name:"前軸承溫度", type:"line", smooth:true, symbol:"circle", symbolSize:6, data:[25.4,29.8,34.7,38.1,40.6,42.0,42.6,42.8], lineStyle:{width:3,color:"#1e40af"}, itemStyle:{color:"#1e40af"}, areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"rgba(30,64,175,.22)"},{offset:1,color:"rgba(30,64,175,.02)"}]}} },
+    { name:"Z 軸位移", type:"line", yAxisIndex:1, smooth:true, symbol:"none", data:[1.2,4.6,8.9,12.6,15.8,17.3,18.2,18.6], lineStyle:{width:3,color:"#138a67"} }
+  ];
+  chartMap[0] = echarts.init(el);
+  chartMap[0].setOption(opt);
+}
+
+function initAnalysis() {
+  const el = document.getElementById("analysisChart");
+  if (!el || el.clientWidth < 1) return;
+  const opt = chartBase();
+  opt.legend.data = ["前軸承溫度","X 位移","Y 位移","Z 位移"];
+  opt.xAxis = { ...opt.xAxis, type:"category", boundaryGap:false, data:["0","15","30","45","60","75","90","105","120","132"] };
+  opt.yAxis = [
+    { ...opt.yAxis, type:"value", name:"溫度 °C", min:20, max:50 },
+    { ...opt.yAxis, type:"value", name:"位移 μm", min:-5, max:25, splitLine:{show:false} }
+  ];
+  opt.series = [
+    {name:"前軸承溫度",type:"line",smooth:true,data:[25.4,28.1,32.5,36.8,39.6,41.4,42.2,42.6,42.8,42.8],lineStyle:{width:3,color:"#1e40af"},itemStyle:{color:"#1e40af"}},
+    {name:"X 位移",type:"line",yAxisIndex:1,symbol:"none",data:[0.2,0.8,1.6,2.4,3.1,3.7,4.0,4.2,4.3,4.3],lineStyle:{width:2,color:"#5577d4"}},
+    {name:"Y 位移",type:"line",yAxisIndex:1,symbol:"none",data:[-0.1,0.2,0.7,1.3,1.9,2.4,2.7,2.8,2.9,2.9],lineStyle:{width:2,color:"#d1862c"}},
+    {name:"Z 位移",type:"line",yAxisIndex:1,symbol:"none",data:[1.2,3.3,6.4,10.2,13.7,16.1,17.5,18.1,18.5,18.6],lineStyle:{width:3,color:"#138a67"},markLine:{silent:true,symbol:"none",lineStyle:{color:"#c57a0a",type:"dashed"},data:[{xAxis:"90",label:{formatter:"趨近穩態"}}]}}
+  ];
+  chartMap[1] = echarts.init(el);
+  chartMap[1].setOption(opt);
+}
+
+const modelConfigs = {
+  piecewise:{title:"M05 分段迴歸 v2.4 · 擬合預覽",fit:"96.4%",mae:"1.2 μm",residual:"3.4 μm",range:"24–49°C",pred:[1.0,3.4,6.8,10.6,14.6,18.1,21.0]},
+  poly:{title:"M05 二次多項式 v1.9 · 擬合預覽",fit:"92.1%",mae:"2.0 μm",residual:"5.7 μm",range:"24–46°C",pred:[.8,3.1,6.5,10.8,15.4,19.0,22.8]},
+  linear:{title:"M 系列線性基準 v3.1 · 擬合預覽",fit:"86.8%",mae:"3.3 μm",residual:"8.1 μm",range:"22–44°C",pred:[1.2,4.3,7.4,10.5,13.6,16.7,19.8]}
+};
+let selectedModel = "piecewise";
+
+function modelOption(configKey) {
+  const config = modelConfigs[configKey];
+  const opt = chartBase();
+  opt.tooltip.trigger = "item";
+  opt.xAxis = { ...opt.xAxis, type:"value", name:"前軸承溫度 °C", min:24, max:50 };
+  opt.yAxis = { ...opt.yAxis, type:"value", name:"Z 位移 μm", min:0, max:25 };
+  opt.legend.data = ["實測值","模型預測"];
+  opt.series = [
+    {name:"實測值",type:"scatter",symbolSize:10,data:[[25,1.2],[28,3.8],[31,6.1],[34,9.6],[37,12.8],[40,15.5],[43,18.8],[46,20.4],[48,22.1]],itemStyle:{color:"#1e40af"}},
+    {name:"模型預測",type:"line",smooth:.25,symbol:"none",data:[[25,config.pred[0]],[29,config.pred[1]],[33,config.pred[2]],[37,config.pred[3]],[41,config.pred[4]],[45,config.pred[5]],[49,config.pred[6]]],lineStyle:{color:"#138a67",width:3}}
+  ];
+  return opt;
+}
+
+function initModel() {
+  const el = document.getElementById("modelChart");
+  if (!el || el.clientWidth < 1) return;
+  chartMap[2] = echarts.init(el);
+  chartMap[2].setOption(modelOption(selectedModel));
+}
+
+function updateModel(configKey) {
+  selectedModel = configKey;
+  document.querySelectorAll("[data-model]").forEach(button => button.classList.toggle("selected", button.dataset.model === configKey));
+  const config = modelConfigs[configKey];
+  document.getElementById("modelTitle").textContent = config.title;
+  document.getElementById("fitValue").textContent = config.fit;
+  document.getElementById("maeValue").textContent = config.mae;
+  document.getElementById("residualValue").textContent = config.residual;
+  document.getElementById("rangeValue").textContent = config.range;
+  if (chartMap[2]) chartMap[2].setOption(modelOption(configKey), true);
+}
+
+function curveOption(ratio) {
+  const scale = ratio / 100;
+  const heat = [0,2.3,5.5,9.2,13.1,16.8,19.7,21.6];
+  const compensation = heat.map(value => Number((-value * scale).toFixed(1)));
+  const residual = heat.map((value,index) => Number((value + compensation[index]).toFixed(1)));
+  const opt = chartBase();
+  opt.legend.data = ["預估熱位移","補償命令","殘餘誤差"];
+  opt.xAxis = { ...opt.xAxis, type:"category", data:["25","28","31","34","37","40","43","46"] };
+  opt.yAxis = { ...opt.yAxis, type:"value", name:"位移 / 補正 μm", min:-25, max:25 };
+  opt.series = [
+    {name:"預估熱位移",type:"line",smooth:true,data:heat,lineStyle:{width:3,color:"#1e40af"},itemStyle:{color:"#1e40af"}},
+    {name:"補償命令",type:"line",smooth:true,data:compensation,lineStyle:{width:3,color:"#c57a0a"},itemStyle:{color:"#c57a0a"}},
+    {name:"殘餘誤差",type:"bar",barWidth:16,data:residual,itemStyle:{color:"#138a67",borderRadius:[4,4,0,0]}}
+  ];
+  return opt;
+}
+
+function initCurve() {
+  const el = document.getElementById("curveChart");
+  if (!el || el.clientWidth < 1) return;
+  chartMap[3] = echarts.init(el);
+  chartMap[3].setOption(curveOption(Number(document.getElementById("ratioRange").value)));
+}
+
+function updateCurve() {
+  const ratio = Number(document.getElementById("ratioRange").value);
+  const smooth = Number(document.getElementById("smoothRange").value) / 100;
+  document.getElementById("ratioText").textContent = ratio + "%";
+  document.getElementById("smoothText").textContent = smooth.toFixed(2);
+  const compensation = -(18.6 * ratio / 100);
+  const error = 18.6 + compensation;
+  document.getElementById("compValue").textContent = compensation.toFixed(1).replace("-", "−") + " μm";
+  document.getElementById("errorValue").textContent = (error >= 0 ? "+" : "") + error.toFixed(1) + " μm";
+  const risk = ratio > 100 ? "中" : "低";
+  const riskNode = document.getElementById("riskValue");
+  riskNode.textContent = risk;
+  riskNode.style.color = ratio > 100 ? "var(--amber)" : "var(--green)";
+  const stateNode = document.getElementById("curveState");
+  stateNode.textContent = ratio > 100 ? "留意過補" : "安全範圍";
+  stateNode.className = ratio > 100 ? "tag amber" : "tag green";
+  if (chartMap[3]) chartMap[3].setOption(curveOption(ratio), true);
+}
+
+function initValidation() {
+  const el = document.getElementById("validationChart");
+  if (!el || el.clientWidth < 1) return;
+  const opt = chartBase();
+  opt.tooltip.trigger = "axis";
+  opt.legend.data = ["補償前","補償後"];
+  opt.xAxis = { ...opt.xAxis, type:"category", name:"尺寸偏差 μm", data:["−24","−18","−12","−6","0","+6","+12","+18","+24"] };
+  opt.yAxis = { ...opt.yAxis, type:"value", name:"樣本數" };
+  opt.series = [
+    {name:"補償前",type:"bar",barGap:"-100%",barWidth:24,data:[2,5,8,9,10,9,8,6,3],itemStyle:{color:"rgba(207,63,79,.45)",borderRadius:[4,4,0,0]},markArea:{silent:true,itemStyle:{color:"rgba(19,138,103,.06)"},data:[[{xAxis:"−6"},{xAxis:"+6"}]]}},
+    {name:"補償後",type:"bar",barWidth:14,data:[0,0,1,9,31,18,1,0,0],itemStyle:{color:"#138a67",borderRadius:[4,4,0,0]}}
+  ];
+  chartMap[4] = echarts.init(el);
+  chartMap[4].setOption(opt);
+}
+
+const initializers = [initOverview, initAnalysis, initModel, initCurve, initValidation, function(){}];
+
+function show(index) {
+  const safeIndex = Math.max(0, Math.min(5, Number(index) || 0));
+  currentView = safeIndex;
+  viewNodes.forEach((view,indexValue) => view.classList.toggle("active", indexValue === safeIndex));
+  navNodes.forEach((button,indexValue) => {
+    button.classList.toggle("active", indexValue === safeIndex);
+    button.setAttribute("aria-current", indexValue === safeIndex ? "page" : "false");
+  });
+  requestAnimationFrame(() => {
+    if (!chartMap[safeIndex]) initializers[safeIndex]();
+    else chartMap[safeIndex].resize();
+  });
+}
+
+function indexFromHash() {
+  const match = location.hash.match(/(?:go=|v)([0-9]+)/);
+  return match ? Math.max(0, Math.min(5, Number(match[1]))) : 0;
+}
+
+function navigateTo(index) {
+  const nextHash = "#go=" + index;
+  if (location.hash === nextHash) show(index);
+  else location.hash = nextHash;
+}
+
+function notifyUser(message) {
+  const toastNode = document.getElementById("toast");
+  toastNode.textContent = message;
+  toastNode.classList.add("visible");
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => toastNode.classList.remove("visible"), 1800);
+}
+
+navNodes.forEach(button => button.addEventListener("click", () => navigateTo(Number(button.dataset.i))));
+window.addEventListener("hashchange", () => show(indexFromHash()));
+window.addEventListener("resize", () => {
+  Object.values(chartMap).forEach(chart => chart && chart.resize());
+});
+
+document.querySelectorAll("[data-model]").forEach(button => {
+  button.addEventListener("click", () => updateModel(button.dataset.model));
+});
+
+document.querySelectorAll(".segmented").forEach(group => {
+  group.querySelectorAll("button").forEach(button => {
+    button.addEventListener("click", () => {
+      group.querySelectorAll("button").forEach(item => item.classList.remove("on"));
+      button.classList.add("on");
+      notifyUser("分析區間已切換為「" + button.textContent + "」");
+    });
+  });
+});
+
+document.getElementById("ratioRange").addEventListener("input", updateCurve);
+document.getElementById("smoothRange").addEventListener("input", updateCurve);
+document.getElementById("resetCurve").addEventListener("click", () => {
+  document.getElementById("ratioRange").value = "92";
+  document.getElementById("smoothRange").value = "68";
+  updateCurve();
+  notifyUser("已還原模型建議參數");
+});
+
+document.querySelectorAll("[data-action]").forEach(button => {
+  button.addEventListener("click", () => {
+    const messages = {
+      refresh:"機台資料已重新讀取",
+      machine:"目前顯示 MC-05 高速加工中心",
+      export:"分析資料已準備匯出",
+      compare:"已載入三組候選模型",
+      apply:"已採用目前選取的熱變位模型",
+      draft:"補償曲線已儲存為草稿",
+      report:"驗證報告 VAL-0828 已建立",
+      approve:"品質驗證結果已確認",
+      reject:"已標記退回修訂",
+      history:"已顯示 TC-M05 版本歷程"
+    };
+    notifyUser(messages[button.dataset.action] || "操作已完成");
+  });
+});
+
+document.getElementById("publishButton").addEventListener("click", function() {
+  this.innerHTML = '<span class="material-symbols-outlined">check_circle</span>已核准發布';
+  this.disabled = true;
+  const pendingNode = document.getElementById("approvalPending");
+  pendingNode.classList.remove("pending");
+  document.getElementById("approvalTitle").textContent = "製造主管核准發布";
+  document.getElementById("approvalMeta").textContent = "製造主管 林志豪 · 2026/08/28 16:42";
+  notifyUser("TC-M05-2.5 已排定於 2026/08/29 06:00 生效");
+});
+
+show(0);
+if (location.hash) show(indexFromHash());
+</script>
+</body>
+</html>
