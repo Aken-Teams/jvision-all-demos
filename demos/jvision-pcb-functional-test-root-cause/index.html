@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<title>印刷電路板功能測試根因分析 · analytics-bi｜Jvision 系統 Demo</title>
+<style>
+:root{
+  --blue:#1e40af;
+  --ink:#13213c;
+  --body:#34425c;
+  --muted:#738098;
+  --line:#dce3ee;
+  --bg:#f5f7fb;
+  --green:#15803d;
+  --amber:#b45309;
+  --red:#c2413b;
+  --white:#fff;
+  --blue-soft:#eef3ff;
+  --shadow:0 12px 32px rgba(30,64,175,.08);
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--body);font-family:Inter,"Noto Sans TC",sans-serif}
+body{overflow-x:hidden}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(30,64,175,.28);outline-offset:2px}
+.material-symbols-outlined{font-size:22px;font-variation-settings:"FILL" 0,"wght" 500}
+.shell{min-height:100vh;display:grid;grid-template-columns:78px minmax(0,1fr)}
+.rail{position:fixed;inset:0 auto 0 0;width:78px;background:#11255f;color:#fff;display:flex;flex-direction:column;align-items:center;z-index:20}
+.brand{height:78px;width:100%;display:grid;place-items:center;border-bottom:1px solid rgba(255,255,255,.12)}
+.brand-mark{width:40px;height:40px;border-radius:13px;background:#fff;color:var(--blue);display:grid;place-items:center;font-weight:800;letter-spacing:-1px;box-shadow:0 8px 22px rgba(0,0,0,.2)}
+.rail-nav{padding:18px 0;display:flex;flex-direction:column;gap:9px;align-items:center;flex:1}
+.nav-btn{position:relative;width:48px;height:48px;border:0;border-radius:14px;background:transparent;color:#aebce8;display:grid;place-items:center}
+.nav-btn:hover{background:rgba(255,255,255,.09);color:#fff}
+.nav-btn.active{background:#fff;color:var(--blue);box-shadow:0 8px 18px rgba(0,0,0,.18)}
+.nav-btn::after{content:attr(aria-label);position:absolute;left:58px;padding:7px 10px;border-radius:8px;background:#0f1930;color:#fff;font-size:12px;white-space:nowrap;opacity:0;pointer-events:none;transform:translateX(-4px);transition:.18s}
+.nav-btn:hover::after{opacity:1;transform:none}
+.rail-user{margin-bottom:18px;width:38px;height:38px;border-radius:50%;background:#dbe6ff;color:var(--blue);display:grid;place-items:center;font-weight:800;font-size:13px}
+.main{grid-column:2;min-width:0}
+.header{height:78px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:12;backdrop-filter:blur(12px)}
+.header-title{display:flex;align-items:center;gap:14px;min-width:0}
+.header-title h1{font-size:18px;color:var(--ink);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-title p{font-size:12px;color:var(--muted);margin:3px 0 0}
+.header-actions{display:flex;align-items:center;gap:10px}
+.icon-btn{width:42px;height:42px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--body);display:grid;place-items:center}
+.live-pill{display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:99px;background:#ecfdf3;color:var(--green);font-size:12px;font-weight:700}
+.live-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.13)}
+.workspace{padding:25px 28px 40px;max-width:1680px;margin:auto}
+.screen{display:none;animation:rise .28s ease both}
+.screen.active{display:block}
+@keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:22px}
+.eyebrow{font-size:12px;color:var(--blue);font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px}
+.page-head h2{margin:0;color:var(--ink);font-size:26px;line-height:1.25}
+.page-head p{margin:7px 0 0;color:var(--muted);font-size:14px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:#fff;color:var(--body);min-height:42px;padding:0 15px;border-radius:11px;font-weight:700;font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 8px 18px rgba(30,64,175,.2)}
+.btn.soft{background:var(--blue-soft);border-color:#ccd8ff;color:var(--blue)}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 3px 12px rgba(20,33,60,.025)}
+.card-pad{padding:20px}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}
+.card-head h3{margin:0;color:var(--ink);font-size:16px}
+.card-head small{color:var(--muted)}
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.metric{padding:18px;position:relative;overflow:hidden}
+.metric::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--blue)}
+.metric-label{font-size:12px;color:var(--muted);font-weight:600}
+.metric-value{font-size:27px;color:var(--ink);font-weight:800;margin:8px 0 4px}
+.metric-note{font-size:12px;color:var(--green)}
+.metric-note.warn{color:var(--amber)}
+.grid-2{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.85fr);gap:18px}
+.grid-even{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.chart{height:285px;width:100%;min-width:0}
+.chart.tall{height:365px}
+.table-wrap{overflow:auto;border-radius:13px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;min-width:680px}
+th{text-align:left;padding:11px 14px;background:#f8faff;color:var(--muted);font-size:11px;letter-spacing:.04em}
+td{padding:13px 14px;border-top:1px solid var(--line);font-size:13px;color:var(--body)}
+tbody tr:hover{background:#f9fbff}
+.code{font-family:Inter,sans-serif;font-weight:800;color:var(--blue)}
+.badge{display:inline-flex;align-items:center;border-radius:99px;padding:5px 9px;font-size:11px;font-weight:700}
+.badge.red{background:#fff0ef;color:var(--red)}
+.badge.amber{background:#fff7e7;color:var(--amber)}
+.badge.green{background:#ebf8ef;color:var(--green)}
+.badge.blue{background:var(--blue-soft);color:var(--blue)}
+.filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.filter{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 12px;font-size:12px;color:var(--body)}
+.filter.active{background:var(--blue-soft);border-color:#bccbfc;color:var(--blue);font-weight:700}
+.alert-list{display:grid;gap:10px}
+.alert-row{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px}
+.alert-icon{width:36px;height:36px;border-radius:10px;background:#fff1ef;color:var(--red);display:grid;place-items:center}
+.alert-row strong{display:block;color:var(--ink);font-size:13px}
+.alert-row small{color:var(--muted);font-size:11px}
+.progress{height:7px;background:#e9edf4;border-radius:99px;overflow:hidden;margin-top:8px}
+.progress span{display:block;height:100%;border-radius:inherit;background:var(--blue)}
+.form-layout{display:grid;grid-template-columns:minmax(250px,.7fr) minmax(0,1.3fr);gap:18px}
+.stepper{padding:18px}
+.step-item{display:grid;grid-template-columns:34px 1fr;gap:11px;padding:10px 0;position:relative}
+.step-item:not(:last-child)::after{content:"";position:absolute;left:16px;top:43px;height:calc(100% - 24px);border-left:1px dashed #b9c5da}
+.step-num{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#edf1f7;color:var(--muted);font-size:12px;font-weight:800;z-index:1}
+.step-item.done .step-num{background:#eaf8ef;color:var(--green)}
+.step-item.current .step-num{background:var(--blue);color:#fff}
+.step-item strong{font-size:13px;color:var(--ink)}
+.step-item p{font-size:11px;color:var(--muted);margin:3px 0}
+.form-card{padding:22px}
+.form-section{padding-bottom:20px;margin-bottom:20px;border-bottom:1px solid var(--line)}
+.form-section:last-child{border:0;margin:0;padding:0}
+.form-section h3{margin:0 0 14px;color:var(--ink);font-size:15px}
+.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.field{display:grid;gap:7px}
+.field.full{grid-column:1/-1}
+.field label{font-size:12px;font-weight:700;color:var(--body)}
+.field input,.field select,.field textarea{border:1px solid var(--line);border-radius:10px;background:#fbfcfe;padding:11px 12px;color:var(--ink);min-width:0}
+.field textarea{min-height:78px;resize:vertical}
+.upload{border:1px dashed #9fb0d1;border-radius:12px;background:#f8faff;padding:18px;text-align:center}
+.upload .material-symbols-outlined{color:var(--blue);font-size:28px}
+.upload strong{display:block;color:var(--ink);font-size:13px;margin:4px}
+.upload span{font-size:11px;color:var(--muted)}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{padding:7px 10px;border-radius:8px;background:#f0f3f8;color:var(--body);font-size:11px;font-weight:700}
+.chip.selected{background:var(--blue-soft);color:var(--blue);box-shadow:inset 0 0 0 1px #c6d2fa}
+.graph-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(290px,.55fr);gap:18px}
+.graph-box{min-height:540px;position:relative;background:linear-gradient(#f5f7fb 1px,transparent 1px),linear-gradient(90deg,#f5f7fb 1px,transparent 1px);background-size:25px 25px}
+.graph-canvas{height:490px;width:100%}
+.graph-tools{position:absolute;top:16px;left:16px;display:flex;gap:7px;z-index:2}
+.graph-key{position:absolute;bottom:14px;left:16px;right:16px;background:rgba(255,255,255,.93);border:1px solid var(--line);border-radius:11px;padding:10px;display:flex;gap:14px;flex-wrap:wrap;font-size:11px}
+.key-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.evidence-panel{display:grid;gap:13px;align-content:start}
+.focus-box{padding:18px;background:#102459;color:#fff;border-radius:16px}
+.focus-box .muted-on-dark{color:#bac8ec;font-size:11px}
+.focus-box h3{margin:7px 0 4px;font-size:18px}
+.confidence{display:flex;align-items:end;justify-content:space-between;margin-top:17px}
+.confidence strong{font-size:28px}
+.evidence-item{padding:14px}
+.evidence-item strong{display:block;color:var(--ink);font-size:13px}
+.evidence-item p{margin:6px 0 0;font-size:11px;color:var(--muted);line-height:1.6}
+.rank-layout{display:grid;grid-template-columns:minmax(290px,.72fr) minmax(0,1.28fr);gap:18px}
+.candidate-list{padding:10px}
+.candidate{border:1px solid transparent;border-radius:13px;padding:14px;margin-bottom:8px;display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center;cursor:pointer}
+.candidate:hover{background:#f8faff}
+.candidate.active{background:var(--blue-soft);border-color:#c2cff8}
+.rank-num{font-size:12px;font-weight:800;color:var(--muted)}
+.score-ring{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--blue) var(--pct),#e5e9f1 0);position:relative}
+.score-ring::before{content:"";position:absolute;inset:5px;background:#fff;border-radius:50%}
+.score-ring b{position:relative;font-size:10px;color:var(--ink)}
+.candidate.active .score-ring::before{background:var(--blue-soft)}
+.candidate strong{display:block;color:var(--ink);font-size:13px}
+.candidate small{color:var(--muted);font-size:11px}
+.detail-tabs{display:flex;border-bottom:1px solid var(--line);gap:20px;margin-bottom:16px}
+.detail-tab{border:0;background:none;padding:0 2px 11px;color:var(--muted);font-size:12px;font-weight:700}
+.detail-tab.active{color:var(--blue);border-bottom:2px solid var(--blue)}
+.evidence-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.proof{border-radius:12px;padding:14px}
+.proof.support{background:#f0faf3;border:1px solid #cdebd6}
+.proof.counter{background:#fff7ed;border:1px solid #fedab0}
+.proof h4{margin:0 0 9px;font-size:13px;color:var(--ink)}
+.proof ul{margin:0;padding-left:18px;color:var(--body);font-size:12px;line-height:1.8}
+.rule-box{margin-top:15px;border-left:3px solid var(--blue);background:#f7f9fd;padding:13px 15px;font-size:12px;line-height:1.65}
+.plan-board{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(290px,.85fr);gap:18px}
+.timeline{padding:21px}
+.task{display:grid;grid-template-columns:28px 1fr auto;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);align-items:start}
+.task:last-child{border:0}
+.check{width:25px;height:25px;border:2px solid #b5c0d2;border-radius:7px;background:#fff;display:grid;place-items:center;color:#fff;padding:0}
+.check.done{background:var(--green);border-color:var(--green)}
+.check.active{background:var(--blue);border-color:var(--blue)}
+.task strong{font-size:13px;color:var(--ink)}
+.task p{font-size:11px;color:var(--muted);margin:4px 0}
+.result-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:17px}
+.result{border:1px solid var(--line);border-radius:12px;padding:13px}
+.result span{font-size:10px;color:var(--muted)}
+.result strong{display:block;font-size:19px;color:var(--ink);margin-top:4px}
+.condition-table{display:grid;gap:9px}
+.condition{display:grid;grid-template-columns:1fr auto;gap:10px;padding:12px;background:#f8faff;border-radius:10px;font-size:12px}
+.activity{border-left:2px solid #d9e1ef;margin-left:8px;padding-left:18px;display:grid;gap:17px}
+.activity-item{position:relative}
+.activity-item::before{content:"";position:absolute;width:9px;height:9px;border-radius:50%;background:var(--blue);left:-24px;top:4px;box-shadow:0 0 0 4px #edf2ff}
+.activity-item strong{font-size:12px;color:var(--ink)}
+.activity-item p{font-size:11px;color:var(--muted);margin:4px 0}
+.library-hero{background:linear-gradient(120deg,#102459,#1e40af);color:#fff;border-radius:18px;padding:26px;display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;margin-bottom:18px;box-shadow:var(--shadow)}
+.library-hero h2{margin:5px 0 8px;font-size:25px}
+.library-hero p{margin:0;color:#c8d4f5;font-size:13px;max-width:690px;line-height:1.7}
+.search{margin-top:17px;max-width:620px;background:#fff;border-radius:12px;padding:5px;display:flex;align-items:center}
+.search .material-symbols-outlined{color:var(--muted);margin-left:8px}
+.search input{border:0;outline:0;min-width:0;flex:1;padding:9px;color:var(--ink)}
+.search button{border:0;background:var(--blue);color:#fff;padding:10px 15px;border-radius:9px;font-weight:700}
+.hero-stat{text-align:center;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.17);border-radius:15px;padding:20px;min-width:150px}
+.hero-stat strong{display:block;font-size:32px}
+.hero-stat span{font-size:11px;color:#c8d4f5}
+.library-layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr);gap:18px}
+.case-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.case-card{padding:17px}
+.case-top{display:flex;justify-content:space-between;gap:10px;align-items:start}
+.case-card h3{font-size:14px;color:var(--ink);margin:9px 0 7px}
+.case-card p{font-size:11px;color:var(--muted);line-height:1.65;margin:0 0 12px}
+.case-meta{display:flex;justify-content:space-between;gap:8px;padding-top:11px;border-top:1px solid var(--line);font-size:10px;color:var(--muted)}
+.tag-cloud{display:flex;gap:7px;flex-wrap:wrap}
+.rule-list{display:grid;gap:10px}
+.rule{border:1px solid var(--line);border-radius:11px;padding:13px}
+.rule strong{font-size:11px;color:var(--blue)}
+.rule p{font-size:11px;color:var(--body);line-height:1.6;margin:5px 0}
+.rule small{font-size:10px;color:var(--muted)}
+.toast{position:fixed;right:24px;bottom:24px;background:#12203b;color:#fff;padding:12px 16px;border-radius:11px;box-shadow:0 12px 30px rgba(0,0,0,.25);font-size:12px;opacity:0;transform:translateY(10px);pointer-events:none;transition:.22s;z-index:50}
+.toast.open{opacity:1;transform:none}
+@media(max-width:1050px){
+  .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid-2,.form-layout,.graph-layout,.rank-layout,.plan-board,.library-layout{grid-template-columns:1fr}
+  .graph-box{min-height:480px}
+  .graph-canvas{height:430px}
+}
+@media(max-width:720px){
+  .shell{display:block;padding-bottom:74px}
+  .main{display:block}
+  .rail{width:100%;height:68px;inset:auto 0 0;flex-direction:row;border-top:1px solid rgba(255,255,255,.12)}
+  .brand,.rail-user{display:none}
+  .rail-nav{padding:0 8px;flex-direction:row;justify-content:space-around;width:100%;gap:2px}
+  .nav-btn{width:46px;height:44px}
+  .nav-btn::after{display:none}
+  .header{height:68px;padding:0 16px}
+  .header-title h1{font-size:15px}
+  .header-title p,.live-pill{display:none}
+  .workspace{padding:18px 14px 28px}
+  .page-head{align-items:flex-start;flex-direction:column}
+  .page-head h2{font-size:22px}
+  .metric-grid,.grid-even,.field-grid,.evidence-columns,.result-cards,.case-grid{grid-template-columns:1fr}
+  .actions{width:100%}
+  .actions .btn{flex:1}
+  .library-hero{grid-template-columns:1fr;padding:20px}
+  .hero-stat{display:none}
+  .graph-box{min-height:420px}
+  .graph-canvas{height:370px}
+  .task{grid-template-columns:28px 1fr}
+  .task>.badge{grid-column:2}
+}
+@media(max-width:420px){
+  .metric-grid{grid-template-columns:1fr 1fr;gap:9px}
+  .metric{padding:14px}
+  .metric-value{font-size:21px}
+  .header-actions .icon-btn:first-child{display:none}
+  .card-pad{padding:15px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail" aria-label="分析流程導覽">
+    <div class="brand"><div class="brand-mark">JV</div></div>
+    <nav class="rail-nav">
+      <button class="nav-btn" data-i="0" aria-label="失敗案件總覽"><span class="material-symbols-outlined">dashboard</span></button>
+      <button class="nav-btn" data-i="1" aria-label="案件資料建檔"><span class="material-symbols-outlined">note_add</span></button>
+      <button class="nav-btn" data-i="2" aria-label="關聯證據圖譜"><span class="material-symbols-outlined">hub</span></button>
+      <button class="nav-btn" data-i="3" aria-label="根因候選排序"><span class="material-symbols-outlined">manage_search</span></button>
+      <button class="nav-btn" data-i="4" aria-label="驗證計畫管理"><span class="material-symbols-outlined">science</span></button>
+      <button class="nav-btn" data-i="5" aria-label="根因案例知識庫"><span class="material-symbols-outlined">menu_book</span></button>
+    </nav>
+    <div class="rail-user">PE</div>
+  </aside>
+
+  <main class="main">
+    <header class="header">
+      <div class="header-title">
+        <span class="material-symbols-outlined" style="color:var(--blue)">developer_board</span>
+        <div>
+          <h1>印刷電路板功能測試根因分析</h1>
+          <p>PCB Functional Test RCA · BI 商業智慧</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="live-pill"><span class="live-dot"></span>資料已同步</div>
+        <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+        <button class="icon-btn" aria-label="說明"><span class="material-symbols-outlined">help</span></button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <section class="screen" id="view0">
+        <div class="page-head">
+          <div><div class="eyebrow">01 · 品質主管工作台</div><h2>失敗案件總覽</h2><p>盤點影響批次、症狀分布與高優先分析案件。</p></div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">download</span>匯出週報</button><button class="btn primary" onclick="goView(1)"><span class="material-symbols-outlined">add</span>建立分析案件</button></div>
+        </div>
+        <div class="metric-grid">
+          <article class="card metric"><div class="metric-label">待分析失敗案件數</div><div class="metric-value">18</div><div class="metric-note warn">較上週 +3 件</div></article>
+          <article class="card metric"><div class="metric-label">平均根因確認時間</div><div class="metric-value">1.8 天</div><div class="metric-note">改善 0.6 天</div></article>
+          <article class="card metric"><div class="metric-label">候選原因命中率</div><div class="metric-value">84.6%</div><div class="metric-note">本月 +5.2%</div></article>
+          <article class="card metric"><div class="metric-label">受影響板件</div><div class="metric-value">426</div><div class="metric-note warn">集中於 LOT-24A7</div></article>
+        </div>
+        <div class="grid-2">
+          <article class="card card-pad">
+            <div class="card-head"><div><h3>近六週失敗趨勢</h3><small>依功能測試站別與主要症狀彙整</small></div><span class="badge blue">即時分析</span></div>
+            <div id="trendChart" class="chart"></div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-head"><h3>需優先處理</h3><small>風險加權排序</small></div>
+            <div class="alert-list">
+              <div class="alert-row"><div class="alert-icon"><span class="material-symbols-outlined">warning</span></div><div><strong>5V Rail 電壓異常</strong><small>LOT-24A7 · 87 pcs · FCT-03</small><div class="progress"><span style="width:88%"></span></div></div><span class="badge red">P1</span></div>
+              <div class="alert-row"><div class="alert-icon"><span class="material-symbols-outlined">memory</span></div><div><strong>MCU Boot Timeout</strong><small>FW 3.14.2 · 46 pcs · FCT-01</small><div class="progress"><span style="width:71%"></span></div></div><span class="badge red">P1</span></div>
+              <div class="alert-row"><div class="alert-icon" style="background:#fff7e7;color:var(--amber)"><span class="material-symbols-outlined">usb</span></div><div><strong>USB Enumeration Fail</strong><small>Line B · 31 pcs · Shift N</small><div class="progress"><span style="width:54%"></span></div></div><span class="badge amber">P2</span></div>
+            </div>
+          </article>
+        </div>
+        <article class="card card-pad" style="margin-top:18px">
+          <div class="card-head"><h3>案件佇列</h3><small>最後更新 14:26</small></div>
+          <div class="filters"><button class="filter active">全部 18</button><button class="filter">處理中 6</button><button class="filter">待確認 7</button><button class="filter">已完成 5</button></div>
+          <div class="table-wrap"><table><thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead><tbody>
+            <tr><td class="code">PCB-001</td><td>盤點失敗案件</td><td>品質主管</td><td>D+1</td><td><span class="badge blue">處理中</span></td></tr>
+            <tr><td class="code">PCB-002</td><td>建立分析案件</td><td>測試工程師</td><td>D+2</td><td><span class="badge amber">待確認</span></td></tr>
+            <tr><td class="code">PCB-003</td><td>探索關聯證據</td><td>產品工程師</td><td>D+3</td><td><span class="badge amber">待確認</span></td></tr>
+            <tr><td class="code">PCB-004</td><td>評估根因候選</td><td>資深產品工程師</td><td>D+4</td><td><span class="badge green">已完成</span></td></tr>
+          </tbody></table></div>
+        </article>
+      </section>
+
+      <section class="screen" id="view1">
+        <div class="page-head">
+          <div><div class="eyebrow">02 · 測試工程師工作台</div><h2>建立分析案件</h2><p>整理測試紀錄、韌體版本、物料批次與跨站製程履歷。</p></div>
+          <div class="actions"><button class="btn" onclick="demoToast('草稿已儲存')">儲存草稿</button><button class="btn primary" onclick="goView(2)">送出並探索證據</button></div>
+        </div>
+        <div class="form-layout">
+          <aside class="card stepper">
+            <div class="card-head"><h3>建檔進度</h3><span class="badge blue">72%</span></div>
+            <div class="step-item done"><div class="step-num">✓</div><div><strong>基本資料</strong><p>案件、產品與影響範圍</p></div></div>
+            <div class="step-item done"><div class="step-num">✓</div><div><strong>失敗症狀</strong><p>測試步驟與量測結果</p></div></div>
+            <div class="step-item current"><div class="step-num">3</div><div><strong>版本與物料</strong><p>韌體、BOM 與供應批次</p></div></div>
+            <div class="step-item"><div class="step-num">4</div><div><strong>製程履歷</strong><p>SMT、AOI、ICT 與返修紀錄</p></div></div>
+            <div class="step-item"><div class="step-num">5</div><div><strong>確認送出</strong><p>檢核資料完整度</p></div></div>
+            <div style="margin-top:20px;padding:14px;background:#f8faff;border-radius:12px">
+              <div class="metric-label">案件完整度</div><div class="progress" style="height:9px"><span style="width:72%"></span></div>
+              <p style="font-size:11px;color:var(--muted);margin:9px 0 0">尚缺：鋼網編號、回焊爐溫曲線</p>
+            </div>
+          </aside>
+          <article class="card form-card">
+            <div class="form-section">
+              <h3>案件識別與失敗現象</h3>
+              <div class="field-grid">
+                <div class="field"><label>案件編號</label><input value="PCB-2026-0828-017" readonly></div>
+                <div class="field"><label>產品型號</label><select><option>JV-CtrlBoard X8 Rev.C</option></select></div>
+                <div class="field"><label>測試站</label><select><option>FCT-03 終測站</option></select></div>
+                <div class="field"><label>影響批次</label><input value="LOT-24A7"></div>
+                <div class="field full"><label>失敗症狀</label><textarea>TP5 之 5V Rail 在負載啟動後降至 4.31V，持續 180ms 後系統重啟；重測 3 次均可重現。</textarea></div>
+              </div>
+            </div>
+            <div class="form-section">
+              <h3>韌體與物料追溯</h3>
+              <div class="field-grid">
+                <div class="field"><label>韌體版本</label><input value="FW 3.14.2 / Boot 1.8.0"></div>
+                <div class="field"><label>BOM 版本</label><input value="BOM-C-07"></div>
+                <div class="field full"><label>疑似關聯元件</label><div class="chips"><span class="chip selected">U17 · TPS62130</span><span class="chip selected">C214 · 22µF</span><span class="chip">L12 · 2.2µH</span><span class="chip">U3 · STM32H7</span><span class="chip">+ 加入元件</span></div></div>
+              </div>
+            </div>
+            <div class="form-section">
+              <h3>跨站附件</h3>
+              <div class="upload"><span class="material-symbols-outlined">cloud_upload</span><strong>拖放測試 Log、爐溫曲線或 AOI 影像</strong><span>已連結 14 份測試紀錄與 3 張 AOI 影像</span></div>
+              <div class="chips" style="margin-top:11px"><span class="chip selected">fct_017.log · 2.4MB</span><span class="chip selected">aoi_u17.png · 840KB</span><span class="chip selected">ict_lot24a7.csv · 1.1MB</span></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen" id="view2">
+        <div class="page-head">
+          <div><div class="eyebrow">03 · 產品工程師工作台</div><h2>關聯證據圖譜</h2><p>從失敗症狀向外追查共同元件、物料批次與製程條件。</p></div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">filter_alt</span>篩選關係</button><button class="btn primary" onclick="goView(3)">產生候選排序</button></div>
+        </div>
+        <div class="graph-layout">
+          <article class="card graph-box">
+            <div class="graph-tools"><button class="icon-btn" aria-label="放大"><span class="material-symbols-outlined">add</span></button><button class="icon-btn" aria-label="縮小"><span class="material-symbols-outlined">remove</span></button><button class="icon-btn" aria-label="置中"><span class="material-symbols-outlined">center_focus_strong</span></button></div>
+            <div id="relationChart" class="graph-canvas"></div>
+            <div class="graph-key"><span><i class="key-dot" style="background:#c2413b"></i>失敗症狀</span><span><i class="key-dot" style="background:#1e40af"></i>元件</span><span><i class="key-dot" style="background:#b45309"></i>物料批次</span><span><i class="key-dot" style="background:#15803d"></i>製程條件</span><span><i class="key-dot" style="background:#68748b"></i>版本／站別</span></div>
+          </article>
+          <aside class="evidence-panel">
+            <div class="focus-box"><div class="muted-on-dark">目前焦點節點</div><h3>U17 · TPS62130</h3><div class="muted-on-dark">5V 降壓電源 IC · Vendor K</div><div class="confidence"><span>關聯強度</span><strong>0.87</strong></div></div>
+            <article class="card evidence-item"><strong>共同出現於 13 / 15 件異常</strong><p>相同 D/C 2419 物料批次，且皆在負載切換步驟出現電壓下降。</p></article>
+            <article class="card evidence-item"><strong>回焊峰值溫度偏低</strong><p>Line B 夜班平均 238.2°C，較製程中心值低 5.8°C。</p></article>
+            <article class="card evidence-item"><strong>反證：ICT 靜態量測正常</strong><p>U17 周邊阻抗與空載輸出均通過，需進一步執行動態負載驗證。</p></article>
+            <button class="btn soft" onclick="demoToast('已將 3 項證據加入案件')"><span class="material-symbols-outlined">add_link</span>加入案件證據</button>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" id="view3">
+        <div class="page-head">
+          <div><div class="eyebrow">04 · 資深產品工程師工作台</div><h2>根因候選排序</h2><p>比較候選原因的支持證據、反證與可信程度。</p></div>
+          <div class="actions"><button class="btn">調整權重</button><button class="btn primary" onclick="goView(4)">建立驗證計畫</button></div>
+        </div>
+        <div class="rank-layout">
+          <article class="card candidate-list">
+            <div class="card-head" style="padding:8px 6px 4px"><h3>候選原因</h3><small>模型 RCA-2.6</small></div>
+            <div class="candidate active" data-candidate="0"><div class="rank-num">01</div><div><strong>U17 焊點潤濕不足</strong><small>7 項支持 · 1 項反證</small></div><div class="score-ring" style="--pct:87%"><b>87%</b></div></div>
+            <div class="candidate" data-candidate="1"><div class="rank-num">02</div><div><strong>C214 容值批次偏移</strong><small>5 項支持 · 2 項反證</small></div><div class="score-ring" style="--pct:71%"><b>71%</b></div></div>
+            <div class="candidate" data-candidate="2"><div class="rank-num">03</div><div><strong>FW 3.14.2 負載時序</strong><small>4 項支持 · 3 項反證</small></div><div class="score-ring" style="--pct:58%"><b>58%</b></div></div>
+            <div class="candidate" data-candidate="3"><div class="rank-num">04</div><div><strong>FCT-03 治具接觸阻抗</strong><small>2 項支持 · 4 項反證</small></div><div class="score-ring" style="--pct:34%"><b>34%</b></div></div>
+          </article>
+          <div style="display:grid;gap:18px">
+            <article class="card card-pad">
+              <div class="card-head"><div><h3 id="candidateTitle">U17 焊點潤濕不足</h3><small>依證據一致性與歷史案例相似度計算</small></div><span class="badge blue">首要驗證</span></div>
+              <div class="detail-tabs"><button class="detail-tab active">證據解析</button><button class="detail-tab">相似案例 6</button><button class="detail-tab">推理路徑</button></div>
+              <div class="evidence-columns">
+                <div class="proof support"><h4>支持證據</h4><ul><li>13 件異常使用同一 U17 物料批次</li><li>Line B 夜班爐溫低於中心值</li><li>X-Ray 顯示 4 件空洞率超過 28%</li><li>按壓 U17 後 3 件可暫時恢復</li></ul></div>
+                <div class="proof counter"><h4>反證與缺口</h4><ul><li>ICT 靜態電壓與阻抗正常</li><li>尚未取得 2 件良品的 X-Ray 對照</li><li>需排除 C214 ESR 共同影響</li></ul></div>
+              </div>
+              <div class="rule-box"><strong>判讀建議：</strong>優先執行 U17 重焊 A/B 對照；若 5V Rail 恢復且負載時序不變，可將可信度提升至 95% 以上。</div>
+            </article>
+            <article class="card card-pad">
+              <div class="card-head"><h3>證據貢獻度</h3><small>正值支持、負值反證</small></div>
+              <div id="evidenceChart" class="chart" style="height:230px"></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="view4">
+        <div class="page-head">
+          <div><div class="eyebrow">05 · 製程工程師工作台</div><h2>驗證計畫管理</h2><p>以替換、重測與條件對照確認候選根因。</p></div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">print</span>列印工單</button><button class="btn primary" onclick="demoToast('驗證結果已送審')">送出驗證結果</button></div>
+        </div>
+        <div class="plan-board">
+          <article class="card timeline">
+            <div class="card-head"><div><h3>VP-0828-04 · U17 重焊對照</h3><small>執行者：製程工程師 林冠宇</small></div><span class="badge blue">執行中</span></div>
+            <div class="task"><button class="check done" aria-label="已完成"><span class="material-symbols-outlined" style="font-size:16px">check</span></button><div><strong>鎖定樣本與建立基準</strong><p>失敗樣本 8 pcs、良品對照 4 pcs；記錄原始 5V 波形。</p></div><span class="badge green">完成 09:18</span></div>
+            <div class="task"><button class="check done" aria-label="已完成"><span class="material-symbols-outlined" style="font-size:16px">check</span></button><div><strong>X-Ray 焊點檢查</strong><p>8 件中 6 件 U17 exposed pad 空洞率超過 25%。</p></div><span class="badge green">完成 10:42</span></div>
+            <div class="task"><button class="check active" aria-label="執行中"><span class="material-symbols-outlined" style="font-size:16px">play_arrow</span></button><div><strong>U17 重焊與清潔</strong><p>依標準曲線重焊 4 件，保留 4 件作未處置對照。</p></div><span class="badge blue">3 / 4</span></div>
+            <div class="task"><button class="check" aria-label="待執行"></button><div><strong>負載循環重測</strong><p>每件執行 50 次 Cold Boot 與峰值負載切換。</p></div><span class="badge amber">待執行</span></div>
+            <div class="task"><button class="check" aria-label="待執行"></button><div><strong>確認結論與風險範圍</strong><p>比較處置組、對照組與良品組的通過率。</p></div><span class="badge amber">待執行</span></div>
+            <div class="result-cards"><div class="result"><span>已完成樣本</span><strong>7 / 12</strong></div><div class="result"><span>重焊後通過率</span><strong>100%</strong></div><div class="result"><span>預估完成</span><strong>16:30</strong></div></div>
+          </article>
+          <div style="display:grid;gap:18px;align-content:start">
+            <article class="card card-pad">
+              <div class="card-head"><h3>實驗條件</h3><button class="btn" style="min-height:34px">編輯</button></div>
+              <div class="condition-table">
+                <div class="condition"><span>回焊峰值</span><strong>244 ± 2°C</strong></div>
+                <div class="condition"><span>持溫時間</span><strong>54 秒</strong></div>
+                <div class="condition"><span>測試治具</span><strong>FCT-03 / JIG-08</strong></div>
+                <div class="condition"><span>韌體版本</span><strong>3.14.2</strong></div>
+                <div class="condition"><span>判定門檻</span><strong>5V ≥ 4.75V</strong></div>
+              </div>
+            </article>
+            <article class="card card-pad">
+              <div class="card-head"><h3>操作紀錄</h3><small>可追溯</small></div>
+              <div class="activity">
+                <div class="activity-item"><strong>重焊樣本 S-04 已通過</strong><p>14:22 · 林冠宇 · 50 次循環無異常</p></div>
+                <div class="activity-item"><strong>上傳 X-Ray 檢查報告</strong><p>10:47 · 陳品妤 · 8 張影像</p></div>
+                <div class="activity-item"><strong>品質主管核准樣本範圍</strong><p>09:06 · 王雅婷</p></div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="view5">
+        <div class="library-hero">
+          <div><div class="eyebrow" style="color:#a9bfff">06 · 知識管理人員工作台</div><h2>根因案例知識庫</h2><p>保存已確認根因、驗證證據與處置方式，讓相似案件可被快速查詢與重用。</p><div class="search"><span class="material-symbols-outlined">search</span><input id="caseSearch" value="5V Rail 電壓異常" aria-label="搜尋案例"><button onclick="searchCases()">搜尋</button></div></div>
+          <div class="hero-stat"><strong>128</strong><span>已核准根因案例</span></div>
+        </div>
+        <div class="library-layout">
+          <div>
+            <div class="page-head" style="margin-bottom:13px"><div><h2 style="font-size:19px">相似案例</h2><p>依症狀、元件、物料與製程條件排序</p></div><span class="badge blue">找到 6 筆</span></div>
+            <div class="case-grid">
+              <article class="card case-card"><div class="case-top"><span class="code">RCA-2025-119</span><span class="badge green">相似度 94%</span></div><h3>DC/DC exposed pad 空洞造成瞬時壓降</h3><p>TPS62130 在高負載切換時輸出跌落，X-Ray 確認散熱焊盤空洞率 31%，重焊後恢復。</p><div class="chips"><span class="chip">U17</span><span class="chip">回焊</span><span class="chip">5V Rail</span></div><div class="case-meta"><span>產品 X7 Rev.B</span><span>2025-11-18</span></div></article>
+              <article class="card case-card"><div class="case-top"><span class="code">RCA-2026-034</span><span class="badge green">相似度 88%</span></div><h3>輸出電容 ESR 偏高導致啟動重置</h3><p>C214 供應批次 ESR 超出內控中心值，常溫靜態測試正常，但冷啟動負載測試失敗。</p><div class="chips"><span class="chip">C214</span><span class="chip">ESR</span><span class="chip">Cold Boot</span></div><div class="case-meta"><span>產品 X8 Rev.A</span><span>2026-03-09</span></div></article>
+              <article class="card case-card"><div class="case-top"><span class="code">RCA-2024-087</span><span class="badge amber">相似度 76%</span></div><h3>回焊爐溫偏低造成電源 IC 間歇開路</h3><p>夜班換線後未套用正確曲線，峰值溫度低 7°C；受影響板件集中在 42 分鐘窗口。</p><div class="chips"><span class="chip">Line B</span><span class="chip">爐溫</span><span class="chip">夜班</span></div><div class="case-meta"><span>產品 C4 Rev.D</span><span>2024-08-21</span></div></article>
+              <article class="card case-card"><div class="case-top"><span class="code">RCA-2026-061</span><span class="badge amber">相似度 69%</span></div><h3>測試治具供電接點磨耗造成誤判</h3><p>JIG-05 pogo pin 接觸阻抗升高，替換治具後測試通過；板上量測未發現異常。</p><div class="chips"><span class="chip">FCT</span><span class="chip">治具</span><span class="chip">接觸阻抗</span></div><div class="case-meta"><span>產品 X8 Rev.C</span><span>2026-06-02</span></div></article>
+            </div>
+          </div>
+          <aside style="display:grid;gap:18px;align-content:start">
+            <article class="card card-pad"><div class="card-head"><h3>熱門分類</h3><small>近 90 天</small></div><div class="tag-cloud"><span class="chip selected">電源異常 31</span><span class="chip">韌體 24</span><span class="chip">焊接 22</span><span class="chip">元件批次 18</span><span class="chip">治具 14</span><span class="chip">訊號完整性 11</span></div></article>
+            <article class="card card-pad">
+              <div class="card-head"><h3>判讀規則</h3><span class="badge blue">3 條</span></div>
+              <div class="rule-list">
+                <div class="rule"><strong>RULE-01</strong><p>品質主管盤點影響批次、症狀分布及高優先分析案件。</p><small>依據：待分析失敗案件數</small></div>
+                <div class="rule"><strong>RULE-02</strong><p>測試工程師整理模擬測試紀錄、韌體版本與製程履歷。</p><small>依據：平均根因確認時間</small></div>
+                <div class="rule"><strong>RULE-03</strong><p>產品工程師從圖譜追查共同元件、物料與製程條件。</p><small>依據：候選原因命中率</small></div>
+              </div>
+            </article>
+          </aside>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+const chartStore = {};
+const navLabels = [
+  "失敗案件總覽",
+  "案件資料建檔",
+  "關聯證據圖譜",
+  "根因候選排序",
+  "驗證計畫管理",
+  "根因案例知識庫"
+];
+
+function goView(viewIndex){
+  window.location.hash = "go=" + viewIndex;
+}
+
+function show(viewIndex){
+  const safeIndex = Math.max(0, Math.min(5, Number(viewIndex) || 0));
+  document.querySelectorAll(".screen").forEach((panel, panelIndex) => {
+    panel.classList.toggle("active", panelIndex === safeIndex);
+  });
+  document.querySelectorAll(".nav-btn").forEach((control, controlIndex) => {
+    control.classList.toggle("active", controlIndex === safeIndex);
+    control.setAttribute("aria-current", controlIndex === safeIndex ? "page" : "false");
+  });
+  document.title = navLabels[safeIndex] + "｜印刷電路板功能測試根因分析 · Jvision";
+  requestAnimationFrame(() => initChartFor(safeIndex));
+}
+
+function readHash(){
+  const matched = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+  show(matched ? Number(matched[1]) : 0);
+}
+
+function initChartFor(viewIndex){
+  if(typeof echarts === "undefined") return;
+  if(viewIndex === 0) initTrendChart();
+  if(viewIndex === 2) initRelationChart();
+  if(viewIndex === 3) initEvidenceChart();
+}
+
+function chartReady(elementId){
+  const element = document.getElementById(elementId);
+  return element && element.clientWidth > 0 ? element : null;
+}
+
+function initTrendChart(){
+  const element = chartReady("trendChart");
+  if(!element) return;
+  if(!chartStore.trend) chartStore.trend = echarts.init(element);
+  chartStore.trend.setOption({
+    animationDuration:700,
+    tooltip:{trigger:"axis"},
+    legend:{bottom:0,textStyle:{color:"#738098",fontSize:11}},
+    grid:{left:42,right:18,top:22,bottom:48},
+    xAxis:{type:"category",data:["W1","W2","W3","W4","W5","W6"],axisLine:{lineStyle:{color:"#dce3ee"}},axisLabel:{color:"#738098"}},
+    yAxis:[
+      {type:"value",name:"案件數",min:0,max:30,splitLine:{lineStyle:{color:"#edf0f5"}},axisLabel:{color:"#738098"}},
+      {type:"value",name:"天",min:0,max:4,splitLine:{show:false},axisLabel:{color:"#738098"}}
+    ],
+    series:[
+      {name:"失敗案件",type:"bar",barWidth:18,data:[26,24,23,21,20,18],itemStyle:{color:"#9db3ef",borderRadius:[5,5,0,0]}},
+      {name:"異常發現時效",type:"line",yAxisIndex:1,smooth:true,data:[3,2.6,2.2,1.8,1.4,1],symbolSize:8,lineStyle:{width:3,color:"#1e40af"},itemStyle:{color:"#1e40af"},areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"rgba(30,64,175,.25)"},{offset:1,color:"rgba(30,64,175,.02)"}]}}}
+    ]
+  });
+  chartStore.trend.resize();
+}
+
+function initRelationChart(){
+  const element = chartReady("relationChart");
+  if(!element) return;
+  if(!chartStore.relation) chartStore.relation = echarts.init(element);
+  const graphNodes = [
+    {id:"symptom",labelText:"5V Rail\n電壓異常",category:0,symbolSize:74},
+    {id:"u17",labelText:"U17\nTPS62130",category:1,symbolSize:66},
+    {id:"c214",labelText:"C214\n22µF",category:1,symbolSize:50},
+    {id:"lot",labelText:"D/C 2419\nVendor K",category:2,symbolSize:59},
+    {id:"reflow",labelText:"回焊峰值\n238.2°C",category:3,symbolSize:57},
+    {id:"line",labelText:"Line B\n夜班",category:3,symbolSize:49},
+    {id:"fw",labelText:"FW\n3.14.2",category:4,symbolSize:50},
+    {id:"fct",labelText:"FCT-03",category:4,symbolSize:45},
+    {id:"boot",labelText:"Boot\nTimeout",category:0,symbolSize:48}
+  ];
+  const graphLinks = [
+    {source:"symptom",target:"u17",value:"13/15 件"},
+    {source:"symptom",target:"c214",value:"9/15 件"},
+    {source:"symptom",target:"fw",value:"11/15 件"},
+    {source:"u17",target:"lot",value:"同批物料"},
+    {source:"u17",target:"reflow",value:"焊點關聯"},
+    {source:"reflow",target:"line",value:"製程窗口"},
+    {source:"symptom",target:"fct",value:"集中站別"},
+    {source:"fw",target:"boot",value:"時序事件"},
+    {source:"c214",target:"lot",value:"共同供應商"}
+  ];
+  chartStore.relation.setOption({
+    tooltip:{formatter:item => item.dataType === "edge" ? item.data.value : item.data.labelText.replace("\n"," ")},
+    color:["#c2413b","#1e40af","#b45309","#15803d","#68748b"],
+    series:[{
+      type:"graph",layout:"force",roam:true,draggable:true,data:graphNodes.map(node => ({...node,name:node.labelText})),links:graphLinks,
+      categories:[{name:"失敗症狀"},{name:"元件"},{name:"物料批次"},{name:"製程條件"},{name:"版本／站別"}],
+      force:{repulsion:340,edgeLength:[90,145],gravity:.08},
+      label:{show:true,color:"#fff",fontSize:10,fontWeight:700,lineHeight:14},
+      edgeLabel:{show:true,formatter:"{c}",color:"#738098",fontSize:9},
+      lineStyle:{color:"source",curveness:.08,opacity:.45,width:2},
+      emphasis:{focus:"adjacency",lineStyle:{width:4,opacity:.9}}
+    }]
+  });
+  chartStore.relation.resize();
+}
+
+function initEvidenceChart(){
+  const element = chartReady("evidenceChart");
+  if(!element) return;
+  if(!chartStore.evidence) chartStore.evidence = echarts.init(element);
+  chartStore.evidence.setOption({
+    tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},
+    grid:{left:126,right:26,top:8,bottom:25},
+    xAxis:{type:"value",min:-20,max:40,splitLine:{lineStyle:{color:"#edf0f5"}},axisLabel:{color:"#738098",formatter:"{value}%"}},
+    yAxis:{type:"category",data:["ICT 靜態正常","按壓暫時恢復","X-Ray 空洞率","爐溫偏低","共同物料批次"],axisLine:{show:false},axisTick:{show:false},axisLabel:{color:"#34425c",fontSize:10}},
+    series:[{type:"bar",data:[
+      {value:-12,itemStyle:{color:"#d97706"}},
+      {value:15,itemStyle:{color:"#6b8cdc"}},
+      {value:24,itemStyle:{color:"#496dc9"}},
+      {value:27,itemStyle:{color:"#3155bb"}},
+      {value:34,itemStyle:{color:"#1e40af"}}
+    ],barWidth:15,label:{show:true,position:"right",formatter:"{c}%",fontSize:10,color:"#34425c"}}]
+  });
+  chartStore.evidence.resize();
+}
+
+let toastFrame;
+function demoToast(messageText){
+  const toastElement = document.getElementById("toast");
+  toastElement.textContent = messageText;
+  toastElement.classList.add("open");
+  if(toastFrame) cancelAnimationFrame(toastFrame);
+  let startMoment;
+  function hideToast(timestamp){
+    if(!startMoment) startMoment = timestamp;
+    if(timestamp - startMoment > 2200){
+      toastElement.classList.remove("open");
+      return;
+    }
+    toastFrame = requestAnimationFrame(hideToast);
+  }
+  toastFrame = requestAnimationFrame(hideToast);
+}
+
+function searchCases(){
+  const queryText = document.getElementById("caseSearch").value.trim();
+  demoToast(queryText ? "已依「" + queryText + "」更新相似案例" : "請輸入症狀、元件或批次");
+}
+
+document.querySelectorAll(".nav-btn").forEach(control => {
+  control.addEventListener("click", () => goView(Number(control.dataset.i)));
+});
+
+document.querySelectorAll(".filter").forEach(control => {
+  control.addEventListener("click", () => {
+    document.querySelectorAll(".filter").forEach(item => item.classList.remove("active"));
+    control.classList.add("active");
+  });
+});
+
+document.querySelectorAll(".candidate").forEach(control => {
+  control.addEventListener("click", () => {
+    document.querySelectorAll(".candidate").forEach(item => item.classList.remove("active"));
+    control.classList.add("active");
+    document.getElementById("candidateTitle").textContent = control.querySelector("strong").textContent;
+  });
+});
+
+document.querySelectorAll(".detail-tab").forEach(control => {
+  control.addEventListener("click", () => {
+    document.querySelectorAll(".detail-tab").forEach(item => item.classList.remove("active"));
+    control.classList.add("active");
+    demoToast("已切換至「" + control.textContent + "」");
+  });
+});
+
+window.addEventListener("hashchange", readHash);
+window.addEventListener("resize", () => {
+  Object.values(chartStore).forEach(chartInstance => chartInstance.resize());
+});
+show(0);
+if(window.location.hash) readHash();
+</script>
+</body>
+</html>
