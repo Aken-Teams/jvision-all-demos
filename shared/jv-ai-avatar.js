@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "23"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "25"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -224,14 +224,29 @@
     feedEl.scrollTop = feedEl.scrollHeight;
     return el;
   }
+  /* 每個 agent 一組專屬色:具名角色固定色,其他名字用調色盤穩定分配
+     (同名永遠同色);系統代理(實機數據)固定琥珀並掛小標籤。 */
+  var AGENT_COLORS = { "智策": ["#16304e", "#1e40af"], "擬稿": ["#5b21b6", "#7c3aed"], "繪境": ["#0f766e", "#14b8a6"] };
+  var PALETTE = [["#16304e", "#1e40af"], ["#5b21b6", "#7c3aed"], ["#9d174d", "#db2777"],
+                 ["#0f766e", "#14b8a6"], ["#3730a3", "#6366f1"], ["#065f46", "#10b981"]];
+  function agentColor(name, mode) {
+    if (mode === "live") return ["#b45309", "#d97706"];
+    if (AGENT_COLORS[name]) return AGENT_COLORS[name];
+    var h = 0;
+    for (var i = 0; i < name.length; i += 1) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return PALETTE[h % PALETTE.length];
+  }
   function bubble(name, text, mode) {
     if (mode === "me") {
       return line("jva-msg jva-me", '<b class="jva-who">' + esc(name) + "</b><span>" + esc(text) + "</span>");
     }
-    // agent 氣泡帶小頭像:圓角方塊 + 名字首字,顏色依角色(推理藍/實機琥珀)
+    var c = agentColor(name || "A", mode);
+    var tag = mode === "live" ? '<i class="jva-live-tag">實機數據</i>' : "";
     return line("jva-msg" + (mode ? " jva-" + mode : ""),
-      '<span class="jva-face" aria-hidden="true">' + esc((name || "A").charAt(0)) + "</span>" +
-      '<span class="jva-msg-body"><b class="jva-who">' + esc(name) + "</b><span>" + esc(text) + "</span></span>");
+      '<span class="jva-face" aria-hidden="true" style="background:' + c[0] + '">' +
+      esc((name || "A").charAt(0)) + "</span>" +
+      '<span class="jva-msg-body"><b class="jva-who" style="color:' + c[1] + '">' + esc(name) + tag + "</b><span>" +
+      esc(text) + "</span></span>");
   }
 
   function checkIdentity() {
@@ -317,7 +332,7 @@
     stage.iframe.srcdoc = '<!doctype html><meta charset="utf-8"><style>' +
       "body{margin:0;height:100vh;display:grid;place-items:center;background:#f6f8fb;" +
       "font-family:'Noto Sans TC','Microsoft JhengHei',system-ui,sans-serif;color:#16304e}" +
-      ".f{width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#1e40af);display:grid;place-items:center;" +
+      ".f{width:76px;height:76px;border-radius:50%;background:#1e40af;display:grid;place-items:center;" +
       "font-size:30px;font-weight:900;color:#fff;margin:0 auto 18px;animation:p 1.6s ease-in-out infinite}" +
       "@keyframes p{50%{transform:scale(1.08);box-shadow:0 0 44px rgba(30,64,175,.35)}}" +
       "@media (prefers-reduced-motion:reduce){.f{animation:none}}" +
@@ -625,14 +640,14 @@
       else if (e.type === "page") {
         var html = e.html || acc.page;
         if (!stage.stopped) showFinal(withBase(html));
-        var b = line("jva-result", '<b>報告完成</b><button type="button" class="jva-open">開啟報告網頁</button>' +
+        var b = line("jva-result", '<b><span class="jva-ok">✓</span>報告完成</b><button type="button" class="jva-open">開啟報告網頁</button>' +
           '<small>報告底部的「資料來源」可點回各系統畫面,出處會自動高亮。</small>');
         b.querySelector(".jva-open").addEventListener("click", function () { openReport(html); });
       }
       else if (e.type === "report") {
         var md = e.markdown || acc.report;
         if (!stage.stopped) showFinal(textReportDoc(question, md));
-        var b2 = line("jva-result", '<b>圖文報告完成</b><p class="jva-excerpt">' + esc(excerptOf(md)) + "</p>" +
+        var b2 = line("jva-result", '<b><span class="jva-ok">✓</span>圖文報告完成</b><p class="jva-excerpt">' + esc(excerptOf(md)) + "</p>" +
           '<button type="button" class="jva-open">開啟完整報告</button>' +
           '<small>報告內的「資料來源」可點回各系統畫面,出處會自動高亮。</small>');
         b2.querySelector(".jva-open").addEventListener("click", function () { openDoc(textReportDoc(question, md)); });
