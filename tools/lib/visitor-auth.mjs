@@ -72,7 +72,8 @@ export function clear(req, res) {
    自己的樣式與圖也會被擋，畫面直接壞掉；而擋住資源本來也擋不到任何東西
    ——內容在 HTML 裡，不在 css 裡。 */
 const ASSET = /\.(css|js|mjs|map|svg|png|jpe?g|webp|gif|ico|woff2?|txt|json)$/i;
-const OPEN_PATHS = new Set(["/welcome", "/welcome.html", "/favicon.svg", "/robots.txt"]);
+// login-preview 是「新版前導動畫」的預覽頁,本質是登入頁的候選版,登入前就要看得到
+const OPEN_PATHS = new Set(["/welcome", "/welcome.html", "/login-preview", "/login-preview.html", "/favicon.svg", "/robots.txt"]);
 
 export function needsGate(pathname) {
   if (OPEN_PATHS.has(pathname)) return false;
