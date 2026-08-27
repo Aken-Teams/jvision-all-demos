@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "6"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "7"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -90,11 +90,11 @@
       "<title>" + esc(question) + "</title><style>" +
       "body{margin:0;background:#f5f7f8;color:#1a2732;font:16px/1.85 'Noto Sans TC','Microsoft JhengHei',system-ui,sans-serif}" +
       ".wrap{max-width:760px;margin:0 auto;padding:40px 22px 80px}" +
-      ".hd{border-bottom:2px solid #0f7a80;padding-bottom:14px;margin-bottom:22px}" +
+      ".hd{border-bottom:2px solid #1e40af;padding-bottom:14px;margin-bottom:22px}" +
       ".hd b{font-size:22px;color:#16304e}.hd small{display:block;color:#5b6b78;margin-top:4px}" +
-      "h4{font-size:17px;color:#16304e;margin:24px 0 8px;border-left:4px solid #0f7a80;padding-left:10px}" +
+      "h4{font-size:17px;color:#16304e;margin:24px 0 8px;border-left:4px solid #1e40af;padding-left:10px}" +
       "p{margin:10px 0}ul{margin:6px 0;padding-left:20px}mark{background:#f3e3bd;border-radius:3px;padding:0 3px}" +
-      "a{color:#0f7a80;font-weight:700}table{border-collapse:collapse;width:100%;margin:12px 0;font-size:14px}" +
+      "a{color:#1e40af;font-weight:700}table{border-collapse:collapse;width:100%;margin:12px 0;font-size:14px}" +
       "th,td{border:1px solid #dbe4e9;padding:7px 10px;text-align:left}th{background:#eef3f5}" +
       ".jva-fence{color:#8195a3;font-size:13px;border:1px dashed #cbd7df;border-radius:8px;padding:10px 12px;margin:10px 0}" +
       ".jva-chart{margin:14px 0;border:1px solid #e2eaee;border-radius:12px;background:#fff;padding:8px}" +
@@ -102,8 +102,8 @@
       ".mermaid{display:flex;justify-content:center;background:#fff;border:1px solid #e2eaee;border-radius:12px;padding:12px;margin:14px 0}" +
       // 等待動畫:內容抵達前的骨架屏(客戶要看得出「正在寫」,不是掛了)
       ".jva-wait{padding:8px 0}" +
-      ".jva-wait-msg{display:flex;align-items:center;gap:10px;color:#0e5f66;font-weight:700;margin-bottom:18px}" +
-      ".jva-wait-msg::before{content:'';width:12px;height:12px;border-radius:50%;background:#0f7a80;animation:jvaPulse 1.2s ease-in-out infinite}" +
+      ".jva-wait-msg{display:flex;align-items:center;gap:10px;color:#1e40af;font-weight:700;margin-bottom:18px}" +
+      ".jva-wait-msg::before{content:'';width:12px;height:12px;border-radius:50%;background:#1e40af;animation:jvaPulse 1.2s ease-in-out infinite}" +
       ".jva-sk{height:14px;border-radius:7px;margin:12px 0;background:linear-gradient(90deg,#e8eef1 25%,#f6fafb 45%,#e8eef1 65%);background-size:220% 100%;animation:jvaShimmer 1.4s linear infinite}" +
       "@keyframes jvaPulse{50%{opacity:.35;transform:scale(1.25)}}" +
       "@keyframes jvaShimmer{to{background-position:-120% 0}}" +
@@ -126,11 +126,12 @@
       "  if(el.getAttribute('data-kind')==='echart')opt=def;" +
       "  else if(t==='radar')opt={title:{text:def.title},radar:{indicator:(def.axes||[]).map(function(a){return{name:a}})},series:[{type:'radar',data:(def.series||[]).map(function(s){return{name:s.name,value:s.values}})}]};" +
       "  else if(t==='pie')opt={title:{text:def.title},tooltip:{},series:[{type:'pie',radius:['32%','62%'],data:def.data,label:{formatter:'{b} {c}'}}]};" +
-      "  else opt={title:{text:def.title},tooltip:{},grid:{left:56,right:24,bottom:44,top:def.title?52:24},xAxis:{type:'category',data:(def.data||[]).map(function(d){return d.name}),axisLabel:{interval:0,rotate:(def.data||[]).length>5?24:0}},yAxis:{type:'value'},series:[{type:t==='line'?'line':'bar',data:(def.data||[]).map(function(d){return d.value}),itemStyle:{color:'#0f7a80',borderRadius:t==='line'?0:[5,5,0,0]},areaStyle:t==='line'?{opacity:.14}:undefined,smooth:true,barMaxWidth:44}]};" +
+      "  else opt={title:{text:def.title},tooltip:{},grid:{left:56,right:24,bottom:44,top:def.title?52:24},xAxis:{type:'category',data:(def.data||[]).map(function(d){return d.name}),axisLabel:{interval:0,rotate:(def.data||[]).length>5?24:0}},yAxis:{type:'value'},series:[{type:t==='line'?'line':'bar',data:(def.data||[]).map(function(d){return d.value}),itemStyle:{color:'#1e40af',borderRadius:t==='line'?0:[5,5,0,0]},areaStyle:t==='line'?{opacity:.14}:undefined,smooth:true,barMaxWidth:44}]};" +
       "  c.setOption(opt);addEventListener('resize',function(){c.resize()});" +
       " }catch(e){el.setAttribute('data-done','1');el.textContent='圖表資料無法解析';}});" +
       "try{if(window.mermaid){mermaid.initialize({startOnLoad:false,securityLevel:'loose'});mermaid.run({querySelector:'.mermaid:not([data-processed])'});}}catch(e){}};" +
-      "jvRenderCharts();" +
+      // CDN 可能還在載:輪詢到 echarts 就緒才畫,最多等 12 秒
+      "(function boot(n){if(window.echarts){jvRenderCharts();}else if(n<40){setTimeout(function(){boot(n+1);},300);}else{document.querySelectorAll('.jva-chart:not([data-done])').forEach(function(el){el.setAttribute('data-done','1');el.style.height='auto';el.textContent='圖表載入逾時,請開啟完整報告檢視';});}})(0);" +
       "<\/script></body></html>";
   }
 
@@ -266,11 +267,11 @@
       try {
         doc.open();
         doc.write('<!doctype html><meta charset="utf-8"><style>' +
-          'body{margin:0;height:100vh;display:grid;place-items:center;background:linear-gradient(150deg,#10233a,#0d3a42);' +
+          'body{margin:0;height:100vh;display:grid;place-items:center;background:linear-gradient(150deg,#10233a,#12316b);' +
           "font-family:'Noto Sans TC','Microsoft JhengHei',system-ui,sans-serif;color:#dbe7ee}" +
-          ".f{width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#0f7a80);display:grid;place-items:center;" +
+          ".f{width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#1e40af);display:grid;place-items:center;" +
           "font-size:30px;font-weight:900;color:#fff;margin:0 auto 18px;animation:p 1.6s ease-in-out infinite}" +
-          "@keyframes p{50%{transform:scale(1.08);box-shadow:0 0 44px rgba(15,122,128,.55)}}" +
+          "@keyframes p{50%{transform:scale(1.08);box-shadow:0 0 44px rgba(30,64,175,.55)}}" +
           "@media (prefers-reduced-motion:reduce){.f{animation:none}}" +
           ".t{text-align:center}b{font-size:17px}small{display:block;margin-top:8px;color:#8fa5b5}</style>" +
           '<div class="t"><div class="f">智</div><b>資料讀取完成,團隊正在撰寫報告</b>' +
@@ -476,8 +477,12 @@
       else if (e.type === "report") {
         var md = e.markdown || acc.report;
         if (stage.mode === "report" && !stage.stopped) {
-          acc.report = md;
-          streamText(true);
+          // 完稿改用「與獨立分頁完全相同的完整文件」重寫舞台 iframe:
+          // 正常解析的文件會確實載入 CDN 並渲染圖表,不依賴串流殼的執行環境
+          var doc = stageDoc();
+          if (doc) {
+            try { doc.open(); doc.write(textReportDoc(question, md)); doc.close(); } catch (err) { }
+          }
           finishReport();
         }
         var b2 = line("jva-result", '<b>圖文報告完成</b><p class="jva-excerpt">' + esc(excerptOf(md)) + "</p>" +
