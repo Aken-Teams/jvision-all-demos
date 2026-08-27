@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "15"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "16"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -166,11 +166,11 @@
     renderWelcome();
   }
 
-  var EXAMPLES = [
-    "摘要 CRM 目前的商機現況",
-    "生產工單系統現在的達交狀況?",
-    "出勤差勤系統的近況重點",
-  ];
+  // 兩類範例:做報告(查數據彙整)與下指令(展示操作),各給客戶三句參考
+  var EXAMPLES = {
+    report: ["摘要 CRM 目前的商機現況", "生產工單系統現在的達交狀況?", "出勤差勤系統的近況重點"],
+    op: ["把 WO-01 標記為已完成", "把 SO-24110 標記為已拆單", "把 O宇產線分析 改成 議約談判"],
+  };
 
   function renderWelcome() {
     var el = h(
@@ -179,12 +179,30 @@
       '  <p class="jva-empty-hello" hidden></p>' +
       '  <p class="jva-empty-title">你好,我是 JVision AI 團隊</p>' +
       '  <p class="jva-empty-sub">問一句,我會到站上的系統<b>實際操作、讀取數據</b>回答你;過程全程看得到,結論可點回畫面查出處。</p>' +
-      '  <div class="jva-chips">' + EXAMPLES.map(function (q) {
+      '  <div class="jva-tabs" role="tablist">' +
+      '    <button type="button" class="jva-tab active" data-kind="report" role="tab" aria-selected="true">查數據・做報告</button>' +
+      '    <button type="button" class="jva-tab" data-kind="op" role="tab" aria-selected="false">下指令・操作系統</button>' +
+      "  </div>" +
+      '  <div class="jva-chips"></div></div>');
+    var chips = el.querySelector(".jva-chips");
+    function fill(kind) {
+      chips.innerHTML = EXAMPLES[kind].map(function (q) {
         return '<button type="button" class="jva-chip">' + esc(q) + "</button>";
-      }).join("") + "</div></div>");
-    el.querySelectorAll(".jva-chip").forEach(function (b) {
-      b.addEventListener("click", function () { if (!state.running && !inputEl.disabled) run(b.textContent); });
+      }).join("");
+      chips.querySelectorAll(".jva-chip").forEach(function (b) {
+        b.addEventListener("click", function () { if (!state.running && !inputEl.disabled) run(b.textContent); });
+      });
+    }
+    el.querySelectorAll(".jva-tab").forEach(function (t) {
+      t.addEventListener("click", function () {
+        el.querySelectorAll(".jva-tab").forEach(function (x) {
+          x.classList.toggle("active", x === t);
+          x.setAttribute("aria-selected", x === t ? "true" : "false");
+        });
+        fill(t.dataset.kind);
+      });
     });
+    fill("report");
     feedEl.appendChild(el);
   }
 
