@@ -65,10 +65,12 @@
 **已以真實 /run 驗證:CRM 問題 → 系統代理讀到 10 項 KPI/3 張表/6 張圖 → 報告數字與畫面一致、附四個畫面的溯源連結。**
 全站資料抽取(1,627 套)背景執行中,完成前站上約 7 成系統即可被 agent 點名。
 
-### Phase 3 — WebMCP bridge + 浮動頭像,鋪向全站
+### Phase 3 ✅ 已完成(2026-08-27) — WebMCP bridge + 浮動頭像,鋪向全站
 
-bridge 以產線 `apply:*` 批次注入;全站頭像上線;其餘 1,600 套採 **lazy 抽取**——某套系統第一次被 agent 點名時才建卡,不必一口氣處理完。
-**交付:客戶在任何頁面呼叫 AI,結論可點回系統畫面。**
+- **`shared/jv-agent-bridge.js`** 已注入全站 1,628 套 demo(`tools/apply-agent-bridge.mjs`,冪等可重跑):支援 `#go=n&hl=詞` 溯源高亮(報告連結點回來,出處自動高亮捲進視野)、postMessage 協定(goto/highlight/listScreens/readTables)、瀏覽器支援 WebMCP(`navigator.modelContext`)時註冊為標準工具。平常完全沉默,verify-runner 驗收零 console error。
+- **`shared/jv-ai-avatar.js/.css`** 浮動 AI 頭像已掛上 index/catalog/project/agents 四個 Hub 頁:登入者點頭像即可對話,走 `/run` SSE 即時看團隊協作,報告一鍵開啟;未登入顯示 Google 登入引導。
+- 溯源連結升級為 `#go=n&hl=<標籤>`(`systems.py data_block`),點了直接看到那個數字被框出來。
+- 全站抽取以 `--all` 背景執行(抽過跳過、可中斷續跑),索引隨進度重建,抽到即可被 agent 點名。
 
 ## 05 · 需要拍板的兩件事(已拍板,2026-08-27)
 
