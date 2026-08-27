@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "11"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "12"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -201,8 +201,13 @@
     return el;
   }
   function bubble(name, text, mode) {
+    if (mode === "me") {
+      return line("jva-msg jva-me", '<b class="jva-who">' + esc(name) + "</b><span>" + esc(text) + "</span>");
+    }
+    // agent 氣泡帶小頭像:圓角方塊 + 名字首字,顏色依角色(推理藍/實機琥珀)
     return line("jva-msg" + (mode ? " jva-" + mode : ""),
-      '<b class="jva-who">' + esc(name) + "</b><span>" + esc(text) + "</span>");
+      '<span class="jva-face" aria-hidden="true">' + esc((name || "A").charAt(0)) + "</span>" +
+      '<span class="jva-msg-body"><b class="jva-who">' + esc(name) + "</b><span>" + esc(text) + "</span></span>");
   }
 
   function checkIdentity() {
