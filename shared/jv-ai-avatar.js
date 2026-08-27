@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "25"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "26"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -140,7 +140,7 @@
   function build() {
     root = h('<div class="jva-root"></div>');
     var btn = h('<button type="button" class="jva-fab" aria-label="呼叫 JVision AI 團隊" title="呼叫 AI 團隊">' +
-      '<span class="jva-fab-face">智</span></button>');
+      '<img class="jva-fab-img" src="/assets/robot.png" alt=""></button>');
     panel = h(
       '<div class="jva-panel" role="dialog" aria-label="JVision AI 團隊" hidden>' +
       '  <div class="jva-head"><div class="jva-head-face">智</div>' +
