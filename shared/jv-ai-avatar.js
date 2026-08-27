@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "4"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "5"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -48,14 +48,25 @@
       s = s.replace(/\[([^\]]+)\]\((\/[^)\s]+|https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
       return s;
     }
-    var inFence = false;
+    var inFence = false, fenceKind = "", fenceBuf = [];
     for (var i = 0; i < lines.length; i += 1) {
       var l = lines[i];
       if (/^```/.test(l)) {
-        if (!inFence) { closeList(); flushTable(); out.push('<div class="jva-fence">圖表(完整報告內檢視)</div>'); }
-        inFence = !inFence; continue;
+        if (!inFence) {
+          closeList(); flushTable();
+          fenceKind = l.replace(/`/g, "").trim().toLowerCase(); fenceBuf = []; inFence = true;
+        } else {
+          inFence = false;
+          var body = fenceBuf.join("\n").trim();
+          // 圖表圍欄保留定義,由文件內的渲染器(ECharts/mermaid)畫成真圖
+          if (fenceKind === "mermaid") out.push('<pre class="mermaid">' + esc(body) + "</pre>");
+          else if (fenceKind === "chart" || fenceKind === "echart")
+            out.push('<div class="jva-chart" data-kind="' + fenceKind + '" data-def="' + esc(body) + '"></div>');
+          else if (body) out.push('<div class="jva-fence">' + esc(body).slice(0, 400) + "</div>");
+        }
+        continue;
       }
-      if (inFence) continue;
+      if (inFence) { fenceBuf.push(l); continue; }
       if (/^\|/.test(l)) {
         var cells = l.replace(/^\||\|$/g, "").split("|").map(function (c) { return c.trim(); });
         if (cells.every(function (c) { return /^:?-{2,}:?$/.test(c); })) continue;
@@ -86,9 +97,28 @@
       "a{color:#0f7a80;font-weight:700}table{border-collapse:collapse;width:100%;margin:12px 0;font-size:14px}" +
       "th,td{border:1px solid #dbe4e9;padding:7px 10px;text-align:left}th{background:#eef3f5}" +
       ".jva-fence{color:#8195a3;font-size:13px;border:1px dashed #cbd7df;border-radius:8px;padding:10px 12px;margin:10px 0}" +
+      ".jva-chart{margin:14px 0;border:1px solid #e2eaee;border-radius:12px;background:#fff;padding:8px}" +
+      ".jva-chart:not([data-done])::before{content:'圖表生成中…';display:grid;place-items:center;height:120px;color:#8fa5b5;font-size:13px}" +
+      ".mermaid{display:flex;justify-content:center;background:#fff;border:1px solid #e2eaee;border-radius:12px;padding:12px;margin:14px 0}" +
       "</style></head><body><div class=\"wrap\">" +
       "<div class=\"hd\"><b>" + esc(question) + "</b><small>JVision AI 團隊 · 數據取自站上系統實際畫面,連結可點回出處</small></div>" +
-      mdLite(md) + "</div></body></html>";
+      mdLite(md) + "</div>" +
+      '<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"><\/script>' +
+      '<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"><\/script>' +
+      "<script>" +
+      "window.jvRenderCharts=function(){" +
+      "document.querySelectorAll('.jva-chart:not([data-done])').forEach(function(el){" +
+      " try{var def=JSON.parse(el.getAttribute('data-def'));el.setAttribute('data-done','1');el.style.height='320px';" +
+      "  var c=echarts.init(el),t=def.type||'bar',opt;" +
+      "  if(el.getAttribute('data-kind')==='echart')opt=def;" +
+      "  else if(t==='radar')opt={title:{text:def.title},radar:{indicator:(def.axes||[]).map(function(a){return{name:a}})},series:[{type:'radar',data:(def.series||[]).map(function(s){return{name:s.name,value:s.values}})}]};" +
+      "  else if(t==='pie')opt={title:{text:def.title},tooltip:{},series:[{type:'pie',radius:['32%','62%'],data:def.data,label:{formatter:'{b} {c}'}}]};" +
+      "  else opt={title:{text:def.title},tooltip:{},grid:{left:56,right:24,bottom:44,top:def.title?52:24},xAxis:{type:'category',data:(def.data||[]).map(function(d){return d.name}),axisLabel:{interval:0,rotate:(def.data||[]).length>5?24:0}},yAxis:{type:'value'},series:[{type:t==='line'?'line':'bar',data:(def.data||[]).map(function(d){return d.value}),itemStyle:{color:'#0f7a80',borderRadius:t==='line'?0:[5,5,0,0]},areaStyle:t==='line'?{opacity:.14}:undefined,smooth:true,barMaxWidth:44}]};" +
+      "  c.setOption(opt);addEventListener('resize',function(){c.resize()});" +
+      " }catch(e){el.setAttribute('data-done','1');el.textContent='圖表資料無法解析';}});" +
+      "try{if(window.mermaid){mermaid.initialize({startOnLoad:false,securityLevel:'loose'});mermaid.run({querySelector:'.mermaid:not([data-processed])'});}}catch(e){}};" +
+      "jvRenderCharts();" +
+      "<\/script></body></html>";
   }
 
   // ---- UI ----
@@ -217,6 +247,24 @@
     stage.reportStarted = false;
     stage.sys.textContent = "團隊正在撰寫報告";
     stage.cap.textContent = "初稿生成中,內容會即時長出來…";
+    // 過場畫面:清掉上一套系統的殘影,換成撰寫中的等待畫面
+    var doc = stageDoc();
+    if (doc) {
+      try {
+        doc.open();
+        doc.write('<!doctype html><meta charset="utf-8"><style>' +
+          'body{margin:0;height:100vh;display:grid;place-items:center;background:linear-gradient(150deg,#10233a,#0d3a42);' +
+          "font-family:'Noto Sans TC','Microsoft JhengHei',system-ui,sans-serif;color:#dbe7ee}" +
+          ".f{width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#0f7a80);display:grid;place-items:center;" +
+          "font-size:30px;font-weight:900;color:#fff;margin:0 auto 18px;animation:p 1.6s ease-in-out infinite}" +
+          "@keyframes p{50%{transform:scale(1.08);box-shadow:0 0 44px rgba(15,122,128,.55)}}" +
+          "@media (prefers-reduced-motion:reduce){.f{animation:none}}" +
+          ".t{text-align:center}b{font-size:17px}small{display:block;margin-top:8px;color:#8fa5b5}</style>" +
+          '<div class="t"><div class="f">智</div><b>資料讀取完成,團隊正在撰寫報告</b>' +
+          "<small>內容生成後會即時呈現在這裡,你也可以先關閉,完成後從對話面板開啟。</small></div>");
+        doc.close();
+      } catch (e) { }
+    }
   }
   function finishReport() {
     if (!stage.el || stage.el.hidden) return;
@@ -290,7 +338,11 @@
     if (empty) empty.remove();
     inputEl.value = ""; inputEl.disabled = true; sendBtn.disabled = true;
     bubble("你", question, "me");
-    var busy = line("jva-sys jva-busy", "團隊集合中…");
+    // 進行狀態用 AI 頭像氣泡呈現(不是漂浮的灰字),文字隨 status 事件更新
+    var busy = line("jva-msg jva-status",
+      '<span class="jva-mini-face">智</span><span class="jva-status-body"><b class="jva-who">AI 團隊</b>' +
+      '<span class="jva-status-txt">團隊集合中</span></span>');
+    var busyTxt = busy.querySelector(".jva-status-txt");
     var acc = { page: "", written: 0, report: "", mdTimer: 0 };
 
     // HTML 報告:把串流片段依序 document.write 進舞台 iframe(報告逐塊長出來)
@@ -325,7 +377,9 @@
         var box = d2 && d2.getElementById("jvamd");
         if (!box) return;
         box.innerHTML = mdLite(acc.report);
-        if (!final) { try { d2.defaultView.scrollTo(0, d2.body.scrollHeight); } catch (e) { } }
+        // 圖表只在完稿時渲染一次(串流中每 350ms 重畫會閃爍)
+        if (final) { try { d2.defaultView.jvRenderCharts && d2.defaultView.jvRenderCharts(); } catch (e) { } }
+        else { try { d2.defaultView.scrollTo(0, d2.body.scrollHeight); } catch (e) { } }
       };
       if (final) render();
       else if (!acc.mdTimer) acc.mdTimer = setTimeout(render, 350);
@@ -377,7 +431,7 @@
     }
 
     function handle(e) {
-      if (e.type === "status") busy.textContent = e.message || "";
+      if (e.type === "status") busyTxt.textContent = (e.message || "").replace(/…+$/, "");
       else if (e.type === "sys_tour") queueTour(e);
       else if (e.type === "message" && e.text) bubble(e.name || "AI", e.text, e.dataMode === "system-live" ? "live" : "");
       else if (e.type === "step" && e.message) line("jva-step", esc(e.message));
@@ -425,6 +479,9 @@
     l.rel = "stylesheet"; l.href = "/shared/jv-ai-avatar.css?v=" + VER;
     document.head.appendChild(l);
   }
+
+  // 測試出口:讓驗收腳本不經 LLM 就能測 markdown → 報告文件的渲染鏈
+  window.__jvAvatarTest = { mdLite: mdLite, textReportDoc: textReportDoc };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () { ensureCss(); build(); });

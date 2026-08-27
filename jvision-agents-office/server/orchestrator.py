@@ -405,11 +405,15 @@ async def _build_text_report(writer, question, doms, combined, emit):
             emit({"type": "report_delta", "chunk": buf["s"]})
             buf["s"] = ""
     ans = ""
-    try:
-        ans = await llm.stream_answer(sysp, f"需求：{question}\n領域：{'、'.join(doms)}\n\n團隊查到的資料：\n{combined}",
-                                      search=False, model=SMART, timeout=200, on_delta=_on_delta)
-    except Exception:
-        ans = ""
+    for _attempt in range(2):  # 偶發空回應(逾時/拒答)先重試一次,別急著掉進保底
+        try:
+            ans = await llm.stream_answer(sysp, f"需求：{question}\n領域：{'、'.join(doms)}\n\n團隊查到的資料：\n{combined}",
+                                          search=False, model=SMART, timeout=200, on_delta=_on_delta)
+        except Exception:
+            ans = ""
+        if ans.strip() or buf["started"]:
+            break
+        emit({"type": "status", "message": f"{writer['name']} 重新整理稿件…"})
     if buf["started"] and buf["s"]:
         emit({"type": "report_delta", "chunk": buf["s"]})
     nm = re.search(r"NOTE:\s*(.+)", ans)
@@ -421,8 +425,24 @@ async def _build_text_report(writer, question, doms, combined, emit):
     if md.endswith("```"):
         md = md[:-3].strip()
     if len(md) < 80 or "##" not in md:  # 保底：至少有結論 + 明細
-        rows = "\n".join("- " + l.strip("-•* ") for l in combined.split("\n") if l.strip() and "【" not in l)
-        md = f"## 結論\n\n依據團隊查到的資料，重點整理如下。\n\n## 重點數據\n\n{rows}"
+        # 來源標記從行內拔掉(讀者看到一串 URL 只是雜訊),整理成文末的資料來源連結
+        rows, urls = [], []
+        for l in combined.split("\n"):
+            s = l.strip()
+            if not s or s.startswith("【"):
+                continue
+            m = re.search(r"\(來源 (/demos/[^\s)]+)", s)
+            if m:
+                u = m.group(1)
+                if u not in urls:
+                    urls.append(u)
+            s = re.sub(r"\(來源 [^)]*\)", "", s).strip("-•* ").strip()
+            if s:
+                rows.append("- " + s)
+        md = "## 結論\n\n依據團隊查到的資料，重點整理如下。\n\n## 重點數據\n\n" + "\n".join(rows)
+        if urls:
+            links = "\n".join(f"- [{u.split('/')[2]}·畫面{(u.split('#go=')[-1].split('&')[0])}]({u})" for u in urls[:12])
+            md += f"\n\n## 資料來源\n\n{links}"
     md = _zh(md); note = _zh(note)
     emit({"type": "message", "id": writer["id"], "name": writer["name"], "role": writer["role"], "dataMode": "reasoning", "text": note})
     return md

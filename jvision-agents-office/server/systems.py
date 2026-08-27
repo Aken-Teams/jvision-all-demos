@@ -10,7 +10,6 @@
 """
 from __future__ import annotations
 import json, os, re
-from urllib.parse import quote
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # jvision-agents-office
 SITE = os.path.dirname(ROOT)                                        # caseShow 站台根目錄
@@ -137,10 +136,11 @@ def data_block(repo: str, max_rows: int = 6, max_chars: int = 1800) -> str:
         stitle = (s.get("stage") or {}).get("title") or s.get("heading") or f"畫面{s.get('index', 0)}"
         src = f"/demos/{repo}/#go={s.get('index', 0)}"
         for k in s.get("kpis", []):
-            # &hl=標籤:demo 內的 bridge 會把該區塊高亮並捲進視野(溯源看得見)
-            lines.append(f"{k['label']}: {k['value']}(來源 {src}&hl={quote(k['label'])} 「{stitle}」)")
+            # &hl=標籤:demo 內的 bridge 會把該區塊高亮並捲進視野(溯源看得見)。
+            # 中文不做 URL 編碼——瀏覽器接受原文,編碼後的長字串會吃掉 LLM 的資料額度
+            lines.append(f"{k['label']}: {k['value']}(來源 {src}&hl={k['label']} 「{stitle}」)")
         for t in s.get("tables", []):
-            tsrc = f"{src}&hl={quote(t['title'])}" if t.get("title") else src
+            tsrc = f"{src}&hl={t['title']}" if t.get("title") else src
             lines.append(f"表「{t.get('title') or stitle}」欄位:{' | '.join(t.get('columns', []))}(來源 {tsrc})")
             for r in t.get("rows", [])[:max_rows]:
                 lines.append("  " + " | ".join(str(c) for c in r))
