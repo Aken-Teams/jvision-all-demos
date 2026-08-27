@@ -198,6 +198,20 @@ async def _gather_system(hit, emit):
     emit({"type": "step", "id": aid, "message": f"開啟《{title}》讀取各畫面數據…"})
     d = systems.data(repo) or {}
     block = systems.data_block(repo)
+    # 導覽腳本:前端(頭像/任務頁)拿去「實際打開這套系統、切畫面、逐項框出正在讀的數字」
+    # ——WebMCP 的展演面。步驟取自抽取資料,演的就是真的讀了什麼。
+    tour_steps = []
+    for sc in d.get("screens", []):
+        items = [{"term": k["label"], "text": f"{k['label']}:{k['value']}"} for k in sc.get("kpis", [])[:3]]
+        items += [{"term": t["title"], "text": f"明細表「{t['title']}」{len(t.get('rows', []))} 筆"}
+                  for t in sc.get("tables", [])[:2] if t.get("title")]
+        if items:
+            tour_steps.append({"screen": sc.get("index", 0),
+                               "title": (sc.get("stage") or {}).get("title") or sc.get("heading") or "",
+                               "items": items[:4]})
+    if tour_steps:
+        emit({"type": "sys_tour", "id": aid, "repo": repo, "title": title,
+              "url": f"/demos/{repo}/", "steps": tour_steps[:6]})
     sm = d.get("summary", {})
     kp = [k for sc in d.get("screens", []) for k in sc.get("kpis", [])][:2]
     summary = f"《{title}》讀到 {sm.get('kpis', 0)} 項 KPI、{sm.get('tables', 0)} 張明細表、{sm.get('charts', 0)} 張圖表"
