@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "12"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "13"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -176,8 +176,9 @@
     var el = h(
       '<div class="jva-empty">' +
       '  <div class="jva-empty-face">智</div>' +
+      '  <p class="jva-empty-hello" hidden></p>' +
       '  <p class="jva-empty-title">你好,我是 JVision AI 團隊</p>' +
-      '  <p class="jva-empty-sub">問一句,我到站上的系統<b>實際操作、讀取數據</b>回答你——過程你都看得到,結論也能點回畫面看出處。</p>' +
+      '  <p class="jva-empty-sub">問一句,我會到站上的系統<b>實際操作、讀取數據</b>回答你;過程全程看得到,結論可點回畫面查出處。</p>' +
       '  <div class="jva-chips">' + EXAMPLES.map(function (q) {
         return '<button type="button" class="jva-chip">' + esc(q) + "</button>";
       }).join("") + "</div></div>");
@@ -218,8 +219,9 @@
         line("jva-sys jva-login", 'AI 團隊功能需要 Google 帳號登入。<a href="/api/visitor/google/start?next=' + next + '">使用 Google 帳號登入</a>');
         inputEl.disabled = true; sendBtn.disabled = true;
       } else if (me.name) {
-        var t = panel.querySelector(".jva-empty-title");
-        if (t) t.textContent = me.name + ",你好!我是 JVision AI 團隊";
+        // 名字長短不一(英文全名可以很長),問候獨立一行,身分行維持穩定
+        var hello = panel.querySelector(".jva-empty-hello");
+        if (hello) { hello.textContent = me.name + ",你好!"; hello.hidden = false; }
       }
     }).catch(function () { /* 讀不到身分就先讓人打字,gateway 會把關 */ });
   }
