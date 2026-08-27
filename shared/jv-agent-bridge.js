@@ -161,18 +161,23 @@
     markDone(el.closest('[class*="stat"],[class*="kpi"],[class*="metric"],.card') || el);
     return true;
   }
-  /* 跨畫面搜尋並套用:當前畫面找不到就 0..5 逐畫面切換找,找到才動手。 */
+  /* 跨畫面搜尋並套用:當前畫面 → 指定畫面(後端從抽取資料查好的)→ 其餘 0..5。
+     每次切畫面多等一點,切換動畫與圖表重建吃掉時間會讓搜尋撲空。 */
   function operate(d, reply) {
     if (applyChange(d.target, d.value)) { reply({ ok: true }); return; }
-    var tryScreen = function (n) {
-      if (n >= 6) { reply({ ok: false }); return; }
+    var seq = [];
+    if (typeof d.screen === "number") seq.push(d.screen);
+    for (var i = 0; i < 6; i += 1) if (seq.indexOf(i) < 0) seq.push(i);
+    var k = 0;
+    (function step() {
+      if (k >= seq.length) { reply({ ok: false }); return; }
+      var n = seq[k]; k += 1;
       gotoScreen(n);
       setTimeout(function () {
         if (applyChange(d.target, d.value)) reply({ ok: true, screen: n });
-        else tryScreen(n + 1);
-      }, 700);
-    };
-    tryScreen(0);
+        else step();
+      }, 850);
+    })();
   }
 
   function readTables() {

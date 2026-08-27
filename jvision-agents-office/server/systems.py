@@ -159,23 +159,22 @@ def data_block(repo: str, max_rows: int = 6, max_chars: int = 1800) -> str:
     return "\n".join(out)
 
 
-def find_system_with(term: str):
-    """在抽取資料的表格/KPI 裡找含指定字串的系統。
-    操作指令用:客戶只講單號(WO-01)不講系統名,得反查這筆資料在哪套系統。"""
+def find_system_with(term: str, repo: str = None):
+    """在抽取資料的表格/KPI 裡找含指定字串的系統與畫面。
+    回 (index_entry, screen_index) 或 None。操作指令用:先查好目標在哪套系統的
+    第幾個畫面,前端直接開在那一頁——不必開了網頁再逐畫面碰運氣。"""
     if not term or len(term) < 2:
         return None
-    for s in index().get("systems", []):
+    pool = [s for s in index().get("systems", []) if not repo or s.get("name") == repo]
+    for s in pool:
         d = data(s.get("name", ""))
         if not d:
             continue
         for sc in d.get("screens", []):
-            for t in sc.get("tables", []):
-                for r in t.get("rows", []):
-                    if any(term in str(c) for c in r):
-                        return s
-            for k in sc.get("kpis", []):
-                if term in k.get("label", ""):
-                    return s
+            hit = any(any(term in str(c) for c in r) for t in sc.get("tables", []) for r in t.get("rows", [])) \
+                or any(term in k.get("label", "") for k in sc.get("kpis", []))
+            if hit:
+                return s, sc.get("index", 0)
     return None
 
 

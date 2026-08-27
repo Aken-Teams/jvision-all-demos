@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "14"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "15"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -316,12 +316,13 @@
           stage.skip.textContent = "關閉";
           bubble(op.title, "已把「" + op.target + "」" + op.verb + "「" + op.value + "」。展示操作只改畫面不落地,重新整理即復原。", "live");
         };
-        try { stage.iframe.contentWindow.postMessage({ jvAgent: "operate", id: id, target: op.target, value: op.value }, "*"); }
+        try { stage.iframe.contentWindow.postMessage({ jvAgent: "operate", id: id, screen: op.screen, target: op.target, value: op.value }, "*"); }
         catch (e2) { fail(); }
-      }, wait(900));
+      }, wait(1100));
     };
     stage.iframe.removeAttribute("srcdoc");
-    stage.iframe.src = op.url;
+    // 後端已查好目標在第幾個畫面,直接開在那一頁
+    stage.iframe.src = op.url + "#go=" + (op.screen || 0);
   }
 
   /* 完稿永遠接管舞台:就算導覽還在播(報告寫得比導覽快),也立刻中斷、
