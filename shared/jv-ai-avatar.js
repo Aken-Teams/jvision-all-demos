@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "3"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "4"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -175,8 +175,10 @@
     }).catch(function () { /* 讀不到身分就先讓人打字,gateway 會把關 */ });
   }
 
-  // ---- 操作劇場:實際載入系統畫面,照 sys_tour 腳本切畫面、逐項高亮 ----
-  var stage = { el: null, iframe: null, cap: null, sys: null, queue: [], playing: false, stopped: false };
+  // ---- 操作劇場:實際載入系統畫面,照 sys_tour 腳本切畫面、逐項高亮;
+  //      導覽結束後切換成「報告撰寫中」,讓客戶看著報告即時長出來 ----
+  var stage = { el: null, iframe: null, cap: null, sys: null, skip: null,
+    queue: [], playing: false, stopped: false, mode: "tour", reportStarted: false };
 
   function ensureStage() {
     if (stage.el) return;
@@ -192,7 +194,8 @@
     stage.iframe = stage.el.querySelector(".jva-stage-frame");
     stage.cap = stage.el.querySelector(".jva-stage-cap");
     stage.sys = stage.el.querySelector(".jva-stage-sys");
-    stage.el.querySelector(".jva-stage-skip").addEventListener("click", function () {
+    stage.skip = stage.el.querySelector(".jva-stage-skip");
+    stage.skip.addEventListener("click", function () {
       stage.stopped = true; stage.queue = []; hideStage();
     });
   }
@@ -202,18 +205,39 @@
     try { stage.iframe.contentWindow.postMessage(msg, "*"); } catch (e) { }
   }
   function wait(ms) { return REDUCE ? 160 : ms; }
+  function stageDoc() {
+    try { return stage.iframe.contentDocument; } catch (e) { return null; }
+  }
+
+  // 報告撰寫模式:同一個舞台,從「操作系統」切換成「看報告長出來」
+  function enterReportMode() {
+    if (stage.stopped || stage.mode === "report") return;
+    showStage();
+    stage.mode = "report";
+    stage.reportStarted = false;
+    stage.sys.textContent = "團隊正在撰寫報告";
+    stage.cap.textContent = "初稿生成中,內容會即時長出來…";
+  }
+  function finishReport() {
+    if (!stage.el || stage.el.hidden) return;
+    stage.sys.textContent = "報告完成";
+    stage.cap.textContent = "可捲動檢視;報告內的資料來源可點回系統畫面";
+    stage.skip.textContent = "關閉報告";
+    stage.el.classList.add("jva-stage-done");
+  }
 
   function queueTour(tour) {
     if (stage.stopped) return;
     stage.queue.push(tour);
-    if (!stage.playing) playNextTour();
+    if (!stage.playing && stage.mode !== "report") playNextTour();
   }
   function playNextTour() {
+    if (stage.stopped || stage.mode === "report") { stage.playing = false; return; }
     var t = stage.queue.shift();
     if (!t) {
       stage.playing = false;
       if (state.runDone) hideStage();
-      else if (stage.cap) stage.cap.textContent = "資料讀取完成,團隊撰寫報告中…";
+      else enterReportMode(); // 導覽播完 → 舞台切成報告撰寫實況
       return;
     }
     stage.playing = true;
@@ -225,7 +249,8 @@
     stage.iframe.src = t.url + "#go=" + first;
   }
   function playStep(t, si, ii) {
-    if (stage.stopped) return;
+    // 報告模式一啟動,導覽的計時鏈就終止(否則殘留 setTimeout 會把字幕蓋回導覽文案)
+    if (stage.stopped || stage.mode === "report") { stage.playing = false; return; }
     if (si >= t.steps.length) {
       stage.cap.textContent = "《" + t.title + "》讀取完成 ✓";
       setTimeout(playNextTour, wait(900));
@@ -259,13 +284,52 @@
 
   function run(question) {
     state.running = true; state.runDone = false;
-    stage.stopped = false;
+    stage.stopped = false; stage.mode = "tour"; stage.reportStarted = false;
+    if (stage.el) { stage.el.classList.remove("jva-stage-done"); stage.skip.textContent = "跳過展示"; }
     var empty = panel.querySelector(".jva-empty");
     if (empty) empty.remove();
     inputEl.value = ""; inputEl.disabled = true; sendBtn.disabled = true;
     bubble("你", question, "me");
     var busy = line("jva-sys jva-busy", "團隊集合中…");
-    var acc = { page: "", report: "" };
+    var acc = { page: "", written: 0, report: "", mdTimer: 0 };
+
+    // HTML 報告:把串流片段依序 document.write 進舞台 iframe(報告逐塊長出來)
+    function streamPage() {
+      if (stage.stopped || stage.mode !== "report") return;
+      var doc = stageDoc();
+      if (!doc) return;
+      if (!stage.reportStarted) {
+        try { doc.open(); } catch (e) { return; }
+        stage.reportStarted = true; acc.written = 0;
+      }
+      var chunk = acc.page.slice(acc.written);
+      acc.written = acc.page.length;
+      if (chunk) { try { doc.write(chunk); } catch (e) { } }
+    }
+    // 圖文報告:節流重渲染 markdown(逐段長出來)
+    function streamText(final) {
+      if (stage.stopped || stage.mode !== "report") return;
+      var doc = stageDoc();
+      if (!doc) return;
+      if (!stage.reportStarted) {
+        try {
+          doc.open();
+          doc.write(textReportDoc(question, "").replace("</div></body></html>", '<div id="jvamd"></div></div></body></html>'));
+          doc.close();
+        } catch (e) { return; }
+        stage.reportStarted = true;
+      }
+      var render = function () {
+        acc.mdTimer = 0;
+        var d2 = stageDoc();
+        var box = d2 && d2.getElementById("jvamd");
+        if (!box) return;
+        box.innerHTML = mdLite(acc.report);
+        if (!final) { try { d2.defaultView.scrollTo(0, d2.body.scrollHeight); } catch (e) { } }
+      };
+      if (final) render();
+      else if (!acc.mdTimer) acc.mdTimer = setTimeout(render, 350);
+    }
 
     fetch("/run", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question: question, mode: "task" }) })
@@ -301,7 +365,8 @@
       .then(function () {
         busy.remove();
         state.running = false; state.runDone = true;
-        if (!stage.playing) hideStage();
+        // 報告模式的舞台就是呈現頁,留著給客戶看;導覽模式的才收掉
+        if (!stage.playing && stage.mode !== "report") hideStage();
         inputEl.disabled = false; sendBtn.disabled = false; inputEl.focus();
       });
 
@@ -316,16 +381,35 @@
       else if (e.type === "sys_tour") queueTour(e);
       else if (e.type === "message" && e.text) bubble(e.name || "AI", e.text, e.dataMode === "system-live" ? "live" : "");
       else if (e.type === "step" && e.message) line("jva-step", esc(e.message));
-      else if (e.type === "page_delta") acc.page += e.chunk || "";
-      else if (e.type === "report_delta") acc.report += e.chunk || "";
+      else if (e.type === "page_delta") {
+        acc.page += e.chunk || "";
+        if (stage.playing) stage.queue = []; // 報告開始生成:還沒播的導覽放棄,播完當前就切報告
+        else if (!stage.stopped && !state.runDone) { enterReportMode(); streamPage(); }
+      }
+      else if (e.type === "report_delta") {
+        acc.report += e.chunk || "";
+        if (stage.playing) stage.queue = [];
+        else if (!stage.stopped && !state.runDone) { enterReportMode(); streamText(false); }
+      }
       else if (e.type === "page") {
         var html = e.html || acc.page;
+        if (stage.mode === "report" && stage.reportStarted && !stage.stopped) {
+          streamPage();
+          var doc = stageDoc();
+          if (doc) { try { doc.close(); } catch (err) { } }
+          finishReport();
+        }
         var b = line("jva-result", '<b>報告完成</b><button type="button" class="jva-open">開啟報告網頁</button>' +
           '<small>報告底部的「資料來源」可點回各系統畫面,出處會自動高亮。</small>');
         b.querySelector(".jva-open").addEventListener("click", function () { openReport(html); });
       }
       else if (e.type === "report") {
         var md = e.markdown || acc.report;
+        if (stage.mode === "report" && !stage.stopped) {
+          acc.report = md;
+          streamText(true);
+          finishReport();
+        }
         var b2 = line("jva-result", '<b>圖文報告完成</b><p class="jva-excerpt">' + esc(excerptOf(md)) + "</p>" +
           '<button type="button" class="jva-open">開啟完整報告</button>' +
           '<small>報告內的「資料來源」可點回各系統畫面,出處會自動高亮。</small>');
