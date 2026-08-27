@@ -64,25 +64,67 @@ def _tokens(text: str) -> list:
     return toks
 
 
-def pick_systems(question: str, top: int = 3) -> list:
-    """從站上已抽取的系統裡挑最相關的幾套。回 [(score, index_entry)]。
-    門檻 3:單一 bigram 撞名就亂配(「管理」誰都有),寧可退回 internal-sim 也不要亂指系統。"""
-    qt = set(_tokens(question))
-    scored = []
-    for s in index().get("systems", []):
+_df_cache = {"mtime": None, "docs": [], "common": set()}
+
+
+def _corpus():
+    """每套系統的 token 集,外加「爛大街詞」清單(出現在超過 5% 系統裡的詞)。
+    「目前/現況/系統/管理」這類詞誰的描述都有,不歸零的話 493 套裡一定湊得出
+    三個不相干的高分——實際發生過:問 CRM 配到會展報價+牙科聯繫+B2B 廣告。"""
+    idx = index()
+    if _index_cache["mtime"] == _df_cache["mtime"] and _df_cache["docs"]:
+        return _df_cache["docs"], _df_cache["common"]
+    docs = []
+    df = {}
+    for s in idx.get("systems", []):
         bag = " ".join([s.get("displayName", ""), s.get("category", ""),
                         s.get("systemType", ""), s.get("description", "")])
         bt = set(_tokens(bag))
-        # 英文縮寫/術語(CRM、MES、ERP…)是強信號,命中一個抵三個中文 bigram
-        sc = sum(3 if t.isascii() else 1 for t in qt & bt)
-        # 系統名直接命中(去掉常見尾綴後整段出現在問題裡)→ 大幅加權
+        nt = set(_tokens(s.get("displayName", "")))
+        docs.append((s, bt, nt))
+        for t in bt:
+            df[t] = df.get(t, 0) + 1
+    n = max(len(docs), 1)
+    common = {t for t, c in df.items() if c > max(3, n * 0.05)}
+    _df_cache.update({"mtime": _index_cache["mtime"], "docs": docs, "common": common})
+    return docs, common
+
+
+def pick_systems(question: str, top: int = 3) -> list:
+    """從站上已抽取的系統裡挑最相關的幾套。回 [(score, index_entry)]。
+    計分:通用詞不算分;英文術語(CRM/MES…)命中系統名 5 分、命中內文 3 分;
+    中文 bigram 命中系統名 2 分、內文 1 分。門檻 4,且次要系統要達第一名的一半
+    ——寧可退回 internal-sim,也不要把不相干產業的系統湊成一份報告。"""
+    qt = set(_tokens(question))
+    docs, common = _corpus()
+    scored = []
+    for s, bt, nt in docs:
+        sc = 0
+        for t in qt & bt:
+            if t in common and t not in nt:
+                continue
+            if t.isascii():
+                sc += 5 if t in nt else 3
+            else:
+                sc += 2 if t in nt else 1
         name = (s.get("displayName") or "").replace("台", "").replace("平台", "")
         if name and len(name) >= 4 and name in question:
             sc += 10
         if sc:
             scored.append((sc, s))
     scored.sort(key=lambda x: (-x[0], x[1].get("name", "")))
-    return [(sc, s) for sc, s in scored[:top] if sc >= 3]
+    if not scored or scored[0][0] < 4:
+        return []
+    best_sc, best_sys = scored[0]
+    # 次要系統要嘛跟第一名同產業分類,要嘛分數夠接近(七成)——
+    # 不同產業又只是低空掠過門檻的,湊進報告只會讓客戶覺得資料亂配
+    out = [(best_sc, best_sys)]
+    for sc, s in scored[1:top]:
+        if sc < 4 or sc * 2 < best_sc:
+            continue
+        if s.get("category") == best_sys.get("category") or sc >= best_sc * 0.7:
+            out.append((sc, s))
+    return out
 
 
 # ---- 給 LLM 用的資料區塊(每行帶來源連結,報告才能溯源) ----

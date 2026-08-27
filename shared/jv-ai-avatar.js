@@ -96,6 +96,28 @@
       var q = inputEl.value.trim();
       if (q && !state.running) run(q);
     });
+    renderWelcome();
+  }
+
+  var EXAMPLES = [
+    "摘要 CRM 目前的商機現況",
+    "生產工單系統現在的達交狀況?",
+    "出勤差勤系統的近況重點",
+  ];
+
+  function renderWelcome() {
+    var el = h(
+      '<div class="jva-empty">' +
+      '  <div class="jva-empty-face">智</div>' +
+      '  <p class="jva-empty-title">你好,我是 JVision AI 團隊</p>' +
+      '  <p class="jva-empty-sub">問一句,我請團隊到站上的系統查<b>實際數據</b>回答你,結論都可以點回畫面看出處。</p>' +
+      '  <div class="jva-chips">' + EXAMPLES.map(function (q) {
+        return '<button type="button" class="jva-chip">' + esc(q) + "</button>";
+      }).join("") + "</div></div>");
+    el.querySelectorAll(".jva-chip").forEach(function (b) {
+      b.addEventListener("click", function () { if (!state.running && !inputEl.disabled) run(b.textContent); });
+    });
+    feedEl.appendChild(el);
   }
 
   function toggle() {
@@ -121,14 +143,13 @@
       state.me = me || {};
       if (!me || !me.signedIn || me.kind !== "google") {
         var next = encodeURIComponent(location.pathname + location.search);
-        line("jva-sys", 'AI 團隊功能需要 Google 帳號登入。<a href="/api/visitor/google/start?next=' + next + '">使用 Google 帳號登入</a>');
+        line("jva-sys jva-login", 'AI 團隊功能需要 Google 帳號登入。<a href="/api/visitor/google/start?next=' + next + '">使用 Google 帳號登入</a>');
         inputEl.disabled = true; sendBtn.disabled = true;
-      } else {
-        line("jva-sys", "你好" + (me.name ? "," + esc(me.name) : "") + "!想了解站上哪套系統的現況?我請團隊查給你。");
+      } else if (me.name) {
+        var t = panel.querySelector(".jva-empty-title");
+        if (t) t.textContent = me.name + ",你好!我是 JVision AI 團隊";
       }
-    }).catch(function () {
-      line("jva-sys", "暫時讀不到登入狀態,稍後再試。");
-    });
+    }).catch(function () { /* 讀不到身分就先讓人打字,gateway 會把關 */ });
   }
 
   function openReport(html) {
@@ -142,6 +163,8 @@
 
   function run(question) {
     state.running = true;
+    var empty = panel.querySelector(".jva-empty");
+    if (empty) empty.remove();
     inputEl.value = ""; inputEl.disabled = true; sendBtn.disabled = true;
     bubble("你", question, "me");
     var busy = line("jva-sys jva-busy", "團隊集合中…");

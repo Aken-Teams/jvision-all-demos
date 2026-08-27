@@ -433,12 +433,16 @@ async def run(question: str, mode, emit):
         if synth and synth["id"] in _used_ids:
             synth = registry.flagship_of_cat("doc")
         verb = "設計成一頁報告網頁"
+    # 配到系統時,「領域」直接講系統的實際分類;沒配到才用領域偵測的結果
+    # (domains KB 缺檔時偵測一律回「生產製造」,拿它當開場白會講鬼話)
+    doms_label = "、".join(dict.fromkeys(
+        [s.get("category") or "站上系統" for _, s in sys_hits])) if sys_hits else "、".join(doms)
     sys_part = "、".join(f"《{s.get('displayName') or s['name']}》" for _, s in sys_hits)
     names = "、".join(t["agent"]["name"] for t in data_team)
     helpers = "；".join(x for x in [
         sys_part and f"系統代理直接讀取 {sys_part} 的實際數據", names and f"{names} 查資料"] if x)
     emit({"type": "message", "id": "orchestrator", "name": "智策", "role": "總指揮", "dataMode": "reasoning",
-          "text": f"這題屬於「{'、'.join(doms)}」。我請 {helpers}，交給 {synth['name']} {verb}，我負責確認。"})
+          "text": f"這題屬於「{doms_label}」。我請 {helpers}，交給 {synth['name']} {verb}，我負責確認。"})
     # 上方 agents 清單也放指揮官（排最前）
     members = [{"id": "orchestrator", "name": "智策", "role": "總指揮", "dataMode": "reasoning", "subtask": "分工協調與最終確認"}]
     members += [{"id": f"sys:{s['name']}", "name": s.get("displayName") or s["name"], "role": "系統代理",
@@ -447,7 +451,7 @@ async def run(question: str, mode, emit):
                  "dataMode": t["agent"]["dataMode"], "subtask": t["subtask"]} for t in data_team]
     members.append({"id": synth["id"], "name": synth["name"], "role": synth["role"], "dataMode": "reasoning", "subtask": verb})
     emit({"type": "team", "members": members})
-    emit({"type": "page_pending", "title": question, "sub": "領域：" + "、".join(doms) + f" · {synth['name']} 彙整中", "output": output})
+    emit({"type": "page_pending", "title": question, "sub": "領域：" + doms_label + f" · {synth['name']} 彙整中", "output": output})
     # 完成項目也放一則「指揮官分工摘要」（誰處理什麼）
     _assign = "；".join(
         [f"{s.get('displayName') or s['name']}→讀取實際畫面數據" for _, s in sys_hits]
@@ -466,13 +470,13 @@ async def run(question: str, mode, emit):
         md = await _build_text_report(synth, question, doms, combined, emit)
         emit({"type": "done_item", "text": f"{synth['name']} 產出圖文報告（含重點標記、內嵌圖表）"})
         emit({"type": "report", "title": question,
-              "sub": "領域：" + "、".join(doms) + f" · {synth['name']} 撰寫 · 資料來自 {len(gathered)} 個系統", "markdown": md})
+              "sub": "領域：" + doms_label + f" · {synth['name']} 撰寫 · 資料來自 {len(gathered)} 個系統", "markdown": md})
     else:
         emit({"type": "status", "message": f"{synth['name']} 設計並產出報告網頁…"})
         html = await _build_page(synth, question, doms, combined, emit)
         emit({"type": "done_item", "text": f"{synth['name']} 產出報告網頁（含 KPI、圖表、結論）"})
         emit({"type": "page", "title": question,
-              "sub": "領域：" + "、".join(doms) + f" · {synth['name']} 設計 · 資料來自 {len(gathered)} 個系統", "html": html})
+              "sub": "領域：" + doms_label + f" · {synth['name']} 設計 · 資料來自 {len(gathered)} 個系統", "html": html})
 
     # ③ 指揮官確認（用不同 id → 前端會新增一則泡泡在 繪境 下方，而不是覆蓋最上面的開場白）
     emit({"type": "message", "id": "orchestrator_done", "name": "智策", "role": "總指揮", "dataMode": "reasoning",
