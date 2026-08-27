@@ -66,7 +66,8 @@ async def plan(question):
             "若需求跟企業營運無關（如美食、旅遊、生活推薦），選最接近領域（美食→零售電商）、internal=false、external=true。\n"
             "只輸出 JSON：{\"domains\":[\"領域1\"],\"internal\":true/false,\"external\":true/false,\"external_query\":\"要上網查什麼\",\"output\":\"html\"或\"text\"}")
     try:
-        ans = await llm.stream_answer(sysp, f"需求：{question}", search=False, model=SMART, timeout=45)
+        # 規劃只是分類判斷(領域/內外部/呈現方式),用快模型省掉開頭十幾秒;解析失敗有預設值兜底
+        ans = await llm.stream_answer(sysp, f"需求：{question}", search=False, model=FAST, timeout=30)
     except Exception:
         ans = ""
     data = _extract_json(ans) or {}
@@ -235,7 +236,7 @@ PAGE_SPEC = (
     "## 要豐富、每次都要不一樣（重點！）\n"
     "- **版面不要每次都長一樣**：從這些版型擇一或混搭，依主題選最合適的 —— 儀表板網格 / 左欄指標+右側主圖 / 上方 KPI 帶+下方雙欄 / 卡片瀑布 / 雜誌式分欄 / 左側敘事+右側數據。\n"
     "- **配色每次不同**：依主題挑一組有記憶點的色系（製造科技藍/青、財務靛紫、品質綠、安全橙、能源黃綠、人資粉紫…），可用漸層 header。\n"
-    "- **圖表要多元**（至少 2 個、盡量 3 個不同種）：ECharts 支援 bar / line / pie/doughnut / **radar 雷達** / **gauge 儀表** / scatter / funnel 漏斗 / **stacked bar 堆疊** / **heatmap** / 折線面積圖，依資料選最貼切的。\n"
+    "- **圖表要多元**（2 個不同種即可,最多 3 個——張數多不如張張到位）：ECharts 支援 bar / line / pie/doughnut / **radar 雷達** / **gauge 儀表** / scatter / funnel 漏斗 / **stacked bar 堆疊** / **heatmap** / 折線面積圖，依資料選最貼切的。\n"
     "- **多元元件**：KPI 大字帶（含漲跌徽章）、進度條、狀態徽章（達標/警示）、時間軸、排名榜、比較表、警示框、迷你統計卡、圓環進度… 盡量豐富。\n"
     "- 版面要有主次層次、留白、陰影、圓角，專業精美；內容資訊量要足。\n"
     "## 絕對規則\n"
@@ -356,7 +357,7 @@ async def _build_page(designer, question, doms, combined, emit):
 
 TEXT_SPEC = (
     "# 任務：把團隊查到的資料，寫成一份『圖文並茂的文字報告』（給客戶看、專業有洞見）。\n"
-    "輸出**繁體中文 Markdown**，約 600–1000 字，**不要**用 HTML、不要 ``` 圍住整篇。\n"
+    "輸出**繁體中文 Markdown**，約 450–700 字(精煉優先,不要灌水)，**不要**用 HTML、不要 ``` 圍住整篇。\n"
     "## 結構（用 ## 小標）\n"
     "- 直接從 `## 結論` 開始（不要把使用者的問題原句當標題重複）。\n"
     "- 接著針對重點面向逐一分析（每個當一個 ## 小標），每段要有具體數字與判斷。\n"

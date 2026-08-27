@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "19"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "20"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -517,7 +517,12 @@
         else { try { d2.defaultView.scrollTo(0, d2.body.scrollHeight); } catch (e) { } }
       };
       if (final) render();
-      else if (!acc.mdTimer) acc.mdTimer = setTimeout(render, 350);
+      else if (!acc.mdTimer) {
+        // 自適應節流:整篇 innerHTML 重排的成本隨長度變貴,報告越長間隔越拉長,
+        // 免得瀏覽器忙著重排而卡頓(視覺上仍是流暢長出來)
+        var throttle = acc.report.length > 6000 ? 1100 : acc.report.length > 3000 ? 700 : 400;
+        acc.mdTimer = setTimeout(render, throttle);
+      }
     }
 
     fetch("/run", { method: "POST", headers: { "Content-Type": "application/json" },
