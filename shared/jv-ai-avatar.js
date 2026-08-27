@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "5"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "6"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -100,9 +100,22 @@
       ".jva-chart{margin:14px 0;border:1px solid #e2eaee;border-radius:12px;background:#fff;padding:8px}" +
       ".jva-chart:not([data-done])::before{content:'圖表生成中…';display:grid;place-items:center;height:120px;color:#8fa5b5;font-size:13px}" +
       ".mermaid{display:flex;justify-content:center;background:#fff;border:1px solid #e2eaee;border-radius:12px;padding:12px;margin:14px 0}" +
+      // 等待動畫:內容抵達前的骨架屏(客戶要看得出「正在寫」,不是掛了)
+      ".jva-wait{padding:8px 0}" +
+      ".jva-wait-msg{display:flex;align-items:center;gap:10px;color:#0e5f66;font-weight:700;margin-bottom:18px}" +
+      ".jva-wait-msg::before{content:'';width:12px;height:12px;border-radius:50%;background:#0f7a80;animation:jvaPulse 1.2s ease-in-out infinite}" +
+      ".jva-sk{height:14px;border-radius:7px;margin:12px 0;background:linear-gradient(90deg,#e8eef1 25%,#f6fafb 45%,#e8eef1 65%);background-size:220% 100%;animation:jvaShimmer 1.4s linear infinite}" +
+      "@keyframes jvaPulse{50%{opacity:.35;transform:scale(1.25)}}" +
+      "@keyframes jvaShimmer{to{background-position:-120% 0}}" +
+      "@media (prefers-reduced-motion:reduce){.jva-sk,.jva-wait-msg::before{animation:none}}" +
       "</style></head><body><div class=\"wrap\">" +
       "<div class=\"hd\"><b>" + esc(question) + "</b><small>JVision AI 團隊 · 數據取自站上系統實際畫面,連結可點回出處</small></div>" +
-      mdLite(md) + "</div>" +
+      '<div class="jva-body">' + (mdLite(md) ||
+        '<div class="jva-wait"><div class="jva-wait-msg">團隊正在撰寫,內容會即時出現在這裡</div>' +
+        '<div class="jva-sk" style="width:88%"></div><div class="jva-sk" style="width:70%"></div>' +
+        '<div class="jva-sk" style="width:94%"></div><div class="jva-sk" style="width:56%"></div>' +
+        '<div class="jva-sk" style="width:80%;margin-top:26px"></div><div class="jva-sk" style="width:64%"></div></div>') +
+      "</div></div>" +
       '<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"><\/script>' +
       '<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"><\/script>' +
       "<script>" +
@@ -365,8 +378,9 @@
       if (!doc) return;
       if (!stage.reportStarted) {
         try {
+          // 殼自帶 .jva-body 容器(內含等待骨架屏),串流內容直接寫進去
           doc.open();
-          doc.write(textReportDoc(question, "").replace("</div></body></html>", '<div id="jvamd"></div></div></body></html>'));
+          doc.write(textReportDoc(question, ""));
           doc.close();
         } catch (e) { return; }
         stage.reportStarted = true;
@@ -374,9 +388,11 @@
       var render = function () {
         acc.mdTimer = 0;
         var d2 = stageDoc();
-        var box = d2 && d2.getElementById("jvamd");
+        var box = d2 && d2.querySelector(".jva-body");
         if (!box) return;
-        box.innerHTML = mdLite(acc.report);
+        var html = mdLite(acc.report);
+        if (!html) return; // 還沒有可渲染的內容就保留骨架屏
+        box.innerHTML = html;
         // 圖表只在完稿時渲染一次(串流中每 350ms 重畫會閃爍)
         if (final) { try { d2.defaultView.jvRenderCharts && d2.defaultView.jvRenderCharts(); } catch (e) { } }
         else { try { d2.defaultView.scrollTo(0, d2.body.scrollHeight); } catch (e) { } }
