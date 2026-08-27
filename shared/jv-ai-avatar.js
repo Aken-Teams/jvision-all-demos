@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "7"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "8"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -261,24 +261,19 @@
     stage.reportStarted = false;
     stage.sys.textContent = "團隊正在撰寫報告";
     stage.cap.textContent = "初稿生成中,內容會即時長出來…";
-    // 過場畫面:清掉上一套系統的殘影,換成撰寫中的等待畫面
-    var doc = stageDoc();
-    if (doc) {
-      try {
-        doc.open();
-        doc.write('<!doctype html><meta charset="utf-8"><style>' +
-          'body{margin:0;height:100vh;display:grid;place-items:center;background:linear-gradient(150deg,#10233a,#12316b);' +
-          "font-family:'Noto Sans TC','Microsoft JhengHei',system-ui,sans-serif;color:#dbe7ee}" +
-          ".f{width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#1e40af);display:grid;place-items:center;" +
-          "font-size:30px;font-weight:900;color:#fff;margin:0 auto 18px;animation:p 1.6s ease-in-out infinite}" +
-          "@keyframes p{50%{transform:scale(1.08);box-shadow:0 0 44px rgba(30,64,175,.55)}}" +
-          "@media (prefers-reduced-motion:reduce){.f{animation:none}}" +
-          ".t{text-align:center}b{font-size:17px}small{display:block;margin-top:8px;color:#8fa5b5}</style>" +
-          '<div class="t"><div class="f">智</div><b>資料讀取完成,團隊正在撰寫報告</b>' +
-          "<small>內容生成後會即時呈現在這裡,你也可以先關閉,完成後從對話面板開啟。</small></div>");
-        doc.close();
-      } catch (e) { }
-    }
+    // 過場畫面(白底,配全站藍白主題)。用 srcdoc 全新解析——
+    // document.write 注入的外部腳本在部分 Chrome 環境會被攔,srcdoc 沒這問題
+    stage.iframe.onload = null;
+    stage.iframe.srcdoc = '<!doctype html><meta charset="utf-8"><style>' +
+      "body{margin:0;height:100vh;display:grid;place-items:center;background:#f6f8fb;" +
+      "font-family:'Noto Sans TC','Microsoft JhengHei',system-ui,sans-serif;color:#16304e}" +
+      ".f{width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#1e40af);display:grid;place-items:center;" +
+      "font-size:30px;font-weight:900;color:#fff;margin:0 auto 18px;animation:p 1.6s ease-in-out infinite}" +
+      "@keyframes p{50%{transform:scale(1.08);box-shadow:0 0 44px rgba(30,64,175,.35)}}" +
+      "@media (prefers-reduced-motion:reduce){.f{animation:none}}" +
+      ".t{text-align:center}b{font-size:17px}small{display:block;margin-top:8px;color:#5b6b78}</style>" +
+      '<div class="t"><div class="f">智</div><b>資料讀取完成,團隊正在撰寫報告</b>' +
+      "<small>內容生成後會即時呈現在這裡,你也可以先關閉,完成後從對話面板開啟。</small></div>";
   }
   function finishReport() {
     if (!stage.el || stage.el.hidden) return;
@@ -308,6 +303,7 @@
     stage.cap.textContent = "開啟系統畫面…";
     var first = t.steps[0] ? t.steps[0].screen : 0;
     stage.iframe.onload = function () { setTimeout(function () { playStep(t, 0, 0); }, wait(900)); };
+    stage.iframe.removeAttribute("srcdoc"); // srcdoc 優先權高於 src,留著會蓋掉導覽頁
     stage.iframe.src = t.url + "#go=" + first;
   }
   function playStep(t, si, ii) {
@@ -332,11 +328,14 @@
     setTimeout(function () { playStep(t, si, ii + 1); }, wait(1050));
   }
 
-  function openReport(html) {
-    var based = html.replace(/<head([^>]*)>/i, function (m) {
+  // 站內絕對路徑(/demos/…)在 blob 分頁與 srcdoc 裡都要靠 <base> 才點得回站上
+  function withBase(html) {
+    return html.replace(/<head([^>]*)>/i, function (m) {
       return m + '<base href="' + location.origin + '/" target="_blank">';
     });
-    var url = URL.createObjectURL(new Blob([based], { type: "text/html" }));
+  }
+  function openReport(html) {
+    var url = URL.createObjectURL(new Blob([withBase(html)], { type: "text/html" }));
     window.open(url, "_blank", "noopener");
   }
   function openDoc(html) {
@@ -464,10 +463,10 @@
       }
       else if (e.type === "page") {
         var html = e.html || acc.page;
-        if (stage.mode === "report" && stage.reportStarted && !stage.stopped) {
-          streamPage();
-          var doc = stageDoc();
-          if (doc) { try { doc.close(); } catch (err) { } }
+        if (stage.mode === "report" && !stage.stopped) {
+          // 完稿改用 srcdoc 全新解析(與獨立分頁同機制),圖表腳本必定執行
+          stage.iframe.onload = null;
+          stage.iframe.srcdoc = withBase(html);
           finishReport();
         }
         var b = line("jva-result", '<b>報告完成</b><button type="button" class="jva-open">開啟報告網頁</button>' +
@@ -477,12 +476,9 @@
       else if (e.type === "report") {
         var md = e.markdown || acc.report;
         if (stage.mode === "report" && !stage.stopped) {
-          // 完稿改用「與獨立分頁完全相同的完整文件」重寫舞台 iframe:
-          // 正常解析的文件會確實載入 CDN 並渲染圖表,不依賴串流殼的執行環境
-          var doc = stageDoc();
-          if (doc) {
-            try { doc.open(); doc.write(textReportDoc(question, md)); doc.close(); } catch (err) { }
-          }
+          // 完稿改用 srcdoc 全新解析(與獨立分頁同機制),圖表腳本必定執行
+          stage.iframe.onload = null;
+          stage.iframe.srcdoc = textReportDoc(question, md);
           finishReport();
         }
         var b2 = line("jva-result", '<b>圖文報告完成</b><p class="jva-excerpt">' + esc(excerptOf(md)) + "</p>" +
