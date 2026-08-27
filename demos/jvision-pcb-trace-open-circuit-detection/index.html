@@ -1,0 +1,1009 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="以板層線路瀏覽、參考圖差異比對、缺陷座標複核與批次隔離，協助裸板檢驗追蹤開路風險。">
+<title>印刷電路板線路斷路檢測系統 · quality-qms｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+:root{
+  --blue:#1e40af;
+  --ink:#14213d;
+  --body:#334155;
+  --muted:#64748b;
+  --line:#dbe4ef;
+  --bg:#f4f7fb;
+  --green:#15803d;
+  --amber:#b45309;
+  --red:#c2413b;
+  --white:#fff;
+  --shadow:0 12px 34px rgba(30,64,175,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--body);
+  font-family:Inter,"Noto Sans TC",sans-serif;line-height:1.55;
+  -webkit-font-smoothing:antialiased
+}
+button,input,select,textarea{font:inherit}
+button{color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(30,64,175,.24);outline-offset:2px
+}
+button{min-height:42px}
+.material-symbols-outlined{font-size:21px;vertical-align:middle}
+.shell{min-height:100vh;padding-left:78px}
+.rail{
+  position:fixed;inset:0 auto 0 0;width:78px;z-index:30;
+  display:flex;flex-direction:column;align-items:center;
+  padding:18px 10px;background:#10265f;color:#dbeafe;
+  box-shadow:8px 0 30px rgba(15,23,42,.12)
+}
+.brand{
+  width:46px;height:46px;border-radius:15px;display:grid;place-items:center;
+  color:#fff;background:linear-gradient(145deg,#3b82f6,var(--blue));
+  font-weight:800;letter-spacing:-1px;box-shadow:0 8px 20px rgba(0,0,0,.2)
+}
+.rail-nav{display:grid;gap:9px;margin:auto 0}
+.rail-btn{
+  position:relative;width:50px;height:50px;border:0;border-radius:14px;
+  background:transparent;color:#bfdbfe;cursor:pointer;transition:.2s
+}
+.rail-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+.rail-btn.active{background:#fff;color:var(--blue);box-shadow:0 8px 22px rgba(0,0,0,.18)}
+.rail-btn .tip{
+  pointer-events:none;position:absolute;left:62px;top:50%;transform:translateY(-50%);
+  width:max-content;padding:7px 10px;border-radius:8px;background:#0f172a;color:#fff;
+  font-size:12px;opacity:0;visibility:hidden;transition:.15s
+}
+.rail-btn:hover .tip,.rail-btn:focus-visible .tip{opacity:1;visibility:visible}
+.rail-foot{font-size:10px;color:#93c5fd;writing-mode:vertical-rl;letter-spacing:1px}
+.page{display:none;min-height:100vh;animation:enter .28s ease}
+.page.active{display:block}
+@keyframes enter{from{opacity:.25;transform:translateY(5px)}to{opacity:1;transform:none}}
+.workspace{max-width:1500px;margin:auto;padding:26px 30px 42px}
+.page-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:22px
+}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:7px;color:var(--blue);font-size:12px;
+  font-weight:800;letter-spacing:.08em;text-transform:uppercase
+}
+h1,h2,h3,p{margin-top:0}
+h1{margin:6px 0 5px;color:var(--ink);font-size:clamp(25px,3vw,38px);line-height:1.2}
+h2{color:var(--ink);font-size:20px}
+h3{color:var(--ink);font-size:15px}
+.sub{max-width:800px;margin:0;color:var(--muted);font-size:14px}
+.head-actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+.btn{
+  border:1px solid var(--line);border-radius:11px;padding:9px 14px;background:#fff;
+  font-weight:700;font-size:13px;cursor:pointer;display:inline-flex;gap:7px;align-items:center;
+  justify-content:center;transition:.2s
+}
+.btn:hover{border-color:#93a9d6;transform:translateY(-1px)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.danger{background:#fff6f5;border-color:#fecaca;color:var(--red)}
+.card{
+  background:#fff;border:1px solid var(--line);border-radius:16px;
+  box-shadow:var(--shadow);padding:19px;min-width:0
+}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
+.card-head h2,.card-head h3{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.pill{
+  display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:999px;
+  background:#eef3ff;color:var(--blue);font-size:11px;font-weight:800;white-space:nowrap
+}
+.pill.green{background:#edf9f0;color:var(--green)}
+.pill.amber{background:#fff7e6;color:var(--amber)}
+.pill.red{background:#fff0ef;color:var(--red)}
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.metric{position:relative;overflow:hidden}
+.metric:after{
+  content:"";position:absolute;width:72px;height:72px;border-radius:50%;
+  right:-22px;bottom:-30px;background:rgba(30,64,175,.07)
+}
+.metric-label{font-size:12px;color:var(--muted);font-weight:700}
+.metric-value{margin-top:8px;color:var(--ink);font-size:28px;font-weight:800;line-height:1}
+.metric-note{margin-top:9px;font-size:11px;color:var(--muted)}
+.up{color:var(--red);font-weight:700}.down{color:var(--green);font-weight:700}
+.grid-2{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,.8fr);gap:16px}
+.grid-even{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.chart{height:310px;width:100%}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th{
+  padding:11px 13px;text-align:left;background:#f8fafc;color:var(--muted);
+  font-size:11px;text-transform:uppercase;letter-spacing:.04em
+}
+td{padding:12px 13px;border-top:1px solid var(--line);font-size:13px}
+tr:hover td{background:#f8fbff}
+.progress{height:7px;border-radius:10px;background:#e8edf5;overflow:hidden}
+.progress span{display:block;height:100%;border-radius:inherit;background:var(--blue)}
+.legend{display:flex;gap:15px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.alert{
+  display:flex;gap:10px;padding:12px;border:1px solid #fed7aa;border-radius:12px;
+  color:#92400e;background:#fffbeb;font-size:12px
+}
+.kicker{font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.divider{height:1px;background:var(--line);margin:16px 0}
+
+/* v0 dashboard */
+.risk-list{display:grid;gap:11px}
+.risk-row{
+  display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center;
+  padding:11px;border:1px solid var(--line);border-radius:12px
+}
+.risk-code{
+  width:40px;height:40px;border-radius:11px;background:#eef3ff;color:var(--blue);
+  display:grid;place-items:center;font-size:11px;font-weight:800
+}
+.risk-row strong{display:block;color:var(--ink);font-size:13px}
+.heatmap{
+  display:grid;grid-template-columns:repeat(8,1fr);gap:5px;padding:4px
+}
+.heatmap span{aspect-ratio:1;border-radius:5px;background:#e7efff}
+.heatmap .h2{background:#adc3f7}.heatmap .h3{background:#678be0}.heatmap .h4{background:var(--blue)}
+.feed{display:grid;gap:12px}
+.feed-item{display:grid;grid-template-columns:11px 1fr;gap:10px;font-size:12px}
+.feed-line{position:relative}
+.feed-line:before{content:"";position:absolute;left:4px;top:12px;bottom:-20px;width:1px;background:var(--line)}
+.feed-item:last-child .feed-line:before{display:none}
+.feed-line i{display:block;width:9px;height:9px;border:2px solid #fff;border-radius:50%;background:var(--blue);box-shadow:0 0 0 2px #bfdbfe}
+
+/* v1 board browser */
+.layer-layout{display:grid;grid-template-columns:220px minmax(0,1fr) 270px;gap:16px}
+.layer-list{display:grid;gap:8px}
+.layer-btn{
+  width:100%;border:1px solid var(--line);background:#fff;border-radius:11px;
+  padding:10px;text-align:left;cursor:pointer
+}
+.layer-btn.active{border-color:var(--blue);background:#eef3ff;color:var(--blue)}
+.layer-btn strong{display:block;font-size:13px}
+.layer-btn span{font-size:11px;color:var(--muted)}
+.board-shell{background:#0b1735;border-radius:15px;padding:15px;min-height:520px}
+.board-toolbar{display:flex;justify-content:space-between;gap:10px;color:#cbd5e1;font-size:11px;margin-bottom:12px}
+.pcb{
+  position:relative;min-height:455px;border-radius:11px;overflow:hidden;
+  background-color:#173969;
+  background-image:linear-gradient(rgba(147,197,253,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(147,197,253,.08) 1px,transparent 1px);
+  background-size:25px 25px
+}
+.trace{position:absolute;height:5px;background:#e3a72f;border-radius:6px;box-shadow:0 0 8px rgba(250,204,21,.25)}
+.trace.v{width:5px;height:auto}
+.pad{position:absolute;width:23px;height:23px;border:5px solid #f2c14e;border-radius:50%;background:#19375f}
+.via{position:absolute;width:12px;height:12px;border:3px solid #d7a826;border-radius:50%}
+.break{
+  position:absolute;width:30px;height:30px;border:2px solid #fb7185;border-radius:50%;
+  box-shadow:0 0 0 7px rgba(251,113,133,.12);animation:pulse 1.8s infinite
+}
+@keyframes pulse{50%{box-shadow:0 0 0 13px rgba(251,113,133,0)}}
+.net-list{display:grid;gap:9px}
+.net{
+  padding:10px;border-radius:11px;background:#f8fafc;border-left:3px solid var(--blue)
+}
+.net strong{display:flex;justify-content:space-between;font-size:12px;color:var(--ink)}
+.net p{font-size:11px;margin:4px 0 0;color:var(--muted)}
+
+/* v2 compare */
+.compare-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}
+.compare-view{
+  position:relative;min-height:520px;border-radius:14px;overflow:hidden;background:#0d2443;
+  border:1px solid #294d73
+}
+.compare-grid{
+  position:absolute;inset:0;
+  background-image:radial-gradient(#60a5fa 1px,transparent 1px);
+  background-size:24px 24px;opacity:.25
+}
+.copper-path{position:absolute;height:6px;background:#4ade80;border-radius:7px}
+.copper-path.vertical{width:6px;height:auto}
+.ref-path{position:absolute;height:2px;border-top:2px dashed #93c5fd;opacity:.8}
+.defect-mark{
+  position:absolute;border:2px solid #fb7185;background:rgba(239,68,68,.13);
+  border-radius:8px;color:#fff;font-size:10px;padding:4px
+}
+.compare-labels{position:absolute;left:13px;top:13px;display:flex;gap:7px}
+.slider-box{position:absolute;left:16px;right:16px;bottom:16px;padding:10px 13px;border-radius:11px;background:rgba(15,23,42,.88);color:#fff}
+.slider-box input{width:100%;accent-color:#60a5fa}
+.issue-list{display:grid;gap:9px}
+.issue-btn{
+  width:100%;border:1px solid var(--line);background:#fff;border-radius:12px;
+  padding:11px;text-align:left;cursor:pointer
+}
+.issue-btn.active{border-color:#f87171;background:#fff7f7}
+.issue-btn strong{display:flex;justify-content:space-between;color:var(--ink);font-size:12px}
+.issue-btn p{margin:5px 0 0;font-size:11px;color:var(--muted)}
+
+/* v3 review */
+.review-layout{display:grid;grid-template-columns:minmax(0,1.25fr) 390px;gap:16px}
+.microscope{
+  min-height:470px;border-radius:14px;position:relative;overflow:hidden;background:
+  radial-gradient(circle at 62% 42%,rgba(248,113,113,.28) 0 5%,transparent 6%),
+  linear-gradient(112deg,transparent 0 28%,#d09a32 29% 31%,transparent 32% 49%,#d09a32 50% 53%,transparent 54%),
+  repeating-linear-gradient(22deg,#153154 0 13px,#193c65 13px 25px)
+}
+.crosshair:before,.crosshair:after{content:"";position:absolute;background:rgba(255,255,255,.55)}
+.crosshair:before{left:62%;top:0;bottom:0;width:1px}
+.crosshair:after{top:42%;left:0;right:0;height:1px}
+.coord-badge{
+  position:absolute;left:calc(62% + 13px);top:calc(42% + 13px);
+  padding:7px 9px;border-radius:8px;background:#fff;color:var(--red);font-size:11px;font-weight:800
+}
+.scale{position:absolute;left:22px;bottom:20px;width:90px;border-bottom:3px solid #fff;color:#fff;font-size:10px;text-align:center}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.field{display:grid;gap:5px}
+.field.full{grid-column:1/-1}
+.field label{font-size:11px;color:var(--muted);font-weight:700}
+.field input,.field select,.field textarea{
+  width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px;color:var(--body)
+}
+.field textarea{min-height:76px;resize:vertical}
+.severity{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.sev-btn{border:1px solid var(--line);background:#fff;border-radius:9px;font-size:12px;cursor:pointer}
+.sev-btn.active{border-color:var(--red);background:#fff0ef;color:var(--red);font-weight:800}
+.audit-strip{display:flex;gap:12px;overflow:auto;padding-bottom:3px}
+.audit-node{min-width:150px;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:11px}
+.audit-node strong{display:block;color:var(--ink)}
+
+/* v4 isolation */
+.batch-banner{
+  display:grid;grid-template-columns:1.2fr repeat(3,.55fr);gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:15px;overflow:hidden;margin-bottom:16px
+}
+.batch-cell{background:#fff;padding:16px}
+.batch-cell strong{display:block;color:var(--ink);font-size:18px}
+.disposition-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.disposition{
+  border:1px solid var(--line);border-radius:14px;padding:15px;background:#fff;cursor:pointer;text-align:left
+}
+.disposition.active{border:2px solid var(--blue);background:#f5f8ff}
+.disposition .material-symbols-outlined{font-size:28px;color:var(--blue)}
+.disposition strong{display:block;margin:8px 0 3px;color:var(--ink)}
+.checklist{display:grid;gap:9px}
+.check-row{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;background:#f8fafc;font-size:12px}
+.check-row input{margin-top:3px;accent-color:var(--blue)}
+.route{
+  display:grid;grid-template-columns:repeat(4,1fr);align-items:start;gap:14px;margin:18px 0
+}
+.route-step{position:relative;text-align:center}
+.route-step:not(:last-child):after{
+  content:"";position:absolute;left:60%;right:-40%;top:18px;border-top:2px dashed #bfcae1
+}
+.route-icon{
+  position:relative;z-index:1;width:38px;height:38px;margin:auto;border-radius:50%;
+  display:grid;place-items:center;background:#eaf0ff;color:var(--blue);font-weight:800
+}
+.route-step.done .route-icon{background:var(--green);color:#fff}
+.route-step span{display:block;margin-top:7px;font-size:11px;color:var(--muted)}
+
+/* v5 analysis */
+.analysis-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,.75fr);gap:16px}
+.cause-list{display:grid;gap:12px}
+.cause-row{display:grid;grid-template-columns:115px 1fr 42px;gap:10px;align-items:center;font-size:12px}
+.station-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.station{padding:12px;border:1px solid var(--line);border-radius:12px}
+.station strong{display:block;color:var(--ink)}
+.station b{font-size:24px;color:var(--blue)}
+.improve{
+  border-left:3px solid var(--blue);padding:10px 12px;background:#f7f9ff;border-radius:0 10px 10px 0
+}
+.improve strong{font-size:12px;color:var(--ink)}
+.improve p{margin:4px 0 0;font-size:11px;color:var(--muted)}
+
+.toast{
+  position:fixed;right:22px;bottom:22px;z-index:80;max-width:320px;padding:12px 15px;
+  border-radius:11px;background:#0f172a;color:#fff;font-size:12px;
+  box-shadow:0 14px 30px rgba(15,23,42,.24);opacity:0;transform:translateY(12px);
+  pointer-events:none;transition:.25s
+}
+.toast.showing{opacity:1;transform:none}
+@media(max-width:1100px){
+  .metric-grid{grid-template-columns:repeat(2,1fr)}
+  .layer-layout{grid-template-columns:190px minmax(0,1fr)}
+  .layer-inspector{grid-column:1/-1}
+  .compare-layout,.review-layout,.analysis-grid{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .shell{padding-left:0;padding-bottom:76px}
+  .rail{
+    inset:auto 0 0 0;width:auto;height:70px;flex-direction:row;padding:8px 10px;
+    justify-content:center
+  }
+  .brand,.rail-foot{display:none}
+  .rail-nav{display:flex;gap:5px;margin:0;width:100%;justify-content:space-around}
+  .rail-btn{width:46px;height:50px}
+  .rail-btn .tip{display:none}
+  .workspace{padding:19px 14px 30px}
+  .page-head{display:block}
+  .head-actions{justify-content:flex-start;margin-top:14px}
+  .grid-2,.grid-even,.layer-layout{grid-template-columns:1fr}
+  .metric-grid{grid-template-columns:1fr 1fr}
+  .layer-inspector{grid-column:auto}
+  .batch-banner{grid-template-columns:1fr 1fr}
+  .batch-cell:first-child{grid-column:1/-1}
+  .disposition-grid{grid-template-columns:1fr}
+  .route{grid-template-columns:1fr 1fr}
+  .route-step:after{display:none}
+  .form-grid{grid-template-columns:1fr}
+  .field.full{grid-column:auto}
+  .station-grid{grid-template-columns:1fr}
+  .chart{height:270px}
+}
+@media(max-width:430px){
+  .metric-grid{grid-template-columns:1fr}
+  .compare-view,.board-shell{min-height:430px}
+  .pcb{min-height:365px}
+  .severity{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<aside class="rail" aria-label="流程導覽">
+  <div class="brand" aria-label="Jvision">JV</div>
+  <nav class="rail-nav">
+    <button class="rail-btn" data-i="0" aria-label="辨識風險"><span class="material-symbols-outlined">monitoring</span><span class="tip">辨識風險</span></button>
+    <button class="rail-btn" data-i="1" aria-label="選取板層"><span class="material-symbols-outlined">layers</span><span class="tip">選取板層</span></button>
+    <button class="rail-btn" data-i="2" aria-label="比對差異"><span class="material-symbols-outlined">difference</span><span class="tip">比對差異</span></button>
+    <button class="rail-btn" data-i="3" aria-label="確認位置"><span class="material-symbols-outlined">location_on</span><span class="tip">確認位置</span></button>
+    <button class="rail-btn" data-i="4" aria-label="隔離批次"><span class="material-symbols-outlined">block</span><span class="tip">隔離批次</span></button>
+    <button class="rail-btn" data-i="5" aria-label="追查原因"><span class="material-symbols-outlined">insights</span><span class="tip">追查原因</span></button>
+  </nav>
+  <div class="rail-foot">QMS · PCB AOI</div>
+</aside>
+
+<main class="shell">
+  <section class="page" id="view-0" aria-labelledby="title-0">
+    <div class="workspace">
+      <header class="page-head">
+        <div>
+          <span class="eyebrow"><span class="material-symbols-outlined">sensors</span> LIVE RISK CONTROL</span>
+          <h1 id="title-0">開路風險看板</h1>
+          <p class="sub">從裸板檢測批次辨識斷路疑點與集中區域，優先處理可能流入後段組裝的高風險板件。</p>
+        </div>
+        <div class="head-actions">
+          <button class="btn" data-action="export"><span class="material-symbols-outlined">download</span>匯出班報</button>
+          <button class="btn primary" data-action="scan"><span class="material-symbols-outlined">radar</span>執行風險掃描</button>
+        </div>
+      </header>
+
+      <div class="metric-grid">
+        <article class="card metric"><div class="metric-label">斷路疑點數</div><div class="metric-value">47</div><div class="metric-note"><span class="up">↑ 8.3%</span> 相較昨日</div></article>
+        <article class="card metric"><div class="metric-label">確認開路數</div><div class="metric-value">12</div><div class="metric-note">確認率 <strong>25.5%</strong></div></article>
+        <article class="card metric"><div class="metric-label">受影響批次數</div><div class="metric-value">3</div><div class="metric-note"><span class="pill red">1 批待隔離</span></div></article>
+        <article class="card metric"><div class="metric-label">今日檢測板數</div><div class="metric-value">1,284</div><div class="metric-note"><span class="down">良率 99.06%</span></div></article>
+      </div>
+
+      <div class="grid-2">
+        <article class="card">
+          <div class="card-head">
+            <div><h2>24 小時缺陷趨勢</h2><div class="small muted">疑點與人工確認開路數</div></div>
+            <span class="pill">每 4 小時</span>
+          </div>
+          <div id="riskChart" class="chart" aria-label="24 小時缺陷趨勢圖"></div>
+        </article>
+        <article class="card">
+          <div class="card-head"><h2>優先處理批次</h2><span class="pill red">3 批異常</span></div>
+          <div class="risk-list">
+            <div class="risk-row">
+              <div class="risk-code">L1</div><div><strong>LOT-260828-A17</strong><span class="small muted">內層二 · 蝕刻站 E03</span></div><span class="pill red">極高</span>
+            </div>
+            <div class="risk-row">
+              <div class="risk-code">L3</div><div><strong>LOT-260828-B04</strong><span class="small muted">外層一 · 成型站 R02</span></div><span class="pill amber">中高</span>
+            </div>
+            <div class="risk-row">
+              <div class="risk-code">L2</div><div><strong>LOT-260827-K31</strong><span class="small muted">內層四 · 前處理 P01</span></div><span class="pill amber">觀察</span>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="alert"><span class="material-symbols-outlined">warning</span><span>A17 批次在 X:42–68 mm 區域連續出現 7 個疑點，建議立即確認並暫停轉序。</span></div>
+        </article>
+      </div>
+
+      <div class="grid-even" style="margin-top:16px">
+        <article class="card">
+          <div class="card-head"><h2>板面熱點分布</h2><div class="legend"><span><i class="dot" style="background:#e7efff"></i>低</span><span><i class="dot" style="background:#678be0"></i>中</span><span><i class="dot" style="background:#1e40af"></i>高</span></div></div>
+          <div class="heatmap" aria-label="板面熱點矩陣">
+            <span></span><span></span><span class="h2"></span><span></span><span></span><span class="h3"></span><span></span><span></span>
+            <span></span><span class="h2"></span><span class="h3"></span><span class="h2"></span><span></span><span class="h4"></span><span class="h3"></span><span></span>
+            <span></span><span></span><span class="h2"></span><span></span><span class="h2"></span><span class="h4"></span><span class="h2"></span><span></span>
+            <span></span><span class="h2"></span><span></span><span></span><span></span><span class="h3"></span><span></span><span></span>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-head"><h2>即時處理紀錄</h2><span class="small muted">最近 30 分鐘</span></div>
+          <div class="feed">
+            <div class="feed-item"><div class="feed-line"><i></i></div><div><strong>品質主管建立預隔離</strong><div class="muted">LOT-260828-A17 · 10:42</div></div></div>
+            <div class="feed-item"><div class="feed-line"><i></i></div><div><strong>AI 新增 4 個高信心疑點</strong><div class="muted">L2 / NET-GND-17 · 10:36</div></div></div>
+            <div class="feed-item"><div class="feed-line"><i></i></div><div><strong>檢驗員完成座標複核</strong><div class="muted">PCB-004 · 10:24</div></div></div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="view-1" aria-labelledby="title-1">
+    <div class="workspace">
+      <header class="page-head">
+        <div>
+          <span class="eyebrow"><span class="material-symbols-outlined">layers</span> LAYER INSPECTION</span>
+          <h1 id="title-1">板層線路瀏覽</h1>
+          <p class="sub">LOT-260828-A17 · Panel 03 / Board 08。切換受影響板層，檢視焊墊、導通孔與網路路徑。</p>
+        </div>
+        <div class="head-actions">
+          <button class="btn" data-action="fit"><span class="material-symbols-outlined">fit_screen</span>適合畫面</button>
+          <button class="btn primary" data-next="2">進入差異比對<span class="material-symbols-outlined">arrow_forward</span></button>
+        </div>
+      </header>
+
+      <div class="layer-layout">
+        <aside class="card">
+          <div class="card-head"><h2>板層</h2><span class="pill">8 Layers</span></div>
+          <div class="layer-list">
+            <button class="layer-btn"><strong>L1 Top Signal</strong><span>2 疑點 · 96.8% 完整</span></button>
+            <button class="layer-btn active"><strong>L2 Ground</strong><span>7 疑點 · 94.2% 完整</span></button>
+            <button class="layer-btn"><strong>L3 Inner Signal</strong><span>1 疑點 · 99.1% 完整</span></button>
+            <button class="layer-btn"><strong>L4 Power</strong><span>0 疑點 · 100% 完整</span></button>
+            <button class="layer-btn"><strong>L5 Inner Signal</strong><span>2 疑點 · 98.4% 完整</span></button>
+            <button class="layer-btn"><strong>L8 Bottom Signal</strong><span>0 疑點 · 100% 完整</span></button>
+          </div>
+          <div class="divider"></div>
+          <div class="kicker">顯示物件</div>
+          <label class="check-row"><input type="checkbox" checked>銅箔線路</label>
+          <label class="check-row"><input type="checkbox" checked>焊墊與導通孔</label>
+          <label class="check-row"><input type="checkbox" checked>AI 疑點標記</label>
+        </aside>
+
+        <article class="board-shell">
+          <div class="board-toolbar"><span>L2 Ground · 38.4 × 62.0 mm</span><span>縮放 128% · Grid 1 mm</span></div>
+          <div class="pcb" aria-label="模擬印刷電路板線路圖">
+            <span class="trace" style="left:8%;top:18%;width:48%"></span>
+            <span class="trace v" style="left:55%;top:18%;height:31%"></span>
+            <span class="trace" style="left:55%;top:48%;width:34%"></span>
+            <span class="trace" style="left:13%;top:69%;width:30%"></span>
+            <span class="trace v" style="left:42%;top:55%;height:15%"></span>
+            <span class="trace" style="left:42%;top:55%;width:34%"></span>
+            <span class="trace v" style="left:75%;top:31%;height:25%"></span>
+            <span class="trace" style="left:22%;top:35%;width:20%"></span>
+            <span class="trace v" style="left:22%;top:35%;height:19%"></span>
+            <span class="pad" style="left:7%;top:15%"></span><span class="pad" style="left:86%;top:45%"></span>
+            <span class="pad" style="left:10%;top:66%"></span><span class="pad" style="left:73%;top:28%"></span>
+            <span class="via" style="left:40%;top:52%"></span><span class="via" style="left:53%;top:15%"></span>
+            <span class="via" style="left:20%;top:32%"></span><span class="via" style="left:73%;top:53%"></span>
+            <span class="break" style="left:48%;top:13%" title="疑點 D-017"></span>
+            <span class="break" style="left:67%;top:43%" title="疑點 D-021"></span>
+            <span class="break" style="left:35%;top:64%" title="疑點 D-026"></span>
+          </div>
+        </article>
+
+        <aside class="card layer-inspector">
+          <div class="card-head"><h2>網路檢視</h2><span class="pill red">7 疑點</span></div>
+          <div class="net-list">
+            <div class="net"><strong><span>NET-GND-17</span><span class="up">3</span></strong><p>U12-08 → VIA-314 · 長度 42.8 mm</p></div>
+            <div class="net"><strong><span>NET-GND-22</span><span class="up">2</span></strong><p>J04-16 → TP-092 · 長度 31.2 mm</p></div>
+            <div class="net"><strong><span>NET-VSS-03</span><span>1</span></strong><p>C88-02 → VIA-208 · 長度 18.7 mm</p></div>
+            <div class="net"><strong><span>NET-SHIELD</span><span>1</span></strong><p>EDGE-01 → J02-01 · 長度 56.1 mm</p></div>
+          </div>
+          <div class="divider"></div>
+          <div class="kicker">選取物件</div>
+          <h3 style="margin:6px 0">D-017 · 線寬異常</h3>
+          <p class="small muted">座標 X 48.62 / Y 17.34 mm<br>最窄處 42 μm · 規格 ≥ 75 μm</p>
+          <div class="progress"><span style="width:94%"></span></div>
+          <p class="small"><strong>AI 信心 94%</strong></p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="view-2" aria-labelledby="title-2">
+    <div class="workspace">
+      <header class="page-head">
+        <div>
+          <span class="eyebrow"><span class="material-symbols-outlined">difference</span> REFERENCE OVERLAY</span>
+          <h1 id="title-2">參考圖差異比對</h1>
+          <p class="sub">將 L2 Ground 檢測影像與 CAM 標準圖疊合，突出線路缺口、偏移與疑似中斷。</p>
+        </div>
+        <div class="head-actions">
+          <button class="btn" data-action="align"><span class="material-symbols-outlined">center_focus_strong</span>重新對位</button>
+          <button class="btn primary" data-next="3">送出座標複核<span class="material-symbols-outlined">send</span></button>
+        </div>
+      </header>
+
+      <div class="compare-layout">
+        <article class="compare-view">
+          <div class="compare-grid"></div>
+          <div class="compare-labels"><span class="pill green">檢測圖</span><span class="pill">標準圖</span><span class="pill red">差異</span></div>
+          <span class="copper-path" style="left:8%;top:25%;width:34%"></span>
+          <span class="copper-path vertical" style="left:41%;top:25%;height:39%"></span>
+          <span class="copper-path" style="left:41%;top:63%;width:42%"></span>
+          <span class="copper-path" style="left:19%;top:45%;width:17%"></span>
+          <span class="copper-path vertical" style="left:19%;top:45%;height:29%"></span>
+          <span class="ref-path" style="left:8%;top:23%;width:46%"></span>
+          <span class="ref-path" style="left:41%;top:61%;width:48%"></span>
+          <span class="ref-path" style="left:19%;top:43%;width:24%"></span>
+          <span class="defect-mark" style="left:40%;top:20%">D-017 · 缺口 118 μm</span>
+          <span class="defect-mark" style="left:68%;top:58%">D-021 · 偏蝕 84 μm</span>
+          <span class="defect-mark" style="left:17%;top:68%">D-026 · 中斷 132 μm</span>
+          <div class="slider-box">
+            <div style="display:flex;justify-content:space-between"><span>標準圖透明度</span><strong id="opacityReadout">62%</strong></div>
+            <input id="overlayRange" type="range" min="0" max="100" value="62" aria-label="標準圖透明度">
+          </div>
+        </article>
+
+        <aside class="card">
+          <div class="card-head"><h2>差異清單</h2><span class="pill red">3 項優先</span></div>
+          <div class="issue-list">
+            <button class="issue-btn active"><strong><span>D-017 · 線路缺口</span><span class="pill red">嚴重</span></strong><p>X 48.62 / Y 17.34 · NET-GND-17<br>差異面積 0.031 mm² · 信心 94%</p></button>
+            <button class="issue-btn"><strong><span>D-021 · 蝕刻不足</span><span class="pill amber">中度</span></strong><p>X 67.15 / Y 43.08 · NET-GND-22<br>差異面積 0.024 mm² · 信心 89%</p></button>
+            <button class="issue-btn"><strong><span>D-026 · 線路中斷</span><span class="pill red">嚴重</span></strong><p>X 35.42 / Y 68.91 · NET-VSS-03<br>差異面積 0.038 mm² · 信心 96%</p></button>
+          </div>
+          <div class="divider"></div>
+          <h3>影像對位品質</h3>
+          <div class="risk-list">
+            <div><div class="small muted">基準點匹配</div><strong>12 / 12</strong><div class="progress"><span style="width:100%"></span></div></div>
+            <div><div class="small muted">平均位移誤差</div><strong>8.6 μm</strong><div class="progress"><span style="width:86%"></span></div></div>
+            <div><div class="small muted">影像清晰度</div><strong>97.2%</strong><div class="progress"><span style="width:97%"></span></div></div>
+          </div>
+          <div class="alert" style="margin-top:15px"><span class="material-symbols-outlined">rule</span><span>D-017 與 D-026 已超過 100 μm 開路判定門檻，須由品保工程師複核。</span></div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="view-3" aria-labelledby="title-3">
+    <div class="workspace">
+      <header class="page-head">
+        <div>
+          <span class="eyebrow"><span class="material-symbols-outlined">fact_check</span> MANUAL VERIFICATION</span>
+          <h1 id="title-3">斷路定位複核</h1>
+          <p class="sub">逐筆確認缺陷座標、斷路範圍與嚴重度，保留判讀依據與完整操作軌跡。</p>
+        </div>
+        <div class="head-actions">
+          <span class="pill">D-017 · 1 / 3</span>
+          <button class="btn" data-action="previous"><span class="material-symbols-outlined">chevron_left</span>上一筆</button>
+          <button class="btn" data-action="next-defect">下一筆<span class="material-symbols-outlined">chevron_right</span></button>
+        </div>
+      </header>
+
+      <div class="review-layout">
+        <article class="card">
+          <div class="card-head">
+            <div><h2>局部檢測影像</h2><div class="small muted">倍率 40× · L2 Ground · NET-GND-17</div></div>
+            <div class="legend"><span><i class="dot" style="background:#d09a32"></i>銅箔</span><span><i class="dot" style="background:#fb7185"></i>疑似斷點</span></div>
+          </div>
+          <div class="microscope">
+            <div class="crosshair"></div>
+            <span class="coord-badge">X 48.62 / Y 17.34</span>
+            <span class="scale">200 μm</span>
+          </div>
+        </article>
+
+        <aside class="card">
+          <div class="card-head"><h2>複核表單</h2><span class="pill red">待確認</span></div>
+          <div class="form-grid">
+            <div class="field"><label>缺陷編號</label><input value="D-017" readonly></div>
+            <div class="field"><label>AI 信心</label><input value="94%" readonly></div>
+            <div class="field"><label>X 座標（mm）</label><input value="48.62"></div>
+            <div class="field"><label>Y 座標（mm）</label><input value="17.34"></div>
+            <div class="field"><label>缺口寬度（μm）</label><input value="118"></div>
+            <div class="field"><label>受影響網路</label><input value="NET-GND-17"></div>
+            <div class="field full"><label>缺陷類型</label><select><option>線路完全中斷</option><option>局部缺口</option><option>蝕刻不足</option><option>影像誤判</option></select></div>
+            <div class="field full">
+              <label>嚴重度</label>
+              <div class="severity"><button class="sev-btn">輕微</button><button class="sev-btn">中度</button><button class="sev-btn active">嚴重</button></div>
+            </div>
+            <div class="field full"><label>複核備註</label><textarea>線路在中心位置完全中斷，量測缺口 118 μm；建議判定開路並隔離同批板件。</textarea></div>
+          </div>
+          <div style="display:flex;gap:9px;margin-top:14px">
+            <button class="btn" style="flex:1" data-action="false-positive">標記誤判</button>
+            <button class="btn primary" style="flex:1" data-action="confirm-defect">確認開路</button>
+          </div>
+        </aside>
+      </div>
+
+      <article class="card" style="margin-top:16px">
+        <div class="card-head"><h2>檢驗軌跡</h2><span class="small muted">所有時間為 GMT+8</span></div>
+        <div class="audit-strip">
+          <div class="audit-node"><strong>10:18:42 · AOI</strong>建立疑點 D-017<br><span class="muted">信心 94%</span></div>
+          <div class="audit-node"><strong>10:21:05 · 系統</strong>完成 CAM 疊合<br><span class="muted">誤差 8.6 μm</span></div>
+          <div class="audit-node"><strong>10:27:31 · 陳怡君</strong>開啟人工複核<br><span class="muted">檢驗站 QA-04</span></div>
+          <div class="audit-node"><strong>目前 · 待簽核</strong>品保工程師確認<br><span class="muted">SLA 剩餘 24 分</span></div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="page" id="view-4" aria-labelledby="title-4">
+    <div class="workspace">
+      <header class="page-head">
+        <div>
+          <span class="eyebrow"><span class="material-symbols-outlined">block</span> LOT DISPOSITION</span>
+          <h1 id="title-4">批次隔離處置</h1>
+          <p class="sub">依確認開路數與影響程度建立隔離單，決定重工、報廢或有條件放行。</p>
+        </div>
+        <div class="head-actions">
+          <button class="btn" data-action="save-draft"><span class="material-symbols-outlined">draft</span>儲存草稿</button>
+          <button class="btn primary" data-action="submit-isolation"><span class="material-symbols-outlined">lock</span>建立隔離單</button>
+        </div>
+      </header>
+
+      <div class="batch-banner">
+        <div class="batch-cell"><span class="kicker">處置批次</span><strong>LOT-260828-A17</strong><span class="small muted">產品 JV-MB-42 · 工單 WO-83174</span></div>
+        <div class="batch-cell"><span class="kicker">批量</span><strong>240 PCS</strong><span class="small muted">3 Panels</span></div>
+        <div class="batch-cell"><span class="kicker">確認開路</span><strong style="color:var(--red)">7</strong><span class="small muted">2.92% 抽檢率</span></div>
+        <div class="batch-cell"><span class="kicker">風險值</span><strong style="color:var(--red)">92 / 100</strong><span class="small muted">極高風險</span></div>
+      </div>
+
+      <div class="grid-2">
+        <article class="card">
+          <div class="card-head"><h2>選擇處置方案</h2><span class="pill amber">需品質主管核准</span></div>
+          <div class="disposition-grid">
+            <button class="disposition active"><span class="material-symbols-outlined">build</span><strong>隔離後重工</strong><span class="small muted">全批暫停轉序，完成電測與修補後重新送驗。</span></button>
+            <button class="disposition"><span class="material-symbols-outlined">delete</span><strong>整批報廢</strong><span class="small muted">缺陷不可修復或風險超過允收條件時執行。</span></button>
+            <button class="disposition"><span class="material-symbols-outlined">verified</span><strong>條件放行</strong><span class="small muted">擴大抽驗合格且取得品質特採核准後放行。</span></button>
+          </div>
+
+          <div class="divider"></div>
+          <h2>處置路由</h2>
+          <div class="route">
+            <div class="route-step done"><div class="route-icon"><span class="material-symbols-outlined">check</span></div><span>缺陷確認</span></div>
+            <div class="route-step done"><div class="route-icon"><span class="material-symbols-outlined">check</span></div><span>批次鎖定</span></div>
+            <div class="route-step"><div class="route-icon">3</div><span>主管核准</span></div>
+            <div class="route-step"><div class="route-icon">4</div><span>重工回驗</span></div>
+          </div>
+
+          <div class="form-grid">
+            <div class="field"><label>隔離區</label><select><option>QA-HOLD-02</option><option>QA-HOLD-01</option></select></div>
+            <div class="field"><label>預計完成</label><input type="date" value="2026-08-30"></div>
+            <div class="field full"><label>處置說明</label><textarea>全批 240 PCS 轉入 QA-HOLD-02，執行 100% 飛針電測；確認不良品送線路修補，其餘板件待品質主管放行。</textarea></div>
+          </div>
+        </article>
+
+        <aside class="card">
+          <div class="card-head"><h2>送出前檢核</h2><span class="pill green">4 / 5</span></div>
+          <div class="checklist">
+            <label class="check-row"><input type="checkbox" checked><span><strong>批次實體標識</strong><br><span class="muted">紅色 HOLD 標籤已列印</span></span></label>
+            <label class="check-row"><input type="checkbox" checked><span><strong>MES 轉序鎖定</strong><br><span class="muted">禁止流入壓合與後段組裝</span></span></label>
+            <label class="check-row"><input type="checkbox" checked><span><strong>庫存範圍確認</strong><br><span class="muted">在製 240 PCS，無已出貨數量</span></span></label>
+            <label class="check-row"><input type="checkbox" checked><span><strong>責任單位通知</strong><br><span class="muted">製造、品質、製程工程已加入</span></span></label>
+            <label class="check-row"><input type="checkbox"><span><strong>主管電子簽核</strong><br><span class="muted">待品質主管王志明核准</span></span></label>
+          </div>
+          <div class="divider"></div>
+          <h3>影響範圍</h3>
+          <table style="min-width:0">
+            <tbody>
+              <tr><td>在製庫存</td><td style="text-align:right"><strong>240 PCS</strong></td></tr>
+              <tr><td>下游工單</td><td style="text-align:right"><strong>2 張</strong></td></tr>
+              <tr><td>預估延誤</td><td style="text-align:right"><strong>6 小時</strong></td></tr>
+              <tr><td>處置成本</td><td style="text-align:right"><strong>NT$ 18,600</strong></td></tr>
+            </tbody>
+          </table>
+          <div class="alert" style="margin-top:14px"><span class="material-symbols-outlined">inventory_2</span><span>批次尚未離開廠內，完成 MES 鎖定即可阻止風險品流入下一站。</span></div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="view-5" aria-labelledby="title-5">
+    <div class="workspace">
+      <header class="page-head">
+        <div>
+          <span class="eyebrow"><span class="material-symbols-outlined">insights</span> ROOT CAUSE ANALYTICS</span>
+          <h1 id="title-5">開路原因分析</h1>
+          <p class="sub">依板層、區域與製程站點追查開路模式，記錄改善方案並追蹤驗證成效。</p>
+        </div>
+        <div class="head-actions">
+          <button class="btn" data-action="report"><span class="material-symbols-outlined">description</span>建立 8D 報告</button>
+          <button class="btn primary" data-action="improvement"><span class="material-symbols-outlined">add_task</span>新增改善措施</button>
+        </div>
+      </header>
+
+      <div class="metric-grid">
+        <article class="card metric"><div class="metric-label">批號追溯時間</div><div class="metric-value">15 <small>分</small></div><div class="metric-note"><span class="down">原 180 分鐘</span></div></article>
+        <article class="card metric"><div class="metric-label">客訴平均關案</div><div class="metric-value">9 <small>天</small></div><div class="metric-note"><span class="down">原 21 天</span></div></article>
+        <article class="card metric"><div class="metric-label">改善驗證率</div><div class="metric-value">98%</div><div class="metric-note"><span class="down">提升 34 pt</span></div></article>
+        <article class="card metric"><div class="metric-label">重複不良率</div><div class="metric-value">2%</div><div class="metric-note"><span class="down">原 6%</span></div></article>
+      </div>
+
+      <div class="analysis-grid">
+        <article class="card">
+          <div class="card-head"><div><h2>客訴平均關案趨勢</h2><span class="small muted">改善導入後 6 週</span></div><span class="pill green">目標 ≤ 10 天</span></div>
+          <div id="causeChart" class="chart" aria-label="客訴平均關案趨勢圖"></div>
+        </article>
+        <aside class="card">
+          <div class="card-head"><h2>主要原因 Pareto</h2><span class="small muted">近 90 天</span></div>
+          <div class="cause-list">
+            <div class="cause-row"><span>蝕刻液濃度</span><div class="progress"><span style="width:82%"></span></div><strong>41%</strong></div>
+            <div class="cause-row"><span>乾膜刮傷</span><div class="progress"><span style="width:54%"></span></div><strong>27%</strong></div>
+            <div class="cause-row"><span>前處理污染</span><div class="progress"><span style="width:32%"></span></div><strong>16%</strong></div>
+            <div class="cause-row"><span>曝光偏移</span><div class="progress"><span style="width:20%"></span></div><strong>10%</strong></div>
+            <div class="cause-row"><span>其他</span><div class="progress"><span style="width:12%"></span></div><strong>6%</strong></div>
+          </div>
+          <div class="divider"></div>
+          <div class="alert"><span class="material-symbols-outlined">science</span><span>蝕刻站 E03 的開路發生率為全廠平均 2.4 倍，與藥液濃度波動高度相關。</span></div>
+        </aside>
+      </div>
+
+      <div class="grid-even" style="margin-top:16px">
+        <article class="card">
+          <div class="card-head"><h2>製程站點分布</h2><span class="pill">共 47 疑點</span></div>
+          <div class="station-grid">
+            <div class="station"><span class="kicker">E03 蝕刻</span><b>22</b><div class="small up">↑ 12%</div></div>
+            <div class="station"><span class="kicker">P01 前處理</span><b>11</b><div class="small muted">持平</div></div>
+            <div class="station"><span class="kicker">L02 壓膜</span><b>8</b><div class="small down">↓ 4%</div></div>
+          </div>
+          <div class="divider"></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
+              <tbody>
+                <tr><td>PCB-001</td><td>辨識風險</td><td>品質主管</td><td>D+1</td><td><span class="pill amber">處理中</span></td></tr>
+                <tr><td>PCB-004</td><td>確認位置</td><td>品保工程師</td><td>D+4</td><td><span class="pill green">已完成</span></td></tr>
+                <tr><td>PCB-006</td><td>追查原因</td><td>製程工程師</td><td>D+6</td><td><span class="pill green">已完成</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-head"><h2>改善方案與驗證</h2><span class="pill green">驗證率 98%</span></div>
+          <div class="risk-list">
+            <div class="improve"><strong>調整 E03 蝕刻液自動補償上下限</strong><p>負責：林建宏 · 到期 08/30 · 連續 3 批 Cpk ≥ 1.33</p></div>
+            <div class="improve"><strong>乾膜上料區增設表面異物檢查</strong><p>負責：張雅雯 · 已完成 · 刮傷疑點下降 38%</p></div>
+            <div class="improve"><strong>L2 細線路增加飛針電測抽樣</strong><p>負責：陳怡君 · 到期 09/02 · 抽樣比例 5% → 15%</p></div>
+          </div>
+          <div class="divider"></div>
+          <h3>決策規則</h3>
+          <div class="small muted">
+            <p><strong style="color:var(--ink)">RULE-01</strong>　品質主管依斷路疑點數確認異常批次及集中區域。</p>
+            <p><strong style="color:var(--ink)">RULE-02</strong>　PCB 檢驗員依確認開路數瀏覽受影響板層。</p>
+            <p><strong style="color:var(--ink)">RULE-03</strong>　以受影響批次數評估差異比對與隔離範圍。</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toastBox" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  const pages = Array.from(document.querySelectorAll(".page"));
+  const navButtons = Array.from(document.querySelectorAll(".rail-btn"));
+  const chartInstances = {};
+  let toastTimer;
+
+  function notify(message) {
+    const toastBox = document.getElementById("toastBox");
+    toastBox.textContent = message;
+    toastBox.classList.add("showing");
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => toastBox.classList.remove("showing"), 2200);
+  }
+
+  function riskOption() {
+    return {
+      animationDuration: 550,
+      tooltip: { trigger: "axis" },
+      legend: {
+        data: ["斷路疑點", "確認開路"],
+        bottom: 0,
+        textStyle: { color: "#64748b", fontFamily: "Inter, Noto Sans TC" }
+      },
+      grid: { left: 38, right: 16, top: 28, bottom: 48 },
+      xAxis: {
+        type: "category",
+        data: ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"],
+        axisLine: { lineStyle: { color: "#dbe4ef" } },
+        axisLabel: { color: "#64748b" }
+      },
+      yAxis: {
+        type: "value",
+        splitLine: { lineStyle: { color: "#edf1f6" } },
+        axisLabel: { color: "#64748b" }
+      },
+      series: [
+        {
+          name: "斷路疑點",
+          type: "line",
+          smooth: true,
+          data: [4, 7, 5, 13, 9, 9],
+          symbolSize: 8,
+          lineStyle: { width: 3, color: "#1e40af" },
+          itemStyle: { color: "#1e40af" },
+          areaStyle: { color: "rgba(30,64,175,.12)" }
+        },
+        {
+          name: "確認開路",
+          type: "bar",
+          data: [1, 1, 2, 4, 2, 2],
+          barWidth: 14,
+          itemStyle: { color: "#c2413b", borderRadius: [6, 6, 0, 0] }
+        }
+      ]
+    };
+  }
+
+  function causeOption() {
+    return {
+      animationDuration: 550,
+      tooltip: { trigger: "axis", valueFormatter: value => value + " 天" },
+      grid: { left: 40, right: 18, top: 28, bottom: 35 },
+      xAxis: {
+        type: "category",
+        data: ["W1", "W2", "W3", "W4", "W5", "W6"],
+        axisLine: { lineStyle: { color: "#dbe4ef" } },
+        axisLabel: { color: "#64748b" }
+      },
+      yAxis: {
+        type: "value",
+        min: 0,
+        max: 24,
+        splitLine: { lineStyle: { color: "#edf1f6" } },
+        axisLabel: { color: "#64748b" }
+      },
+      series: [{
+        name: "客訴平均關案",
+        type: "line",
+        smooth: true,
+        data: [21, 18.6, 16.2, 13.8, 11.4, 9],
+        symbol: "circle",
+        symbolSize: 9,
+        lineStyle: { width: 4, color: "#1e40af" },
+        itemStyle: { color: "#fff", borderColor: "#1e40af", borderWidth: 3 },
+        areaStyle: {
+          color: {
+            type: "linear",
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: "rgba(30,64,175,.28)" },
+              { offset: 1, color: "rgba(30,64,175,.02)" }
+            ]
+          }
+        },
+        markLine: {
+          symbol: "none",
+          label: { formatter: "目標 10 天", color: "#15803d" },
+          lineStyle: { color: "#15803d", type: "dashed" },
+          data: [{ yAxis: 10 }]
+        }
+      }]
+    };
+  }
+
+  function drawVisibleChart(index) {
+    if (!window.echarts) return;
+    if (index === 0) {
+      const element = document.getElementById("riskChart");
+      if (element && element.clientWidth > 0) {
+        chartInstances.risk = chartInstances.risk || echarts.init(element);
+        chartInstances.risk.setOption(riskOption());
+        chartInstances.risk.resize();
+      }
+    }
+    if (index === 5) {
+      const element = document.getElementById("causeChart");
+      if (element && element.clientWidth > 0) {
+        chartInstances.cause = chartInstances.cause || echarts.init(element);
+        chartInstances.cause.setOption(causeOption());
+        chartInstances.cause.resize();
+      }
+    }
+  }
+
+  window.show = function show(index) {
+    const safeIndex = Math.max(0, Math.min(5, Number(index) || 0));
+    pages.forEach((page, pageIndex) => {
+      const selected = pageIndex === safeIndex;
+      page.classList.toggle("active", selected);
+      page.setAttribute("aria-hidden", selected ? "false" : "true");
+    });
+    navButtons.forEach((button, buttonIndex) => {
+      const selected = buttonIndex === safeIndex;
+      button.classList.toggle("active", selected);
+      button.setAttribute("aria-current", selected ? "step" : "false");
+    });
+    drawVisibleChart(safeIndex);
+    document.documentElement.scrollTop = 0;
+  };
+
+  function indexFromHash() {
+    const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+    return match ? Math.max(0, Math.min(5, Number(match[1]))) : 0;
+  }
+
+  function moveTo(index) {
+    const safeIndex = Math.max(0, Math.min(5, Number(index) || 0));
+    if (window.location.hash === "#go=" + safeIndex) {
+      window.show(safeIndex);
+    } else {
+      window.location.hash = "go=" + safeIndex;
+    }
+  }
+
+  navButtons.forEach(button => {
+    button.addEventListener("click", () => moveTo(button.dataset.i));
+  });
+
+  document.querySelectorAll("[data-next]").forEach(button => {
+    button.addEventListener("click", () => moveTo(button.dataset.next));
+  });
+
+  document.querySelectorAll(".layer-btn").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".layer-btn").forEach(item => item.classList.remove("active"));
+      button.classList.add("active");
+      notify("已切換至 " + button.querySelector("strong").textContent);
+    });
+  });
+
+  document.querySelectorAll(".issue-btn").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".issue-btn").forEach(item => item.classList.remove("active"));
+      button.classList.add("active");
+      notify("已定位選取的差異疑點");
+    });
+  });
+
+  document.querySelectorAll(".sev-btn").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".sev-btn").forEach(item => item.classList.remove("active"));
+      button.classList.add("active");
+    });
+  });
+
+  document.querySelectorAll(".disposition").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".disposition").forEach(item => item.classList.remove("active"));
+      button.classList.add("active");
+      notify("處置方案已更新為「" + button.querySelector("strong").textContent + "」");
+    });
+  });
+
+  const overlayRange = document.getElementById("overlayRange");
+  overlayRange.addEventListener("input", () => {
+    document.getElementById("opacityReadout").textContent = overlayRange.value + "%";
+    document.querySelectorAll(".ref-path").forEach(path => {
+      path.style.opacity = String(Number(overlayRange.value) / 100);
+    });
+  });
+
+  const actionMessages = {
+    export: "班報已整理完成，可供下載",
+    scan: "風險掃描完成：新增 2 個待複核疑點",
+    fit: "板圖已調整至適合畫面",
+    align: "已使用 12 個基準點重新完成影像對位",
+    previous: "目前已是第一筆疑點",
+    "next-defect": "已載入 D-021 蝕刻不足疑點",
+    "false-positive": "已標記為誤判並保留複核紀錄",
+    "confirm-defect": "D-017 已確認為開路，將納入批次處置",
+    "save-draft": "隔離處置草稿已儲存",
+    "submit-isolation": "隔離單 QH-260828-017 已建立並送主管簽核",
+    report: "8D 報告草稿已建立",
+    improvement: "已開啟改善措施建立流程"
+  };
+
+  document.querySelectorAll("[data-action]").forEach(button => {
+    button.addEventListener("click", () => notify(actionMessages[button.dataset.action] || "操作已完成"));
+  });
+
+  window.addEventListener("hashchange", () => window.show(indexFromHash()));
+  window.addEventListener("resize", () => {
+    Object.values(chartInstances).forEach(chart => chart.resize());
+  });
+
+  window.show(indexFromHash());
+})();
+</script>
+</body>
+</html>
