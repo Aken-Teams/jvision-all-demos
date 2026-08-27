@@ -61,10 +61,13 @@ async def stream_answer(system_prompt: str, user_message: str,
     try:
         with open(os.path.join(workdir, "CLAUDE.md"), "w", encoding="utf-8") as fh:
             fh.write(system_prompt)
+        # 關閉延伸思考:展示情境要的是即時開始輸出,不是深思 60~90 秒後的完美答案
+        # (實測 thinking 讓報告首字延遲近百秒,關掉後體感差異巨大;品質由 spec 把關)
+        env = {**os.environ, "MAX_THINKING_TOKENS": "0"}
         proc = await asyncio.create_subprocess_exec(
             cmd, *_args(search, model, partial=on_delta is not None), cwd=workdir,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            creationflags=_NO_WINDOW,
+            creationflags=_NO_WINDOW, env=env,
         )
         assert proc.stdin and proc.stdout
         proc.stdin.write(user_message.encode("utf-8"))
