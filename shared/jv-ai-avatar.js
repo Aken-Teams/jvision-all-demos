@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "13"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "14"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -282,6 +282,48 @@
       '<div class="t"><div class="f">智</div><b>資料讀取完成,團隊正在撰寫報告</b>' +
       "<small>內容生成後會即時呈現在這裡,你也可以先關閉,完成後從對話面板開啟。</small></div>";
   }
+  /* ---- 展演級寫入:sys_op 事件 → 開舞台載入系統,交派 bridge 跨畫面找目標改狀態 ---- */
+  var opSeq = 0, opPending = {};
+  window.addEventListener("message", function (e) {
+    var d = e.data || {};
+    if (d && d.jvAgentReply === "operate" && opPending[d.id]) {
+      var cb = opPending[d.id]; delete opPending[d.id]; cb(d);
+    }
+  });
+  function runOperation(op) {
+    if (stage.stopped) return;
+    ensureStage();
+    stage.mode = "tour"; stage.playing = true; stage.queue = [];
+    showStage();
+    stage.sys.textContent = "AI 正在操作《" + op.title + "》";
+    stage.cap.textContent = "開啟系統,尋找「" + op.target + "」…";
+    function fail() {
+      stage.playing = false;
+      stage.cap.textContent = "在畫面上找不到「" + op.target + "」,操作未執行。";
+      bubble(op.title, "我在《" + op.title + "》的畫面上找不到「" + op.target + "」,操作未執行。", "live");
+    }
+    stage.iframe.onload = function () {
+      setTimeout(function () {
+        stage.cap.textContent = "逐畫面尋找「" + op.target + "」…";
+        var id = "op" + (++opSeq);
+        var to = setTimeout(function () { if (opPending[id]) { delete opPending[id]; fail(); } }, 14000);
+        opPending[id] = function (r) {
+          clearTimeout(to);
+          stage.playing = false;
+          if (!r.ok) { fail(); return; }
+          stage.cap.textContent = "✔ 已將「" + op.target + "」" + op.verb + "「" + op.value + "」(展示操作,重新整理即復原)";
+          stage.el.classList.add("jva-stage-done");
+          stage.skip.textContent = "關閉";
+          bubble(op.title, "已把「" + op.target + "」" + op.verb + "「" + op.value + "」。展示操作只改畫面不落地,重新整理即復原。", "live");
+        };
+        try { stage.iframe.contentWindow.postMessage({ jvAgent: "operate", id: id, target: op.target, value: op.value }, "*"); }
+        catch (e2) { fail(); }
+      }, wait(900));
+    };
+    stage.iframe.removeAttribute("srcdoc");
+    stage.iframe.src = op.url;
+  }
+
   /* 完稿永遠接管舞台:就算導覽還在播(報告寫得比導覽快),也立刻中斷、
      把完整報告呈現出來——不然會發生「導覽播完→任務已結束→舞台自己關掉」,
      客戶根本沒看到報告畫面。srcdoc 全新解析,圖表腳本必定執行。 */
@@ -484,6 +526,7 @@
     function handle(e) {
       if (e.type === "status") busyTxt.textContent = (e.message || "").replace(/…+$/, "");
       else if (e.type === "sys_tour") queueTour(e);
+      else if (e.type === "sys_op") runOperation(e);
       else if (e.type === "message" && e.text) bubble(e.name || "AI", e.text, e.dataMode === "system-live" ? "live" : "");
       else if (e.type === "step" && e.message) line("jva-step", esc(e.message));
       else if (e.type === "page_delta") {

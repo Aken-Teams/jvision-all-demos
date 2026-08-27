@@ -448,7 +448,43 @@ async def _build_text_report(writer, question, doms, combined, emit):
     return md
 
 
+# 操作指令:「把/將 <目標> 標記為/改成/填為 <值>」。走零 LLM 的即時路徑——
+# 前端(頭像)收到 sys_op 後開舞台,由 demo 內的 bridge 跨畫面找到目標、當場改狀態。
+# 展示級寫入:只改畫面、不落地,重新整理即復原(demo 是靜態頁,本來就無資料庫)。
+_OP_RE = re.compile(
+    r"[把將]\s*(.{1,24}?)\s*(標記為|標記成|標記|改成|改為|設為|設定為|更新為|填為|填成)\s*([^,，。;；]{1,20})")
+
+
+def _try_operation(question, emit):
+    m = _OP_RE.search(question)
+    if not m:
+        return False
+    target = m.group(1).strip(" 「」『』\"'")
+    verb = m.group(2)
+    value = m.group(3).strip(" 「」『』\"'。")
+    if not target or not value:
+        return False
+    hits = systems.pick_systems(question, top=1)
+    info = hits[0][1] if hits else systems.find_system_with(target)
+    if not info:
+        emit({"type": "message", "id": "orchestrator", "name": "智策", "role": "總指揮", "dataMode": "reasoning",
+              "text": f"我在站上系統的資料裡找不到「{target}」,先確認一下名稱或單號?"})
+        emit({"type": "final", "message": "找不到操作目標。"})
+        return True
+    title = info.get("displayName") or info.get("name")
+    emit({"type": "status", "message": "辨識為操作指令,定位目標系統…"})
+    emit({"type": "message", "id": "orchestrator", "name": "智策", "role": "總指揮", "dataMode": "reasoning",
+          "text": f"收到操作指令。我請系統代理開啟《{title}》,把「{target}」{verb}「{value}」——展示操作,重新整理即復原。"})
+    emit({"type": "sys_op", "repo": info["name"], "title": title, "url": f"/demos/{info['name']}/",
+          "target": target, "verb": verb, "value": value})
+    emit({"type": "done_item", "text": f"操作:《{title}》{target} {verb} {value}"})
+    emit({"type": "final", "message": "操作已交派系統代理執行。"})
+    return True
+
+
 async def run(question: str, mode, emit):
+    if _try_operation(question, emit):
+        return
     emit({"type": "status", "message": "指揮官分析需求、判斷領域…"})
     doms, internal, external, exq, output = await plan(question)
     # Phase 2:內部數據先找站上「已抽取實際畫面資料」的系統,由系統代理讀真資料;

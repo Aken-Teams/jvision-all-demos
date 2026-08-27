@@ -159,6 +159,26 @@ def data_block(repo: str, max_rows: int = 6, max_chars: int = 1800) -> str:
     return "\n".join(out)
 
 
+def find_system_with(term: str):
+    """在抽取資料的表格/KPI 裡找含指定字串的系統。
+    操作指令用:客戶只講單號(WO-01)不講系統名,得反查這筆資料在哪套系統。"""
+    if not term or len(term) < 2:
+        return None
+    for s in index().get("systems", []):
+        d = data(s.get("name", ""))
+        if not d:
+            continue
+        for sc in d.get("screens", []):
+            for t in sc.get("tables", []):
+                for r in t.get("rows", []):
+                    if any(term in str(c) for c in r):
+                        return s
+            for k in sc.get("kpis", []):
+                if term in k.get("label", ""):
+                    return s
+    return None
+
+
 def get_metrics(repo: str) -> list:
     d = data(repo) or {}
     out = []
