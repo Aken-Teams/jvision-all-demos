@@ -456,35 +456,52 @@ _OP_RE = re.compile(
 
 
 def _try_operation(question, emit):
-    m = _OP_RE.search(question)
-    if not m:
+    """支援複合指令:一句話裡多個「把 X …為 Y」,逐項定位、按系統分組發派。
+    每個目標先查好在哪套系統的第幾個畫面(抽取資料反查),前端直接開在正確畫面。"""
+    matches = list(_OP_RE.finditer(question))
+    if not matches:
         return False
-    target = m.group(1).strip(" 「」『』\"'")
-    verb = m.group(2)
-    value = m.group(3).strip(" 「」『』\"'。")
-    if not target or not value:
-        return False
-    # 先查好目標在哪套系統的第幾個畫面(問題有點名系統就優先在該系統找,
-    # 沒點名或該系統沒有就全站反查),前端直接開在正確畫面
     hits = systems.pick_systems(question, top=1)
-    found = systems.find_system_with(target, repo=hits[0][1]["name"]) if hits else None
-    if not found:
-        found = systems.find_system_with(target)
-    if not found and hits:
-        found = (hits[0][1], 0)
-    if not found:
+    groups = {}   # repo -> {"info", "steps"}
+    missing = []
+    for m in matches:
+        target = m.group(1).strip(" 「」『』\"'")
+        verb = m.group(2)
+        value = m.group(3).strip(" 「」『』\"'。")
+        if not target or not value:
+            continue
+        found = systems.find_system_with(target, repo=hits[0][1]["name"]) if hits else None
+        if not found:
+            found = systems.find_system_with(target)
+        if not found and hits:
+            found = (hits[0][1], 0)
+        if not found:
+            missing.append(target)
+            continue
+        info, screen = found
+        g = groups.setdefault(info["name"], {"info": info, "steps": []})
+        g["steps"].append({"target": target, "verb": verb, "value": value, "screen": screen})
+    if not groups and not missing:
+        return False
+    if not groups:
         emit({"type": "message", "id": "orchestrator", "name": "智策", "role": "總指揮", "dataMode": "reasoning",
-              "text": f"我在站上系統的資料裡找不到「{target}」,先確認一下名稱或單號?"})
+              "text": f"我在站上系統的資料裡找不到「{'、'.join(missing)}」,先確認一下名稱或單號?"})
         emit({"type": "final", "message": "找不到操作目標。"})
         return True
-    info, screen = found
-    title = info.get("displayName") or info.get("name")
+    total = sum(len(g["steps"]) for g in groups.values())
+    titles = "、".join(f"《{g['info'].get('displayName') or r}》" for r, g in groups.items())
     emit({"type": "status", "message": "辨識為操作指令,定位目標系統…"})
     emit({"type": "message", "id": "orchestrator", "name": "智策", "role": "總指揮", "dataMode": "reasoning",
-          "text": f"收到操作指令。我請系統代理開啟《{title}》,把「{target}」{verb}「{value}」——展示操作,重新整理即復原。"})
-    emit({"type": "sys_op", "repo": info["name"], "title": title, "url": f"/demos/{info['name']}/",
-          "screen": screen, "target": target, "verb": verb, "value": value})
-    emit({"type": "done_item", "text": f"操作:《{title}》{target} {verb} {value}"})
+          "text": f"收到操作指令,共 {total} 項變更。我請系統代理依序開啟 {titles} 逐項執行——展示操作,重新整理即復原。"})
+    for repo, g in groups.items():
+        title = g["info"].get("displayName") or repo
+        emit({"type": "sys_op", "repo": repo, "title": title, "url": f"/demos/{repo}/",
+              "steps": g["steps"]})
+        emit({"type": "done_item", "text": f"操作:《{title}》" + "、".join(
+            f"{s['target']} {s['verb']} {s['value']}" for s in g["steps"])})
+    if missing:
+        emit({"type": "message", "id": "orchestrator", "name": "智策", "role": "總指揮", "dataMode": "reasoning",
+              "text": f"另外「{'、'.join(missing)}」在站上資料裡找不到,這幾項先略過。"})
     emit({"type": "final", "message": "操作已交派系統代理執行。"})
     return True
 

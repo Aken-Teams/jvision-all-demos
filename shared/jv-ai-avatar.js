@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "16"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "17"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -169,7 +169,11 @@
   // 兩類範例:做報告(查數據彙整)與下指令(展示操作),各給客戶三句參考
   var EXAMPLES = {
     report: ["摘要 CRM 目前的商機現況", "生產工單系統現在的達交狀況?", "出勤差勤系統的近況重點"],
-    op: ["把 WO-01 標記為已完成", "把 SO-24110 標記為已拆單", "把 O宇產線分析 改成 議約談判"],
+    op: [
+      "把 WO-01 標記為已完成,再把 WO-04 改成急件插單",
+      "把 SO-24110 標記為已拆單,並把 SO-24111 更新為拆單中",
+      "把 O宇產線分析 改成 議約談判,再把 和O車後市場 標記為成交",
+    ],
   };
 
   function renderWelcome() {
@@ -308,39 +312,57 @@
       var cb = opPending[d.id]; delete opPending[d.id]; cb(d);
     }
   });
+  /* 複合操作:一次 sys_op 可帶多個 steps,逐項執行、字幕報進度、徽章累積;
+     跨系統的多個 sys_op 進佇列依序演。 */
+  var opQueue = [], opActive = false;
   function runOperation(op) {
-    if (stage.stopped) return;
+    opQueue.push(op);
+    if (!opActive) nextOperation();
+  }
+  function nextOperation() {
+    var op = opQueue.shift();
+    if (!op || stage.stopped) { opActive = false; opQueue = []; return; }
+    opActive = true;
     ensureStage();
     stage.mode = "tour"; stage.playing = true; stage.queue = [];
     showStage();
+    var steps = op.steps || [{ target: op.target, verb: op.verb, value: op.value, screen: op.screen }];
+    var results = [], idx = 0;
     stage.sys.textContent = "AI 正在操作《" + op.title + "》";
-    stage.cap.textContent = "開啟系統,尋找「" + op.target + "」…";
-    function fail() {
-      stage.playing = false;
-      stage.cap.textContent = "在畫面上找不到「" + op.target + "」,操作未執行。";
-      bubble(op.title, "我在《" + op.title + "》的畫面上找不到「" + op.target + "」,操作未執行。", "live");
+    stage.cap.textContent = "開啟系統…";
+    function runStep() {
+      if (stage.stopped) { opActive = false; opQueue = []; return; }
+      if (idx >= steps.length) { finishOp(); return; }
+      var s = steps[idx], n = "(" + (idx + 1) + "/" + steps.length + ")";
+      stage.cap.textContent = n + " 尋找「" + s.target + "」…";
+      var id = "op" + (++opSeq);
+      var next = function (ok) {
+        results.push({ s: s, ok: ok });
+        stage.cap.textContent = ok
+          ? n + " ✔ 已將「" + s.target + "」" + s.verb + "「" + s.value + "」"
+          : n + " 找不到「" + s.target + "」,略過";
+        idx += 1;
+        setTimeout(runStep, wait(1400)); // 停一拍,讓客戶看清楚這一步的變化
+      };
+      var to = setTimeout(function () { if (opPending[id]) { delete opPending[id]; next(false); } }, 14000);
+      opPending[id] = function (r) { clearTimeout(to); next(!!r.ok); };
+      try { stage.iframe.contentWindow.postMessage({ jvAgent: "operate", id: id, screen: s.screen, target: s.target, value: s.value }, "*"); }
+      catch (e2) { clearTimeout(to); delete opPending[id]; next(false); }
     }
-    stage.iframe.onload = function () {
-      setTimeout(function () {
-        stage.cap.textContent = "逐畫面尋找「" + op.target + "」…";
-        var id = "op" + (++opSeq);
-        var to = setTimeout(function () { if (opPending[id]) { delete opPending[id]; fail(); } }, 14000);
-        opPending[id] = function (r) {
-          clearTimeout(to);
-          stage.playing = false;
-          if (!r.ok) { fail(); return; }
-          stage.cap.textContent = "✔ 已將「" + op.target + "」" + op.verb + "「" + op.value + "」(展示操作,重新整理即復原)";
-          stage.el.classList.add("jva-stage-done");
-          stage.skip.textContent = "關閉";
-          bubble(op.title, "已把「" + op.target + "」" + op.verb + "「" + op.value + "」。展示操作只改畫面不落地,重新整理即復原。", "live");
-        };
-        try { stage.iframe.contentWindow.postMessage({ jvAgent: "operate", id: id, screen: op.screen, target: op.target, value: op.value }, "*"); }
-        catch (e2) { fail(); }
-      }, wait(1100));
-    };
+    function finishOp() {
+      stage.playing = false;
+      var okN = results.filter(function (r) { return r.ok; }).length;
+      stage.cap.textContent = "完成 " + okN + "/" + results.length + " 項變更(展示操作,重新整理即復原)";
+      if (okN) stage.el.classList.add("jva-stage-done");
+      stage.skip.textContent = opQueue.length ? "跳過展示" : "關閉";
+      var lines = results.map(function (r) { return (r.ok ? "✔" : "✕") + " " + r.s.target + " → " + r.s.value; }).join("、");
+      bubble(op.title, "完成 " + okN + "/" + results.length + " 項變更:" + lines + "。展示操作只改畫面不落地,重新整理即復原。", "live");
+      setTimeout(nextOperation, wait(opQueue.length ? 1800 : 10));
+    }
+    stage.iframe.onload = function () { setTimeout(runStep, wait(1100)); };
     stage.iframe.removeAttribute("srcdoc");
-    // 後端已查好目標在第幾個畫面,直接開在那一頁
-    stage.iframe.src = op.url + "#go=" + (op.screen || 0);
+    // 後端已查好第一個目標在第幾個畫面,直接開在那一頁
+    stage.iframe.src = op.url + "#go=" + ((steps[0] && steps[0].screen) || 0);
   }
 
   /* 完稿永遠接管舞台:就算導覽還在播(報告寫得比導覽快),也立刻中斷、
