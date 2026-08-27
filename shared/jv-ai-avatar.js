@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "20"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "21"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -252,7 +252,7 @@
   // ---- 操作劇場:實際載入系統畫面,照 sys_tour 腳本切畫面、逐項高亮;
   //      導覽結束後切換成「報告撰寫中」,讓客戶看著報告即時長出來 ----
   var stage = { el: null, iframe: null, cap: null, sys: null, skip: null,
-    queue: [], playing: false, stopped: false, mode: "tour", reportStarted: false };
+    queue: [], playing: false, stopped: false, mode: "tour", reportStarted: false, idleTimer: 0 };
 
   function ensureStage() {
     if (stage.el) return;
@@ -283,9 +283,29 @@
     try { return stage.iframe.contentDocument; } catch (e) { return null; }
   }
 
+  /* 空窗複查模式:導覽播完到報告吐出第一個字之間(模型起筆要 10~30 秒),
+     舞台繼續慢速翻閱系統畫面、字幕輪播工作狀態——畫面永遠是活的,
+     第一個 delta 抵達就切報告模式。 */
+  function startIdleReview() {
+    if (stage.stopped || stage.mode === "report") return;
+    stage.mode = "idle";
+    var caps = ["擬稿正在構思段落結構…", "複查各畫面數據,校對引用數字…", "版面與圖表規劃中,即將開始輸出…"];
+    var n = 0;
+    stage.sys.textContent = "團隊正在撰寫報告";
+    stage.cap.textContent = caps[0];
+    clearInterval(stage.idleTimer);
+    stage.idleTimer = setInterval(function () {
+      if (stage.stopped || stage.mode !== "idle") { clearInterval(stage.idleTimer); return; }
+      n += 1;
+      stage.cap.textContent = caps[n % caps.length];
+      post({ jvAgent: "goto", screen: n % 6 }); // 真的在翻頁複查,不是罐頭動畫
+    }, wait(2600));
+  }
+
   // 報告撰寫模式:同一個舞台,從「操作系統」切換成「看報告長出來」
   function enterReportMode() {
     if (stage.stopped || stage.mode === "report") return;
+    clearInterval(stage.idleTimer);
     showStage();
     stage.mode = "report";
     stage.reportStarted = false;
@@ -371,6 +391,7 @@
      客戶根本沒看到報告畫面。srcdoc 全新解析,圖表腳本必定執行。 */
   function showFinal(docHtml) {
     ensureStage();
+    clearInterval(stage.idleTimer);
     stage.mode = "report";      // playStep 的守衛會就此終止導覽計時鏈
     stage.playing = false;
     stage.queue = [];
@@ -413,7 +434,7 @@
     if (!t) {
       stage.playing = false;
       if (state.runDone) hideStage();
-      else enterReportMode(); // 導覽播完 → 舞台切成報告撰寫實況
+      else startIdleReview(); // 導覽播完、報告還沒吐字 → 慢速複查畫面,別讓客戶盯著靜止畫死等
       return;
     }
     stage.playing = true;
@@ -465,6 +486,7 @@
   function run(question) {
     state.running = true; state.runDone = false;
     stage.stopped = false; stage.mode = "tour"; stage.reportStarted = false;
+    clearInterval(stage.idleTimer);
     if (stage.el) { stage.el.classList.remove("jva-stage-done"); stage.skip.textContent = "跳過展示"; }
     var empty = panel.querySelector(".jva-empty");
     if (empty) empty.remove();
