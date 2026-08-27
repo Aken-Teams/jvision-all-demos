@@ -6,7 +6,7 @@
 不是一人一格套模板 —— 是一份由設計師編排的完整頁。"""
 from __future__ import annotations
 import asyncio, re
-import llm, registry
+import llm, registry, systems
 
 FAST = "haiku"
 SMART = "sonnet"
@@ -188,6 +188,26 @@ async def _gather(t, emit):
     return {"name": a["name"], "role": a["role"], "domain": a.get("domain", ""), "data": data, "external": search}
 
 
+async def _gather_system(hit, emit):
+    """系統代理(Phase 2):讀取站上系統「抽取自實際畫面」的數據。
+    純檔案查詢、零 LLM——查詢本身不該燒算力,也保證數字與畫面一致。"""
+    _score, s = hit
+    repo = s["name"]; title = s.get("displayName") or repo
+    aid = f"sys:{repo}"
+    emit({"type": "agent_start", "id": aid, "name": title, "role": "系統代理", "dataMode": "system-live"})
+    emit({"type": "step", "id": aid, "message": f"開啟《{title}》讀取各畫面數據…"})
+    d = systems.data(repo) or {}
+    block = systems.data_block(repo)
+    sm = d.get("summary", {})
+    kp = [k for sc in d.get("screens", []) for k in sc.get("kpis", [])][:2]
+    summary = f"《{title}》讀到 {sm.get('kpis', 0)} 項 KPI、{sm.get('tables', 0)} 張明細表、{sm.get('charts', 0)} 張圖表"
+    if kp:
+        summary += ";如 " + "、".join(f"{k['label']} {k['value']}" for k in kp)
+    emit({"type": "message", "id": aid, "name": title, "role": "系統代理", "dataMode": "system-live", "text": summary})
+    emit({"type": "done_item", "text": summary})
+    return {"name": title, "role": "系統代理", "domain": s.get("category", ""), "data": block, "external": False, "repo": repo}
+
+
 PAGE_SPEC = (
     "# 任務：做一份『給客戶看的營運報告網頁』——精美、專業、資訊豐富，像真實產品的儀表板畫面。\n"
     "依團隊查到的資料，輸出**一份完整、自成一體的 HTML 文件**（<!doctype html> 到 </html>）。\n"
@@ -196,6 +216,8 @@ PAGE_SPEC = (
     "- **RWD**：grid/flex 子項加 min-width:0、可 wrap、含 @media；390/768/1360px 都不可水平溢出；圖表容器 width:100%。\n"
     "- 數字全部取自下方團隊資料、具體一致；**內部數字自然呈現、不要出現「模擬」；不要說『無法取得資料』**。全程繁體中文（台灣用語）。\n"
     "- **若團隊資料含外部來源連結（http…），報告底部必附一個『資料來源』區塊，用可點的 <a href target=_blank> 列出這些真實連結。**\n"
+    "- **若團隊資料行內含「(來源 /demos/…#go=n …)」標記，代表數字讀自站上實際系統畫面：報告底部必附『資料來源』區塊，"
+    "每筆用 <a href=\"/demos/…#go=n\" target=\"_blank\">系統名·畫面名</a> 可點連結列出；引用的數字必須與來源資料完全一致，不可改寫或另編。**\n"
     "## 要豐富、每次都要不一樣（重點！）\n"
     "- **版面不要每次都長一樣**：從這些版型擇一或混搭，依主題選最合適的 —— 儀表板網格 / 左欄指標+右側主圖 / 上方 KPI 帶+下方雙欄 / 卡片瀑布 / 雜誌式分欄 / 左側敘事+右側數據。\n"
     "- **配色每次不同**：依主題挑一組有記憶點的色系（製造科技藍/青、財務靛紫、品質綠、安全橙、能源黃綠、人資粉紫…），可用漸層 header。\n"
@@ -325,6 +347,8 @@ TEXT_SPEC = (
     "- 直接從 `## 結論` 開始（不要把使用者的問題原句當標題重複）。\n"
     "- 接著針對重點面向逐一分析（每個當一個 ## 小標），每段要有具體數字與判斷。\n"
     "- 若有外部真實來源連結，文末用 `## 參考資料` 列出（Markdown 連結 `[標題](http…)`）。\n"
+    "- 若團隊資料行內含「(來源 /demos/…#go=n …)」標記（數字讀自站上實際系統畫面）：文末加 `## 資料來源`，"
+    "以 `[系統·畫面](/demos/…#go=n)` 逐條列出；引用數字必須與來源完全一致，不可改寫或另編。\n"
     "## 視覺化（必須，至少 2–3 個『不同類型』的圖，實際輸出圍欄，不可只用文字，JSON 一定要合法可解析）\n"
     "**請依資料性質挑最貼切、且盡量多元的圖種（不要都用長條），可從下列三種圍欄挑選：**\n"
     "一、```chart（基本圖，單行合法 JSON，title 必填）：\n"
@@ -393,7 +417,11 @@ async def _build_text_report(writer, question, doms, combined, emit):
 async def run(question: str, mode, emit):
     emit({"type": "status", "message": "指揮官分析需求、判斷領域…"})
     doms, internal, external, exq, output = await plan(question)
-    data_team = pick_data_team(question, doms, internal, external, exq)
+    # Phase 2:內部數據先找站上「已抽取實際畫面資料」的系統,由系統代理讀真資料;
+    # 站上沒有相關系統才退回 internal-sim(LLM 依級距生數字)的舊路。
+    sys_hits = systems.pick_systems(question, top=3) if internal else []
+    need_sim = internal and not sys_hits
+    data_team = pick_data_team(question, doms, need_sim, external, exq) if (need_sim or external) else []
     _used_ids = {t["agent"]["id"] for t in data_team}
     if output == "text":
         synth = registry.flagship_of_cat("doc")  # 擬稿（文書）：寫文字報告
@@ -405,23 +433,31 @@ async def run(question: str, mode, emit):
         if synth and synth["id"] in _used_ids:
             synth = registry.flagship_of_cat("doc")
         verb = "設計成一頁報告網頁"
+    sys_part = "、".join(f"《{s.get('displayName') or s['name']}》" for _, s in sys_hits)
     names = "、".join(t["agent"]["name"] for t in data_team)
+    helpers = "；".join(x for x in [
+        sys_part and f"系統代理直接讀取 {sys_part} 的實際數據", names and f"{names} 查資料"] if x)
     emit({"type": "message", "id": "orchestrator", "name": "智策", "role": "總指揮", "dataMode": "reasoning",
-          "text": f"這題屬於「{'、'.join(doms)}」。我請 {names} 去查各系統資料，交給 {synth['name']} {verb}，我負責確認。"})
+          "text": f"這題屬於「{'、'.join(doms)}」。我請 {helpers}，交給 {synth['name']} {verb}，我負責確認。"})
     # 上方 agents 清單也放指揮官（排最前）
     members = [{"id": "orchestrator", "name": "智策", "role": "總指揮", "dataMode": "reasoning", "subtask": "分工協調與最終確認"}]
+    members += [{"id": f"sys:{s['name']}", "name": s.get("displayName") or s["name"], "role": "系統代理",
+                 "dataMode": "system-live", "subtask": f"讀取《{s.get('displayName') or s['name']}》實際畫面數據"} for _, s in sys_hits]
     members += [{"id": t["agent"]["id"], "name": t["agent"]["name"], "role": t["agent"]["role"],
                  "dataMode": t["agent"]["dataMode"], "subtask": t["subtask"]} for t in data_team]
     members.append({"id": synth["id"], "name": synth["name"], "role": synth["role"], "dataMode": "reasoning", "subtask": verb})
     emit({"type": "team", "members": members})
     emit({"type": "page_pending", "title": question, "sub": "領域：" + "、".join(doms) + f" · {synth['name']} 彙整中", "output": output})
     # 完成項目也放一則「指揮官分工摘要」（誰處理什麼）
-    _assign = "；".join(f"{t['agent']['name']}→{t['subtask']}" for t in data_team)
+    _assign = "；".join(
+        [f"{s.get('displayName') or s['name']}→讀取實際畫面數據" for _, s in sys_hits]
+        + [f"{t['agent']['name']}→{t['subtask']}" for t in data_team])
     emit({"type": "done_item", "text": f"智策 分工：{_assign}；{synth['name']}→{verb}"})
 
-    # ① 各系統查資料（生現況數據）
-    emit({"type": "status", "message": "資料 Agent 查各系統現況…"})
-    gathered = await asyncio.gather(*[_gather(t, emit) for t in data_team])
+    # ① 各系統查資料（系統代理讀實機數據;無相關系統才由資料 agent 生現況數據）
+    emit({"type": "status", "message": "查詢各系統實際數據…" if sys_hits else "資料 Agent 查各系統現況…"})
+    gathered = await asyncio.gather(*([_gather_system(h, emit) for h in sys_hits]
+                                      + [_gather(t, emit) for t in data_team]))
     combined = "\n".join(f"【{g['name']}·{g['domain']}】\n{g['data']}" for g in gathered)
 
     # ② 產出報告（text=文字報告 / html=報告網頁）

@@ -6,7 +6,7 @@
   var $ = function (s) { return document.querySelector(s); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); };
   var MODE = { task: "完成任務", report: "數據報告", doc: "產出文件" };
-  var DM = { "internal-sim": ["內部系統", "#2563eb"], "external-real": ["外部查證", "#0d9488"], "reasoning": ["推理彙整", "#7c3aed"] };
+  var DM = { "internal-sim": ["內部系統", "#2563eb"], "external-real": ["外部查證", "#0d9488"], "reasoning": ["推理彙整", "#7c3aed"], "system-live": ["實機數據", "#b45309"] };
 
   var state = { mode: "task", running: false, total: 0, done: 0, bubbles: {} };
   // 報告 iframe 內點選區塊 → 回報父視窗，顯示「已選取區塊 N」
@@ -824,6 +824,12 @@
     for (var attempt = 0; attempt < 5 && !resp; attempt++) {
       try {
         var r0 = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: question, mode: state.mode }) });
+        if (r0 && r0.status === 403) {
+          // 身分不符(未用 Google 登入):不是連線問題,不要重試、不要誤導
+          var eb = null; try { eb = await r0.json(); } catch (err) {}
+          handle({ type: "error", message: (eb && eb.error) || "此功能需要 Google 帳號登入後才能使用。" });
+          setBusy(false); return;
+        }
         if (r0 && r0.ok && r0.body) { resp = r0; break; }
       } catch (err) {}
       if (attempt < 4) { narr("連線後端中，重試 " + (attempt + 1) + "/5…"); await new Promise(function (rs) { setTimeout(rs, 1500); }); }

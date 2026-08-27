@@ -96,6 +96,7 @@ const shouldLog = (method, p) => method !== "GET" || !ASSET.test(p);
 // /wish 兩邊都有：GET 是靜態的許願池頁面，POST/OPTIONS 才是後端分析 API，所以要看 method。
 function isBackend(method, p) {
   if (p === "/run" || p === "/health") return true;
+  if (p === "/systems" || p.startsWith("/systems/")) return true; // 系統工具層(agent 資料查詢)
   return p === "/wish" && (method === "POST" || method === "OPTIONS");
 }
 /* 後台的頁面與 API 都要先登入。判斷寫在這裡而不是散在各處，是為了
@@ -350,6 +351,16 @@ function startGateway() {
       if (!id || id.kind !== "google") {
         actions.record({ actor: "訪客", action: "訪客身分嘗試 AI 分析被擋", status: 403, visitor: who });
         return json(res, 403, { error: "AI 許願池需要 Google 帳號登入", needsGoogle: true });
+      }
+    }
+
+    /* /run 是 AI 任務編排,一次會動用多個 LLM 呼叫;頁面雖有登入閘門,
+       但 API 可被直接呼叫,所以自己也要把關(比照 /wish)。 */
+    if (p === "/run" && req.method === "POST") {
+      const id = visitor.read(req);
+      if (!id || id.kind !== "google") {
+        actions.record({ actor: "訪客", action: "訪客身分嘗試 AI 任務被擋", status: 403, visitor: who });
+        return json(res, 403, { error: "AI 任務需要 Google 帳號登入", needsGoogle: true });
       }
     }
 

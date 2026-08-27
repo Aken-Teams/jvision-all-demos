@@ -57,6 +57,9 @@ function isPermittedPath(pathname, repoName) {
   return pathname === demoPath
     || pathname.startsWith(`${demoPath}/`)
     || pathname === "/api/ai-advice"
+    || pathname === "/run"
+    || pathname === "/systems"
+    || pathname.startsWith("/systems/")
     || pathname.startsWith("/api/share/")
     || pathname.startsWith("/share/")
     || pathname.startsWith("/shared/")

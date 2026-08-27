@@ -5,7 +5,7 @@
 from __future__ import annotations
 import asyncio, json
 from aiohttp import web
-import llm, orchestrator, registry
+import llm, orchestrator, registry, systems
 import wish
 
 PORT = 4610
@@ -24,7 +24,40 @@ async def handle_options(request):
 
 
 async def handle_health(request):
-    resp = web.json_response({"ok": True, "claude": llm.available(), "agents": len(registry.load_agents())})
+    resp = web.json_response({"ok": True, "claude": llm.available(), "agents": len(registry.load_agents()),
+                              "systems": systems.index().get("total", 0)})
+    _cors(resp)
+    return resp
+
+
+# ---- 系統工具層(Phase 2):list_systems / get_system_card / query_data / get_metrics ----
+async def handle_systems(request):
+    q = (request.query.get("q") or "").strip()
+    if q:
+        hits = systems.pick_systems(q, top=int(request.query.get("top") or 5))
+        body = {"total": len(hits), "systems": [{"score": sc, **s} for sc, s in hits]}
+    else:
+        body = systems.index()
+    resp = web.json_response(body)
+    _cors(resp)
+    return resp
+
+
+async def handle_system_card(request):
+    c = systems.card(request.match_info["repo"])
+    resp = web.json_response(c if c else {"error": "系統不存在或尚未抽取"}, status=200 if c else 404)
+    _cors(resp)
+    return resp
+
+
+async def handle_system_data(request):
+    repo = request.match_info["repo"]
+    table = request.query.get("table")
+    if request.query.get("metrics") is not None:
+        body = {"repo": repo, "metrics": systems.get_metrics(repo)}
+    else:
+        body = {"repo": repo, "tables": systems.query_data(repo, table)}
+    resp = web.json_response(body)
     _cors(resp)
     return resp
 
@@ -108,6 +141,9 @@ def make_app():
     app.router.add_get("/health", handle_health)
     app.router.add_post("/wish", handle_wish)
     app.router.add_options("/wish", handle_options)
+    app.router.add_get("/systems", handle_systems)
+    app.router.add_get("/systems/{repo}/card", handle_system_card)
+    app.router.add_get("/systems/{repo}/data", handle_system_data)
     return app
 
 
