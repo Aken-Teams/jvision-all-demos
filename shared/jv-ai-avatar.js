@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "27"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "28"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -158,6 +158,7 @@
     sendBtn = panel.querySelector(".jva-send");
     btn.addEventListener("click", toggle);
     panel.querySelector(".jva-close").addEventListener("click", toggle);
+    initHint(btn);
     panel.querySelector(".jva-inputrow").addEventListener("submit", function (e) {
       e.preventDefault();
       var q = inputEl.value.trim();
@@ -213,9 +214,48 @@
 
   function toggle() {
     state.open = !state.open;
+    hideHint();
     panel.hidden = !state.open;
     if (state.open && !state.me) checkIdentity();
     if (state.open) inputEl.focus();
+  }
+
+  /* 招呼氣泡:短句、打字特效、低頻率(首次 4 秒後,之後每 50 秒),
+     面板開著或任務進行中不打擾;點氣泡等同點機器人。 */
+  var hint = null, hintTyper = 0, hintHide = 0;
+  var HINTS = ["有問題找我!", "我會查系統喔", "找我聊聊?", "想看報告?"];
+  function hideHint() {
+    if (!hint) return;
+    clearInterval(hintTyper); clearTimeout(hintHide);
+    hint.hidden = true;
+  }
+  function showHint() {
+    if (!hint || state.open || state.running) return;
+    var m = HINTS[Math.floor(Math.random() * HINTS.length)];
+    var t = hint.querySelector(".jva-hint-txt");
+    hint.hidden = false;
+    hint.classList.remove("done");
+    clearInterval(hintTyper); clearTimeout(hintHide);
+    if (REDUCE) {
+      t.textContent = m;
+      hint.classList.add("done");
+    } else {
+      t.textContent = "";
+      var i = 0;
+      hintTyper = setInterval(function () {
+        i += 1;
+        t.textContent = m.slice(0, i);
+        if (i >= m.length) { clearInterval(hintTyper); hint.classList.add("done"); }
+      }, 110);
+    }
+    hintHide = setTimeout(hideHint, 4200 + m.length * 110);
+  }
+  function initHint(btn) {
+    hint = h('<div class="jva-hint" hidden role="status"><span class="jva-hint-txt"></span></div>');
+    root.appendChild(hint);
+    hint.addEventListener("click", function () { hideHint(); if (!state.open) toggle(); });
+    setTimeout(showHint, 4000);
+    setInterval(showHint, 50000);
   }
 
   function line(cls, html) {
