@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "28"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "29"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -223,7 +223,8 @@
   /* 招呼氣泡:短句、打字特效、低頻率(首次 4 秒後,之後每 50 秒),
      面板開著或任務進行中不打擾;點氣泡等同點機器人。 */
   var hint = null, hintTyper = 0, hintHide = 0;
-  var HINTS = ["有問題找我!", "我會查系統喔", "找我聊聊?", "想看報告?"];
+  // 文案打差異點:會操作畫面、1,627 套的規模、報告可溯源、口語下指令
+  var HINTS = ["我能直接操作系統", "1,627 套系統任我查", "報告句句有出處", "說一句,我改給你看"];
   function hideHint() {
     if (!hint) return;
     clearInterval(hintTyper); clearTimeout(hintHide);
