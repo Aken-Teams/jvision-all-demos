@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "18"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "19"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -169,10 +169,11 @@
   // 兩類範例:做報告(查數據彙整)與下指令(展示操作),各給客戶三句參考
   var EXAMPLES = {
     report: ["摘要 CRM 目前的商機現況", "生產工單系統現在的達交狀況?", "出勤差勤系統的近況重點"],
+    // 一行放得下的短句(不換行),每句仍是兩個動作;第三句跨兩套系統
     op: [
-      "把 WO-01 標記為已完成,再把 WO-04 改成急件插單",
-      "把 SO-24110 標記為已拆單,並把 SO-24111 更新為拆單中",
-      "把 O宇產線分析 改成 議約談判,再把 和O車後市場 標記為成交",
+      "把 WO-01 標記完成,把 WO-04 改成急件",
+      "把 SO-24110 標記已拆,把 SO-24111 改成拆單中",
+      "把 O宇產線分析 改成成交,把 WO-09 標記急件",
     ],
   };
 
