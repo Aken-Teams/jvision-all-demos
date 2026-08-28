@@ -156,7 +156,9 @@ function startGateway() {
     if (p === "/api/visitor/me") {
       const id = visitor.read(req);
       return json(res, 200, { signedIn: visitor.isNamed(id), kind: id?.kind || null,
-        email: id?.email || null, name: id?.name || null, google: google.configured(auth.conf()) });
+        email: id?.email || null, name: id?.name || null, google: google.configured(auth.conf()),
+        /* 是否為後臺白名單成員。只回布林——把名單本身送到前端等於公告攻擊目標。 */
+        admin: Boolean(id?.email && google.allowed(auth.conf(), id.email)) });
     }
 
     /* 許願池只給具名使用者。訪客身分看得到站上所有 demo，但許願會進到產線、
@@ -191,6 +193,12 @@ function startGateway() {
 
     // ── 後台認證 ──────────────────────────────────────────
     if (p === "/api/admin/login" && req.method === "POST") {
+      /* 共用密碼可被停用：白名單制下留著密碼，等於任何知道密碼的人都進得來，
+         「只有這兩個帳號」就不成立。設定放 var/admin.json 的 passwordLogin。 */
+      if (auth.conf()?.passwordLogin === false) {
+        actions.record({ actor: "後台", action: "密碼登入已停用被擋", status: 403, visitor: who });
+        return json(res, 403, { error: "密碼登入已停用，請使用 Google 帳號登入" });
+      }
       if (!auth.ready()) return json(res, 503, { error: "後台密碼尚未設定（var/admin.json）" });
       const wait = auth.throttle(who);
       if (wait) {
@@ -263,9 +271,10 @@ function startGateway() {
     }
     if (p === "/api/admin/session") {
       const g = google.configured(auth.conf());
+      const pw = auth.conf()?.passwordLogin !== false;
       return auth.verify(req)
-        ? json(res, 200, { authenticated: true, google: g })
-        : json(res, 401, { authenticated: false, configured: auth.ready(), google: g });
+        ? json(res, 200, { authenticated: true, google: g, password: pw })
+        : json(res, 401, { authenticated: false, configured: auth.ready(), google: g, password: pw });
     }
 
     if (isAdminPath(p) && !auth.verify(req)) {
