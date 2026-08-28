@@ -62,10 +62,12 @@ for (const t of topics) {
 
   /* 與產線相同的驗收→修正→重驗，最多兩回合 */
   let pass = false, fixRounds = 0, firstPass = false;
+  const roundIssues = []; // 每一輪沒過的 XX 行原文——失敗材料是分析 prompt 改動的依據，不留就白跑
   for (let round = 1; round <= 2; round += 1) {
     const v = run("tools/lib/verify-runner.mjs", [String(PORT), repo], 300000);
     const okLine = (v.stdout || "").split("\n").find((l) => l.startsWith("OK " + repo));
     if (okLine) { pass = true; firstPass = round === 1; break; }
+    roundIssues.push((v.stdout || "").split("\n").find((l) => l.startsWith("XX " + repo)) || (v.stdout || v.stderr || "").trim().slice(-200));
     if (round === 1) {
       fixRounds += 1;
       run("tools/fix-demo-overflow.mjs", [`--port=${PORT}`, "--concurrency=1", repo], 300000);
@@ -73,7 +75,8 @@ for (const t of topics) {
   }
   const durationMs = Date.now() - t0;
   console.log(` ${pass ? (firstPass ? "✓ 一次過" : "✓ 修正後過") : "✖ 未過"}（${Math.round(durationMs / 1000)}s，${sizeKB}KB）`);
-  results.push({ slug: t.slug, title: t.title, built: true, pass, firstPass, fixRounds, durationMs, sizeKB });
+  if (roundIssues.length) console.log(`    第 1 輪未過：${String(roundIssues[0]).slice(0, 160)}`);
+  results.push({ slug: t.slug, title: t.title, built: true, pass, firstPass, fixRounds, durationMs, sizeKB, ...(roundIssues.length ? { roundIssues } : {}) });
 }
 
 const passN = results.filter((r) => r.pass).length;

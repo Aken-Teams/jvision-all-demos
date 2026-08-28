@@ -120,12 +120,18 @@ def _heuristic(need: str) -> dict:
 def analyze(need: str) -> dict:
     """呼叫 gemma4（非串流、帶瀏覽器 UA 避開 Cloudflare）→ 回結構化建議。
     thinking 模型有時把 token 花在思考、content 回空；只解析 content，失敗就重試幾次。"""
-    def _gateway():
-        body = json.dumps({
+    def _gateway(structured: bool) -> str:
+        payload = {
             "model": OLLAMA_MODEL,
             "messages": [{"role": "system", "content": SYS}, {"role": "user", "content": f"我的需求：{need}"}],
             "max_tokens": 7000, "stream": False,
-        }).encode("utf-8")
+        }
+        if structured:
+            # 要求閘道端強制回 JSON（OpenAI 相容端點的 json_object 模式），
+            # 少掉圍籬/夾雜說明那一整類解析失敗；不支援的閘道會拋錯，
+            # 第二輪就不帶此參數重試，_extract_json 仍留作最後保底。
+            payload["response_format"] = {"type": "json_object"}
+        body = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(f"{OLLAMA_URL}/v1/chat/completions", method="POST", data=body,
                                      headers={"Authorization": f"Bearer {OLLAMA_KEY}", "Content-Type": "application/json",
                                               "User-Agent": UA, "Accept": "application/json"})
@@ -134,9 +140,9 @@ def analyze(need: str) -> dict:
         return (data["choices"][0]["message"].get("content") or "").strip()
 
     parsed = None
-    for _ in range(2):  # 最多 2 次；thinking 模型有時回空，失敗就用啟發式保底（不再拖到 90 秒）
+    for i in range(2):  # 第 1 次帶 response_format，失敗第 2 次不帶；再不行就啟發式保底
         try:
-            content = _gateway()
+            content = _gateway(structured=(i == 0))
         except Exception:
             continue
         p = _extract_json(content)

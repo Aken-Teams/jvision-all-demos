@@ -83,6 +83,21 @@ const HARD_RULES = fs.existsSync(path.join(ROOT, "docs", "AGENT-WORKFLOW-PIPELIN
       .split("### 7-2")[1]?.split("```")[1] || ""
   : "";
 
+/** 建置 prompt 用的瘦身規格：records 只留 columns＋兩筆示例，其餘 codex 依同格式編造即可。
+ *  完整版照樣寫入 content/details/，詳細頁不受影響——瘦的只是餵給模型的那一份。 */
+function slimForPrompt(details) {
+  const slim = { ...details };
+  const rows = details.records?.rows;
+  if (Array.isArray(rows) && rows.length > 2) {
+    slim.records = {
+      ...details.records,
+      rows: rows.slice(0, 2),
+      note: `示例僅列 2 筆；畫面中的表格請依相同欄位格式自行編出約 ${rows.length} 筆合理資料`,
+    };
+  }
+  return slim;
+}
+
 function buildPrompt(entry, details, style, reference) {
   return `你要建立「一個」檔案：demos/${entry.repoName}/index.html
 
@@ -91,7 +106,7 @@ function buildPrompt(entry, details, style, reference) {
 不得修改 projects-index.json、不得動任何其他 demos/*、不得新增其他檔案。
 
 ## 規格書（已備妥，直接照做，不要自行發想模組）
-${JSON.stringify(details, null, 2)}
+${JSON.stringify(slimForPrompt(details), null, 1)}
 
 ## 指派的風格參數（用來確保每個 demo 都不一樣）
 - 主色：${style.accent}
@@ -268,7 +283,9 @@ async function buildOne(candidate, index) {
     repoName, state,
     attempts: result.attempts,
     checks: { static: gate, codex: { pass: result.ok, error: result.error || null } },
-    codex: { durationMs: Date.now() - started, report: result.json || null },
+    // report 欄位已移除：輸出改為純 HTML 後 result.json 恆為 null，1,190 筆裡只有 2 筆
+    // 舊流程殘骸——沒有任何機器在讀的回報就是死信，留著只是佔 manifest。
+    codex: { durationMs: Date.now() - started },
   });
   saveManifest(manifest);
 

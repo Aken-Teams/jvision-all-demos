@@ -78,7 +78,11 @@ export function runCodex({
 
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
-      finish({ ok: false, code: null, error: `codex 逾時（${Math.round(timeoutMs / 1000)} 秒）` });
+      // 錯誤要指示改進方向：附上 prompt 大小，超過 20KB 直接點名裁剪
+      //（我們踩過的坑就是 prompt 膨脹 → 連環逾時，卻要翻半天才定位到）。
+      const promptKb = Math.round((Buffer.byteLength(String(prompt || "")) / 1024) * 10) / 10;
+      const hint = promptKb > 20 ? `，偏大——先裁剪規格內容再重試` : "";
+      finish({ ok: false, code: null, error: `codex 逾時（${Math.round(timeoutMs / 1000)} 秒；prompt ${promptKb} KB${hint}）` });
     }, timeoutMs);
 
     child.stdout.on("data", (chunk) => { if (onLog) onLog(String(chunk)); });
