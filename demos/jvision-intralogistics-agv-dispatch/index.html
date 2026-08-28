@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>廠內物流無人搬運調度腦 · warehouse-wms｜Jvision 系統 Demo</title>
+  <link rel="icon" href="../../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --blue:#1e40af;
+      --ink:#101828;
+      --body:#344054;
+      --muted:#667085;
+      --line:#e4e7ec;
+      --bg:#f5f7fb;
+      --green:#079455;
+      --amber:#dc6803;
+      --red:#d92d20;
+      --white:#fff;
+      --blue-soft:#eef4ff;
+      --shadow:0 10px 30px rgba(16,24,40,.07);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      color:var(--body);
+      background:var(--bg);
+      font-family:Inter,"Noto Sans TC",sans-serif;
+      overflow-x:hidden;
+    }
+    button,input,select,textarea{font:inherit}
+    button{color:inherit}
+    .material-symbols-outlined{
+      font-size:21px;
+      line-height:1;
+      font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24;
+    }
+    .shell{display:grid;grid-template-columns:78px minmax(0,1fr);min-height:100vh}
+    .rail{
+      position:fixed;
+      inset:0 auto 0 0;
+      z-index:20;
+      width:78px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      padding:18px 10px;
+      color:#fff;
+      background:linear-gradient(180deg,#132f8d 0%,#1e40af 58%,#172554 100%);
+      box-shadow:8px 0 28px rgba(30,64,175,.14);
+    }
+    .brand{
+      width:46px;height:46px;border-radius:15px;
+      display:grid;place-items:center;
+      margin-bottom:24px;
+      color:var(--blue);
+      background:#fff;
+      font-weight:800;
+      letter-spacing:-1px;
+      box-shadow:0 8px 20px rgba(0,0,0,.16);
+    }
+    .rail-nav{display:grid;gap:9px;width:100%}
+    .nav-btn{
+      position:relative;
+      width:58px;height:52px;
+      border:0;border-radius:14px;
+      display:grid;place-items:center;
+      color:#c7d7fe;background:transparent;
+      cursor:pointer;
+      transition:.2s ease;
+    }
+    .nav-btn:hover,.nav-btn:focus-visible{color:#fff;background:rgba(255,255,255,.13);outline:3px solid rgba(255,255,255,.3);outline-offset:2px}
+    .nav-btn.active{color:var(--blue);background:#fff;box-shadow:0 8px 18px rgba(6,19,62,.2)}
+    .nav-btn .hint{
+      position:absolute;left:66px;
+      width:max-content;max-width:180px;
+      padding:7px 10px;border-radius:8px;
+      color:#fff;background:#101828;
+      font-size:12px;font-weight:700;
+      opacity:0;pointer-events:none;transform:translateX(-5px);
+      transition:.2s;
+    }
+    .nav-btn:hover .hint,.nav-btn:focus-visible .hint{opacity:1;transform:none}
+    .rail-foot{margin-top:auto;display:grid;gap:13px;place-items:center}
+    .live-dot{width:10px;height:10px;border-radius:50%;background:#6ce9a6;box-shadow:0 0 0 6px rgba(108,233,166,.15)}
+    main{grid-column:2;min-width:0;padding:26px clamp(18px,3vw,44px) 44px}
+    .mast{
+      max-width:1540px;margin:0 auto 22px;
+      display:flex;align-items:center;justify-content:space-between;gap:20px;
+    }
+    .eyebrow{margin:0 0 5px;color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+    .mast h1{margin:0;color:var(--ink);font-size:clamp(21px,2.1vw,30px);letter-spacing:-.03em}
+    .mast-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    .shift{
+      display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--line);
+      border-radius:12px;background:#fff;font-size:13px;font-weight:700;color:var(--body)
+    }
+    .pulse{width:8px;height:8px;border-radius:50%;background:var(--green);animation:breathe 2s ease infinite}
+    @keyframes breathe{50%{box-shadow:0 0 0 6px rgba(7,148,85,.12)}}
+    .avatar{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;background:#dbe7ff;color:var(--blue);font-weight:800}
+    .screen{display:none;max-width:1540px;margin:auto;animation:enter .32s ease both}
+    .screen.active{display:block}
+    @keyframes enter{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+    .section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px}
+    .section-head h2{margin:3px 0 5px;color:var(--ink);font-size:clamp(22px,2.5vw,34px);letter-spacing:-.035em}
+    .section-head p{max-width:760px;margin:0;color:var(--muted);font-size:14px;line-height:1.7}
+    .step-chip{display:inline-flex;align-items:center;gap:7px;color:var(--blue);font-size:12px;font-weight:800}
+    .card{min-width:0;border:1px solid var(--line);border-radius:var(--radius);background:#fff;box-shadow:var(--shadow)}
+    .card-pad{padding:20px}
+    .card-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+    .card-title h3{margin:0;color:var(--ink);font-size:16px}
+    .subtle{color:var(--muted);font-size:12px}
+    .btn{
+      min-height:42px;border:1px solid var(--line);border-radius:11px;padding:9px 14px;
+      display:inline-flex;align-items:center;justify-content:center;gap:7px;
+      background:#fff;color:var(--body);font-weight:700;font-size:13px;cursor:pointer
+    }
+    .btn:hover,.btn:focus-visible{border-color:#a4bcfd;outline:3px solid #dbe7ff;outline-offset:1px}
+    .btn.primary{border-color:var(--blue);background:var(--blue);color:#fff}
+    .tag{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:#f2f4f7;color:#475467;font-size:11px;font-weight:800;white-space:nowrap}
+    .tag.green{background:#ecfdf3;color:#067647}
+    .tag.amber{background:#fffaeb;color:#b54708}
+    .tag.red{background:#fef3f2;color:#b42318}
+    .tag.blue{background:var(--blue-soft);color:var(--blue)}
+    .metric-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+    .metric{padding:17px;border:1px solid var(--line);border-radius:16px;background:#fff}
+    .metric-label{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px;font-weight:700}
+    .metric-value{margin-top:9px;color:var(--ink);font-size:26px;font-weight:800;letter-spacing:-.04em}
+    .metric-delta{font-size:11px;font-weight:800;color:var(--green)}
+    .chart{width:100%;height:280px}
+    .map-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(310px,.7fr);gap:18px}
+    .factory-map{position:relative;min-height:570px;overflow:hidden;background:#f8fafc}
+    .map-tools{position:absolute;z-index:4;left:18px;right:18px;display:flex;justify-content:space-between;gap:10px;pointer-events:none}
+    .map-tools > *{pointer-events:auto}
+    .map-tools.upper{top:18px}
+    .map-tools.lower{bottom:18px;align-items:flex-end}
+    .map-canvas{position:absolute;inset:0;background-image:linear-gradient(#e9edf4 1px,transparent 1px),linear-gradient(90deg,#e9edf4 1px,transparent 1px);background-size:31px 31px}
+    .route-line{position:absolute;height:7px;border-radius:99px;background:#b8c8f3;transform-origin:left center}
+    .route-line.hot{background:repeating-linear-gradient(90deg,#f79009 0 14px,#fedf89 14px 25px)}
+    .zone{position:absolute;border:2px solid #cbd5e1;border-radius:12px;background:rgba(255,255,255,.86);padding:10px;color:#344054;font-size:11px;font-weight:800;box-shadow:0 6px 16px rgba(16,24,40,.05)}
+    .zone b{display:block;color:var(--ink);font-size:13px;margin-bottom:3px}
+    .agv{position:absolute;z-index:3;width:38px;height:38px;border:4px solid #fff;border-radius:12px;display:grid;place-items:center;background:var(--blue);color:#fff;box-shadow:0 6px 15px rgba(30,64,175,.28)}
+    .agv.warn{background:var(--amber)}
+    .map-legend{display:flex;gap:7px;flex-wrap:wrap;padding:9px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.94)}
+    .map-list{display:grid;gap:12px}
+    .fleet-item{padding:15px;border:1px solid var(--line);border-radius:14px;background:#fff}
+    .fleet-line{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .fleet-id{display:flex;align-items:center;gap:10px;color:var(--ink);font-size:13px;font-weight:800}
+    .fleet-icon{width:35px;height:35px;border-radius:10px;display:grid;place-items:center;background:var(--blue-soft);color:var(--blue)}
+    .bar{height:7px;margin-top:12px;border-radius:99px;background:#eef1f5;overflow:hidden}
+    .bar span{display:block;height:100%;border-radius:inherit;background:var(--blue)}
+    .demand-layout{display:grid;grid-template-columns:minmax(300px,.68fr) minmax(0,1.32fr);gap:18px}
+    .form-card{padding:22px}
+    .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .field.full{grid-column:1/-1}
+    .field label{display:block;margin-bottom:7px;color:var(--body);font-size:12px;font-weight:800}
+    .field input,.field select,.field textarea{
+      width:100%;min-height:44px;border:1px solid #d0d5dd;border-radius:10px;padding:10px 12px;background:#fff;color:var(--ink);outline:none
+    }
+    .field textarea{min-height:82px;resize:vertical}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 4px #e8efff}
+    .priority-picks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .priority-picks button{min-height:42px;border:1px solid var(--line);border-radius:10px;background:#fff;font-weight:700;cursor:pointer}
+    .priority-picks button.selected{border-color:#fecdca;background:#fef3f2;color:var(--red)}
+    .request-list{display:grid;gap:10px}
+    .request{
+      display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:13px;align-items:center;
+      padding:15px;border:1px solid var(--line);border-radius:14px;background:#fff
+    }
+    .request:hover{border-color:#a4bcfd}
+    .request-no{width:43px;height:43px;border-radius:12px;display:grid;place-items:center;background:#f2f4f7;color:var(--ink);font-size:11px;font-weight:800}
+    .request h4{margin:0 0 5px;color:var(--ink);font-size:14px}
+    .request p{margin:0;color:var(--muted);font-size:12px}
+    .assign-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(330px,.8fr);gap:18px}
+    .queue{display:grid;gap:11px}
+    .task-card{position:relative;padding:17px;border:1px solid var(--line);border-radius:15px;background:#fff}
+    .task-card.recommended{border-color:#84adff;box-shadow:0 0 0 3px #eff4ff}
+    .task-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+    .task-head h4{margin:0 0 5px;color:var(--ink);font-size:14px}
+    .task-head p{margin:0;color:var(--muted);font-size:12px}
+    .score{color:var(--blue);font-size:21px;font-weight:800}
+    .task-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+    .task-meta div{padding:9px;border-radius:10px;background:#f8fafc;font-size:11px;color:var(--muted)}
+    .task-meta b{display:block;margin-top:3px;color:var(--ink);font-size:12px}
+    .vehicle-panel{display:grid;gap:10px}
+    .vehicle{
+      display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center;padding:13px;border:1px solid var(--line);border-radius:13px
+    }
+    .vehicle.selected{border-color:var(--blue);background:var(--blue-soft)}
+    .battery{font-size:11px;font-weight:800;color:var(--green)}
+    .rule-box{margin-top:14px;padding:14px;border-radius:13px;background:#172554;color:#dbe7ff}
+    .rule-box h4{margin:0 0 9px;color:#fff;font-size:13px}
+    .rule-box ul{margin:0;padding-left:18px;font-size:12px;line-height:1.8}
+    .conflict-layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(340px,.7fr);gap:18px}
+    .traffic-board{position:relative;min-height:530px;overflow:hidden;background:#111c3a}
+    .traffic-grid{position:absolute;inset:0;opacity:.28;background-image:linear-gradient(#87a5f4 1px,transparent 1px),linear-gradient(90deg,#87a5f4 1px,transparent 1px);background-size:42px 42px}
+    .traffic-route{position:absolute;height:12px;border-radius:99px;background:#4666bc;transform-origin:left center}
+    .traffic-route.blocked{background:repeating-linear-gradient(90deg,#f04438 0 13px,#f97066 13px 24px)}
+    .crossing{position:absolute;z-index:3;width:58px;height:58px;border:8px solid rgba(254,205,202,.35);border-radius:50%;display:grid;place-items:center;background:#d92d20;color:#fff;animation:alert 1.5s ease infinite}
+    @keyframes alert{50%{box-shadow:0 0 0 14px rgba(217,45,32,.12)}}
+    .traffic-label{position:absolute;z-index:2;padding:7px 9px;border-radius:8px;background:#fff;color:#101828;font-size:11px;font-weight:800}
+    .incident-list{display:grid;gap:11px}
+    .incident{padding:15px;border:1px solid var(--line);border-radius:14px;background:#fff}
+    .incident h4{display:flex;justify-content:space-between;gap:10px;margin:0 0 8px;color:var(--ink);font-size:13px}
+    .incident p{margin:0 0 11px;color:var(--muted);font-size:12px;line-height:1.6}
+    .options{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+    .options button{min-height:39px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:11px;font-weight:800;cursor:pointer}
+    .options button.chosen{border-color:var(--blue);background:var(--blue);color:#fff}
+    .monitor-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}
+    .monitor-card{padding:18px;border:1px solid var(--line);border-radius:16px;background:#fff}
+    .monitor-card.delayed{border-color:#fecdca;background:#fffbfa}
+    .monitor-head{display:flex;justify-content:space-between;gap:10px}
+    .monitor-head h4{margin:0;color:var(--ink);font-size:14px}
+    .stage-track{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:17px 0 10px}
+    .stage-track span{height:6px;border-radius:9px;background:#eaecf0}
+    .stage-track span.done{background:var(--green)}
+    .stage-track span.current{background:var(--blue)}
+    .monitor-foot{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:11px}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:15px}
+    table{width:100%;border-collapse:collapse;min-width:760px;background:#fff}
+    th,td{padding:13px 15px;border-bottom:1px solid var(--line);text-align:left;font-size:12px;white-space:nowrap}
+    th{color:#475467;background:#f8fafc;font-weight:800}
+    td{color:var(--body)}
+    tbody tr:last-child td{border-bottom:0}
+    .analytics-layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(310px,.7fr);gap:18px}
+    .kpi-compare{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+    .compare{padding:16px;border:1px solid var(--line);border-radius:15px;background:#fff}
+    .compare-label{min-height:34px;color:var(--muted);font-size:12px;font-weight:700}
+    .compare-values{display:flex;align-items:flex-end;gap:9px;margin-top:8px}
+    .before{color:#98a2b3;font-size:14px;text-decoration:line-through}
+    .after{color:var(--ink);font-size:25px;font-weight:800}
+    .insight-list{display:grid;gap:11px}
+    .insight{padding:15px;border-left:4px solid var(--blue);border-radius:0 13px 13px 0;background:#f8faff}
+    .insight h4{margin:0 0 6px;color:var(--ink);font-size:13px}
+    .insight p{margin:0;color:var(--muted);font-size:12px;line-height:1.6}
+    .gauge-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .gauge{height:180px}
+    .mobile-nav{display:none}
+
+    @media(max-width:1050px){
+      .map-layout,.demand-layout,.assign-layout,.conflict-layout,.analytics-layout{grid-template-columns:1fr}
+      .metric-row,.kpi-compare{grid-template-columns:repeat(2,1fr)}
+      .monitor-grid{grid-template-columns:repeat(2,1fr)}
+    }
+    @media(max-width:720px){
+      .shell{display:block}
+      .rail{display:none}
+      main{padding:18px 14px 90px}
+      .mast{align-items:flex-start}
+      .mast-actions .shift{display:none}
+      .section-head{align-items:flex-start;flex-direction:column}
+      .metric-row,.kpi-compare,.monitor-grid{grid-template-columns:1fr}
+      .field-grid{grid-template-columns:1fr}
+      .field.full{grid-column:auto}
+      .task-meta{grid-template-columns:1fr 1fr}
+      .factory-map,.traffic-board{min-height:480px}
+      .mobile-nav{
+        position:fixed;z-index:30;left:10px;right:10px;bottom:10px;
+        display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:7px;
+        border:1px solid var(--line);border-radius:17px;background:rgba(255,255,255,.95);
+        box-shadow:0 12px 30px rgba(16,24,40,.18);backdrop-filter:blur(12px)
+      }
+      .mobile-nav .nav-btn{width:100%;height:48px;color:#667085}
+      .mobile-nav .nav-btn.active{color:#fff;background:var(--blue);box-shadow:none}
+      .mobile-nav .hint{display:none}
+    }
+    @media(max-width:430px){
+      .mast h1{font-size:19px}
+      .section-head h2{font-size:25px}
+      .card-pad,.form-card{padding:16px}
+      .request{grid-template-columns:auto minmax(0,1fr)}
+      .request > :last-child{grid-column:2}
+      .options{grid-template-columns:1fr}
+      .gauge-row{grid-template-columns:1fr}
+      .metric-value{font-size:23px}
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail" aria-label="流程導覽">
+      <div class="brand" aria-label="JVision">JV</div>
+      <nav class="rail-nav">
+        <button class="nav-btn" data-i="0" aria-label="掌握廠區態勢"><span class="material-symbols-outlined">map</span><span class="hint">掌握廠區態勢</span></button>
+        <button class="nav-btn" data-i="1" aria-label="受理搬運需求"><span class="material-symbols-outlined">add_box</span><span class="hint">受理搬運需求</span></button>
+        <button class="nav-btn" data-i="2" aria-label="編排車隊任務"><span class="material-symbols-outlined">route</span><span class="hint">編排車隊任務</span></button>
+        <button class="nav-btn" data-i="3" aria-label="排除交通衝突"><span class="material-symbols-outlined">fork_right</span><span class="hint">排除交通衝突</span></button>
+        <button class="nav-btn" data-i="4" aria-label="監看任務進度"><span class="material-symbols-outlined">local_shipping</span><span class="hint">監看任務進度</span></button>
+        <button class="nav-btn" data-i="5" aria-label="回顧調度績效"><span class="material-symbols-outlined">analytics</span><span class="hint">回顧調度績效</span></button>
+      </nav>
+      <div class="rail-foot"><span class="live-dot" title="模擬車隊連線正常"></span><span class="material-symbols-outlined">settings</span></div>
+    </aside>
+
+    <main>
+      <header class="mast">
+        <div>
+          <p class="eyebrow">JVision · Intralogistics Control</p>
+          <h1>廠內物流無人搬運調度腦</h1>
+        </div>
+        <div class="mast-actions">
+          <div class="shift"><span class="pulse"></span>早班運行中 · 08:42</div>
+          <button class="btn" type="button"><span class="material-symbols-outlined">notifications</span>3</button>
+          <div class="avatar" title="物流調度員">林</div>
+        </div>
+      </header>
+
+      <section class="screen" data-screen="0" aria-labelledby="screen-title-0">
+        <div class="section-head">
+          <div>
+            <span class="step-chip"><span class="material-symbols-outlined">radar</span>流程 01 · 物流調度員</span>
+            <h2 id="screen-title-0">掌握廠區態勢</h2>
+            <p>從廠區地圖同步確認工站需求、路況與虛擬車隊分布，先處理即將逾時的線邊補料。</p>
+          </div>
+          <button class="btn" type="button"><span class="material-symbols-outlined">filter_alt</span>圖層篩選</button>
+        </div>
+
+        <div class="metric-row">
+          <article class="metric"><div class="metric-label">運行中車輛<span class="material-symbols-outlined">local_shipping</span></div><div class="metric-value">12 <small>/ 15</small></div><span class="metric-delta">80% 可用率</span></article>
+          <article class="metric"><div class="metric-label">待處理需求<span class="material-symbols-outlined">inventory_2</span></div><div class="metric-value">18</div><span class="tag red">3 筆緊急</span></article>
+          <article class="metric"><div class="metric-label">任務準時率<span class="material-symbols-outlined">schedule</span></div><div class="metric-value">96.4%</div><span class="metric-delta">較昨日 +2.1%</span></article>
+          <article class="metric"><div class="metric-label">壅塞路段<span class="material-symbols-outlined">warning</span></div><div class="metric-value">2</div><span class="tag amber">需關注</span></article>
+        </div>
+
+        <div class="map-layout">
+          <article class="card factory-map" aria-label="廠區物流地圖">
+            <div class="map-canvas"></div>
+            <div class="map-tools upper">
+              <div class="map-legend"><span class="tag green">● 路線暢通</span><span class="tag amber">● 壅塞</span><span class="tag blue">● AGV</span></div>
+              <button class="btn" type="button"><span class="material-symbols-outlined">my_location</span>置中</button>
+            </div>
+            <div class="route-line" style="left:17%;top:24%;width:49%;transform:rotate(0deg)"></div>
+            <div class="route-line" style="left:31%;top:26%;width:37%;transform:rotate(62deg)"></div>
+            <div class="route-line hot" style="left:14%;top:66%;width:53%;transform:rotate(0deg)"></div>
+            <div class="route-line" style="left:66%;top:25%;width:32%;transform:rotate(90deg)"></div>
+            <div class="route-line" style="left:45%;top:48%;width:38%;transform:rotate(0deg)"></div>
+            <div class="zone" style="left:7%;top:18%"><b>原料倉 A</b>待搬 4 棧板</div>
+            <div class="zone" style="right:8%;top:18%"><b>組裝線 L1</b>缺料倒數 18 分</div>
+            <div class="zone" style="left:7%;bottom:17%"><b>空箱區 C</b>回收需求 6 箱</div>
+            <div class="zone" style="right:7%;bottom:14%"><b>成品暫存 D</b>容量 72%</div>
+            <div class="zone" style="left:42%;top:43%"><b>交會點 J-04</b>通行正常</div>
+            <div class="agv" style="left:28%;top:20%"><span class="material-symbols-outlined">smart_toy</span></div>
+            <div class="agv warn" style="left:49%;top:61%"><span class="material-symbols-outlined">smart_toy</span></div>
+            <div class="agv" style="right:22%;top:43%"><span class="material-symbols-outlined">smart_toy</span></div>
+            <div class="map-tools lower">
+              <span class="tag">最後同步 08:42:16</span>
+              <div><button class="btn" type="button" aria-label="縮小">−</button> <button class="btn" type="button" aria-label="放大">＋</button></div>
+            </div>
+          </article>
+
+          <aside class="card card-pad">
+            <div class="card-title"><h3>車隊即時概況</h3><span class="tag green">連線正常</span></div>
+            <div class="map-list">
+              <div class="fleet-item"><div class="fleet-line"><div class="fleet-id"><span class="fleet-icon"><span class="material-symbols-outlined">precision_manufacturing</span></span>AGV-07</div><span class="tag blue">搬運中</span></div><div class="subtle">原料倉 A → 組裝線 L1 · 剩餘 4 分</div><div class="bar"><span style="width:72%"></span></div></div>
+              <div class="fleet-item"><div class="fleet-line"><div class="fleet-id"><span class="fleet-icon"><span class="material-symbols-outlined">precision_manufacturing</span></span>AGV-12</div><span class="tag amber">等待通行</span></div><div class="subtle">交會點 J-07 · 已等待 2 分 14 秒</div><div class="bar"><span style="width:48%;background:#dc6803"></span></div></div>
+              <div class="fleet-item"><div class="fleet-line"><div class="fleet-id"><span class="fleet-icon"><span class="material-symbols-outlined">precision_manufacturing</span></span>AGV-03</div><span class="tag green">可派遣</span></div><div class="subtle">充電站 B · 電量 91%</div><div class="bar"><span style="width:91%;background:#079455"></span></div></div>
+              <div class="fleet-item"><div class="fleet-line"><div class="fleet-id"><span class="fleet-icon"><span class="material-symbols-outlined">precision_manufacturing</span></span>AGV-15</div><span class="tag red">低電量</span></div><div class="subtle">返回充電站 · 電量 17%</div><div class="bar"><span style="width:17%;background:#d92d20"></span></div></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="1" aria-labelledby="screen-title-1">
+        <div class="section-head">
+          <div>
+            <span class="step-chip"><span class="material-symbols-outlined">add_circle</span>流程 02 · 生產線長</span>
+            <h2 id="screen-title-1">受理搬運需求</h2>
+            <p>建立補料、半成品轉運、空箱回收與緊急搬運需求，明確標示時限、重量及優先級。</p>
+          </div>
+          <span class="tag blue">今日已受理 46 筆</span>
+        </div>
+
+        <div class="demand-layout">
+          <article class="card form-card">
+            <div class="card-title"><h3>新增搬運需求</h3><span class="tag green">表單完整</span></div>
+            <form id="request-form">
+              <div class="field-grid">
+                <div class="field full"><label for="request-type">需求類型</label><select id="request-type"><option>線邊補料</option><option>半成品轉運</option><option>空箱回收</option><option>緊急搬運</option></select></div>
+                <div class="field"><label for="request-from">取貨工站</label><select id="request-from"><option>原料倉 A-03</option><option>半成品區 B-08</option><option>空箱區 C-02</option></select></div>
+                <div class="field"><label for="request-to">送達工站</label><select id="request-to"><option>組裝線 L1</option><option>加工線 M2</option><option>成品暫存 D</option></select></div>
+                <div class="field"><label for="request-load">物料／載重</label><input id="request-load" value="軸承箱 BX-240／420 kg"></div>
+                <div class="field"><label for="request-due">最晚送達</label><input id="request-due" type="time" value="09:05"></div>
+                <div class="field full"><label>任務優先級</label><div class="priority-picks"><button type="button">一般 P3</button><button type="button">優先 P2</button><button class="selected" type="button">緊急 P1</button></div></div>
+                <div class="field full"><label for="request-note">搬運備註</label><textarea id="request-note">L1 線邊庫存低於安全水位，請使用可承載 500 kg 以上載具。</textarea></div>
+                <div class="field full"><button class="btn primary" type="submit"><span class="material-symbols-outlined">send</span>送出並交由系統編排</button></div>
+              </div>
+            </form>
+          </article>
+
+          <article class="card card-pad">
+            <div class="card-title"><h3>待受理需求佇列</h3><div><span class="tag red">緊急 3</span> <span class="tag amber">即將逾時 2</span></div></div>
+            <div class="request-list">
+              <div class="request"><div class="request-no">REQ<br>1842</div><div><h4>組裝線 L1 · 軸承箱補料</h4><p>原料倉 A-03 → L1 · 420 kg · 09:05 前</p></div><span class="tag red">P1 · 18 分</span></div>
+              <div class="request"><div class="request-no">REQ<br>1841</div><div><h4>加工線 M2 · 半成品轉運</h4><p>M2 出料口 → 品檢站 Q1 · 680 kg · 09:18 前</p></div><span class="tag amber">P2 · 31 分</span></div>
+              <div class="request"><div class="request-no">REQ<br>1839</div><div><h4>空箱區 C · 周轉箱回收</h4><p>包裝線 P3 → 空箱區 C-02 · 12 箱</p></div><span class="tag">P3 · 44 分</span></div>
+              <div class="request"><div class="request-no">REQ<br>1838</div><div><h4>成品暫存 D · 棧板入庫</h4><p>包裝線 P1 → 成品暫存 D-06 · 890 kg</p></div><span class="tag blue">P2 · 52 分</span></div>
+              <div class="request"><div class="request-no">REQ<br>1837</div><div><h4>維修站 E · 備品緊急配送</h4><p>工具庫 T1 → 維修站 E-01 · 95 kg · 停線中</p></div><span class="tag red">P1 · 7 分</span></div>
+              <div class="request"><div class="request-no">REQ<br>1835</div><div><h4>加工線 M1 · 廢料箱清運</h4><p>M1 回收點 → 廢料區 R-02 · 340 kg</p></div><span class="tag green">已核准</span></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="2" aria-labelledby="screen-title-2">
+        <div class="section-head">
+          <div>
+            <span class="step-chip"><span class="material-symbols-outlined">conversion_path</span>流程 03 · 物流調度員</span>
+            <h2 id="screen-title-2">編排車隊任務</h2>
+            <p>依優先級、距離、載具能力、電量與交付時限計算匹配分數，再由調度員確認指派。</p>
+          </div>
+          <button class="btn primary" type="button"><span class="material-symbols-outlined">auto_awesome</span>重新最佳化</button>
+        </div>
+
+        <div class="assign-layout">
+          <article class="card card-pad">
+            <div class="card-title"><h3>智慧編排佇列</h3><span class="subtle">依建議順序排列 · 6 筆待派</span></div>
+            <div class="queue">
+              <div class="task-card recommended">
+                <div class="task-head"><div><span class="tag red">P1 緊急</span><h4>REQ-1842 · L1 軸承箱補料</h4><p>原料倉 A-03 → 組裝線 L1</p></div><div><div class="score">96</div><span class="subtle">匹配分</span></div></div>
+                <div class="task-meta"><div>距離<b>186 m</b></div><div>預估完成<b>8 分鐘</b></div><div>載重需求<b>420 kg</b></div><div>最晚送達<b>09:05</b></div></div>
+              </div>
+              <div class="task-card">
+                <div class="task-head"><div><span class="tag red">P1 停線</span><h4>REQ-1837 · 維修備品配送</h4><p>工具庫 T1 → 維修站 E-01</p></div><div><div class="score">92</div><span class="subtle">匹配分</span></div></div>
+                <div class="task-meta"><div>距離<b>243 m</b></div><div>預估完成<b>11 分鐘</b></div><div>載重需求<b>95 kg</b></div><div>最晚送達<b>立即</b></div></div>
+              </div>
+              <div class="task-card">
+                <div class="task-head"><div><span class="tag amber">P2 優先</span><h4>REQ-1841 · M2 半成品轉運</h4><p>加工線 M2 → 品檢站 Q1</p></div><div><div class="score">87</div><span class="subtle">匹配分</span></div></div>
+                <div class="task-meta"><div>距離<b>318 m</b></div><div>預估完成<b>14 分鐘</b></div><div>載重需求<b>680 kg</b></div><div>最晚送達<b>09:18</b></div></div>
+              </div>
+              <div class="task-card">
+                <div class="task-head"><div><span class="tag">P3 一般</span><h4>REQ-1839 · 周轉箱回收</h4><p>包裝線 P3 → 空箱區 C-02</p></div><div><div class="score">74</div><span class="subtle">匹配分</span></div></div>
+                <div class="task-meta"><div>距離<b>402 m</b></div><div>預估完成<b>17 分鐘</b></div><div>載重需求<b>12 箱</b></div><div>最晚送達<b>10:00</b></div></div>
+              </div>
+            </div>
+          </article>
+
+          <aside>
+            <article class="card card-pad">
+              <div class="card-title"><h3>建議載具</h3><span class="tag blue">任務 REQ-1842</span></div>
+              <div class="vehicle-panel">
+                <div class="vehicle selected"><span class="fleet-icon"><span class="material-symbols-outlined">smart_toy</span></span><div><strong>AGV-03</strong><div class="subtle">距取貨點 68 m · 500 kg</div></div><span class="battery">91%</span></div>
+                <div class="vehicle"><span class="fleet-icon"><span class="material-symbols-outlined">smart_toy</span></span><div><strong>AGV-09</strong><div class="subtle">距取貨點 124 m · 800 kg</div></div><span class="battery">76%</span></div>
+                <div class="vehicle"><span class="fleet-icon"><span class="material-symbols-outlined">smart_toy</span></span><div><strong>AGV-11</strong><div class="subtle">距取貨點 207 m · 500 kg</div></div><span class="battery">64%</span></div>
+              </div>
+              <div class="rule-box"><h4>本次排序依據</h4><ul><li>任務時限與 P1 優先權：40%</li><li>空車至取貨點距離：25%</li><li>載重能力與電量：20%</li><li>路線壅塞風險：15%</li></ul></div>
+              <button class="btn primary" type="button" style="width:100%;margin-top:14px"><span class="material-symbols-outlined">assignment_turned_in</span>確認指派 AGV-03</button>
+            </article>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="3" aria-labelledby="screen-title-3">
+        <div class="section-head">
+          <div>
+            <span class="step-chip"><span class="material-symbols-outlined">warning</span>流程 04 · 廠務工程師</span>
+            <h2 id="screen-title-3">排除交通衝突</h2>
+            <p>辨識交會、壅塞與封路情境，評估繞行成本後選擇改道、讓行或暫緩策略。</p>
+          </div>
+          <span class="tag red">2 個有效警示</span>
+        </div>
+
+        <div class="conflict-layout">
+          <article class="card traffic-board" aria-label="交通衝突地圖">
+            <div class="traffic-grid"></div>
+            <div class="traffic-route" style="left:8%;top:27%;width:70%"></div>
+            <div class="traffic-route" style="left:34%;top:13%;width:57%;transform:rotate(90deg)"></div>
+            <div class="traffic-route blocked" style="left:14%;top:68%;width:65%"></div>
+            <div class="traffic-route" style="left:69%;top:28%;width:42%;transform:rotate(90deg)"></div>
+            <div class="crossing" style="left:48%;top:22%"><span class="material-symbols-outlined">priority_high</span></div>
+            <div class="crossing" style="left:67%;top:63%"><span class="material-symbols-outlined">block</span></div>
+            <div class="traffic-label" style="left:7%;top:19%">原料倉 A</div>
+            <div class="traffic-label" style="right:10%;top:20%">組裝線 L1</div>
+            <div class="traffic-label" style="left:42%;top:38%">J-04 · 雙車交會</div>
+            <div class="traffic-label" style="right:7%;bottom:18%">J-07 · 施工封路</div>
+            <div class="map-tools upper"><span class="tag red">衝突模擬模式</span><span class="tag">預測窗 15 分鐘</span></div>
+            <div class="map-tools lower"><div class="map-legend"><span class="tag blue">目前路徑</span><span class="tag red">封閉／衝突</span></div><button class="btn" type="button"><span class="material-symbols-outlined">undo</span>還原策略</button></div>
+          </article>
+
+          <aside class="card card-pad">
+            <div class="card-title"><h3>衝突處置建議</h3><span class="subtle">影響 3 台車</span></div>
+            <div class="incident-list">
+              <div class="incident">
+                <h4><span>CF-027 · J-04 雙車交會</span><span class="tag red">高風險</span></h4>
+                <p>AGV-03 與 AGV-07 預計 82 秒後同時進入窄巷，若維持原路徑將互相阻擋。</p>
+                <div class="task-meta"><div>受影響<b>2 任務</b></div><div>延遲風險<b>6 分</b></div><div>繞行增量<b>74 m</b></div><div>信心度<b>94%</b></div></div>
+                <div class="options"><button class="chosen" type="button">AGV-07 先行</button><button type="button">AGV-03 改道</button></div>
+              </div>
+              <div class="incident">
+                <h4><span>CF-026 · J-07 臨時封路</span><span class="tag amber">施工</span></h4>
+                <p>維修作業封閉南向通道至 09:20，AGV-12 的空箱回收路線需切換至 R-3。</p>
+                <div class="task-meta"><div>受影響<b>1 任務</b></div><div>延遲風險<b>3 分</b></div><div>繞行增量<b>126 m</b></div><div>解除時間<b>09:20</b></div></div>
+                <div class="options"><button class="chosen" type="button">套用 R-3 改道</button><button type="button">暫緩任務</button></div>
+              </div>
+              <div class="incident">
+                <h4><span>預測 · 充電站 B 排隊</span><span class="tag green">低風險</span></h4>
+                <p>09:10 前可能有 3 台低電量車抵達，建議將 AGV-15 改送備用充電樁。</p>
+                <div class="options"><button type="button">採用建議</button><button type="button">持續觀察</button></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="4" aria-labelledby="screen-title-4">
+        <div class="section-head">
+          <div>
+            <span class="step-chip"><span class="material-symbols-outlined">monitoring</span>流程 05 · 倉庫主管</span>
+            <h2 id="screen-title-4">監看任務進度</h2>
+            <p>追蹤每台虛擬車輛的取貨、運送、交付階段，針對延遲案件執行人工改派。</p>
+          </div>
+          <button class="btn primary" type="button"><span class="material-symbols-outlined">swap_horiz</span>人工改派</button>
+        </div>
+
+        <div class="metric-row">
+          <article class="metric"><div class="metric-label">執行中任務</div><div class="metric-value">12</div><span class="tag blue">車隊負載 80%</span></article>
+          <article class="metric"><div class="metric-label">等待取貨</div><div class="metric-value">4</div><span class="subtle">最久等待 5 分</span></article>
+          <article class="metric"><div class="metric-label">延遲風險</div><div class="metric-value">2</div><span class="tag red">需人工確認</span></article>
+          <article class="metric"><div class="metric-label">今日已完成</div><div class="metric-value">38</div><span class="metric-delta">準時 37 筆</span></article>
+        </div>
+
+        <div class="monitor-grid">
+          <article class="monitor-card"><div class="monitor-head"><h4>TSK-260829-042</h4><span class="tag blue">運送中</span></div><p class="subtle">AGV-03 · 原料倉 A → 組裝線 L1</p><div class="stage-track"><span class="done"></span><span class="done"></span><span class="current"></span><span></span></div><div class="monitor-foot"><span>已行駛 142 / 186 m</span><b>預計 08:49</b></div></article>
+          <article class="monitor-card delayed"><div class="monitor-head"><h4>TSK-260829-039</h4><span class="tag red">延遲 4 分</span></div><p class="subtle">AGV-12 · 包裝線 P3 → 空箱區 C</p><div class="stage-track"><span class="done"></span><span class="current" style="background:#d92d20"></span><span></span><span></span></div><div class="monitor-foot"><span>J-07 改道路線</span><b>預計 08:56</b></div></article>
+          <article class="monitor-card"><div class="monitor-head"><h4>TSK-260829-041</h4><span class="tag amber">等待取貨</span></div><p class="subtle">AGV-09 · 加工線 M2 → 品檢站 Q1</p><div class="stage-track"><span class="current"></span><span></span><span></span><span></span></div><div class="monitor-foot"><span>貨物尚未就緒</span><b>等待 2:18</b></div></article>
+          <article class="monitor-card"><div class="monitor-head"><h4>TSK-260829-038</h4><span class="tag green">即將完成</span></div><p class="subtle">AGV-07 · 包裝線 P1 → 成品暫存 D</p><div class="stage-track"><span class="done"></span><span class="done"></span><span class="done"></span><span class="current"></span></div><div class="monitor-foot"><span>交付確認中</span><b>剩餘 1 分</b></div></article>
+          <article class="monitor-card"><div class="monitor-head"><h4>TSK-260829-043</h4><span class="tag blue">前往取貨</span></div><p class="subtle">AGV-11 · 工具庫 T1 → 維修站 E</p><div class="stage-track"><span class="done"></span><span class="current"></span><span></span><span></span></div><div class="monitor-foot"><span>距取貨點 36 m</span><b>預計 08:52</b></div></article>
+          <article class="monitor-card"><div class="monitor-head"><h4>TSK-260829-036</h4><span class="tag green">交付完成</span></div><p class="subtle">AGV-05 · M1 回收點 → 廢料區 R</p><div class="stage-track"><span class="done"></span><span class="done"></span><span class="done"></span><span class="done"></span></div><div class="monitor-foot"><span>總耗時 13:42</span><b>準時完成</b></div></article>
+        </div>
+
+        <article class="card card-pad">
+          <div class="card-title"><h3>搬運任務資料列表</h3><span class="subtle">可追溯操作紀錄 · 最近更新 08:42</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th><th>優先級</th></tr></thead>
+              <tbody>
+                <tr><td>INT-001</td><td>掌握廠區態勢</td><td>物流調度員</td><td>D+1</td><td><span class="tag blue">處理中</span></td><td><span class="tag red">高</span></td></tr>
+                <tr><td>INT-002</td><td>受理搬運需求</td><td>生產線長</td><td>D+2</td><td><span class="tag amber">待確認</span></td><td><span class="tag red">高</span></td></tr>
+                <tr><td>INT-003</td><td>編排車隊任務</td><td>物流調度員</td><td>今日 09:05</td><td><span class="tag blue">執行中</span></td><td><span class="tag red">高</span></td></tr>
+                <tr><td>INT-004</td><td>排除交通衝突</td><td>廠務工程師</td><td>今日 09:20</td><td><span class="tag green">已改道</span></td><td><span class="tag amber">中</span></td></tr>
+                <tr><td>INT-005</td><td>監看任務進度</td><td>倉庫主管</td><td>本班結束</td><td><span class="tag blue">持續監看</span></td><td><span class="tag amber">中</span></td></tr>
+                <tr><td>INT-006</td><td>回顧調度績效</td><td>倉庫主管</td><td>今日 17:00</td><td><span class="tag">尚未開始</span></td><td><span class="tag">一般</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="screen" data-screen="5" aria-labelledby="screen-title-5">
+        <div class="section-head">
+          <div>
+            <span class="step-chip"><span class="material-symbols-outlined">query_stats</span>流程 06 · 倉庫主管</span>
+            <h2 id="screen-title-5">回顧調度績效</h2>
+            <p>分析準時率、空跑、任務週期與瓶頸熱點，將可驗證的發現轉成下一班調度規則。</p>
+          </div>
+          <button class="btn" type="button"><span class="material-symbols-outlined">download</span>匯出班次報告</button>
+        </div>
+
+        <div class="kpi-compare">
+          <article class="compare"><div class="compare-label">揀貨作業工時</div><div class="compare-values"><span class="before">7</span><span class="after">2</span><span class="subtle">小時/日</span></div><span class="metric-delta">↓ 71.4%</span></article>
+          <article class="compare"><div class="compare-label">庫存準確率</div><div class="compare-values"><span class="before">88</span><span class="after">99</span><span class="subtle">%</span></div><span class="metric-delta">↑ 11 個百分點</span></article>
+          <article class="compare"><div class="compare-label">出貨延遲率</div><div class="compare-values"><span class="before">9</span><span class="after">2</span><span class="subtle">%</span></div><span class="metric-delta">↓ 77.8%</span></article>
+          <article class="compare"><div class="compare-label">盤點工時</div><div class="compare-values"><span class="before">16</span><span class="after">3</span><span class="subtle">小時/月</span></div><span class="metric-delta">↓ 81.3%</span></article>
+        </div>
+
+        <div class="analytics-layout">
+          <div>
+            <article class="card card-pad">
+              <div class="card-title"><h3>六週庫存準確率趨勢</h3><span class="tag green">目標 99% 已達成</span></div>
+              <div class="chart" id="trend-chart" role="img" aria-label="六週庫存準確率折線圖"></div>
+            </article>
+            <article class="card card-pad" style="margin-top:18px">
+              <div class="card-title"><h3>任務類型與平均週期</h3><span class="subtle">本週 248 筆任務</span></div>
+              <div class="chart" id="cycle-chart" role="img" aria-label="任務類型與平均週期長條圖"></div>
+            </article>
+          </div>
+
+          <aside>
+            <article class="card card-pad">
+              <div class="card-title"><h3>核心目標儀表</h3><span class="subtle">目前值 / 目標</span></div>
+              <div class="gauge-row">
+                <div class="gauge" id="hours-gauge" role="img" aria-label="揀貨作業工時儀表"></div>
+                <div class="gauge" id="accuracy-gauge" role="img" aria-label="庫存準確率儀表"></div>
+              </div>
+            </article>
+            <article class="card card-pad" style="margin-top:18px">
+              <div class="card-title"><h3>本班洞察與建議</h3><span class="tag blue">3 項</span></div>
+              <div class="insight-list">
+                <div class="insight"><h4>廠區物流地圖</h4><p>J-07 在 08:20–09:00 累積 18% 等待時間，建議早班預設啟用 R-3 替代路線。</p></div>
+                <div class="insight"><h4>搬運需求中心</h4><p>L1 補料需求有 4 筆集中於換線前 20 分鐘，建議提高安全庫存觸發門檻。</p></div>
+                <div class="insight"><h4>任務智慧編排</h4><p>AGV-03 與 AGV-09 平均空跑率僅 6.8%，可作為同型載具的指派規則基準。</p></div>
+              </div>
+            </article>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="mobile-nav" aria-label="行動版流程導覽">
+    <button class="nav-btn" data-i="0" aria-label="掌握廠區態勢"><span class="material-symbols-outlined">map</span></button>
+    <button class="nav-btn" data-i="1" aria-label="受理搬運需求"><span class="material-symbols-outlined">add_box</span></button>
+    <button class="nav-btn" data-i="2" aria-label="編排車隊任務"><span class="material-symbols-outlined">route</span></button>
+    <button class="nav-btn" data-i="3" aria-label="排除交通衝突"><span class="material-symbols-outlined">fork_right</span></button>
+    <button class="nav-btn" data-i="4" aria-label="監看任務進度"><span class="material-symbols-outlined">local_shipping</span></button>
+    <button class="nav-btn" data-i="5" aria-label="回顧調度績效"><span class="material-symbols-outlined">analytics</span></button>
+  </nav>
+
+  <script>
+    const chartRegistry = {};
+    let activeIndex = 0;
+
+    function buildCharts(indexValue) {
+      if (indexValue !== 5 || typeof echarts === "undefined") return;
+
+      const trendElement = document.getElementById("trend-chart");
+      const cycleElement = document.getElementById("cycle-chart");
+      const hoursElement = document.getElementById("hours-gauge");
+      const accuracyElement = document.getElementById("accuracy-gauge");
+
+      if (trendElement && trendElement.clientWidth > 0 && !chartRegistry.trend) {
+        chartRegistry.trend = echarts.init(trendElement);
+        chartRegistry.trend.setOption({
+          animationDuration: 700,
+          grid: { left: 44, right: 20, bottom: 34, top: 30 },
+          tooltip: { trigger: "axis", valueFormatter: function(valueData) { return valueData + "%"; } },
+          xAxis: {
+            type: "category",
+            boundaryGap: false,
+            data: ["W1", "W2", "W3", "W4", "W5", "W6"],
+            axisLine: { lineStyle: { color: "#d0d5dd" } },
+            axisLabel: { color: "#667085" }
+          },
+          yAxis: {
+            type: "value",
+            min: 86,
+            max: 100,
+            axisLabel: { color: "#667085", formatter: "{value}%" },
+            splitLine: { lineStyle: { color: "#eaecf0" } }
+          },
+          series: [{
+            type: "line",
+            data: [88, 90.2, 92.4, 94.6, 96.8, 99],
+            smooth: true,
+            symbolSize: 8,
+            lineStyle: { width: 4, color: "#1e40af" },
+            itemStyle: { color: "#1e40af", borderColor: "#fff", borderWidth: 3 },
+            areaStyle: {
+              color: {
+                type: "linear",
+                x: 0, y: 0, x2: 0, y2: 1,
+                colorStops: [{ offset: 0, color: "rgba(30,64,175,.28)" }, { offset: 1, color: "rgba(30,64,175,.02)" }]
+              }
+            },
+            markLine: {
+              symbol: "none",
+              label: { formatter: "目標 99%", color: "#079455" },
+              lineStyle: { color: "#079455", type: "dashed" },
+              data: [{ yAxis: 99 }]
+            }
+          }]
+        });
+      }
+
+      if (cycleElement && cycleElement.clientWidth > 0 && !chartRegistry.cycle) {
+        chartRegistry.cycle = echarts.init(cycleElement);
+        chartRegistry.cycle.setOption({
+          grid: { left: 70, right: 26, bottom: 28, top: 16 },
+          tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: function(valueData) { return valueData + " 分"; } },
+          xAxis: {
+            type: "value",
+            axisLabel: { color: "#667085", formatter: "{value} 分" },
+            splitLine: { lineStyle: { color: "#eaecf0" } }
+          },
+          yAxis: {
+            type: "category",
+            data: ["緊急配送", "空箱回收", "成品入庫", "半成品轉運", "線邊補料"],
+            axisLabel: { color: "#475467" },
+            axisLine: { show: false },
+            axisTick: { show: false }
+          },
+          series: [{
+            type: "bar",
+            data: [8.4, 15.8, 13.2, 12.6, 9.7],
+            barWidth: 14,
+            itemStyle: {
+              borderRadius: [0, 8, 8, 0],
+              color: function(dataItem) {
+                return dataItem.dataIndex === 0 ? "#079455" : "#1e40af";
+              }
+            }
+          }]
+        });
+      }
+
+      function gaugeOption(labelText, currentValue, maximumValue, suffixText, accentColor) {
+        return {
+          series: [{
+            type: "gauge",
+            startAngle: 210,
+            endAngle: -30,
+            min: 0,
+            max: maximumValue,
+            splitNumber: 5,
+            radius: "92%",
+            center: ["50%", "55%"],
+            progress: { show: true, width: 12, roundCap: true, itemStyle: { color: accentColor } },
+            axisLine: { lineStyle: { width: 12, color: [[1, "#eaecf0"]] }, roundCap: true },
+            axisTick: { show: false },
+            splitLine: { show: false },
+            axisLabel: { show: false },
+            pointer: { show: false },
+            anchor: { show: false },
+            title: { offsetCenter: [0, "70%"], color: "#667085", fontSize: 11 },
+            detail: {
+              valueAnimation: true,
+              offsetCenter: [0, "4%"],
+              color: "#101828",
+              fontSize: 23,
+              fontWeight: 800,
+              formatter: "{value}" + suffixText
+            },
+            data: [{ value: currentValue, name: labelText }]
+          }]
+        };
+      }
+
+      if (hoursElement && hoursElement.clientWidth > 0 && !chartRegistry.hours) {
+        chartRegistry.hours = echarts.init(hoursElement);
+        chartRegistry.hours.setOption(gaugeOption("揀貨工時", 2, 7, "h", "#1e40af"));
+      }
+      if (accuracyElement && accuracyElement.clientWidth > 0 && !chartRegistry.accuracy) {
+        chartRegistry.accuracy = echarts.init(accuracyElement);
+        chartRegistry.accuracy.setOption(gaugeOption("庫存準確率", 99, 102, "%", "#079455"));
+      }
+    }
+
+    function show(indexValue) {
+      const safeIndex = Math.max(0, Math.min(5, Number(indexValue) || 0));
+      activeIndex = safeIndex;
+
+      document.querySelectorAll(".screen").forEach(function(screenElement) {
+        screenElement.classList.toggle("active", Number(screenElement.dataset.screen) === safeIndex);
+      });
+
+      document.querySelectorAll("[data-i]").forEach(function(buttonElement) {
+        const isCurrent = Number(buttonElement.dataset.i) === safeIndex;
+        buttonElement.classList.toggle("active", isCurrent);
+        buttonElement.setAttribute("aria-current", isCurrent ? "page" : "false");
+      });
+
+      buildCharts(safeIndex);
+      window.scrollTo({ left: 0, behavior: "smooth" });
+    }
+
+    function readHash() {
+      const matchData = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+      return matchData ? Math.max(0, Math.min(5, Number(matchData[1]))) : 0;
+    }
+
+    document.querySelectorAll("[data-i]").forEach(function(buttonElement) {
+      buttonElement.addEventListener("click", function() {
+        const chosenIndex = Number(buttonElement.dataset.i);
+        if (window.location.hash === "#go=" + chosenIndex) {
+          show(chosenIndex);
+        } else {
+          window.location.hash = "go=" + chosenIndex;
+        }
+      });
+    });
+
+    document.getElementById("request-form").addEventListener("submit", function(eventData) {
+      eventData.preventDefault();
+      const submitButton = eventData.currentTarget.querySelector('button[type="submit"]');
+      submitButton.innerHTML = '<span class="material-symbols-outlined">check_circle</span>需求已建立 · REQ-1843';
+      submitButton.style.background = "#079455";
+      submitButton.style.borderColor = "#079455";
+    });
+
+    window.addEventListener("hashchange", function() {
+      show(readHash());
+    });
+
+    window.addEventListener("resize", function() {
+      Object.keys(chartRegistry).forEach(function(chartKey) {
+        chartRegistry[chartKey].resize();
+      });
+    });
+
+    show(readHash());
+  </script>
+</body>
+</html>
