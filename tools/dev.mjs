@@ -164,7 +164,9 @@ function startGateway() {
     /* 反爬蟲底線：明顯的抓取 UA 與超速 IP 擋在這裡。迴環不限（自家產線與
        監看都走本機）；上層更強的防線是 Cloudflare 的 bot 防護。 */
     {
-      const hit = guard.check(ip, p, req.headers["user-agent"]);
+      /* 健康端點不占配額：它是頁面每分鐘自動打的，不是人的行為；
+         被限流會讓右上角誤亮「伺服尚未準備好」——監看機制自己成為假警報源。 */
+      const hit = p === "/api/health/engines" ? null : guard.check(ip, p, req.headers["user-agent"]);
       if (hit) {
         if (hit.firstBlock) actions.record({ actor: "訪客", action: hit.status === 403 ? "爬蟲 UA 被擋" : "超速被限流",
           target: p, status: hit.status, visitor: who, ip, note: hit.why });

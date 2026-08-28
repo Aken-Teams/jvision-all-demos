@@ -494,21 +494,26 @@
   })();
 
   /* AI 引擎狀態：claude / codex 任一無法使用時，右上角亮「伺服尚未準備好」。
-     正常時整顆隱藏——狀態列只在出事時才值得占版面。每 60 秒重查一次，
-     查不到（斷線）也視同未就緒。 */
+     正常時整顆隱藏——狀態列只在出事時才值得占版面。
+     連續兩次失敗才亮：服務重啟只眨眼三秒，單次失敗就亮會讓人虛驚一場。
+     亮著或剛失敗時 15 秒就重查（快速恢復），一切正常時才回到 60 秒一次。 */
   (function () {
-    function refresh() {
-      fetch("/api/health/engines").then(function (r) { return r.json(); }).then(function (d) {
-        document.querySelectorAll("[data-engine-status]").forEach(function (el) {
-          el.hidden = Boolean(d && d.ready);
-          if (d && d.engines) el.title = "claude：" + (d.engines.claude ? "可用" : "無法使用") + "／codex：" + (d.engines.codex ? "可用" : "無法使用");
-        });
-      }).catch(function () {
-        document.querySelectorAll("[data-engine-status]").forEach(function (el) { el.hidden = false; });
+    var bad = 0;
+    function apply(show, engines) {
+      document.querySelectorAll("[data-engine-status]").forEach(function (el) {
+        el.hidden = !show;
+        if (engines) el.title = "claude：" + (engines.claude ? "可用" : "無法使用") + "／codex：" + (engines.codex ? "可用" : "無法使用");
       });
     }
+    function refresh() {
+      fetch("/api/health/engines").then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.ready) { bad = 0; apply(false, d.engines); }
+        else { bad += 1; if (bad >= 2) apply(true, d && d.engines); }
+        schedule();
+      }).catch(function () { bad += 1; if (bad >= 2) apply(true, null); schedule(); });
+    }
+    function schedule() { setTimeout(refresh, bad > 0 ? 15000 : 60000); }
     refresh();
-    setInterval(refresh, 60000);
   })();
 
   /* 最近新增。數字與清單都來自 content/recent-projects.json，由
