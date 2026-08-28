@@ -235,18 +235,31 @@ fs.writeFileSync("docs/_state/agent-current.txt","'"$REPO"'\n");'
   fi
 
   # ── 驗收 → 修 → 重驗（最多兩次修正）──
+  # 驗收回合數要留下來。codex 呼叫層的 attempts 永遠是 1（它從不需要同呼叫
+  # 重試），真正反映品質的是這一層「驗收→修正→重驗」跑了幾回合——沒有這個
+  # 數字，改 prompt 之後根本不知道一次過關率有沒有變好。
   ok=0
+  vtries=0
+  fixran=0
   for attempt in 1 2; do
+    vtries=$attempt
     node tools/lib/verify-runner.mjs 4599 "$REPO" >> "$LOG" 2>&1
     if grep -q "^OK $REPO" "$LOG"; then ok=1; break; fi
     echo "  第 $attempt 次驗收未過，嘗試修正"
     act "驗收未過，修正中" "$REPO" 409 "第 $attempt 次"
+    fixran=1
     node tools/fix-demo-overflow.mjs --port=4599 --concurrency=1 "$REPO" >> "$LOG" 2>&1
   done
 
   if [ "$ok" -ne 1 ]; then
     echo "  ✖ 驗收仍未過，保留為草稿不上架（見 $LOG）"
     act "驗收失敗，未上架" "$REPO" 422 "《$TITLE》"
+    node -e '
+const fs=require("fs");const p="docs/DEMO_FORGE_MANIFEST.json";const m=JSON.parse(fs.readFileSync(p,"utf8"));
+const e=m.entries.find(x=>x.repoName==="'"$REPO"'");
+if(e){e.checks={...(e.checks||{}),browser:{pass:false,at:new Date().toISOString(),
+  attempts:Number("'"$vtries"'"),firstPass:false,fixerRan:"'"$fixran"'"==="1"}};}
+fs.writeFileSync(p,JSON.stringify(m,null,2)+"\n");' 2>/dev/null
     grep -E '^XX ' "$LOG" | tail -2
     dequeue; continue
   fi
@@ -255,7 +268,8 @@ fs.writeFileSync("docs/_state/agent-current.txt","'"$REPO"'\n");'
   node -e '
 const fs=require("fs");const p="docs/DEMO_FORGE_MANIFEST.json";const m=JSON.parse(fs.readFileSync(p,"utf8"));
 const e=m.entries.find(x=>x.repoName==="'"$REPO"'");
-if(e){e.state="verified";e.checks={...(e.checks||{}),browser:{pass:true,at:new Date().toISOString()}};}
+if(e){e.state="verified";e.checks={...(e.checks||{}),browser:{pass:true,at:new Date().toISOString(),
+  attempts:Number("'"$vtries"'"),firstPass:"'"$vtries"'"==="1",fixerRan:"'"$fixran"'"==="1"}};}
 fs.writeFileSync(p,JSON.stringify(m,null,2)+"\n");'
   node tools/demo-publish.mjs --repo="$REPO" >> "$LOG" 2>&1
   node tools/sync-catalog-counts.mjs > /dev/null 2>&1

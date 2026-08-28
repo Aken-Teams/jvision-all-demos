@@ -240,6 +240,30 @@ async function buildOne(candidate, index) {
 
   const gate = staticGate(htmlPath, details);
   const state = result.ok && gate.pass ? "built" : "failed";
+
+  /* 失敗的 transcript 是最值錢的分析材料。codex 的輸出檔本來讀進記憶體就刪，
+     失敗時什麼都不剩——錯誤模式（回傳截斷、圍籬包裹、規則違反）只能靠猜。
+     留檔含：錯誤、prompt 大小、完整輸出。只在失敗時留，並修剪到最近 60 份，
+     不會無限長大。 */
+  if (state === "failed") {
+    try {
+      const dir = path.join(ROOT, "docs", "_state", "failed-transcripts");
+      fs.mkdirSync(dir, { recursive: true });
+      const head = [
+        `repo: ${repoName}`,
+        `at: ${new Date().toISOString()}`,
+        `error: ${result.error || "(靜態閘未過)"}`,
+        `gate: ${JSON.stringify(gate.issues || [])}`,
+        `promptBytes: ${Buffer.byteLength(prompt)}`,
+        `durationMs: ${Date.now() - started}`,
+        "─".repeat(60),
+      ].join("\n");
+      fs.writeFileSync(path.join(dir, `${repoName}-${Date.now()}.log`),
+        head + "\n" + (result.text || "(codex 無輸出)"));
+      const olds = fs.readdirSync(dir).filter((f) => f.endsWith(".log")).sort();
+      for (const f of olds.slice(0, Math.max(0, olds.length - 60))) fs.unlinkSync(path.join(dir, f));
+    } catch { /* 留檔失敗不影響產線 */ }
+  }
   upsertEntry(manifest, {
     repoName, state,
     attempts: result.attempts,
