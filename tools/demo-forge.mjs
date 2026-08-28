@@ -242,6 +242,15 @@ async function buildOne(candidate, index) {
 
   // 越界護欄：白名單外的已追蹤檔變動立即還原並中止
   const allow = [`demos/${repoName}/`, `content/details/${repoName}.json`, "docs/DEMO_FORGE_MANIFEST.json"];
+  /* 每日 agent 可能正在同時建另一套。它的半成品長得跟「codex 越界」一模一樣——
+     都是白名單外的新檔。認得它在做哪一套，才不會把同事的工作報成違規；
+     只放行那一個 repo，其餘路徑照擋。 */
+  try {
+    const busy = fs.readFileSync(path.join(ROOT, "docs", "_state", "agent-current.txt"), "utf8").trim().split("\n")[0];
+    if (busy && /^jvision-[a-z0-9-]+$/.test(busy) && busy !== repoName) {
+      allow.push(`demos/${busy}/`, `content/details/${busy}.json`);
+    }
+  } catch { /* 沒有這個檔就是沒有 agent 在跑 */ }
   const guard = diffGuard(before, allow);
   if (guard.trackedViolations.length) {
     log.error(`codex 越界修改了 ${guard.trackedViolations.join(", ")} —— 已還原並中止本批`);
