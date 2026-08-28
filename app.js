@@ -4,7 +4,8 @@ const state = {
   query: "",
   category: "",
   sort: "relevance",
-  visible: 24,
+  visible: 12,
+  rendered: 0,
   suggestionIndex: -1,
 };
 
@@ -257,19 +258,33 @@ function scaleCardEmbed(wrap) {
   f.style.transform = "scale(" + (w / 1440) + ")";
 }
 let _cardIO = null, _cardResizeBound = false;
+/* 預覽 iframe 同時最多載 3 個。每個 iframe 是一整套 demo（字型＋圖表庫＋渲染），
+   捲快一點十幾個同時開載會把主執行緒打趴——排隊逐批載，畫面才不會卡。 */
+const _embedQueue = []; let _embedLoading = 0; const EMBED_MAX = 3;
+function pumpEmbeds() {
+  while (_embedLoading < EMBED_MAX && _embedQueue.length) {
+    const wrap = _embedQueue.shift();
+    const f = wrap.querySelector(".jv-card-frame");
+    if (!f || f.src || !wrap.dataset.src) continue;
+    _embedLoading += 1;
+    let done = false;
+    const release = () => { if (done) return; done = true; _embedLoading -= 1; pumpEmbeds(); };
+    f.addEventListener("load", () => { scaleCardEmbed(wrap); f.style.opacity = "1"; const ph = wrap.querySelector(".jv-card-ph"); if (ph) ph.style.display = "none"; release(); }, { once: true });
+    f.addEventListener("error", release, { once: true });
+    setTimeout(release, 20000); // 開不起來的 demo 不能永遠占住載入通道
+    f.src = wrap.dataset.src;
+    scaleCardEmbed(wrap);
+  }
+}
 function setupCardEmbeds() {
   if (!_cardIO) {
     _cardIO = new IntersectionObserver((entries) => {
       entries.forEach((en) => {
         if (!en.isIntersecting) return;
-        const wrap = en.target, f = wrap.querySelector(".jv-card-frame");
-        if (f && !f.src && wrap.dataset.src) {
-          f.addEventListener("load", () => { scaleCardEmbed(wrap); f.style.opacity = "1"; const ph = wrap.querySelector(".jv-card-ph"); if (ph) ph.style.display = "none"; }, { once: true });
-          f.src = wrap.dataset.src;
-          scaleCardEmbed(wrap);
-        }
-        _cardIO.unobserve(wrap);
+        _embedQueue.push(en.target);
+        _cardIO.unobserve(en.target);
       });
+      pumpEmbeds();
     }, { rootMargin: "300px" });
   }
   document.querySelectorAll(".jv-card-embed").forEach((w) => { if (w.querySelector(".jv-card-frame:not([src])")) _cardIO.observe(w); });
@@ -325,15 +340,18 @@ function renderActiveFilters() {
   }
 }
 
-function renderProjects() {
-  grid.innerHTML = "";
+/* append=true：只把新增的區段附加進網格。「載入更多」若整個重建，
+   已載入的幾十個 iframe 會全部銷毀再重載——越往下滑越慢，正是當初卡頓的主因。 */
+function renderProjects(append = false) {
+  if (!append) { grid.innerHTML = ""; state.rendered = 0; }
   const visibleProjects = state.filtered.slice(0, state.visible);
   if (!visibleProjects.length) {
     grid.innerHTML = `<article class="empty-state"><h3>沒有符合條件的專案</h3><p>請改用產業名稱、功能名稱或案例編號搜尋。</p><button type="button" id="emptyClear">清除所有篩選</button></article>`;
     document.querySelector("#emptyClear")?.addEventListener("click", resetFilters);
   }
+  const newProjects = state.filtered.slice(state.rendered, state.visible);
   const fragment = document.createDocumentFragment();
-  for (const [index, project] of visibleProjects.entries()) {
+  for (const project of newProjects) {
     const card = template.content.cloneNode(true);
     card.querySelector(".case-id").textContent = `#${project.id}`;
     card.querySelector("h3").textContent = shortTitle(project.title) || project.repoName;
@@ -373,8 +391,8 @@ function renderProjects() {
     preview.innerHTML = cardHeroHTML(project);
     fragment.append(card);
   }
-  grid.append(fragment);
-  grid.querySelectorAll(".project-practical-detail").forEach(detail => {
+  /* 對話框觸發要在 fragment 階段綁——附加模式下對整個 grid 重綁會讓舊卡片疊加監聽 */
+  fragment.querySelectorAll(".project-practical-detail").forEach(detail => {
     detail.querySelector(".project-use-trigger")?.addEventListener("click", () => {
       const card = detail.closest(".project-card");
       projectUseDialogTitle.textContent = card.querySelector("h3")?.textContent || "專案實際用途";
@@ -382,6 +400,8 @@ function renderProjects() {
       projectUseDialog.showModal();
     });
   });
+  grid.append(fragment);
+  state.rendered = visibleProjects.length;
   setupCardEmbeds();
   document.querySelector("#resultSummary").textContent = `找到 ${state.filtered.length} 個專案，目前顯示 ${visibleProjects.length} 個。`;
   const hideMore = state.visible >= state.filtered.length || !state.filtered.length;
@@ -432,7 +452,7 @@ function applyFilters({ updateSuggestions = true } = {}) {
     if (state.sort === "id") return (a.catalogSequence || 0) - (b.catalogSequence || 0);
     return relevance(b, query) - relevance(a, query) || Number(a.id) - Number(b.id);
   });
-  state.visible = 24;
+  state.visible = 12;
   renderActiveFilters();
   renderProjects();
   if (updateSuggestions) renderSuggestions();
@@ -544,7 +564,7 @@ searchInput.addEventListener("blur", () => setTimeout(() => { suggestions.hidden
 categorySelect.addEventListener("change", (event) => { state.category = event.target.value; applyFilters(); });
 sortSelect.addEventListener("change", (event) => { state.sort = event.target.value; applyFilters({ updateSuggestions: false }); });
 clearFilters.addEventListener("click", resetFilters);
-loadMore.addEventListener("click", () => { state.visible += 24; renderProjects(); });
+loadMore.addEventListener("click", () => { state.visible += 12; renderProjects(true); });
 catalogStatsBody.addEventListener("click", (event) => {
   const action = event.target.closest("button[data-category]");
   if (!action) return;
