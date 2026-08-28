@@ -4,10 +4,10 @@ const state = {
   query: "",
   category: "",
   sort: "relevance",
-  visible: 12,
-  rendered: 0,
+  page: 1,
   suggestionIndex: -1,
 };
+const PAGE_SIZE = 12;
 
 const grid = document.querySelector("#projectGrid");
 const template = document.querySelector("#projectCardTemplate");
@@ -17,7 +17,7 @@ const categorySelect = document.querySelector("#categorySelect");
 const sortSelect = document.querySelector("#sortSelect");
 const quickFilters = document.querySelector("#quickFilters");
 const clearFilters = document.querySelector("#clearFilters");
-const loadMore = document.querySelector("#loadMore");
+const pagination = document.querySelector("#pagination");
 const catalogStatsBody = document.querySelector("#catalogStatsBody");
 const catalogStatsSummary = document.querySelector("#catalogStatsSummary");
 const searchResults = document.querySelector("#searchResults");
@@ -108,6 +108,7 @@ function hydrateFromUrl() {
   state.query = params.get("q") || "";
   state.category = params.get("category") || "";
   state.sort = params.get("sort") || "relevance";
+  state.page = Math.max(1, parseInt(params.get("page"), 10) || 1);
   searchInput.value = state.query;
   categorySelect.value = state.category;
   sortSelect.value = state.sort;
@@ -118,6 +119,7 @@ function syncUrl() {
   if (state.query) params.set("q", state.query);
   if (state.category) params.set("category", state.category);
   if (state.sort !== "relevance") params.set("sort", state.sort);
+  if (state.page > 1) params.set("page", String(state.page));
   const query = params.toString();
   history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
 }
@@ -264,6 +266,7 @@ const _embedQueue = []; let _embedLoading = 0; const EMBED_MAX = 3;
 function pumpEmbeds() {
   while (_embedLoading < EMBED_MAX && _embedQueue.length) {
     const wrap = _embedQueue.shift();
+    if (!wrap.isConnected) continue; // 換頁後殘留在隊伍裡的舊卡片，載了也沒人看
     const f = wrap.querySelector(".jv-card-frame");
     if (!f || f.src || !wrap.dataset.src) continue;
     _embedLoading += 1;
@@ -340,18 +343,19 @@ function renderActiveFilters() {
   }
 }
 
-/* append=true：只把新增的區段附加進網格。「載入更多」若整個重建，
-   已載入的幾十個 iframe 會全部銷毀再重載——越往下滑越慢，正是當初卡頓的主因。 */
-function renderProjects(append = false) {
-  if (!append) { grid.innerHTML = ""; state.rendered = 0; }
-  const visibleProjects = state.filtered.slice(0, state.visible);
-  if (!visibleProjects.length) {
+/* 分頁模式：一次只渲染一頁（PAGE_SIZE 張）。每頁量小，換頁整頁重建反而乾脆，
+   也不會累積出幾百個 iframe 吃光記憶體。 */
+function renderProjects() {
+  const pages = Math.max(1, Math.ceil(state.filtered.length / PAGE_SIZE));
+  if (state.page > pages) state.page = pages;
+  grid.innerHTML = "";
+  if (!state.filtered.length) {
     grid.innerHTML = `<article class="empty-state"><h3>沒有符合條件的專案</h3><p>請改用產業名稱、功能名稱或案例編號搜尋。</p><button type="button" id="emptyClear">清除所有篩選</button></article>`;
     document.querySelector("#emptyClear")?.addEventListener("click", resetFilters);
   }
-  const newProjects = state.filtered.slice(state.rendered, state.visible);
+  const pageProjects = state.filtered.slice((state.page - 1) * PAGE_SIZE, state.page * PAGE_SIZE);
   const fragment = document.createDocumentFragment();
-  for (const project of newProjects) {
+  for (const project of pageProjects) {
     const card = template.content.cloneNode(true);
     card.querySelector(".case-id").textContent = `#${project.id}`;
     card.querySelector("h3").textContent = shortTitle(project.title) || project.repoName;
@@ -401,12 +405,51 @@ function renderProjects(append = false) {
     });
   });
   grid.append(fragment);
-  state.rendered = visibleProjects.length;
   setupCardEmbeds();
-  document.querySelector("#resultSummary").textContent = `找到 ${state.filtered.length} 個專案，目前顯示 ${visibleProjects.length} 個。`;
-  const hideMore = state.visible >= state.filtered.length || !state.filtered.length;
-  loadMore.hidden = hideMore;
-  loadMore.style.display = hideMore ? "none" : ""; // [hidden] 被 inline-flex 覆蓋，需強制 display
+  document.querySelector("#resultSummary").textContent = state.filtered.length
+    ? `找到 ${state.filtered.length} 個專案，第 ${state.page} / ${pages} 頁。`
+    : "找到 0 個專案。";
+  renderPagination(pages);
+}
+
+function goPage(target) {
+  const pages = Math.max(1, Math.ceil(state.filtered.length / PAGE_SIZE));
+  const next = Math.min(Math.max(1, target), pages);
+  if (next === state.page) return;
+  state.page = next;
+  renderProjects();
+  syncUrl();
+  // 換頁後把視角拉回結果區頂端，不然人還停在上一頁的頁尾
+  const summary = document.querySelector("#resultSummary");
+  if (summary) window.scrollTo({ top: summary.getBoundingClientRect().top + window.scrollY - 90, behavior: "auto" });
+}
+
+/* 頁碼列：首尾各兩頁＋目前頁前後各一頁，中間以 … 略過。 */
+function renderPagination(pages) {
+  if (!pagination) return; // 舊版備份頁沒有頁碼容器，別讓它整頁炸掉
+  pagination.innerHTML = "";
+  if (pages <= 1) return;
+  const btn = (label, target, { current = false, disabled = false, aria } = {}) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    if (aria) b.setAttribute("aria-label", aria);
+    if (current) b.setAttribute("aria-current", "page");
+    b.disabled = disabled;
+    b.addEventListener("click", () => goPage(target));
+    return b;
+  };
+  const gap = () => { const s = document.createElement("span"); s.className = "jv-page-gap"; s.textContent = "…"; return s; };
+  pagination.append(btn("‹", state.page - 1, { disabled: state.page === 1, aria: "上一頁" }));
+  const want = new Set([1, 2, pages - 1, pages, state.page - 2, state.page - 1, state.page, state.page + 1, state.page + 2]);
+  let prev = 0;
+  for (let p = 1; p <= pages; p += 1) {
+    if (!want.has(p)) continue;
+    if (p - prev > 1) pagination.append(gap());
+    pagination.append(btn(String(p), p, { current: p === state.page }));
+    prev = p;
+  }
+  pagination.append(btn("›", state.page + 1, { disabled: state.page === pages, aria: "下一頁" }));
 }
 
 function renderSuggestions() {
@@ -440,7 +483,8 @@ function renderSuggestions() {
   searchInput.setAttribute("aria-expanded", "true");
 }
 
-function applyFilters({ updateSuggestions = true } = {}) {
+/* keepPage：初次載入從網址帶回 ?page= 時不可歸零；使用者改條件時一律回第 1 頁 */
+function applyFilters({ updateSuggestions = true, keepPage = false } = {}) {
   const query = normalize(state.query);
   state.filtered = state.projects.filter((project) => {
     const queryMatch = !query || relevance(project, query) > 0;
@@ -452,7 +496,7 @@ function applyFilters({ updateSuggestions = true } = {}) {
     if (state.sort === "id") return (a.catalogSequence || 0) - (b.catalogSequence || 0);
     return relevance(b, query) - relevance(a, query) || Number(a.id) - Number(b.id);
   });
-  state.visible = 12;
+  if (!keepPage) state.page = 1;
   renderActiveFilters();
   renderProjects();
   if (updateSuggestions) renderSuggestions();
@@ -554,7 +598,7 @@ async function boot() {
   if (footerEl) footerEl.textContent = `${state.projects.length} 個展示專案`;
   renderQuickFilters();
   renderCatalogStats();
-  applyFilters({ updateSuggestions: false });
+  applyFilters({ updateSuggestions: false, keepPage: true });
 }
 
 searchInput.addEventListener("input", (event) => { state.query = event.target.value; applyFilters(); });
@@ -564,7 +608,6 @@ searchInput.addEventListener("blur", () => setTimeout(() => { suggestions.hidden
 categorySelect.addEventListener("change", (event) => { state.category = event.target.value; applyFilters(); });
 sortSelect.addEventListener("change", (event) => { state.sort = event.target.value; applyFilters({ updateSuggestions: false }); });
 clearFilters.addEventListener("click", resetFilters);
-loadMore.addEventListener("click", () => { state.visible += 12; renderProjects(true); });
 catalogStatsBody.addEventListener("click", (event) => {
   const action = event.target.closest("button[data-category]");
   if (!action) return;
