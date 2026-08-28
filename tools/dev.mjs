@@ -10,6 +10,7 @@ import * as auth from "./lib/admin-auth.mjs";
 import * as google from "./lib/google-auth.mjs";
 import * as visitor from "./lib/visitor-auth.mjs";
 import * as builds from "./lib/build-records.mjs";
+import * as guard from "./lib/rate-guard.mjs";
 import * as wishes from "./lib/wish-requests.mjs";
 import { spawn as spawnProc } from "node:child_process";
 
@@ -135,6 +136,18 @@ function startGateway() {
     const t0 = Date.now();
     const ip = actions.ipOf(req);
     const who = actions.visitorOf(ip);
+
+    /* 反爬蟲底線：明顯的抓取 UA 與超速 IP 擋在這裡。迴環不限（自家產線與
+       監看都走本機）；上層更強的防線是 Cloudflare 的 bot 防護。 */
+    {
+      const hit = guard.check(ip, p, req.headers["user-agent"]);
+      if (hit) {
+        if (hit.firstBlock) actions.record({ actor: "訪客", action: hit.status === 403 ? "爬蟲 UA 被擋" : "超速被限流",
+          target: p, status: hit.status, visitor: who, ip, note: hit.why });
+        res.writeHead(hit.status, { "content-type": "text/plain; charset=utf-8", "retry-after": "60" });
+        return res.end(hit.status === 403 ? "forbidden" : "too many requests");
+      }
+    }
 
     // ── 進站身分 ──────────────────────────────────────────
     /* 訪客入口已關閉。端點留著並明確拒絕，而不是直接移除——舊分頁上的按鈕

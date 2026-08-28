@@ -71,9 +71,14 @@ export function clear(req, res) {
 /* 入口頁自己、身分相關的 API、以及靜態資源要放行。資源不放行的話入口頁
    自己的樣式與圖也會被擋，畫面直接壞掉；而擋住資源本來也擋不到任何東西
    ——內容在 HTML 裡，不在 css 裡。 */
-const ASSET = /\.(css|js|mjs|map|svg|png|jpe?g|webp|gif|ico|woff2?|txt|json)$/i;
+/* json 不在資產豁免裡。完整目錄與每套規格都是 .json——整類放行等於爬蟲
+   不用登入就能把整站資料抱走（實測 2.9MB 的 projects-index 匿名可下載）。
+   登入後的頁面帶著 cookie 抓 json 照樣通行，被擋的只有匿名者。 */
+const ASSET = /\.(css|js|mjs|map|svg|png|jpe?g|webp|gif|ico|woff2?|txt)$/i;
 // login-preview 是「新版前導動畫」的預覽頁,本質是登入頁的候選版,登入前就要看得到
-const OPEN_PATHS = new Set(["/welcome", "/welcome.html", "/login-preview", "/login-preview.html", "/favicon.svg", "/robots.txt"]);
+const OPEN_PATHS = new Set(["/welcome", "/welcome.html", "/login-preview", "/login-preview.html", "/favicon.svg", "/robots.txt",
+  /* 入口頁登入前要顯示站上總數，只開這一個彙總檔——裡面沒有任何單一專案的完整內容 */
+  "/content/recent-projects.json"]);
 
 export function needsGate(pathname) {
   if (OPEN_PATHS.has(pathname)) return false;
