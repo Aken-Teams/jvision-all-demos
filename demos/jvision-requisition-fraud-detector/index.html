@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>請購舞弊與分拆偵測器 · procurement-srm｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+:root{
+  --blue:#1e40af;
+  --ink:#172033;
+  --body:#344054;
+  --muted:#667085;
+  --line:#e4e7ec;
+  --bg:#f5f7fb;
+  --green:#16875d;
+  --amber:#c47512;
+  --red:#c93c4b;
+  --white:#fff;
+  --soft:#eef3ff;
+  --shadow:0 12px 32px rgba(16,24,40,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-width:0;
+  color:var(--body);
+  background:var(--bg);
+  font-family:Inter,"Noto Sans TC",sans-serif;
+  font-size:14px;
+  line-height:1.55;
+  overflow-x:hidden;
+}
+button,input,textarea,select{font:inherit}
+button{color:inherit}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{
+  outline:3px solid rgba(30,64,175,.22);
+  outline-offset:2px;
+}
+.material-symbols-outlined{font-size:21px;line-height:1}
+.shell{min-height:100vh;display:grid;grid-template-columns:78px minmax(0,1fr)}
+.rail{
+  position:fixed;
+  inset:0 auto 0 0;
+  z-index:20;
+  width:78px;
+  padding:16px 10px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:18px;
+  color:#dce6ff;
+  background:#10245f;
+  border-right:1px solid rgba(255,255,255,.08);
+}
+.logo{
+  width:48px;height:48px;border-radius:15px;
+  display:grid;place-items:center;
+  color:#fff;background:linear-gradient(145deg,#3159d9,#18368e);
+  box-shadow:0 8px 20px rgba(0,0,0,.25);
+  font-size:17px;font-weight:800;letter-spacing:-.5px;
+}
+.rail-nav{width:100%;display:grid;gap:8px}
+.rail-btn{
+  width:58px;min-height:58px;padding:7px 3px;
+  border:0;border-radius:14px;background:transparent;color:#aebce5;
+  display:grid;place-items:center;gap:2px;cursor:pointer;
+  transition:.18s ease;
+}
+.rail-btn small{font-size:10px;line-height:1.1}
+.rail-btn:hover{background:rgba(255,255,255,.09);color:#fff}
+.rail-btn.active{color:#fff;background:#2a4db7;box-shadow:0 7px 18px rgba(0,0,0,.18)}
+.rail-foot{margin-top:auto;color:#8fa2dc;font-size:10px;text-align:center}
+.main{grid-column:2;min-width:0;padding:20px 26px 36px}
+.bar{
+  min-height:64px;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  margin-bottom:18px;padding:8px 4px;
+}
+.eyebrow{display:flex;align-items:center;gap:8px;color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.08em}
+.bar h1{margin:2px 0 0;color:var(--ink);font-size:22px;line-height:1.25;letter-spacing:-.02em}
+.bar-actions{display:flex;align-items:center;gap:10px}
+.sync{
+  display:flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid var(--line);
+  border-radius:999px;background:#fff;color:var(--muted);font-size:12px;
+}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(22,135,93,.1)}
+.avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#dce6ff;color:var(--blue);font-weight:800}
+.screen{display:none;animation:rise .24s ease both}
+.screen.active{display:block}
+@keyframes rise{from{opacity:.2;transform:translateY(5px)}to{opacity:1;transform:none}}
+.grid{display:grid;gap:16px}
+.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.split{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,.75fr);gap:16px}
+.card{
+  min-width:0;background:#fff;border:1px solid var(--line);border-radius:18px;
+  box-shadow:0 4px 14px rgba(16,24,40,.035);
+}
+.card-pad{padding:18px}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:15px}
+.card-head h2,.card-head h3{margin:0;color:var(--ink);line-height:1.35}
+.card-head h2{font-size:17px}.card-head h3{font-size:15px}
+.sub{margin:4px 0 0;color:var(--muted);font-size:12px}
+.metric{padding:17px}
+.metric-top{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px}
+.metric-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--blue);background:var(--soft)}
+.metric strong{display:block;margin:9px 0 2px;color:var(--ink);font-size:26px;line-height:1.15}
+.delta{font-size:11px;font-weight:700;color:var(--green)}
+.delta.warn{color:var(--amber)}.delta.danger{color:var(--red)}
+.btn{
+  min-height:40px;border:1px solid var(--line);border-radius:10px;padding:8px 13px;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;background:#fff;
+  color:var(--body);font-weight:700;cursor:pointer;
+}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.soft{background:var(--soft);border-color:#dbe4ff;color:var(--blue)}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;background:#f2f4f7;color:#475467;font-size:11px;font-weight:700;white-space:nowrap}
+.pill.high{background:#fff0f1;color:var(--red)}
+.pill.medium{background:#fff7e8;color:var(--amber)}
+.pill.low,.pill.done{background:#eaf8f1;color:var(--green)}
+.pill.blue{background:var(--soft);color:var(--blue)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:720px}
+th,td{padding:12px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{color:var(--muted);font-size:11px;font-weight:800;background:#fafbfc}
+td{color:#344054;font-size:12px}
+tbody tr{cursor:pointer;transition:.15s}
+tbody tr:hover,tbody tr.selected{background:#f4f7ff}
+.case-id{font-weight:800;color:var(--blue)}
+.score{display:flex;align-items:center;gap:8px}
+.score b{color:var(--ink)}
+.mini-bar{width:54px;height:6px;border-radius:6px;background:#eceff4;overflow:hidden}
+.mini-bar i{display:block;height:100%;border-radius:inherit;background:var(--red)}
+.chart{width:100%;height:290px}
+.note{padding:12px;border:1px solid #d9e2ff;background:#f4f7ff;border-radius:12px;color:#38508f;font-size:12px}
+.empty-safe{min-height:1px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:11px}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend i{width:8px;height:8px;border-radius:50%}
+
+/* Screen 0 */
+.queue-layout{display:grid;grid-template-columns:minmax(0,1.6fr) 320px;gap:16px;margin-top:16px}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.filter{
+  min-height:36px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:6px 10px;
+  display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;
+}
+.alert-stack{display:grid;gap:10px}
+.alert-item{padding:13px;border:1px solid var(--line);border-radius:13px;background:#fff}
+.alert-item:first-child{border-color:#ffc6cc;background:#fffafb}
+.alert-line{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.alert-item h4{margin:0;color:var(--ink);font-size:13px}
+.alert-item p{margin:5px 0 0;color:var(--muted);font-size:11px}
+.rule-tag{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap}
+
+/* Screen 1 */
+.timeline-shell{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}
+.timeline{padding:20px}
+.cluster-head{padding:15px;background:linear-gradient(110deg,#17388f,#2d55c7);border-radius:14px;color:#fff;margin-bottom:18px;display:flex;justify-content:space-between;gap:16px}
+.cluster-head strong{font-size:20px}.cluster-head p{margin:3px 0 0;color:#dce5ff;font-size:12px}
+.time-row{position:relative;display:grid;grid-template-columns:88px 24px minmax(0,1fr);gap:10px;padding-bottom:16px}
+.time-row:not(:last-child):before{content:"";position:absolute;left:99px;top:22px;bottom:-2px;width:2px;background:#dce4f5}
+.time-label{padding-top:3px;text-align:right;color:var(--muted);font-size:11px}
+.time-node{position:relative;z-index:1;width:14px;height:14px;margin-top:4px;border-radius:50%;background:var(--blue);border:3px solid #dce5ff}
+.time-box{padding:13px;border:1px solid var(--line);border-radius:12px}
+.time-box.hot{border-color:#f4b8bf;background:#fffafb}
+.amount{color:var(--ink);font-size:16px;font-weight:800}
+.compare{display:grid;gap:9px}
+.compare-row{padding:12px;border-radius:12px;background:#f8f9fb}
+.compare-row label{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
+.track{height:7px;margin-top:7px;background:#e9edf3;border-radius:8px;overflow:hidden}
+.track i{display:block;height:100%;background:var(--blue);border-radius:inherit}
+
+/* Screen 2 */
+.rule-layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px}
+.rule-list{padding:10px}
+.rule-btn{width:100%;padding:13px;border:0;border-radius:12px;background:transparent;text-align:left;cursor:pointer}
+.rule-btn.active{background:var(--soft)}
+.rule-btn strong{display:flex;justify-content:space-between;gap:8px;color:var(--ink);font-size:13px}
+.rule-btn p{margin:4px 0 0;color:var(--muted);font-size:11px}
+.logic{padding:20px}
+.logic-flow{display:flex;align-items:stretch;gap:10px;margin:20px 0;overflow-x:auto;padding-bottom:5px}
+.logic-node{min-width:142px;padding:14px;border:1px solid var(--line);border-radius:13px;background:#fff}
+.logic-node.pass{border-color:#e2ac4e;background:#fffbf1}
+.logic-arrow{display:grid;place-items:center;color:#98a2b3}
+.evidence-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.evidence{padding:13px;border-radius:12px;background:#f8f9fb}
+.evidence small{display:block;color:var(--muted)}.evidence b{display:block;margin-top:5px;color:var(--ink);font-size:16px}
+
+/* Screen 3 */
+.network-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
+.network-map{position:relative;min-height:490px;overflow:hidden;background:radial-gradient(circle at center,#f7f9ff 0,#fff 68%)}
+.network-map svg{width:100%;height:490px;display:block}
+.net-line{stroke:#cbd5ea;stroke-width:2}
+.net-line.hot{stroke:#d95b66;stroke-width:4;stroke-dasharray:7 5}
+.net-node circle{fill:#fff;stroke:#8ca1d8;stroke-width:3}
+.net-node.main circle{fill:#1e40af;stroke:#b8c7f0}
+.net-node.vendor circle{fill:#fff6e6;stroke:#d8952e}
+.net-node text{fill:#344054;font-size:12px;font-weight:700;text-anchor:middle}
+.net-node.main text{fill:#fff}
+.concentration{display:grid;gap:11px}
+.conc-item{padding:13px;border:1px solid var(--line);border-radius:12px}
+.conc-item header{display:flex;justify-content:space-between;gap:8px}
+.conc-item h4{margin:0;color:var(--ink);font-size:12px}
+.conc-item p{margin:5px 0 0;color:var(--muted);font-size:11px}
+
+/* Screen 4 */
+.workspace{display:grid;grid-template-columns:270px minmax(0,1fr) 300px;gap:16px}
+.case-nav{padding:10px}
+.case-nav button{width:100%;border:0;background:transparent;border-radius:11px;padding:12px;text-align:left;cursor:pointer}
+.case-nav button.active{background:var(--soft)}
+.case-nav strong{display:block;color:var(--ink);font-size:12px}
+.case-nav span{color:var(--muted);font-size:11px}
+.dossier{padding:19px}
+.fact-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.fact{padding:11px;border-radius:11px;background:#f8f9fb}
+.fact small{display:block;color:var(--muted);font-size:10px}.fact b{display:block;margin-top:4px;color:var(--ink);font-size:12px}
+.doc{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.doc-icon{width:34px;height:34px;border-radius:9px;background:#eef3ff;color:var(--blue);display:grid;place-items:center}
+.doc strong{display:block;color:var(--ink);font-size:12px}.doc small{color:var(--muted)}
+textarea{width:100%;min-height:105px;resize:vertical;border:1px solid var(--line);border-radius:11px;padding:11px;color:var(--body);background:#fff}
+.activity{padding-left:18px;margin:0;list-style:none}
+.activity li{position:relative;padding:0 0 17px 15px;color:var(--muted);font-size:11px;border-left:1px solid #d9dfeb}
+.activity li:before{content:"";position:absolute;left:-5px;top:2px;width:9px;height:9px;border-radius:50%;background:var(--blue)}
+.activity b{display:block;color:var(--ink);font-size:12px}
+
+/* Screen 5 */
+.disposition{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.75fr);gap:16px}
+.kanban{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kanban-col{min-width:0;padding:12px;background:#f0f2f7;border-radius:15px}
+.kanban-title{display:flex;justify-content:space-between;margin-bottom:10px;color:var(--ink);font-weight:800;font-size:12px}
+.ticket{padding:12px;margin-bottom:9px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 3px 8px rgba(16,24,40,.04)}
+.ticket h4{margin:0;color:var(--ink);font-size:12px}.ticket p{margin:5px 0 8px;color:var(--muted);font-size:10px}
+.ticket-foot{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.gauge-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.gauge{height:170px}
+.approval{padding:13px;border:1px solid var(--line);border-radius:12px;display:flex;gap:10px}
+.approval + .approval{margin-top:9px}
+.approval-icon{width:36px;height:36px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;background:#eaf8f1;color:var(--green)}
+.approval h4{margin:0;color:var(--ink);font-size:12px}.approval p{margin:3px 0 0;color:var(--muted);font-size:10px}
+
+@media(max-width:1100px){
+  .cols-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .queue-layout,.timeline-shell,.network-layout,.disposition{grid-template-columns:1fr}
+  .workspace{grid-template-columns:220px minmax(0,1fr)}
+  .workspace>.card:last-child{grid-column:1/-1}
+  .kanban{grid-template-columns:repeat(3,minmax(210px,1fr));overflow-x:auto}
+}
+@media(max-width:780px){
+  .shell{display:block;padding-bottom:76px}
+  .rail{inset:auto 0 0 0;width:100%;height:70px;padding:7px 8px;display:block;border:0;border-top:1px solid rgba(255,255,255,.1)}
+  .logo,.rail-foot{display:none}
+  .rail-nav{display:grid;grid-template-columns:repeat(6,1fr);gap:3px}
+  .rail-btn{width:100%;min-height:56px;border-radius:10px}
+  .rail-btn small{font-size:9px}
+  .main{padding:12px 14px 24px}
+  .bar{min-height:58px;margin-bottom:10px}
+  .bar h1{font-size:18px}
+  .sync{display:none}
+  .cols-3,.cols-2,.split,.rule-layout,.workspace{grid-template-columns:1fr}
+  .workspace>.card:last-child{grid-column:auto}
+  .rule-list{display:flex;overflow-x:auto}
+  .rule-btn{min-width:210px}
+  .evidence-grid{grid-template-columns:1fr}
+  .fact-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:480px){
+  .main{padding-inline:10px}
+  .bar-actions .btn{display:none}
+  .cols-4{grid-template-columns:1fr 1fr;gap:9px}
+  .metric{padding:13px}.metric strong{font-size:21px}
+  .card{border-radius:15px}.card-pad{padding:14px}
+  .filters{overflow-x:auto;flex-wrap:nowrap}
+  .filter{flex:0 0 auto}
+  .cluster-head{display:block}
+  .time-row{grid-template-columns:55px 18px minmax(0,1fr);gap:7px}
+  .time-row:not(:last-child):before{left:63px}
+  .logic-flow{align-items:center}
+  .network-map,.network-map svg{min-height:400px;height:400px}
+  .kanban{grid-template-columns:repeat(3,240px)}
+  .gauge-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail" aria-label="流程導覽">
+    <div class="logo" aria-label="JVision">JV</div>
+    <nav class="rail-nav">
+      <button class="rail-btn" data-i="0" aria-label="異常佇列"><span class="material-symbols-outlined">policy</span><small>案件</small></button>
+      <button class="rail-btn" data-i="1" aria-label="分拆脈絡"><span class="material-symbols-outlined">call_split</span><small>分拆</small></button>
+      <button class="rail-btn" data-i="2" aria-label="命中規則"><span class="material-symbols-outlined">rule</span><small>規則</small></button>
+      <button class="rail-btn" data-i="3" aria-label="關係分析"><span class="material-symbols-outlined">account_tree</span><small>關係</small></button>
+      <button class="rail-btn" data-i="4" aria-label="案件調查"><span class="material-symbols-outlined">manage_search</span><small>調查</small></button>
+      <button class="rail-btn" data-i="5" aria-label="處置追蹤"><span class="material-symbols-outlined">gavel</span><small>處置</small></button>
+    </nav>
+    <div class="rail-foot">SRM<br>CONTROL</div>
+  </aside>
+
+  <main class="main">
+    <header class="bar">
+      <div>
+        <div class="eyebrow"><span class="material-symbols-outlined">verified_user</span> PROCUREMENT INTELLIGENCE</div>
+        <h1 id="screenTitle">異常案件佇列</h1>
+      </div>
+      <div class="bar-actions">
+        <div class="sync"><i></i> ERP 模擬資料已同步 · 09:42</div>
+        <button class="btn" type="button"><span class="material-symbols-outlined">notifications</span>3</button>
+        <div class="avatar" aria-label="稽核人員林小姐">林</div>
+      </div>
+    </header>
+
+    <section class="screen" data-screen="0" aria-labelledby="s0-title">
+      <div class="grid cols-4">
+        <article class="card metric">
+          <div class="metric-top"><span>高風險請購</span><span class="metric-icon material-symbols-outlined">warning</span></div>
+          <strong>18 件</strong><span class="delta danger">較上週 +4 件</span>
+        </article>
+        <article class="card metric">
+          <div class="metric-top"><span>疑似分拆金額</span><span class="metric-icon material-symbols-outlined">payments</span></div>
+          <strong>NT$ 286萬</strong><span class="delta warn">6 組關聯案件</span>
+        </article>
+        <article class="card metric">
+          <div class="metric-top"><span>待調查案件</span><span class="metric-icon material-symbols-outlined">manage_search</span></div>
+          <strong>11 件</strong><span class="delta">今日已完成 5 件</span>
+        </article>
+        <article class="card metric">
+          <div class="metric-top"><span>平均結案時間</span><span class="metric-icon material-symbols-outlined">schedule</span></div>
+          <strong>3.2 天</strong><span class="delta">較上月縮短 0.8 天</span>
+        </article>
+      </div>
+
+      <div class="queue-layout">
+        <article class="card card-pad">
+          <div class="card-head">
+            <div><h2 id="s0-title">高風險請購案件</h2><p class="sub">依風險分數、曝險金額與命中規則排序</p></div>
+            <button class="btn primary" type="button"><span class="material-symbols-outlined">download</span>匯出清單</button>
+          </div>
+          <div class="filters">
+            <button class="filter" type="button"><span class="material-symbols-outlined">filter_list</span>風險：高</button>
+            <button class="filter" type="button">規則：全部<span class="material-symbols-outlined">expand_more</span></button>
+            <button class="filter" type="button">部門：全部<span class="material-symbols-outlined">expand_more</span></button>
+            <button class="filter" type="button">近 30 天<span class="material-symbols-outlined">calendar_month</span></button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>案件編號</th><th>請購項目</th><th>申請人／部門</th><th>合計金額</th><th>命中模式</th><th>風險</th><th>階段</th></tr></thead>
+              <tbody>
+                <tr class="selected"><td class="case-id">REQ-24081</td><td>工業相機模組 × 6</td><td>陳冠廷<br><small>自動化工程處</small></td><td>NT$ 1,464,000</td><td><span class="pill high">門檻分拆</span></td><td><div class="score"><b>96</b><span class="mini-bar"><i style="width:96%"></i></span></div></td><td><span class="pill high">優先調查</span></td></tr>
+                <tr><td class="case-id">REQ-24067</td><td>伺服驅動器備品</td><td>王柏翔<br><small>設備維護部</small></td><td>NT$ 728,400</td><td><span class="pill high">重複請購</span></td><td><div class="score"><b>91</b><span class="mini-bar"><i style="width:91%"></i></span></div></td><td><span class="pill medium">待確認</span></td></tr>
+                <tr><td class="case-id">REQ-24052</td><td>產線感測器急件</td><td>李欣儒<br><small>製造一部</small></td><td>NT$ 486,000</td><td><span class="pill medium">異常急件</span></td><td><div class="score"><b>86</b><span class="mini-bar"><i style="width:86%"></i></span></div></td><td><span class="pill blue">索取說明</span></td></tr>
+                <tr><td class="case-id">REQ-24039</td><td>視覺檢測軟體授權</td><td>周怡安<br><small>品質系統部</small></td><td>NT$ 960,000</td><td><span class="pill high">供應商集中</span></td><td><div class="score"><b>82</b><span class="mini-bar"><i style="width:82%"></i></span></div></td><td><span class="pill medium">調查中</span></td></tr>
+                <tr><td class="case-id">REQ-24025</td><td>控制盤零組件</td><td>張育誠<br><small>機電整合部</small></td><td>NT$ 594,600</td><td><span class="pill medium">相近金額</span></td><td><div class="score"><b>78</b><span class="mini-bar"><i style="width:78%"></i></span></div></td><td><span class="pill blue">新案件</span></td></tr>
+                <tr><td class="case-id">REQ-24018</td><td>倉儲手持終端</td><td>蔡佩珊<br><small>物流營運處</small></td><td>NT$ 438,000</td><td><span class="pill medium">關係異常</span></td><td><div class="score"><b>74</b><span class="mini-bar"><i style="width:74%"></i></span></div></td><td><span class="pill low">初步排除</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <aside class="card card-pad">
+          <div class="card-head"><div><h3>即時風險摘要</h3><p class="sub">今日新增 7 個規則命中</p></div><span class="pill high">需關注</span></div>
+          <div class="alert-stack">
+            <div class="alert-item">
+              <div class="alert-line"><h4>工業相機模組疑似拆成 3 單</h4><span class="pill high">96</span></div>
+              <p>同申請人、同供應商，48 小時內累計超過 100 萬元核准門檻。</p>
+              <div class="rule-tag"><span class="pill blue">3 張請購</span><span class="pill blue">相似度 94%</span></div>
+            </div>
+            <div class="alert-item">
+              <div class="alert-line"><h4>伺服驅動器品項重複</h4><span class="pill high">91</span></div>
+              <p>兩個成本中心於 6 小時內提交相同料號與數量。</p>
+            </div>
+            <div class="alert-item">
+              <div class="alert-line"><h4>單一供應商占比快速上升</h4><span class="pill medium">82</span></div>
+              <p>遠峰科技近 90 日取得該部門 73% 非合約採購。</p>
+            </div>
+          </div>
+          <div class="note" style="margin-top:14px">建議先檢視 REQ-24081 的三筆關聯請購；預估曝險金額為 NT$ 1,464,000。</div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="1" aria-labelledby="s1-title">
+      <div class="timeline-shell">
+        <article class="card timeline">
+          <div class="cluster-head">
+            <div><small>關聯群組 CL-0284</small><br><strong id="s1-title">工業相機模組分拆脈絡</strong><p>同一申請人、供應商及專案代碼，在 48 小時內建立 3 張請購</p></div>
+            <div><small>累計金額</small><br><strong>NT$ 1,464,000</strong></div>
+          </div>
+          <div class="time-row">
+            <div class="time-label">08/26<br>09:12</div><div class="time-node"></div>
+            <div class="time-box hot">
+              <div class="alert-line"><div><span class="case-id">REQ-24079</span><br><strong>工業相機模組 × 2</strong></div><span class="amount">NT$ 488,000</span></div>
+              <div class="rule-tag"><span class="pill blue">陳冠廷</span><span class="pill blue">遠峰科技</span><span class="pill high">低於 50 萬門檻 2.4%</span></div>
+            </div>
+          </div>
+          <div class="time-row">
+            <div class="time-label">08/26<br>15:38</div><div class="time-node"></div>
+            <div class="time-box hot">
+              <div class="alert-line"><div><span class="case-id">REQ-24080</span><br><strong>視覺檢測相機組 × 2</strong></div><span class="amount">NT$ 486,000</span></div>
+              <div class="rule-tag"><span class="pill blue">陳冠廷</span><span class="pill blue">遠峰科技</span><span class="pill high">品項文字相似 92%</span></div>
+            </div>
+          </div>
+          <div class="time-row">
+            <div class="time-label">08/27<br>10:05</div><div class="time-node"></div>
+            <div class="time-box hot">
+              <div class="alert-line"><div><span class="case-id">REQ-24081</span><br><strong>產線影像擷取模組 × 2</strong></div><span class="amount">NT$ 490,000</span></div>
+              <div class="rule-tag"><span class="pill blue">陳冠廷</span><span class="pill blue">遠峰科技</span><span class="pill high">相同專案代碼 P-A17</span></div>
+            </div>
+          </div>
+          <div class="time-row">
+            <div class="time-label">08/27<br>11:24</div><div class="time-node" style="background:var(--amber)"></div>
+            <div class="time-box">
+              <div class="alert-line"><div><strong>主管核准</strong><br><small>三張請購均由同一位課級主管個別核准</small></div><span class="pill medium">18 分鐘內</span></div>
+            </div>
+          </div>
+        </article>
+
+        <aside class="grid">
+          <article class="card card-pad">
+            <div class="card-head"><div><h3>關聯強度</h3><p class="sub">跨單欄位相似程度</p></div><span class="pill high">高度相關</span></div>
+            <div class="compare">
+              <div class="compare-row"><label><span>供應商一致</span><b>100%</b></label><div class="track"><i style="width:100%"></i></div></div>
+              <div class="compare-row"><label><span>申請人一致</span><b>100%</b></label><div class="track"><i style="width:100%"></i></div></div>
+              <div class="compare-row"><label><span>品項語意相似</span><b>92%</b></label><div class="track"><i style="width:92%"></i></div></div>
+              <div class="compare-row"><label><span>金額接近門檻</span><b>97%</b></label><div class="track"><i style="width:97%"></i></div></div>
+              <div class="compare-row"><label><span>時間接近</span><b>88%</b></label><div class="track"><i style="width:88%"></i></div></div>
+            </div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-head"><div><h3>門檻對照</h3><p class="sub">部門採購核准規範</p></div></div>
+            <div style="height:16px;background:#edf0f5;border-radius:10px;position:relative;margin:25px 0 12px">
+              <i style="position:absolute;left:0;top:0;height:100%;width:49%;background:var(--blue);border-radius:10px"></i>
+              <i style="position:absolute;left:50%;top:-8px;width:2px;height:32px;background:var(--red)"></i>
+            </div>
+            <div class="alert-line"><small>單筆 NT$ 486–490K</small><small style="color:var(--red)">門檻 NT$ 500K</small></div>
+            <div class="note" style="margin-top:15px">三筆若視為同一需求，應升級至採購委員會與至少三家供應商比價。</div>
+            <button class="btn primary" type="button" style="width:100%;margin-top:12px" onclick="goScreen(2)">核對命中規則</button>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="2" aria-labelledby="s2-title">
+      <div class="rule-layout">
+        <aside class="card rule-list">
+          <div style="padding:10px 12px 7px"><h2 id="s2-title" style="margin:0;color:var(--ink);font-size:17px">偵測規則中心</h2><p class="sub">本案命中 3 項規則</p></div>
+          <button class="rule-btn active" type="button"><strong><span>RULE-01 門檻規避</span><span class="pill high">命中</span></strong><p>相同關係群組於 72 小時內累計超過核准門檻</p></button>
+          <button class="rule-btn" type="button"><strong><span>RULE-02 重複金額</span><span class="pill high">命中</span></strong><p>金額差異小於 3%，且料件語意高度相似</p></button>
+          <button class="rule-btn" type="button"><strong><span>RULE-03 異常急件</span><span class="pill medium">部分</span></strong><p>非停線事件卻選擇急件並略過一般詢比價</p></button>
+          <button class="rule-btn" type="button"><strong><span>RULE-04 利益衝突</span><span class="pill low">未命中</span></strong><p>員工、核准者與供應商登記資訊交叉比對</p></button>
+          <button class="rule-btn" type="button"><strong><span>RULE-05 供應商集中</span><span class="pill medium">觀察</span></strong><p>90 日非合約採購集中度高於 65%</p></button>
+        </aside>
+
+        <div class="grid">
+          <article class="card logic">
+            <div class="card-head">
+              <div><h2>RULE-01｜門檻規避判定</h2><p class="sub">版本 3.4 · 2026/08/15 生效 · 財務審核人員覆核</p></div>
+              <span class="pill high"><span class="dot"></span>風險權重 35%</span>
+            </div>
+            <div class="logic-flow">
+              <div class="logic-node"><small>條件 A</small><br><strong>72 小時內</strong><p class="sub">建立多筆請購</p></div>
+              <div class="logic-arrow material-symbols-outlined">arrow_forward</div>
+              <div class="logic-node"><small>條件 B</small><br><strong>關聯度 ≥ 80%</strong><p class="sub">人員、品項、供應商</p></div>
+              <div class="logic-arrow material-symbols-outlined">arrow_forward</div>
+              <div class="logic-node"><small>條件 C</small><br><strong>單筆低於 50 萬</strong><p class="sub">差距不超過 5%</p></div>
+              <div class="logic-arrow material-symbols-outlined">arrow_forward</div>
+              <div class="logic-node pass"><small>判定</small><br><strong style="color:var(--amber)">規則命中</strong><p class="sub">累計 146.4 萬</p></div>
+            </div>
+            <div class="evidence-grid">
+              <div class="evidence"><small>高風險請購件數</small><b>3 件</b><span class="delta danger">全部命中條件</span></div>
+              <div class="evidence"><small>疑似分拆金額</small><b>NT$ 1,464,000</b><span class="delta warn">超過門檻 192.8%</span></div>
+              <div class="evidence"><small>建立時間跨度</small><b>24 小時 53 分</b><span class="delta">小於 72 小時</span></div>
+            </div>
+          </article>
+
+          <div class="grid cols-2">
+            <article class="card card-pad">
+              <div class="card-head"><div><h3>規則命中趨勢</h3><p class="sub">近 6 週門檻規避案件</p></div></div>
+              <div id="ruleChart" class="chart" role="img" aria-label="近六週規則命中趨勢圖"></div>
+            </article>
+            <article class="card card-pad">
+              <div class="card-head"><div><h3>財務覆核</h3><p class="sub">核准門檻與異常模式確認</p></div><span class="pill blue">待判定</span></div>
+              <div class="alert-item"><div class="alert-line"><h4>適用核准門檻</h4><b>NT$ 500,000</b></div><p>一般設備類、非年度合約、成本中心 MFG-A17。</p></div>
+              <div class="alert-item" style="margin-top:9px"><div class="alert-line"><h4>合理例外文件</h4><b style="color:var(--red)">未提供</b></div><p>未附停線通知、緊急採購簽呈或多供應商報價。</p></div>
+              <div style="display:flex;gap:8px;margin-top:13px">
+                <button class="btn" type="button" style="flex:1">要求補件</button>
+                <button class="btn primary" type="button" style="flex:1" onclick="goScreen(3)">確認命中</button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="3" aria-labelledby="s3-title">
+      <div class="network-layout">
+        <article class="card">
+          <div class="card-head" style="padding:18px 18px 0">
+            <div><h2 id="s3-title">關係網路分析</h2><p class="sub">申請人、部門、核准者與供應商近 12 個月交易關聯</p></div>
+            <div class="legend"><span><i style="background:#1e40af"></i>人員</span><span><i style="background:#d8952e"></i>供應商</span><span><i style="background:#d95b66"></i>高風險關係</span></div>
+          </div>
+          <div class="network-map">
+            <svg viewBox="0 0 720 490" aria-label="採購關係網路圖">
+              <line class="net-line hot" x1="355" y1="235" x2="548" y2="145"/>
+              <line class="net-line hot" x1="355" y1="235" x2="566" y2="315"/>
+              <line class="net-line" x1="355" y1="235" x2="169" y2="125"/>
+              <line class="net-line" x1="355" y1="235" x2="151" y2="329"/>
+              <line class="net-line" x1="169" y1="125" x2="548" y2="145"/>
+              <line class="net-line hot" x1="566" y1="315" x2="548" y2="145"/>
+              <line class="net-line" x1="151" y1="329" x2="312" y2="420"/>
+              <line class="net-line" x1="566" y1="315" x2="312" y2="420"/>
+              <g class="net-node main"><circle cx="355" cy="235" r="58"/><text x="355" y="229">陳冠廷</text><text x="355" y="247">申請人 · 38 筆</text></g>
+              <g class="net-node vendor"><circle cx="548" cy="145" r="52"/><text x="548" y="140">遠峰科技</text><text x="548" y="157">NT$ 1,286萬</text></g>
+              <g class="net-node"><circle cx="566" cy="315" r="43"/><text x="566" y="310">吳志明</text><text x="566" y="327">核准者</text></g>
+              <g class="net-node"><circle cx="169" cy="125" r="44"/><text x="169" y="120">自動化處</text><text x="169" y="137">成本中心</text></g>
+              <g class="net-node vendor"><circle cx="151" cy="329" r="43"/><text x="151" y="324">明實系統</text><text x="151" y="341">次要供應商</text></g>
+              <g class="net-node"><circle cx="312" cy="420" r="38"/><text x="312" y="416">P-A17</text><text x="312" y="432">專案</text></g>
+            </svg>
+          </div>
+        </article>
+
+        <aside class="grid">
+          <article class="card card-pad">
+            <div class="card-head"><div><h3>集中度警示</h3><p class="sub">已排除年度合約採購</p></div><span class="pill high">高</span></div>
+            <div class="concentration">
+              <div class="conc-item"><header><h4>申請人 → 遠峰科技</h4><b style="color:var(--red)">73%</b></header><p>陳冠廷近 12 個月 38 筆非合約請購中，有 28 筆指定遠峰科技。</p><div class="track"><i style="width:73%;background:var(--red)"></i></div></div>
+              <div class="conc-item"><header><h4>核准者 → 申請人</h4><b>89%</b></header><p>吳志明核准陳冠廷請購的中位處理時間僅 14 分鐘。</p><div class="track"><i style="width:89%;background:var(--amber)"></i></div></div>
+              <div class="conc-item"><header><h4>部門 → 單一供應商</h4><b>61%</b></header><p>自動化工程處整體集中度高於同類部門平均值 22 個百分點。</p><div class="track"><i style="width:61%"></i></div></div>
+            </div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-head"><div><h3>交叉比對結果</h3><p class="sub">利益衝突基礎資料</p></div></div>
+            <div class="alert-line" style="padding:9px 0;border-bottom:1px solid var(--line)"><span>電話／地址重疊</span><span class="pill low">未發現</span></div>
+            <div class="alert-line" style="padding:9px 0;border-bottom:1px solid var(--line)"><span>親屬或緊急聯絡人</span><span class="pill low">未發現</span></div>
+            <div class="alert-line" style="padding:9px 0"><span>異常交易集中</span><span class="pill high">需說明</span></div>
+            <button class="btn primary" type="button" style="width:100%;margin-top:10px" onclick="goScreen(4)">建立調查紀錄</button>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="4" aria-labelledby="s4-title">
+      <div class="workspace">
+        <aside class="card case-nav">
+          <div style="padding:9px 10px"><h2 id="s4-title" style="margin:0;color:var(--ink);font-size:16px">案件調查工作台</h2><p class="sub">11 件待調查</p></div>
+          <button class="active" type="button"><strong>REQ-24081</strong><span>工業相機模組 · 風險 96</span></button>
+          <button type="button"><strong>REQ-24067</strong><span>伺服驅動器 · 風險 91</span></button>
+          <button type="button"><strong>REQ-24052</strong><span>產線感測器 · 風險 86</span></button>
+          <button type="button"><strong>REQ-24039</strong><span>軟體授權 · 風險 82</span></button>
+          <button type="button"><strong>REQ-24025</strong><span>控制盤零件 · 風險 78</span></button>
+        </aside>
+
+        <article class="card dossier">
+          <div class="card-head">
+            <div><span class="pill high">重大風險</span><h2 style="margin-top:7px">REQ-24081｜疑似分拆採購調查</h2><p class="sub">調查人：林雅雯 · 到期日：2026/08/30</p></div>
+            <button class="btn soft" type="button"><span class="material-symbols-outlined">lock</span>保全證據</button>
+          </div>
+          <div class="fact-grid">
+            <div class="fact"><small>關聯請購</small><b>3 筆</b></div>
+            <div class="fact"><small>曝險金額</small><b>NT$ 146.4萬</b></div>
+            <div class="fact"><small>命中規則</small><b>3 項</b></div>
+            <div class="fact"><small>證據完整度</small><b>78%</b></div>
+          </div>
+
+          <h3 style="margin:20px 0 7px;color:var(--ink);font-size:14px">附件與證據摘要</h3>
+          <div class="doc"><div class="doc-icon material-symbols-outlined">description</div><div style="flex:1"><strong>三筆請購單合併對照.pdf</strong><small>系統產生 · 8 頁 · SHA-256 已記錄</small></div><span class="pill done">已保全</span></div>
+          <div class="doc"><div class="doc-icon material-symbols-outlined">mail</div><div style="flex:1"><strong>申請單位說明郵件.eml</strong><small>2026/08/28 14:36 收件</small></div><span class="pill blue">已閱</span></div>
+          <div class="doc"><div class="doc-icon material-symbols-outlined">request_quote</div><div style="flex:1"><strong>供應商單一報價單.pdf</strong><small>遠峰科技 · 報價日期 2026/08/25</small></div><span class="pill medium">待核對</span></div>
+
+          <h3 style="margin:18px 0 7px;color:var(--ink);font-size:14px">申請單位說明</h3>
+          <div class="note">申請人表示三組相機分屬不同工站，因安裝日期不同而分別請購；但設備規格、專案代碼及預算來源相同，且未提出分批採購的事前核准。</div>
+
+          <h3 style="margin:18px 0 7px;color:var(--ink);font-size:14px">調查判定與備註</h3>
+          <textarea aria-label="調查判定備註">初步判定具規避核准門檻風險。三筆需求具同質性且在 25 小時內提出，建議退回合併請購並擴查近 12 個月同申請人與供應商交易。</textarea>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <button class="btn" type="button">儲存草稿</button>
+            <button class="btn soft" type="button">標記誤報</button>
+            <button class="btn primary" type="button" onclick="goScreen(5)">升級主管覆核</button>
+          </div>
+        </article>
+
+        <aside class="card card-pad">
+          <div class="card-head"><div><h3>操作紀錄</h3><p class="sub">完整可追溯稽核軌跡</p></div></div>
+          <ol class="activity">
+            <li><b>補充初步判定</b>林雅雯 · 今天 16:08<br>建議合併請購並擴大查核</li>
+            <li><b>收到申請單位說明</b>陳冠廷 · 今天 14:36<br>已附設備安裝排程</li>
+            <li><b>要求提供分批依據</b>林雅雯 · 昨天 10:24<br>回覆期限 08/29 17:00</li>
+            <li><b>財務確認規則命中</b>劉心怡 · 08/27 15:52<br>適用 50 萬元核准門檻</li>
+            <li><b>案件自動建立</b>系統 · 08/27 10:07<br>風險分數 96</li>
+          </ol>
+          <div class="note">所有判定、附件與欄位異動均保留操作者、時間與版本。</div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="5" aria-labelledby="s5-title">
+      <div class="grid cols-4" style="margin-bottom:16px">
+        <article class="card metric"><div class="metric-top"><span>待主管核准</span><span class="metric-icon material-symbols-outlined">approval</span></div><strong>4 件</strong><span class="delta warn">其中 2 件逾 24 小時</span></article>
+        <article class="card metric"><div class="metric-top"><span>本月已結案</span><span class="metric-icon material-symbols-outlined">task_alt</span></div><strong>31 件</strong><span class="delta">結案率 83.8%</span></article>
+        <article class="card metric"><div class="metric-top"><span>追回／避免金額</span><span class="metric-icon material-symbols-outlined">savings</span></div><strong>NT$ 428萬</strong><span class="delta">本季累計</span></article>
+        <article class="card metric"><div class="metric-top"><span>平均結案時間</span><span class="metric-icon material-symbols-outlined">timer</span></div><strong>3.2 天</strong><span class="delta">目標 ≤ 4 天</span></article>
+      </div>
+
+      <div class="disposition">
+        <article class="card card-pad">
+          <div class="card-head"><div><h2 id="s5-title">處置追蹤看板</h2><p class="sub">管理退回、更正、加強審核與升級稽核</p></div><button class="btn" type="button"><span class="material-symbols-outlined">tune</span>篩選</button></div>
+          <div class="kanban">
+            <section class="kanban-col">
+              <div class="kanban-title"><span>待主管覆核</span><span class="pill">4</span></div>
+              <div class="ticket"><h4>REQ-24081 工業相機模組</h4><p>疑似分拆 · NT$ 146.4萬</p><div class="ticket-foot"><span class="pill high">重大</span><small>D+1</small></div></div>
+              <div class="ticket"><h4>REQ-24039 軟體授權</h4><p>供應商集中 · NT$ 96萬</p><div class="ticket-foot"><span class="pill medium">中高</span><small>D+2</small></div></div>
+              <div class="ticket"><h4>REQ-24018 倉儲終端</h4><p>關係異常 · NT$ 43.8萬</p><div class="ticket-foot"><span class="pill medium">中</span><small>D+3</small></div></div>
+            </section>
+            <section class="kanban-col">
+              <div class="kanban-title"><span>改善進行中</span><span class="pill">6</span></div>
+              <div class="ticket"><h4>REQ-24067 伺服驅動器</h4><p>已退回合併請購，等待三家比價</p><div class="ticket-foot"><span class="pill blue">退回更正</span><small>王柏翔</small></div></div>
+              <div class="ticket"><h4>REQ-23998 網路交換器</h4><p>採購主管執行供應商重選</p><div class="ticket-foot"><span class="pill blue">加強審核</span><small>蔡佩珊</small></div></div>
+              <div class="ticket"><h4>REQ-23976 維護耗材</h4><p>擴查同成本中心近半年交易</p><div class="ticket-foot"><span class="pill high">擴大查核</span><small>林雅雯</small></div></div>
+            </section>
+            <section class="kanban-col">
+              <div class="kanban-title"><span>本週已完成</span><span class="pill done">9</span></div>
+              <div class="ticket"><h4>REQ-23942 空壓機保養</h4><p>合理急件，補齊停線證明</p><div class="ticket-foot"><span class="pill done">排除誤報</span><small>08/28</small></div></div>
+              <div class="ticket"><h4>REQ-23921 治具加工</h4><p>合併重新詢價，節省 12.8 萬</p><div class="ticket-foot"><span class="pill done">完成更正</span><small>08/27</small></div></div>
+              <div class="ticket"><h4>REQ-23888 電控零件</h4><p>移交內部稽核專案調查</p><div class="ticket-foot"><span class="pill done">已升級</span><small>08/26</small></div></div>
+            </section>
+          </div>
+        </article>
+
+        <aside class="grid">
+          <article class="card card-pad">
+            <div class="card-head"><div><h3>改善成效</h3><p class="sub">目前值與目標</p></div></div>
+            <div class="gauge-grid">
+              <div id="leadGauge" class="gauge" role="img" aria-label="採購前置時間儀表"></div>
+              <div id="deliveryGauge" class="gauge" role="img" aria-label="準時到貨率儀表"></div>
+            </div>
+            <div id="trendChart" class="chart" style="height:220px" role="img" aria-label="準時到貨率趨勢"></div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-head"><div><h3>REQ-24081 覆核路徑</h3><p class="sub">請購舞弊與分拆偵測器處理結果</p></div><span class="pill blue">待核准</span></div>
+            <div class="approval"><div class="approval-icon material-symbols-outlined">check</div><div><h4>內部稽核人員完成調查</h4><p>林雅雯 · 08/29 16:08</p></div></div>
+            <div class="approval"><div class="approval-icon material-symbols-outlined">check</div><div><h4>財務審核確認規則</h4><p>劉心怡 · 08/29 16:24</p></div></div>
+            <div class="approval"><div class="approval-icon material-symbols-outlined" style="background:#fff7e8;color:var(--amber)">hourglass_top</div><div><h4>稽核主管核准處置</h4><p>建議：退回合併並擴大查核</p></div></div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn" type="button" style="flex:1">退回補充</button>
+              <button class="btn primary" type="button" style="flex:1">核准處置</button>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const screenTitles = [
+    "異常案件佇列",
+    "分拆關聯視圖",
+    "偵測規則中心",
+    "關係網路分析",
+    "案件調查工作台",
+    "處置追蹤看板"
+  ];
+  const charts = Object.create(null);
+
+  function hashIndex(){
+    const matched = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+    if(!matched) return 0;
+    const parsed = Number(matched[1]);
+    return Number.isInteger(parsed) && parsed >= 0 && parsed <= 5 ? parsed : 0;
+  }
+
+  function chartReady(elementId){
+    const element = document.getElementById(elementId);
+    return element && element.clientWidth > 0 && window.echarts;
+  }
+
+  function makeRuleChart(){
+    if(charts.rule || !chartReady("ruleChart")) return;
+    const element = document.getElementById("ruleChart");
+    charts.rule = echarts.init(element);
+    charts.rule.setOption({
+      animationDuration:500,
+      color:["#1e40af","#d99126"],
+      tooltip:{trigger:"axis"},
+      grid:{left:36,right:16,top:24,bottom:28},
+      xAxis:{type:"category",data:["W1","W2","W3","W4","W5","W6"],axisLine:{lineStyle:{color:"#d8deea"}},axisLabel:{color:"#667085"}},
+      yAxis:{type:"value",min:0,max:16,splitLine:{lineStyle:{color:"#eef0f4"}},axisLabel:{color:"#667085"}},
+      series:[
+        {name:"門檻規避",type:"bar",barWidth:18,data:[6,8,7,11,9,14],itemStyle:{borderRadius:[6,6,0,0]}},
+        {name:"確認案件",type:"line",smooth:true,symbolSize:7,data:[3,4,4,7,6,9],lineStyle:{width:3},areaStyle:{opacity:.08}}
+      ]
+    });
+  }
+
+  function gaugeOption(labelText,valueData,maxData,targetData,suffixText,colorData){
+    return {
+      animationDuration:600,
+      series:[{
+        type:"gauge",
+        startAngle:210,endAngle:-30,min:0,max:maxData,
+        splitNumber:5,
+        pointer:{show:false},
+        progress:{show:true,width:12,roundCap:true,itemStyle:{color:colorData}},
+        axisLine:{lineStyle:{width:12,color:[[1,"#e9edf4"]]}},
+        axisTick:{show:false},splitLine:{show:false},axisLabel:{show:false},
+        anchor:{show:false},
+        title:{offsetCenter:[0,"48%"],fontSize:11,color:"#667085"},
+        detail:{valueAnimation:true,offsetCenter:[0,"4%"],fontSize:23,fontWeight:800,color:"#172033",formatter:"{value}"+suffixText},
+        data:[{value:valueData,name:labelText}]
+      }],
+      graphic:[{type:"text",left:"center",top:18,style:{text:"目標 "+targetData+suffixText,fill:"#667085",font:"10px Inter"}}]
+    };
+  }
+
+  function makeDispositionCharts(){
+    if(!window.echarts) return;
+    if(!charts.lead && chartReady("leadGauge")){
+      charts.lead = echarts.init(document.getElementById("leadGauge"));
+      charts.lead.setOption(gaugeOption("採購前置時間",5,12,4.8," 天","#1e40af"));
+    }
+    if(!charts.delivery && chartReady("deliveryGauge")){
+      charts.delivery = echarts.init(document.getElementById("deliveryGauge"));
+      charts.delivery.setOption(gaugeOption("準時到貨率",96,100,98.9,"%","#16875d"));
+    }
+    if(!charts.trend && chartReady("trendChart")){
+      charts.trend = echarts.init(document.getElementById("trendChart"));
+      charts.trend.setOption({
+        animationDuration:600,
+        color:["#1e40af"],
+        tooltip:{trigger:"axis",valueFormatter:function(valueData){return valueData+"%";}},
+        grid:{left:38,right:15,top:25,bottom:26},
+        xAxis:{type:"category",boundaryGap:false,data:["W1","W2","W3","W4","W5","W6"],axisLabel:{color:"#667085"},axisLine:{lineStyle:{color:"#d8deea"}}},
+        yAxis:{type:"value",min:80,max:100,axisLabel:{color:"#667085",formatter:"{value}%"},splitLine:{lineStyle:{color:"#eef0f4"}}},
+        series:[{name:"準時到貨率",type:"line",smooth:true,symbolSize:7,data:[82,84.8,87.6,90.4,93.2,96],lineStyle:{width:3},areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"rgba(30,64,175,.28)"},{offset:1,color:"rgba(30,64,175,.02)"}]}}}]
+      });
+    }
+  }
+
+  function initializeVisibleCharts(indexValue){
+    if(indexValue === 2) makeRuleChart();
+    if(indexValue === 5) makeDispositionCharts();
+  }
+
+  function show(indexValue){
+    const safeIndex = Number.isInteger(Number(indexValue)) ? Math.max(0,Math.min(5,Number(indexValue))) : 0;
+    document.querySelectorAll(".screen").forEach(function(screenElement){
+      screenElement.classList.toggle("active",Number(screenElement.dataset.screen) === safeIndex);
+    });
+    document.querySelectorAll("[data-i]").forEach(function(navButton){
+      const selected = Number(navButton.dataset.i) === safeIndex;
+      navButton.classList.toggle("active",selected);
+      navButton.setAttribute("aria-current",selected ? "page" : "false");
+    });
+    document.getElementById("screenTitle").textContent = screenTitles[safeIndex];
+    initializeVisibleCharts(safeIndex);
+    window.scrollTo({top:0,behavior:"auto"});
+  }
+
+  window.goScreen = function(indexValue){
+    const targetHash = "#go="+indexValue;
+    if(window.location.hash === targetHash){
+      show(Number(indexValue));
+    }else{
+      window.location.hash = targetHash;
+    }
+  };
+
+  document.querySelectorAll("[data-i]").forEach(function(navButton){
+    navButton.addEventListener("click",function(){
+      window.goScreen(Number(navButton.dataset.i));
+    });
+  });
+
+  window.addEventListener("hashchange",function(){
+    show(hashIndex());
+  });
+
+  window.addEventListener("resize",function(){
+    Object.keys(charts).forEach(function(chartKey){
+      if(charts[chartKey]) charts[chartKey].resize();
+    });
+  });
+
+  show(hashIndex());
+})();
+</script>
+</body>
+</html>
