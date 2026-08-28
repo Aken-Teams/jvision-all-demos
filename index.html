@@ -279,6 +279,10 @@
               </div>
             </div>
           </div>
+          <span data-engine-status hidden
+                class="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border border-amber-300 bg-amber-50 text-sm font-bold text-amber-700">
+            <span class="material-symbols-outlined text-[18px]">cloud_off</span>伺服尚未準備好
+          </span>
           <a data-admin-link hidden href="./admin-actions.html" title="管理者限定"
              class="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border border-line text-sm font-bold text-ink hover:border-brand hover:text-brand transition-colors">
             <span class="material-symbols-outlined text-[18px]">lock</span>後臺管理
@@ -487,6 +491,24 @@
       if (!d.admin) return;
       document.querySelectorAll("[data-admin-link]").forEach(function (a) { a.hidden = false; });
     }).catch(function () {});
+  })();
+
+  /* AI 引擎狀態：claude / codex 任一無法使用時，右上角亮「伺服尚未準備好」。
+     正常時整顆隱藏——狀態列只在出事時才值得占版面。每 60 秒重查一次，
+     查不到（斷線）也視同未就緒。 */
+  (function () {
+    function refresh() {
+      fetch("/api/health/engines").then(function (r) { return r.json(); }).then(function (d) {
+        document.querySelectorAll("[data-engine-status]").forEach(function (el) {
+          el.hidden = Boolean(d && d.ready);
+          if (d && d.engines) el.title = "claude：" + (d.engines.claude ? "可用" : "無法使用") + "／codex：" + (d.engines.codex ? "可用" : "無法使用");
+        });
+      }).catch(function () {
+        document.querySelectorAll("[data-engine-status]").forEach(function (el) { el.hidden = false; });
+      });
+    }
+    refresh();
+    setInterval(refresh, 60000);
   })();
 
   /* 最近新增。數字與清單都來自 content/recent-projects.json，由

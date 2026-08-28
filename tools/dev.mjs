@@ -1,6 +1,6 @@
 // 一鍵啟動「前端靜態站 (:3000) + Agents 後端 (aiohttp :4610)」。
 // 用法：npm run dev   （Ctrl+C 會一起關閉兩者）
-import { spawn, spawnSync } from "node:child_process";
+import { spawn, spawnSync, execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import http from "node:http";
@@ -40,6 +40,30 @@ function pickPython() {
     } catch { /* try next */ }
   }
   return cands[0];
+}
+
+/* ── AI 引擎健康（claude / codex CLI）─────────────────────
+   首頁右上角要在引擎掛掉時顯示「伺服尚未準備好」。真的跑 --version 而不是
+   只查 PATH——帳號過期、安裝半損時二進位還在，which 會騙人。
+   60 秒快取＋同時只查一次，免得每個訪客各 spawn 兩個程序。 */
+const engineHealth = { at: 0, inflight: null, result: null };
+function checkEngine(bin) {
+  return new Promise((resolve) => {
+    try { execFile(bin, ["--version"], { timeout: 10000, shell: isWin }, (err) => resolve(!err)); }
+    catch { resolve(false); }
+  });
+}
+function enginesReady() {
+  if (engineHealth.result && Date.now() - engineHealth.at < 60000) return Promise.resolve(engineHealth.result);
+  if (!engineHealth.inflight) {
+    engineHealth.inflight = Promise.all([checkEngine("claude"), checkEngine("codex")]).then(([cl, cx]) => {
+      engineHealth.result = { ready: cl && cx, engines: { claude: cl, codex: cx }, checkedAt: new Date().toISOString() };
+      engineHealth.at = Date.now();
+      engineHealth.inflight = null;
+      return engineHealth.result;
+    });
+  }
+  return engineHealth.inflight;
 }
 
 const procs = [];
@@ -167,6 +191,10 @@ function startGateway() {
       actions.record({ actor: "訪客", action: "離開（清除身分）", status: 200, visitor: who });
       return json(res, 200, { ok: true });
     }
+    /* AI 引擎狀態：claude 或 codex 任一無法使用時 ready=false，
+       前端右上角據此顯示「伺服尚未準備好」。 */
+    if (p === "/api/health/engines") return json(res, 200, await enginesReady());
+
     if (p === "/api/visitor/me") {
       const id = visitor.read(req);
       return json(res, 200, { signedIn: visitor.isNamed(id), kind: id?.kind || null,
