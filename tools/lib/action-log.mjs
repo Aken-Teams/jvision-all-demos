@@ -6,8 +6,9 @@
  * 包含後台登入、Agent 的每一個開發階段、上架、失敗。兩者的保存期限與
  * 讀取方式都不同，混在同一個檔裡會讓彙總統計被大量 agent 事件稀釋。
  *
- * 隱私沿用同一條規則（AGENTS.md 禁止把內網位址寫進專案）：不存 IP，
- * 只存「IP + 本次啟動隨機鹽」的雜湊前 8 碼，檔案放在已 gitignore 的 var/。
+ * IP 政策（2026-08-28 依站主指示變更）：記錄訪客來訪 IP。紀錄檔在已
+ * gitignore 的 var/，不進版控——AGENTS.md 禁的是把位址寫進專案文件與 commit，
+ * 執行期資料不在此限。雜湊訪客碼保留：它跨欄位聚合仍然好用。
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -41,6 +42,19 @@ function rotateIfHuge() {
 
 export const visitorOf = (ip) =>
   crypto.createHash("sha256").update(SALT + String(ip || "")).digest("hex").slice(0, 8);
+
+/**
+ * 訪客的真實 IP。對外流量經 Cloudflare 隧道進來，socket 位址永遠是
+ * 127.0.0.1——真實位址在 CF-Connecting-IP；區網直連才用 socket 位址。
+ * X-Forwarded-For 只信第一段（後段可被客戶端偽造附加）。
+ */
+export function ipOf(req) {
+  const cf = req.headers?.["cf-connecting-ip"];
+  if (cf) return String(cf).trim();
+  const xff = req.headers?.["x-forwarded-for"];
+  if (xff) return String(xff).split(",")[0].trim();
+  return String(req.socket?.remoteAddress || "").replace(/^::ffff:/, "");
+}
 
 /**
  * 寫一筆動作。永遠不可讓記錄失敗影響到服務。

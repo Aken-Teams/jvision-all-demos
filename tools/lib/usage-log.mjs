@@ -4,14 +4,14 @@
  * 掛在 tools/dev.mjs 的 gateway 上，所以區網任何一台機器連進來都會被記到，
  * 不需要在 1011 個 demo 裡各埋一段追蹤碼。
  *
- * 隱私處理：AGENTS.md 禁止把內網位址寫進專案。這裡不存 IP，只存
- * 「IP + 每次啟動的隨機鹽」的雜湊前 8 碼——足以區分不同訪客並計算
- * 不重複人數，但無法從紀錄反推是哪一台機器，重開 gateway 後連關聯性
- * 都會斷掉。紀錄檔本身也放在 gitignore 的 var/。
+ * IP 政策（2026-08-28 依站主指示變更）：一併記錄來訪 IP（真實位址取法見
+ * action-log 的 ipOf——經 Cloudflare 進來要讀 CF-Connecting-IP）。紀錄檔在
+ * 已 gitignore 的 var/，不進版控。雜湊訪客碼保留用於彙總統計。
  */
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { ipOf } from "./action-log.mjs";
 
 const SALT = crypto.randomBytes(16).toString("hex");
 const IGNORE = /\.(css|js|mjs|json|svg|png|jpe?g|webp|gif|ico|woff2?|map|txt)$/i;
@@ -55,6 +55,7 @@ export function record(req, statusCode) {
       target: hit.target,
       status: statusCode,
       visitor: visitorOf(req.socket?.remoteAddress),
+      ip: ipOf(req),
       device: /Mobi|Android|iPhone|iPad/i.test(ua) ? "mobile" : "desktop",
       referer: (req.headers.referer || "").replace(/^https?:\/\/[^/]+/, "") || null,
     }) + "\n");

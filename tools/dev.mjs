@@ -133,7 +133,8 @@ function startGateway() {
   const gw = http.createServer(async (req, res) => {
     const p = req.url.split("?")[0];
     const t0 = Date.now();
-    const who = actions.visitorOf(req.socket?.remoteAddress);
+    const ip = actions.ipOf(req);
+    const who = actions.visitorOf(ip);
 
     // ── 進站身分 ──────────────────────────────────────────
     /* 訪客入口已關閉。端點留著並明確拒絕，而不是直接移除——舊分頁上的按鈕
@@ -399,7 +400,7 @@ function startGateway() {
         if (shouldLog(req.method, p)) {
           actions.record({
             actor: "訪客", action: req.method === "GET" ? "瀏覽" : req.method,
-            target: p, status: upRes.statusCode, visitor: who,
+            target: p, status: upRes.statusCode, visitor: who, ip,
             who: visitor.labelOf(visitor.read(req)),
             device: /Mobi|Android|iPhone|iPad/i.test(String(req.headers["user-agent"] || "")) ? "mobile" : "desktop",
             ms: Date.now() - t0,
