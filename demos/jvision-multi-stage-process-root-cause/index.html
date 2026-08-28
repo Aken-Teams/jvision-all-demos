@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>跨站製程異常溯因台 · manufacturing-mes｜Jvision 系統 Demo</title>
+  <link rel="icon" href="../../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --blue:#1e40af;--ink:#14213d;--body:#334155;--muted:#64748b;
+      --line:#dbe4f0;--bg:#f4f7fb;--green:#16835d;--amber:#d97706;--red:#dc3545;
+      --white:#fff;--pale:#eef3ff;--shadow:0 12px 36px rgba(30,64,175,.08)
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--bg);color:var(--body);font-family:Inter,"Noto Sans TC",sans-serif}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+      outline:3px solid rgba(30,64,175,.28);outline-offset:2px
+    }
+    .material-symbols-outlined{font-size:21px;line-height:1}
+    .shell{min-height:100vh;padding-left:78px}
+    .rail{
+      position:fixed;z-index:20;inset:0 auto 0 0;width:78px;background:#10275f;
+      display:flex;flex-direction:column;align-items:center;padding:18px 10px;color:#fff
+    }
+    .brand{
+      width:46px;height:46px;border-radius:14px;background:#fff;color:var(--blue);
+      display:grid;place-items:center;font-weight:800;font-size:18px;box-shadow:0 8px 24px #07163966
+    }
+    .railnav{display:flex;flex-direction:column;gap:10px;margin-top:30px;width:100%}
+    .navbtn{
+      border:0;background:transparent;color:#b8c8ec;border-radius:12px;min-height:48px;
+      display:grid;place-items:center;position:relative;transition:.2s
+    }
+    .navbtn:hover,.navbtn.active{background:#ffffff18;color:#fff}
+    .navbtn.active:before{
+      content:"";position:absolute;left:-10px;width:4px;height:26px;border-radius:0 4px 4px 0;background:#93c5fd
+    }
+    .navbtn .tip{
+      pointer-events:none;position:absolute;left:58px;top:7px;background:#14213d;color:#fff;
+      padding:7px 10px;border-radius:7px;white-space:nowrap;font-size:12px;opacity:0;transform:translateX(-5px)
+    }
+    .navbtn:hover .tip{opacity:1;transform:none}
+    .railfoot{margin-top:auto;color:#89a3db;font-size:11px;text-align:center;line-height:1.5}
+    .topbar{
+      height:72px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;
+      justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:10
+    }
+    .crumb{display:flex;align-items:center;gap:10px;min-width:0}
+    .crumb strong{color:var(--ink);font-size:16px}
+    .crumb small{color:var(--muted)}
+    .live{display:flex;align-items:center;gap:8px;color:var(--green);font-size:13px;font-weight:700}
+    .live:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px #16a36b18}
+    main{padding:24px 28px 44px;max-width:1600px;margin:auto}
+    .screen{display:none;animation:enter .28s ease}
+    .screen.active{display:block}
+    @keyframes enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+    .pagehead{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:20px}
+    .pagehead h1{margin:4px 0 7px;color:var(--ink);font-size:clamp(23px,2.3vw,34px);line-height:1.15}
+    .eyebrow{font-size:12px;color:var(--blue);font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+    .pagehead p{margin:0;color:var(--muted);font-size:14px;line-height:1.6;max-width:760px}
+    .actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+    .btn{
+      border:1px solid var(--line);background:#fff;color:var(--body);border-radius:10px;
+      min-height:42px;padding:0 15px;font-weight:700;display:inline-flex;align-items:center;gap:7px
+    }
+    .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+    .btn.soft{background:var(--pale);border-color:#cddafa;color:var(--blue)}
+    .grid{display:grid;gap:16px}
+    .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .wide-side{grid-template-columns:minmax(0,1.65fr) minmax(290px,.7fr)}
+    .side-wide{grid-template-columns:minmax(290px,.72fr) minmax(0,1.5fr)}
+    .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+    .pad{padding:18px}
+    .cardhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
+    .cardhead h2,.cardhead h3{margin:0;color:var(--ink);font-size:16px}
+    .cardhead small{color:var(--muted)}
+    .metric{padding:17px;position:relative;overflow:hidden}
+    .metric .label{color:var(--muted);font-size:13px}
+    .metric .number{color:var(--ink);font-weight:800;font-size:28px;margin:7px 0 2px}
+    .metric .delta{font-size:12px;color:var(--green);font-weight:700}
+    .metric .ico{position:absolute;right:14px;top:14px;color:var(--blue);background:var(--pale);padding:9px;border-radius:11px}
+    .tag,.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;font-size:12px;font-weight:700;padding:5px 9px}
+    .tag{background:var(--pale);color:var(--blue)}
+    .pill.red{background:#feecee;color:var(--red)}
+    .pill.amber{background:#fff5df;color:var(--amber)}
+    .pill.green{background:#e8f7f1;color:var(--green)}
+    .pill.gray{background:#eef2f6;color:var(--muted)}
+    .section-gap{margin-top:16px}
+    .chart{width:100%;height:270px}
+    .chart.tall{height:340px}
+    .mini-title{font-size:12px;color:var(--muted);margin-bottom:4px}
+    .divider{border:0;border-top:1px solid var(--line);margin:15px 0}
+    .tablewrap{overflow:auto}
+    table{border-collapse:collapse;width:100%;min-width:650px;font-size:13px}
+    th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;background:#f8fafc}
+    th,td{padding:12px 14px;border-bottom:1px solid var(--line)}
+    td strong{color:var(--ink)}
+    tr:last-child td{border-bottom:0}
+    .route{
+      display:grid;grid-template-columns:repeat(6,minmax(115px,1fr));gap:24px;align-items:center;
+      padding:20px 8px 12px;overflow:auto
+    }
+    .station{
+      min-width:115px;border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff;position:relative
+    }
+    .station:not(:last-child):after{
+      content:"→";position:absolute;right:-19px;top:38%;color:#8ea2c3;font-size:20px;font-weight:700
+    }
+    .station.suspect{border:2px solid var(--red);background:#fffafa}
+    .station.warn{border-color:#f1b651;background:#fffcf5}
+    .station .node{width:34px;height:34px;border-radius:10px;background:var(--pale);color:var(--blue);display:grid;place-items:center;margin-bottom:10px}
+    .station strong{display:block;color:var(--ink);font-size:13px}
+    .station small{display:block;color:var(--muted);margin-top:4px}
+    .station .score{margin-top:10px;font-weight:800;color:var(--red);font-size:12px}
+    .batchbox{display:flex;align-items:center;gap:15px;flex-wrap:wrap}
+    .batchid{font-size:20px;color:var(--ink);font-weight:800}
+    .select{
+      border:1px solid var(--line);background:#fff;border-radius:10px;min-height:42px;padding:0 34px 0 12px;color:var(--body)
+    }
+    .evidence{display:flex;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+    .evidence:last-child{border:0}
+    .evidence .material-symbols-outlined{color:var(--blue)}
+    .evidence div{flex:1}
+    .evidence strong{display:block;color:var(--ink);font-size:13px}
+    .evidence small{color:var(--muted)}
+    .timeline{position:relative;margin-left:8px}
+    .event{position:relative;padding:0 0 19px 33px}
+    .event:before{content:"";position:absolute;left:8px;top:18px;bottom:-2px;width:2px;background:var(--line)}
+    .event:last-child:before{display:none}
+    .event:after{content:"";position:absolute;left:2px;top:4px;width:12px;height:12px;background:#fff;border:3px solid var(--blue);border-radius:50%}
+    .event.alert:after{border-color:var(--red);background:#feecee}
+    .eventtime{font:600 11px Inter;color:var(--muted);margin-bottom:4px}
+    .event strong{color:var(--ink);font-size:13px}
+    .event p{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+    .factgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .fact{padding:12px;background:#f8fafc;border-radius:11px}
+    .fact span{display:block;color:var(--muted);font-size:11px}
+    .fact strong{display:block;color:var(--ink);font-size:14px;margin-top:5px}
+    .rank{display:grid;grid-template-columns:42px minmax(110px,1fr) 2fr 60px;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+    .rank:last-child{border:0}
+    .ranknum{width:32px;height:32px;border-radius:10px;background:var(--pale);color:var(--blue);font-weight:800;display:grid;place-items:center}
+    .rank:first-child .ranknum{background:#feecee;color:var(--red)}
+    .bar{height:9px;border-radius:9px;background:#edf1f6;overflow:hidden}
+    .bar i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#5577dc,var(--blue))}
+    .rank:first-child .bar i{background:linear-gradient(90deg,#f08791,var(--red))}
+    .scoretxt{text-align:right;color:var(--ink);font-weight:800}
+    .filters{display:flex;gap:9px;flex-wrap:wrap}
+    .filter{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px;color:var(--muted)}
+    .filter.on{background:var(--blue);border-color:var(--blue);color:#fff}
+    .signal{padding:14px;border-radius:13px;background:#f8fafc;border-left:4px solid var(--blue)}
+    .signal.redline{border-color:var(--red);background:#fff8f8}
+    .signal strong{color:var(--ink);font-size:13px}
+    .signal p{font-size:12px;color:var(--muted);margin:5px 0 0;line-height:1.5}
+    .chaincanvas{padding:24px;min-height:390px;background:linear-gradient(90deg,#f8faff 1px,transparent 1px),linear-gradient(#f8faff 1px,transparent 1px);background-size:24px 24px}
+    .chain{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:38px;align-items:center;margin-top:35px}
+    .cause{
+      background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px;position:relative;box-shadow:0 8px 20px #1e40af0c
+    }
+    .cause:not(:last-child):after{content:"";position:absolute;left:100%;top:50%;width:38px;height:2px;background:#8fa5d4}
+    .cause:not(:last-child):before{content:"›";position:absolute;right:-39px;top:calc(50% - 12px);z-index:2;color:var(--blue);font-size:25px}
+    .cause.hot{border:2px solid var(--red)}
+    .cause strong{color:var(--ink);font-size:13px}
+    .cause p{color:var(--muted);font-size:12px;line-height:1.5;margin:6px 0}
+    .confidence{font-size:11px;color:var(--blue);font-weight:800}
+    .hypothesis{display:flex;gap:11px;padding:13px;border-bottom:1px solid var(--line)}
+    .hypothesis:last-child{border:0}
+    .hypothesis .material-symbols-outlined{color:var(--amber)}
+    .hypothesis strong{display:block;color:var(--ink);font-size:13px}
+    .hypothesis small{color:var(--muted);line-height:1.5}
+    .board{display:grid;grid-template-columns:repeat(3,minmax(210px,1fr));gap:14px;overflow:auto}
+    .column{background:#f5f7fb;border-radius:14px;padding:12px;min-width:210px}
+    .columnhead{display:flex;justify-content:space-between;align-items:center;font-weight:800;color:var(--ink);font-size:13px;margin-bottom:11px}
+    .ticket{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:10px}
+    .ticket:last-child{margin-bottom:0}
+    .ticket strong{display:block;color:var(--ink);font-size:13px;line-height:1.45}
+    .ticket p{color:var(--muted);font-size:12px;line-height:1.5;margin:6px 0 10px}
+    .avatarrow{display:flex;align-items:center;justify-content:space-between}
+    .avatar{width:27px;height:27px;border-radius:50%;background:#dce6ff;color:var(--blue);display:grid;place-items:center;font-size:10px;font-weight:800}
+    .meeting{padding:14px;border-radius:13px;background:#f8fafc;margin-bottom:10px}
+    .meeting strong{color:var(--ink);font-size:13px}
+    .meeting p{font-size:12px;color:var(--muted);margin:5px 0}
+    .progressbar{height:7px;background:#e8edf4;border-radius:8px;overflow:hidden}
+    .progressbar i{height:100%;display:block;background:var(--green);border-radius:8px}
+    .compare{display:grid;grid-template-columns:1fr 65px 1fr;align-items:center;gap:12px;padding:14px;border-bottom:1px solid var(--line)}
+    .compare:last-child{border:0}
+    .compare .arrow{text-align:center;color:var(--green)}
+    .before,.after{padding:12px;border-radius:11px;background:#f7f8fa}
+    .after{background:#eaf8f2}
+    .before span,.after span{font-size:11px;color:var(--muted)}
+    .before strong,.after strong{display:block;font-size:20px;color:var(--ink);margin-top:4px}
+    .verifyhero{display:flex;align-items:center;gap:17px}
+    .ring{
+      width:90px;height:90px;border-radius:50%;background:conic-gradient(var(--green) 0 92%,#dfe7e3 92%);
+      display:grid;place-items:center;flex:0 0 auto
+    }
+    .ring:after{content:"92%";width:68px;height:68px;border-radius:50%;background:#fff;display:grid;place-items:center;color:var(--green);font-weight:800}
+    .checklist{display:grid;gap:10px}
+    .checkitem{display:flex;gap:10px;align-items:flex-start;padding:11px;background:#f8fafc;border-radius:11px}
+    .checkitem .material-symbols-outlined{color:var(--green)}
+    .checkitem strong{font-size:13px;color:var(--ink)}
+    .checkitem small{display:block;color:var(--muted);margin-top:3px}
+    .mobile-title{display:none}
+    @media(max-width:1050px){
+      .g4{grid-template-columns:repeat(2,1fr)}
+      .wide-side,.side-wide{grid-template-columns:1fr}
+      .chain{grid-template-columns:repeat(2,1fr)}
+      .cause:nth-child(2):after,.cause:nth-child(2):before{display:none}
+    }
+    @media(max-width:760px){
+      .shell{padding-left:0;padding-bottom:72px}
+      .rail{inset:auto 0 0;width:auto;height:68px;flex-direction:row;padding:8px 10px}
+      .brand,.railfoot{display:none}
+      .railnav{flex-direction:row;margin:0;width:100%;justify-content:space-around;gap:4px}
+      .navbtn{width:16.66%;min-height:50px}
+      .navbtn.active:before{left:25%;top:-8px;width:50%;height:3px;border-radius:0 0 4px 4px}
+      .navbtn .tip{display:none}
+      .topbar{height:62px;padding:0 16px}
+      .crumb small{display:none}
+      .live{font-size:0}
+      main{padding:18px 14px 28px}
+      .pagehead{display:block}
+      .actions{justify-content:flex-start;margin-top:14px}
+      .g3,.g2{grid-template-columns:1fr}
+      .chart,.chart.tall{height:250px}
+      .rank{grid-template-columns:38px 1fr 60px}
+      .rank .bar{grid-column:2/4}
+      .chain{grid-template-columns:1fr;gap:28px;margin-top:10px}
+      .cause:not(:last-child):after{left:50%;top:100%;width:2px;height:28px}
+      .cause:not(:last-child):before{left:calc(50% - 7px);right:auto;top:auto;bottom:-28px;transform:rotate(90deg)}
+      .cause:nth-child(2):after,.cause:nth-child(2):before{display:block}
+      .board{grid-template-columns:repeat(3,260px)}
+      .compare{grid-template-columns:1fr 42px 1fr}
+    }
+    @media(max-width:430px){
+      .g4{grid-template-columns:1fr 1fr}
+      .metric{padding:14px}
+      .metric .number{font-size:22px}
+      .metric .ico{display:none}
+      .btn{padding:0 11px}
+      .pagehead h1{font-size:24px}
+      .factgrid{grid-template-columns:1fr 1fr}
+    }
+  
+
+/* ── 量測式水平溢出修正 ─────────────────────────────
+   由 tools/fix-demo-overflow.mjs 量測產生，只針對實際溢出的元素。 */
+@media (max-width:720px){
+  body div.shell > main > section.screen.active > div.grid.wide-side > article.card.pad{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.shell > main > section.screen.active > div.grid.wide-side{overflow-x:auto;min-width:0;max-width:100%;}
+  body div.shell > main > section.screen.active > div.grid.wide-side > article.card.pad > div.cardhead{min-width:0;flex-wrap:wrap;}
+  body main > section.screen.active > div.grid.wide-side > article.card.pad > div.cardhead > span.pill.red{min-width:0;flex-wrap:wrap;}
+  body div.shell > main > section.screen.active > div.grid.wide-side > article.card.pad > div.board{grid-template-columns:minmax(0,1fr);}
+  body div.shell > main > section.screen.active > div.grid.wide-side > aside.card.pad{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.shell > main > section.screen.active > div.grid.wide-side > aside.card.pad > div.cardhead:nth-child(1){min-width:0;flex-wrap:wrap;}
+  body main > section.screen.active > div.grid.wide-side > aside.card.pad > div.cardhead:nth-child(1) > span.tag{min-width:0;flex-wrap:wrap;}
+  body div.shell > main > section.screen.active > div.grid.wide-side > aside.card.pad > div.meeting{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body main > section.screen.active > div.grid.wide-side > aside.card.pad > div.meeting > p{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body main > section.screen.active > div.grid.wide-side > aside.card.pad > div.meeting > div.progressbar{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.shell > main > section.screen.active > div.grid.g2 > article.card.pad:nth-child(1){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.shell > main > section.screen.active > div.grid.g2{overflow-x:auto;min-width:0;max-width:100%;}
+  body div.shell > main > section.screen.active > div.grid.g2 > article.card.pad:nth-child(1) > div.cardhead{min-width:0;flex-wrap:wrap;}
+  body main > section.screen.active > div.grid.g2 > article.card.pad:nth-child(1) > div.cardhead > small{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.shell > main > section.screen.active > div.grid.g2 > article.card.pad:nth-child(1) > div.compare:nth-child(2){grid-template-columns:minmax(0,1fr);}
+  body main > section.screen.active > div.grid.g2 > article.card.pad:nth-child(1) > div.compare:nth-child(2) > div.after{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body section.screen.active > div.grid.g2 > article.card.pad:nth-child(1) > div.compare:nth-child(2) > div.after > strong{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.shell > main > section.screen.active > div.grid.g2 > article.card.pad:nth-child(1) > div.compare:nth-child(3){grid-template-columns:minmax(0,1fr);}
+  body main > section.screen.active > div.grid.g2 > article.card.pad:nth-child(1) > div.compare:nth-child(3) > div.after{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body section.screen.active > div.grid.g2 > article.card.pad:nth-child(1) > div.compare:nth-child(3) > div.after > strong{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.shell > main > section.screen.active > div.grid.g2 > article.card.pad:nth-child(1) > div.compare:nth-child(4){grid-template-columns:minmax(0,1fr);}
+}
+@media (max-width:900px){
+  body div.shell > main > section.screen.active > div.grid.wide-side > article.card.pad{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.shell > main > section.screen.active > div.grid.wide-side{overflow-x:auto;min-width:0;max-width:100%;}
+  body div.shell > main > section.screen.active > div.grid.wide-side > article.card.pad > div.cardhead{min-width:0;flex-wrap:wrap;}
+  body main > section.screen.active > div.grid.wide-side > article.card.pad > div.cardhead > span.pill.red{min-width:0;flex-wrap:wrap;}
+  body div.shell > main > section.screen.active > div.grid.wide-side > article.card.pad > div.board{grid-template-columns:minmax(0,1fr);}
+  body div.shell > main > section.screen.active > div.grid.wide-side > aside.card.pad{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.shell > main > section.screen.active > div.grid.wide-side > aside.card.pad > div.cardhead:nth-child(1){min-width:0;flex-wrap:wrap;}
+  body main > section.screen.active > div.grid.wide-side > aside.card.pad > div.cardhead:nth-child(1) > span.tag{min-width:0;flex-wrap:wrap;}
+  body div.shell > main > section.screen.active > div.grid.wide-side > aside.card.pad > div.meeting{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.shell > main > section.screen.active > div.grid.wide-side > aside.card.pad > div.mini-title{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+  body div.shell > main > section.screen.active > div.grid.wide-side > aside.card.pad > div:nth-child(4){min-width:0;flex-wrap:wrap;}
+}
+</style>
+</head>
+<body>
+  <div class="rail" aria-label="流程導覽">
+    <div class="brand" aria-label="JVision">JV</div>
+    <nav class="railnav">
+      <button class="navbtn" data-i="0" aria-label="展開製程路徑"><span class="material-symbols-outlined">route</span><span class="tip">製程路徑</span></button>
+      <button class="navbtn" data-i="1" aria-label="回溯批次履歷"><span class="material-symbols-outlined">travel_explore</span><span class="tip">批次履歷</span></button>
+      <button class="navbtn" data-i="2" aria-label="排序可疑站點"><span class="material-symbols-outlined">crisis_alert</span><span class="tip">可疑排序</span></button>
+      <button class="navbtn" data-i="3" aria-label="建立因果鏈條"><span class="material-symbols-outlined">schema</span><span class="tip">因果鏈條</span></button>
+      <button class="navbtn" data-i="4" aria-label="進行聯合調查"><span class="material-symbols-outlined">groups</span><span class="tip">聯合調查</span></button>
+      <button class="navbtn" data-i="5" aria-label="驗證改善批次"><span class="material-symbols-outlined">verified</span><span class="tip">改善驗證</span></button>
+    </nav>
+    <div class="railfoot">MES<br>ROOT CAUSE</div>
+  </div>
+
+  <div class="shell">
+    <header class="topbar">
+      <div class="crumb">
+        <span class="material-symbols-outlined" style="color:var(--blue)">precision_manufacturing</span>
+        <div><strong>跨站製程異常溯因台</strong><br><small>JV Manufacturing Intelligence</small></div>
+      </div>
+      <div class="live">資料同步正常 · 14:32</div>
+    </header>
+
+    <main>
+      <section class="screen" id="view0">
+        <div class="pagehead">
+          <div>
+            <div class="eyebrow">Stage 01 · Process Route</div>
+            <h1>展開製程路徑</h1>
+            <p>選取異常批次並確認實際經過的工序、設備與站點，先建立跨站追溯邊界。</p>
+          </div>
+          <div class="actions">
+            <select class="select" aria-label="選擇廠區"><option>新竹一廠 · Line C</option><option>台中二廠 · Line A</option></select>
+            <button class="btn primary"><span class="material-symbols-outlined">add_circle</span>載入異常批次</button>
+          </div>
+        </div>
+
+        <div class="grid g4">
+          <article class="card metric"><span class="material-symbols-outlined ico">inventory_2</span><div class="label">異常批次數</div><div class="number">18</div><div class="delta">本週新增 3 批</div></article>
+          <article class="card metric"><span class="material-symbols-outlined ico">account_tree</span><div class="label">經過站點</div><div class="number">6</div><div class="delta">跨 2 個製造區</div></article>
+          <article class="card metric"><span class="material-symbols-outlined ico">crisis_alert</span><div class="label">可疑站點數</div><div class="number">3</div><div class="delta">1 站高度相關</div></article>
+          <article class="card metric"><span class="material-symbols-outlined ico">schedule</span><div class="label">根因追查工時</div><div class="number">4.6h</div><div class="delta">較過去縮短 42%</div></article>
+        </div>
+
+        <article class="card pad section-gap">
+          <div class="cardhead">
+            <div class="batchbox"><span class="tag">AOI 終檢異常</span><span class="batchid">LOT-HC0828-17</span><span class="pill red">刮傷率 8.7%</span></div>
+            <small>生產時間 08/27 06:20–18:45</small>
+          </div>
+          <div class="route">
+            <div class="station"><div class="node"><span class="material-symbols-outlined">inventory</span></div><strong>S10 投料</strong><small>物料 M-8842</small><div class="score" style="color:var(--green)">正常</div></div>
+            <div class="station"><div class="node"><span class="material-symbols-outlined">heat</span></div><strong>S20 預熱</strong><small>設備 OV-07</small><div class="score" style="color:var(--green)">正常</div></div>
+            <div class="station warn"><div class="node"><span class="material-symbols-outlined">compress</span></div><strong>S30 壓合</strong><small>設備 PR-12</small><div class="score" style="color:var(--amber)">偏差 2 項</div></div>
+            <div class="station suspect"><div class="node"><span class="material-symbols-outlined">cut</span></div><strong>S40 分切</strong><small>設備 CT-03</small><div class="score">關聯 92%</div></div>
+            <div class="station"><div class="node"><span class="material-symbols-outlined">cleaning_services</span></div><strong>S50 清洗</strong><small>設備 WS-08</small><div class="score" style="color:var(--green)">正常</div></div>
+            <div class="station"><div class="node"><span class="material-symbols-outlined">fact_check</span></div><strong>S60 AOI</strong><small>設備 AOI-05</small><div class="score">異常檢出</div></div>
+          </div>
+        </article>
+
+        <div class="grid wide-side section-gap">
+          <article class="card pad">
+            <div class="cardhead"><h2>批次路徑與等待時間</h2><span class="tag">實際履歷</span></div>
+            <div id="routeChart" class="chart"></div>
+          </article>
+          <article class="card pad">
+            <div class="cardhead"><h2>路徑完整性</h2><small>6 / 6 站</small></div>
+            <div class="evidence"><span class="material-symbols-outlined">database</span><div><strong>MES 報工</strong><small>48 筆事件完整</small></div><span class="pill green">已同步</span></div>
+            <div class="evidence"><span class="material-symbols-outlined">memory</span><div><strong>設備參數</strong><small>PR-12 有 2 分鐘缺口</small></div><span class="pill amber">待補齊</span></div>
+            <div class="evidence"><span class="material-symbols-outlined">qr_code_2</span><div><strong>物料追溯</strong><small>3 批次皆可對應</small></div><span class="pill green">完整</span></div>
+            <div class="evidence"><span class="material-symbols-outlined">science</span><div><strong>品質檢驗</strong><small>AOI 缺陷圖 126 張</small></div><span class="pill green">完整</span></div>
+            <button class="btn soft" style="width:100%;justify-content:center;margin-top:13px" onclick="go(1)">進入逐站履歷<span class="material-symbols-outlined">arrow_forward</span></button>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen" id="view1">
+        <div class="pagehead">
+          <div>
+            <div class="eyebrow">Stage 02 · Lot Genealogy</div>
+            <h1>回溯批次履歷</h1>
+            <p>逐站對齊加工、等待、換料與檢驗事件，找出異常首次出現前的時間窗口。</p>
+          </div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">download</span>匯出履歷</button><button class="btn primary">標記證據</button></div>
+        </div>
+
+        <div class="grid side-wide">
+          <aside class="card pad">
+            <div class="cardhead"><h2>時間軸 · 08/27</h2><span class="pill red">1 個關鍵事件</span></div>
+            <div class="timeline">
+              <div class="event"><div class="eventtime">06:20–06:38</div><strong>S10 投料完成</strong><p>M-8842 / 供應批次 RM-240826-B</p></div>
+              <div class="event"><div class="eventtime">07:05–07:52</div><strong>S20 預熱</strong><p>平均 118.4°C，製程規格內</p></div>
+              <div class="event"><div class="eventtime">08:13–09:08</div><strong>S30 壓合</strong><p>壓力曾接近上限，無停機警報</p></div>
+              <div class="event alert"><div class="eventtime">10:46–11:22</div><strong>S40 分切 · 刀具更換延遲</strong><p>刀具壽命超標 184 次，等待 37 分鐘</p></div>
+              <div class="event"><div class="eventtime">13:15–14:02</div><strong>S50 清洗</strong><p>槽液濃度 4.8%，規格內</p></div>
+              <div class="event alert"><div class="eventtime">17:54–18:45</div><strong>S60 AOI 檢出</strong><p>邊緣刮傷 11 件 / 126 件</p></div>
+            </div>
+          </aside>
+
+          <div class="grid">
+            <article class="card pad">
+              <div class="cardhead"><div><div class="mini-title">目前選取站點</div><h2>S40 分切 · CT-03</h2></div><span class="pill red">高風險事件</span></div>
+              <div class="factgrid">
+                <div class="fact"><span>進站時間</span><strong>10:46:12</strong></div>
+                <div class="fact"><span>出站時間</span><strong>11:22:48</strong></div>
+                <div class="fact"><span>刀具編號</span><strong>BL-19-047</strong></div>
+                <div class="fact"><span>操作員</span><strong>OP-108 林技師</strong></div>
+                <div class="fact"><span>切削速度</span><strong>4.8 m/min</strong></div>
+                <div class="fact"><span>累積使用</span><strong style="color:var(--red)">10,184 次</strong></div>
+              </div>
+            </article>
+            <article class="card pad">
+              <div class="cardhead"><h2>站點參數時間序列</h2><div class="filters"><button class="filter on">刀具振動</button><button class="filter">張力</button><button class="filter">速度</button></div></div>
+              <div id="historyChart" class="chart tall"></div>
+            </article>
+          </div>
+        </div>
+
+        <article class="card pad section-gap">
+          <div class="cardhead"><h2>關聯物料與設備事件</h2><small>時間窗口 10:30–11:30</small></div>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>時間</th><th>來源</th><th>事件</th><th>實際值</th><th>規格 / 基準</th><th>判定</th></tr></thead>
+              <tbody>
+                <tr><td>10:41:08</td><td>CT-03</td><td><strong>刀具壽命預警</strong></td><td>10,000 次</td><td>≤ 10,000 次</td><td><span class="pill amber">臨界</span></td></tr>
+                <tr><td>10:46:12</td><td>MES</td><td><strong>批次進站</strong></td><td>LOT-HC0828-17</td><td>工單 WO-88271</td><td><span class="pill green">匹配</span></td></tr>
+                <tr><td>10:58:33</td><td>CT-03</td><td><strong>振動峰值</strong></td><td>6.8 mm/s</td><td>≤ 4.5 mm/s</td><td><span class="pill red">超限</span></td></tr>
+                <tr><td>11:22:48</td><td>MES</td><td><strong>批次出站</strong></td><td>126 pcs</td><td>126 pcs</td><td><span class="pill green">匹配</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="screen" id="view2">
+        <div class="pagehead">
+          <div>
+            <div class="eyebrow">Stage 03 · Suspicion Ranking</div>
+            <h1>排序可疑站點</h1>
+            <p>綜合參數偏差、異常批重疊率與時間先後，縮小優先調查範圍。</p>
+          </div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">tune</span>調整權重</button><button class="btn primary">建立調查清單</button></div>
+        </div>
+
+        <div class="grid g3">
+          <article class="card metric"><div class="label">本次分析批次</div><div class="number">18</div><div class="delta">含 11 批異常、7 批對照</div></article>
+          <article class="card metric"><div class="label">最高關聯分數</div><div class="number">92</div><div class="delta">S40 分切 · 高可信</div></article>
+          <article class="card metric"><div class="label">分析特徵數</div><div class="number">34</div><div class="delta">設備 18 · 物料 7 · 等待 9</div></article>
+        </div>
+
+        <div class="grid wide-side section-gap">
+          <article class="card pad">
+            <div class="cardhead"><h2>可疑站點優先序</h2><span class="tag">更新 14:31</span></div>
+            <div class="rank"><div class="ranknum">1</div><div><strong>S40 分切</strong><div class="mini-title">CT-03 · 刀具振動</div></div><div class="bar"><i style="width:92%"></i></div><div class="scoretxt">92</div></div>
+            <div class="rank"><div class="ranknum">2</div><div><strong>S30 壓合</strong><div class="mini-title">PR-12 · 壓力偏高</div></div><div class="bar"><i style="width:71%"></i></div><div class="scoretxt">71</div></div>
+            <div class="rank"><div class="ranknum">3</div><div><strong>S20 預熱</strong><div class="mini-title">OV-07 · 等待時間</div></div><div class="bar"><i style="width:46%"></i></div><div class="scoretxt">46</div></div>
+            <div class="rank"><div class="ranknum">4</div><div><strong>S50 清洗</strong><div class="mini-title">WS-08 · 槽液濃度</div></div><div class="bar"><i style="width:28%"></i></div><div class="scoretxt">28</div></div>
+            <div class="rank"><div class="ranknum">5</div><div><strong>S10 投料</strong><div class="mini-title">物料批次差異</div></div><div class="bar"><i style="width:19%"></i></div><div class="scoretxt">19</div></div>
+          </article>
+          <article class="card pad">
+            <div class="cardhead"><h2>分數構成</h2><small>S40 分切</small></div>
+            <div id="radarChart" class="chart"></div>
+            <div class="signal redline"><strong>主要證據</strong><p>11 個異常批次中有 10 批使用壽命超限刀具，對照批僅 1 批。</p></div>
+          </article>
+        </div>
+
+        <div class="grid g3 section-gap">
+          <article class="signal redline"><strong>設備偏差 · 96 分</strong><p>振動峰值 6.8 mm/s，超過上限 51%，且與刮傷區域方向一致。</p></article>
+          <article class="signal"><strong>批次重疊 · 91 分</strong><p>異常批次與 CT-03 加工窗口高度重疊，交叉廠區資料亦呈相同趨勢。</p></article>
+          <article class="signal"><strong>時間先後 · 88 分</strong><p>振動異常早於 AOI 檢出 7 小時，符合上游起始事件條件。</p></article>
+        </div>
+      </section>
+
+      <section class="screen" id="view3">
+        <div class="pagehead">
+          <div>
+            <div class="eyebrow">Stage 04 · Causal Chain</div>
+            <h1>建立因果鏈條</h1>
+            <p>把上游偏差、傳遞機制與末端品質結果串成可檢驗的根因假設。</p>
+          </div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">add</span>新增節點</button><button class="btn primary">送交工程審查</button></div>
+        </div>
+
+        <div class="grid wide-side">
+          <article class="card chaincanvas">
+            <div class="cardhead"><h2>假設 H-2026-0828-04</h2><span class="pill amber">待聯合確認</span></div>
+            <div class="chain">
+              <div class="cause hot"><span class="tag">起始事件</span><p></p><strong>刀具壽命超標</strong><p>BL-19-047 超過更換門檻 184 次</p><div class="confidence">證據信心 96%</div></div>
+              <div class="cause"><span class="tag">設備效應</span><p></p><strong>分切振動升高</strong><p>峰值由 3.1 上升至 6.8 mm/s</p><div class="confidence">證據信心 93%</div></div>
+              <div class="cause"><span class="tag">缺陷形成</span><p></p><strong>邊緣微刮傷</strong><p>缺陷集中於進刀側 0–8 mm</p><div class="confidence">證據信心 89%</div></div>
+              <div class="cause"><span class="tag">品質結果</span><p></p><strong>AOI NG 率升高</strong><p>刮傷不良率由 0.9% 升至 8.7%</p><div class="confidence">證據信心 98%</div></div>
+            </div>
+            <div class="signal section-gap"><strong>反事實檢查</strong><p>使用新刀具的對照批 LOT-HC0828-21 在相同物料與壓合條件下，刮傷率僅 0.8%。</p></div>
+          </article>
+
+          <aside class="card pad">
+            <div class="cardhead"><h2>競爭假設</h2><small>3 項</small></div>
+            <div class="hypothesis"><span class="material-symbols-outlined">science</span><div><strong>H1 · 清洗槽液污染</strong><small>關聯 24% · 槽液與對照批一致</small></div></div>
+            <div class="hypothesis"><span class="material-symbols-outlined">compress</span><div><strong>H2 · 壓合壓力過高</strong><small>關聯 57% · 可能放大缺陷但非必要條件</small></div></div>
+            <div class="hypothesis"><span class="material-symbols-outlined">inventory</span><div><strong>H3 · 原料表面缺陷</strong><small>關聯 18% · 同料批正常產品未出現刮傷</small></div></div>
+            <hr class="divider">
+            <div class="cardhead"><h3>判定規則</h3></div>
+            <div class="evidence"><span class="material-symbols-outlined">check_circle</span><div><strong>時間順序成立</strong><small>起始事件早於品質結果</small></div></div>
+            <div class="evidence"><span class="material-symbols-outlined">check_circle</span><div><strong>劑量反應成立</strong><small>振動越高，刮傷率越高</small></div></div>
+            <div class="evidence"><span class="material-symbols-outlined">pending</span><div><strong>改善驗證待執行</strong><small>需觀察連續 3 批</small></div></div>
+          </aside>
+        </div>
+
+        <article class="card pad section-gap">
+          <div class="cardhead"><h2>證據矩陣</h2><span class="tag">8 份附件</span></div>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>因果連結</th><th>直接證據</th><th>支持批次</th><th>反例</th><th>可信度</th></tr></thead>
+              <tbody>
+                <tr><td><strong>刀具超限 → 振動</strong></td><td>CT-03 感測曲線</td><td>10 / 11</td><td>0</td><td><span class="pill green">很高</span></td></tr>
+                <tr><td><strong>振動 → 邊緣刮傷</strong></td><td>缺陷座標疊圖</td><td>9 / 11</td><td>1</td><td><span class="pill green">高</span></td></tr>
+                <tr><td><strong>刮傷 → AOI NG</strong></td><td>AOI 原始影像</td><td>11 / 11</td><td>0</td><td><span class="pill green">很高</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="screen" id="view4">
+        <div class="pagehead">
+          <div>
+            <div class="eyebrow">Stage 05 · Joint Investigation</div>
+            <h1>進行聯合調查</h1>
+            <p>召集各站負責人確認證據、根因假設、改善責任與完成期限。</p>
+          </div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">videocam</span>加入會議</button><button class="btn primary">新增調查事項</button></div>
+        </div>
+
+        <div class="grid wide-side">
+          <article class="card pad">
+            <div class="cardhead"><h2>調查工作板 · INC-MUL-028</h2><span class="pill red">P1 · 48 小時內結案</span></div>
+            <div class="board">
+              <div class="column">
+                <div class="columnhead"><span>待確認</span><span class="pill gray">2</span></div>
+                <div class="ticket"><strong>確認刀具更換門檻是否被覆寫</strong><p>比對 CT-03 保養設定與 8/27 操作紀錄。</p><div class="avatarrow"><span class="tag">設備</span><span class="avatar">陳</span></div></div>
+                <div class="ticket"><strong>補齊壓合機 2 分鐘缺口</strong><p>由 edge log 重新匯入 PR-12 壓力資料。</p><div class="avatarrow"><span class="tag">資料</span><span class="avatar">周</span></div></div>
+              </div>
+              <div class="column">
+                <div class="columnhead"><span>處理中</span><span class="pill amber">2</span></div>
+                <div class="ticket"><strong>更換 BL-19-047 刀具</strong><p>停機窗口 15:00，完成後執行首件確認。</p><div class="avatarrow"><span class="pill red">今天</span><span class="avatar">林</span></div></div>
+                <div class="ticket"><strong>更新刀具壽命聯鎖</strong><p>達 9,800 次先預警，10,000 次禁止派工。</p><div class="avatarrow"><span class="tag">MES</span><span class="avatar">吳</span></div></div>
+              </div>
+              <div class="column">
+                <div class="columnhead"><span>已完成</span><span class="pill green">2</span></div>
+                <div class="ticket"><strong>AOI 缺陷影像複判</strong><p>11 件均確認為進刀側線性刮傷。</p><div class="avatarrow"><span class="pill green">品保確認</span><span class="avatar">許</span></div></div>
+                <div class="ticket"><strong>隔離受影響在製批</strong><p>3 批共 378 件已移至 MRB 暫存區。</p><div class="avatarrow"><span class="pill green">已隔離</span><span class="avatar">王</span></div></div>
+              </div>
+            </div>
+          </article>
+
+          <aside class="card pad">
+            <div class="cardhead"><h2>聯合會議</h2><span class="tag">進行中</span></div>
+            <div class="meeting"><strong>根因審查會議 #2</strong><p>14:00–14:45 · 戰情室 B / Teams</p><div class="progressbar"><i style="width:68%"></i></div></div>
+            <div class="mini-title">參與角色</div>
+            <div style="display:flex;gap:7px;margin:9px 0 16px">
+              <span class="avatar">製</span><span class="avatar">品</span><span class="avatar">設</span><span class="avatar">數</span><span class="avatar">管</span>
+            </div>
+            <div class="cardhead"><h3>待決議事項</h3><small>2 項</small></div>
+            <div class="checkitem"><span class="material-symbols-outlined" style="color:var(--amber)">radio_button_unchecked</span><div><strong>是否停用 CT-03 夜班派工</strong><small>需製造主管於 15:00 前決定</small></div></div>
+            <div class="checkitem"><span class="material-symbols-outlined" style="color:var(--amber)">radio_button_unchecked</span><div><strong>驗證批抽樣數量</strong><small>品保建議每批 126 件全檢</small></div></div>
+            <button class="btn soft" style="width:100%;justify-content:center;margin-top:14px" onclick="go(5)">前往改善驗證</button>
+          </aside>
+        </div>
+
+        <article class="card pad section-gap">
+          <div class="cardhead"><h2>責任與期限</h2><small>自動保留操作紀錄</small></div>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
+              <tbody>
+                <tr><td>MUL-001</td><td><strong>展開製程路徑</strong></td><td>製程整合工程師</td><td>D+1</td><td><span class="pill amber">處理中</span></td></tr>
+                <tr><td>MUL-002</td><td><strong>回溯批次履歷</strong></td><td>品保工程師</td><td>D+2</td><td><span class="pill gray">待確認</span></td></tr>
+                <tr><td>MUL-003</td><td><strong>排序可疑站點</strong></td><td>資料分析工程師</td><td>D+3</td><td><span class="pill gray">待確認</span></td></tr>
+                <tr><td>MUL-004</td><td><strong>建立因果鏈條</strong></td><td>製程工程師</td><td>D+4</td><td><span class="pill green">已完成</span></td></tr>
+                <tr><td>MUL-005</td><td><strong>進行聯合調查</strong></td><td>製造主管</td><td>D+5</td><td><span class="pill green">已完成</span></td></tr>
+                <tr><td>MUL-006</td><td><strong>驗證改善批次</strong></td><td>品質主管</td><td>D+6</td><td><span class="pill green">已完成</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="screen" id="view5">
+        <div class="pagehead">
+          <div>
+            <div class="eyebrow">Stage 06 · Improvement Validation</div>
+            <h1>驗證改善批次</h1>
+            <p>比較更換刀具與新增聯鎖前後的站點數據，確認根因及改善措施是否成立。</p>
+          </div>
+          <div class="actions"><button class="btn"><span class="material-symbols-outlined">description</span>產生驗證報告</button><button class="btn primary"><span class="material-symbols-outlined">task_alt</span>核准結案</button></div>
+        </div>
+
+        <div class="grid g4">
+          <article class="card metric"><div class="label">驗證批次</div><div class="number">3 / 3</div><div class="delta">連續批次已完成</div></article>
+          <article class="card metric"><div class="label">刮傷不良率</div><div class="number">0.7%</div><div class="delta">改善前 8.7%</div></article>
+          <article class="card metric"><div class="label">振動峰值</div><div class="number">3.0</div><div class="delta">mm/s · 回到規格內</div></article>
+          <article class="card metric"><div class="label">根因信心</div><div class="number">96%</div><div class="delta">符合結案門檻</div></article>
+        </div>
+
+        <div class="grid wide-side section-gap">
+          <article class="card pad">
+            <div class="cardhead"><h2>改善前後品質趨勢</h2><span class="pill green">連續 3 批通過</span></div>
+            <div id="verifyChart" class="chart tall"></div>
+          </article>
+          <aside class="card pad">
+            <div class="cardhead"><h2>驗證結論</h2><span class="pill green">建議結案</span></div>
+            <div class="verifyhero">
+              <div class="ring"></div>
+              <div><strong style="display:block;color:var(--ink);font-size:18px">改善措施有效</strong><p style="color:var(--muted);font-size:12px;line-height:1.55">刀具更換後，振動與刮傷率同步下降，支持起始根因。</p></div>
+            </div>
+            <hr class="divider">
+            <div class="checklist">
+              <div class="checkitem"><span class="material-symbols-outlined">check_circle</span><div><strong>品質結果通過</strong><small>3 批刮傷率皆低於 1.2%</small></div></div>
+              <div class="checkitem"><span class="material-symbols-outlined">check_circle</span><div><strong>設備參數通過</strong><small>振動峰值皆低於 4.5 mm/s</small></div></div>
+              <div class="checkitem"><span class="material-symbols-outlined">check_circle</span><div><strong>防呆機制上線</strong><small>10,000 次聯鎖已於 CT-03 啟用</small></div></div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="grid g2 section-gap">
+          <article class="card pad">
+            <div class="cardhead"><h2>關鍵指標對照</h2><small>改善前 → 改善後</small></div>
+            <div class="compare"><div class="before"><span>排程作業工時</span><strong>8 小時/日</strong></div><span class="material-symbols-outlined arrow">trending_down</span><div class="after"><span>目前</span><strong>1.5 小時/日</strong></div></div>
+            <div class="compare"><div class="before"><span>準時交付率</span><strong>80%</strong></div><span class="material-symbols-outlined arrow">trending_up</span><div class="after"><span>目前</span><strong>95%</strong></div></div>
+            <div class="compare"><div class="before"><span>缺料停線次數</span><strong>12 次/月</strong></div><span class="material-symbols-outlined arrow">trending_down</span><div class="after"><span>目前</span><strong>3 次/月</strong></div></div>
+            <div class="compare"><div class="before"><span>設備稼動率</span><strong>74%</strong></div><span class="material-symbols-outlined arrow">trending_up</span><div class="after"><span>目前</span><strong>88%</strong></div></div>
+          </article>
+          <article class="card pad">
+            <div class="cardhead"><h2>改善批次明細</h2><span class="tag">品質主管覆核</span></div>
+            <div class="tablewrap">
+              <table style="min-width:520px">
+                <thead><tr><th>批次</th><th>刀具使用</th><th>振動峰值</th><th>刮傷率</th><th>結果</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>LOT-HC0828-21</strong></td><td>126 次</td><td>2.8 mm/s</td><td>0.8%</td><td><span class="pill green">通過</span></td></tr>
+                  <tr><td><strong>LOT-HC0828-22</strong></td><td>252 次</td><td>3.0 mm/s</td><td>0.6%</td><td><span class="pill green">通過</span></td></tr>
+                  <tr><td><strong>LOT-HC0828-23</strong></td><td>378 次</td><td>2.9 mm/s</td><td>0.7%</td><td><span class="pill green">通過</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="signal section-gap"><strong>後續監控</strong><p>未來 30 天持續監控刀具壽命、振動峰值與 AOI 刮傷率；任何一項超限即自動重啟調查。</p></div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const screens=[...document.querySelectorAll(".screen")];
+    const navButtons=[...document.querySelectorAll("[data-i]")];
+    const chartStore={};
+
+    function chartReady(elementId){
+      const el=document.getElementById(elementId);
+      return el&&el.offsetWidth>0;
+    }
+
+    function mountChart(index){
+      if(typeof echarts==="undefined")return;
+      const common={
+        animationDuration:650,
+        textStyle:{fontFamily:'Inter,"Noto Sans TC",sans-serif',color:"#334155"},
+        tooltip:{trigger:"axis",backgroundColor:"#14213d",borderWidth:0,textStyle:{color:"#fff"}}
+      };
+      if(index===0&&chartReady("routeChart")&&!chartStore.route){
+        chartStore.route=echarts.init(document.getElementById("routeChart"));
+        chartStore.route.setOption({...common,grid:{left:38,right:18,top:28,bottom:34},xAxis:{type:"category",data:["投料","預熱","壓合","分切","清洗","AOI"],axisLine:{lineStyle:{color:"#cfd9e7"}},axisLabel:{color:"#64748b"}},yAxis:{type:"value",name:"分鐘",splitLine:{lineStyle:{color:"#edf1f6"}}},series:[{name:"加工",type:"bar",stack:"t",data:[18,47,55,36,47,51],barWidth:18,itemStyle:{color:"#1e40af",borderRadius:[4,4,0,0]}},{name:"等待",type:"bar",stack:"t",data:[27,13,38,97,22,232],itemStyle:{color:"#bdcdf8",borderRadius:[4,4,0,0]}}],legend:{right:0,data:["加工","等待"]}});
+      }
+      if(index===1&&chartReady("historyChart")&&!chartStore.history){
+        chartStore.history=echarts.init(document.getElementById("historyChart"));
+        chartStore.history.setOption({...common,grid:{left:45,right:18,top:30,bottom:38},xAxis:{type:"category",data:["10:46","10:51","10:56","11:01","11:06","11:11","11:16","11:22"],boundaryGap:false},yAxis:{type:"value",name:"mm/s",min:0,max:8,splitLine:{lineStyle:{color:"#edf1f6"}}},series:[{name:"刀具振動",type:"line",smooth:true,data:[3.2,3.7,4.4,6.8,6.1,5.7,5.2,4.9],symbolSize:7,lineStyle:{width:3,color:"#1e40af"},itemStyle:{color:"#1e40af"},areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"#1e40af44"},{offset:1,color:"#1e40af05"}]}},markLine:{silent:true,data:[{yAxis:4.5,name:"規格上限"}],lineStyle:{color:"#dc3545",type:"dashed"}}}]});
+      }
+      if(index===2&&chartReady("radarChart")&&!chartStore.radar){
+        chartStore.radar=echarts.init(document.getElementById("radarChart"));
+        chartStore.radar.setOption({animationDuration:650,tooltip:{},radar:{radius:"64%",indicator:[{name:"參數偏差",max:100},{name:"批次重疊",max:100},{name:"時間先後",max:100},{name:"缺陷一致",max:100},{name:"反事實支持",max:100}],axisName:{color:"#64748b",fontSize:11},splitArea:{areaStyle:{color:["#fbfcff","#f3f6fd"]}},splitLine:{lineStyle:{color:"#dbe4f0"}}},series:[{type:"radar",data:[{value:[96,91,88,94,87],name:"S40 分切",areaStyle:{color:"#1e40af33"},lineStyle:{color:"#1e40af",width:2},itemStyle:{color:"#1e40af"}}]}]});
+      }
+      if(index===5&&chartReady("verifyChart")&&!chartStore.verify){
+        chartStore.verify=echarts.init(document.getElementById("verifyChart"));
+        chartStore.verify.setOption({...common,legend:{right:0,data:["刮傷率 %","振動 mm/s"]},grid:{left:42,right:35,top:42,bottom:35},xAxis:{type:"category",data:["異常批 17","異常批 18","改善批 21","改善批 22","改善批 23"]},yAxis:[{type:"value",name:"刮傷率 %",max:10,splitLine:{lineStyle:{color:"#edf1f6"}}},{type:"value",name:"振動 mm/s",max:8,splitLine:{show:false}}],series:[{name:"刮傷率 %",type:"bar",data:[8.7,7.9,.8,.6,.7],barWidth:22,itemStyle:{color:function(p){return p.dataIndex<2?"#dc3545":"#16835d"},borderRadius:[5,5,0,0]}},{name:"振動 mm/s",type:"line",yAxisIndex:1,data:[6.8,6.2,2.8,3,2.9],smooth:true,symbolSize:8,lineStyle:{width:3,color:"#1e40af"},itemStyle:{color:"#1e40af"},markLine:{silent:true,data:[{yAxis:4.5}],lineStyle:{color:"#d97706",type:"dashed"}}}]});
+      }
+    }
+
+    function show(index){
+      const safe=Math.max(0,Math.min(5,Number(index)||0));
+      screens.forEach((screenEl,screenIndex)=>screenEl.classList.toggle("active",screenIndex===safe));
+      navButtons.forEach((buttonEl,buttonIndex)=>{
+        buttonEl.classList.toggle("active",buttonIndex===safe);
+        buttonEl.setAttribute("aria-current",buttonIndex===safe?"page":"false");
+      });
+      requestAnimationFrame(()=>mountChart(safe));
+      window.scrollTo({top:0,behavior:"smooth"});
+    }
+
+    function go(index){
+      const next="#go="+index;
+      if(location.hash===next)show(index);
+      else location.hash=next;
+    }
+
+    function hashIndex(){
+      const match=location.hash.match(/(?:go=|v)([0-9]+)/);
+      return match?Math.min(5,Number(match[1])):0;
+    }
+
+    navButtons.forEach(buttonEl=>buttonEl.addEventListener("click",()=>go(Number(buttonEl.dataset.i))));
+    window.addEventListener("hashchange",()=>show(hashIndex()));
+    window.addEventListener("resize",()=>{
+      Object.values(chartStore).forEach(chartInstance=>chartInstance.resize());
+    });
+    show(0);
+    if(location.hash)show(hashIndex());
+  </script>
+</body>
+</html>
