@@ -15,6 +15,21 @@ _NO_WINDOW = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
 DEFAULT_TIMEOUT = 150
 
 
+class LLMBusy(RuntimeError):
+    """CLI 回了用量上限/過載訊息。訊息文字直接給前端看,所以寫成使用者話術。"""
+    def __init__(self):
+        super().__init__("AI 團隊目前忙碌中,請稍後再試,謝謝!")
+
+
+_BUSY_PATTERNS = ("hit your session limit", "usage limit", "rate limit",
+                  "overloaded", "session limit", "resets at", "try again later")
+
+
+def _is_busy(text: str) -> bool:
+    t = (text or "").lower()
+    return any(pat in t for pat in _BUSY_PATTERNS)
+
+
 def claude_command() -> Optional[str]:
     return shutil.which("claude.cmd") or shutil.which("claude")
 
@@ -125,6 +140,9 @@ async def stream_answer(system_prompt: str, user_message: str,
                     pass
         if not answer:
             raise RuntimeError("Claude CLI 未回傳答案")
+        if _is_busy(answer):
+            # 上限/過載訊息絕不能當成「資料」流進報告給使用者看
+            raise LLMBusy()
         return answer
     finally:
         shutil.rmtree(workdir, ignore_errors=True)

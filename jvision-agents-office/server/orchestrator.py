@@ -14,6 +14,12 @@ EXTERNAL_SIGNALS = ["市場", "標竿", "法規", "趨勢", "競爭", "產業", 
                     "網路", "上網", "搜尋", "查詢網", "新聞", "最新", "google", "國際", "全球", "報導", "消息", "現況趨勢", "研究"]
 DATA_CATS = ["analyze", "datagen", "monitor", "schedule"]
 
+# 明確的寒暄/自我介紹類問句:直接走聊天分支,不開產線也不用 LLM 判斷
+_SMALLTALK_RE = re.compile(
+    r"^(你好|您好|哈囉|嗨+|hi|hello|hey|早安|午安|晚安|在嗎|你是誰|你叫什麼|"
+    r"你會什麼|你能做什麼|你可以幫我做什麼|可以幫我做什麼|你能幹嘛|謝謝|感謝|辛苦了)"
+    r"[!！?？。~\s]*$", re.I)
+
 
 try:
     import opencc as _opencc
@@ -57,17 +63,21 @@ async def plan(question):
     doms_list = "、".join(registry.domains_kb().keys())
     sysp = ("你是 AI 團隊總指揮。判斷這個需求要找哪些資料、以及要用哪種呈現。全程繁體中文（台灣正體）。\n"
             f"企業功能領域（擇 1-2 個最相關）：{doms_list}。\n"
-            "判斷三個項目：\n"
+            "先判斷 kind（最重要）：純聊天/打招呼/問你是誰或你會什麼/與數據無關的簡短對話→\"chat\"；"
+            "要查數據、看現況、做報告或儀表板→\"task\"。例:「你好」→chat;「最近怎樣」→chat;「摘要 CRM 商機現況」→task。\n"
+            "接著判斷三個項目：\n"
             "- internal（要不要查公司內部系統數據）：問公司內部現況/營運數據/系統狀態→true；純粹問外部市場/新聞/推薦/趨勢、跟公司內部無關→false。\n"
             "- external（要不要上網查外部公開資料）：問市場/趨勢/新聞/網路/競品/標竿/最新/推薦→true；只問內部現況→false。\n"
             "- output（呈現方式）：\"html\"=做成一頁精美的視覺化報告網頁（有版面/圖表/儀表板）；\"text\"=一份圖文並茂的文字報告（Markdown、重點標色、內嵌圖表）。\n"
             "  規則：需求有提到『做成報告/產生報告/儀表板/視覺化/簡報/網頁/dashboard』等 → \"html\"；\n"
             "  明顯只是想『快速了解/簡短說明/摘要/口語問一個數字/給我建議』→ \"text\"；不確定時預設 \"html\"（示範時 html 較有感）。\n"
             "若需求跟企業營運無關（如美食、旅遊、生活推薦），選最接近領域（美食→零售電商）、internal=false、external=true。\n"
-            "只輸出 JSON：{\"domains\":[\"領域1\"],\"internal\":true/false,\"external\":true/false,\"external_query\":\"要上網查什麼\",\"output\":\"html\"或\"text\"}")
+            "只輸出 JSON：{\"kind\":\"chat\"或\"task\",\"domains\":[\"領域1\"],\"internal\":true/false,\"external\":true/false,\"external_query\":\"要上網查什麼\",\"output\":\"html\"或\"text\"}")
     try:
         # 規劃只是分類判斷(領域/內外部/呈現方式),用快模型省掉開頭十幾秒;解析失敗有預設值兜底
         ans = await llm.stream_answer(sysp, f"需求：{question}", search=False, model=FAST, timeout=30)
+    except llm.LLMBusy:
+        raise
     except Exception:
         ans = ""
     data = _extract_json(ans) or {}
@@ -79,7 +89,8 @@ async def plan(question):
         internal = True
     exq = (data.get("external_query") or question)[:40]
     output = "text" if str(data.get("output", "")).lower() == "text" else "html"
-    return doms, internal, external, exq, output
+    kind = "chat" if str(data.get("kind", "")).lower() == "chat" else "task"
+    return doms, internal, external, exq, output, kind
 
 
 def pick_data_team(question, doms, internal, external, exq):
@@ -166,6 +177,8 @@ async def _gather(t, emit):
     try:
         ans = await llm.stream_answer(sysp, f"面向：{t['subtask']}\n（整體需求：{t['q']}）",
                                       emit=_e, search=search, model=FAST, timeout=130)
+    except llm.LLMBusy:
+        raise
     except Exception:
         ans = ""
     sm = re.search(r"SUMMARY\s*[:：]\s*(.+)", ans)
@@ -321,6 +334,8 @@ async def _build_page(designer, question, doms, combined, emit):
     try:
         ans = await llm.stream_answer(sysp, f"需求：{question}\n領域：{'、'.join(doms)}\n\n團隊查到的資料：\n{combined}",
                                       search=False, model=SMART, timeout=280, on_delta=_on_delta)
+    except llm.LLMBusy:
+        raise
     except Exception:
         ans = ""
     if buf["started"] and buf["s"]:
@@ -413,6 +428,8 @@ async def _build_text_report(writer, question, doms, combined, emit):
         try:
             ans = await llm.stream_answer(sysp, f"需求：{question}\n領域：{'、'.join(doms)}\n\n團隊查到的資料：\n{combined}",
                                           search=False, model=SMART, timeout=200, on_delta=_on_delta)
+        except llm.LLMBusy:
+            raise
         except Exception:
             ans = ""
         if ans.strip() or buf["started"]:
@@ -514,7 +531,30 @@ async def run(question: str, mode, emit):
     if _try_operation(question, emit):
         return
     emit({"type": "status", "message": "指揮官分析需求、判斷領域…"})
-    doms, internal, external, exq, output = await plan(question)
+    if _SMALLTALK_RE.match(question.strip()):
+        kind = "chat"
+        doms = []
+    else:
+        doms, internal, external, exq, output, kind = await plan(question)
+
+    # 純聊天/簡單詢問:智策直接回答,不開產線(不分工、不做報告)
+    if kind == "chat":
+        sysp = ("你是 JVision AI 團隊的總指揮「智策」。用繁體中文(台灣正體)簡短友善地回覆,"
+                "嚴格 60 字以內、單段純文字、禁用 Markdown 符號(**、列點、編號)。"
+                "若對方只是打招呼或問你能做什麼,介紹兩件事:"
+                "1) 查站上系統的實際數據並彙整成報告(網頁或圖文);"
+                "2) 執行操作指令(例:把 WO-01 標記完成)。"
+                "邀請對方直接說出想了解的系統或想做的事。不要生成報告、不要表格。")
+        try:
+            ans = await llm.stream_answer(sysp, question, search=False, model=FAST, timeout=40)
+        except llm.LLMBusy:
+            raise
+        except Exception:
+            ans = "你好!想了解站上哪套系統的現況,或要我執行什麼操作?直接說,我請團隊處理。"
+        emit({"type": "message", "id": "orchestrator", "name": "智策", "role": "總指揮",
+              "dataMode": "reasoning", "text": _zh(ans.strip()[:200])})
+        emit({"type": "final", "message": "完成。"})
+        return
     # Phase 2:內部數據先找站上「已抽取實際畫面資料」的系統,由系統代理讀真資料;
     # 站上沒有相關系統才退回 internal-sim(LLM 依級距生數字)的舊路。
     sys_hits = systems.pick_systems(question, top=3) if internal else []

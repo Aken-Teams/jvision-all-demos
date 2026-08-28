@@ -90,8 +90,11 @@ async def handle_run(request):
     async def worker():
         try:
             await orchestrator.run(question, mode, emit)
-        except Exception as ex:
-            emit({"type": "error", "message": str(ex)})
+        except llm.LLMBusy as ex:
+            emit({"type": "error", "message": str(ex)})   # 已是使用者話術
+        except Exception:
+            # 原始錯誤(英文堆疊/上游訊息)不給使用者看
+            emit({"type": "error", "message": "AI 團隊暫時無法回應,請稍後再試,謝謝!"})
         finally:
             queue.put_nowait(DONE)
 
