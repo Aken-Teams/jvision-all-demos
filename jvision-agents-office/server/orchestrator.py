@@ -19,6 +19,24 @@ _SMALLTALK_RE = re.compile(
     r"^(你好|您好|哈囉|嗨+|hi|hello|hey|早安|午安|晚安|在嗎|你是誰|你叫什麼|"
     r"你會什麼|你能做什麼|你可以幫我做什麼|可以幫我做什麼|你能幹嘛|謝謝|感謝|辛苦了)"
     r"[!！?？。~\s]*$", re.I)
+_HELP_RE = re.compile(r"幫助|幫我什麼|協助|功能|怎麼用|如何使用|使用方式|介紹一下|自我介紹")
+_ASK_RE = re.compile(r"什麼|啥|嗎|如何|怎麼")
+_TASK_HINT_RE = re.compile(
+    r"報告|儀表|摘要|分析|彙整|查|現況|狀況|數據|資料|趨勢|比較|列出|統計|操作|標記|改成|設為|更新為|kpi", re.I)
+
+
+def _is_smalltalk(question):
+    qs = question.strip()
+    if _SMALLTALK_RE.match(qs):
+        return True
+    # 「你能幫助我什麼」這類求助/功能詢問:有求助詞+疑問詞、短、無任務訊號
+    if len(qs) <= 16 and _HELP_RE.search(qs) and _ASK_RE.search(qs) and not _TASK_HINT_RE.search(qs):
+        return True
+    # 短句、無任務訊號、站上也配不到任何系統 → 口語回覆(必要時反問釐清),
+    # 比硬掰一份不相干領域的報告好
+    if len(qs) <= 14 and not _TASK_HINT_RE.search(qs) and not systems.pick_systems(qs, top=1):
+        return True
+    return False
 
 
 try:
@@ -531,7 +549,7 @@ async def run(question: str, mode, emit):
     if _try_operation(question, emit):
         return
     emit({"type": "status", "message": "指揮官分析需求、判斷領域…"})
-    if _SMALLTALK_RE.match(question.strip()):
+    if _is_smalltalk(question):
         kind = "chat"
         doms = []
     else:
@@ -544,7 +562,7 @@ async def run(question: str, mode, emit):
                 "若對方只是打招呼或問你能做什麼,介紹兩件事:"
                 "1) 查站上系統的實際數據並彙整成報告(網頁或圖文);"
                 "2) 執行操作指令(例:把 WO-01 標記完成)。"
-                "邀請對方直接說出想了解的系統或想做的事。不要生成報告、不要表格。")
+                "對方的問題若模糊,主動舉例並反問想了解哪套系統。不要生成報告、不要表格。")
         try:
             ans = await llm.stream_answer(sysp, question, search=False, model=FAST, timeout=40)
         except llm.LLMBusy:
