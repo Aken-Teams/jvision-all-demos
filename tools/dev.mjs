@@ -12,6 +12,7 @@ import * as visitor from "./lib/visitor-auth.mjs";
 import * as builds from "./lib/build-records.mjs";
 import * as guard from "./lib/rate-guard.mjs";
 import * as wishes from "./lib/wish-requests.mjs";
+import * as control from "./lib/control-db.mjs";
 import { spawn as spawnProc } from "node:child_process";
 
 // 對外只開一個 port（PUBLIC_PORT）。靜態站和 Agents 後端都只綁 127.0.0.1，
@@ -209,6 +210,50 @@ function startGateway() {
        佔用 codex 與人的時間，而且後台需要知道是誰提的才有辦法回頭聯繫——
        匿名的需求收進來，做完了也不知道要通知誰。
        把關一定要在這裡：前端藏起按鈕擋得住手滑，擋不住直接打 API。 */
+    /* 需求單：客戶從目錄挑幾套系統，寫下想改成什麼樣子。
+       把關與許願池同一條——那條已經跑了幾個月，不另外開一套。
+       金流之後才接，現在送出就是留下需求，狀態停在 draft。 */
+    if (p === "/api/orders" && req.method === "POST") {
+      const id = visitor.read(req);
+      if (!id) return json(res, 401, { error: "請先登入" });
+      if (id.kind !== "google") return json(res, 403, { error: "請用 Google 帳號登入", needsGoogle: true });
+      const body = await readBody(req);
+      const items = Array.isArray(body.items) ? body.items.filter((x) => x && typeof x.repoName === "string") : [];
+      if (!items.length) return json(res, 400, { error: "沒有挑選任何系統" });
+      if (items.length > 20) return json(res, 400, { error: "一次最多 20 套" });
+      const company = String(body.company || "").trim().slice(0, 60);
+      if (!company) return json(res, 400, { error: "請填公司名稱" });
+
+      const db = control.openControl();
+      try {
+        const customer = control.ensureCustomer(db, { email: id.email, company });
+        const order = control.createOrder(db, {
+          customerId: customer.id,
+          buyerEmail: id.email,
+          items: items.slice(0, 20).map((x) => ({
+            repoName: x.repoName,
+            title: String(x.title || x.repoName).slice(0, 80),
+            want: String(x.want || "").slice(0, 600),
+          })),
+          note: [String(body.contact || "").trim().slice(0, 40), String(body.note || "").trim().slice(0, 1000)]
+            .filter(Boolean).join(" / ") || null,
+        });
+        control.recordEvent(db, { kind: "order.created", customerId: customer.id, actor: id.email,
+          detail: { orderId: order.id, count: items.length } });
+        actions.record({ actor: "訪客", action: "送出系統需求單", target: order.id, status: 200,
+          visitor: who, who: visitor.labelOf(id), ip, note: `${company}｜${items.length} 套` });
+        return json(res, 200, { ok: true, id: order.id });
+      } finally { db.close(); }
+    }
+
+    if (p === "/api/orders" && req.method === "GET") {
+      const id = visitor.read(req);
+      if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
+      const db = control.openControl();
+      try { return json(res, 200, { orders: control.listOrders(db, { buyerEmail: id.email, limit: 50 }) }); }
+      finally { db.close(); }
+    }
+
     if (p === "/api/wish/request" && req.method === "POST") {
       const id = visitor.read(req);
       if (!id) return json(res, 401, { error: "請先選擇身分再送出" });
@@ -334,6 +379,14 @@ function startGateway() {
     }
 
     // ── 許願申請 API（管理端）─────────────────────────────
+    if (p === "/api/admin/orders") {
+      const db = control.openControl();
+      try {
+        const status = new URL(req.url, "http://x").searchParams.get("status") || undefined;
+        return json(res, 200, { orders: control.listOrders(db, { status, limit: 200 }) });
+      } finally { db.close(); }
+    }
+
     if (p === "/api/admin/wishes") {
       const q = new URL(req.url, "http://x").searchParams;
       return json(res, 200, wishes.list(root, {
