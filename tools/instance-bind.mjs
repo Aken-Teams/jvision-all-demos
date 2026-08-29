@@ -23,6 +23,7 @@ const MARK_OPEN = "<!-- jv-live:start -->";
 const MARK_CLOSE = "<!-- jv-live:end -->";
 const INJECT = `${MARK_OPEN}
 <script src="./_jv/live.js"></script>
+<script src="./_jv/assist.js"></script>
 ${MARK_CLOSE}`;
 
 /**
@@ -66,7 +67,7 @@ export function bind({ repo, outDir }) {
 
   if (DRY) {
     log.info(`  將寫入 ${path.relative(ROOT, pub)}/index.html（${(Buffer.byteLength(html) / 1024).toFixed(1)} KB）`);
-    log.info(`  將寫入 ${path.relative(ROOT, jv)}/live.js、schema.json、favicon.svg`);
+    log.info(`  將寫入 ${path.relative(ROOT, jv)}/live.js、assist.js、schema.json、favicon.svg`);
     log.info(`  資料表：${schema.tables.map((t) => `${t.name}(${t.columns.length}欄)`).join(" ")}`);
     return { dryRun: true, schema };
   }
@@ -74,6 +75,9 @@ export function bind({ repo, outDir }) {
   fs.mkdirSync(jv, { recursive: true });
   fs.writeFileSync(path.join(pub, "index.html"), html);
   fs.copyFileSync(path.join(ROOT, "shared", "jv-live.js"), path.join(jv, "live.js"));
+  /* 右下角的修改助理。跟 live.js 一樣複製進實例而不是連回站台——
+     實例交付給客戶之後是獨立部署的，連回來就會斷。 */
+  fs.copyFileSync(path.join(ROOT, "shared", "jv-assist.js"), path.join(jv, "assist.js"));
   fs.copyFileSync(path.join(ROOT, "favicon.svg"), path.join(jv, "favicon.svg"));
   /* schema 也放一份在實例裡：交付 repo 給客戶時他要看得懂自己的資料結構。
      runtime 走的是 API（./_jv/schema），不讀這個檔。 */

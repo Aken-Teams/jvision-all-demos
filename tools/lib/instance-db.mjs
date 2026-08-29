@@ -202,6 +202,27 @@ export async function addColumn(dbName, table, { key, label, type = "text" }, ac
   return { key, label: label || key, type };
 }
 
+/**
+ * 改欄位的顯示名稱。只動 label，不動實體欄位名。
+ *
+ * 那是刻意的：實體欄名一改，客戶自己接出去的匯出、報表、外部串接會全部斷掉，
+ * 而他想要的其實只是「畫面上不要叫『負責人』，要叫『業務窗口』」。
+ * runtime 也是靠 label 去比對畫面上的表頭，所以改 label 就是改他看到的東西。
+ */
+export async function renameColumn(dbName, table, key, label, actor) {
+  await assertTable(dbName, table);
+  const clean = String(label || "").trim().slice(0, 60);
+  if (!clean) throw Object.assign(new Error("名稱不可以空白"), { status: 400 });
+  const colsT = T(dbName, "jv_columns");
+  const hit = await one(`SELECT \`key\` FROM ${colsT} WHERE table_name=? AND \`key\`=?`, [table, key]);
+  if (!hit) throw Object.assign(new Error("沒有這個欄位"), { status: 404 });
+  await q(`UPDATE ${colsT} SET label=? WHERE table_name=? AND \`key\`=?`, [clean, table, key]);
+  await q(`INSERT INTO ${T(dbName, "jv_audit")}(at,actor,table_name,row_id,action,before_json,after_json)
+    VALUES(?,?,?,?, 'rename_column', ?, ?)`,
+    [now(), actor ?? null, table, 0, JSON.stringify({ key }), JSON.stringify({ label: clean })]);
+  return { key, label: clean };
+}
+
 /* 實例整個移除請用 control-db 的 destroyInstance()——它會 DROP DATABASE，
    比逐張刪表乾淨，也不會漏掉客戶自己加出來的表。 */
 

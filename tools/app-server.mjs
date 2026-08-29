@@ -123,6 +123,26 @@ const server = http.createServer(async (req, res) => {
       return json(res, 201, { column: c });
     }
 
+    /* 改欄位顯示名稱。右下角的助理用得到——客戶最常提的修改就是
+       「這個欄位在我們公司不叫這個名字」。 */
+    if (p === "/_jv/columns" && req.method === "PATCH") {
+      const b = await readBody(req);
+      const c = await data.renameColumn(dbName, String(b.table || ""), String(b.key || ""), b.label, actor);
+      return json(res, 200, { column: c });
+    }
+
+    /* 助理處理不了的修改，收下來排進待辦。寫進控制面的 events——
+       那是既有的、會被後台看到的地方；只回一句「我們會處理」而不留下任何
+       紀錄的話，客戶說了等於沒說。 */
+    if (p === "/_jv/request" && req.method === "POST") {
+      const b = await readBody(req);
+      const text = String(b.text || "").trim().slice(0, 2000);
+      if (!text) return json(res, 400, { error: "請先寫下你想改的地方" });
+      await control.recordEvent({ kind: "change.request", customerId: inst.customer_id,
+        instanceId: inst.id, actor, detail: { text, repo: inst.repo_name } });
+      return json(res, 201, { ok: true });
+    }
+
     /* ── 實例的畫面檔 ─────────────────────────────────── */
     return serveStatic(res, path.join(inst.dir, "public"), p);
   } catch (error) {
