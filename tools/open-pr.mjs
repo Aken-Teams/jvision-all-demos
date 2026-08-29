@@ -6,12 +6,13 @@
  *   node tools/open-pr.mjs --dry-run       只印出將送出的內容
  *   node tools/open-pr.mjs --no-push       不推，只更新 PR 內文
  *
- * 憑證：依序找 GITHUB_TOKEN / GH_TOKEN 環境變數，再找 .env。
+ * 憑證：依序找 GITHUB_TOKEN / GH_TOKEN 環境變數，再找 .env。推送與開 PR 都要用。
  * 沒有憑證時仍然會把分支推上去，並印出手動開 PR 的網址——推分支走 SSH，
  * 不需要 token；開 PR 是 REST API，git 協定本身沒有這個功能，一定要憑證。
  */
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { execFileSync } from "node:child_process";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -126,22 +127,31 @@ if (DRY) {
   process.exit(0);
 }
 
-/* ── 推分支（走 SSH，不需要 token）──────────────────────── */
+/* ── 推分支 ─────────────────────────────────────────────── */
 if (!NO_PUSH) {
   console.log(`推送 ${head} → ${remote}`);
   try {
-    /* 一定要有逾時。git push 走 SSH，連線半死不活時它會無限等下去——實測卡了
-       一小時三十八分還在等，整個每日收尾停在這裡、標記檔沒寫、Agent 也沒進入
-       休息。keepalive 讓斷掉的連線在一分鐘內就被判定死亡，timeout 則是最後
-       一道保險：推不上去就下次再推，絕不可以把產線整條卡住。 */
+    /* 走 SSH，但必須把 gnome-keyring 的 SSH 代理關掉。
+       這裡曾經每天失敗，症狀是「git push 無限期懸掛」，實測卡過一小時三十八分，
+       整個每日收尾停在這裡。github-sync.mjs 當時的結論是「systemd unit 內 22 埠
+       出流量會懸掛」並改走 HTTPS——那對 JVision-pj 有效（token 推得動），
+       但對這個 repo 無效：token 是 JVision-pj 專用的，推 Aken-Teams 會 403。
+
+       真正的原因不是網路。systemd user unit 的環境帶著
+       SSH_AUTH_SOCK=/run/user/1000/keyring/ssh，ssh 會先去問 gnome-keyring 代理，
+       而那個代理在沒有桌面介面可以解鎖時就無限等下去。實測：帶著那個 socket 必卡，
+       改成 IdentityAgent=none 直接讀金鑰則瞬間成功。金鑰本身沒有密碼，
+       所以不需要任何代理。BatchMode 保證缺金鑰時直接失敗而不是卡在提示。
+
+       逾時仍然保留當最後一道保險：推不上去就下次再推，絕不可以把產線整條卡住。 */
+    const key = path.join(os.homedir(), ".ssh", "id_ed25519");
+    const ssh = ["ssh", "-o ConnectTimeout=20", "-o ServerAliveInterval=15", "-o ServerAliveCountMax=4",
+      "-o BatchMode=yes", "-o IdentityAgent=none", "-o IdentitiesOnly=yes",
+      ...(fs.existsSync(key) ? [`-i ${key}`] : [])].join(" ");
+    const env = { ...process.env, GIT_SSH_COMMAND: ssh };
+    delete env.SSH_AUTH_SOCK; // 帶著它 ssh 就會去問那個會卡住的代理
     execFileSync("git", ["push", "-u", remote, head], {
-      cwd: ROOT,
-      stdio: "inherit",
-      timeout: 10 * 60 * 1000,
-      env: {
-        ...process.env,
-        GIT_SSH_COMMAND: "ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4",
-      },
+      cwd: ROOT, stdio: "inherit", timeout: 10 * 60 * 1000, env,
     });
   } catch (error) {
     const why = error.signal === "SIGTERM" ? "逾時（超過 10 分鐘）" : String(error.message).split("\n")[0].slice(0, 80);
@@ -177,7 +187,15 @@ async function api(pathname, options = {}) {
     },
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`GitHub ${res.status}：${data.message || "未知錯誤"}`);
+  if (!res.ok) {
+    /* 403 幾乎都是 token 少了某一項權限。GitHub 會在 x-accepted-github-permissions
+       裡直接寫出「這個端點需要什麼」——把它印出來，比丟一句「未知錯誤」讓人
+       翻半天有用得多。 */
+    const need = res.headers.get("x-accepted-github-permissions");
+    const err = new Error(`GitHub ${res.status}：${data.message || "未知錯誤"}`);
+    if (res.status === 403 && need) err.needs = need;
+    throw err;
+  }
   return data;
 }
 
@@ -191,8 +209,18 @@ if (existing.length) {
   });
   console.log(`已更新既有 PR #${pr.number}：${pr.html_url}`);
 } else {
-  const pr = await api(`/repos/${owner}/${repo}/pulls`, {
-    method: "POST", body: JSON.stringify({ title, head, base, body }),
-  });
-  console.log(`已建立 PR #${pr.number}：${pr.html_url}`);
+  try {
+    const pr = await api(`/repos/${owner}/${repo}/pulls`, {
+      method: "POST", body: JSON.stringify({ title, head, base, body }),
+    });
+    console.log(`已建立 PR #${pr.number}：${pr.html_url}`);
+  } catch (error) {
+    if (!error.needs) throw error;
+    /* 分支已經推上去了，只是開不了 PR。這時候最有用的不是報錯，是給一個
+       點下去就能手動開 PR 的網址——內容都算好了，人只要按送出。 */
+    console.error(`✖ 開 PR 失敗：${error.message}`);
+    console.error(`  這個端點需要：${error.needs}（token 目前不足）`);
+    console.error(`  分支已推送成功，手動開 PR：${compareUrl}`);
+    process.exit(1);
+  }
 }
