@@ -51,22 +51,25 @@
 
   window.JVCart = api;
 
-  /* ── 浮動的購物車列 ────────────────────────────────────
-     目錄頁換頁會整批重建卡片，所以這一列必須獨立於卡片之外，
-     否則每次換頁都會閃一下。 */
+  /* ── 購物車列 ─────────────────────────────────────────
+     釘在右上角而不是畫面底部：底部橫幅會壓住卡片最後一列，而目錄頁正是
+     要一直往下滑看的地方。右上角是使用者找購物車的習慣位置，也不擋內容。
+     它獨立於卡片之外，換頁整批重建卡片時才不會跟著閃。 */
   function mountBar() {
     if (document.getElementById("jvCartBar")) return;
     const bar = document.createElement("div");
     bar.id = "jvCartBar";
     bar.hidden = true;
-    bar.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;justify-content:center;padding:0 1rem 1rem;pointer-events:none";
+    /* 站上每一頁的頁首都是 sticky 且 z-index 到 50，這一顆要疊在它之上。
+       top 用 rem 讓它落在頁首下緣附近，不與導覽列打架。 */
+    bar.style.cssText = "position:fixed;top:4.25rem;right:1rem;z-index:60";
     bar.innerHTML = `
-      <div style="pointer-events:auto;display:flex;align-items:center;gap:.9rem;background:#0f172a;color:#fff;border-radius:9999px;padding:.65rem 1.4rem;box-shadow:0 10px 30px rgba(15,23,42,.3)">
-        <span class="material-symbols-outlined" style="font-size:20px">shopping_cart</span>
-        <span style="font-size:.9rem;font-weight:700">已選 <span id="jvCartCount">0</span> 套系統</span>
-        <a href="./cart.html" style="background:#fff;color:#0f172a;font-weight:800;font-size:.85rem;border-radius:9999px;padding:.4rem 1.1rem;text-decoration:none">前往確認</a>
-        <button type="button" id="jvCartClear" title="清空" style="background:none;border:0;color:#94a3b8;cursor:pointer;display:grid;place-content:center">
-          <span class="material-symbols-outlined" style="font-size:20px">close</span>
+      <div style="display:flex;align-items:center;gap:.5rem;background:#0f172a;color:#fff;border-radius:9999px;padding:.35rem .35rem .35rem .7rem;box-shadow:0 6px 20px rgba(15,23,42,.28)">
+        <span class="material-symbols-outlined" style="font-size:18px">shopping_cart</span>
+        <span id="jvCartCount" style="font-size:.8rem;font-weight:800;min-width:.9em;text-align:center">0</span>
+        <a href="./cart.html" style="background:#fff;color:#0f172a;font-weight:800;font-size:.78rem;border-radius:9999px;padding:.28rem .8rem;text-decoration:none;white-space:nowrap">確認</a>
+        <button type="button" id="jvCartClear" title="清空購物車" aria-label="清空購物車" style="background:none;border:0;color:#94a3b8;cursor:pointer;display:grid;place-content:center;padding:0 .15rem">
+          <span class="material-symbols-outlined" style="font-size:18px">close</span>
         </button>
       </div>`;
     document.body.appendChild(bar);

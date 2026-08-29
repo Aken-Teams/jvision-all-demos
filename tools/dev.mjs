@@ -520,6 +520,16 @@ function startGateway() {
       }
     }
 
+    /* serve 的 clean-URL 會把 /x.html 301 到 /x，但那一跳會把查詢字串弄丟——
+       /project.html?repo=jvision-crm 於是變成 /project，詳細頁沒有 repo 就顯示
+       「找不到這個專案」。舊書籤與外部分享出去的連結都是這個形式，所以在這裡
+       自己轉一次，把查詢字串帶過去。 */
+    if (p.endsWith(".html") && req.method === "GET") {
+      const clean = p.slice(0, -5) + req.url.slice(p.length);
+      res.writeHead(301, { location: clean, "cache-control": "no-store" });
+      return res.end();
+    }
+
     const port = isBackend(req.method, p) ? BACKEND_PORT : STATIC_PORT;
     const up = http.request(
       { host: "127.0.0.1", port, method: req.method, path: req.url,
