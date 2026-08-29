@@ -302,6 +302,15 @@ function startGateway() {
       catch { return json(res, 503, { error: "資料庫暫時無法連線" }); }
     }
 
+    /* 右上角帳號選單要顯示「我的系統」。只回這個人自己進得去的，
+       名單由資料庫的 JOIN 決定而不是前端傳 email——前端傳什麼都不該影響結果。 */
+    if (p === "/api/me/systems" && req.method === "GET") {
+      const id = visitor.read(req);
+      if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
+      try { return json(res, 200, { systems: await control.listInstancesFor(id.email) }); }
+      catch { return json(res, 200, { systems: [], degraded: true }); }
+    }
+
     if (p === "/api/wish/request" && req.method === "POST") {
       const id = visitor.read(req);
       if (!id) return json(res, 401, { error: "請先選擇身分再送出" });

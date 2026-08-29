@@ -228,6 +228,21 @@ export async function createInstance({ customerId, orderId, repoName, host, dir 
 }
 
 /** 實例整個移除：先刪資料庫再刪登錄，順序反了會留下孤兒資料庫。 */
+/**
+ * 某個人進得去的系統。兩種來源：他自己買的（customers.owner_email），
+ * 以及客戶把他加進使用名單的（members）。封存的不列——那已經沒得用了。
+ */
+export async function listInstancesFor(email) {
+  await ensureSchema();
+  return q(`SELECT i.id, i.repo_name, i.host, i.state, i.created_at,
+       CASE WHEN c.owner_email = ? THEN 'owner' ELSE COALESCE(m.role, 'member') END AS role
+     FROM instances i
+     LEFT JOIN customers c ON c.id = i.customer_id
+     LEFT JOIN members  m ON m.customer_id = i.customer_id AND m.email = ?
+     WHERE i.state <> 'archived' AND (c.owner_email = ? OR m.email IS NOT NULL)
+     ORDER BY i.created_at DESC LIMIT 50`, [email, email, email]);
+}
+
 export async function destroyInstance(id) {
   const inst = await getInstance(id);
   if (!inst) return false;
