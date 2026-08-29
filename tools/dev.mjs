@@ -26,6 +26,8 @@ const PUBLIC_PORT = Number(process.env.JV_PORT || 3000);
 let STATIC_PORT = 3100;
 const STATIC_PORT_WANTED = STATIC_PORT;
 const BACKEND_PORT = 4610;
+/* 客戶實例的服務。獨立的 unit，型錄站重啟不該把客戶的系統一起收掉。 */
+const APP_PORT = Number(process.env.JV_APP_PORT || 4700);
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const serverDir = path.join(root, "jvision-agents-office", "server");
@@ -194,6 +196,49 @@ function startGateway() {
       actions.record({ actor: "訪客", action: "離開（清除身分）", status: 200, visitor: who });
       return json(res, 200, { ok: true });
     }
+    /* ── 客戶的系統（實例）────────────────────────────
+       路徑形式 /-/i/<實例編號>/... 先上線，之後第四期換成子網域分流時
+       這條會保留當內部備援（不必動 DNS 就能驗收）。
+       實例身分由這裡解析後用標頭傳給 app-server，前端傳什麼都跨不過去。 */
+    {
+      const m = /^\/-\/i\/([a-z0-9_]+)(\/.*)?$/.exec(p);
+      if (m) {
+        const [, instanceId, rest] = m;
+        const id = visitor.read(req);
+        if (!visitor.isNamed(id)) {
+          res.writeHead(302, { location: `/api/visitor/google/start?next=${encodeURIComponent(req.url)}` });
+          return res.end();
+        }
+        try {
+          const inst = await control.getInstance(instanceId);
+          if (!inst) return json(res, 404, { error: "找不到這個系統" });
+          /* 只有這個客戶白名單裡的信箱進得去。權限每次查而不放進 cookie——
+             站主或客戶把某個信箱移除時要能馬上生效。 */
+          const role = await control.memberRole({ customerId: inst.customer_id, email: id.email });
+          if (!role) {
+            actions.record({ actor: "訪客", action: "非成員嘗試進入客戶系統", target: instanceId,
+              status: 403, visitor: who, who: visitor.labelOf(id), ip });
+            return json(res, 403, { error: "你的帳號不在這個系統的使用名單內" });
+          }
+          const target = rest && rest !== "/" ? rest : "/";
+          const up = http.request({
+            host: "127.0.0.1", port: APP_PORT, method: req.method, path: target,
+            headers: { ...req.headers, host: `127.0.0.1:${APP_PORT}`,
+              "x-jv-instance": instanceId, "x-jv-actor": id.email, "x-jv-role": role },
+          }, (upRes) => {
+            res.writeHead(upRes.statusCode, upRes.headers);
+            upRes.pipe(res);
+          });
+          up.on("error", () => json(res, 503, { error: "系統暫時無法使用（實例服務未啟動）" }));
+          req.pipe(up);
+          return;
+        } catch (error) {
+          console.error("[instance]", error.message);
+          return json(res, 503, { error: "系統暫時無法使用" });
+        }
+      }
+    }
+
     /* AI 引擎狀態：claude 或 codex 任一無法使用時 ready=false，
        前端右上角據此顯示「伺服尚未準備好」。 */
     if (p === "/api/health/engines") return json(res, 200, await enginesReady());

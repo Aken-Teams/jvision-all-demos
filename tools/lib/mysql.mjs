@@ -97,6 +97,27 @@ export function ident(s) {
   return `\`${s}\``;
 }
 
+/**
+ * 限定資料庫的表名：`資料庫`.`表`。
+ *
+ * 每個客戶實例有自己的 database，查詢一律寫全名而不是先 USE 再查——
+ * 連線池的每一句都可能落在不同連線上，USE 的效果不保證跟著下一句走，
+ * 而那種錯會安靜地查到別人的資料庫。
+ */
+export function qualified(dbName, table) {
+  return `${ident(dbName)}.${ident(table)}`;
+}
+
+/** 建立實例專屬資料庫。名稱同樣白名單化。 */
+export async function createDatabase(name) {
+  await q(`CREATE DATABASE IF NOT EXISTS ${ident(name)} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+}
+
+/** 整個實例的資料一次移除。獨立資料庫最大的好處就是刪起來乾淨。 */
+export async function dropDatabase(name) {
+  await q(`DROP DATABASE IF EXISTS ${ident(name)}`);
+}
+
 /** 產生排序友善的識別碼，形狀沿用既有的 wish-requests。 */
 export function newId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;

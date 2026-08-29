@@ -8,7 +8,7 @@
  * 整份寫回」不防 lost update，兩個並發的 update 會有一個被默默蓋掉。
  * 許願申請掉一筆能重送，客戶的需求單掉一筆就是事故。
  */
-import { q, one, tx, ident, newId } from "./mysql.mjs";
+import { q, one, tx, ident, newId, createDatabase, dropDatabase } from "./mysql.mjs";
 
 /** 需求單狀態機。收費模式是「一次買斷＋修改另計」，所以是訂單不是訂閱。 */
 export const ORDER_STATES = ["draft", "pending", "paid", "provisioning", "live", "failed", "refunded"];
@@ -60,7 +60,7 @@ const DDL = [
      order_id VARCHAR(40),
      repo_name VARCHAR(120) NOT NULL,
      host VARCHAR(190) NOT NULL UNIQUE,
-     table_prefix VARCHAR(50) NOT NULL UNIQUE,
+     db_name VARCHAR(64) NOT NULL UNIQUE,
      dir VARCHAR(255) NOT NULL,
      state VARCHAR(20) NOT NULL DEFAULT 'building',
      repo_url VARCHAR(255),
@@ -103,8 +103,9 @@ const parse = (r) => (r ? { ...r, items: typeof r.items_json === "string" ? JSON
 
 /** slug 要能當子網域：小寫、只留英數與連字號、不可空。 */
 export function slugify(name, fallback = "co") {
-  const s = String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24);
-  return s && /^[a-z]/.test(s) ? s : `${fallback}-${Math.random().toString(36).slice(2, 6)}`;
+  const s = String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24);
+  if (s && /^[a-z]/.test(s)) return s;
+  return fallback ? `${fallback}-${Math.random().toString(36).slice(2, 6)}` : "";
 }
 
 /** 依 email 找到或建立客戶。下單者自動成為第一個 owner。 */
@@ -113,7 +114,9 @@ export async function ensureCustomer({ email, company }) {
   const found = await one("SELECT * FROM customers WHERE owner_email = ?", [email]);
   if (found) return found;
   const id = newId("c");
-  let slug = slugify(company || email.split("@")[0]);
+  /* 公司名是中文時 slugify 產不出東西，退回用信箱前綴——那至少是有意義的字，
+     而 slug 會出現在客戶的網址上，亂數看起來像壞掉。 */
+  let slug = slugify(company, "") || slugify(email.split("@")[0]);
   // slug 撞名就加序號——host 之後是 UNIQUE，這裡先擋掉才不會等到開通時才失敗
   while (await one("SELECT 1 x FROM customers WHERE slug = ?", [slug])) {
     slug = `${slug.slice(0, 20)}-${Math.random().toString(36).slice(2, 5)}`;
@@ -207,14 +210,30 @@ export async function getInstance(id) {
 export async function createInstance({ customerId, orderId, repoName, host, dir }) {
   await ensureSchema();
   const id = newId("i");
-  /* 表前綴就是隔離邊界：表名本身帶實例編號，即使查詢漏寫條件也撈不到別人的資料。
-     這是共用資料庫下最接近「一個客戶一個檔」的做法。 */
-  const prefix = `i_${id.replace(/[^a-z0-9]/gi, "").toLowerCase().slice(0, 24)}_`;
-  ident(prefix.slice(0, -1)); // 提早驗證，避免建到一半才發現名字不合法
-  await q(`INSERT INTO instances(id,customer_id,order_id,repo_name,host,table_prefix,dir,state,created_at)
-           VALUES(?,?,?,?,?,?,?,'building',?)`,
-    [id, customerId, orderId, repoName, host.toLowerCase(), prefix, dir, now()]);
+  /* 每個實例一個獨立資料庫，隔離就是資料庫邊界——不必靠 WHERE 條件寫對，
+     刪除與備份也乾淨（DROP DATABASE 一句話）。 */
+  const dbName = `jv_${id.replace(/[^a-z0-9]/gi, "").toLowerCase().slice(0, 40)}`;
+  ident(dbName); // 提早驗證，避免建到一半才發現名字不合法
+  await createDatabase(dbName);
+  try {
+    await q(`INSERT INTO instances(id,customer_id,order_id,repo_name,host,db_name,dir,state,created_at)
+             VALUES(?,?,?,?,?,?,?,'building',?)`,
+      [id, customerId, orderId, repoName, host.toLowerCase(), dbName, dir, now()]);
+  } catch (error) {
+    /* 登錄失敗就不要留下孤兒資料庫——沒有人知道它屬於誰，也沒有人會去清。 */
+    await dropDatabase(dbName).catch(() => {});
+    throw error;
+  }
   return getInstance(id);
+}
+
+/** 實例整個移除：先刪資料庫再刪登錄，順序反了會留下孤兒資料庫。 */
+export async function destroyInstance(id) {
+  const inst = await getInstance(id);
+  if (!inst) return false;
+  await dropDatabase(inst.db_name);
+  await q("DELETE FROM instances WHERE id = ?", [id]);
+  return true;
 }
 
 export async function setInstanceState(id, state, extra = {}) {
