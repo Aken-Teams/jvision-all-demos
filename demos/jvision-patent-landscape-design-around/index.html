@@ -1,0 +1,1516 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>專利地景與設計繞道導航器 · legal-case｜Jvision 系統 Demo</title>
+  <link rel="icon" href="../../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --blue: #1e40af;
+      --ink: #172033;
+      --body: #344158;
+      --muted: #6b768a;
+      --line: #dfe5ef;
+      --bg: #f5f7fb;
+      --green: #16835f;
+      --amber: #b46d0b;
+      --red: #bd3d4c;
+      --white: #fff;
+      --blue-soft: #e9efff;
+      --shadow: 0 12px 32px rgba(30, 64, 175, .08);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 0;
+      color: var(--body);
+      background: var(--bg);
+      font-family: Inter, "Noto Sans TC", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { color: inherit; }
+    button, a, input, select, textarea { outline: none; }
+    button:focus-visible, a:focus-visible, input:focus-visible,
+    select:focus-visible, textarea:focus-visible {
+      box-shadow: 0 0 0 3px rgba(30, 64, 175, .22);
+    }
+
+    .material-symbols-outlined {
+      font-size: 21px;
+      line-height: 1;
+      vertical-align: middle;
+    }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 78px minmax(0, 1fr);
+    }
+
+    .rail {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 20;
+      width: 78px;
+      padding: 18px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      color: #fff;
+      background: #15275f;
+      border-right: 1px solid rgba(255,255,255,.1);
+    }
+
+    .brand {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border-radius: 15px;
+      color: var(--blue);
+      background: #fff;
+      font-weight: 800;
+      letter-spacing: -.04em;
+      box-shadow: 0 8px 20px rgba(0,0,0,.16);
+    }
+
+    .rail-nav {
+      width: 100%;
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav-btn {
+      position: relative;
+      width: 58px;
+      min-height: 54px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 15px;
+      color: #bcc8ea;
+      background: transparent;
+      cursor: pointer;
+      transition: .2s ease;
+    }
+
+    .nav-btn:hover { color: #fff; background: rgba(255,255,255,.09); }
+    .nav-btn.active { color: #fff; background: #3156c9; }
+    .nav-btn::after {
+      content: attr(aria-label);
+      position: absolute;
+      left: 67px;
+      z-index: 30;
+      width: max-content;
+      max-width: 180px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      color: #fff;
+      background: #111827;
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-5px);
+      transition: .18s ease;
+    }
+
+    .nav-btn:hover::after { opacity: 1; transform: translateX(0); }
+    .rail-foot { margin-top: auto; color: #8ea1d8; }
+
+    .main {
+      grid-column: 2;
+      min-width: 0;
+      padding: 0 30px 40px;
+    }
+
+    .topbar {
+      min-height: 74px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .crumb {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .crumb strong {
+      overflow: hidden;
+      color: var(--ink);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .top-actions { display: flex; align-items: center; gap: 10px; }
+    .icon-btn, .avatar {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+    }
+
+    .icon-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .avatar {
+      color: #fff;
+      background: var(--blue);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .view {
+      display: none;
+      min-width: 0;
+      animation: enter .35s ease both;
+    }
+
+    .view.active { display: block; }
+    @keyframes enter {
+      from { opacity: 0; transform: translateY(7px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .page-head {
+      padding: 28px 0 22px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .eyebrow {
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      margin-bottom: 8px;
+      color: var(--ink);
+      font-size: clamp(25px, 3vw, 38px);
+      line-height: 1.22;
+      letter-spacing: -.035em;
+    }
+
+    h2 {
+      margin-bottom: 6px;
+      color: var(--ink);
+      font-size: 20px;
+      line-height: 1.35;
+    }
+
+    h3 {
+      margin-bottom: 5px;
+      color: var(--ink);
+      font-size: 15px;
+    }
+
+    .subcopy {
+      max-width: 790px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.75;
+    }
+
+    .btn {
+      min-height: 42px;
+      padding: 9px 15px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 700;
+      cursor: pointer;
+      transition: .2s ease;
+    }
+
+    .btn:hover { border-color: #aab7ce; transform: translateY(-1px); }
+    .btn.primary { border-color: var(--blue); color: #fff; background: var(--blue); }
+    .btn.soft { border-color: #cbd7fb; color: var(--blue); background: var(--blue-soft); }
+    .btn.danger { border-color: #f3c9ce; color: var(--red); background: #fff6f7; }
+    .btn.small { min-height: 34px; padding: 6px 10px; font-size: 12px; }
+
+    .card {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: 0 4px 16px rgba(20, 32, 51, .035);
+    }
+
+    .card-pad { padding: 20px; }
+    .card-head {
+      padding: 18px 20px 14px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .card-head p { margin: 0; color: var(--muted); font-size: 12px; }
+    .grid { display: grid; min-width: 0; gap: 18px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .span-2 { grid-column: span 2; }
+
+    .tag, .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 999px;
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .tag { padding: 5px 9px; color: var(--blue); background: var(--blue-soft); }
+    .badge { padding: 4px 8px; color: var(--muted); background: #f0f3f8; }
+    .badge.green { color: var(--green); background: #e7f6f0; }
+    .badge.amber { color: var(--amber); background: #fff3dc; }
+    .badge.red { color: var(--red); background: #fff0f2; }
+
+    .metric {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: #fff;
+    }
+
+    .metric-label { color: var(--muted); font-size: 12px; font-weight: 600; }
+    .metric-value {
+      margin-top: 8px;
+      color: var(--ink);
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -.04em;
+    }
+
+    .metric-note { margin-top: 5px; color: var(--green); font-size: 11px; font-weight: 700; }
+    .chart { width: 100%; min-height: 330px; }
+    .chart.tall { min-height: 410px; }
+    .chart.short { min-height: 245px; }
+
+    .field { min-width: 0; }
+    .field label {
+      margin-bottom: 7px;
+      display: block;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .input, .select, .textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      color: var(--body);
+      background: #fff;
+    }
+
+    .input, .select { height: 43px; padding: 0 12px; }
+    .textarea { min-height: 92px; padding: 11px 12px; resize: vertical; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+
+    .divider { height: 1px; margin: 19px 0; background: var(--line); }
+    .muted { color: var(--muted); }
+    .tiny { font-size: 11px; }
+    .section-gap { margin-top: 18px; }
+
+    /* View 0: research brief */
+    .brief-layout { grid-template-columns: minmax(0, 1.5fr) minmax(280px, .75fr); }
+    .brief-banner {
+      position: relative;
+      overflow: hidden;
+      padding: 25px;
+      color: #fff;
+      background: linear-gradient(125deg, #172f82, var(--blue));
+    }
+
+    .brief-banner::after {
+      content: "";
+      position: absolute;
+      right: -60px;
+      bottom: -100px;
+      width: 240px;
+      height: 240px;
+      border: 42px solid rgba(255,255,255,.08);
+      border-radius: 50%;
+    }
+
+    .brief-banner h2 { color: #fff; font-size: 24px; }
+    .brief-banner p { max-width: 760px; margin: 0; color: #dce5ff; line-height: 1.75; }
+    .stepper { display: flex; gap: 7px; margin-bottom: 18px; }
+    .step-dot { width: 28px; height: 5px; border-radius: 9px; background: rgba(255,255,255,.3); }
+    .step-dot.on { width: 52px; background: #fff; }
+
+    .concept-chips { display: flex; flex-wrap: wrap; gap: 9px; }
+    .concept {
+      min-height: 38px;
+      padding: 8px 11px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .concept.selected { border-color: #b5c5f8; color: var(--blue); background: var(--blue-soft); }
+    .scope-list { display: grid; gap: 10px; }
+    .scope-row {
+      padding: 13px;
+      display: grid;
+      grid-template-columns: 38px 1fr auto;
+      align-items: center;
+      gap: 11px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    .scope-icon {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .scope-row strong { display: block; color: var(--ink); font-size: 13px; }
+    .scope-row small { color: var(--muted); }
+
+    .checkline {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .checkline input { width: 17px; height: 17px; accent-color: var(--blue); }
+
+    /* View 1: landscape */
+    .landscape-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .landscape-layout { grid-template-columns: minmax(0, 1.55fr) minmax(300px, .65fr); }
+    .legend-list { display: grid; gap: 12px; }
+    .legend-row {
+      display: grid;
+      grid-template-columns: 12px 1fr auto;
+      align-items: center;
+      gap: 9px;
+      font-size: 12px;
+    }
+
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .bar-track { height: 7px; overflow: hidden; border-radius: 9px; background: #edf0f5; }
+    .bar-fill { height: 100%; border-radius: inherit; background: var(--blue); }
+
+    .alert {
+      padding: 13px;
+      display: flex;
+      gap: 10px;
+      border: 1px solid #f2d6a7;
+      border-radius: 12px;
+      color: #775019;
+      background: #fff9ec;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    /* View 2: claims */
+    .claim-layout { grid-template-columns: minmax(260px, .68fr) minmax(0, 1.5fr); }
+    .patent-list { display: grid; gap: 8px; }
+    .patent-item {
+      width: 100%;
+      padding: 13px;
+      text-align: left;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .patent-item.active { border-color: #aebff7; background: var(--blue-soft); }
+    .patent-item strong { display: block; color: var(--ink); font-size: 12px; }
+    .patent-item small { display: block; margin-top: 5px; color: var(--muted); line-height: 1.45; }
+
+    .claim-source {
+      padding: 16px;
+      border-left: 4px solid var(--blue);
+      border-radius: 0 12px 12px 0;
+      color: var(--body);
+      background: #f6f8fc;
+      font-size: 13px;
+      line-height: 1.85;
+    }
+
+    .claim-tree { position: relative; display: grid; gap: 12px; }
+    .claim-node {
+      padding: 15px;
+      display: grid;
+      grid-template-columns: 42px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    .node-key {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      color: var(--blue);
+      background: var(--blue-soft);
+      font-weight: 800;
+    }
+
+    .claim-node p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .relation {
+      margin-left: 20px;
+      padding-left: 21px;
+      border-left: 2px dashed #cbd5ea;
+    }
+
+    /* View 3: risk compare */
+    .risk-layout { grid-template-columns: minmax(0, 1fr) minmax(310px, .72fr); }
+    .risk-score {
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      border-radius: 15px;
+      color: #fff;
+      background: linear-gradient(120deg, #9f2739, var(--red));
+    }
+
+    .score-ring {
+      width: 82px;
+      height: 82px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border: 8px solid rgba(255,255,255,.28);
+      border-top-color: #fff;
+      border-radius: 50%;
+      font-size: 25px;
+      font-weight: 800;
+    }
+
+    .compare-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .compare-table th, .compare-table td {
+      padding: 12px 10px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .compare-table th { color: var(--muted); background: #f8f9fc; font-weight: 700; }
+    .match-cell { min-width: 110px; }
+    .match-num { margin-bottom: 6px; color: var(--ink); font-weight: 800; }
+    .evidence-list { display: grid; gap: 10px; }
+    .evidence {
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    /* View 4: alternatives */
+    .route-summary {
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 18px;
+      color: #fff;
+      background: linear-gradient(120deg, #143175, #2754c7);
+    }
+
+    .route-summary h2 { color: #fff; }
+    .route-summary p { margin: 0; color: #dce6ff; font-size: 13px; }
+    .route-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .route-card {
+      position: relative;
+      overflow: hidden;
+      padding: 19px;
+      border-top: 4px solid var(--blue);
+    }
+
+    .route-card.recommended { box-shadow: 0 13px 35px rgba(30,64,175,.14); }
+    .route-card h3 { font-size: 17px; }
+    .route-index {
+      position: absolute;
+      top: 12px;
+      right: 15px;
+      color: #dce4f4;
+      font-size: 38px;
+      font-weight: 800;
+    }
+
+    .route-metrics { margin: 17px 0; display: grid; gap: 10px; }
+    .route-metric { display: grid; grid-template-columns: 70px 1fr 34px; align-items: center; gap: 8px; font-size: 11px; }
+    .route-steps { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.75; }
+    .matrix-wrap { overflow-x: auto; }
+    .matrix { min-width: 720px; width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+    .matrix th, .matrix td { padding: 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: center; }
+    .matrix th { color: var(--muted); background: #f7f9fc; }
+    .matrix td:first-child, .matrix th:first-child { text-align: left; }
+    .cell-good { color: var(--green); background: #effaf6; font-weight: 700; }
+    .cell-warn { color: var(--amber); background: #fff9ed; font-weight: 700; }
+
+    /* View 5: review */
+    .review-layout { grid-template-columns: minmax(0, 1.45fr) minmax(290px, .65fr); }
+    .decision-banner {
+      padding: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      border: 1px solid #adddcc;
+      border-radius: 16px;
+      background: #edf9f5;
+    }
+
+    .decision-banner h2 { color: #116b4e; }
+    .decision-banner p { margin: 0; color: #437363; font-size: 12px; }
+    .timeline { position: relative; display: grid; gap: 0; }
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 17px;
+      top: 14px;
+      bottom: 20px;
+      width: 2px;
+      background: var(--line);
+    }
+
+    .timeline-item {
+      position: relative;
+      padding: 0 0 21px 48px;
+    }
+
+    .time-dot {
+      position: absolute;
+      left: 7px;
+      top: 2px;
+      z-index: 2;
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border: 4px solid #fff;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 1px #b9dbcF;
+    }
+
+    .timeline-item p { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .rule-list { display: grid; gap: 10px; }
+    .rule {
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .rule strong { display: block; color: var(--ink); font-size: 12px; }
+    .rule p { margin: 6px 0 8px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+
+    .table-wrap { overflow-x: auto; }
+    .data-table { min-width: 680px; width: 100%; border-collapse: collapse; font-size: 12px; }
+    .data-table th, .data-table td { padding: 13px 15px; text-align: left; border-bottom: 1px solid var(--line); }
+    .data-table th { color: var(--muted); background: #f8f9fc; font-weight: 700; }
+    .data-table td:first-child { color: var(--blue); font-weight: 700; }
+
+    @media (max-width: 1080px) {
+      .landscape-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .brief-layout, .landscape-layout, .claim-layout, .risk-layout, .review-layout {
+        grid-template-columns: 1fr;
+      }
+      .route-grid { grid-template-columns: 1fr 1fr; }
+      .span-2 { grid-column: auto; }
+    }
+
+    @media (max-width: 760px) {
+      .shell { display: block; padding-bottom: 76px; }
+      .rail {
+        inset: auto 0 0;
+        width: auto;
+        height: 68px;
+        padding: 7px 8px;
+        flex-direction: row;
+        justify-content: center;
+        border-top: 1px solid rgba(255,255,255,.13);
+        border-right: 0;
+      }
+      .brand, .rail-foot { display: none; }
+      .rail-nav { grid-template-columns: repeat(6, 1fr); gap: 3px; max-width: 560px; }
+      .nav-btn { width: 100%; min-height: 50px; }
+      .nav-btn::after { display: none; }
+      .main { padding: 0 16px 28px; }
+      .topbar { min-height: 62px; }
+      .crumb span:not(.material-symbols-outlined), .icon-btn { display: none; }
+      .page-head { padding: 23px 0 18px; align-items: flex-start; flex-direction: column; }
+      .page-head .btn { width: 100%; }
+      .grid.two, .grid.three, .route-grid, .form-grid, .landscape-stats { grid-template-columns: 1fr; }
+      .card-head { padding: 16px; }
+      .card-pad { padding: 16px; }
+      .brief-banner { padding: 20px; }
+      .route-summary { grid-template-columns: 1fr; }
+      .route-summary .btn { width: 100%; }
+      .decision-banner { align-items: flex-start; flex-direction: column; }
+      .decision-banner .btn { width: 100%; }
+      .claim-node { grid-template-columns: 38px 1fr; }
+      .claim-node > .badge { grid-column: 2; justify-self: start; }
+      .scope-row { grid-template-columns: 38px 1fr; }
+      .scope-row > .badge { grid-column: 2; justify-self: start; }
+      .risk-score { align-items: flex-start; }
+      .chart { min-height: 300px; }
+      .chart.tall { min-height: 350px; }
+    }
+
+    @media (max-width: 420px) {
+      .main { padding-inline: 12px; }
+      h1 { font-size: 25px; }
+      .nav-btn .material-symbols-outlined { font-size: 20px; }
+      .metric-value { font-size: 25px; }
+      .risk-score { flex-direction: column; }
+      .top-actions { gap: 6px; }
+      .route-card { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail" aria-label="流程導覽">
+      <div class="brand" aria-label="Jvision">JV</div>
+      <nav class="rail-nav">
+        <button class="nav-btn" data-i="0" aria-label="定義主題"><span class="material-symbols-outlined">travel_explore</span></button>
+        <button class="nav-btn" data-i="1" aria-label="閱讀地景"><span class="material-symbols-outlined">bubble_chart</span></button>
+        <button class="nav-btn" data-i="2" aria-label="拆解權利項"><span class="material-symbols-outlined">account_tree</span></button>
+        <button class="nav-btn" data-i="3" aria-label="比對概念"><span class="material-symbols-outlined">radar</span></button>
+        <button class="nav-btn" data-i="4" aria-label="探索替代"><span class="material-symbols-outlined">alt_route</span></button>
+        <button class="nav-btn" data-i="5" aria-label="審查決策"><span class="material-symbols-outlined">fact_check</span></button>
+      </nav>
+      <div class="rail-foot"><span class="material-symbols-outlined">shield</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="crumb">
+          <span class="material-symbols-outlined">home</span>
+          <span>專業服務</span>
+          <span>/</span>
+          <strong id="crumbTitle">定義技術主題</strong>
+        </div>
+        <div class="top-actions">
+          <span class="tag"><span class="material-symbols-outlined">verified_user</span>擬真資料</span>
+          <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+          <div class="avatar" aria-label="使用者：林顧問">林顧</div>
+        </div>
+      </header>
+
+      <section class="view" data-view="0" aria-labelledby="view0-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">travel_explore</span>01 · 技術主題探索</div>
+            <h1 id="view0-title">定義技術主題</h1>
+            <p class="subcopy">界定目標技術、產品範圍與分析期間，建立可重複執行的專利地景分析題目。</p>
+          </div>
+          <button class="btn primary" data-next="1"><span class="material-symbols-outlined">play_arrow</span>執行地景分析</button>
+        </div>
+
+        <div class="card brief-banner">
+          <div class="stepper" aria-hidden="true">
+            <span class="step-dot on"></span><span class="step-dot"></span><span class="step-dot"></span>
+          </div>
+          <h2>高效率液冷模組：競爭地景與繞道機會</h2>
+          <p>聚焦資料中心伺服器的冷板、流道結構與快接介面，排除浸沒式冷卻及一般空調系統，先建立可供研發、智財與外部顧問共同檢視的分析邊界。</p>
+        </div>
+
+        <div class="grid brief-layout section-gap">
+          <div class="card card-pad">
+            <div class="grid two">
+              <div class="field">
+                <label for="topic">分析題目</label>
+                <input class="input" id="topic" value="伺服器液冷板流道與快接介面">
+              </div>
+              <div class="field">
+                <label for="product">產品範圍</label>
+                <select class="select" id="product">
+                  <option>資料中心 GPU 伺服器</option>
+                  <option>邊緣運算設備</option>
+                  <option>高功率電池模組</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="period">公開期間</label>
+                <select class="select" id="period">
+                  <option>2018–2026</option>
+                  <option>2020–2026</option>
+                  <option>近五年</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="markets">司法管轄區</label>
+                <select class="select" id="markets">
+                  <option>US · EP · CN · TW · JP</option>
+                  <option>US · EP · TW</option>
+                  <option>全球專利家族</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+            <h3>關鍵技術概念</h3>
+            <p class="muted tiny">點選概念可納入或排除檢索式。</p>
+            <div class="concept-chips" aria-label="技術概念">
+              <button class="concept selected">微通道冷板</button>
+              <button class="concept selected">歧管分流</button>
+              <button class="concept selected">低壓降流道</button>
+              <button class="concept selected">無滴漏快接</button>
+              <button class="concept">泵浦控制</button>
+              <button class="concept">兩相冷卻</button>
+              <button class="concept">浸沒式冷卻</button>
+            </div>
+
+            <div class="divider"></div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="classes">技術分類</label>
+                <textarea class="textarea" id="classes">H05K 7/20 · G06F 1/20
+F28F 3/12 · F16L 37/28</textarea>
+              </div>
+              <div class="field">
+                <label for="exclude">排除條件</label>
+                <textarea class="textarea" id="exclude">浸沒式、冷媒壓縮機、建築空調、僅描述散熱風扇之文件</textarea>
+              </div>
+            </div>
+          </div>
+
+          <aside class="grid">
+            <div class="card card-pad">
+              <div class="card-head" style="padding:0 0 14px">
+                <div><h3>分析範圍預估</h3><p>儲存前即時計算</p></div>
+                <span class="badge green">可執行</span>
+              </div>
+              <div class="scope-list section-gap">
+                <div class="scope-row">
+                  <div class="scope-icon"><span class="material-symbols-outlined">description</span></div>
+                  <div><strong>1,284 件</strong><small>去重後專利家族</small></div>
+                  <span class="badge">+86</span>
+                </div>
+                <div class="scope-row">
+                  <div class="scope-icon"><span class="material-symbols-outlined">domain</span></div>
+                  <div><strong>47 家</strong><small>主要申請人</small></div>
+                  <span class="badge">前 15 名</span>
+                </div>
+                <div class="scope-row">
+                  <div class="scope-icon"><span class="material-symbols-outlined">hub</span></div>
+                  <div><strong>8 群</strong><small>高密度技術聚落</small></div>
+                  <span class="badge amber">需檢視</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card card-pad">
+              <h3>分析責任與用途</h3>
+              <p class="muted tiny">研發主管建立題目，智財專員確認分類與同義詞。</p>
+              <div class="divider"></div>
+              <label class="checkline"><input type="checkbox" checked> 已納入競品及歷史名稱變體</label>
+              <label class="checkline section-gap"><input type="checkbox" checked> 已以代表文件抽查檢索精準度</label>
+              <label class="checkline section-gap"><input type="checkbox"> 需要專利顧問確認法律範圍</label>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" data-view="1" aria-labelledby="view1-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">bubble_chart</span>02 · 專利地景圖</div>
+            <h1 id="view1-title">閱讀競爭地景</h1>
+            <p class="subcopy">從技術聚落、申請人布局及年度趨勢，辨識競爭密集區與值得深入拆解的代表專利。</p>
+          </div>
+          <button class="btn" data-next="2"><span class="material-symbols-outlined">account_tree</span>前往權利項拆解</button>
+        </div>
+
+        <div class="grid landscape-stats">
+          <div class="metric"><div class="metric-label">分析專利件數</div><div class="metric-value">1,284</div><div class="metric-note">已去除 312 件同族重複</div></div>
+          <div class="metric"><div class="metric-label">高密度技術群</div><div class="metric-value">8</div><div class="metric-note">其中 3 群近兩年加速</div></div>
+          <div class="metric"><div class="metric-label">主要申請人</div><div class="metric-value">47</div><div class="metric-note">前 10 名占比 61.8%</div></div>
+          <div class="metric"><div class="metric-label">高關聯權利項</div><div class="metric-value">23</div><div class="metric-note">6 項需優先比對</div></div>
+        </div>
+
+        <div class="grid landscape-layout section-gap">
+          <div class="card">
+            <div class="card-head">
+              <div><h2>技術聚落地景</h2><p>圓點大小代表同族數量，位置代表語意接近度</p></div>
+              <span class="tag">2018–2026</span>
+            </div>
+            <div class="card-pad"><div class="chart tall" id="landscapeChart" role="img" aria-label="技術聚落散點圖"></div></div>
+          </div>
+
+          <aside class="grid">
+            <div class="card card-pad">
+              <h3>聚落密度排行</h3>
+              <div class="legend-list section-gap">
+                <div><div class="legend-row"><span class="legend-dot" style="background:#1e40af"></span><span>微通道幾何</span><strong>286</strong></div><div class="bar-track"><div class="bar-fill" style="width:92%"></div></div></div>
+                <div><div class="legend-row"><span class="legend-dot" style="background:#4f76e8"></span><span>歧管均流</span><strong>231</strong></div><div class="bar-track"><div class="bar-fill" style="width:76%"></div></div></div>
+                <div><div class="legend-row"><span class="legend-dot" style="background:#16a07a"></span><span>快接密封</span><strong>194</strong></div><div class="bar-track"><div class="bar-fill" style="width:64%"></div></div></div>
+                <div><div class="legend-row"><span class="legend-dot" style="background:#d08a25"></span><span>冷板製程</span><strong>142</strong></div><div class="bar-track"><div class="bar-fill" style="width:47%"></div></div></div>
+                <div><div class="legend-row"><span class="legend-dot" style="background:#b54b5a"></span><span>感測控制</span><strong>97</strong></div><div class="bar-track"><div class="bar-fill" style="width:32%"></div></div></div>
+              </div>
+            </div>
+            <div class="alert"><span class="material-symbols-outlined">warning</span><span><strong>密集區提示</strong><br>「歧管均流 × 微通道入口」在 2024–2026 年新增 74 件，且權利人集中度偏高。</span></div>
+          </aside>
+        </div>
+
+        <div class="grid two section-gap">
+          <div class="card">
+            <div class="card-head"><div><h2>年度公開趨勢</h2><p>依最早優先權年彙整</p></div><span class="badge green">年增 18.6%</span></div>
+            <div class="card-pad"><div class="chart short" id="trendChart" role="img" aria-label="年度公開趨勢圖"></div></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h2>主要申請人</h2><p>專利家族數與活躍技術群</p></div><button class="btn small">查看全部</button></div>
+            <div class="card-pad">
+              <div class="legend-list">
+                <div class="legend-row"><span class="avatar" style="width:31px;height:31px">NE</span><span>NexThermal Systems<br><small class="muted">微通道 · 歧管</small></span><strong>116</strong></div>
+                <div class="legend-row"><span class="avatar" style="width:31px;height:31px;background:#16835f">AC</span><span>Arctic Compute<br><small class="muted">快接 · 控制</small></span><strong>93</strong></div>
+                <div class="legend-row"><span class="avatar" style="width:31px;height:31px;background:#b46d0b">DT</span><span>DeltaFlux Tech<br><small class="muted">冷板製程</small></span><strong>82</strong></div>
+                <div class="legend-row"><span class="avatar" style="width:31px;height:31px;background:#7c5fb2">KM</span><span>KinetiCool Modules<br><small class="muted">歧管 · 密封</small></span><strong>71</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="2" aria-labelledby="view2-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">account_tree</span>03 · 權利項拆解</div>
+            <h1 id="view2-title">拆解關鍵權利項</h1>
+            <p class="subcopy">將獨立權利項轉成元件、關係及限制條件，建立工程團隊可直接比對的特徵結構。</p>
+          </div>
+          <button class="btn primary" data-next="3"><span class="material-symbols-outlined">compare_arrows</span>加入概念比對</button>
+        </div>
+
+        <div class="grid claim-layout">
+          <aside class="card card-pad">
+            <div class="field">
+              <label for="patentSearch">篩選代表專利</label>
+              <input class="input" id="patentSearch" placeholder="輸入公開號或申請人" value="">
+            </div>
+            <div class="patent-list section-gap">
+              <button class="patent-item active">
+                <strong>US 12,184,621 B2</strong>
+                <small>NexThermal · 分層歧管式冷板<br>關聯度 92% · 有效</small>
+              </button>
+              <button class="patent-item">
+                <strong>EP 4 287 119 A1</strong>
+                <small>Arctic Compute · 無滴漏快接<br>關聯度 88% · 審查中</small>
+              </button>
+              <button class="patent-item">
+                <strong>CN 117 612 804 A</strong>
+                <small>DeltaFlux · 漸縮微流道<br>關聯度 84% · 審查中</small>
+              </button>
+              <button class="patent-item">
+                <strong>TW I842731 B</strong>
+                <small>KinetiCool · 多區均流結構<br>關聯度 79% · 有效</small>
+              </button>
+            </div>
+            <div class="divider"></div>
+            <div class="alert"><span class="material-symbols-outlined">info</span><span>目前文件包含 3 項獨立權利項及 18 項附屬權利項，建議先檢視獨立項 1。</span></div>
+          </aside>
+
+          <div class="grid">
+            <div class="card card-pad">
+              <div class="card-head" style="padding:0 0 14px">
+                <div><h2>獨立權利項 1</h2><p>US 12,184,621 B2 · 最近更新 2026/08/27</p></div>
+                <div><span class="badge green">有效</span> <span class="badge red">高關聯</span></div>
+              </div>
+              <div class="claim-source section-gap">
+                一種用於運算模組之液體冷卻組件，包含：一冷板本體；形成於該冷板本體內的多個平行微流道；一入口歧管，具有沿流動方向逐段縮減的截面；以及一出口歧管，其中該入口歧管分別經由限制孔連通各微流道，使各微流道間的流量差低於預定值。
+              </div>
+            </div>
+
+            <div class="card card-pad">
+              <div class="card-head" style="padding:0 0 14px">
+                <div><h2>必要技術特徵</h2><p>已拆解 5 個元件與 4 組限制關係</p></div>
+                <button class="btn small soft"><span class="material-symbols-outlined">edit_note</span>編輯註記</button>
+              </div>
+              <div class="claim-tree section-gap">
+                <div class="claim-node">
+                  <div class="node-key">A</div>
+                  <div><h3>冷板本體</h3><p>與運算模組形成熱接觸，內部容納冷卻液流路。</p></div>
+                  <span class="badge">必要元件</span>
+                </div>
+                <div class="relation">
+                  <div class="claim-node">
+                    <div class="node-key">B</div>
+                    <div><h3>多個平行微流道</h3><p>形成於冷板本體內；「平行」與「多個」為文字限制。</p></div>
+                    <span class="badge red">不可省略</span>
+                  </div>
+                </div>
+                <div class="relation">
+                  <div class="claim-node">
+                    <div class="node-key">C</div>
+                    <div><h3>漸縮入口歧管</h3><p>截面須沿流動方向逐段縮減，是主要差異特徵。</p></div>
+                    <span class="badge red">核心限制</span>
+                  </div>
+                </div>
+                <div class="relation">
+                  <div class="claim-node">
+                    <div class="node-key">D</div>
+                    <div><h3>限制孔連通關係</h3><p>入口歧管透過個別限制孔連接每一微流道。</p></div>
+                    <span class="badge amber">關係限制</span>
+                  </div>
+                </div>
+                <div class="relation">
+                  <div class="claim-node">
+                    <div class="node-key">E</div>
+                    <div><h3>流量差低於預定值</h3><p>功能性結果限制；數值須回查說明書及審查歷程。</p></div>
+                    <span class="badge amber">待解釋</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid three">
+              <div class="metric"><div class="metric-label">元件特徵</div><div class="metric-value">5</div><div class="metric-note">3 項高度明確</div></div>
+              <div class="metric"><div class="metric-label">關係限制</div><div class="metric-value">4</div><div class="metric-note">1 項可探索替代</div></div>
+              <div class="metric"><div class="metric-label">解釋不確定性</div><div class="metric-value">中</div><div class="metric-note">需查閱審查答辯</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="3" aria-labelledby="view3-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">radar</span>04 · 概念風險比對</div>
+            <h1 id="view3-title">比對目前設計概念</h1>
+            <p class="subcopy">將研發概念逐項對照高關聯權利項，呈現文字接近度、必要特徵覆蓋與證據完整性。</p>
+          </div>
+          <button class="btn" data-next="4"><span class="material-symbols-outlined">alt_route</span>探索替代方案</button>
+        </div>
+
+        <div class="grid risk-layout">
+          <div class="grid">
+            <div class="risk-score">
+              <div class="score-ring">78</div>
+              <div>
+                <div class="tiny" style="color:#ffdce1;font-weight:700">整體接近程度</div>
+                <h2 style="color:#fff;margin:4px 0">需優先處理</h2>
+                <p style="margin:0;color:#ffe8eb;font-size:12px;line-height:1.6">目前概念覆蓋 5 項必要特徵中的 4 項；「漸縮入口歧管」與「限制孔」組合構成主要風險來源。</p>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div><h2>特徵逐項對照</h2><p>工程描述對照 US 12,184,621 B2 權利項 1</p></div>
+                <span class="tag">概念版本 C-07</span>
+              </div>
+              <div class="table-wrap">
+                <table class="compare-table">
+                  <thead><tr><th>必要特徵</th><th>目前設計證據</th><th>接近度</th><th>判讀</th></tr></thead>
+                  <tbody>
+                    <tr><td><strong>冷板本體</strong><br><small class="muted">熱接觸運算模組</small></td><td>鋁合金冷板鎖固於 GPU 模組</td><td class="match-cell"><div class="match-num">96%</div><div class="bar-track"><div class="bar-fill" style="width:96%;background:#bd3d4c"></div></div></td><td><span class="badge red">高度對應</span></td></tr>
+                    <tr><td><strong>平行微流道</strong></td><td>24 條並列矩形流道</td><td class="match-cell"><div class="match-num">93%</div><div class="bar-track"><div class="bar-fill" style="width:93%;background:#bd3d4c"></div></div></td><td><span class="badge red">高度對應</span></td></tr>
+                    <tr><td><strong>漸縮入口歧管</strong></td><td>入口腔寬度由 22 mm 降至 9 mm</td><td class="match-cell"><div class="match-num">89%</div><div class="bar-track"><div class="bar-fill" style="width:89%;background:#bd3d4c"></div></div></td><td><span class="badge red">高度對應</span></td></tr>
+                    <tr><td><strong>限制孔連通</strong></td><td>各流道入口設置 1.2 mm 節流孔</td><td class="match-cell"><div class="match-num">86%</div><div class="bar-track"><div class="bar-fill" style="width:86%;background:#b46d0b"></div></div></td><td><span class="badge amber">可能對應</span></td></tr>
+                    <tr><td><strong>流量差限制</strong></td><td>模擬最大差異 7.4%，未定義門檻</td><td class="match-cell"><div class="match-num">41%</div><div class="bar-track"><div class="bar-fill" style="width:41%;background:#16835f"></div></div></td><td><span class="badge green">證據不足</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <aside class="grid">
+            <div class="card">
+              <div class="card-head"><div><h2>風險構面</h2><p>0–100，越外圈代表越接近</p></div></div>
+              <div class="card-pad"><div class="chart" id="riskChart" role="img" aria-label="風險構面雷達圖"></div></div>
+            </div>
+            <div class="card card-pad">
+              <div class="card-head" style="padding:0 0 14px"><div><h3>判讀證據</h3><p>本次分析可追溯來源</p></div><span class="badge amber">3 待補</span></div>
+              <div class="evidence-list section-gap">
+                <div class="evidence"><strong>✓ CAD 剖面圖 C-07</strong><br><span class="muted">確認流道數量、排列與歧管截面。</span></div>
+                <div class="evidence"><strong>✓ CFD 模擬報告 R3</strong><br><span class="muted">確認各流道流量差及入口壓降。</span></div>
+                <div class="evidence"><strong>! 審查歷程未完成</strong><br><span class="muted">需確認「預定值」在答辯中的限縮意義。</span></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" data-view="4" aria-labelledby="view4-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">alt_route</span>05 · 繞道方案導航</div>
+            <h1 id="view4-title">探索可行替代路徑</h1>
+            <p class="subcopy">從替換元件、改變連接關係及製程三個方向，評估技術效能、開發成本與權利項距離。</p>
+          </div>
+          <button class="btn primary" data-next="5"><span class="material-symbols-outlined">approval</span>送交顧問審查</button>
+        </div>
+
+        <div class="card route-summary">
+          <div>
+            <h2>建議優先驗證：路徑 B「雙腔脈衝均流」</h2>
+            <p>移除逐段漸縮歧管與個別限制孔，改用雙腔壓力平衡；模擬效能保留 94%，預估權利項接近程度降至 34%。</p>
+          </div>
+          <button class="btn" style="border-color:#fff">建立驗證任務</button>
+        </div>
+
+        <div class="grid route-grid section-gap">
+          <article class="card route-card">
+            <span class="route-index">A</span>
+            <span class="badge amber">低改動</span>
+            <h3 class="section-gap">等截面歧管＋多孔膜</h3>
+            <p class="muted tiny">以連續多孔膜取代各流道入口的獨立限制孔，保留現有冷板加工方式。</p>
+            <div class="route-metrics">
+              <div class="route-metric"><span>風險距離</span><div class="bar-track"><div class="bar-fill" style="width:58%;background:#b46d0b"></div></div><strong>58</strong></div>
+              <div class="route-metric"><span>效能保留</span><div class="bar-track"><div class="bar-fill" style="width:97%;background:#16835f"></div></div><strong>97</strong></div>
+              <div class="route-metric"><span>開發難度</span><div class="bar-track"><div class="bar-fill" style="width:42%"></div></div><strong>42</strong></div>
+            </div>
+            <ul class="route-steps"><li>確認多孔膜是否仍構成等同手段</li><li>製作 3 種孔隙率樣片</li><li>比較壓降與堵塞風險</li></ul>
+          </article>
+
+          <article class="card route-card recommended">
+            <span class="route-index">B</span>
+            <span class="badge green">推薦</span>
+            <h3 class="section-gap">雙腔脈衝均流</h3>
+            <p class="muted tiny">以並列壓力平衡腔交替供液，不使用漸縮幾何或個別節流孔。</p>
+            <div class="route-metrics">
+              <div class="route-metric"><span>風險距離</span><div class="bar-track"><div class="bar-fill" style="width:78%;background:#16835f"></div></div><strong>78</strong></div>
+              <div class="route-metric"><span>效能保留</span><div class="bar-track"><div class="bar-fill" style="width:94%;background:#16835f"></div></div><strong>94</strong></div>
+              <div class="route-metric"><span>開發難度</span><div class="bar-track"><div class="bar-fill" style="width:63%"></div></div><strong>63</strong></div>
+            </div>
+            <ul class="route-steps"><li>建立雙腔 transient CFD 模型</li><li>驗證切換頻率與溫度波動</li><li>檢索脈衝供液相關先前技術</li></ul>
+          </article>
+
+          <article class="card route-card">
+            <span class="route-index">C</span>
+            <span class="badge">高創新</span>
+            <h3 class="section-gap">增材製造樹枝流道</h3>
+            <p class="muted tiny">使用階層分岔流道自然分配流量，移除傳統歧管及平行微流道組合。</p>
+            <div class="route-metrics">
+              <div class="route-metric"><span>風險距離</span><div class="bar-track"><div class="bar-fill" style="width:91%;background:#16835f"></div></div><strong>91</strong></div>
+              <div class="route-metric"><span>效能保留</span><div class="bar-track"><div class="bar-fill" style="width:88%;background:#b46d0b"></div></div><strong>88</strong></div>
+              <div class="route-metric"><span>開發難度</span><div class="bar-track"><div class="bar-fill" style="width:86%;background:#bd3d4c"></div></div><strong>86</strong></div>
+            </div>
+            <ul class="route-steps"><li>確認金屬列印最小通道尺寸</li><li>評估粉末清除與良率</li><li>建立新型態專利申請題目</li></ul>
+          </article>
+        </div>
+
+        <div class="card section-gap">
+          <div class="card-head">
+            <div><h2>方案決策矩陣</h2><p>研發、智財與製造共同評分；5 分最佳</p></div>
+            <span class="tag">權重已套用</span>
+          </div>
+          <div class="matrix-wrap">
+            <table class="matrix">
+              <thead><tr><th>評估項目</th><th>權重</th><th>現行設計</th><th>路徑 A</th><th>路徑 B</th><th>路徑 C</th></tr></thead>
+              <tbody>
+                <tr><td>權利項距離</td><td>30%</td><td class="cell-warn">1.4</td><td>3.1</td><td class="cell-good">4.2</td><td class="cell-good">4.7</td></tr>
+                <tr><td>熱傳效能</td><td>25%</td><td class="cell-good">4.8</td><td class="cell-good">4.7</td><td>4.5</td><td>4.1</td></tr>
+                <tr><td>量產可行性</td><td>20%</td><td class="cell-good">4.6</td><td class="cell-good">4.4</td><td>3.8</td><td class="cell-warn">2.3</td></tr>
+                <tr><td>開發時程</td><td>15%</td><td class="cell-good">4.8</td><td>4.0</td><td>3.4</td><td class="cell-warn">2.0</td></tr>
+                <tr><td>新專利潛力</td><td>10%</td><td>2.0</td><td>3.2</td><td class="cell-good">4.5</td><td class="cell-good">4.8</td></tr>
+                <tr><td><strong>加權總分</strong></td><td>100%</td><td><strong>3.44</strong></td><td><strong>3.96</strong></td><td class="cell-good"><strong>4.12</strong></td><td><strong>3.71</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="5" aria-labelledby="view5-title">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow"><span class="material-symbols-outlined">fact_check</span>06 · 評估報告工作區</div>
+            <h1 id="view5-title">審查決策與可追溯紀錄</h1>
+            <p class="subcopy">彙整地景證據、權利項註記、方案比較及顧問判斷邊界，形成前期研發決策紀錄。</p>
+          </div>
+          <button class="btn"><span class="material-symbols-outlined">download</span>匯出評估摘要</button>
+        </div>
+
+        <div class="decision-banner">
+          <div>
+            <span class="badge green">條件式通過</span>
+            <h2 class="section-gap">路徑 B 可進入概念驗證階段</h2>
+            <p>前提：完成脈衝供液先前技術檢索，並保留雙腔結構與控制時序的設計差異證據。</p>
+          </div>
+          <button class="btn primary">確認審查決策</button>
+        </div>
+
+        <div class="grid review-layout section-gap">
+          <div class="grid">
+            <div class="card">
+              <div class="card-head">
+                <div><h2>處理工作清單</h2><p>專利地景與設計繞道導航器資料列表</p></div>
+                <button class="btn small"><span class="material-symbols-outlined">add</span>新增項目</button>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
+                  <tbody>
+                    <tr><td>PAT-001</td><td>定義主題</td><td>研發主管</td><td>D+1</td><td><span class="badge green">已完成</span></td></tr>
+                    <tr><td>PAT-002</td><td>閱讀地景</td><td>智財專員</td><td>D+2</td><td><span class="badge green">已完成</span></td></tr>
+                    <tr><td>PAT-003</td><td>拆解 US 12,184,621</td><td>專利顧問</td><td>D+4</td><td><span class="badge green">已完成</span></td></tr>
+                    <tr><td>PAT-004</td><td>概念版本 C-07 比對</td><td>產品工程師</td><td>D+5</td><td><span class="badge green">已完成</span></td></tr>
+                    <tr><td>PAT-005</td><td>路徑 B CFD 驗證</td><td>熱流工程師</td><td>D+12</td><td><span class="badge amber">處理中</span></td></tr>
+                    <tr><td>PAT-006</td><td>脈衝供液補充檢索</td><td>智財專員</td><td>D+9</td><td><span class="badge red">待確認</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="grid two">
+              <div class="card">
+                <div class="card-head"><div><h2>效益指標</h2><p>導入後六週變化</p></div></div>
+                <div class="card-pad"><div class="chart short" id="benefitChart" role="img" aria-label="期限掌握率趨勢"></div></div>
+              </div>
+              <div class="card card-pad">
+                <h2>前後差異</h2>
+                <div class="scope-list section-gap">
+                  <div class="scope-row"><div class="scope-icon"><span class="material-symbols-outlined">schedule</span></div><div><strong>6 → 1.5 小時</strong><small>案件文件工時</small></div><span class="badge green">-75%</span></div>
+                  <div class="scope-row"><div class="scope-icon"><span class="material-symbols-outlined">event_available</span></div><div><strong>72 → 96%</strong><small>期限掌握率</small></div><span class="badge green">+24pt</span></div>
+                  <div class="scope-row"><div class="scope-icon"><span class="material-symbols-outlined">search</span></div><div><strong>20 → 3 分鐘</strong><small>進度查找時間</small></div><span class="badge green">-85%</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <aside class="grid">
+            <div class="card card-pad">
+              <div class="card-head" style="padding:0 0 14px">
+                <div><h3>審查軌跡</h3><p>所有操作皆保留版本</p></div>
+                <span class="badge green">6/6</span>
+              </div>
+              <div class="timeline section-gap">
+                <div class="timeline-item"><span class="time-dot"></span><strong>顧問完成條件式核准</strong><p>08/29 14:20 · 林顧問<br>要求補充脈衝供液先前技術。</p></div>
+                <div class="timeline-item"><span class="time-dot" style="background:#1e40af"></span><strong>研發選定路徑 B</strong><p>08/29 11:05 · 王經理<br>效能保留 94%，優先進行 CFD。</p></div>
+                <div class="timeline-item"><span class="time-dot" style="background:#1e40af"></span><strong>完成概念風險比對</strong><p>08/28 16:40 · 陳工程師<br>上傳 CAD C-07 與模擬報告 R3。</p></div>
+                <div class="timeline-item"><span class="time-dot" style="background:#1e40af"></span><strong>鎖定代表專利</strong><p>08/27 10:15 · 李專員<br>選定 4 件高關聯專利拆解。</p></div>
+              </div>
+            </div>
+
+            <div class="card card-pad">
+              <h3>決策規則與證據</h3>
+              <div class="rule-list section-gap">
+                <div class="rule"><strong>RULE-01 · 定義主題</strong><p>由研發主管界定目標技術、產品範圍與分析期間。</p><span class="tag">分析專利件數 1,284</span></div>
+                <div class="rule"><strong>RULE-02 · 閱讀地景</strong><p>由智財專員辨識主要申請人、技術聚落與布局趨勢。</p><span class="tag">高密度技術群 8</span></div>
+                <div class="rule"><strong>RULE-03 · 拆解權利項</strong><p>由專利顧問整理關鍵專利的必要元件與限制關係。</p><span class="tag">高關聯權利項 23</span></div>
+              </div>
+            </div>
+
+            <div class="alert"><span class="material-symbols-outlined">gavel</span><span>本畫面為前期研發決策支援，不取代特定司法管轄區的正式法律意見。</span></div>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const viewTitles = [
+        "定義技術主題",
+        "閱讀競爭地景",
+        "拆解關鍵權利項",
+        "比對目前設計概念",
+        "探索可行替代路徑",
+        "審查決策與紀錄"
+      ];
+
+      const chartInstances = {};
+      let activeView = -1;
+
+      function cssColor(variableName) {
+        return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+      }
+
+      function baseTextStyle() {
+        return {
+          fontFamily: 'Inter, "Noto Sans TC", sans-serif',
+          color: cssColor("--body")
+        };
+      }
+
+      function initLandscape() {
+        const chartElement = document.getElementById("landscapeChart");
+        if (!chartElement || chartElement.clientWidth === 0 || chartInstances.landscape) return;
+        const chart = echarts.init(chartElement);
+        chartInstances.landscape = chart;
+        const groups = [
+          { label: "微通道幾何", color: "#1e40af", values: [[24,72,64,"漸縮微流道"],[36,64,48,"針肋通道"],[18,58,36,"矩形流道"],[43,76,30,"多層流道"]] },
+          { label: "歧管均流", color: "#4f76e8", values: [[62,69,58,"分層歧管"],[73,58,44,"壓力平衡腔"],[57,49,34,"限制孔均流"]] },
+          { label: "快接密封", color: "#16a07a", values: [[78,29,50,"無滴漏快接"],[64,22,35,"雙閥密封"],[88,41,29,"盲插接頭"]] },
+          { label: "冷板製程", color: "#d08a25", values: [[28,28,43,"真空釬焊"],[40,18,31,"增材製造"],[17,38,27,"擴散接合"]] },
+          { label: "感測控制", color: "#b54b5a", values: [[50,38,32,"流量回授"],[72,78,27,"洩漏偵測"]] }
+        ];
+        chart.setOption({
+          textStyle: baseTextStyle(),
+          tooltip: {
+            trigger: "item",
+            formatter: params => `${params.data[3]}<br>技術密度：${params.data[2]} 件`
+          },
+          grid: { left: 42, right: 28, top: 35, bottom: 42 },
+          xAxis: {
+            min: 0, max: 100, name: "結構整合度 →",
+            nameLocation: "middle", nameGap: 28,
+            axisLabel: { show: false }, axisTick: { show: false },
+            axisLine: { lineStyle: { color: "#bcc7da" } },
+            splitLine: { lineStyle: { color: "#edf0f5" } }
+          },
+          yAxis: {
+            min: 0, max: 100, name: "流體控制複雜度 →",
+            nameLocation: "middle", nameGap: 30,
+            axisLabel: { show: false }, axisTick: { show: false },
+            axisLine: { lineStyle: { color: "#bcc7da" } },
+            splitLine: { lineStyle: { color: "#edf0f5" } }
+          },
+          series: groups.map(group => ({
+            name: group.label,
+            type: "scatter",
+            data: group.values,
+            symbolSize: item => Math.max(22, item[2] * .85),
+            itemStyle: {
+              color: group.color,
+              opacity: .82,
+              borderColor: "#fff",
+              borderWidth: 2,
+              shadowBlur: 10,
+              shadowColor: "rgba(30,64,175,.15)"
+            },
+            label: {
+              show: true,
+              formatter: params => params.data[3],
+              color: "#fff",
+              fontSize: 10,
+              fontWeight: 700
+            },
+            emphasis: { scale: 1.12 }
+          }))
+        });
+      }
+
+      function initTrend() {
+        const chartElement = document.getElementById("trendChart");
+        if (!chartElement || chartElement.clientWidth === 0 || chartInstances.trend) return;
+        const chart = echarts.init(chartElement);
+        chartInstances.trend = chart;
+        chart.setOption({
+          textStyle: baseTextStyle(),
+          tooltip: { trigger: "axis" },
+          grid: { left: 42, right: 18, top: 24, bottom: 30 },
+          xAxis: {
+            type: "category",
+            data: ["2018","2019","2020","2021","2022","2023","2024","2025","2026"],
+            axisTick: { show: false },
+            axisLine: { lineStyle: { color: "#dfe5ef" } },
+            axisLabel: { color: "#6b768a", fontSize: 10 }
+          },
+          yAxis: {
+            type: "value",
+            axisLabel: { color: "#6b768a", fontSize: 10 },
+            splitLine: { lineStyle: { color: "#edf0f5" } }
+          },
+          series: [{
+            type: "line",
+            smooth: true,
+            data: [58,71,83,104,128,151,183,226,268],
+            symbolSize: 7,
+            lineStyle: { width: 3, color: "#1e40af" },
+            itemStyle: { color: "#1e40af" },
+            areaStyle: {
+              color: {
+                type: "linear", x: 0, y: 0, x2: 0, y2: 1,
+                colorStops: [{ offset: 0, color: "rgba(30,64,175,.28)" }, { offset: 1, color: "rgba(30,64,175,.02)" }]
+              }
+            }
+          }]
+        });
+      }
+
+      function initRisk() {
+        const chartElement = document.getElementById("riskChart");
+        if (!chartElement || chartElement.clientWidth === 0 || chartInstances.risk) return;
+        const chart = echarts.init(chartElement);
+        chartInstances.risk = chart;
+        chart.setOption({
+          textStyle: baseTextStyle(),
+          tooltip: {},
+          radar: {
+            radius: "67%",
+            splitNumber: 4,
+            indicator: [
+              { name: "元件", max: 100 },
+              { name: "幾何", max: 100 },
+              { name: "連接關係", max: 100 },
+              { name: "功能結果", max: 100 },
+              { name: "證據完整", max: 100 }
+            ],
+            axisName: { color: "#59657a", fontSize: 11 },
+            splitArea: { areaStyle: { color: ["#fbfcfe","#f5f7fb"] } },
+            splitLine: { lineStyle: { color: "#dfe5ef" } },
+            axisLine: { lineStyle: { color: "#d3dbea" } }
+          },
+          series: [{
+            type: "radar",
+            data: [{ value: [96,91,88,62,71], name: "概念 C-07" }],
+            symbol: "circle",
+            symbolSize: 7,
+            lineStyle: { color: "#bd3d4c", width: 3 },
+            itemStyle: { color: "#bd3d4c" },
+            areaStyle: { color: "rgba(189,61,76,.2)" }
+          }]
+        });
+      }
+
+      function initBenefit() {
+        const chartElement = document.getElementById("benefitChart");
+        if (!chartElement || chartElement.clientWidth === 0 || chartInstances.benefit) return;
+        const chart = echarts.init(chartElement);
+        chartInstances.benefit = chart;
+        chart.setOption({
+          textStyle: baseTextStyle(),
+          tooltip: { trigger: "axis", valueFormatter: value => `${value}%` },
+          grid: { left: 38, right: 15, top: 25, bottom: 28 },
+          xAxis: {
+            type: "category",
+            data: ["W1","W2","W3","W4","W5","W6"],
+            boundaryGap: false,
+            axisTick: { show: false },
+            axisLine: { lineStyle: { color: "#dfe5ef" } },
+            axisLabel: { color: "#6b768a", fontSize: 10 }
+          },
+          yAxis: {
+            type: "value", min: 68, max: 100,
+            axisLabel: { formatter: "{value}%", color: "#6b768a", fontSize: 10 },
+            splitLine: { lineStyle: { color: "#edf0f5" } }
+          },
+          series: [{
+            name: "期限掌握率",
+            type: "line",
+            smooth: true,
+            data: [72,76.8,81.6,86.4,91.2,96],
+            symbolSize: 7,
+            lineStyle: { color: "#16835f", width: 3 },
+            itemStyle: { color: "#16835f" },
+            areaStyle: { color: "rgba(22,131,95,.13)" },
+            markLine: {
+              symbol: "none",
+              label: { formatter: "目標 98.9%", color: "#6b768a", fontSize: 9 },
+              lineStyle: { color: "#b46d0b", type: "dashed" },
+              data: [{ yAxis: 98.9 }]
+            }
+          }]
+        });
+      }
+
+      function initializeChartsFor(viewIndex) {
+        if (typeof echarts === "undefined") return;
+        requestAnimationFrame(() => {
+          if (viewIndex === 1) {
+            initLandscape();
+            initTrend();
+          }
+          if (viewIndex === 3) initRisk();
+          if (viewIndex === 5) initBenefit();
+        });
+      }
+
+      function show(viewIndex, updateHash = false) {
+        const safeIndex = Math.max(0, Math.min(5, Number(viewIndex) || 0));
+        document.querySelectorAll("[data-view]").forEach((viewElement, index) => {
+          viewElement.classList.toggle("active", index === safeIndex);
+          viewElement.setAttribute("aria-hidden", index === safeIndex ? "false" : "true");
+        });
+        document.querySelectorAll("[data-i]").forEach(buttonElement => {
+          const selected = Number(buttonElement.dataset.i) === safeIndex;
+          buttonElement.classList.toggle("active", selected);
+          buttonElement.setAttribute("aria-current", selected ? "step" : "false");
+        });
+        document.getElementById("crumbTitle").textContent = viewTitles[safeIndex];
+        activeView = safeIndex;
+        initializeChartsFor(safeIndex);
+        if (updateHash && window.location.hash !== `#go=${safeIndex}`) {
+          window.location.hash = `go=${safeIndex}`;
+        }
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      function indexFromHash() {
+        const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+        return match ? Math.max(0, Math.min(5, Number(match[1]))) : 0;
+      }
+
+      document.querySelectorAll("[data-i]").forEach(buttonElement => {
+        buttonElement.addEventListener("click", () => show(Number(buttonElement.dataset.i), true));
+      });
+
+      document.querySelectorAll("[data-next]").forEach(buttonElement => {
+        buttonElement.addEventListener("click", () => show(Number(buttonElement.dataset.next), true));
+      });
+
+      document.querySelectorAll(".concept").forEach(buttonElement => {
+        buttonElement.addEventListener("click", () => buttonElement.classList.toggle("selected"));
+      });
+
+      document.querySelectorAll(".patent-item").forEach(buttonElement => {
+        buttonElement.addEventListener("click", () => {
+          document.querySelectorAll(".patent-item").forEach(itemElement => itemElement.classList.remove("active"));
+          buttonElement.classList.add("active");
+        });
+      });
+
+      window.addEventListener("hashchange", () => show(indexFromHash()));
+      window.addEventListener("resize", () => {
+        Object.values(chartInstances).forEach(chart => chart.resize());
+      });
+
+      show(indexFromHash());
+    })();
+  </script>
+</body>
+</html>
