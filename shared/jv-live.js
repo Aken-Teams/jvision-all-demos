@@ -49,7 +49,7 @@
     if (def.selector) {
       var hit = null;
       try { hit = document.querySelector(def.selector); } catch (e) { /* 選擇器可能不合法 */ }
-      if (hit && hit.tagName === "TABLE" && !hit.dataset.jvBound) return hit;
+      if (hit && hit.tagName === "TABLE" && !hit.dataset.jvBound) return { table: hit, offset: 0 };
     }
     var want = def.columns.map(function (c) { return c.label; });
     var tables = document.querySelectorAll("table");
@@ -59,18 +59,25 @@
       if (ths.length < want.length) continue;
       var got = [];
       for (var j = 0; j < ths.length; j++) got.push((ths[j].textContent || "").replace(/\s+/g, " ").trim());
-      /* 前 N 個表頭對得起來就算同一張。用「開頭吻合」而不是完全相同，
-         因為 runtime 自己會在表尾補一欄操作鈕。 */
-      var same = true;
-      for (var k = 0; k < want.length; k++) if (got[k] !== want[k]) { same = false; break; }
-      if (same) return tables[i];
+      /* 要的那串表頭只要在實際表頭裡「連續出現」就算同一張，不必從第一格開始。
+         實測有 demo 在最前面多一個空的 <th>（checkbox 或圖示欄），
+         從第 0 格比會整串錯位而認不出來——那張表其實就是我們要的。
+         尾端也常多欄（我們自己補的操作欄），所以只比對要的長度。 */
+      for (var off = 0; off + want.length <= got.length; off++) {
+        var same = true;
+        for (var k = 0; k < want.length; k++) if (got[off + k] !== want[k]) { same = false; break; }
+        /* 位移要一起帶回去。前面那幾個空欄在畫資料列時必須補上等量的空格子，
+           否則整排會左移一格，每個值都填到隔壁欄——比接不上還糟。 */
+        if (same) return { table: tables[i], offset: off, headCount: got.length };
+      }
     }
     return null;
   }
 
   function bindTable(def) {
-    var table = findTable(def);
-    if (!table) return false;
+    var found = findTable(def);
+    if (!found) return false;
+    var table = found.table;
     if (table.dataset.jvBound) return true;
     table.dataset.jvBound = "1";
 
@@ -78,7 +85,8 @@
     var toolbar = buildToolbar(def, table);
     table.parentNode.insertBefore(toolbar, table);
 
-    var ctx = { def: def, table: table, tbody: tbody, q: "", rows: [] };
+    var ctx = { def: def, table: table, tbody: tbody, q: "", rows: [],
+      offset: found.offset || 0, headCount: found.headCount || (def.columns.length + 1) };
     state.bound.push(ctx);
     reload(ctx);
     /* 這張表的退路面板可以收了——真正的畫面出現之後，多一塊重複的面板只會讓人困惑。 */
@@ -114,9 +122,14 @@
       render(ctx, d.total);
     }).catch(function () {
       ctx.tbody.innerHTML = "";
-      ctx.tbody.appendChild(el("tr", {}, [el("td", { colspan: String(ctx.def.columns.length + 1),
+      ctx.tbody.appendChild(el("tr", {}, [el("td", { colspan: String(fullSpan(ctx)),
         style: "padding:18px;text-align:center;color:var(--muted,#64748b)", text: "資料載入失敗，請重新整理" })]));
     });
+  }
+
+  /* 空狀態那一列要跨滿整張表，包含前面的空欄與尾端的操作欄。 */
+  function fullSpan(ctx) {
+    return (ctx.offset || 0) + ctx.def.columns.length + 1;
   }
 
   function render(ctx, total) {
@@ -130,7 +143,7 @@
 
     ctx.tbody.innerHTML = "";
     if (!ctx.rows.length) {
-      ctx.tbody.appendChild(el("tr", {}, [el("td", { colspan: String(cols.length + 1),
+      ctx.tbody.appendChild(el("tr", {}, [el("td", { colspan: String(fullSpan(ctx)),
         style: "padding:24px;text-align:center;color:var(--muted,#64748b)",
         text: ctx.q ? "找不到符合的資料" : "還沒有資料，按上面的「＋ 新增」開始" })]));
       return;
@@ -138,6 +151,7 @@
 
     ctx.rows.forEach(function (row) {
       var tr = el("tr", {});
+      for (var o = 0; o < (ctx.offset || 0); o++) tr.appendChild(el("td", { text: "" }));
       cols.forEach(function (c) { tr.appendChild(el("td", { text: row[c.key] == null ? "" : String(row[c.key]) })); });
 
       var edit = el("button", { type: "button", title: "編輯", text: "✎",
@@ -154,7 +168,7 @@
     });
 
     if (typeof total === "number" && total > ctx.rows.length) {
-      ctx.tbody.appendChild(el("tr", {}, [el("td", { colspan: String(cols.length + 1),
+      ctx.tbody.appendChild(el("tr", {}, [el("td", { colspan: String(fullSpan(ctx)),
         style: "padding:10px;text-align:center;color:var(--muted,#64748b);font-size:12px",
         text: "共 " + total + " 筆，目前顯示前 " + ctx.rows.length + " 筆" })]));
     }
