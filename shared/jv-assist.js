@@ -49,7 +49,13 @@
       "#jvAsstWrap .note{font-size:.74rem;line-height:1.5;margin-top:.6rem;padding:.5rem .6rem;border-radius:.5rem}" +
       "#jvAsstWrap .ok{background:#ecfdf5;color:#15803d}" +
       "#jvAsstWrap .err{background:#fef2f2;color:#b91c1c}" +
-      "#jvAsstWrap .muted{font-size:.76rem;color:#64748b;line-height:1.55}";
+      "#jvAsstWrap .muted{font-size:.76rem;color:#64748b;line-height:1.55}" +
+      "#jvAsstWrap .drop{margin-top:.35rem;border:1.5px dashed #cbd5e1;border-radius:.6rem;padding:.7rem;text-align:center;cursor:pointer;background:#f8fafc}" +
+      "#jvAsstWrap .drop:hover,#jvAsstWrap .drop.on{border-color:#1e40af;background:#eff6ff}" +
+      "#jvAsstWrap .drop span{font-size:.75rem;color:#64748b;font-weight:600}" +
+      "#jvAsstWrap .shot{position:relative;margin-top:.5rem}" +
+      "#jvAsstWrap .shot img{width:100%;border:1px solid #e2e8f0;border-radius:.5rem;display:block}" +
+      "#jvAsstWrap .shot button{position:absolute;top:.3rem;right:.3rem;width:22px;height:22px;border:0;border-radius:9999px;background:rgba(15,23,42,.75);color:#fff;cursor:pointer;font-size:14px;line-height:1;padding:0}";
     document.head.appendChild(st);
   }
 
@@ -220,24 +226,98 @@
     });
   }
 
+  /* 截圖縮到最寬 1400px 再送。原圖動輒好幾 MB，而我們要的是「指出位置」，
+     那個解析度綽綽有餘；不縮的話手機端上傳會等很久，也更容易撞上大小上限。
+     一律轉成 JPEG：貼上的螢幕截圖多半是 PNG，同樣畫質下 JPEG 小一個量級。 */
+  function shrink(blob, done) {
+    var url = URL.createObjectURL(blob);
+    var img = new Image();
+    img.onload = function () {
+      var w = img.width, h = img.height, max = 1400;
+      if (w > max) { h = Math.round(h * max / w); w = max; }
+      var cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      cv.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      try { done(cv.toDataURL("image/jpeg", 0.82)); } catch (e) { done(null); }
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); done(null); };
+    img.src = url;
+  }
+
   function ask() {
     var b = body(); if (!b) return;
+    var shotData = null;
     b.innerHTML = "";
     backBtn(b);
     b.insertAdjacentHTML("beforeend",
       '<p class="muted">流程要多一關、畫面要換位置、要多一個報表——寫得越具體，做出來越接近你要的。</p>' +
       '<label>你想改成什麼樣子</label><textarea id="jvqT" maxlength="2000" placeholder="例如：出貨前要多一關主管簽核，沒簽核不能出貨。"></textarea>' +
+      '<label>截圖（可省略）</label>' +
+      '<div class="drop" id="jvqDrop"><span>按 Ctrl+V 貼上截圖，或點這裡選檔案</span></div>' +
+      '<input type="file" id="jvqFile" accept="image/*" hidden />' +
+      '<div id="jvqShot"></div>' +
       '<button class="go" type="button">送出</button><div id="jvqMsg"></div>');
+
+    var drop = b.querySelector("#jvqDrop"), file = b.querySelector("#jvqFile");
+    var shotBox = b.querySelector("#jvqShot"), msg = b.querySelector("#jvqMsg");
+
+    function setShot(dataUrl) {
+      shotData = dataUrl;
+      if (!dataUrl) { shotBox.innerHTML = ""; drop.hidden = false; return; }
+      drop.hidden = true;
+      shotBox.innerHTML = '<div class="shot"><img alt="截圖預覽" src="' + dataUrl + '" />' +
+        '<button type="button" title="移除截圖" aria-label="移除截圖">×</button></div>';
+      shotBox.querySelector("button").addEventListener("click", function () { setShot(null); });
+    }
+
+    function take(blob) {
+      if (!blob || !/^image\//.test(blob.type)) return;
+      shrink(blob, function (d) {
+        if (d) setShot(d);
+        else msg.innerHTML = '<div class="note err">這張圖讀不進來，換一張試試</div>';
+      });
+    }
+
+    drop.addEventListener("click", function () { file.click(); });
+    file.addEventListener("change", function () { if (file.files[0]) take(file.files[0]); });
+
+    /* 貼上要能在整個面板任何地方生效——使用者剛截完圖，游標多半還不在輸入框裡。
+       只掛在 textarea 上，最常見的那個動作就會沒有反應。 */
+    var wrap = document.getElementById("jvAsstWrap");
+    wrap.addEventListener("paste", function (e) {
+      var items = (e.clipboardData && e.clipboardData.items) || [];
+      for (var i = 0; i < items.length; i += 1) {
+        if (items[i].type && items[i].type.indexOf("image/") === 0) {
+          e.preventDefault();
+          take(items[i].getAsFile());
+          return;
+        }
+      }
+    });
+    ["dragover", "dragleave", "drop"].forEach(function (ev) {
+      drop.addEventListener(ev, function (e) {
+        e.preventDefault();
+        drop.classList.toggle("on", ev === "dragover");
+        if (ev === "drop" && e.dataTransfer && e.dataTransfer.files[0]) take(e.dataTransfer.files[0]);
+      });
+    });
+
     b.querySelector(".go").addEventListener("click", function () {
-      var msg = b.querySelector("#jvqMsg"), text = b.querySelector("#jvqT").value.trim();
+      var text = b.querySelector("#jvqT").value.trim();
       if (!text) { msg.innerHTML = '<div class="note err">請先寫下你想改的地方</div>'; return; }
+      msg.innerHTML = '<div class="note muted">送出中…</div>';
       fetch("./_jv/request", { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text: text }) })
+        body: JSON.stringify({ text: text, shot: shotData,
+          /* 順手把他現在停在哪一頁帶上去。同一句「這裡要改」在不同畫面
+             意思完全不同，而使用者不會想到要交代這件事。 */
+          screen: (document.title || "") + " ｜ " + (location.hash || "") }) })
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
         .then(function (x) {
           if (!x.ok) { msg.innerHTML = '<div class="note err">' + esc(x.d.error || "送不出去") + "</div>"; return; }
-          msg.innerHTML = '<div class="note ok">已收到，會有人跟你聯絡。</div>';
+          msg.innerHTML = '<div class="note ok">已收到' + (x.d.shot ? "（含截圖）" : "") + "，會有人跟你聯絡。</div>";
           b.querySelector("#jvqT").value = "";
+          setShot(null);
         })
         .catch(function () { msg.innerHTML = '<div class="note err">連不上伺服器</div>'; });
     });

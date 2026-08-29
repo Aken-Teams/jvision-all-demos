@@ -28,11 +28,28 @@ const json = (res, code, body) => {
   res.end(JSON.stringify(body));
 };
 
-const readBody = (req) => new Promise((resolve) => {
+/* 上限預設 64KB；帶截圖的修改需求要放寬。不做成無上限：這支綁在本機，
+   但本機上的其他程序打得到它，一個沒有上限的 body 就是一個記憶體開關。 */
+const readBody = (req, limit = 65536) => new Promise((resolve) => {
   let raw = "";
-  req.on("data", (c) => { raw += c; if (raw.length > 65536) req.destroy(); });
+  req.on("data", (c) => { raw += c; if (raw.length > limit) req.destroy(); });
   req.on("end", () => { try { resolve(JSON.parse(raw || "{}")); } catch { resolve({}); } });
 });
+
+/* 截圖存檔。只認影像、只認我們自己列出的副檔名——副檔名若由 base64 前綴
+   直接決定，送個 image/svg+xml 進來就成了可執行內容。 */
+const SHOT_EXT = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+function saveShot(dir, dataUrl) {
+  const m = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ""));
+  if (!m) return null;
+  const buf = Buffer.from(m[2], "base64");
+  if (!buf.length || buf.length > 4 * 1024 * 1024) return null;
+  const shots = path.join(dir, "uploads");
+  fs.mkdirSync(shots, { recursive: true });
+  const name = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${SHOT_EXT[m[1]]}`;
+  fs.writeFileSync(path.join(shots, name), buf);
+  return { name, bytes: buf.length };
+}
 
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8", ".json": "application/json; charset=utf-8",
@@ -135,12 +152,17 @@ const server = http.createServer(async (req, res) => {
        那是既有的、會被後台看到的地方；只回一句「我們會處理」而不留下任何
        紀錄的話，客戶說了等於沒說。 */
     if (p === "/_jv/request" && req.method === "POST") {
-      const b = await readBody(req);
+      const b = await readBody(req, 6 * 1024 * 1024); // 截圖前端已縮過，6MB 綽綽有餘
       const text = String(b.text || "").trim().slice(0, 2000);
       if (!text) return json(res, 400, { error: "請先寫下你想改的地方" });
+      /* 截圖存不進去不該讓整張需求單失敗——文字才是主體，圖是佐證。 */
+      let shot = null;
+      if (b.shot) { try { shot = saveShot(inst.dir, b.shot); } catch { shot = null; } }
       await control.recordEvent({ kind: "change.request", customerId: inst.customer_id,
-        instanceId: inst.id, actor, detail: { text, repo: inst.repo_name } });
-      return json(res, 201, { ok: true });
+        instanceId: inst.id, actor,
+        detail: { text, repo: inst.repo_name, screen: String(b.screen || "").slice(0, 120) || null,
+          shot: shot ? shot.name : null } });
+      return json(res, 201, { ok: true, shot: Boolean(shot) });
     }
 
     /* ── 實例的畫面檔 ─────────────────────────────────── */
