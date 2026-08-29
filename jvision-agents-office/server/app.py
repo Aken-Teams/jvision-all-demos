@@ -7,6 +7,7 @@ import asyncio, json
 from aiohttp import web
 import llm, orchestrator, registry, systems
 import wish
+import token_ledger
 
 PORT = 4610
 
@@ -63,6 +64,8 @@ async def handle_system_data(request):
 
 
 async def handle_run(request):
+    # gateway 驗過身分後用標頭帶進來。這裡不自己解 cookie——驗證邏輯只該有一份。
+    token_ledger.set_actor(request.headers.get("x-jv-actor", ""))
     try:
         body = await request.json()
     except Exception:
@@ -113,6 +116,8 @@ async def handle_run(request):
 
 
 async def handle_wish(request):
+    # gateway 驗過身分後用標頭帶進來。這裡不自己解 cookie——驗證邏輯只該有一份。
+    token_ledger.set_actor(request.headers.get("x-jv-actor", ""))
     """許願分析：{need} → gemma4 建議適合的 AI 技術 → 存 MySQL（匿名）。"""
     try:
         body = await request.json()

@@ -57,6 +57,16 @@
     document.head.appendChild(st);
   }
 
+  function fmtNum(n) { return (Number(n) || 0).toLocaleString("en-US"); }
+  /* 位元組給人看。KB/MB 級距的小數點沒有意義，到 GB 才留一位。 */
+  function fmtBytes(n) {
+    n = Number(n) || 0;
+    if (n < 1024) return n + " B";
+    if (n < 1048576) return Math.round(n / 1024) + " KB";
+    if (n < 1073741824) return Math.round(n / 1048576) + " MB";
+    return (n / 1073741824).toFixed(1) + " GB";
+  }
+
   function initial(m) {
     var s = (m.name || m.email || "?").trim();
     return s.charAt(0).toUpperCase();
@@ -140,8 +150,10 @@
       "</div></div>" +
       '<div class="sec"><div class="lbl">我的系統</div><div data-systems><div class="muted">讀取中…</div></div></div>' +
       '<div class="sec"><div class="lbl">我的需求單</div><div data-orders><div class="muted">讀取中…</div></div></div>' +
+      '<div class="sec"><div class="lbl">用量</div><div data-usage><div class="muted">讀取中…</div></div></div>' +
       '<div class="acts">' +
         '<a href="./cart"><span class="material-symbols-outlined ico">shopping_cart</span>挑選中的系統<span style="margin-left:auto" class="num">' + cart + "</span></a>" +
+        '<a href="./account"><span class="material-symbols-outlined ico">settings</span>個人設定</a>' +
         '<a href="./catalog"><span class="material-symbols-outlined ico">apps</span>瀏覽專案目錄</a>' +
         (me.admin ? '<a href="./admin-actions"><span class="material-symbols-outlined ico">lock</span>後臺管理</a>' : "") +
         '<button type="button" data-logout class="danger"><span class="material-symbols-outlined ico" style="color:inherit">logout</span>登出</button>' +
@@ -182,6 +194,23 @@
         if (box) box.innerHTML = '<div class="muted">暫時讀不到</div>';
       });
 
+    fetch("/api/me/usage", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        var box = panel.querySelector("[data-usage]");
+        if (!box || !d) return;
+        var t = d.tokens || {}, sg = d.storage || {};
+        var used = (sg.files || 0) + (sg.db || 0);
+        box.innerHTML =
+          '<div class="row"><span>這個月 token</span><span class="num">' + fmtNum(t.month) + "</span></div>" +
+          '<div class="row"><span>佔用空間</span><span class="num">' + fmtBytes(used) + "</span></div>" +
+          (t.ledger ? '<div class="muted">累計 ' + fmtNum(t.total) + " token・" + fmtNum(t.calls) + " 次分析</div>" : "");
+      })
+      .catch(function () {
+        var box = panel.querySelector("[data-usage]");
+        if (box) box.innerHTML = '<div class="muted">暫時讀不到</div>';
+      });
+
     fetch("/api/orders", { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
@@ -217,12 +246,34 @@
     if (p) { p.remove(); var b = document.getElementById("jvAcctBtn"); if (b) b.setAttribute("aria-expanded", "false"); }
   });
 
-  function start() {
-    fetch("/api/visitor/me", { cache: "no-store" })
+  /* 名字要用使用者自己設的那個，而不是 Google 給的——他特地去改，
+     結果右上角還是舊的，會以為沒存到。profile 拿不到就退回 visitor/me 的名字。 */
+  function load() {
+    return fetch("/api/visitor/me", { cache: "no-store" })
       .then(function (r) { return r.json(); })
-      .then(function (d) { me = d; mount(); })
-      .catch(function () { /* 問不到身分就不顯示這顆 */ });
+      .then(function (d) {
+        me = d;
+        if (!d || !d.signedIn) return;
+        return fetch("/api/me/profile", { cache: "no-store" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (p) { if (p && p.displayName) me.name = p.displayName; })
+          .catch(function () {});
+      });
   }
+
+  function start() {
+    load().then(mount).catch(function () { /* 問不到身分就不顯示這顆 */ });
+  }
+
+  /* 個人設定頁改完名字會叫這支，右上角立刻跟著變。 */
+  window.JVAccount = {
+    refresh: function () {
+      load().then(function () {
+        var box = document.getElementById("jvAcct");
+        if (box) { var p = document.getElementById("jvAcctPanel"); if (p) p.remove(); render(box); }
+      }).catch(function () {});
+    },
+  };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();

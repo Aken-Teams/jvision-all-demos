@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 import asyncio, json, os, shutil, subprocess, tempfile
+import token_ledger
 from typing import Callable, Optional
 
 _NO_WINDOW = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
@@ -131,6 +132,9 @@ async def stream_answer(system_prompt: str, user_message: str,
                     text = str(event.get("result") or "").strip()
                     if text:
                         answer = text
+                    # 用量只有這個事件帶得出來，錯過就沒有第二次機會。
+                    token_ledger.record("llm", event.get("usage") or {},
+                                        event.get("total_cost_usd") or 0, model or "")
             await asyncio.wait_for(proc.wait(), timeout=5)
         finally:
             if proc.returncode is None:

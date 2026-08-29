@@ -89,6 +89,15 @@ const DDL = [
      max_instances INT NOT NULL DEFAULT 10,
      max_rows_per_table INT NOT NULL DEFAULT 100000
    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  /* 個人偏好。跟 customers 分開，是因為一個人可能只是別人公司的成員、
+     從來沒有自己的 customers 列，但他一樣要能改自己的顯示名稱。
+     以信箱為主鍵：登入身分就是信箱，不需要再發一組編號。 */
+  `CREATE TABLE IF NOT EXISTS profiles (
+     email VARCHAR(190) PRIMARY KEY,
+     display_name VARCHAR(60),
+     updated_at DATETIME NOT NULL
+   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 let ready = null;
@@ -128,6 +137,62 @@ export async function ensureCustomer({ email, company }) {
     await cn.execute("INSERT INTO quotas(customer_id) VALUES(?)", [id]);
   });
   return one("SELECT * FROM customers WHERE id = ?", [id]);
+}
+
+/** 這個人自己設定的顯示名稱。沒設過就回 null，由呼叫端退回 Google 給的名字。 */
+export async function getProfile(email) {
+  await ensureSchema();
+  return one("SELECT email, display_name FROM profiles WHERE email = ?", [email]);
+}
+
+/** 空字串代表「清掉，改用 Google 的名字」，跟沒改過是不同的意思。 */
+export async function setProfile(email, { displayName }) {
+  await ensureSchema();
+  const name = displayName == null ? null : String(displayName).trim().slice(0, 60) || null;
+  await q(`INSERT INTO profiles(email, display_name, updated_at) VALUES(?,?,?)
+           ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), updated_at = VALUES(updated_at)`,
+    [email, name, now()]);
+  return getProfile(email);
+}
+
+/** 這個人自己開的公司帳戶。只有 owner 改得動公司名，所以要分辨得出來。 */
+export async function customerOwnedBy(email) {
+  await ensureSchema();
+  return one("SELECT * FROM customers WHERE owner_email = ?", [email]);
+}
+
+export async function renameCustomer(customerId, name) {
+  await ensureSchema();
+  const clean = String(name || "").trim().slice(0, 120);
+  if (!clean) throw Object.assign(new Error("公司名稱不可以空白"), { status: 400 });
+  await q("UPDATE customers SET name = ? WHERE id = ?", [clean, customerId]);
+  return one("SELECT * FROM customers WHERE id = ?", [customerId]);
+}
+
+export async function listMembers(customerId) {
+  await ensureSchema();
+  return q("SELECT email, role, created_at FROM members WHERE customer_id = ? ORDER BY role='owner' DESC, created_at", [customerId]);
+}
+
+/** 加人進使用名單。已經在名單裡就當作成功——重複按不該變成錯誤。 */
+export async function addMember(customerId, email) {
+  await ensureSchema();
+  const clean = String(email || "").trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean) || clean.length > 190) {
+    throw Object.assign(new Error("這不是有效的信箱"), { status: 400 });
+  }
+  await q(`INSERT INTO members(customer_id,email,role,created_at) VALUES(?,?,'member',?)
+           ON DUPLICATE KEY UPDATE email = VALUES(email)`, [customerId, clean, now()]);
+  return listMembers(customerId);
+}
+
+/** 移除。擁有者不能被移除——那會做出一個沒有人進得去的公司帳戶。 */
+export async function removeMember(customerId, email) {
+  await ensureSchema();
+  const row = await one("SELECT role FROM members WHERE customer_id = ? AND email = ?", [customerId, email]);
+  if (row && row.role === "owner") throw Object.assign(new Error("不能移除擁有者"), { status: 400 });
+  await q("DELETE FROM members WHERE customer_id = ? AND email = ?", [customerId, email]);
+  return listMembers(customerId);
 }
 
 export async function createOrder({ customerId, buyerEmail, items, amount = 0, note = null }) {
@@ -241,6 +306,21 @@ export async function listInstancesFor(email) {
      LEFT JOIN members  m ON m.customer_id = i.customer_id AND m.email = ?
      WHERE i.state <> 'archived' AND (c.owner_email = ? OR m.email IS NOT NULL)
      ORDER BY i.created_at DESC LIMIT 50`, [email, email, email]);
+}
+
+/**
+ * 同 listInstancesFor，但多帶算空間要用的 dir 與 db_name。
+ * 這兩個欄位**不可以送到前端**：伺服器路徑與資料庫名稱對使用者沒有用處，
+ * 送出去只是多給人一點可以打的東西。所以另開一支，而不是在原本那支加欄位
+ * ——加了欄位，總有一天會有人把整個物件直接 json 出去。
+ */
+export async function listInstancePathsFor(email) {
+  await ensureSchema();
+  return q(`SELECT i.id, i.dir, i.db_name
+     FROM instances i
+     LEFT JOIN customers c ON c.id = i.customer_id
+     LEFT JOIN members  m ON m.customer_id = i.customer_id AND m.email = ?
+     WHERE i.state <> 'archived' AND (c.owner_email = ? OR m.email IS NOT NULL)`, [email, email]);
 }
 
 export async function destroyInstance(id) {

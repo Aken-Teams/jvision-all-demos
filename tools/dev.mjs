@@ -13,6 +13,8 @@ import * as builds from "./lib/build-records.mjs";
 import * as guard from "./lib/rate-guard.mjs";
 import * as wishes from "./lib/wish-requests.mjs";
 import * as control from "./lib/control-db.mjs";
+import * as meUsage from "./lib/me-usage.mjs";
+import * as mysql from "./lib/mysql.mjs";
 import { spawn as spawnProc } from "node:child_process";
 
 // 對外只開一個 port（PUBLIC_PORT）。靜態站和 Agents 後端都只綁 127.0.0.1，
@@ -311,6 +313,72 @@ function startGateway() {
       catch { return json(res, 200, { systems: [], degraded: true }); }
     }
 
+    /* 用量：token 與空間。兩者來源不同、各自允許失敗——資料庫連不上時
+       token 那半仍然讀得到（它在本機檔案裡），沒理由一起變成錯誤。 */
+    if (p === "/api/me/usage" && req.method === "GET") {
+      const id = visitor.read(req);
+      if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
+      const tokens = meUsage.tokensFor(id.email);
+      let storage = { files: 0, db: 0, systems: 0, partial: true };
+      try {
+        const rows = await control.listInstancePathsFor(id.email);
+        storage = await meUsage.storageFor(rows, mysql.q);
+      } catch { /* 空間算不出來就回 partial，token 照樣給 */ }
+      return json(res, 200, { tokens, storage });
+    }
+
+    /* 個人資料。顯示名稱人人可改；公司名稱只有擁有者改得動，
+       而「是不是擁有者」由資料庫查，不看前端送什麼。 */
+    if (p === "/api/me/profile") {
+      const id = visitor.read(req);
+      if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
+      try {
+        if (req.method === "GET") {
+          const [prof, cust] = await Promise.all([
+            control.getProfile(id.email), control.customerOwnedBy(id.email),
+          ]);
+          return json(res, 200, {
+            email: id.email,
+            googleName: id.name || null,
+            displayName: (prof && prof.display_name) || null,
+            company: cust ? cust.name : null,
+            isOwner: Boolean(cust),
+            admin: Boolean(google.allowed(auth.conf(), id.email)),
+          });
+        }
+        if (req.method === "PATCH") {
+          const body = await readBody(req);
+          if ("displayName" in body) await control.setProfile(id.email, { displayName: body.displayName });
+          if ("company" in body) {
+            const cust = await control.customerOwnedBy(id.email);
+            if (!cust) return json(res, 403, { error: "你還沒有自己的公司帳戶" });
+            await control.renameCustomer(cust.id, body.company);
+          }
+          return json(res, 200, { ok: true });
+        }
+      } catch (error) { return json(res, error.status || 503, { error: error.message || "暫時無法處理" }); }
+    }
+
+    /* 使用名單：客戶自己決定公司裡誰進得去他買的系統。
+       只有擁有者能看與改——成員看得到同事的信箱就是一種外洩。 */
+    if (p === "/api/me/members") {
+      const id = visitor.read(req);
+      if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
+      try {
+        const cust = await control.customerOwnedBy(id.email);
+        if (!cust) return json(res, 403, { error: "你還沒有自己的公司帳戶" });
+        if (req.method === "GET") return json(res, 200, { members: await control.listMembers(cust.id) });
+        if (req.method === "POST") {
+          const body = await readBody(req);
+          return json(res, 200, { members: await control.addMember(cust.id, body.email) });
+        }
+        if (req.method === "DELETE") {
+          const email = new URL(req.url, "http://x").searchParams.get("email") || "";
+          return json(res, 200, { members: await control.removeMember(cust.id, email) });
+        }
+      } catch (error) { return json(res, error.status || 503, { error: error.message || "暫時無法處理" }); }
+    }
+
     if (p === "/api/wish/request" && req.method === "POST") {
       const id = visitor.read(req);
       if (!id) return json(res, 401, { error: "請先選擇身分再送出" });
@@ -540,9 +608,14 @@ function startGateway() {
     }
 
     const port = isBackend(req.method, p) ? BACKEND_PORT : STATIC_PORT;
+    /* 後端要知道這次用量該記在誰頭上。身分由這裡驗過再用標頭帶過去，
+       後端不自己解 cookie——驗證邏輯只該有一份，而且簽章密鑰不必外流到
+       另一個行程。前端送來的同名標頭一律覆蓋掉，不然誰都能冒名。 */
+    const actorId = visitor.read(req);
     const up = http.request(
       { host: "127.0.0.1", port, method: req.method, path: req.url,
-        headers: { ...req.headers, host: `127.0.0.1:${port}` } },
+        headers: { ...req.headers, host: `127.0.0.1:${port}`,
+          "x-jv-actor": (actorId && actorId.email) || "" } },
       (upRes) => {
         const h = { ...upRes.headers };
         // 前面隔著 nginx/openresty + Cloudflare。nginx 預設 proxy_buffering on 會把 SSE
