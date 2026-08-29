@@ -227,7 +227,7 @@
       host.appendChild(card);
       table.dataset.jvBound = "1";
       card.dataset.jvFallbackFor = def.name;
-      var ctx = { def: def, table: table, tbody: table.querySelector("tbody"), q: "", rows: [] };
+      var ctx = { def: def, table: table, tbody: table.querySelector("tbody"), q: "", rows: [], fallback: true };
       state.bound.push(ctx);
       reload(ctx);
     });
@@ -238,25 +238,45 @@
   function start() {
     api("./_jv/schema").then(function (schema) {
       state.schema = schema;
-      var pending = schema.tables.slice();
-      var unbound = pending.filter(function (def) { return !bindTable(def); });
-      if (!unbound.length) return;
+      schema.tables.forEach(function (def) { bindTable(def); });
 
       /* 還綁不到的多半是 JS 渲染的表——原本的 JS 還沒把 <table> 畫出來。
          等它畫完再接手，不需要理解它做了什麼。3 秒後仍然沒有就走退路。 */
-      /* 觀察者**不設終點**。demo 的表通常在對應的畫面被點開時才由 JS 建出來，
-         使用者可能過了十分鐘才切到那一頁；提早放棄的話那張表就永遠接不上。
-         先給退路面板讓人立刻有得用，等真正的表出現再接手並把面板收掉。 */
+      /* 觀察者**不設終點**，而且會自我修復。兩個實測發現的行為：
+         一、demo 的表通常在對應的畫面被點開時才由 JS 建出來，使用者可能過了
+             十分鐘才切過去，提早放棄那張表就永遠接不上；
+         二、有些 demo 切畫面時會重建整塊 DOM，把我們加的退路面板一起清掉
+             （production-scheduler 就是這樣，點過導覽之後面板消失）。
+         所以每次 DOM 有變動都重新確認一次：能接管就接管，接不到而面板也不在了
+         就把面板補回去。節流避免在 demo 大量重繪時空轉。 */
+      var settle;
+      function sweep() {
+        /* 每次都對「全部」的表重新確認，不維護一份會過期的待辦清單。
+           關鍵在 isConnected：綁過不等於還在——demo 重建畫面時會把已經接管的
+           表格連同我們的面板一起丟掉，那時候必須重新接上，否則那張表就永遠
+           消失在使用者眼前。 */
+        state.bound = state.bound.filter(function (c) { return c.table.isConnected; });
+        var cur = {};
+        state.bound.forEach(function (c) { cur[c.def.name] = c; });
+
+        var missing = [];
+        schema.tables.forEach(function (def) {
+          var c = cur[def.name];
+          if (c && !c.fallback) return;      // 已經接管原生畫面，最好的狀態
+          /* 退路面板只是暫代。每次巡檢都再試一次原生——使用者切到那一頁時
+             那張表才會出現，接上之後 bindTable 會順手把面板收掉。 */
+          if (bindTable(def)) return;
+          if (c) return;                     // 原生還沒出現，至少退路還在用
+          if (!document.querySelector('[data-jv-fallback-for="' + def.name + '"]')) missing.push(def);
+        });
+        if (missing.length) fallbackPanel(missing);
+      }
       var obs = new MutationObserver(function () {
-        unbound = unbound.filter(function (def) { return !bindTable(def); });
+        clearTimeout(settle);
+        settle = setTimeout(sweep, 400);
       });
       obs.observe(document.body, { childList: true, subtree: true });
-      setTimeout(function () {
-        var still = unbound.filter(function (def) {
-          return !document.querySelector('[data-jv-fallback-for="' + def.name + '"]');
-        });
-        if (still.length) fallbackPanel(still);
-      }, 2500);
+      setTimeout(sweep, 2500);
     }).catch(function () { /* 拿不到 schema 就什麼都不做，畫面維持原樣 */ });
   }
 

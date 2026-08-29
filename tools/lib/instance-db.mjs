@@ -55,7 +55,16 @@ export async function createFromSchema(dbName, schema, { seed = true } = {}) {
 
   for (const t of schema.tables) {
     const phys = T(dbName, t.name);
-    const defs = t.columns.map((c) => `${col(c.key)} ${SQL_TYPE[c.type] || "TEXT"}`).join(",\n      ");
+    /* 型別推斷是從畫面上的樣本猜的，會猜錯：實測有欄位被判成數字，
+       種子資料卻是「NT$ 1,200」這種帶符號的值，建表後灌資料直接
+       Data truncated 整套開通失敗。所以建表前先驗一次——種子塞不進去的
+       欄位一律退回文字。寧可少一個型別，不可以讓客戶的系統開不起來。 */
+    const numeric = (v) => v == null || v === "" || /^-?\d+(\.\d+)?$/.test(String(v).trim());
+    const defs = t.columns.map((c) => {
+      let sql = SQL_TYPE[c.type];
+      if (sql && (t.seed || []).some((row) => !numeric(row[c.key]))) sql = null;
+      return `${col(c.key)} ${sql || "TEXT"}`;
+    }).join(",\n      ");
     await q(`CREATE TABLE IF NOT EXISTS ${phys} (
       _id BIGINT AUTO_INCREMENT PRIMARY KEY,
       ${defs},
