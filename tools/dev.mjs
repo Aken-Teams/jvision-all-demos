@@ -224,10 +224,9 @@ function startGateway() {
       const company = String(body.company || "").trim().slice(0, 60);
       if (!company) return json(res, 400, { error: "請填公司名稱" });
 
-      const db = control.openControl();
       try {
-        const customer = control.ensureCustomer(db, { email: id.email, company });
-        const order = control.createOrder(db, {
+        const customer = await control.ensureCustomer({ email: id.email, company });
+        const order = await control.createOrder({
           customerId: customer.id,
           buyerEmail: id.email,
           items: items.slice(0, 20).map((x) => ({
@@ -238,20 +237,24 @@ function startGateway() {
           note: [String(body.contact || "").trim().slice(0, 40), String(body.note || "").trim().slice(0, 1000)]
             .filter(Boolean).join(" / ") || null,
         });
-        control.recordEvent(db, { kind: "order.created", customerId: customer.id, actor: id.email,
+        await control.recordEvent({ kind: "order.created", customerId: customer.id, actor: id.email,
           detail: { orderId: order.id, count: items.length } });
         actions.record({ actor: "訪客", action: "送出系統需求單", target: order.id, status: 200,
           visitor: who, who: visitor.labelOf(id), ip, note: `${company}｜${items.length} 套` });
         return json(res, 200, { ok: true, id: order.id });
-      } finally { db.close(); }
+      } catch (error) {
+        /* 資料庫在共用主機上，連不上是會發生的。給明確訊息而不是 500 空白，
+           使用者才知道是暫時性問題、值得再試一次。 */
+        console.error("[orders] 建立失敗：", error.message);
+        return json(res, 503, { error: "資料庫暫時無法連線，請稍後再試" });
+      }
     }
 
     if (p === "/api/orders" && req.method === "GET") {
       const id = visitor.read(req);
       if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
-      const db = control.openControl();
-      try { return json(res, 200, { orders: control.listOrders(db, { buyerEmail: id.email, limit: 50 }) }); }
-      finally { db.close(); }
+      try { return json(res, 200, { orders: await control.listOrders({ buyerEmail: id.email, limit: 50 }) }); }
+      catch { return json(res, 503, { error: "資料庫暫時無法連線" }); }
     }
 
     if (p === "/api/wish/request" && req.method === "POST") {
@@ -380,11 +383,10 @@ function startGateway() {
 
     // ── 許願申請 API（管理端）─────────────────────────────
     if (p === "/api/admin/orders") {
-      const db = control.openControl();
       try {
         const status = new URL(req.url, "http://x").searchParams.get("status") || undefined;
-        return json(res, 200, { orders: control.listOrders(db, { status, limit: 200 }) });
-      } finally { db.close(); }
+        return json(res, 200, { orders: await control.listOrders({ status, limit: 200 }) });
+      } catch { return json(res, 503, { error: "資料庫暫時無法連線" }); }
     }
 
     if (p === "/api/admin/wishes") {
