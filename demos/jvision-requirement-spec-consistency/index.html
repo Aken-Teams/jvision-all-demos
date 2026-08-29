@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>需求與技術規格一致性助手 · collaboration-pm｜Jvision 系統 Demo</title>
+  <link rel="icon" href="../../favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root{
+      --blue:#1e40af;
+      --ink:#152033;
+      --body:#344054;
+      --muted:#667085;
+      --line:#dbe2ec;
+      --bg:#f4f7fb;
+      --green:#15803d;
+      --amber:#b45309;
+      --red:#c2414b;
+      --rail:78px;
+      --white:#fff;
+      --blue-soft:#eef3ff;
+      --shadow:0 12px 30px rgba(22,34,55,.08);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--body);font-family:Inter,"Noto Sans TC",sans-serif}
+    body{overflow-x:hidden}
+    button,input,textarea{font:inherit}
+    button{color:inherit}
+    .material-symbols-outlined{font-size:21px;line-height:1;vertical-align:middle}
+    .app{min-height:100vh;display:grid;grid-template-columns:var(--rail) minmax(0,1fr)}
+    .rail{
+      position:fixed;inset:0 auto 0 0;width:var(--rail);z-index:20;
+      background:#142d79;color:#fff;display:flex;flex-direction:column;align-items:center;
+      border-right:1px solid rgba(255,255,255,.1)
+    }
+    .brand{
+      width:48px;height:48px;margin:18px 0 24px;border-radius:15px;display:grid;place-items:center;
+      background:#fff;color:var(--blue);font-size:17px;font-weight:800;box-shadow:0 8px 22px rgba(0,0,0,.18)
+    }
+    .rail-nav{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
+    .nav-btn{
+      position:relative;width:52px;height:52px;border:0;border-radius:14px;background:transparent;color:#cbd7ff;
+      cursor:pointer;display:grid;place-items:center;transition:.2s
+    }
+    .nav-btn:hover,.nav-btn:focus-visible{background:rgba(255,255,255,.12);color:#fff;outline:3px solid rgba(255,255,255,.3);outline-offset:1px}
+    .nav-btn.active{background:#fff;color:var(--blue);box-shadow:0 7px 18px rgba(0,0,0,.18)}
+    .nav-btn::after{
+      content:attr(aria-label);position:absolute;left:62px;white-space:nowrap;background:#152033;color:#fff;
+      border-radius:8px;padding:7px 10px;font-size:12px;opacity:0;pointer-events:none;transform:translateX(-4px);transition:.18s
+    }
+    .nav-btn:hover::after,.nav-btn:focus-visible::after{opacity:1;transform:none}
+    .rail-foot{margin-top:auto;margin-bottom:18px;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#dbe6ff;color:#17367f;font-weight:800}
+    .shell{grid-column:2;min-width:0;padding:24px 28px 40px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}
+    .title-wrap{min-width:0}
+    .eyebrow{margin:0 0 5px;color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+    h1{font-size:24px;line-height:1.25;margin:0;color:var(--ink)}
+    .top-actions{display:flex;align-items:center;gap:10px}
+    .sync{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;white-space:nowrap}
+    .sync::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px #dcfce7}
+    .icon-btn,.btn{
+      border:1px solid var(--line);background:#fff;border-radius:10px;min-height:42px;cursor:pointer;
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 14px;font-weight:700
+    }
+    .icon-btn{width:42px;padding:0}
+    .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+    .btn:hover,.icon-btn:hover{box-shadow:0 5px 15px rgba(30,64,175,.12);transform:translateY(-1px)}
+    .btn:focus-visible,.icon-btn:focus-visible,.tab:focus-visible,.selectable:focus-visible{outline:3px solid #93b4ff;outline-offset:2px}
+    .screen{display:none;animation:fade .28s ease}
+    .screen.active{display:block}
+    @keyframes fade{from{opacity:.2;transform:translateY(5px)}to{opacity:1;transform:none}}
+    .screen-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:18px}
+    .screen-head h2{margin:0;color:var(--ink);font-size:21px}
+    .screen-head p{margin:6px 0 0;color:var(--muted);font-size:13px}
+    .badge,.chip{
+      display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 9px;
+      font-size:11px;font-weight:700;background:var(--blue-soft);color:var(--blue);white-space:nowrap
+    }
+    .chip.green{background:#e9f8ee;color:var(--green)}
+    .chip.amber{background:#fff4de;color:var(--amber)}
+    .chip.red{background:#fff0f1;color:var(--red)}
+    .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 5px 16px rgba(25,42,70,.04)}
+    .muted{color:var(--muted)}
+    .small{font-size:12px}
+    .grid-2{display:grid;grid-template-columns:1.45fr .8fr;gap:18px}
+    .grid-even{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+    .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+    .section-label{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+    .metric{padding:16px}
+    .metric strong{display:block;margin-top:7px;color:var(--ink);font-size:25px}
+    .metric small{color:var(--muted)}
+    .delta{font-size:11px;font-weight:700;color:var(--green)}
+    .progress{height:7px;border-radius:99px;background:#edf1f6;overflow:hidden}
+    .progress span{display:block;height:100%;border-radius:inherit;background:var(--blue)}
+    .empty-icon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--blue-soft);color:var(--blue)}
+
+    /* v0 intake */
+    .intake-toolbar{padding:14px;display:flex;align-items:center;gap:10px;margin-bottom:14px}
+    .search{position:relative;flex:1}
+    .search span{position:absolute;left:12px;top:11px;color:var(--muted)}
+    .search input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 12px 0 40px;color:var(--ink)}
+    .filter{height:42px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 12px;color:var(--body)}
+    .intake-layout{display:grid;grid-template-columns:minmax(0,1.55fr) 330px;gap:18px}
+    .table-card{overflow:hidden}
+    .table-wrap{overflow:auto}
+    table{width:100%;border-collapse:collapse;min-width:720px}
+    th{text-align:left;background:#f8fafc;color:var(--muted);font-size:11px;padding:12px 14px;border-bottom:1px solid var(--line)}
+    td{padding:13px 14px;border-bottom:1px solid #edf1f5;font-size:13px}
+    tr:last-child td{border-bottom:0}
+    tbody tr:hover{background:#f8faff}
+    .req-id{font-weight:800;color:var(--blue)}
+    .priority{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:6px;background:var(--amber)}
+    .priority.high{background:var(--red)}
+    .source-stack{padding:18px}
+    .source-row{display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center;padding:13px 0;border-bottom:1px solid #edf1f5}
+    .source-row:last-child{border:0}
+    .source-row strong{display:block;color:var(--ink);font-size:13px}
+    .coverage-box{margin-top:16px;padding:17px;background:#eef3ff;border:1px solid #cedbff;border-radius:14px}
+    .coverage-box b{font-size:26px;color:var(--blue)}
+
+    /* v1 structured editor */
+    .editor-layout{display:grid;grid-template-columns:250px minmax(0,1fr) 290px;gap:16px;align-items:start}
+    .story-list{padding:12px}
+    .story-item{border:1px solid transparent;border-radius:12px;padding:12px;cursor:pointer;margin-bottom:7px}
+    .story-item.active{border-color:#b8c9ff;background:var(--blue-soft)}
+    .story-item b{display:block;color:var(--ink);font-size:13px}
+    .story-item small{color:var(--muted)}
+    .editor{padding:20px}
+    .editor-title{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+    .editor-title h3{margin:0;color:var(--ink);font-size:17px}
+    .field{margin-top:16px}
+    .field label{display:block;font-size:12px;font-weight:800;color:var(--body);margin-bottom:7px}
+    .field input,.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--ink);background:#fff}
+    .field textarea{resize:none;min-height:74px;line-height:1.55}
+    .sentence{display:grid;grid-template-columns:74px 1fr;gap:8px;margin:9px 0}
+    .sentence span:first-child{font-size:11px;font-weight:800;color:var(--blue);background:var(--blue-soft);border-radius:8px;padding:8px;text-align:center}
+    .sentence span:last-child{font-size:13px;padding:7px 2px}
+    .criteria{padding:16px}
+    .criterion{display:grid;grid-template-columns:22px 1fr;gap:8px;padding:11px 0;border-bottom:1px solid #edf1f5;font-size:12px}
+    .criterion:last-child{border:0}
+    .check{width:19px;height:19px;border-radius:6px;background:#e8f7ec;color:var(--green);display:grid;place-items:center}
+    .ai-hint{margin-top:14px;padding:13px;border-radius:12px;background:#fff8e8;border:1px solid #f6dca8;font-size:12px;line-height:1.55}
+    .quality-score{text-align:center;padding:18px}
+    .score-ring{width:92px;height:92px;border-radius:50%;margin:12px auto;display:grid;place-items:center;background:conic-gradient(var(--blue) 0 84%,#e8edf4 84%);position:relative}
+    .score-ring::after{content:"";position:absolute;inset:9px;background:#fff;border-radius:50%}
+    .score-ring b{z-index:1;color:var(--ink);font-size:23px}
+
+    /* v2 matrix */
+    .matrix-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
+    .matrix-board{padding:18px;overflow:hidden}
+    .matrix-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+    .legend{display:flex;gap:13px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+    .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px}
+    .matrix-scroll{overflow:auto}
+    .matrix{display:grid;grid-template-columns:190px repeat(5,112px);min-width:750px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+    .matrix > div{min-height:66px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:10px;font-size:12px;display:flex;align-items:center;justify-content:center;text-align:center}
+    .matrix > div:nth-child(6n){border-right:0}
+    .matrix .m-head{background:#f7f9fc;font-weight:800;color:var(--body);min-height:54px}
+    .matrix .m-row{justify-content:flex-start;text-align:left;background:#fbfcfe;color:var(--ink);font-weight:700}
+    .matrix .linked{background:#edf8f0;color:var(--green)}
+    .matrix .partial{background:#fff6e7;color:var(--amber)}
+    .matrix .missing{background:#fff1f2;color:var(--red)}
+    .matrix .none{color:#b7c0cf}
+    .trace-detail{display:grid;grid-template-columns:1fr 42px 1fr;gap:14px;align-items:stretch;margin-top:16px}
+    .trace-node{padding:17px}
+    .trace-node h4{margin:5px 0;color:var(--ink)}
+    .trace-arrow{display:grid;place-items:center;color:var(--blue)}
+    .spec-list{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+
+    /* v3 scan */
+    .scan-banner{padding:18px 20px;margin-bottom:16px;display:flex;align-items:center;gap:16px;background:linear-gradient(110deg,#173786,#254db8);color:#fff;border:0}
+    .scan-pulse{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.13);display:grid;place-items:center;position:relative}
+    .scan-pulse::after{content:"";position:absolute;inset:-5px;border:1px solid rgba(255,255,255,.35);border-radius:50%;animation:pulse 2.2s ease-out infinite}
+    @keyframes pulse{0%{transform:scale(.8);opacity:1}100%{transform:scale(1.3);opacity:0}}
+    .scan-banner h3{margin:0 0 4px;font-size:17px}
+    .scan-banner p{margin:0;color:#dbe5ff;font-size:12px}
+    .scan-score{margin-left:auto;text-align:right}
+    .scan-score b{display:block;font-size:25px}
+    .scan-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:16px}
+    .issue-list{padding:14px}
+    .issue{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:12px;padding:14px;border:1px solid var(--line);border-radius:13px;margin-bottom:10px}
+    .issue:last-child{margin-bottom:0}
+    .issue h4{margin:0 0 5px;color:var(--ink);font-size:13px}
+    .issue p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+    .issue-icon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:#fff0f1;color:var(--red)}
+    .issue-icon.amber{background:#fff5df;color:var(--amber)}
+    .issue-icon.blue{background:var(--blue-soft);color:var(--blue)}
+    .chart-card{padding:17px}
+    .chart{width:100%;height:260px}
+    .finding-box{margin-top:14px;padding:15px}
+    .finding-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #edf1f5;font-size:12px}
+    .finding-row:last-child{border:0}
+
+    /* v4 review */
+    .review-layout{display:grid;grid-template-columns:280px minmax(0,1fr) 300px;gap:16px;align-items:start}
+    .review-queue{padding:13px}
+    .queue-card{padding:12px;border-radius:12px;border:1px solid var(--line);margin-bottom:8px;cursor:pointer}
+    .queue-card.active{background:#fff4e5;border-color:#f4c979}
+    .queue-card b{display:block;color:var(--ink);font-size:12px;margin-bottom:5px}
+    .queue-meta{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+    .evidence-panel{overflow:hidden}
+    .evidence-head{padding:17px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px}
+    .evidence-head h3{margin:0;color:var(--ink);font-size:16px}
+    .compare{display:grid;grid-template-columns:1fr 1fr}
+    .doc{padding:18px;min-height:270px}
+    .doc + .doc{border-left:1px solid var(--line)}
+    .doc h4{margin:0 0 12px;color:var(--ink);font-size:13px}
+    .doc p{font-size:13px;line-height:1.8;margin:0;color:var(--body)}
+    mark{background:#ffe2a7;color:#7c4300;border-radius:4px;padding:1px 3px}
+    .resolution{border-top:1px solid var(--line);padding:17px}
+    .resolution-options{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
+    .selectable{border:1px solid var(--line);background:#fff;border-radius:10px;padding:11px;text-align:left;cursor:pointer;font-size:12px}
+    .selectable.selected{border-color:var(--blue);background:var(--blue-soft);color:var(--blue)}
+    .thread{padding:15px}
+    .comment{display:grid;grid-template-columns:32px 1fr;gap:9px;padding:12px 0;border-bottom:1px solid #edf1f5}
+    .avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:#dce6ff;color:var(--blue);font-size:11px;font-weight:800}
+    .comment b{font-size:12px;color:var(--ink)}
+    .comment p{font-size:11px;line-height:1.55;margin:4px 0;color:var(--body)}
+    .comment time{font-size:10px;color:var(--muted)}
+    .reply{padding-top:12px}
+    .reply textarea{width:100%;height:72px;border:1px solid var(--line);border-radius:10px;padding:10px;resize:none}
+
+    /* v5 baseline */
+    .release-hero{padding:24px;display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;background:linear-gradient(120deg,#fff,#eef3ff)}
+    .release-hero h2{font-size:23px;margin:8px 0;color:var(--ink)}
+    .release-hero p{margin:0;color:var(--muted);font-size:13px}
+    .release-ring{width:124px;height:124px;border-radius:50%;background:conic-gradient(var(--green) 0 92%,#e4eaf1 92%);display:grid;place-items:center;position:relative}
+    .release-ring::after{content:"";position:absolute;inset:11px;border-radius:50%;background:#fff}
+    .release-ring div{z-index:1;text-align:center}
+    .release-ring b{display:block;font-size:28px;color:var(--ink)}
+    .gate-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;margin-top:16px}
+    .gate-card{padding:18px}
+    .gate{display:grid;grid-template-columns:36px 1fr auto;gap:11px;align-items:center;padding:13px 0;border-bottom:1px solid #edf1f5}
+    .gate:last-child{border:0}
+    .gate h4{margin:0;color:var(--ink);font-size:13px}
+    .gate p{margin:4px 0 0;color:var(--muted);font-size:11px}
+    .approval-flow{display:flex;align-items:center;justify-content:space-between;gap:5px;margin:18px 0}
+    .approver{text-align:center;min-width:75px}
+    .approver .avatar{margin:auto;width:42px;height:42px}
+    .approver b{display:block;font-size:11px;margin-top:7px;color:var(--ink)}
+    .approval-line{height:2px;background:#bcd0c2;flex:1;min-width:16px}
+    .decision-box{padding:16px;border-radius:13px;background:#effaf2;border:1px solid #b9dfc3}
+    .decision-box h3{margin:0 0 7px;color:var(--green);font-size:15px}
+    .change-list{margin:12px 0 0;padding:0;list-style:none}
+    .change-list li{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid #edf1f5;font-size:12px}
+    .change-list li:last-child{border:0}
+    .baseline-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+
+    @media(max-width:1100px){
+      .editor-layout,.review-layout{grid-template-columns:220px minmax(0,1fr)}
+      .editor-layout > :last-child,.review-layout > :last-child{grid-column:1/-1}
+      .criteria,.thread{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+      .quality-score,.reply{grid-column:1/-1}
+      .intake-layout{grid-template-columns:minmax(0,1fr) 280px}
+    }
+    @media(max-width:820px){
+      :root{--rail:64px}
+      .shell{padding:18px 16px 32px}
+      .rail{width:64px}
+      .brand{width:42px;height:42px}
+      .nav-btn{width:46px;height:46px}
+      .nav-btn::after{display:none}
+      .grid-4,.grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .grid-2,.intake-layout,.scan-layout,.gate-grid{grid-template-columns:1fr}
+      .editor-layout,.review-layout{grid-template-columns:1fr}
+      .editor-layout > :last-child,.review-layout > :last-child{grid-column:auto}
+      .story-list{display:flex;overflow:auto;gap:8px}
+      .story-item{min-width:175px;margin:0}
+      .review-queue{display:flex;overflow:auto;gap:8px}
+      .queue-card{min-width:210px;margin:0}
+      .criteria,.thread{display:block}
+      .source-stack{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
+      .coverage-box{grid-column:1/-1}
+    }
+    @media(max-width:560px){
+      :root{--rail:0px}
+      .app{display:block;padding-bottom:70px}
+      .rail{inset:auto 0 0 0;width:100%;height:64px;flex-direction:row;border:0;border-top:1px solid rgba(255,255,255,.15);padding:6px 8px}
+      .brand,.rail-foot{display:none}
+      .rail-nav{flex-direction:row;justify-content:space-around;gap:2px}
+      .nav-btn{width:48px;height:48px}
+      .shell{padding:16px 12px 24px}
+      .topbar{align-items:flex-start}
+      h1{font-size:19px}
+      .sync,.top-actions .icon-btn{display:none}
+      .screen-head{align-items:flex-start}
+      .screen-head .btn{padding:0 10px}
+      .grid-4,.grid-3,.grid-even,.matrix-summary{grid-template-columns:1fr}
+      .intake-toolbar{align-items:stretch;flex-wrap:wrap}
+      .search{flex-basis:100%}
+      .filter{flex:1}
+      .source-stack{display:block}
+      .compare{grid-template-columns:1fr}
+      .doc + .doc{border-left:0;border-top:1px solid var(--line)}
+      .resolution-options{grid-template-columns:1fr}
+      .trace-detail{grid-template-columns:1fr}
+      .trace-arrow{transform:rotate(90deg)}
+      .release-hero{grid-template-columns:1fr;text-align:center}
+      .release-ring{margin:auto}
+      .approval-flow{overflow:auto;justify-content:flex-start;padding-bottom:6px}
+      .approval-line{min-width:30px}
+      .baseline-actions{display:grid;grid-template-columns:1fr}
+      .scan-banner{align-items:flex-start;flex-wrap:wrap}
+      .scan-score{margin-left:0;text-align:left}
+      .issue{grid-template-columns:38px minmax(0,1fr)}
+      .issue > .chip{grid-column:2}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="rail" aria-label="流程導覽">
+      <div class="brand" aria-label="JVision">JV</div>
+      <nav class="rail-nav">
+        <button class="nav-btn" data-i="0" aria-label="彙整需求"><span class="material-symbols-outlined">inbox</span></button>
+        <button class="nav-btn" data-i="1" aria-label="拆解條件"><span class="material-symbols-outlined">schema</span></button>
+        <button class="nav-btn" data-i="2" aria-label="連結規格"><span class="material-symbols-outlined">link</span></button>
+        <button class="nav-btn" data-i="3" aria-label="掃描差異"><span class="material-symbols-outlined">rule</span></button>
+        <button class="nav-btn" data-i="4" aria-label="協作澄清"><span class="material-symbols-outlined">forum</span></button>
+        <button class="nav-btn" data-i="5" aria-label="核定基線"><span class="material-symbols-outlined">verified</span></button>
+      </nav>
+      <div class="rail-foot">林</div>
+    </aside>
+
+    <main class="shell">
+      <header class="topbar">
+        <div class="title-wrap">
+          <p class="eyebrow">JVision · SpecGuard</p>
+          <h1>需求與技術規格一致性助手</h1>
+        </div>
+        <div class="top-actions">
+          <span class="sync">資料已同步</span>
+          <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+          <button class="icon-btn" aria-label="說明"><span class="material-symbols-outlined">help</span></button>
+        </div>
+      </header>
+
+      <section class="screen" data-screen="0">
+        <div class="screen-head">
+          <div><h2>需求收納總覽</h2><p>集中各來源需求，確認版本、優先級與責任團隊。</p></div>
+          <button class="btn primary"><span class="material-symbols-outlined">add</span>匯入需求</button>
+        </div>
+        <div class="grid-4" style="margin-bottom:14px">
+          <div class="card metric"><small>本版需求</small><strong>48</strong><span class="delta">+6 本週新增</span></div>
+          <div class="card metric"><small>需求覆蓋率</small><strong>86%</strong><span class="muted small">目標 95%</span></div>
+          <div class="card metric"><small>待確認版本</small><strong>7</strong><span class="chip amber">需處理</span></div>
+          <div class="card metric"><small>來源文件</small><strong>12</strong><span class="muted small">4 個協作空間</span></div>
+        </div>
+        <div class="card intake-toolbar">
+          <div class="search"><span class="material-symbols-outlined">search</span><input aria-label="搜尋需求" value="" placeholder="搜尋編號、項目或負責人"></div>
+          <select class="filter" aria-label="篩選階段"><option>全部階段</option><option>處理中</option><option>待確認</option></select>
+          <select class="filter" aria-label="篩選優先級"><option>全部優先級</option><option>高</option><option>中</option></select>
+        </div>
+        <div class="intake-layout">
+          <div class="card table-card">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th><th>優先級</th></tr></thead>
+                <tbody>
+                  <tr><td class="req-id">REQ-001</td><td>彙整需求</td><td>產品經理</td><td>D+1</td><td><span class="chip green">處理中</span></td><td><span class="priority high"></span>高</td></tr>
+                  <tr><td class="req-id">REQ-002</td><td>拆解條件</td><td>系統分析師</td><td>D+2</td><td><span class="chip amber">待確認</span></td><td><span class="priority high"></span>高</td></tr>
+                  <tr><td class="req-id">REQ-003</td><td>會員權限分級</td><td>陳怡君</td><td>D+3</td><td><span class="chip">已收納</span></td><td><span class="priority"></span>中</td></tr>
+                  <tr><td class="req-id">REQ-004</td><td>訂單取消時限</td><td>張凱文</td><td>D+4</td><td><span class="chip red">版本衝突</span></td><td><span class="priority high"></span>高</td></tr>
+                  <tr><td class="req-id">REQ-005</td><td>稽核紀錄保留</td><td>林雨潔</td><td>D+5</td><td><span class="chip green">已確認</span></td><td><span class="priority"></span>中</td></tr>
+                  <tr><td class="req-id">REQ-006</td><td>通知重送機制</td><td>王柏翔</td><td>D+6</td><td><span class="chip">已收納</span></td><td><span class="priority"></span>中</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <aside class="card source-stack">
+            <span class="section-label">來源健康度</span>
+            <div class="source-row"><span class="empty-icon"><span class="material-symbols-outlined">description</span></span><div><strong>產品需求文件</strong><small>PRD v2.4 · 24 項</small></div><span class="chip green">最新</span></div>
+            <div class="source-row"><span class="empty-icon"><span class="material-symbols-outlined">hub</span></span><div><strong>客戶訪談紀錄</strong><small>8/28 更新 · 11 項</small></div><span class="chip amber">待整理</span></div>
+            <div class="source-row"><span class="empty-icon"><span class="material-symbols-outlined">task_alt</span></span><div><strong>驗收條件清單</strong><small>UAT v1.8 · 13 項</small></div><span class="chip green">最新</span></div>
+            <div class="source-row"><span class="empty-icon"><span class="material-symbols-outlined">mail</span></span><div><strong>變更確認郵件</strong><small>3 封待歸檔</small></div><span class="chip red">落差</span></div>
+            <div class="coverage-box"><span class="small muted">需求來源完整度</span><br><b>91%</b><div class="progress" style="margin-top:10px"><span style="width:91%"></span></div><p class="small">尚缺「退款例外」訪談附件與核准版本。</p></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="1">
+        <div class="screen-head">
+          <div><h2>需求結構化工作台</h2><p>將自然語句拆成角色、情境、限制與可驗證條件。</p></div>
+          <button class="btn primary"><span class="material-symbols-outlined">auto_awesome</span>擷取條件</button>
+        </div>
+        <div class="editor-layout">
+          <aside class="card story-list">
+            <div class="story-item active"><b>REQ-004 訂單取消時限</b><small>完整度 84% · 2 個提示</small></div>
+            <div class="story-item"><b>REQ-003 會員權限分級</b><small>完整度 92% · 已複核</small></div>
+            <div class="story-item"><b>REQ-005 稽核紀錄保留</b><small>完整度 78% · 3 個提示</small></div>
+            <div class="story-item"><b>REQ-006 通知重送機制</b><small>完整度 66% · 待拆解</small></div>
+          </aside>
+          <article class="card editor">
+            <div class="editor-title"><div><span class="section-label">REQ-004</span><h3>訂單取消時限與退款處理</h3></div><span class="chip amber">草稿 v3</span></div>
+            <div class="field"><label>原始需求敘述</label><textarea>一般會員應可在訂單成立後一段時間內取消；若已付款，系統需依付款方式進行退款。</textarea></div>
+            <div class="field">
+              <label>結構化條件</label>
+              <div class="sentence"><span>角色</span><span>已登入且完成付款的一般會員</span></div>
+              <div class="sentence"><span>觸發情境</span><span>訂單成立後，尚未進入倉儲揀貨狀態</span></div>
+              <div class="sentence"><span>系統行為</span><span>允許取消並依原付款方式建立退款申請</span></div>
+              <div class="sentence"><span>時間限制</span><span>訂單成立後 30 分鐘內</span></div>
+              <div class="sentence"><span>例外條件</span><span>預購品及數位商品不適用此取消規則</span></div>
+            </div>
+            <div class="field"><label>需求目標</label><input value="降低客服人工取消作業，同時避免已出貨訂單誤退"></div>
+            <div class="field"><label>關聯術語</label><div class="spec-list"><span class="chip">訂單成立</span><span class="chip">揀貨中</span><span class="chip">原路退款</span><span class="chip">取消窗口</span></div></div>
+          </article>
+          <aside>
+            <div class="card criteria">
+              <span class="section-label">驗收條件</span>
+              <div class="criterion"><span class="check">✓</span><span>Given 訂單建立未滿 30 分鐘，When 會員取消，Then 建立取消紀錄。</span></div>
+              <div class="criterion"><span class="check">✓</span><span>信用卡付款須回傳退款申請編號與預估入帳日。</span></div>
+              <div class="criterion"><span class="check">✓</span><span>已進入揀貨中的訂單不可由會員端取消。</span></div>
+              <div class="criterion"><span class="check">✓</span><span>所有判斷結果寫入不可竄改的稽核紀錄。</span></div>
+            </div>
+            <div class="card quality-score" style="margin-top:14px">
+              <span class="section-label">可測試性評分</span>
+              <div class="score-ring"><b>84</b></div>
+              <span class="chip amber">尚有 2 個模糊詞</span>
+              <div class="ai-hint"><b>澄清建議</b><br>「一段時間」已推定為 30 分鐘，請產品經理確認。另需定義第三方支付退款失敗的補償流程。</div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="2">
+        <div class="screen-head">
+          <div><h2>規格追溯矩陣</h2><p>檢視需求與系統、介面、資料及驗收規格的雙向連結。</p></div>
+          <button class="btn primary"><span class="material-symbols-outlined">add_link</span>建立連結</button>
+        </div>
+        <div class="matrix-summary">
+          <div class="card metric"><small>已完整連結</small><strong>41 / 48</strong><div class="progress"><span style="width:85%"></span></div></div>
+          <div class="card metric"><small>部分覆蓋</small><strong>5</strong><span class="chip amber">需補規格</span></div>
+          <div class="card metric"><small>未覆蓋</small><strong>2</strong><span class="chip red">阻擋基線</span></div>
+        </div>
+        <div class="card matrix-board">
+          <div class="matrix-tools">
+            <div><span class="section-label">Sprint 24 · Core Commerce</span></div>
+            <div class="legend"><span><i style="background:#dff3e4"></i>完整</span><span><i style="background:#ffedc8"></i>部分</span><span><i style="background:#ffdfe2"></i>缺漏</span><span><i style="background:#eef1f5"></i>不適用</span></div>
+          </div>
+          <div class="matrix-scroll">
+            <div class="matrix">
+              <div class="m-head">需求條目</div><div class="m-head">系統架構</div><div class="m-head">API 介面</div><div class="m-head">資料模型</div><div class="m-head">安全規格</div><div class="m-head">驗收案例</div>
+              <div class="m-row">REQ-003<br>會員權限分級</div><div class="linked">SYS-12<br>完整</div><div class="linked">API-08<br>完整</div><div class="linked">DB-05<br>完整</div><div class="linked">SEC-02<br>完整</div><div class="linked">UAT-19<br>完整</div>
+              <div class="m-row">REQ-004<br>訂單取消時限</div><div class="linked">SYS-18<br>完整</div><div class="partial">API-13<br>部分</div><div class="linked">DB-09<br>完整</div><div class="none">—</div><div class="partial">UAT-22<br>部分</div>
+              <div class="m-row">REQ-005<br>稽核紀錄保留</div><div class="linked">SYS-21<br>完整</div><div class="none">—</div><div class="partial">DB-11<br>期限未定</div><div class="linked">SEC-06<br>完整</div><div class="linked">UAT-27<br>完整</div>
+              <div class="m-row">REQ-006<br>通知重送機制</div><div class="linked">SYS-24<br>完整</div><div class="missing">缺少規格</div><div class="linked">DB-14<br>完整</div><div class="none">—</div><div class="missing">缺少案例</div>
+            </div>
+          </div>
+        </div>
+        <div class="trace-detail">
+          <div class="card trace-node"><span class="section-label">產品需求</span><h4>REQ-004 · 訂單取消時限</h4><p class="small muted">訂單成立 30 分鐘內且未揀貨時，會員可申請取消。</p><div class="spec-list"><span class="chip">產品 v2.4</span><span class="chip green">已核准</span></div></div>
+          <div class="trace-arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
+          <div class="card trace-node"><span class="section-label">技術實作</span><h4>API-13 · POST /orders/{id}/cancel</h4><p class="small muted">目前僅檢查訂單狀態，尚未定義 30 分鐘邊界與退款失敗回應。</p><div class="spec-list"><span class="chip amber">部分覆蓋</span><span class="chip">王柏翔</span></div></div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="3">
+        <div class="screen-head">
+          <div><h2>一致性掃描中心</h2><p>以語意關聯找出遺漏、矛盾、模糊及術語不一致。</p></div>
+          <button class="btn primary"><span class="material-symbols-outlined">play_arrow</span>重新掃描</button>
+        </div>
+        <div class="card scan-banner">
+          <div class="scan-pulse"><span class="material-symbols-outlined">manage_search</span></div>
+          <div><h3>基線候選版 v2.4 掃描完成</h3><p>已比對 48 項需求、39 份技術規格與 76 條驗收條件 · 8/29 10:42</p></div>
+          <div class="scan-score"><span class="small">一致性信心值</span><b>87.6%</b></div>
+        </div>
+        <div class="scan-layout">
+          <div class="card issue-list">
+            <div class="issue"><span class="issue-icon"><span class="material-symbols-outlined">difference</span></span><div><h4>取消時限定義互相矛盾</h4><p>REQ-004 定義 30 分鐘；API-13 的快取有效時間為 20 分鐘，可能造成有效訂單被拒絕。</p></div><span class="chip red">高風險</span></div>
+            <div class="issue"><span class="issue-icon amber"><span class="material-symbols-outlined">help</span></span><div><h4>「即時通知」缺少可量測門檻</h4><p>REQ-006 使用模糊詞「即時」，技術規格僅標示非同步佇列，未定義最大延遲。</p></div><span class="chip amber">待澄清</span></div>
+            <div class="issue"><span class="issue-icon blue"><span class="material-symbols-outlined">spellcheck</span></span><div><h4>退款狀態術語不一致</h4><p>需求使用「退款處理中」，資料字典則為 REFUND_PENDING，UI 規格寫作「退款申請中」。</p></div><span class="chip">術語</span></div>
+            <div class="issue"><span class="issue-icon"><span class="material-symbols-outlined">link_off</span></span><div><h4>驗收條件未覆蓋重送上限</h4><p>SYS-24 定義最多重送 5 次，但 UAT-31 未測試第 5 次失敗後的人工告警。</p></div><span class="chip red">缺漏</span></div>
+          </div>
+          <aside>
+            <div class="card chart-card">
+              <span class="section-label">疑點分布</span>
+              <div id="issueChart" class="chart" aria-label="一致性疑點分布圖"></div>
+            </div>
+            <div class="card finding-box">
+              <span class="section-label">掃描摘要</span>
+              <div class="finding-row"><span>規格矛盾</span><b style="color:var(--red)">3</b></div>
+              <div class="finding-row"><span>待澄清項目</span><b style="color:var(--amber)">7</b></div>
+              <div class="finding-row"><span>覆蓋缺口</span><b style="color:var(--red)">2</b></div>
+              <div class="finding-row"><span>術語不一致</span><b style="color:var(--blue)">5</b></div>
+              <div class="finding-row"><span>較上次減少</span><b style="color:var(--green)">−6 項</b></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="4">
+        <div class="screen-head">
+          <div><h2>疑點協作審查</h2><p>在同一處檢視證據、討論差異並留下澄清結論。</p></div>
+          <button class="btn primary"><span class="material-symbols-outlined">person_add</span>邀請審查</button>
+        </div>
+        <div class="review-layout">
+          <aside class="card review-queue">
+            <div class="queue-card active"><b>ISS-018 取消時限矛盾</b><div class="queue-meta"><span>高風險 · REQ-004</span><span>3 則討論</span></div></div>
+            <div class="queue-card"><b>ISS-021 即時通知門檻</b><div class="queue-meta"><span>待澄清 · REQ-006</span><span>2 則討論</span></div></div>
+            <div class="queue-card"><b>ISS-024 退款狀態術語</b><div class="queue-meta"><span>術語 · REQ-004</span><span>1 則討論</span></div></div>
+            <div class="queue-card"><b>ISS-027 稽核保留期限</b><div class="queue-meta"><span>高風險 · REQ-005</span><span>尚未指派</span></div></div>
+          </aside>
+          <article class="card evidence-panel">
+            <div class="evidence-head"><div><span class="section-label">ISS-018 · 證據比對</span><h3>取消有效時間不一致</h3></div><span class="chip red">阻擋放行</span></div>
+            <div class="compare">
+              <div class="doc"><h4>產品需求 · PRD v2.4 §4.2</h4><p>一般會員可在訂單成立後 <mark>30 分鐘內</mark>提出取消。若倉儲已開始揀貨，則不提供線上取消，並引導聯繫客服。</p><div class="spec-list"><span class="chip green">產品已核准</span><span class="chip">陳怡君</span></div></div>
+              <div class="doc"><h4>技術規格 · API v1.9 §7.3</h4><p>取消權杖於訂單建立時產生，快取的 TTL 設為 <mark>1,200 秒</mark>。權杖失效後回傳 ORDER_CANCEL_EXPIRED。</p><div class="spec-list"><span class="chip amber">待修訂</span><span class="chip">王柏翔</span></div></div>
+            </div>
+            <div class="resolution">
+              <span class="section-label">澄清結論</span>
+              <div class="resolution-options">
+                <button class="selectable selected"><b>修改技術規格</b><br><span class="muted">TTL 調整為 1,800 秒並補邊界測試</span></button>
+                <button class="selectable"><b>修改產品需求</b><br><span class="muted">取消窗口改為 20 分鐘</span></button>
+              </div>
+            </div>
+          </article>
+          <aside class="card thread">
+            <span class="section-label">審查討論</span>
+            <div class="comment"><span class="avatar">怡</span><div><b>陳怡君 · 產品經理</b><p>30 分鐘已寫入客戶合約，不建議縮短。請確認快取成本是否可接受。</p><time>09:42</time></div></div>
+            <div class="comment"><span class="avatar">翔</span><div><b>王柏翔 · 技術主管</b><p>可調為 1,800 秒，另會以訂單建立時間做伺服器端最終判斷。</p><time>10:05</time></div></div>
+            <div class="comment"><span class="avatar">潔</span><div><b>林雨潔 · 測試工程師</b><p>我會增加 19:59、20:00、29:59、30:00 四組邊界案例。</p><time>10:18</time></div></div>
+            <div class="reply"><textarea aria-label="新增討論" placeholder="補充證據或 @提及審查者…"></textarea><button class="btn primary" style="width:100%;margin-top:8px">送出回覆</button></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="5">
+        <div class="screen-head">
+          <div><h2>規格基線放行</h2><p>確認品質門檻、變更摘要與簽核責任後進入開發。</p></div>
+          <span class="chip green"><span class="material-symbols-outlined">lock</span>候選版已鎖定</span>
+        </div>
+        <div class="card release-hero">
+          <div>
+            <span class="badge">BASELINE CANDIDATE</span>
+            <h2>Commerce Core · 規格基線 v2.4</h2>
+            <p>涵蓋 Sprint 24–26 · 48 項需求 · 39 份技術規格 · 最後更新 2026/08/29 10:42</p>
+            <div class="spec-list" style="margin-top:16px"><span class="chip green">需求覆蓋 96%</span><span class="chip green">高風險 0</span><span class="chip amber">低風險例外 2</span></div>
+          </div>
+          <div class="release-ring"><div><b>92</b><span class="small muted">品質分數</span></div></div>
+        </div>
+        <div class="gate-grid">
+          <div class="card gate-card">
+            <span class="section-label">放行門檻</span>
+            <div class="gate"><span class="check">✓</span><div><h4>需求覆蓋率 ≥ 95%</h4><p>目前 96%，共 46 項完整覆蓋</p></div><span class="chip green">通過</span></div>
+            <div class="gate"><span class="check">✓</span><div><h4>高風險矛盾 = 0</h4><p>ISS-018 已修訂並通過複掃</p></div><span class="chip green">通過</span></div>
+            <div class="gate"><span class="check">✓</span><div><h4>驗收條件具可測試性</h4><p>76 條案例中 74 條已具明確門檻</p></div><span class="chip green">通過</span></div>
+            <div class="gate"><span class="check">✓</span><div><h4>責任人與版本皆已確認</h4><p>產品、系統、研發與測試皆完成簽核</p></div><span class="chip green">通過</span></div>
+          </div>
+          <aside>
+            <div class="card gate-card">
+              <span class="section-label">簽核軌跡</span>
+              <div class="approval-flow">
+                <div class="approver"><span class="avatar">怡</span><b>產品經理</b><span class="chip green">已簽</span></div><span class="approval-line"></span>
+                <div class="approver"><span class="avatar">文</span><b>系統分析</b><span class="chip green">已簽</span></div><span class="approval-line"></span>
+                <div class="approver"><span class="avatar">翔</span><b>技術主管</b><span class="chip green">已簽</span></div>
+              </div>
+              <div class="decision-box"><h3><span class="material-symbols-outlined">verified</span> 建議核定基線</h3><p class="small">所有必要門檻均已達標。核定後將產生不可變更版本，並通知開發與測試團隊。</p></div>
+            </div>
+            <div class="card gate-card" style="margin-top:16px">
+              <span class="section-label">本版變更摘要</span>
+              <ul class="change-list">
+                <li><span class="chip">+6</span><span>新增需求條目與驗收條件</span></li>
+                <li><span class="chip amber">8</span><span>技術規格依澄清結論修訂</span></li>
+                <li><span class="chip green">3</span><span>高風險矛盾已完成關閉</span></li>
+                <li><span class="chip">12</span><span>術語已依資料字典統一</span></li>
+              </ul>
+            </div>
+          </aside>
+        </div>
+        <div class="baseline-actions">
+          <button class="btn"><span class="material-symbols-outlined">undo</span>退回補件並通知</button>
+          <button class="btn primary"><span class="material-symbols-outlined">verified</span>核准 v2.4 進入開發</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const screens = Array.from(document.querySelectorAll("[data-screen]"));
+      const navButtons = Array.from(document.querySelectorAll("[data-i]"));
+      let issueChartInstance = null;
+
+      function renderIssueChart() {
+        const chartElement = document.getElementById("issueChart");
+        if (!chartElement || chartElement.clientWidth === 0 || typeof echarts === "undefined") return;
+
+        if (!issueChartInstance) {
+          issueChartInstance = echarts.init(chartElement);
+        }
+
+        issueChartInstance.setOption({
+          animationDuration: 650,
+          tooltip: { trigger: "item" },
+          legend: {
+            bottom: 0,
+            left: "center",
+            textStyle: { color: "#667085", fontFamily: "Inter, Noto Sans TC", fontSize: 11 }
+          },
+          series: [{
+            type: "pie",
+            radius: ["45%", "69%"],
+            center: ["50%", "43%"],
+            avoidLabelOverlap: true,
+            itemStyle: { borderColor: "#fff", borderWidth: 4, borderRadius: 7 },
+            label: {
+              show: true,
+              formatter: "{c}",
+              color: "#344054",
+              fontWeight: 700
+            },
+            data: [
+              { value: 3, name: "矛盾", itemStyle: { color: "#c2414b" } },
+              { value: 7, name: "模糊", itemStyle: { color: "#d98b16" } },
+              { value: 2, name: "缺漏", itemStyle: { color: "#1e40af" } },
+              { value: 5, name: "術語", itemStyle: { color: "#5b7bd5" } }
+            ]
+          }],
+          graphic: [{
+            type: "text",
+            left: "center",
+            top: "35%",
+            style: {
+              text: "17",
+              fill: "#152033",
+              font: "800 25px Inter",
+              textAlign: "center"
+            }
+          }, {
+            type: "text",
+            left: "center",
+            top: "46%",
+            style: {
+              text: "項疑點",
+              fill: "#667085",
+              font: "12px Noto Sans TC",
+              textAlign: "center"
+            }
+          }]
+        });
+      }
+
+      function show(screenIndex, updateHash) {
+        const safeIndex = Math.max(0, Math.min(5, Number(screenIndex) || 0));
+
+        screens.forEach((screenElement, itemIndex) => {
+          const isActive = itemIndex === safeIndex;
+          screenElement.classList.toggle("active", isActive);
+          screenElement.setAttribute("aria-hidden", String(!isActive));
+        });
+
+        navButtons.forEach((buttonElement, itemIndex) => {
+          const isActive = itemIndex === safeIndex;
+          buttonElement.classList.toggle("active", isActive);
+          buttonElement.setAttribute("aria-current", isActive ? "step" : "false");
+        });
+
+        if (updateHash && window.location.hash !== "#go=" + safeIndex) {
+          history.pushState(null, "", "#go=" + safeIndex);
+        }
+
+        if (safeIndex === 3) {
+          requestAnimationFrame(renderIssueChart);
+        }
+      }
+
+      function indexFromHash() {
+        const matchResult = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+        return matchResult ? Number(matchResult[1]) : 0;
+      }
+
+      navButtons.forEach((buttonElement) => {
+        buttonElement.addEventListener("click", () => {
+          show(Number(buttonElement.dataset.i), true);
+        });
+      });
+
+      document.querySelectorAll(".selectable").forEach((optionButton) => {
+        optionButton.addEventListener("click", () => {
+          document.querySelectorAll(".selectable").forEach((candidateButton) => candidateButton.classList.remove("selected"));
+          optionButton.classList.add("selected");
+        });
+      });
+
+      window.addEventListener("hashchange", () => show(indexFromHash(), false));
+      window.addEventListener("resize", () => {
+        if (issueChartInstance) issueChartInstance.resize();
+      });
+
+      show(indexFromHash(), false);
+    })();
+  </script>
+</body>
+</html>
