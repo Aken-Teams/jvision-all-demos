@@ -1,0 +1,884 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="模擬冷鏈溫度歷程、剩餘貨架期與批次品質判定的互動式系統 Demo">
+<title>冷鏈品質與剩餘效期守門台 · quality-qms｜Jvision 系統 Demo</title>
+<style>
+:root{
+  --blue:#1e40af;
+  --ink:#14213d;
+  --body:#334155;
+  --muted:#718096;
+  --line:#dce5f0;
+  --bg:#f4f7fb;
+  --green:#16855b;
+  --amber:#c56a12;
+  --red:#c43d4b;
+  --white:#fff;
+  --soft:#edf3ff;
+  --shadow:0 12px 34px rgba(25,49,91,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--body);
+  background:var(--bg);
+  font-family:Inter,"Noto Sans TC",sans-serif;
+  overflow-x:hidden;
+}
+button,input,select,textarea{font:inherit}
+button{color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(30,64,175,.25);
+  outline-offset:2px;
+}
+.material-symbols-outlined{
+  font-size:21px;
+  line-height:1;
+  font-variation-settings:"FILL" 0,"wght" 400,"GRAD" 0,"opsz" 24;
+}
+.shell{min-height:100vh;display:grid;grid-template-columns:78px minmax(0,1fr)}
+.rail{
+  position:sticky;
+  inset-block-start:0;
+  height:100vh;
+  z-index:30;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  padding:18px 10px;
+  color:#dbe7ff;
+  background:#10275e;
+  border-inline-end:1px solid rgba(255,255,255,.08);
+}
+.brand{
+  display:grid;
+  place-items:center;
+  width:46px;height:46px;
+  margin-block-end:8px;
+  color:#fff;
+  background:linear-gradient(145deg,#315ac5,#1e40af);
+  border:1px solid rgba(255,255,255,.24);
+  border-radius:15px;
+  box-shadow:0 9px 22px rgba(0,0,0,.22);
+}
+.brand .material-symbols-outlined{font-size:26px}
+.nav-btn{
+  position:relative;
+  display:grid;
+  place-items:center;
+  width:50px;height:50px;
+  border:0;
+  border-radius:14px;
+  color:#aebfe8;
+  background:transparent;
+  cursor:pointer;
+  transition:.2s ease;
+}
+.nav-btn:hover{color:#fff;background:rgba(255,255,255,.1)}
+.nav-btn.active{color:#173470;background:#fff;box-shadow:0 9px 22px rgba(4,14,43,.26)}
+.nav-btn::after{
+  content:attr(aria-label);
+  position:absolute;
+  inset-inline-start:58px;
+  white-space:nowrap;
+  padding:7px 9px;
+  color:#fff;
+  background:#172554;
+  border-radius:7px;
+  font-size:12px;
+  opacity:0;
+  pointer-events:none;
+  transform:translateX(-4px);
+  transition:.18s;
+}
+.nav-btn:hover::after,.nav-btn:focus-visible::after{opacity:1;transform:none}
+.rail-foot{margin-block-start:auto}
+.main{min-width:0;padding:0 30px 38px}
+.app-head{
+  min-height:82px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  border-block-end:1px solid var(--line);
+}
+.head-title{display:flex;align-items:center;gap:12px;min-width:0}
+.head-title h1{margin:0;color:var(--ink);font-size:20px;line-height:1.3}
+.head-title p{margin:3px 0 0;color:var(--muted);font-size:12px}
+.live-pill,.pill,.tag,.risk,.state{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  width:max-content;
+  max-width:100%;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+}
+.live-pill{padding:8px 12px;color:var(--green);background:#e8f7f0}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 7px rgba(22,133,91,0)}0%,100%{box-shadow:0 0 0 0 rgba(22,133,91,.25)}}
+.page{display:none;animation:enter .28s ease}
+.page.active{display:block}
+@keyframes enter{from{opacity:.35;transform:translateY(5px)}to{opacity:1;transform:none}}
+.page-intro{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:20px;
+  padding:26px 0 20px;
+}
+.eyebrow{
+  margin:0 0 7px;
+  color:var(--blue);
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+}
+.page-intro h2{margin:0;color:var(--ink);font-size:clamp(24px,3vw,34px);letter-spacing:-.035em}
+.page-intro .desc{max-width:740px;margin:8px 0 0;color:var(--muted);font-size:14px;line-height:1.75}
+.actions{display:flex;flex-wrap:wrap;gap:9px}
+.btn{
+  min-height:42px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:9px 14px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#fff;
+  font-weight:700;
+  font-size:13px;
+  cursor:pointer;
+}
+.btn:hover{border-color:#a9b9d5;background:#fafdff}
+.btn.primary{color:#fff;background:var(--blue);border-color:var(--blue)}
+.grid{display:grid;gap:16px}
+.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.split-73{grid-template-columns:minmax(0,1.7fr) minmax(280px,.75fr)}
+.split-64{grid-template-columns:minmax(0,1.45fr) minmax(300px,.9fr)}
+.card{
+  min-width:0;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:17px;
+  box-shadow:0 7px 24px rgba(22,39,71,.045);
+}
+.card-pad{padding:20px}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-block-end:16px}
+.card-head h3{margin:0;color:var(--ink);font-size:15px}
+.card-head p{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+.more{border:0;background:transparent;color:var(--muted);cursor:pointer}
+.metric{padding:18px}
+.metric-icon{
+  display:grid;place-items:center;
+  width:38px;height:38px;
+  margin-block-end:16px;
+  color:var(--blue);background:var(--soft);border-radius:11px;
+}
+.metric-label{color:var(--muted);font-size:12px;font-weight:600}
+.metric-val{margin-block-start:6px;color:var(--ink);font-size:27px;font-weight:800;letter-spacing:-.04em}
+.metric-val small{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:0}
+.delta{margin-block-start:8px;font-size:11px;font-weight:700}
+.good{color:var(--green)}.warn{color:var(--amber)}.bad{color:var(--red)}
+.pill{padding:5px 8px;background:#f0f4f9;color:#52627b}
+.pill.high{color:var(--red);background:#fff0f1}
+.pill.mid{color:var(--amber);background:#fff5e8}
+.pill.low{color:var(--green);background:#eaf8f1}
+.chart{width:100%;height:300px}
+.chart.tall{height:350px}
+.legend-row{display:flex;flex-wrap:wrap;gap:16px;margin-block-start:5px;color:var(--muted);font-size:11px}
+.legend-row span{display:flex;align-items:center;gap:6px}
+.legend-dot{width:8px;height:8px;border-radius:50%}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:680px}
+th{
+  padding:11px 14px;
+  color:var(--muted);
+  background:#f7f9fc;
+  border-block:1px solid var(--line);
+  text-align:start;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.04em;
+}
+td{padding:13px 14px;border-block-end:1px solid #edf1f6;font-size:12px}
+tr:last-child td{border-block-end:0}
+tbody tr{cursor:pointer;transition:.15s}
+tbody tr:hover,tbody tr.selected{background:#f4f7ff}
+.item-main{color:var(--ink);font-weight:700}
+.item-sub{margin-block-start:3px;color:var(--muted);font-size:11px}
+.state{padding:5px 9px}
+.state.review{color:var(--amber);background:#fff5e8}
+.state.hold{color:var(--red);background:#fff0f1}
+.state.release{color:var(--green);background:#eaf8f1}
+.state.queue{color:#45618d;background:#eef3fa}
+.progress{height:7px;overflow:hidden;background:#edf1f6;border-radius:99px}
+.progress i{display:block;height:100%;border-radius:inherit;background:var(--blue)}
+.risk-list{display:grid;gap:10px}
+.risk-row{display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:11px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px}
+.risk-line{width:8px;height:38px;border-radius:8px;background:var(--amber)}
+.risk-line.red{background:var(--red)}.risk-line.green{background:var(--green)}
+.risk-row strong{display:block;color:var(--ink);font-size:12px}
+.risk-row small{color:var(--muted);font-size:11px}
+.notice{display:flex;gap:10px;padding:12px 14px;border-radius:12px;font-size:12px;line-height:1.55}
+.notice.amber{color:#83490d;background:#fff6e9;border:1px solid #f2d3aa}
+.notice.blue{color:#24468f;background:#edf3ff;border:1px solid #cbd9f6}
+.notice.red{color:#962f3d;background:#fff0f2;border:1px solid #f2c8ce}
+.filters{display:flex;flex-wrap:wrap;gap:9px}
+.search{
+  min-height:42px;
+  min-width:230px;
+  padding:9px 12px 9px 38px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#fff;
+}
+.search-box{position:relative}
+.search-box .material-symbols-outlined{position:absolute;inset-inline-start:12px;inset-block-start:10px;color:var(--muted)}
+.select{
+  min-height:42px;padding:9px 34px 9px 12px;
+  border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--body);
+}
+.batch-detail{display:grid;gap:15px}
+.detail-hero{
+  padding:18px;
+  color:#fff;
+  background:linear-gradient(135deg,#183b94,#2b57c3);
+  border-radius:14px;
+}
+.detail-hero small{opacity:.72}
+.detail-hero h3{margin:6px 0 3px;font-size:20px}
+.detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.detail-cell{padding:12px;background:#f7f9fc;border-radius:11px}
+.detail-cell small{display:block;color:var(--muted);font-size:10px}
+.detail-cell strong{display:block;margin-block-start:5px;color:var(--ink);font-size:13px}
+.timeline-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.timeline-stat{padding:13px;background:#f7f9fc;border-radius:11px}
+.timeline-stat span{display:block;color:var(--muted);font-size:10px}
+.timeline-stat strong{display:block;margin-block-start:5px;color:var(--ink);font-size:16px}
+.event-list{position:relative;display:grid;gap:14px;margin-inline-start:7px;padding-inline-start:22px}
+.event-list::before{content:"";position:absolute;inset-inline-start:3px;inset-block:4px;width:2px;height:calc(100% - 8px);background:var(--line)}
+.event{position:relative}
+.event::before{content:"";position:absolute;inset-inline-start:-25px;inset-block-start:4px;width:9px;height:9px;border:3px solid #fff;border-radius:50%;background:var(--blue);box-shadow:0 0 0 1px #b5c3db}
+.event.alert::before{background:var(--red)}
+.event strong{display:block;color:var(--ink);font-size:12px}
+.event p{margin:4px 0;color:var(--muted);font-size:11px;line-height:1.45}
+.model-hero{display:grid;grid-template-columns:220px minmax(0,1fr);gap:22px;align-items:center}
+.life-ring{
+  --pct:72%;
+  position:relative;
+  width:190px;aspect-ratio:1;margin:auto;border-radius:50%;
+  display:grid;place-items:center;
+  background:conic-gradient(var(--blue) var(--pct),#e6ecf4 0);
+}
+.life-ring::after{content:"";position:absolute;width:142px;aspect-ratio:1;border-radius:50%;background:#fff}
+.life-value{position:relative;z-index:1;text-align:center}
+.life-value strong{display:block;color:var(--ink);font-size:38px}
+.life-value span{color:var(--muted);font-size:11px}
+.scenario{display:grid;grid-template-columns:120px minmax(0,1fr) 54px;gap:12px;align-items:center;padding:13px 0;border-block-end:1px solid #edf1f6}
+.scenario:last-child{border:0}
+.scenario span{font-size:12px}
+.scenario strong{text-align:end;color:var(--ink);font-size:12px}
+.confidence{display:flex;justify-content:space-between;gap:15px;padding:15px;background:#f7f9fc;border-radius:12px}
+.confidence small{color:var(--muted)}
+.rule-list{display:grid;gap:9px}
+.rule{
+  display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;
+  padding:12px;border:1px solid var(--line);border-radius:11px;
+}
+.rule-icon{display:grid;place-items:center;width:32px;height:32px;color:var(--green);background:#eaf8f1;border-radius:9px}
+.rule strong{display:block;color:var(--ink);font-size:12px}
+.rule p{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.45}
+.decision-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px}
+.decision-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.decision-card{
+  position:relative;padding:17px;border:1px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;
+}
+.decision-card input{position:absolute;opacity:0}
+.decision-card:has(input:checked){border-color:var(--blue);box-shadow:0 0 0 3px rgba(30,64,175,.1)}
+.decision-card .material-symbols-outlined{display:grid;place-items:center;width:40px;height:40px;margin-block-end:16px;border-radius:11px;color:var(--blue);background:var(--soft)}
+.decision-card strong{display:block;color:var(--ink);font-size:14px}
+.decision-card p{margin:6px 0 0;color:var(--muted);font-size:11px;line-height:1.55}
+.form-group{display:grid;gap:7px;margin-block-start:15px}
+.form-group label{color:var(--ink);font-size:12px;font-weight:700}
+.form-group textarea,.form-group select{
+  width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--body)
+}
+.form-group textarea{min-height:88px;resize:vertical}
+.evidence{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px;border-block-end:1px solid #edf1f6;
+}
+.evidence:last-child{border:0}
+.evidence span{font-size:12px}.evidence strong{color:var(--ink);font-size:12px}
+.audit{
+  display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;padding-block:10px;
+}
+.avatar{display:grid;place-items:center;width:32px;height:32px;color:var(--blue);background:var(--soft);border-radius:50%;font-size:10px;font-weight:800}
+.audit strong{display:block;color:var(--ink);font-size:11px}
+.audit p{margin:3px 0;color:var(--muted);font-size:10px}
+.board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.board-col{padding:13px;background:#edf1f7;border-radius:15px}
+.board-head{display:flex;justify-content:space-between;align-items:center;margin-block-end:11px;color:var(--ink);font-size:12px;font-weight:800}
+.task{padding:14px;margin-block-end:10px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 12px rgba(32,47,76,.04)}
+.task:last-child{margin-block-end:0}
+.task-code{color:var(--muted);font-size:10px}
+.task h4{margin:7px 0;color:var(--ink);font-size:12px}
+.task p{margin:0 0 11px;color:var(--muted);font-size:10px;line-height:1.5}
+.task-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.due{display:flex;align-items:center;gap:4px;color:var(--muted);font-size:10px}
+.rank-list{display:grid;gap:10px}
+.rank{
+  display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;
+  padding:12px;border:1px solid var(--line);border-radius:12px;
+}
+.rank-num{display:grid;place-items:center;width:28px;height:28px;color:var(--blue);background:var(--soft);border-radius:8px;font-size:11px;font-weight:800}
+.rank strong{display:block;color:var(--ink);font-size:12px}.rank small{color:var(--muted);font-size:10px}
+.rank-days{text-align:end}.rank-days strong{font-size:16px}.rank-days small{display:block}
+.mobile-label{display:none}
+@media(max-width:1050px){
+  .cols-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .split-73,.split-64,.decision-layout{grid-template-columns:1fr}
+  .board{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .board-col:last-child{grid-column:1/-1}
+}
+@media(max-width:760px){
+  body{padding-block-end:72px}
+  .shell{display:block}
+  .rail{
+    position:fixed;inset:auto 0 0 0;width:100%;height:68px;
+    flex-direction:row;justify-content:space-around;padding:8px 7px;
+    border:0;border-block-start:1px solid rgba(255,255,255,.12);
+  }
+  .brand,.rail-foot{display:none}
+  .nav-btn{width:48px;height:50px}
+  .nav-btn::after{display:none}
+  .main{padding:0 16px 24px}
+  .app-head{min-height:67px}
+  .head-title h1{font-size:15px}
+  .head-title p,.live-pill span:last-child{display:none}
+  .page-intro{align-items:flex-start;flex-direction:column;padding:20px 0 16px}
+  .page-intro h2{font-size:25px}
+  .page-intro .desc{font-size:13px}
+  .cols-3,.cols-2{grid-template-columns:1fr}
+  .timeline-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .model-hero{grid-template-columns:1fr}
+  .decision-options{grid-template-columns:1fr}
+  .board{grid-template-columns:1fr}
+  .board-col:last-child{grid-column:auto}
+  .chart,.chart.tall{height:270px}
+}
+@media(max-width:460px){
+  .main{padding-inline:12px}
+  .cols-4{grid-template-columns:1fr 1fr;gap:10px}
+  .metric{padding:14px}
+  .metric-icon{margin-block-end:11px}
+  .metric-val{font-size:22px}
+  .filters,.search-box,.search{width:100%;min-width:0}
+  .select{flex:1;min-width:130px}
+  .card-pad{padding:15px}
+  .detail-grid{grid-template-columns:1fr 1fr}
+  .scenario{grid-template-columns:95px minmax(0,1fr) 45px}
+  .head-title .material-symbols-outlined{display:none}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="rail" aria-label="流程畫面">
+    <div class="brand" title="JVision"><span class="material-symbols-outlined">ac_unit</span></div>
+    <button class="nav-btn" data-i="0" aria-label="品質風險總覽"><span class="material-symbols-outlined">space_dashboard</span></button>
+    <button class="nav-btn" data-i="1" aria-label="批次效期清冊"><span class="material-symbols-outlined">inventory_2</span></button>
+    <button class="nav-btn" data-i="2" aria-label="溫度歷程"><span class="material-symbols-outlined">device_thermostat</span></button>
+    <button class="nav-btn" data-i="3" aria-label="剩餘效期估算"><span class="material-symbols-outlined">hourglass_bottom</span></button>
+    <button class="nav-btn" data-i="4" aria-label="品質放行判定"><span class="material-symbols-outlined">fact_check</span></button>
+    <button class="nav-btn" data-i="5" aria-label="批次處置"><span class="material-symbols-outlined">move_up</span></button>
+    <button class="nav-btn rail-foot" aria-label="系統設定"><span class="material-symbols-outlined">settings</span></button>
+  </nav>
+
+  <main class="main">
+    <header class="app-head">
+      <div class="head-title">
+        <span class="material-symbols-outlined" style="color:var(--blue)">severe_cold</span>
+        <div>
+          <h1>冷鏈品質與剩餘效期守門台</h1>
+          <p>QMS 品質管理系統 · 模擬決策工作台</p>
+        </div>
+      </div>
+      <div class="live-pill"><i class="live-dot"></i><span>模擬資料已同步</span></div>
+    </header>
+
+    <section class="page" data-page="0">
+      <div class="page-intro">
+        <div>
+          <p class="eyebrow">Stage 01 · 品保主管</p>
+          <h2>檢視品質風險</h2>
+          <p class="desc">掌握高風險批次、超溫暴露與效期損耗概況，快速找出需要優先查核的冷鏈品項。</p>
+        </div>
+        <div class="actions">
+          <button class="btn"><span class="material-symbols-outlined">download</span>匯出晨會摘要</button>
+          <button class="btn primary" data-next="1">查核高風險批次</button>
+        </div>
+      </div>
+
+      <div class="grid cols-4">
+        <article class="card metric">
+          <div class="metric-icon"><span class="material-symbols-outlined">warning</span></div>
+          <div class="metric-label">高風險批次數</div>
+          <div class="metric-val">7 <small>批</small></div>
+          <div class="delta bad">較昨日增加 2 批</div>
+        </article>
+        <article class="card metric">
+          <div class="metric-icon"><span class="material-symbols-outlined">hourglass_top</span></div>
+          <div class="metric-label">平均剩餘貨架期</div>
+          <div class="metric-val">18.6 <small>天</small></div>
+          <div class="delta warn">低於目標 1.4 天</div>
+        </article>
+        <article class="card metric">
+          <div class="metric-icon"><span class="material-symbols-outlined">thermostat</span></div>
+          <div class="metric-label">超溫暴露時數</div>
+          <div class="metric-val">26.4 <small>小時</small></div>
+          <div class="delta good">近 7 日下降 11%</div>
+        </article>
+        <article class="card metric">
+          <div class="metric-icon"><span class="material-symbols-outlined">verified</span></div>
+          <div class="metric-label">今日已完成判定</div>
+          <div class="metric-val">19 <small>/ 24 批</small></div>
+          <div class="delta good">完成率 79.2%</div>
+        </article>
+      </div>
+
+      <div class="grid split-73" style="margin-top:16px">
+        <article class="card card-pad">
+          <div class="card-head">
+            <div><h3>批次風險與剩餘效期分布</h3><p>依溫度歷程模型估算；圓點大小代表庫存量</p></div>
+            <span class="pill">近 30 日</span>
+          </div>
+          <div id="riskChart" class="chart tall" role="img" aria-label="批次風險與剩餘效期散點圖"></div>
+          <div class="legend-row">
+            <span><i class="legend-dot" style="background:var(--red)"></i>高風險</span>
+            <span><i class="legend-dot" style="background:var(--amber)"></i>注意</span>
+            <span><i class="legend-dot" style="background:var(--green)"></i>穩定</span>
+          </div>
+        </article>
+        <aside class="card card-pad">
+          <div class="card-head">
+            <div><h3>優先查核</h3><p>依風險分數與出貨時點排序</p></div>
+            <button class="more" aria-label="更多"><span class="material-symbols-outlined">more_horiz</span></button>
+          </div>
+          <div class="risk-list">
+            <div class="risk-row"><i class="risk-line red"></i><div><strong>CC-250830-A17</strong><small>鮮食雞胸 · 北區冷庫</small></div><span class="pill high">92 分</span></div>
+            <div class="risk-row"><i class="risk-line red"></i><div><strong>CC-250829-F04</strong><small>益生菌飲 · 轉運中</small></div><span class="pill high">87 分</span></div>
+            <div class="risk-row"><i class="risk-line"></i><div><strong>CC-250828-P21</strong><small>生物製劑 · 中區冷庫</small></div><span class="pill mid">73 分</span></div>
+            <div class="risk-row"><i class="risk-line"></i><div><strong>CC-250827-S08</strong><small>煙燻鮭魚 · 南區冷庫</small></div><span class="pill mid">68 分</span></div>
+            <div class="risk-row"><i class="risk-line green"></i><div><strong>CC-250830-M12</strong><small>鮮乳 · 東區站點</small></div><span class="pill low">31 分</span></div>
+          </div>
+          <div class="notice amber" style="margin-top:14px"><span class="material-symbols-outlined">priority_high</span><div><strong>判定提醒</strong><br>2 批商品預計 12 小時內排程出貨，請優先完成查核。</div></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="page" data-page="1">
+      <div class="page-intro">
+        <div>
+          <p class="eyebrow">Stage 02 · 冷鏈倉管員</p>
+          <h2>選取查核批次</h2>
+          <p class="desc">核對品項、批號、標示效期與庫存狀態，從效期清冊建立本次品質查核範圍。</p>
+        </div>
+        <div class="actions"><button class="btn primary" data-next="2">檢視所選溫度歷程</button></div>
+      </div>
+
+      <div class="filters" style="margin-bottom:14px">
+        <div class="search-box"><span class="material-symbols-outlined">search</span><input class="search" value="" placeholder="搜尋批號或品項" aria-label="搜尋批號或品項"></div>
+        <select class="select" aria-label="風險篩選"><option>全部風險</option><option>高風險</option><option>注意</option></select>
+        <select class="select" aria-label="庫區篩選"><option>全部庫區</option><option>北區冷庫</option><option>中區冷庫</option></select>
+        <button class="btn"><span class="material-symbols-outlined">filter_alt</span>進階條件</button>
+      </div>
+
+      <div class="grid split-73">
+        <article class="card">
+          <div class="card-head card-pad" style="margin:0">
+            <div><h3>冷鏈批次效期清冊</h3><p>共 36 批 · 7 批需立即查核</p></div>
+            <span class="pill">更新於 10:24</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>批號 / 品項</th><th>儲存規格</th><th>標示效期</th><th>剩餘估算</th><th>庫存</th><th>目前階段</th></tr></thead>
+              <tbody id="batchRows">
+                <tr class="selected" data-batch="A17"><td><div class="item-main">CC-250830-A17</div><div class="item-sub">鮮食舒肥雞胸</div></td><td>0–4°C</td><td>2026/09/18</td><td><span class="bad"><b>6.8 天</b></span></td><td>1,240 盒</td><td><span class="state review">處理中</span></td></tr>
+                <tr data-batch="F04"><td><div class="item-main">CC-250829-F04</div><div class="item-sub">原味益生菌飲</div></td><td>2–8°C</td><td>2026/09/23</td><td><span class="bad"><b>8.3 天</b></span></td><td>860 瓶</td><td><span class="state queue">待確認</span></td></tr>
+                <tr data-batch="P21"><td><div class="item-main">CC-250828-P21</div><div class="item-sub">低溫生物製劑 P</div></td><td>2–8°C</td><td>2026/10/12</td><td><span class="warn"><b>14.2 天</b></span></td><td>320 支</td><td><span class="state review">處理中</span></td></tr>
+                <tr data-batch="S08"><td><div class="item-main">CC-250827-S08</div><div class="item-sub">冷燻鮭魚切片</div></td><td>0–4°C</td><td>2026/09/14</td><td><span class="warn"><b>12.5 天</b></span></td><td>540 包</td><td><span class="state queue">待確認</span></td></tr>
+                <tr data-batch="M12"><td><div class="item-main">CC-250830-M12</div><div class="item-sub">A2 全脂鮮乳</div></td><td>0–7°C</td><td>2026/09/16</td><td><span class="good"><b>16.1 天</b></span></td><td>1,680 瓶</td><td><span class="state release">已放行</span></td></tr>
+                <tr data-batch="V06"><td><div class="item-main">CC-250826-V06</div><div class="item-sub">綜合生菜沙拉</div></td><td>1–5°C</td><td>2026/09/08</td><td><span class="good"><b>7.6 天</b></span></td><td>410 盒</td><td><span class="state release">已放行</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <aside class="card card-pad">
+          <div class="detail-hero">
+            <small>目前選取批次</small>
+            <h3>CC-250830-A17</h3>
+            <div>鮮食舒肥雞胸 · 1,240 盒</div>
+          </div>
+          <div class="detail-grid">
+            <div class="detail-cell"><small>製造日期</small><strong>2026/08/28</strong></div>
+            <div class="detail-cell"><small>標示效期</small><strong>2026/09/18</strong></div>
+            <div class="detail-cell"><small>入庫溫度</small><strong>3.2°C</strong></div>
+            <div class="detail-cell"><small>目前庫位</small><strong>N-03-17</strong></div>
+            <div class="detail-cell"><small>供應商</small><strong>森野食品</strong></div>
+            <div class="detail-cell"><small>預定出貨</small><strong>今日 18:30</strong></div>
+          </div>
+          <div class="notice red"><span class="material-symbols-outlined">device_thermostat</span><div>運輸段曾高於 4°C 共 <strong>5.6 小時</strong>，模型估算效期損耗 12.2 天。</div></div>
+          <div class="form-group">
+            <label for="checkReason">查核原因</label>
+            <select id="checkReason"><option>高風險分數觸發</option><option>出貨前例行複核</option><option>客訴追溯</option></select>
+          </div>
+          <button class="btn primary" style="width:100%;margin-top:15px" data-next="2">確認批次並查看曲線</button>
+        </aside>
+      </div>
+    </section>
+
+    <section class="page" data-page="2">
+      <div class="page-intro">
+        <div>
+          <p class="eyebrow">Stage 03 · 品質工程師</p>
+          <h2>檢查溫度歷程</h2>
+          <p class="desc">辨識模擬運輸與儲存曲線中的超溫區段，核對累積暴露時間及資料完整度。</p>
+        </div>
+        <div class="actions">
+          <button class="btn"><span class="material-symbols-outlined">flag</span>標記事件</button>
+          <button class="btn primary" data-next="3">送入效期模型</button>
+        </div>
+      </div>
+
+      <div class="timeline-summary">
+        <div class="timeline-stat"><span>批次</span><strong>CC-250830-A17</strong></div>
+        <div class="timeline-stat"><span>全程平均溫度</span><strong>4.1°C</strong></div>
+        <div class="timeline-stat"><span>超溫累積</span><strong class="bad">5.6 小時</strong></div>
+        <div class="timeline-stat"><span>感測資料完整率</span><strong class="good">99.7%</strong></div>
+      </div>
+
+      <div class="grid split-73" style="margin-top:16px">
+        <article class="card card-pad">
+          <div class="card-head">
+            <div><h3>72 小時冷鏈溫度曲線</h3><p>允收上限 4°C；紅色背景為模型辨識的超溫區段</p></div>
+            <div class="actions"><span class="pill">15 分鐘粒度</span><span class="pill high">2 段異常</span></div>
+          </div>
+          <div id="tempChart" class="chart tall" role="img" aria-label="冷鏈溫度歷程折線圖"></div>
+          <div class="notice blue"><span class="material-symbols-outlined">info</span><div>本頁使用預先建立的模擬感測資料，不代表即時 IoT 讀值。曲線已完成時間戳與車機紀錄對齊。</div></div>
+        </article>
+
+        <aside class="grid">
+          <article class="card card-pad">
+            <div class="card-head"><div><h3>異常事件軸</h3><p>依時間順序彙整關鍵節點</p></div></div>
+            <div class="event-list">
+              <div class="event"><strong>08/28 07:10 · 工廠出貨</strong><p>車廂預冷 2.8°C，封條與探針檢核完成。</p></div>
+              <div class="event alert"><strong>08/28 13:40 · 轉運超溫</strong><p>卸貨等待 2 小時 10 分，最高達 8.7°C。</p></div>
+              <div class="event"><strong>08/28 17:25 · 北區冷庫入庫</strong><p>核心溫度 4.3°C，貨品轉入 N-03 庫位。</p></div>
+              <div class="event alert"><strong>08/29 10:15 · 除霜波動</strong><p>庫溫高於 4°C 共 3 小時 30 分，最高 6.1°C。</p></div>
+              <div class="event"><strong>08/30 06:00 · 回復穩定</strong><p>近 12 小時平均 2.9°C，未再出現超差。</p></div>
+            </div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-head"><div><h3>資料品質</h3><p>三來源交叉核對</p></div><b class="good">可信</b></div>
+            <div class="risk-list">
+              <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px"><span>車機感測器 T-104</span><b>100%</b></div><div class="progress"><i style="width:100%"></i></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px"><span>冷庫探針 N-03</span><b>99.2%</b></div><div class="progress"><i style="width:99.2%"></i></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px"><span>交接掃描紀錄</span><b>100%</b></div><div class="progress"><i style="width:100%"></i></div></div>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="page" data-page="3">
+      <div class="page-intro">
+        <div>
+          <p class="eyebrow">Stage 04 · 食品技師</p>
+          <h2>評估剩餘效期</h2>
+          <p class="desc">比較基準與不同溫度情境下的可用天數，檢視模型信賴區間及品質門檻。</p>
+        </div>
+        <div class="actions"><button class="btn"><span class="material-symbols-outlined">tune</span>情境參數</button><button class="btn primary" data-next="4">建立判定建議</button></div>
+      </div>
+
+      <div class="grid split-64">
+        <article class="card card-pad">
+          <div class="card-head">
+            <div><h3>剩餘貨架期模型</h3><p>CC-250830-A17 · 鮮食舒肥雞胸</p></div>
+            <span class="pill">模型 SL-FOOD v3.4</span>
+          </div>
+          <div class="model-hero">
+            <div class="life-ring">
+              <div class="life-value"><strong>6.8</strong><span>估算剩餘天數</span></div>
+            </div>
+            <div>
+              <p style="margin:0 0 16px;color:var(--ink);font-weight:700">本批次已消耗 67.6% 可用貨架期</p>
+              <div class="confidence"><div><small>95% 信賴區間</small><br><strong style="color:var(--ink)">5.9–7.7 天</strong></div><div><small>原標示剩餘</small><br><strong style="color:var(--ink)">19 天</strong></div></div>
+              <div class="notice amber" style="margin-top:14px"><span class="material-symbols-outlined">science</span><div>主要損耗來自轉運超溫；若未來維持 0–4°C，建議最晚於 <strong>09/05</strong> 前完成出貨。</div></div>
+            </div>
+          </div>
+          <div style="margin-top:22px">
+            <div class="scenario"><span>全程維持 2°C</span><div class="progress"><i style="width:92%;background:var(--green)"></i></div><strong>18.2 天</strong></div>
+            <div class="scenario"><span>目前歷程</span><div class="progress"><i style="width:47%;background:var(--amber)"></i></div><strong>6.8 天</strong></div>
+            <div class="scenario"><span>再暴露 6°C / 4h</span><div class="progress"><i style="width:34%;background:var(--red)"></i></div><strong>4.9 天</strong></div>
+            <div class="scenario"><span>再暴露 8°C / 4h</span><div class="progress"><i style="width:20%;background:var(--red)"></i></div><strong>2.7 天</strong></div>
+          </div>
+        </article>
+
+        <aside class="grid">
+          <article class="card card-pad">
+            <div class="card-head"><div><h3>品質衰退預測</h3><p>品質指數低於 60 即不建議正常放行</p></div></div>
+            <div id="lifeChart" class="chart" role="img" aria-label="品質指數衰退預測圖"></div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-head"><div><h3>判定依據</h3><p>規格與證據完整性檢核</p></div><span class="pill mid">需複核</span></div>
+            <div class="rule-list">
+              <div class="rule"><div class="rule-icon"><span class="material-symbols-outlined">check</span></div><div><strong>核心溫度未超過 10°C</strong><p>最高模擬讀值 8.7°C，符合安全上限。</p></div></div>
+              <div class="rule"><div class="rule-icon"><span class="material-symbols-outlined">check</span></div><div><strong>剩餘效期大於出貨門檻</strong><p>估算 6.8 天，高於優先出貨門檻 5 天。</p></div></div>
+              <div class="rule"><div class="rule-icon" style="color:var(--amber);background:#fff5e8"><span class="material-symbols-outlined">priority_high</span></div><div><strong>超溫累積超過預警值</strong><p>累積 5.6 小時，超過內控預警 4 小時。</p></div></div>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="page" data-page="4">
+      <div class="page-intro">
+        <div>
+          <p class="eyebrow">Stage 05 · 品保人員</p>
+          <h2>完成品質判定</h2>
+          <p class="desc">整合溫度證據與效期模型，選擇放行、降級使用或隔離，留下可追溯的決策理由。</p>
+        </div>
+        <div class="actions"><span class="pill mid">待品保簽核</span></div>
+      </div>
+
+      <div class="decision-layout">
+        <div class="grid">
+          <article class="card card-pad">
+            <div class="card-head"><div><h3>選擇品質處置</h3><p>系統依剩餘效期建議「優先出貨」並縮短允售日期</p></div></div>
+            <div class="decision-options">
+              <label class="decision-card"><input type="radio" name="qualityDecision"><span class="material-symbols-outlined">verified</span><strong>正常放行</strong><p>品質風險可接受，依原計畫出貨及販售。</p></label>
+              <label class="decision-card"><input type="radio" name="qualityDecision" checked><span class="material-symbols-outlined">move_up</span><strong>降級／優先出貨</strong><p>縮短允售期間，限定通路並優先完成去化。</p></label>
+              <label class="decision-card"><input type="radio" name="qualityDecision"><span class="material-symbols-outlined">block</span><strong>隔離</strong><p>暫停流動並建立複驗或報廢處置任務。</p></label>
+            </div>
+            <div class="grid cols-2">
+              <div class="form-group"><label for="decisionCode">判定代碼</label><select id="decisionCode"><option>Q-21 冷鏈效期縮減</option><option>Q-07 正常放行</option><option>Q-35 品質隔離</option></select></div>
+              <div class="form-group"><label for="saleDate">調整後最晚允售日</label><input id="saleDate" type="date" value="2026-09-05" style="padding:10px 12px;border:1px solid var(--line);border-radius:10px"></div>
+            </div>
+            <div class="form-group"><label for="decisionNote">判定理由</label><textarea id="decisionNote">溫度歷程顯示兩段超溫，累積 5.6 小時；模型估算剩餘貨架期 6.8 天。核心溫度未超安全上限，建議限北區通路優先出貨，並將最晚允售日調整為 2026/09/05。</textarea></div>
+          </article>
+          <div class="notice blue"><span class="material-symbols-outlined">rule</span><div><strong>RULE-03</strong>：檢查溫度歷程由品質工程師負責，證據「超溫暴露時數」已完成簽認。</div></div>
+        </div>
+
+        <aside class="card card-pad">
+          <div class="card-head"><div><h3>判定證據包</h3><p>提交後寫入批次追溯紀錄</p></div><span class="pill low">4 / 4 完整</span></div>
+          <div class="evidence"><span>高風險批次數</span><strong>7 批</strong></div>
+          <div class="evidence"><span>平均剩餘貨架期</span><strong>18.6 天</strong></div>
+          <div class="evidence"><span>本批剩餘效期</span><strong class="warn">6.8 天</strong></div>
+          <div class="evidence"><span>超溫暴露時數</span><strong class="bad">5.6 小時</strong></div>
+          <div style="margin-top:16px">
+            <h3 style="margin:0 0 7px;color:var(--ink);font-size:13px">簽認歷程</h3>
+            <div class="audit"><div class="avatar">林</div><div><strong>林彥廷 · 冷鏈倉管員</strong><p>10:08 完成批次與庫位核對</p></div></div>
+            <div class="audit"><div class="avatar">陳</div><div><strong>陳雅雯 · 品質工程師</strong><p>10:19 確認溫度歷程與異常區段</p></div></div>
+            <div class="audit"><div class="avatar">許</div><div><strong>許博安 · 食品技師</strong><p>10:31 確認模型版本與估算結果</p></div></div>
+          </div>
+          <button class="btn primary" style="width:100%;margin-top:14px" data-next="5"><span class="material-symbols-outlined">approval</span>簽核並建立處置</button>
+          <button class="btn" style="width:100%;margin-top:8px">退回補件</button>
+        </aside>
+      </div>
+    </section>
+
+    <section class="page" data-page="5">
+      <div class="page-intro">
+        <div>
+          <p class="eyebrow">Stage 06 · 供應鏈主管</p>
+          <h2>安排批次處置</h2>
+          <p class="desc">依剩餘效期調整批次排序與去化方式，將品質判定轉成可執行、可追蹤的供應鏈任務。</p>
+        </div>
+        <div class="actions"><button class="btn"><span class="material-symbols-outlined">add</span>新增處置任務</button><button class="btn primary"><span class="material-symbols-outlined">publish</span>發布出貨優先序</button></div>
+      </div>
+
+      <div class="grid cols-3" style="margin-bottom:16px">
+        <article class="card metric"><div class="metric-label">今日優先出貨</div><div class="metric-val">5 <small>批</small></div><div class="delta good">已配置 3 條路線</div></article>
+        <article class="card metric"><div class="metric-label">待隔離移庫</div><div class="metric-val">2 <small>批</small></div><div class="delta bad">須於 14:00 前完成</div></article>
+        <article class="card metric"><div class="metric-label">預估避免損耗</div><div class="metric-val">NT$ 286K</div><div class="delta good">依目前去化計畫估算</div></article>
+      </div>
+
+      <div class="grid split-73">
+        <article class="card card-pad">
+          <div class="card-head">
+            <div><h3>批次處置任務板</h3><p>拖曳式看板預覽 · 依責任角色追蹤閉環</p></div>
+            <span class="pill">6 筆任務</span>
+          </div>
+          <div class="board">
+            <section class="board-col">
+              <div class="board-head"><span>待執行</span><span class="pill">2</span></div>
+              <div class="task"><span class="task-code">COL-001 · 高優先</span><h4>CC-250830-A17 北區優先出貨</h4><p>限北區 A 級門市，調整允售日至 09/05。</p><div class="task-foot"><span class="state review">處理中</span><span class="due"><span class="material-symbols-outlined" style="font-size:14px">schedule</span>D+1</span></div></div>
+              <div class="task"><span class="task-code">COL-002 · 高優先</span><h4>CC-250829-F04 建立隔離標籤</h4><p>移至 Q-02 待驗區，暫停揀貨與配送。</p><div class="task-foot"><span class="state queue">待確認</span><span class="due">D+2</span></div></div>
+            </section>
+            <section class="board-col">
+              <div class="board-head"><span>執行中</span><span class="pill">2</span></div>
+              <div class="task"><span class="task-code">COL-003 · 中優先</span><h4>CC-250828-P21 補充穩定性複驗</h4><p>抽樣 12 支交由品質實驗室完成活性檢測。</p><div class="task-foot"><span class="state review">處理中</span><span class="due">D+2</span></div></div>
+              <div class="task"><span class="task-code">COL-004 · 中優先</span><h4>CC-250827-S08 改派餐飲通路</h4><p>縮短配送半徑並確認客戶端收貨時段。</p><div class="task-foot"><span class="state review">處理中</span><span class="due">D+1</span></div></div>
+            </section>
+            <section class="board-col">
+              <div class="board-head"><span>已完成</span><span class="pill low">2</span></div>
+              <div class="task"><span class="task-code">COL-005 · 一般</span><h4>CC-250830-M12 恢復正常揀貨</h4><p>品質判定已放行，同步解除 WMS 批次鎖定。</p><div class="task-foot"><span class="state release">已完成</span><span class="due">10:12</span></div></div>
+              <div class="task"><span class="task-code">COL-006 · 一般</span><h4>CC-250826-V06 完成門市去化</h4><p>已出貨 410 盒，配送與簽收紀錄完整。</p><div class="task-foot"><span class="state release">已完成</span><span class="due">09:45</span></div></div>
+            </section>
+          </div>
+        </article>
+
+        <aside class="grid">
+          <article class="card card-pad">
+            <div class="card-head"><div><h3>建議出貨排序</h3><p>以剩餘效期與承諾時點排序</p></div></div>
+            <div class="rank-list">
+              <div class="rank"><div class="rank-num">1</div><div><strong>CC-250830-A17</strong><small>北區路線 R-08 · 今日 18:30</small></div><div class="rank-days"><strong class="bad">6.8</strong><small>剩餘天</small></div></div>
+              <div class="rank"><div class="rank-num">2</div><div><strong>CC-250826-V06</strong><small>門市快配 R-12 · 今日 16:00</small></div><div class="rank-days"><strong class="warn">7.6</strong><small>剩餘天</small></div></div>
+              <div class="rank"><div class="rank-num">3</div><div><strong>CC-250827-S08</strong><small>餐飲通路 R-03 · 明日 07:30</small></div><div class="rank-days"><strong>12.5</strong><small>剩餘天</small></div></div>
+              <div class="rank"><div class="rank-num">4</div><div><strong>CC-250828-P21</strong><small>複驗完成後排程</small></div><div class="rank-days"><strong>14.2</strong><small>剩餘天</small></div></div>
+            </div>
+          </article>
+          <article class="card card-pad">
+            <div class="card-head"><div><h3>處置效益追蹤</h3><p>QMS 改善前後比較</p></div></div>
+            <div class="evidence"><span>批號追溯時間</span><strong class="good">180 → 15 分鐘</strong></div>
+            <div class="evidence"><span>客訴平均關案</span><strong class="good">21 → 9 天</strong></div>
+            <div class="evidence"><span>改善驗證率</span><strong class="good">64% → 98%</strong></div>
+            <div class="evidence"><span>重複不良率</span><strong class="good">6% → 2%</strong></div>
+          </article>
+        </aside>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const pageEls = Array.from(document.querySelectorAll("[data-page]"));
+const navEls = Array.from(document.querySelectorAll("[data-i]"));
+const chartCache = {};
+let activePage = 0;
+
+function makeChart(chartId, options) {
+  const chartEl = document.getElementById(chartId);
+  if (!chartEl || chartEl.clientWidth === 0) return;
+  if (!chartCache[chartId]) chartCache[chartId] = echarts.init(chartEl);
+  chartCache[chartId].setOption(options, true);
+}
+
+function initRiskChart() {
+  makeChart("riskChart", {
+    animationDuration: 700,
+    grid:{left:45,right:22,bottom:42,top:26},
+    tooltip:{trigger:"item",formatter:function(p){return p.seriesName+"<br>"+p.data[3]+"<br>剩餘 "+p.data[0]+" 天<br>超溫 "+p.data[1]+" 小時";}},
+    xAxis:{name:"剩餘貨架期（天）",nameLocation:"middle",nameGap:28,min:0,max:30,axisLine:{lineStyle:{color:"#b8c4d6"}},axisLabel:{color:"#718096"},splitLine:{lineStyle:{color:"#edf1f6"}}},
+    yAxis:{name:"超溫暴露（小時）",nameGap:16,min:0,max:12,axisLine:{show:false},axisLabel:{color:"#718096"},splitLine:{lineStyle:{color:"#edf1f6"}}},
+    series:[
+      {name:"高風險",type:"scatter",symbolSize:function(v){return v[2];},itemStyle:{color:"#c43d4b"},data:[[6.8,5.6,25,"CC-250830-A17"],[8.3,8.2,21,"CC-250829-F04"],[5.4,7.1,17,"CC-250825-R11"]]},
+      {name:"注意",type:"scatter",symbolSize:function(v){return v[2];},itemStyle:{color:"#c56a12"},data:[[14.2,3.8,19,"CC-250828-P21"],[12.5,4.6,22,"CC-250827-S08"],[16.7,3.2,16,"CC-250824-C15"]]},
+      {name:"穩定",type:"scatter",symbolSize:function(v){return v[2];},itemStyle:{color:"#16855b"},data:[[16.1,1.2,25,"CC-250830-M12"],[23.4,.6,18,"CC-250829-Y02"],[27.1,.2,14,"CC-250826-B07"]]},
+      {type:"line",silent:true,symbol:"none",data:[[0,4],[30,4]],lineStyle:{color:"#c43d4b",type:"dashed",width:1},tooltip:{show:false}}
+    ]
+  });
+}
+
+function initTempChart() {
+  const labels = [];
+  const values = [];
+  for (let i=0;i<=72;i+=2) {
+    labels.push("H"+i);
+    let reading = 2.8 + Math.sin(i/4)*.45;
+    if(i>=12 && i<=18) reading += 4.9-Math.abs(15-i)*.42;
+    if(i>=44 && i<=50) reading += 2.7-Math.abs(47-i)*.3;
+    values.push(Number(reading.toFixed(1)));
+  }
+  makeChart("tempChart", {
+    animationDuration:700,
+    tooltip:{trigger:"axis",valueFormatter:function(v){return v+"°C";}},
+    grid:{left:44,right:20,bottom:35,top:24},
+    xAxis:{type:"category",data:labels,axisLabel:{color:"#718096",interval:5},axisLine:{lineStyle:{color:"#b8c4d6"}}},
+    yAxis:{type:"value",min:0,max:10,axisLabel:{color:"#718096",formatter:"{value}°"},splitLine:{lineStyle:{color:"#edf1f6"}}},
+    series:[{
+      type:"line",data:values,smooth:.28,showSymbol:false,lineStyle:{color:"#1e40af",width:3},
+      areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"rgba(30,64,175,.24)"},{offset:1,color:"rgba(30,64,175,.02)"}]}},
+      markLine:{silent:true,symbol:"none",label:{formatter:"允收上限 4°C",color:"#c43d4b"},lineStyle:{color:"#c43d4b",type:"dashed"},data:[{yAxis:4}]},
+      markArea:{silent:true,itemStyle:{color:"rgba(196,61,75,.09)"},data:[[{xAxis:"H12"},{xAxis:"H18"}],[{xAxis:"H44"},{xAxis:"H50"}]]}
+    }]
+  });
+}
+
+function initLifeChart() {
+  makeChart("lifeChart", {
+    animationDuration:700,
+    tooltip:{trigger:"axis"},
+    grid:{left:38,right:18,bottom:36,top:20},
+    xAxis:{type:"category",data:["D0","D2","D4","D6","D8","D10"],axisLabel:{color:"#718096"},axisLine:{lineStyle:{color:"#b8c4d6"}}},
+    yAxis:{type:"value",min:40,max:100,axisLabel:{color:"#718096"},splitLine:{lineStyle:{color:"#edf1f6"}}},
+    series:[
+      {name:"目前歷程",type:"line",smooth:true,symbolSize:7,data:[88,80,72,62,52,43],lineStyle:{color:"#1e40af",width:3},itemStyle:{color:"#1e40af"},areaStyle:{color:"rgba(30,64,175,.08)"},markLine:{symbol:"none",label:{formatter:"放行門檻",color:"#c43d4b"},lineStyle:{color:"#c43d4b",type:"dashed"},data:[{yAxis:60}]}},
+      {name:"理想冷鏈",type:"line",smooth:true,symbol:"none",data:[95,91,87,82,76,69],lineStyle:{color:"#16855b",width:2,type:"dashed"}}
+    ]
+  });
+}
+
+const chartInitializers = [initRiskChart, null, initTempChart, initLifeChart, null, null];
+
+function show(pageIndex) {
+  const safeIndex = Math.max(0, Math.min(5, Number(pageIndex) || 0));
+  activePage = safeIndex;
+  pageEls.forEach(function(el, idx){el.classList.toggle("active", idx === safeIndex);});
+  navEls.forEach(function(el, idx){
+    el.classList.toggle("active", idx === safeIndex);
+    if(idx === safeIndex) el.setAttribute("aria-current","page");
+    else el.removeAttribute("aria-current");
+  });
+  if(chartInitializers[safeIndex]) chartInitializers[safeIndex]();
+  document.title = "冷鏈品質與剩餘效期守門台 · quality-qms｜Jvision 系統 Demo";
+}
+
+function pageFromHash() {
+  const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+  return match ? Number(match[1]) : 0;
+}
+
+function navigateTo(pageIndex) {
+  const nextHash = "#go=" + pageIndex;
+  if(window.location.hash === nextHash) show(pageIndex);
+  else window.location.hash = nextHash;
+}
+
+navEls.forEach(function(btn){
+  btn.addEventListener("click",function(){navigateTo(Number(btn.dataset.i));});
+});
+document.querySelectorAll("[data-next]").forEach(function(btn){
+  btn.addEventListener("click",function(){navigateTo(Number(btn.dataset.next));});
+});
+document.querySelectorAll("#batchRows tr").forEach(function(row){
+  row.addEventListener("click",function(){
+    document.querySelectorAll("#batchRows tr").forEach(function(item){item.classList.remove("selected");});
+    row.classList.add("selected");
+  });
+});
+window.addEventListener("hashchange",function(){show(pageFromHash());});
+window.addEventListener("resize",function(){
+  Object.keys(chartCache).forEach(function(key){chartCache[key].resize();});
+});
+show(pageFromHash());
+</script>
+</body>
+</html>
