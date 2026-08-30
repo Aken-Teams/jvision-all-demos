@@ -738,17 +738,27 @@ function startGateway() {
         if (!alive) return json(res, 409, { error: "沒有正在跑的換裝" });
         /* SIGTERM 讓它把手上那幾套做完再收工並寫下狀態；SIGKILL 會留下
            改到一半的檔案與對不上的進度。 */
-        try { process.kill(st.pid, "SIGTERM"); } catch { /* 已經自己結束了 */ }
+        try { execFileSync("systemctl", ["--user", "stop", "jvdemo-restyle.service"], { timeout: 30000 }); }
+        catch { /* 不是用 systemd-run 起的（舊行程）就退回直接送訊號 */
+          try { process.kill(st.pid, "SIGTERM"); } catch { /* 已經自己結束了 */ }
+        }
         actions.record({ actor: id.email, action: "停止換裝產線", status: 200, visitor: who });
         return json(res, 200, { ok: true });
       }
       if (action === "start") {
         if (alive) return json(res, 409, { error: "換裝已經在跑了" });
         const n = Math.max(1, Math.min(12, Number(workers) || 6));
-        const out = fs.openSync(path.join(root, "var", "restyle.log"), "a");
-        const child = spawnProc(process.execPath,
-          [path.join(root, "tools", "restyle-demos.mjs"), `--workers=${n}`, "--resume", "--timeout=1200"],
-          { cwd: root, detached: true, stdio: ["ignore", out, out] });
+        /* 用 systemd-run 開成獨立的暫時單元，不要當成 gateway 的子行程。
+           caseshow.service 是 KillMode=control-group，只要它重啟一次，
+           同一個 cgroup 裡的換裝行程就會一起被收掉——detached + unref 擋不住，
+           那只脫離 session 不脫離 cgroup。實測跑到一半就是這樣沒的。 */
+        const log = path.join(root, "var", "restyle.log");
+        const child = spawnProc("systemd-run", [
+          "--user", "--unit=jvdemo-restyle", "--collect",
+          `--working-directory=${root}`,
+          "bash", "-c",
+          `exec ${process.execPath} tools/restyle-demos.mjs --workers=${n} --resume --timeout=1200 >> ${log} 2>&1`,
+        ], { cwd: root, detached: true, stdio: "ignore" });
         child.unref();
         actions.record({ actor: id.email, action: "啟動換裝產線", status: 200, visitor: who, detail: `${n} 條線` });
         return json(res, 202, { ok: true });
