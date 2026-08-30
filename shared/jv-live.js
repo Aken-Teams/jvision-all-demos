@@ -17,7 +17,7 @@
 (function () {
   "use strict";
   var API = "./api/t/";
-  var state = { schema: null, bound: [] };
+  var state = { schema: null, bound: [] , everNative: {} };
 
   function el(tag, attrs, children) {
     var n = document.createElement(tag);
@@ -59,16 +59,22 @@
       if (ths.length < want.length) continue;
       var got = [];
       for (var j = 0; j < ths.length; j++) got.push((ths[j].textContent || "").replace(/\s+/g, " ").trim());
-      /* 要的那串表頭只要在實際表頭裡「連續出現」就算同一張，不必從第一格開始。
-         實測有 demo 在最前面多一個空的 <th>（checkbox 或圖示欄），
-         從第 0 格比會整串錯位而認不出來——那張表其實就是我們要的。
-         尾端也常多欄（我們自己補的操作欄），所以只比對要的長度。 */
-      for (var off = 0; off + want.length <= got.length; off++) {
+      /* 只拿「有字的表頭」去比對，空白的一律視為裝飾欄。
+         demo 裡的空 <th> 有兩種：開頭的 checkbox／圖示欄，以及夾在中間的
+         箭頭或分隔欄（實測 secs-gem 那套就在「來源變數」與「目標欄位」之間
+         夾了一個空欄，害整串比不上）。兩種都只是版面，不是資料。
+         比中之後把每一欄實際落在第幾格記下來（slots），畫資料列時照著放，
+         否則整排會左移而每個值都填到隔壁欄——比接不上還糟。 */
+      var solid = [];
+      for (var g = 0; g < got.length; g++) if (got[g] !== "") solid.push({ text: got[g], at: g });
+      if (solid.length < want.length) continue;
+      for (var off = 0; off + want.length <= solid.length; off++) {
         var same = true;
-        for (var k = 0; k < want.length; k++) if (got[off + k] !== want[k]) { same = false; break; }
-        /* 位移要一起帶回去。前面那幾個空欄在畫資料列時必須補上等量的空格子，
-           否則整排會左移一格，每個值都填到隔壁欄——比接不上還糟。 */
-        if (same) return { table: tables[i], offset: off, headCount: got.length };
+        for (var k = 0; k < want.length; k++) if (solid[off + k].text !== want[k]) { same = false; break; }
+        if (!same) continue;
+        var slots = [];
+        for (var k2 = 0; k2 < want.length; k2++) slots.push(solid[off + k2].at);
+        return { table: tables[i], offset: slots[0], slots: slots, headCount: got.length };
       }
     }
     return null;
@@ -81,12 +87,18 @@
     if (table.dataset.jvBound) return true;
     table.dataset.jvBound = "1";
 
+    /* 標上是哪一張表。驗收與除錯時要分辨「這張綁的是哪個 def」，
+       只看 data-jv-bound 是分不出來的。 */
+    table.dataset.jvTable = def.name;
+    state.everNative[def.name] = true;
+
     var tbody = table.querySelector("tbody") || table.appendChild(document.createElement("tbody"));
     var toolbar = buildToolbar(def, table);
     table.parentNode.insertBefore(toolbar, table);
 
     var ctx = { def: def, table: table, tbody: tbody, q: "", rows: [],
-      offset: found.offset || 0, headCount: found.headCount || (def.columns.length + 1) };
+      offset: found.offset || 0, slots: found.slots || null,
+      headCount: found.headCount || (def.columns.length + 1) };
     state.bound.push(ctx);
     reload(ctx);
     /* 這張表的退路面板可以收了——真正的畫面出現之後，多一塊重複的面板只會讓人困惑。 */
@@ -127,8 +139,9 @@
     });
   }
 
-  /* 空狀態那一列要跨滿整張表，包含前面的空欄與尾端的操作欄。 */
+  /* 空狀態那一列要跨滿整張表，包含裝飾欄與尾端的操作欄。 */
   function fullSpan(ctx) {
+    if (ctx.slots && ctx.slots.length) return ctx.slots[ctx.slots.length - 1] + 2;
     return (ctx.offset || 0) + ctx.def.columns.length + 1;
   }
 
@@ -151,8 +164,18 @@
 
     ctx.rows.forEach(function (row) {
       var tr = el("tr", {});
-      for (var o = 0; o < (ctx.offset || 0); o++) tr.appendChild(el("td", { text: "" }));
-      cols.forEach(function (c) { tr.appendChild(el("td", { text: row[c.key] == null ? "" : String(row[c.key]) })); });
+      if (ctx.slots && ctx.slots.length === cols.length) {
+        /* 照表頭實際的格位填。裝飾欄補一個空 td，值才會落在對的那一欄。 */
+        var at = 0;
+        for (var ci = 0; ci < cols.length; ci++) {
+          while (at < ctx.slots[ci]) { tr.appendChild(el("td", { text: "" })); at++; }
+          tr.appendChild(el("td", { text: row[cols[ci].key] == null ? "" : String(row[cols[ci].key]) }));
+          at++;
+        }
+      } else {
+        for (var o = 0; o < (ctx.offset || 0); o++) tr.appendChild(el("td", { text: "" }));
+        cols.forEach(function (c) { tr.appendChild(el("td", { text: row[c.key] == null ? "" : String(row[c.key]) })); });
+      }
 
       var edit = el("button", { type: "button", title: "編輯", text: "✎",
         style: "border:0;background:none;cursor:pointer;color:var(--muted,#64748b);font-size:15px;padding:2px 5px" });
@@ -281,6 +304,10 @@
              那張表才會出現，接上之後 bindTable 會順手把面板收掉。 */
           if (bindTable(def)) return;
           if (c) return;                     // 原生還沒出現，至少退路還在用
+          /* 這張表在別的畫面上有自己的家——現在只是沒被切到，不是接不上。
+             為它長一塊退路面板，等於在每一頁都掛著一份重複的資料，
+             使用者會以為系統多了一塊他沒看過的東西。切回去就會原生接上。 */
+          if (state.everNative[def.name]) return;
           if (!document.querySelector('[data-jv-fallback-for="' + def.name + '"]')) missing.push(def);
         });
         if (missing.length) fallbackPanel(missing);

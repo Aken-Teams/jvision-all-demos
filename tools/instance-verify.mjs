@@ -12,7 +12,7 @@
  *
  * 跑完會把測試用的實例清掉，除非加 --keep。
  *
- *   node tools/instance-verify.mjs [--count=12] [--repos=a,b] [--keep] [--port=3000]
+ *   node tools/instance-verify.mjs [--count=12] [--repos=a,b] [--keep] [--seed=N] [--port=3000]
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -28,14 +28,26 @@ const PORT = num(args.port, 3000);
 const SCHEMA_DIR = path.join(ROOT, "content", "schema");
 const TEST_EMAIL = "instance-verify@jvision.local";
 
+/* 可重現的亂數。抽樣要隨機才有代表性，但出了問題要能用同一批重跑，
+   所以用 seed 決定序列而不是 Math.random。 */
+function mulberry(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 /** 挑一批「結構上有代表性」的 demo，不要全是同一種。 */
-function pickRepos(n) {
+function pickRepos(n, seed) {
   const all = fs.readdirSync(SCHEMA_DIR).map((f) => {
     const s = JSON.parse(fs.readFileSync(path.join(SCHEMA_DIR, f), "utf8"));
     return { repo: s.repoName, tables: s.tables.length,
       rendered: s.tables.filter((t) => t.renderedByJs).length,
       seeded: s.tables.filter((t) => t.seed.length).length, ready: s.readyState === "ready" };
-  }).filter((x) => x.ready);
+  }).filter((x) => x.ready && x.tables > 0);
 
   /* 四個分層各取一些：靜態有資料、靜態無資料、JS 渲染、多表。
      只抽同一種會得到漂亮但沒有意義的數字。 */
@@ -45,19 +57,38 @@ function pickRepos(n) {
     all.filter((x) => x.rendered),
     all.filter((x) => x.tables >= 3),
   ];
+  /* 每一層先洗牌再取。原本是固定從每層開頭取，於是每次跑的都是同一批
+     「字母排在前面」的專案——那樣的 100% 只證明那幾套沒問題，
+     不能代表全站 1,700 多套。 */
+  const rnd = mulberry(seed);
+  for (const b of buckets) {
+    for (let i = b.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(rnd() * (i + 1));
+      [b[i], b[j]] = [b[j], b[i]];
+    }
+  }
   const out = [], seen = new Set();
-  for (let i = 0; out.length < n; i += 1) {
-    const b = buckets[i % buckets.length];
-    if (!b.length) { if (buckets.every((x) => !x.length)) break; continue; }
-    const pick = b[Math.floor(i / buckets.length) % b.length];
-    if (pick && !seen.has(pick.repo)) { seen.add(pick.repo); out.push(pick); }
-    if (i > n * 8) break;
+  const cursor = buckets.map(() => 0);
+  while (out.length < n) {
+    let moved = false;
+    for (let k = 0; k < buckets.length && out.length < n; k += 1) {
+      const b = buckets[k];
+      while (cursor[k] < b.length) {
+        const pick = b[cursor[k]++];
+        if (seen.has(pick.repo)) continue;
+        seen.add(pick.repo); out.push(pick); moved = true;
+        break;
+      }
+    }
+    if (!moved) break; // 四層都取完了
   }
   return out;
 }
 
 async function main() {
-  const repos = args.repos ? list(args.repos).map((r) => ({ repo: r })) : pickRepos(num(args.count, 12));
+  const seed = num(args.seed, Date.now() % 2147483647);
+  const repos = args.repos ? list(args.repos).map((r) => ({ repo: r })) : pickRepos(num(args.count, 12), seed);
+  if (!args.repos) log.info(`  抽樣種子 ${seed}（--seed=${seed} 可重跑同一批）`);
   if (!repos.length) { log.error("挑不到可測的 demo"); process.exit(EXIT.BAD_INPUT); }
   log.step(`驗收 ${repos.length} 套`);
 
@@ -93,22 +124,41 @@ async function main() {
     page.on("pageerror", (e) => errors.push(String(e).slice(0, 80)));
     try {
       await page.goto(`http://127.0.0.1:${PORT}/-/i/${m.id}/`, { waitUntil: "networkidle", timeout: 30000 });
-      /* 逛過每個畫面：demo 的表常常要點到那一頁才由 JS 建出來，
-         不逛就看不到 runtime 真正的接管能力。 */
-      const navs = await page.$$("[data-i]");
-      for (let n = 0; n < Math.min(navs.length, 6); n += 1) {
-        await navs[n].click().catch(() => {});
-        await page.waitForTimeout(350);
+
+      /* 逛過每個畫面，並且**在每一頁都記一次**哪些表接上了原生畫面。
+         很多 demo 換頁是整塊 innerHTML 重畫，同一時間只有當頁的表在 DOM 裡；
+         只看最後一頁的瞬間，其他頁的表會被算成沒接上——但使用者切過去就看得到。
+         客戶真正在意的是「這張表我點得到的時候是不是原本那個畫面」，
+         所以認定標準是「巡過一輪之中曾經原生接上」。 */
+      const seenNative = new Set();
+      const snap = async () => {
+        const names = await page.evaluate(() =>
+          [...document.querySelectorAll("table[data-jv-bound][data-jv-table]")]
+            .filter((t) => !t.closest("[data-jv-fallback-for]"))
+            .map((t) => t.dataset.jvTable));
+        names.forEach((n) => seenNative.add(n));
+      };
+      await page.waitForTimeout(900);
+      await snap();
+      const navCount = await page.evaluate(() => document.querySelectorAll("[data-i]").length);
+      for (let n = 0; n < Math.min(navCount, 8); n += 1) {
+        await page.evaluate((k) => document.querySelectorAll("[data-i]")[k]?.click(), n).catch(() => {});
+        await page.waitForTimeout(700);
+        await snap();
       }
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(900);
+      await snap();
+
       const r = await page.evaluate(() => {
         const bound = [...document.querySelectorAll("table[data-jv-bound]")];
         return {
-          native: bound.filter((t) => !t.closest("[data-jv-fallback-for]")).length,
-          fallback: bound.filter((t) => t.closest("[data-jv-fallback-for]")).length,
+          fallbackNow: document.querySelectorAll("[data-jv-fallback-for]").length,
           rows: bound.reduce((n, t) => n + t.querySelectorAll("tbody tr").length, 0),
         };
       });
+      r.native = seenNative.size;
+      /* 逛完一輪都沒原生出現過的，才算真的只剩退路。 */
+      r.fallback = Math.max(0, Math.min(m.tables - r.native, r.fallbackNow));
       results.push({ repo: m.repo, tables: m.tables, ...r, errors: errors.length });
     } catch (error) {
       results.push({ repo: m.repo, tables: m.tables, native: 0, fallback: 0, rows: 0, errors: 1, failed: error.message.slice(0, 60) });
