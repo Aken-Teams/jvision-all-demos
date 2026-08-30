@@ -1,0 +1,44 @@
+# 每次推送都把整套系統實際跑起來，確認它真的活著。
+#
+# 只驗到「起得來、資料存得進去」為止——再往上就要看你自己的環境，
+# 而一個永遠綠燈的 CI 沒有意義。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 啟動整套系統
+        run: |
+          cp .env.example .env
+          sed -i 's/請改成夠長的隨機字串/ci-pass-1/; s/請改成另一組夠長的隨機字串/ci-root-1/' .env
+          docker compose up -d --build
+
+      - name: 等它起來
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/_health > /dev/null; then echo "起來了"; exit 0; fi
+            sleep 5
+          done
+          echo "六十次都連不上，把 log 印出來："
+          docker compose logs --tail=80
+          exit 1
+
+      - name: 資料真的存得住
+        run: |
+          TABLE=$(curl -fsS http://localhost:8080/_jv/schema | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).tables[0].name))')
+          curl -fsS -X POST "http://localhost:8080/api/t/$TABLE" -H 'content-type: application/json' -d '{}' > /dev/null
+          COUNT=$(curl -fsS "http://localhost:8080/api/t/$TABLE?limit=1" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).total))')
+          echo "資料筆數：$COUNT"
+          test "$COUNT" -ge 1
+
+      - name: 失敗時把 log 留下來
+        if: failure()
+        run: docker compose logs --tail=200

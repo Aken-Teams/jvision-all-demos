@@ -1,0 +1,40 @@
+# 一行指令把整套系統跑起來：docker compose up -d
+#
+# 資料放在具名磁碟區（dbdata），所以 `docker compose down` 不會洗掉你的資料；
+# 真的要清空是 `docker compose down -v`。
+services:
+  db:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DB:-app}
+      MYSQL_USER: ${MYSQL_USER:-app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-too}
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      # 應用程式要等資料庫真的可以接受連線才啟動，不然第一次建表會失敗
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD:-change-me-too}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      MYSQL_DB: ${MYSQL_DB:-app}
+      MYSQL_USER: ${MYSQL_USER:-app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
+      PORT: "8080"
+    ports:
+      - "${PORT:-8080}:8080"
+
+volumes:
+  dbdata:
