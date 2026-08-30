@@ -300,7 +300,19 @@ function scaleCardEmbed(wrap) {
 let _cardIO = null, _cardResizeBound = false;
 /* 預覽 iframe 同時最多載 3 個。每個 iframe 是一整套 demo（字型＋圖表庫＋渲染），
    捲快一點十幾個同時開載會把主執行緒打趴——排隊逐批載，畫面才不會卡。 */
-const _embedQueue = []; let _embedLoading = 0; const EMBED_MAX = 3;
+const _embedQueue = [];
+let _embedLoading = 0;
+/* 同時開幾個 iframe。原本是 3，實測一頁 12 張要等超過 20 秒才出現第 4 張——
+   瓶頸不是 demo 本身（55KB、10ms 就取回來了），而是 iframe 的 load 事件要等
+   圖表庫與字型從 CDN 全部到齊，一張卡就把通道占住好幾秒。 */
+const EMBED_MAX = 6;
+/* 占用通道的時間上限。時間到就讓下一張開始載——**iframe 本身會繼續載完**，
+   這個數字管的是「什麼時候允許下一張開始」，不是「什麼時候放棄這一張」。 */
+const SLOT_MS = 1500;
+/* 還沒 load 完也先顯示。demo 的版面是內嵌的 HTML/CSS，很快就畫得出來；
+   硬等 load 等於為了晚到的圖表讓整張卡一直空白。 */
+const REVEAL_MS = 1200;
+
 function pumpEmbeds() {
   while (_embedLoading < EMBED_MAX && _embedQueue.length) {
     const wrap = _embedQueue.shift();
@@ -308,11 +320,21 @@ function pumpEmbeds() {
     const f = wrap.querySelector(".jv-card-frame");
     if (!f || f.src || !wrap.dataset.src) continue;
     _embedLoading += 1;
-    let done = false;
-    const release = () => { if (done) return; done = true; _embedLoading -= 1; pumpEmbeds(); };
-    f.addEventListener("load", () => { scaleCardEmbed(wrap); f.style.opacity = "1"; const ph = wrap.querySelector(".jv-card-ph"); if (ph) ph.style.display = "none"; release(); }, { once: true });
+
+    let released = false;
+    const release = () => { if (released) return; released = true; _embedLoading -= 1; pumpEmbeds(); };
+    const reveal = () => {
+      if (!f.isConnected) return;
+      scaleCardEmbed(wrap);
+      f.style.opacity = "1";
+      const ph = wrap.querySelector(".jv-card-ph");
+      if (ph) ph.style.display = "none";
+    };
+
+    f.addEventListener("load", () => { reveal(); release(); }, { once: true });
     f.addEventListener("error", release, { once: true });
-    setTimeout(release, 20000); // 開不起來的 demo 不能永遠占住載入通道
+    setTimeout(reveal, REVEAL_MS);
+    setTimeout(release, SLOT_MS);
     f.src = wrap.dataset.src;
     scaleCardEmbed(wrap);
   }
@@ -326,7 +348,11 @@ function setupCardEmbeds() {
         _cardIO.unobserve(en.target);
       });
       pumpEmbeds();
-    }, { rootMargin: "300px" });
+    /* 提早一個半螢幕就開始載。300px 只夠捲到眼前才開始，於是每捲一次就看到
+       一批空白卡片等著填——實測捲第一屏時只有 8/12 張畫得出來。
+       這個距離不會多載東西（同一頁就那幾張），只是把載入時間挪到使用者
+       還沒看到它之前。 */
+    }, { rootMargin: "1200px" });
   }
   document.querySelectorAll(".jv-card-embed").forEach((w) => { if (w.querySelector(".jv-card-frame:not([src])")) _cardIO.observe(w); });
   if (!_cardResizeBound) { _cardResizeBound = true; window.addEventListener("resize", () => document.querySelectorAll(".jv-card-embed").forEach(scaleCardEmbed)); }
