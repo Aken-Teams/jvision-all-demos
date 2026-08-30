@@ -195,12 +195,19 @@ export async function removeMember(customerId, email) {
   return listMembers(customerId);
 }
 
-export async function createOrder({ customerId, buyerEmail, items, amount = 0, note = null }) {
+/**
+ * 建立需求單。
+ *
+ * status 由呼叫端決定：要收費時是 draft（等客戶去付款），不收費時直接是 queued
+ * （等 worker 來拉）。用不同的狀態而不是把不收費的也標成 paid——沒收過錢的單
+ * 標成已付款，日後對帳會對不出來。
+ */
+export async function createOrder({ customerId, buyerEmail, items, amount = 0, note = null, status = "draft" }) {
   await ensureSchema();
   const id = newId("o");
   await q(`INSERT INTO orders(id,customer_id,buyer_email,status,amount,items_json,note,created_at)
-           VALUES(?,?,?,'draft',?,?,?,?)`,
-    [id, customerId, buyerEmail, amount, JSON.stringify(items), note, now()]);
+           VALUES(?,?,?,?,?,?,?,?)`,
+    [id, customerId, buyerEmail, status, amount, JSON.stringify(items), note, now()]);
   return getOrder(id);
 }
 
@@ -244,11 +251,11 @@ export async function claimOrder({ workerId, leaseMinutes = 20 }) {
   const until = new Date(Date.now() + leaseMinutes * 60000).toISOString().slice(0, 19).replace("T", " ");
   return tx(async (cn) => {
     const [cands] = await cn.execute(`SELECT id FROM orders
-      WHERE status='paid' AND provisioned_at IS NULL AND (lease_until IS NULL OR lease_until < ?)
+      WHERE status IN ('paid','queued') AND provisioned_at IS NULL AND (lease_until IS NULL OR lease_until < ?)
       ORDER BY paid_at LIMIT 1 FOR UPDATE`, [now()]);
     if (!cands.length) return null;
     const [r] = await cn.execute(`UPDATE orders SET lease_owner=?, lease_until=?, status='provisioning'
-      WHERE id=? AND status='paid'`, [workerId, until, cands[0].id]);
+      WHERE id=? AND status IN ('paid','queued')`, [workerId, until, cands[0].id]);
     if (r.affectedRows !== 1) return null;
     const [rows] = await cn.execute("SELECT * FROM orders WHERE id=?", [cands[0].id]);
     return parse(rows[0]);
@@ -288,7 +295,7 @@ export async function updateCheckoutRef(orderId, providerRef) {
 export async function beginProvision(orderId) {
   await ensureSchema();
   const r = await q(`UPDATE orders SET status='provisioning', lease_owner=?, lease_until=?
-    WHERE id=? AND status IN ('draft','paid')`,
+    WHERE id=? AND status IN ('draft','paid','queued')`,
     ["manual", new Date(Date.now() + 20 * 60000).toISOString().slice(0, 19).replace("T", " "), orderId]);
   return r.affectedRows === 1;
 }
@@ -318,7 +325,9 @@ export async function finishProvision(orderId, ok) {
  */
 export async function resetPaid(orderId) {
   await ensureSchema();
-  const r = await q("UPDATE orders SET status='paid' WHERE id=? AND status='provisioning'", [orderId]);
+  /* 放回 queued 而不是 paid：沒收過錢的單不該因為經過 worker 就變成已付款。
+     instance-provision 兩種都接受。 */
+  const r = await q("UPDATE orders SET status='queued' WHERE id=? AND status='provisioning'", [orderId]);
   return r.affectedRows === 1;
 }
 

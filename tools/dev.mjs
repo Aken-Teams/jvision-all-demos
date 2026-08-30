@@ -315,7 +315,9 @@ function startGateway() {
       return json(res, 200, { signedIn: visitor.isNamed(id), kind: id?.kind || null,
         email: id?.email || null, name: id?.name || null, google: google.configured(auth.conf()),
         /* 是否為後臺白名單成員。只回布林——把名單本身送到前端等於公告攻擊目標。 */
-        admin: Boolean(id?.email && google.allowed(auth.conf(), id.email)) });
+        admin: Boolean(id?.email && google.allowed(auth.conf(), id.email)),
+        /* 前端據此決定要不要顯示付款相關的東西。只回布林，不回金流設定。 */
+        paymentEnabled: payment.enabled() });
     }
 
     /* 許願池只給具名使用者。訪客身分看得到站上所有 demo，但許願會進到產線、
@@ -339,7 +341,10 @@ function startGateway() {
 
       try {
         const customer = await control.ensureCustomer({ email: id.email, company });
+        /* 沒開收費就直接排進建置佇列，客戶完全不會看到付款這件事。
+           開了收費才是 draft，等他走完付款流程。 */
         const order = await control.createOrder({
+          status: payment.enabled() ? "draft" : "queued",
           customerId: customer.id,
           buyerEmail: id.email,
           items: items.slice(0, 20).map((x) => ({
@@ -381,6 +386,9 @@ function startGateway() {
     /* 建立付款。金額在這一刻定案並寫進訂單——之後調價不該回頭影響
        客戶看到報價才按下付款的那一筆。 */
     if (p === "/api/orders/checkout" && req.method === "POST") {
+      /* 收費關著的時候這一路根本不該有人走到。擋在最前面，
+         免得關閉期間有殘留的前端或書籤把訂單推進 pending 而卡住。 */
+      if (!payment.enabled()) return json(res, 404, { error: "目前不需要付款" });
       const id = visitor.read(req);
       if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
       const { orderId } = await readBody(req);
@@ -413,6 +421,7 @@ function startGateway() {
        回呼掉了還有 worker 定期掃，回呼重複了狀態機擋住。
        這一路不看登入身分：金流商打過來時沒有使用者的 cookie，真偽由簽章決定。 */
     if (p === "/api/payment/callback" && (req.method === "POST" || req.method === "GET")) {
+      if (!payment.enabled()) return json(res, 404, { error: "目前不需要付款" });
       const body = req.method === "POST"
         ? await readBody(req)
         : Object.fromEntries(new URL(req.url, "http://x").searchParams);

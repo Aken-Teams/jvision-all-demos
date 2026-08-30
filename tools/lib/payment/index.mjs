@@ -20,7 +20,18 @@ const CONF = path.join(ROOT, "var", "payment.json");
 /** 設定。放 var/ 不進版控——之後接真金流時這裡會有商店代號與密鑰。 */
 export function config() {
   try { return JSON.parse(fs.readFileSync(CONF, "utf8")); }
-  catch { return { provider: "mock" }; }
+  catch { return { provider: "mock", enabled: false }; }
+}
+
+/**
+ * 要不要收費。**預設關**：站主目前不想讓客戶看到任何跟付款有關的東西。
+ *
+ * 關著的時候需求單一送出就直接排進建置佇列，付款頁與結帳 API 都不再有人走到；
+ * 程式碼留著不刪，之後要開只要把 var/payment.json 的 enabled 設成 true。
+ * 做成開關而不是刪掉，是因為「付完才建置」本來就是既定的方向，只是還沒到時候。
+ */
+export function enabled() {
+  return config().enabled === true;
 }
 
 const IMPLS = { mock: () => import("./mock.mjs") };

@@ -84,7 +84,7 @@
                 class="px-6 py-3 bg-brand text-white font-bold rounded-lg hover:bg-brand2 transition-colors disabled:opacity-50">
           送出需求
         </button>
-        <span id="hint" class="text-sm text-muted">送出後會顯示金額與付款連結，付款完成才開始建置。</span>
+        <span id="hint" class="text-sm text-muted">送出後我們就開始建置，建好會在「我的系統」看得到。</span>
       </div>
     </form>
 
@@ -93,7 +93,7 @@
       <span class="material-symbols-outlined text-[44px] text-green-600">task_alt</span>
       <p class="mt-3 text-ink font-bold text-lg">收到了</p>
       <p class="text-sm text-muted mt-1">需求單號 <code id="orderId" class="font-mono text-ink"></code></p>
-      <p class="text-sm text-muted mt-3 max-w-md mx-auto">付款後我們會依你寫的內容把系統做成可以實際使用的版本，建好會在「我的系統」看得到。</p>
+      <p id="doneNote" class="text-sm text-muted mt-3 max-w-md mx-auto">我們會依你寫的內容把系統做成可以實際使用的版本，建好會在「我的系統」看得到。</p>
       <p id="payAmount" class="text-sm text-ink font-bold mt-4"></p>
       <div class="mt-5 flex flex-wrap gap-3 justify-center">
         <a id="payLink" href="#" hidden class="px-6 py-2.5 bg-brand text-white text-sm font-black rounded-lg hover:bg-brand2 transition-colors">前往付款</a>
@@ -297,7 +297,13 @@
     document.addEventListener("jv-cart-sync", refresh);
 
     /* 先確認身分。要把做好的系統交給誰，這件事沒有身分就無從談起。 */
+    var PAY_ON = false;
     fetch("/api/visitor/me").then((r) => r.json()).then((me) => {
+      PAY_ON = Boolean(me.paymentEnabled);
+      if (PAY_ON) {
+        $("#doneNote").textContent = "付款後我們會依你寫的內容把系統做成可以實際使用的版本，建好會在「我的系統」看得到。";
+        $("#hint").textContent = "送出後會顯示金額與付款連結，付款完成才開始建置。";
+      }
       if (!me.signedIn) {
         $("#loginLink").href = "/api/visitor/google/start?next=" + encodeURIComponent("/cart.html");
         show("needLogin");
@@ -330,6 +336,8 @@
         $("#orderId").textContent = data.id;
         JVCart.clear();
         show("done");
+        /* 沒開收費就到此為止，整頁不會出現任何跟付款有關的字。 */
+        if (!PAY_ON) return;
         /* 送出之後立刻幫他把付款準備好。這一步失敗不該讓他以為需求單也沒送成
            ——單已經在了，之後從「我的需求單」也回得來。 */
         fetch("/api/orders/checkout", {
