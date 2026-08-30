@@ -341,7 +341,19 @@ function startGateway() {
         const coverDays = oldest
           ? Math.max(1, Math.round((now - Date.parse(oldest)) / 86400000)) : 0;
 
-        catalogStats.body = JSON.stringify({ addedAt, views, viewsAll, hotDays: HOT_DAYS, coverDays });
+        /* 哪些還不能複製。前端據此把按鈕直接畫成不可用，而不是讓人按下去才
+           跳一個錯誤對話框——那種「看起來可以、按了才說不行」最惱人。
+           回「不能的」而不是「能的」：不能的只有兩百多筆，能的有一千七百多。 */
+        const noSchema = [];
+        try {
+          const have = new Set(fs.readdirSync(path.join(root, "content", "schema"))
+            .map((x) => x.replace(/\.json$/, "")));
+          for (const d of fs.readdirSync(path.join(root, "demos"))) {
+            if (d.startsWith("jvision-") && !have.has(d)) noSchema.push(d);
+          }
+        } catch { /* 讀不到就當作全部都能複製，按下去才擋——比整頁壞掉好 */ }
+
+        catalogStats.body = JSON.stringify({ addedAt, views, viewsAll, hotDays: HOT_DAYS, coverDays, noSchema });
         catalogStats.at = now;
       }
       res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300" });

@@ -94,7 +94,7 @@ function searchableText(project) {
    抓不到就留空：「最新上架」退回用案例編號（編號遞增，實測與上架日期同向的
    比例是 99%），「最近熱門」則全部同分而落回編號排序。目錄能不能用，不該
    取決於一份排序用的加分資料。 */
-const sortStats = { addedAt: {}, views: {}, hotDays: 30, coverDays: 0 };
+const sortStats = { addedAt: {}, views: {}, noSchema: new Set(), hotDays: 30, coverDays: 0 };
 
 function loadSortStats() {
   return fetch("/api/catalog/stats", { cache: "no-store" })
@@ -103,6 +103,7 @@ function loadSortStats() {
       if (!d) return;
       sortStats.addedAt = d.addedAt || {};
       sortStats.views = d.views || {};
+      sortStats.noSchema = new Set(d.noSchema || []);
       sortStats.hotDays = d.hotDays || 30;
       sortStats.coverDays = d.coverDays || 0;
     })
@@ -452,6 +453,14 @@ function renderProjects() {
     if (copyLink) {
       copyLink.dataset.repo = project.repoName;
       copyLink.href = `customize?repo=${encodeURIComponent(project.repoName)}`;
+      /* 有些 demo 的資料是用 div 排出來的，抽不出資料表定義，複製了也沒有東西
+         可以存。與其讓人按下去才跳錯誤，不如當場就說清楚。 */
+      if (sortStats.noSchema.has(project.repoName)) {
+        copyLink.dataset.blocked = "1";
+        copyLink.className = "copy-link w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 border border-line text-muted text-sm font-bold rounded-lg whitespace-nowrap cursor-not-allowed";
+        copyLink.innerHTML = '<span class="material-symbols-outlined text-[18px]">block</span>暫不開放複製';
+        copyLink.title = "這一套的畫面沒有可抽取的資料表，還不能做成可以存資料的系統";
+      }
     }
 
     const detailUrl = `project?repo=${encodeURIComponent(project.repoName)}`;
@@ -499,6 +508,7 @@ function bindCopyOnce() {
     const a = event.target.closest(".copy-link");
     if (!a || !a.dataset.repo) return;
     event.preventDefault();
+    if (a.dataset.blocked) return;           // 已經畫成不可用，點了不該有事發生
     if (a.dataset.busy) return;              // 連按兩下不要開兩套
     a.dataset.busy = "1";
     const label = a.innerHTML;
@@ -728,9 +738,9 @@ async function boot() {
   /* 統計晚一步到的話，重畫一次。使用者可能是帶著 ?sort=popular 的網址進來的，
      那時第一次排序拿到的還是空的統計，看起來就像排序沒作用。 */
   await statsReady;
-  if (state.sort === "newest" || state.sort === "popular") {
-    applyFilters({ updateSuggestions: false, keepPage: true });
-  }
+  /* 統計裡有「哪些不能複製」，晚到的話按鈕會先畫成可複製的樣子，
+     所以一律重畫一次，不只是排序有關的那兩種。 */
+  applyFilters({ updateSuggestions: false, keepPage: true });
 }
 
 function syncSortUi() {
