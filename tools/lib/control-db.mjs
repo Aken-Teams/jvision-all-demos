@@ -204,6 +204,12 @@ export async function createOrder({ customerId, buyerEmail, items, amount = 0, n
   return getOrder(id);
 }
 
+/** 建單之後才補得上的欄位（例如截圖檔名）。整包覆寫，呼叫端負責帶完整的 items。 */
+export async function setOrderItems(orderId, items) {
+  await ensureSchema();
+  await q("UPDATE orders SET items_json = ? WHERE id = ?", [JSON.stringify(items), orderId]);
+}
+
 export async function getOrder(id) {
   await ensureSchema();
   return parse(await one("SELECT * FROM orders WHERE id = ?", [id]));

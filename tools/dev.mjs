@@ -16,6 +16,7 @@ import * as wishes from "./lib/wish-requests.mjs";
 import * as control from "./lib/control-db.mjs";
 import * as meUsage from "./lib/me-usage.mjs";
 import * as mysql from "./lib/mysql.mjs";
+import * as shots from "./lib/shots.mjs";
 import * as agentQueue from "./lib/agent-queue.mjs";
 import * as agentDir from "./lib/agent-direction.mjs";
 import { spawn as spawnProc } from "node:child_process";
@@ -160,9 +161,13 @@ const json = (res, code, body) => {
    而且都會撞上 GitHub 的限流。 */
 const ghSync = { child: null, startedAt: 0, lastCode: null };
 
-const readBody = (req) => new Promise((resolve) => {
+/* 上限預設 4KB——這裡的 API 收的都是短短的表單。帶截圖的需求單另外放寬，
+   由呼叫端指定。不做成無上限：沒有上限的 body 就是一個記憶體開關。
+   超過上限時直接斷線，前端會看到 "Failed to fetch"；那不是好訊息，但比
+   讓伺服器吃下任意大小的東西好。 */
+const readBody = (req, limit = 4096) => new Promise((resolve) => {
   let raw = "";
-  req.on("data", (c) => { raw += c; if (raw.length > 4096) req.destroy(); });
+  req.on("data", (c) => { raw += c; if (raw.length > limit) req.destroy(); });
   req.on("end", () => { try { resolve(JSON.parse(raw || "{}")); } catch { resolve({}); } });
 });
 
@@ -271,7 +276,8 @@ function startGateway() {
       const id = visitor.read(req);
       if (!id) return json(res, 401, { error: "請先登入" });
       if (id.kind !== "google") return json(res, 403, { error: "請用 Google 帳號登入", needsGoogle: true });
-      const body = await readBody(req);
+      /* 每套可以附一張截圖，前端已經縮到最寬 1400px；20 套上限抓 24MB。 */
+      const body = await readBody(req, 24 * 1024 * 1024);
       const items = Array.isArray(body.items) ? body.items.filter((x) => x && typeof x.repoName === "string") : [];
       if (!items.length) return json(res, 400, { error: "沒有挑選任何系統" });
       if (items.length > 20) return json(res, 400, { error: "一次最多 20 套" });
@@ -291,8 +297,23 @@ function startGateway() {
           note: [String(body.contact || "").trim().slice(0, 40), String(body.note || "").trim().slice(0, 1000)]
             .filter(Boolean).join(" / ") || null,
         });
+        /* 截圖等訂單建好、拿到編號才存——存了檔卻建單失敗，那些圖就成了
+           沒有人認領的垃圾。存好之後把檔名補回訂單。 */
+        const dir = path.join(root, "var", "order-shots", order.id);
+        let shotCount = 0;
+        const withShots = order.items.map((it, i) => {
+          const raw = items[i] && items[i].shot;
+          if (!raw) return it;
+          try {
+            const saved = shots.saveShot(dir, raw);
+            if (saved) { shotCount += 1; return { ...it, shot: saved.name }; }
+          } catch { /* 存不進去不該讓整張單失敗——文字才是主體 */ }
+          return it;
+        });
+        if (shotCount) await control.setOrderItems(order.id, withShots);
+
         await control.recordEvent({ kind: "order.created", customerId: customer.id, actor: id.email,
-          detail: { orderId: order.id, count: items.length } });
+          detail: { orderId: order.id, count: items.length, shots: shotCount } });
         actions.record({ actor: "訪客", action: "送出系統需求單", target: order.id, status: 200,
           visitor: who, who: visitor.labelOf(id), ip, note: `${company}｜${items.length} 套` });
         return json(res, 200, { ok: true, id: order.id });
@@ -658,6 +679,18 @@ function startGateway() {
           "cache-control": "private, max-age=300" });
         return fs.createReadStream(file).pipe(res);
       } catch { return json(res, 500, { error: "讀不到截圖" }); }
+    }
+
+    /* 訂單附的截圖。跟客戶實例那邊同一套規則（見 lib/shots.mjs）。 */
+    const ordShot = /^\/api\/admin\/order-shot\/([A-Za-z0-9_-]+)\/([a-z0-9-]+\.(?:png|jpg|webp))$/.exec(p);
+    if (ordShot) {
+      const id = adminOk();
+      if (!id) return json(res, 403, { error: "限管理者" });
+      const file = shots.shotPath(path.join(root, "var", "order-shots", ordShot[1]), ordShot[2]);
+      if (!file) return json(res, 404, { error: "找不到截圖" });
+      res.writeHead(200, { "content-type": shots.MIME[path.extname(file).slice(1)] || "image/jpeg",
+        "cache-control": "private, max-age=300" });
+      return fs.createReadStream(file).pipe(res);
     }
 
     /* ── 換裝產線（每套 demo 換一套視覺風格）──────────────
