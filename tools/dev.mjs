@@ -178,12 +178,80 @@ const readBody = (req, limit = 4096) => new Promise((resolve) => {
   req.on("end", () => { try { resolve(JSON.parse(raw || "{}")); } catch { resolve({}); } });
 });
 
+/* 客戶的子網域。只認這個形狀，其餘一律走主站的邏輯——用「查得到就算」
+   當條件的話，每個進來的怪 Host 都要查一次資料庫。 */
+const INSTANCE_HOST = /^[a-z0-9-]+\.c\.jvdemo\.jvision-ai\.com$/i;
+
+/* host → 實例。每個請求查一次資料庫會把共用主機的往返延遲加在客戶身上；
+   30 秒夠短，停用某個實例時不會拖太久才生效。 */
+const hostCache = new Map();
+async function instanceForHost(host) {
+  const key = String(host || "").toLowerCase().split(":")[0];
+  if (!INSTANCE_HOST.test(key)) return null;
+  const hit = hostCache.get(key);
+  if (hit && Date.now() - hit.at < 30000) return hit.inst;
+  let inst = null;
+  try { inst = await control.instanceByHost(key); } catch { /* 資料庫暫時不通就當作查不到 */ }
+  hostCache.set(key, { inst, at: Date.now() });
+  return inst;
+}
+
+/**
+ * 把請求轉給實例服務。身分與白名單在這裡驗完才轉——app-server 綁在 127.0.0.1，
+ * 但本機上的其他程序打得到它，所以那邊也會再擋一次（縱深防禦）。
+ */
+async function serveInstance(req, res, instanceId, target, { who, ip }) {
+  const id = visitor.read(req);
+  if (!visitor.isNamed(id)) {
+    res.writeHead(302, { location: `/api/visitor/google/start?next=${encodeURIComponent(req.url)}` });
+    return res.end();
+  }
+  try {
+    const inst = await control.getInstance(instanceId);
+    if (!inst) return json(res, 404, { error: "找不到這個系統" });
+    /* 只有這個客戶白名單裡的信箱進得去。權限每次查而不放進 cookie——
+       站主或客戶把某個信箱移除時要能馬上生效。 */
+    const role = await control.memberRole({ customerId: inst.customer_id, email: id.email });
+    if (!role) {
+      actions.record({ actor: "訪客", action: "非成員嘗試進入客戶系統", target: instanceId,
+        status: 403, visitor: who, who: visitor.labelOf(id), ip });
+      return json(res, 403, { error: "你的帳號不在這個系統的使用名單內" });
+    }
+    const up = http.request({
+      host: "127.0.0.1", port: APP_PORT, method: req.method, path: target,
+      headers: { ...req.headers, host: `127.0.0.1:${APP_PORT}`,
+        "x-jv-instance": instanceId, "x-jv-actor": id.email, "x-jv-role": role },
+    }, (upRes) => {
+      res.writeHead(upRes.statusCode, upRes.headers);
+      upRes.pipe(res);
+    });
+    up.on("error", () => json(res, 503, { error: "系統暫時無法使用（實例服務未啟動）" }));
+    req.pipe(up);
+  } catch (error) {
+    console.error("[instance]", error.message);
+    return json(res, 503, { error: "系統暫時無法使用" });
+  }
+}
+
 function startGateway() {
   const gw = http.createServer(async (req, res) => {
     const p = req.url.split("?")[0];
     const t0 = Date.now();
     const ip = actions.ipOf(req);
     const who = actions.visitorOf(ip);
+
+    /* 客戶子網域最先判。放在反爬蟲與主站路由之前，是因為那些規則是為型錄站
+       寫的（擋抓取 UA、限流、登入閘門），客戶自己的系統不該受那一套管；
+       而且主站的靜態路由會先把 / 對到型錄首頁，順序反了就永遠進不到這裡。
+       Host 不是這個形狀的話這一段幾乎零成本（只做一次正則）。 */
+    {
+      const inst = await instanceForHost(req.headers.host);
+      if (inst) {
+        if (inst.state === "archived") return json(res, 410, { error: "這個系統已封存" });
+        if (inst.state === "suspended") return json(res, 403, { error: "這個系統已暫停服務" });
+        return serveInstance(req, res, inst.id, req.url || "/", { who, ip });
+      }
+    }
 
     /* 反爬蟲底線：明顯的抓取 UA 與超速 IP 擋在這裡。迴環不限（自家產線與
        監看都走本機）；上層更強的防線是 Cloudflare 的 bot 防護。 */
@@ -218,46 +286,13 @@ function startGateway() {
       return json(res, 200, { ok: true });
     }
     /* ── 客戶的系統（實例）────────────────────────────
-       路徑形式 /-/i/<實例編號>/... 先上線，之後第四期換成子網域分流時
-       這條會保留當內部備援（不必動 DNS 就能驗收）。
-       實例身分由這裡解析後用標頭傳給 app-server，前端傳什麼都跨不過去。 */
+       兩個入口共用同一套把關：
+         /-/i/<實例編號>/...              內部備援，不必動 DNS 就能驗收
+         <公司>-<系統>.c.jvdemo...        客戶對外用的網址
+       實例身分在這裡解析後用標頭傳給 app-server，前端傳什麼都跨不過去。 */
     {
       const m = /^\/-\/i\/([a-z0-9_]+)(\/.*)?$/.exec(p);
-      if (m) {
-        const [, instanceId, rest] = m;
-        const id = visitor.read(req);
-        if (!visitor.isNamed(id)) {
-          res.writeHead(302, { location: `/api/visitor/google/start?next=${encodeURIComponent(req.url)}` });
-          return res.end();
-        }
-        try {
-          const inst = await control.getInstance(instanceId);
-          if (!inst) return json(res, 404, { error: "找不到這個系統" });
-          /* 只有這個客戶白名單裡的信箱進得去。權限每次查而不放進 cookie——
-             站主或客戶把某個信箱移除時要能馬上生效。 */
-          const role = await control.memberRole({ customerId: inst.customer_id, email: id.email });
-          if (!role) {
-            actions.record({ actor: "訪客", action: "非成員嘗試進入客戶系統", target: instanceId,
-              status: 403, visitor: who, who: visitor.labelOf(id), ip });
-            return json(res, 403, { error: "你的帳號不在這個系統的使用名單內" });
-          }
-          const target = rest && rest !== "/" ? rest : "/";
-          const up = http.request({
-            host: "127.0.0.1", port: APP_PORT, method: req.method, path: target,
-            headers: { ...req.headers, host: `127.0.0.1:${APP_PORT}`,
-              "x-jv-instance": instanceId, "x-jv-actor": id.email, "x-jv-role": role },
-          }, (upRes) => {
-            res.writeHead(upRes.statusCode, upRes.headers);
-            upRes.pipe(res);
-          });
-          up.on("error", () => json(res, 503, { error: "系統暫時無法使用（實例服務未啟動）" }));
-          req.pipe(up);
-          return;
-        } catch (error) {
-          console.error("[instance]", error.message);
-          return json(res, 503, { error: "系統暫時無法使用" });
-        }
-      }
+      if (m) return serveInstance(req, res, m[1], m[2] && m[2] !== "/" ? m[2] : "/", { who, ip });
     }
 
     /* AI 引擎狀態：claude 或 codex 任一無法使用時 ready=false，
