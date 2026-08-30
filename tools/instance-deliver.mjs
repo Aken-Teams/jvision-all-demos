@@ -11,7 +11,12 @@
  *   - 只有一個資料庫，不做多租戶
  *   - 身分驗證交給他自己的登入或反向代理（X-Forwarded-User）
  *
- *   node tools/instance-deliver.mjs --instance=<實例編號> [--repo=<名稱>] [--public] [--dry-run]
+ * 兩種交付方式：
+ *   預設      直接推上 main。第一次交付、或客戶不在意歷史時用這個。
+ *   --pr      推成一條分支並開 PR。客戶已經在用那個 repo、想先看過再合併時用——
+ *             直接覆蓋 main 會把他自己的修改蓋掉。
+ *
+ *   node tools/instance-deliver.mjs --instance=<實例編號> [--repo=<名稱>] [--pr] [--public] [--dry-run]
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -27,6 +32,8 @@ const DRY = Boolean(args["dry-run"]);
 /* 客戶的系統預設**私有**：那是他的營運資料結構，不該預設攤在外面。
    要公開得明講 --public。 */
 const PRIVATE = !args.public;
+/* 開 PR 而不是直接覆蓋 main。 */
+const AS_PR = Boolean(args.pr);
 const TEMPLATE = path.join(ROOT, "tools", "templates", "deliver");
 const TOKEN = process.env.GITHUB_TOKEN || readEnvToken();
 const OWNER = args.owner || process.env.GITHUB_DELIVER_OWNER || "JVision-pj";
@@ -189,18 +196,64 @@ async function main() {
       env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_CONFIG_COUNT: "1",
         GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
         GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basic}` } });
-    g("init", "-q", "-b", "main");
+    const branch = AS_PR ? `update-${new Date().toISOString().slice(0, 10)}-${Date.now().toString(36).slice(-4)}` : "main";
+    g("init", "-q", "-b", branch);
     g("config", "user.email", "deliver@jvision.local");
     g("config", "user.name", "JVision Deliver");
     g("add", "-A");
     g("commit", "-q", "-m", `交付 ${schema.title || inst.repo_name}`);
-    g("push", "-q", "--force", `https://github.com/${OWNER}/${repo}.git`, "main");
+    /* PR 模式也用 force：這個分支是這次交付專用的，不會有別人的東西在上面。
+       main 則只有非 PR 模式才會被覆蓋。 */
+    let ciSkipped = false;
+    try {
+      g("push", "-q", "--force", `https://github.com/${OWNER}/${repo}.git`, branch);
+    } catch (error) {
+      /* GitHub 不讓沒有 workflow 權限的 token 推 .github/workflows/。
+         少一個 CI 檔不該讓整份交付失敗——其餘的東西客戶照樣跑得起來，
+         那個檔另外給他自己放。 */
+      /* 三個都串起來看。execFileSync 失敗時 error.stdout 常常是「空的 Buffer」，
+         而空 Buffer 在 JS 裡是 truthy——用 || 串會永遠選到它，真正的訊息在
+         stderr 裡卻永遠讀不到，於是這個 catch 形同虛設。 */
+      const msg = [error.stdout, error.stderr, error.message].map((x) => String(x || "")).join("\n");
+      if (!/workflow\` scope|workflows/.test(msg)) throw error;
+      log.warn("  token 沒有 workflow 權限，這次不含 CI 設定檔");
+      fs.rmSync(path.join(tmp, ".github"), { recursive: true, force: true });
+      fs.writeFileSync(path.join(tmp, "CI-說明.md"),
+        "# CI 沒有一起交付\n\n" +
+        "交付用的 token 沒有 workflow 權限，GitHub 因此拒絕建立 .github/workflows/。\n" +
+        "系統本身完全不受影響，`docker compose up -d` 照常可用。\n\n" +
+        "要補上自動測試的話，向我們索取 ci.yml 放到 .github/workflows/ 即可。\n");
+      g("add", "-A");
+      g("commit", "-q", "--amend", "--no-edit");
+      g("push", "-q", "--force", `https://github.com/${OWNER}/${repo}.git`, branch);
+      ciSkipped = true;
+    }
 
-    const url = `https://github.com/${OWNER}/${repo}`;
+    let prUrl = null;
+    if (AS_PR) {
+      /* repo 剛建立時預設分支可能還沒有任何 commit，PR 會開不成——
+         那種情況直接把這條分支設成預設分支，客戶一樣看得到內容。 */
+      const info = await api(`/repos/${OWNER}/${repo}`);
+      const base = info.data?.default_branch || "main";
+      if (base === branch) {
+        log.info("  這是第一次交付，內容已經在預設分支上，不需要 PR");
+      } else {
+        const pr = await api(`/repos/${OWNER}/${repo}/pulls`, { method: "POST", body: JSON.stringify({
+          title: `更新 ${schema.title || inst.repo_name}`,
+          head: branch, base,
+          body: "這是你在 JVision 上對這套系統所做的修改。\n\n合併前可以先看 diff；不合併也不影響你正在跑的版本。",
+        }) });
+        if (pr.status === 201) { prUrl = pr.data.html_url; log.info(`  已開 PR：${prUrl}`); }
+        else log.warn(`  PR 開不成（${pr.status}）：${pr.data?.message || ""}——分支已經推上去了，可以自己開`);
+      }
+    }
+
+    const url = prUrl || `https://github.com/${OWNER}/${repo}`;
     await control.setInstanceState(inst.id, inst.state, { repo_url: url });
     await control.recordEvent({ kind: "instance.delivered", customerId: inst.customer_id,
       instanceId: inst.id, actor: null, detail: { repo: `${OWNER}/${repo}`, url } });
     log.step(`已交付：${url}`);
+    if (ciSkipped) log.info("  （不含 CI 設定檔，原因見 repo 裡的 CI-說明.md）");
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

@@ -573,6 +573,48 @@ function startGateway() {
 
     /* 用量：token 與空間。兩者來源不同、各自允許失敗——資料庫連不上時
        token 那半仍然讀得到（它在本機檔案裡），沒理由一起變成錯誤。 */
+    /* 自己的系統：分享、交付到 GitHub、開 PR。
+       每一路都先確認「這套真的是他的」——擁有者才能做這些，一般成員只能用。 */
+    {
+      const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/(share|deliver|pr)$/.exec(p);
+      if (m && req.method === "POST") {
+        const [, instanceId, what] = m;
+        const id = visitor.read(req);
+        if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
+        try {
+          const inst = await control.getInstance(instanceId);
+          if (!inst) return json(res, 404, { error: "找不到這個系統" });
+          const role = await control.memberRole({ customerId: inst.customer_id, email: id.email });
+          if (role !== "owner") return json(res, 403, { error: "只有這套系統的擁有者可以做這件事" });
+
+          if (what === "share") {
+            /* 分享＝把對方加進使用名單。名單是公司層級的，所以他會看得到這個
+               客戶底下所有的系統——這件事要講清楚，不能讓人以為只分享了一套。 */
+            const { email } = await readBody(req);
+            const members = await control.addMember(inst.customer_id, email);
+            await control.recordEvent({ kind: "instance.shared", customerId: inst.customer_id,
+              instanceId: inst.id, actor: id.email, detail: { to: String(email || "").slice(0, 190) } });
+            return json(res, 200, { members, link: `/-/i/${inst.id}/` });
+          }
+
+          /* 交付與 PR 都要跑 git 與 GitHub API，幾十秒到一兩分鐘。
+             同步等完再回，前端顯示「處理中」——做成背景工作要多一套查進度的機制，
+             而這件事一年做不到幾次。 */
+          const argv = [path.join(root, "tools", "instance-deliver.mjs"), `--instance=${inst.id}`];
+          if (what === "pr") argv.push("--pr");
+          const out = execFileSync(process.execPath, argv, { cwd: root, encoding: "utf8", timeout: 300000 });
+          const url = (String(out).match(/https:\/\/github\.com\/[^\s]+/g) || []).pop() || null;
+          actions.record({ actor: id.email, action: what === "pr" ? "為自己的系統開 PR" : "把自己的系統交付到 GitHub",
+            target: inst.repo_name, status: 200, visitor: who });
+          return json(res, 200, { ok: true, url });
+        } catch (error) {
+          const msg = String(error.stdout || error.stderr || error.message).slice(-400);
+          console.error("[me/instance]", msg.slice(0, 200));
+          return json(res, 500, { error: "沒有成功，請稍後再試", detail: msg.slice(-200) });
+        }
+      }
+    }
+
     if (p === "/api/me/usage" && req.method === "GET") {
       const id = visitor.read(req);
       if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
