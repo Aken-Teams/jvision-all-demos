@@ -61,6 +61,10 @@
       "#jvAsk textarea{flex:1;min-height:38px;max-height:110px;resize:none;border:1px solid #e2e8f0;border-radius:.6rem;padding:.45rem .6rem;font:inherit;font-size:.82rem}" +
       "#jvAsk button{flex:none;width:38px;border:0;border-radius:.6rem;background:#1e40af;color:#fff;cursor:pointer;font-size:16px}" +
       "#jvAsk button:disabled{opacity:.5;cursor:default}" +
+      "#jvShot{padding:0 .7rem .5rem;position:relative}" +
+      "#jvShot img{width:100%;border:1px solid #e2e8f0;border-radius:.5rem;display:block}" +
+      "#jvShot button{position:absolute;top:.2rem;right:.9rem;width:22px;height:22px;border:0;border-radius:9999px;background:rgba(15,23,42,.75);color:#fff;cursor:pointer;font-size:14px;line-height:1;padding:0}" +
+      "#jvChat .shot img{max-width:100%;border-radius:.5rem;margin-top:.35rem;display:block}" +
       "#jvAsstWrap .chips{display:flex;flex-wrap:wrap;gap:.3rem;padding:0 .9rem .6rem}" +
       "#jvAsstWrap .chips button{font-size:.72rem;border:1px solid #e2e8f0;background:#fff;color:#64748b;border-radius:9999px;padding:.2rem .55rem;cursor:pointer;font-family:inherit}" +
       "#jvAsstWrap .chips button:hover{border-color:#1e40af;color:#1e40af}" +
@@ -112,13 +116,27 @@
         '<button type="button">把「負責人」改叫「業務窗口」</button>' +
         '<button type="button">狀態要多一個「已結案」</button>' +
       "</div>" +
-      '<div id="jvAsk"><textarea rows="1" placeholder="想改什麼？直接說。"></textarea>' +
+      '<div id="jvShot"></div>' +
+      '<div id="jvAsk"><textarea rows="1" placeholder="想改什麼？直接說，也可以貼截圖。"></textarea>' +
       '<button type="button" title="送出">↑</button></div>';
     document.body.appendChild(wrap);
     wrap.querySelector(".x").addEventListener("click", function () { wrap.remove(); });
     wrap.addEventListener("click", function (e) { e.stopPropagation(); });
 
     say("bot", "這套系統的欄位、名稱都可以改。說一句話就行，我做得到的當場就改；做不到的我幫你記下來轉給我們的人。");
+
+    /* 截圖縮到最寬 1400px 再送。原圖動輒好幾 MB，而我們要的是「他指哪裡」，
+       這個解析度綽綽有餘。 */
+    wrap.addEventListener("paste", function (e) {
+      var items = (e.clipboardData && e.clipboardData.items) || [];
+      for (var i = 0; i < items.length; i += 1) {
+        if (items[i].type && items[i].type.indexOf("image/") === 0) {
+          e.preventDefault();
+          shrinkImage(items[i].getAsFile(), setShot);
+          return;
+        }
+      }
+    });
 
     var ta = wrap.querySelector("#jvAsk textarea");
     var send = wrap.querySelector("#jvAsk button");
@@ -134,6 +152,35 @@
   }
 
   var history = [];
+  var pendingShot = null;
+
+  function shrinkImage(blob, done) {
+    if (!blob || !/^image\//.test(blob.type)) return;
+    var url = URL.createObjectURL(blob);
+    var img = new Image();
+    img.onload = function () {
+      var w = img.width, h = img.height, max = 1400;
+      if (w > max) { h = Math.round(h * max / w); w = max; }
+      var cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      cv.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      try { done(cv.toDataURL("image/jpeg", 0.82)); } catch (e) { /* 讀不進來就當作沒貼 */ }
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); };
+    img.src = url;
+  }
+
+  function setShot(dataUrl) {
+    pendingShot = dataUrl;
+    var box = document.getElementById("jvShot");
+    if (!box) return;
+    box.innerHTML = dataUrl
+      ? '<img alt="截圖預覽" src="' + dataUrl + '" /><button type="button" aria-label="移除截圖">×</button>'
+      : "";
+    var b = box.querySelector("button");
+    if (b) b.addEventListener("click", function () { setShot(null); });
+  }
 
   function say(role, text, cls) {
     var box = document.getElementById("jvChat");
@@ -146,6 +193,7 @@
 
   function submit(text) {
     var msg = String(text || "").trim();
+    if (!msg && pendingShot) msg = "照這張截圖改";   // 只貼圖不打字也要能送
     if (!msg) return;
     var wrap = document.getElementById("jvAsstWrap");
     if (!wrap) return;
@@ -153,12 +201,23 @@
     var send = wrap.querySelector("#jvAsk button");
     ta.value = "";
     send.disabled = true;
+    var shot = pendingShot;
+    setShot(null);
     say("user", msg);
+    /* 自己貼的圖也要顯示在對話裡——不然送出後圖就消失了，
+       他會不確定到底有沒有帶上去。 */
+    if (shot) {
+      var box = document.getElementById("jvChat");
+      var wrapImg = el("div", { class: "m me shot" });
+      wrapImg.appendChild(el("img", { src: shot, alt: "我貼的截圖" }));
+      box.appendChild(wrapImg);
+      box.scrollTop = box.scrollHeight;
+    }
     history.push({ role: "user", text: msg });
     var wait = say("bot", "想一下…", "thinking");
 
     fetch("./_jv/chat", { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ message: msg, history: history.slice(-6) }) })
+      body: JSON.stringify({ message: msg, history: history.slice(-6), shot: shot }) })
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (x) {
         if (wait) wait.remove();

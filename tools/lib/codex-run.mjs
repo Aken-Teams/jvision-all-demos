@@ -53,6 +53,7 @@ export function runCodex({
   schemaPath,
   timeoutMs = DEFAULT_TIMEOUT_MS,
   model,
+  images,
   onLog,
 } = {}) {
   return new Promise((resolve) => {
@@ -60,6 +61,15 @@ export function runCodex({
     const args = ["exec", "--cd", cwd, "--sandbox", sandbox, "--skip-git-repo-check", "-o", outFile];
     if (schemaPath) args.push("--output-schema", schemaPath);
     if (model) args.push("--model", model);
+    /* 附圖。使用者貼的截圖是「他指的是這裡」最直接的說法，
+       用文字轉述一定會失真。
+       -i 是可變長度參數，後面接的東西會一直被當成圖片路徑——不加 -- 隔開的話，
+       prompt 會被當成第二個檔名吃掉，codex 就改去等 stdin 而立刻失敗
+       （訊息是 "No prompt provided via stdin"，跟圖片完全看不出關係）。 */
+    if (images && images.length) {
+      for (const img of images) args.push("-i", img);
+      args.push("--");
+    }
     args.push(prompt);
 
     const child = spawn("codex", args, { stdio: ["ignore", "pipe", "pipe"] });

@@ -36,11 +36,12 @@ function extractHtml(text) {
   return a >= 0 && b > a ? body.slice(a, b + 7) : null;
 }
 
-function prompt(instruction, html) {
+function prompt(instruction, html, hasImage) {
   return `你要依使用者的要求，改這一套系統的程式與畫面。
 
 ## 使用者要的
 ${instruction}
+${hasImage ? "\n使用者另外附了一張截圖，那是他指的位置或想要的樣子。以截圖為準——\n文字描述位置常常會失真，圖上圈的地方才是他真正要改的。\n" : ""}
 
 ## 不可以動的東西（動了這次修改就會被退回）
 1. 所有 <table> 的 <th> 文字一個字都不能改，也不能增減 <th> 的數量或順序。
@@ -72,7 +73,7 @@ ${html}`;
  * 失敗一律還原成原本的檔案——半改的頁面比沒改更糟，客戶會看到一個
  * 似是而非的畫面而不知道發生什麼事。
  */
-export async function editPage(dir, instruction, { timeoutMs = 900000, model } = {}) {
+export async function editPage(dir, instruction, { timeoutMs = 900000, model, imagePath } = {}) {
   const file = path.join(dir, "public", "index.html");
   if (!fs.existsSync(file)) return { ok: false, why: "找不到這套系統的畫面檔" };
   const before = fs.readFileSync(file, "utf8");
@@ -82,13 +83,19 @@ export async function editPage(dir, instruction, { timeoutMs = 900000, model } =
   fs.writeFileSync(path.join(dir, "public", "index.prev.html"), before);
 
   const r = await runCodexWithRetry({
-    prompt: prompt(instruction, before),
+    prompt: prompt(instruction, before, Boolean(imagePath)),
     cwd: dir,
     sandbox: "read-only",
     timeoutMs,
     model,
+    images: imagePath ? [imagePath] : undefined,
   }, { retries: 0 });
-  if (!r.ok) return { ok: false, why: "改的時候逾時了，請再說一次或把要求拆小一點" };
+  if (!r.ok) {
+    /* 原本一律回「逾時」，但實際上失敗六秒就結束了——那句話把我自己也騙了一輪。
+       把真正的原因帶出來，才查得到是什麼壞了。 */
+    const detail = String(r.error || "").slice(0, 80);
+    return { ok: false, why: detail ? `改不成：${detail}` : "改的時候逾時了，請再說一次或把要求拆小一點" };
+  }
 
   const after = extractHtml(r.text);
   if (!after) return { ok: false, why: "沒有產出完整的頁面" };

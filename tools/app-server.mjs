@@ -19,6 +19,7 @@ import * as control from "./lib/control-db.mjs";
 import * as data from "./lib/instance-db.mjs";
 import * as chat from "./lib/instance-chat.mjs";
 import * as edit from "./lib/instance-edit.mjs";
+import * as shots from "./lib/shots.mjs";
 
 const args = parseArgs();
 const log = makeLogger({ quiet: false });
@@ -178,7 +179,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (p === "/_jv/chat" && req.method === "POST") {
-      const b = await readBody(req, 32768);
+      /* 帶截圖時 body 會大很多，前端已經縮到最寬 1400px。 */
+      const b = await readBody(req, 6 * 1024 * 1024);
       const message = String(b.message || "").trim().slice(0, 500);
       if (!message) return json(res, 400, { error: "請說一下你想改什麼" });
       const schema = await data.describe(dbName);
@@ -206,7 +208,15 @@ const server = http.createServer(async (req, res) => {
           if (running && running.state === "running") {
             return json(res, 200, { reply: "上一個修改還在進行中，等它做完再說下一個。", action: "none", changed: false });
           }
-          startEdit(inst, message);
+          /* 截圖存進這個實例自己的 uploads，路徑交給 codex 當附件。 */
+          let img = null;
+          if (b.shot) {
+            try {
+              const saved = shots.saveShot(path.join(inst.dir, "uploads"), b.shot);
+              if (saved) img = path.join(inst.dir, "uploads", saved.name);
+            } catch { /* 存不進去就純用文字改，不要因為圖而整件事做不成 */ }
+          }
+          startEdit(inst, message, img);
           return json(res, 200, { reply: d.reply, action: "edit_page", job: true, changed: false });
         }
         if (d.action === "rename_system") {
@@ -241,9 +251,9 @@ const server = http.createServer(async (req, res) => {
    本來就沒做完，記在檔案裡反而會留下一個永遠 running 的假象。 */
 const editJobs = new Map();
 
-function startEdit(inst, instruction) {
+function startEdit(inst, instruction, imagePath) {
   editJobs.set(inst.id, { state: "running", startedAt: Date.now(), instruction });
-  edit.editPage(inst.dir, instruction)
+  edit.editPage(inst.dir, instruction, { imagePath })
     .then((r) => {
       editJobs.set(inst.id, r.ok
         ? { state: "done", at: Date.now(), reply: "改好了，畫面重新整理就會看到。" }
