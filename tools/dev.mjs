@@ -673,8 +673,13 @@ function startGateway() {
       let alive = false;
       if (st.pid) { try { process.kill(st.pid, 0); alive = true; } catch { alive = false; } }
       const done = (st.done || []).length, failed = (st.failed || []).length;
+      const day = new Date().toLocaleDateString("sv");
+      const doneToday = (st.daily || {})[day] || 0;
+      let quota = 100;
+      try { quota = Number(fs.readFileSync(path.join(root, "docs/_state/restyle-quota"), "utf8").trim()) || 100; } catch { /* 用預設 */ }
       return json(res, 200, {
         started: true, running: alive, total: st.total || 0, done, failed,
+        doneToday, quota, waiting: Boolean(st.waitingUntilTomorrow),
         workers: st.workers || 0, etaMs: st.etaMs || null,
         startedAt: st.startedAt || null, finishedAt: st.finishedAt || null,
         inFlight: (st.inFlight || []).map((x) => x.repo),
@@ -686,7 +691,12 @@ function startGateway() {
     if (p === "/api/admin/restyle/power" && req.method === "POST") {
       const id = adminOk();
       if (!id) return json(res, 403, { error: "限管理者" });
-      const { action, workers } = await readBody(req);
+      const { action, workers, daily } = await readBody(req);
+      /* 配額先落檔再啟動——跑起來之後才改，這一輪不會照新的數字走。 */
+      if (daily != null) {
+        const q = Math.max(0, Math.min(2000, Number(daily) || 0));
+        fs.writeFileSync(path.join(root, "docs/_state/restyle-quota"), `${q}\n`);
+      }
       let st = null;
       try { st = JSON.parse(fs.readFileSync(path.join(root, "docs/_state/restyle.json"), "utf8")); } catch { /* 無 */ }
       const alive = st && st.pid && (() => { try { process.kill(st.pid, 0); return true; } catch { return false; } })();

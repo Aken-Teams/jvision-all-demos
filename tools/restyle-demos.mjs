@@ -24,7 +24,10 @@
  * 安裝：npx ui-ux-pro-max-cli init --ai codex（裝到 .agents/，不進版控）。
  * 沒裝的話會退回 lib/restyle-styles.mjs 的內建矩陣，產線照跑。
  *
- *   node tools/restyle-demos.mjs --workers=4 [--limit=N] [--repos=a,b] [--dry-run]
+ * 每天有配額（預設 100 套）。做滿就停下來等隔天，不是一口氣跑完——
+ * 一次改動上千套沒辦法逐批看成果，出了系統性的問題也要到最後才發現。
+ *
+ *   node tools/restyle-demos.mjs --workers=4 [--daily=100] [--limit=N] [--repos=a,b] [--dry-run]
  *   node tools/restyle-demos.mjs --resume            接續上次沒做完的
  *   node tools/restyle-demos.mjs --status            只看進度
  */
@@ -41,9 +44,16 @@ const log = makeLogger({ quiet: Boolean(args.quiet) });
 const DEMOS = path.join(ROOT, "demos");
 const STATE = path.join(ROOT, "docs", "_state", "restyle.json");
 const BACKUP = path.join(ROOT, "var", "restyle-backups");
+const QUOTA_FILE = path.join(ROOT, "docs", "_state", "restyle-quota");
 const WORKERS = Math.max(1, Math.min(12, num(args.workers, 4)));
 const TIMEOUT_MS = num(args.timeout, 900) * 1000;
 const DRY = Boolean(args["dry-run"]);
+/* 每日配額只定義在 docs/_state/restyle-quota 一個地方，後台改的也是那個檔。
+   參數與檔案各存一份，改一邊就會不一致。 */
+function dailyQuota() {
+  if (args.daily != null) return Math.max(0, num(args.daily, 100));
+  try { return Math.max(0, Number(fs.readFileSync(QUOTA_FILE, "utf8").trim()) || 100); } catch { return 100; }
+}
 
 /* ── 狀態檔 ───────────────────────────────────────────
    平行寫同一個檔會互相蓋掉，所以只有主行程寫，worker 只回報。 */
@@ -57,6 +67,21 @@ function saveState() {
   const tmp = `${STATE}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + "\n");
   fs.renameSync(tmp, STATE);
+}
+
+const today = () => new Date().toLocaleDateString("sv"); // YYYY-MM-DD，當地時區
+
+function doneToday() {
+  const d = state.daily || {};
+  return d[today()] || 0;
+}
+
+function countToday() {
+  state.daily = state.daily || {};
+  state.daily[today()] = (state.daily[today()] || 0) + 1;
+  /* 只留最近 30 天，不然這個檔會一直長。 */
+  const keys = Object.keys(state.daily).sort();
+  while (keys.length > 30) delete state.daily[keys.shift()];
 }
 
 /** 表頭是綁定的身分證。抓出來當作改寫前後必須一致的指紋。 */
@@ -256,6 +281,9 @@ async function main() {
   const t0 = Date.now();
   async function worker(id) {
     while (next < queue.length) {
+      /* 配額用完就把這條線收起來。等隔天的事交給主流程一個人做，
+         十二條線各自睡到半夜再一起醒來只是把同一件事做十二遍。 */
+      if (doneToday() >= dailyQuota()) return;
       const repo = queue[next++];
       state.inFlight = [...state.inFlight.filter((x) => x.worker !== id), { worker: id, repo, at: Date.now() }];
       saveState();
@@ -264,19 +292,55 @@ async function main() {
       else { state.failed.push({ repo: r.repo, why: r.why, at: Date.now() }); log.warn(`  ✖ ${repo}：${r.why}`); }
       state.inFlight = state.inFlight.filter((x) => x.worker !== id);
       /* 每完成一筆就落地。這件事會跑很久，中途斷電也要能接得回來。 */
+      countToday();
       const n = state.done.length + state.failed.length;
       const per = (Date.now() - t0) / Math.max(1, n);
-      state.etaMs = Math.round(per * (queue.length - n));
+      /* 剩下的天數 × 24 小時，比「剩餘套數 × 每套秒數」誠實得多——
+         每天只做 100 套的話，真正決定何時結束的是天數不是速度。 */
+      const left = queue.length - n;
+      const q = dailyQuota();
+      state.etaMs = q > 0
+        ? Math.max(0, Math.ceil((left - (q - doneToday())) / q)) * 86400000 + per * Math.min(left, q - doneToday())
+        : Math.round(per * left);
       saveState();
     }
   }
 
-  const stop = () => { state.running = false; state.stoppedAt = new Date().toISOString(); saveState(); process.exit(0); };
+  const stop = () => {
+    state.stopRequested = true;
+    state.running = false;
+    state.stoppedAt = new Date().toISOString();
+    saveState();
+    process.exit(0);
+  };
   process.on("SIGTERM", stop);
   process.on("SIGINT", stop);
 
-  await Promise.all(Array.from({ length: WORKERS }, (_, i) => worker(i)));
+  /* 一天一輪：做滿配額 → 睡到換日 → 再開一輪。整批做完才真的結束。 */
+  while (next < queue.length) {
+    log.step(`今日配額 ${dailyQuota()} 套，已做 ${doneToday()} 套`);
+    await Promise.all(Array.from({ length: WORKERS }, (_, i) => worker(i)));
+    if (next >= queue.length) break;
+
+    state.waitingUntilTomorrow = true;
+    state.inFlight = [];
+    saveState();
+    const day = today();
+    log.step(`今日配額已用完（${doneToday()} 套），休息到明天`);
+    /* 每五分鐘看一次日期。不用算到半夜的精確秒數——那要處理時區與日光節約，
+       而早幾分鐘晚幾分鐘對這件事沒有差別。 */
+    while (today() === day) {
+      if (state.stopRequested) break;
+      await new Promise((r) => setTimeout(r, 300000));
+    }
+    if (state.stopRequested) break;
+    state.waitingUntilTomorrow = false;
+    saveState();
+    log.step("換日，繼續換裝");
+  }
+
   state.running = false;
+  state.waitingUntilTomorrow = false;
   state.finishedAt = new Date().toISOString();
   state.inFlight = [];
   saveState();
