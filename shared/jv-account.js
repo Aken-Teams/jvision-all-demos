@@ -182,7 +182,8 @@
         }
         box.innerHTML = list.slice(0, 5).map(function (s) {
           var live = s.state === "live";
-          return '<div class="row"><span>' + esc(s.repo_name.replace(/^jvision-/, "")) + "</span>" +
+          /* 有中文名稱就用中文；沒有才退回代號。 */
+          return '<div class="row"><span>' + esc(s.title || s.repo_name.replace(/^jvision-/, "")) + "</span>" +
             (live ? '<a href="/-/i/' + esc(s.id) + '/">開啟</a>'
                   : '<span class="muted">' + (s.state === "building" ? "建置中" : esc(s.state)) + "</span>") + "</div>";
         }).join("") + (list.length > 5 ? '<div class="muted">另有 ' + (list.length - 5) + " 套</div>" : "");

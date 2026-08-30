@@ -167,6 +167,23 @@ const json = (res, code, body) => {
    而且都會撞上 GitHub 的限流。 */
 const ghSync = { child: null, startedAt: 0, lastCode: null };
 
+/* repo → 中文名稱。目錄索引 1.4MB，每次查系統清單都重讀太浪費；
+   而且那個檔一天才變幾次，快取十分鐘綽綽有餘。 */
+const titleCache = { at: 0, map: null };
+function titleFor(repoName) {
+  const now = Date.now();
+  if (!titleCache.map || now - titleCache.at > 600000) {
+    const m = new Map();
+    try {
+      const c = JSON.parse(fs.readFileSync(path.join(root, "content", "catalog-index.json"), "utf8"));
+      for (const x of c.projects || []) if (x.repoName) m.set(x.repoName, x.title);
+    } catch { /* 讀不到就退回顯示代號——清單能不能出來，不該取決於名稱好不好看 */ }
+    titleCache.map = m;
+    titleCache.at = now;
+  }
+  return titleCache.map.get(repoName) || null;
+}
+
 /* 目錄排序資料的快取。 */
 const catalogStats = { at: 0, body: "{}" };
 /* 「最近熱門」的統計窗。站上每天都在新增系統，窗開太大等於在比誰上線得久，
@@ -544,7 +561,12 @@ function startGateway() {
     if (p === "/api/me/systems" && req.method === "GET") {
       const id = visitor.read(req);
       if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
-      try { return json(res, 200, { systems: await control.listInstancesFor(id.email) }); }
+      try {
+        const rows = await control.listInstancesFor(id.email);
+        /* 帶上中文名稱。清單上顯示 crossborder-localization-compliance 這種代號，
+           使用者認不出那是哪一套——他當初挑的是「跨境商品在地合規上架助手」。 */
+        return json(res, 200, { systems: rows.map((r) => ({ ...r, title: titleFor(r.repo_name) })) });
+      }
       catch { return json(res, 200, { systems: [], degraded: true }); }
     }
 

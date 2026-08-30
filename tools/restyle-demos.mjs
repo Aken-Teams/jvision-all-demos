@@ -40,6 +40,39 @@ import { styleBrief, styleFor } from "./lib/restyle-styles.mjs";
 import * as uiux from "./lib/uiux-skill.mjs";
 
 const args = parseArgs();
+
+/* 共用一顆瀏覽器。每套各開一次的話，啟動成本比渲染本身還貴。 */
+let _browser = null;
+async function browser() {
+  if (_browser) return _browser;
+  const { chromium } = await import("playwright");
+  _browser = await chromium.launch();
+  return _browser;
+}
+
+/**
+ * 實際把頁面跑起來，數 console 與未捕捉的錯誤。
+ *
+ * static-gate 只解析內嵌腳本的語法，抓不到執行時才爆的東西——實測換裝後有兩套
+ * 出現 "color is not defined" 與 <polygon> 的 NaN 座標，兩者語法都合法，
+ * 是跑起來才壞。那種壞法在目錄縮圖上看起來只是「圖沒畫出來」，不會有人發現。
+ */
+async function runtimeErrors(file) {
+  const b = await browser();
+  const c = await b.newContext();
+  const p = await c.newPage();
+  const errs = [];
+  p.on("pageerror", (e) => errs.push(String(e).slice(0, 90)));
+  p.on("console", (m) => { if (m.type() === "error") errs.push(m.text().slice(0, 90)); });
+  try {
+    await p.goto("file://" + file, { waitUntil: "networkidle", timeout: 45000 });
+    await p.waitForTimeout(2200);   // 圖表是非同步畫的，太早關會漏掉它們的錯誤
+  } catch (e) { errs.push("開不起來：" + String(e.message).slice(0, 60)); }
+  await c.close();
+  /* 本機用 file:// 開，favicon 的相對路徑必然 404——那不是換裝造成的，濾掉。 */
+  return errs.filter((x) => !/ERR_FILE_NOT_FOUND|favicon/i.test(x));
+}
+
 const log = makeLogger({ quiet: Boolean(args.quiet) });
 const DEMOS = path.join(ROOT, "demos");
 const STATE = path.join(ROOT, "docs", "_state", "restyle.json");
@@ -183,6 +216,8 @@ async function restyleOne(repo, title, category) {
      拿絕對標準去要求它們，等於把改好的成品判定成失敗再還原——實測 125 筆
      失敗裡有 94 筆是這樣來的。判準改成「不要比原本更糟」。 */
   const baselineIssues = new Set((staticGate(repo).issues || []));
+  /* 原檔本來就有的錯誤不算在換裝頭上——判準一律是「不要比原本更糟」。 */
+  const baselineErrs = DRY ? 0 : (await runtimeErrors(file)).length;
 
   fs.mkdirSync(BACKUP, { recursive: true });
   const backup = path.join(BACKUP, `${repo}.html`);
@@ -219,6 +254,11 @@ async function restyleOne(repo, title, category) {
   const gate = staticGate(repo);
   const added = (gate.issues || []).filter((i) => !baselineIssues.has(i));
   if (added.length) return revert(`改壞了：${added.slice(0, 2).join("／")}`);
+
+  const errs = await runtimeErrors(file);
+  if (errs.length > baselineErrs) {
+    return revert(`跑起來會出錯：${errs[0]}`);
+  }
 
   const styleName = ds
     ? (ds.text.match(/Name:\s*([^\n]+)/g) || [])[1]?.replace(/Name:\s*/, "").trim().slice(0, 40)
@@ -347,6 +387,7 @@ async function main() {
   state.finishedAt = new Date().toISOString();
   state.inFlight = [];
   saveState();
+  if (_browser) await _browser.close().catch(() => {});
   log.step(`完成：成功 ${state.done.length}、失敗 ${state.failed.length}`);
   if (state.failed.length) log.info(`  失敗的原檔都已還原，可用 --resume 重跑`);
 }
