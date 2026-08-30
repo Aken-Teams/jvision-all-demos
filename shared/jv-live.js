@@ -198,13 +198,27 @@
   }
 
   /* ── 新增／編輯表單 ───────────────────────────────── */
+  /* 依欄位型別給對應的輸入框。讓瀏覽器先擋住明顯填錯的值，比讓人送出去才
+     被伺服器退回好——退回的訊息再清楚，也已經是白填了一次。
+     percent 不用 number：畫面上的示範值就是「96%」那種寫法，用 number
+     會讓那個百分號打不進去。 */
+  function inputAttrs(type) {
+    if (type === "int") return { type: "number", step: "1", inputmode: "numeric" };
+    if (type === "number") return { type: "number", step: "any", inputmode: "decimal" };
+    if (type === "date") return { type: "date" };
+    if (type === "percent") return { type: "text", inputmode: "decimal", placeholder: "例如 96 或 96%" };
+    return { type: "text" };
+  }
+
   function openForm(ctx, row) {
     if (!ctx) return;
     var isEdit = !!row;
     var inputs = {};
     var fields = ctx.def.columns.map(function (c) {
-      var input = el("input", { value: row && row[c.key] != null ? String(row[c.key]) : "",
-        style: "width:100%;padding:7px 10px;border:1px solid var(--line,#e2e8f0);border-radius:8px;font:inherit;font-size:13px;margin-top:3px" });
+      var attrs = inputAttrs(c.type);
+      attrs.value = row && row[c.key] != null ? String(row[c.key]) : "";
+      attrs.style = "width:100%;padding:7px 10px;border:1px solid var(--line,#e2e8f0);border-radius:8px;font:inherit;font-size:13px;margin-top:3px";
+      var input = el("input", attrs);
       inputs[c.key] = input;
       return el("label", { style: "display:block;margin-bottom:11px" },
         [el("span", { text: c.label, style: "font-size:12px;font-weight:700;color:var(--muted,#64748b)" }), input]);

@@ -137,8 +137,45 @@ export async function list(dbName, table, { limit = 50, offset = 0, q: search = 
   return { rows, total };
 }
 
+/** 欄位定義（含 label 與 type），驗證訊息要講得出「哪一個欄位」才有用。 */
+async function colDefs(dbName, table) {
+  return q(`SELECT \`key\`, label, type FROM ${T(dbName, "jv_columns")} WHERE table_name=? ORDER BY ord`, [table]);
+}
+
+/**
+ * 值與欄位型別對不對。
+ *
+ * 不做的話，使用者在「每分鐘呼叫上限」填了中文，MySQL 會丟
+ * "Incorrect integer value"，而那一路是 500——畫面上顯示「伺服器錯誤」，
+ * 看起來像系統壞了，實際上只是填錯格子。訊息要指名欄位，他才知道要改哪裡。
+ */
+async function checkValues(dbName, table, values) {
+  const defs = await colDefs(dbName, table);
+  for (const d of defs) {
+    if (!(d.key in values)) continue;
+    const raw = values[d.key];
+    if (raw == null || String(raw).trim() === "") continue;     // 空白就是不填，交給資料庫存 NULL
+    const v = String(raw).trim();
+    if (d.type === "int" && !/^-?\d+$/.test(v)) {
+      throw Object.assign(new Error(`「${d.label}」要填整數`), { status: 400 });
+    }
+    if (d.type === "number" && !/^-?\d+(\.\d+)?$/.test(v)) {
+      throw Object.assign(new Error(`「${d.label}」要填數字`), { status: 400 });
+    }
+    /* percent 允許帶不帶 % 都行——畫面上的示範資料就是「96%」那種寫法，
+       要求使用者跟著猜要不要加符號沒有意義。 */
+    if (d.type === "percent" && !/^-?\d+(\.\d+)?%?$/.test(v)) {
+      throw Object.assign(new Error(`「${d.label}」要填數字或百分比（例如 96 或 96%）`), { status: 400 });
+    }
+    if (d.type === "date" && !/^\d{4}[-/]\d{1,2}[-/]\d{1,2}([ T].*)?$/.test(v)) {
+      throw Object.assign(new Error(`「${d.label}」要填日期（例如 2026-08-30）`), { status: 400 });
+    }
+  }
+}
+
 export async function create(dbName, table, values, actor) {
   const phys = await assertTable(dbName, table);
+  await checkValues(dbName, table, values);
   const keys = await keysOf(dbName, table);
   return tx(async (cn) => {
     const [r] = await cn.execute(`INSERT INTO ${phys} (${keys.map(col).join(",")}, _created_at, _updated_at, _created_by)
@@ -157,6 +194,7 @@ export async function create(dbName, table, values, actor) {
  */
 export async function update(dbName, table, id, values, rev, actor) {
   const phys = await assertTable(dbName, table);
+  await checkValues(dbName, table, values);
   const keys = await keysOf(dbName, table);
   const set = {};
   for (const k of keys) if (k in values) set[k] = values[k];
