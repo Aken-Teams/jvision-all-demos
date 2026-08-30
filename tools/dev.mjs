@@ -565,7 +565,8 @@ function startGateway() {
         const rows = await control.listInstancesFor(id.email);
         /* 帶上中文名稱。清單上顯示 crossborder-localization-compliance 這種代號，
            使用者認不出那是哪一套——他當初挑的是「跨境商品在地合規上架助手」。 */
-        return json(res, 200, { systems: rows.map((r) => ({ ...r, title: titleFor(r.repo_name) })) });
+        /* 客戶自己改過名字就用他的，沒有才用目錄上的標題。 */
+        return json(res, 200, { systems: rows.map((r) => ({ ...r, title: r.display_name || titleFor(r.repo_name) })) });
       }
       catch { return json(res, 200, { systems: [], degraded: true }); }
     }

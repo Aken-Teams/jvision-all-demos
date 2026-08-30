@@ -184,6 +184,13 @@ const server = http.createServer(async (req, res) => {
           await data.renameColumn(dbName, d.table, d.key, d.label, actor);
           return json(res, 200, { reply: d.reply, action: "rename_column", changed: true });
         }
+        if (d.action === "rename_system") {
+          const ok = await renameSystem(inst, d.label);
+          if (!ok) return json(res, 200, { reply: "我找不到畫面上原本的系統名稱，可能被改過了。你可以直接說「把畫面上的 ○○ 改成 ××」。", action: "none", changed: false });
+          await control.renameInstance(inst.id, d.label);
+          cache.delete(inst.id);   // 名稱換了，快取裡那份要作廢
+          return json(res, 200, { reply: d.reply, action: "rename_system", changed: true });
+        }
       } catch (error) {
         /* 動作本身失敗（欄位已存在、名稱不合法…）要照實說，不要回一句
            「已完成」——那會讓他以為改好了而不再追。 */
@@ -204,6 +211,37 @@ const server = http.createServer(async (req, res) => {
     json(res, code, { error: code >= 500 ? "伺服器錯誤" : error.message });
   }
 });
+
+/**
+ * 改整套系統的名稱。
+ *
+ * 動的是這個客戶自己的那份 index.html——原始的 demo 是目錄展示品，永遠唯讀。
+ * 只替換「原本那個標題字串」的完整比對，不做模糊處理：畫面上到處都是中文，
+ * 模糊替換會改到不相干的字，而那種壞法客戶要用一陣子才會發現。
+ */
+function renameSystem(inst, label) {
+  const file = path.join(inst.dir, "public", "index.html");
+  if (!fs.existsSync(file)) return false;
+  const html = fs.readFileSync(file, "utf8");
+  /* 原本的名字：先用這個實例目前的名稱，沒有就用目錄上的標題。 */
+  const old = inst.display_name || titleOf(inst.repo_name);
+  if (!old || !html.includes(old)) return false;
+  fs.writeFileSync(file, html.split(old).join(label));
+  return true;
+}
+
+/* repo → 目錄上的標題。實例服務不該再去讀 1.4MB 的目錄索引，所以只讀一次留著。 */
+let titles = null;
+function titleOf(repoName) {
+  if (!titles) {
+    titles = new Map();
+    try {
+      const c = JSON.parse(fs.readFileSync(path.join(ROOT, "content", "catalog-index.json"), "utf8"));
+      for (const x of c.projects || []) if (x.repoName) titles.set(x.repoName, x.title);
+    } catch { /* 讀不到就沒有原名可比對，改名會回 false 並請他講清楚 */ }
+  }
+  return titles.get(repoName) || null;
+}
 
 /* 閒置回收要看「最後一次寫入」。每次寫都更新會讓控制面被打爆，
    所以節流成每分鐘最多一次——回收判斷用的是天數，這個精度綽綽有餘。 */

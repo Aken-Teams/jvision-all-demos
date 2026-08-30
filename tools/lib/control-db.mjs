@@ -102,9 +102,29 @@ const DDL = [
 
 let ready = null;
 /** 建表。冪等，所有進入點都先 await 它一次。 */
+/* 後來才加的欄位。CREATE TABLE IF NOT EXISTS 對已經存在的表不會補欄位，
+   所以要另外補一次；已經有了會丟 ER_DUP_FIELDNAME，忽略掉就是冪等的。 */
+const MIGRATIONS = [
+  "ALTER TABLE instances ADD COLUMN display_name VARCHAR(120)",
+];
+
 export function ensureSchema() {
-  if (!ready) ready = (async () => { for (const ddl of DDL) await q(ddl); })();
+  if (!ready) ready = (async () => {
+    for (const ddl of DDL) await q(ddl);
+    for (const m of MIGRATIONS) {
+      try { await q(m); }
+      catch (e) { if (e.code !== "ER_DUP_FIELDNAME") throw e; }
+    }
+  })();
   return ready;
+}
+
+/** 客戶自己改的系統名稱。空字串代表改回原本的名字。 */
+export async function renameInstance(id, name) {
+  await ensureSchema();
+  const clean = String(name || "").trim().slice(0, 120) || null;
+  await q("UPDATE instances SET display_name=? WHERE id=?", [clean, id]);
+  return clean;
 }
 
 const now = () => new Date().toISOString().slice(0, 19).replace("T", " ");
@@ -389,7 +409,7 @@ export async function createInstance({ customerId, orderId, repoName, host, dir 
  */
 export async function listInstancesFor(email) {
   await ensureSchema();
-  return q(`SELECT i.id, i.repo_name, i.host, i.state, i.created_at,
+  return q(`SELECT i.id, i.repo_name, i.host, i.state, i.created_at, i.display_name,
        CASE WHEN c.owner_email = ? THEN 'owner' ELSE COALESCE(m.role, 'member') END AS role
      FROM instances i
      LEFT JOIN customers c ON c.id = i.customer_id

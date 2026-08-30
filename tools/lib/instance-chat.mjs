@@ -12,7 +12,7 @@ import { spawn } from "node:child_process";
 const TIMEOUT_MS = 90000;
 
 /** 只接受這幾種動作。LLM 回別的就當成 none，交給人處理。 */
-const ACTIONS = new Set(["add_column", "rename_column", "none"]);
+const ACTIONS = new Set(["add_column", "rename_column", "rename_system", "none"]);
 const TYPES = new Set(["text", "int", "number", "percent", "date", "enum"]);
 const KEY_RE = /^[a-z][a-z0-9_]{0,62}$/;
 
@@ -34,7 +34,8 @@ ${message}
 ## 你能做的動作
 1. add_column —— 加一個欄位。要給 table、key、label、type。
 2. rename_column —— 改欄位的顯示名稱。要給 table、key（既有欄位的 key）、label（新名字）。
-3. none —— 你做不到的（改流程、改版面、加報表、串接外部系統…），或是他只是在問問題。
+3. rename_system —— 改整套系統的名稱（畫面最上方那個標題）。要給 label（新名稱）。
+4. none —— 你做不到的（改流程、改版面、加報表、串接外部系統…），或是他只是在問問題。
 
 ## 規則
 - key 只能用小寫英文與底線，開頭必須是英文字母。加欄位時自己取一個貼切的。
@@ -45,7 +46,7 @@ ${message}
   動作是 none 而且你做不到時，說明會轉給我們處理。
 
 只輸出 JSON，不要任何其他文字：
-{"action":"add_column|rename_column|none","table":"","key":"","label":"","type":"","reply":""}`;
+{"action":"add_column|rename_column|rename_system|none","table":"","key":"","label":"","type":"","reply":""}`;
 }
 
 function runClaude(text) {
@@ -86,6 +87,12 @@ export async function decide(schema, message, history) {
 
   const reply = String(raw.reply || "").slice(0, 300) || fallback.reply;
   if (raw.action === "none") return { action: "none", reply };
+
+  if (raw.action === "rename_system") {
+    const label = String(raw.label || "").trim().slice(0, 60);
+    if (!label) return { action: "none", reply: "新的名稱要叫什麼？" };
+    return { action: "rename_system", label, reply };
+  }
 
   const table = schema.tables.find((t) => t.name === raw.table) || schema.tables[0];
   if (!table) return fallback;
