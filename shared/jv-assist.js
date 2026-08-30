@@ -50,6 +50,20 @@
       "#jvAsstWrap .ok{background:#ecfdf5;color:#15803d}" +
       "#jvAsstWrap .err{background:#fef2f2;color:#b91c1c}" +
       "#jvAsstWrap .muted{font-size:.76rem;color:#64748b;line-height:1.55}" +
+      "#jvAsstWrap.chat{width:400px;height:min(560px,calc(100vh - 120px));max-height:none}" +
+      "#jvChat{flex:1;overflow-y:auto;padding:.8rem .9rem;display:flex;flex-direction:column;gap:.55rem}" +
+      "#jvChat .m{max-width:86%;padding:.5rem .7rem;border-radius:.75rem;font-size:.82rem;line-height:1.55;white-space:pre-wrap;word-break:break-word}" +
+      "#jvChat .me{align-self:flex-end;background:#1e40af;color:#fff;border-bottom-right-radius:.2rem}" +
+      "#jvChat .bot{align-self:flex-start;background:#f1f5f9;color:#0f172a;border-bottom-left-radius:.2rem}" +
+      "#jvChat .done{align-self:flex-start;background:#ecfdf5;color:#15803d;font-weight:700}" +
+      "#jvChat .thinking{align-self:flex-start;color:#94a3b8;font-size:.78rem}" +
+      "#jvAsk{display:flex;gap:.4rem;padding:.6rem .7rem;border-top:1px solid #f1f5f9}" +
+      "#jvAsk textarea{flex:1;min-height:38px;max-height:110px;resize:none;border:1px solid #e2e8f0;border-radius:.6rem;padding:.45rem .6rem;font:inherit;font-size:.82rem}" +
+      "#jvAsk button{flex:none;width:38px;border:0;border-radius:.6rem;background:#1e40af;color:#fff;cursor:pointer;font-size:16px}" +
+      "#jvAsk button:disabled{opacity:.5;cursor:default}" +
+      "#jvAsstWrap .chips{display:flex;flex-wrap:wrap;gap:.3rem;padding:0 .9rem .6rem}" +
+      "#jvAsstWrap .chips button{font-size:.72rem;border:1px solid #e2e8f0;background:#fff;color:#64748b;border-radius:9999px;padding:.2rem .55rem;cursor:pointer;font-family:inherit}" +
+      "#jvAsstWrap .chips button:hover{border-color:#1e40af;color:#1e40af}" +
       "#jvAsstWrap .drop{margin-top:.35rem;border:1.5px dashed #cbd5e1;border-radius:.6rem;padding:.7rem;text-align:center;cursor:pointer;background:#f8fafc}" +
       "#jvAsstWrap .drop:hover,#jvAsstWrap .drop.on{border-color:#1e40af;background:#eff6ff}" +
       "#jvAsstWrap .drop span{font-size:.75rem;color:#64748b;font-weight:600}" +
@@ -61,7 +75,13 @@
 
   function el(tag, attrs, html) {
     var e = document.createElement(tag);
-    Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    Object.keys(attrs || {}).forEach(function (k) {
+      /* text 要當內容，不能當屬性。原本沒有這一條，對話訊息全部變成空泡泡
+         ——div 有了、字沒有，而且不會報錯，只會看起來像壞掉。
+         用 textContent 而不是 innerHTML：這裡放的是使用者與模型的文字。 */
+      if (k === "text") e.textContent = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    });
     if (html != null) e.innerHTML = html;
     return e;
   }
@@ -78,249 +98,86 @@
     });
   }
 
+  /* 對話視窗。原本是三顆固定選項的選單，但客戶想改的東西沒辦法列舉——
+     用講的才是他腦子裡本來的形狀。做不到的仍然收成待辦，所以不會有
+     「講了半天卻沒有下文」的情況。 */
   function open() {
-    var wrap = el("div", { id: "jvAsstWrap" });
+    var wrap = el("div", { id: "jvAsstWrap", class: "chat" });
     wrap.innerHTML =
-      '<div class="hd"><div><b>修改助理</b><small>想改哪裡？有些我現在就能改</small></div>' +
-      '<button class="x" type="button" aria-label="關閉">×</button></div><div class="bd"></div>';
+      '<div class="hd"><div><b>修改助理</b><small>用講的就好，例如「加一個爐號欄位」</small></div>' +
+      '<button class="x" type="button" aria-label="關閉">×</button></div>' +
+      '<div id="jvChat"></div>' +
+      '<div class="chips">' +
+        '<button type="button">加一個備註欄位</button>' +
+        '<button type="button">把「負責人」改叫「業務窗口」</button>' +
+        '<button type="button">狀態要多一個「已結案」</button>' +
+      "</div>" +
+      '<div id="jvAsk"><textarea rows="1" placeholder="想改什麼？直接說。"></textarea>' +
+      '<button type="button" title="送出">↑</button></div>';
     document.body.appendChild(wrap);
     wrap.querySelector(".x").addEventListener("click", function () { wrap.remove(); });
-    menu();
-    /* schema 先抓起來放著。等使用者選了「加欄位」才抓，會多一次等待，
-       而他那時候已經在等了。 */
-    if (!schema) {
-      fetch("./_jv/schema", { cache: "no-store" })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (d) { schema = d; })
-        .catch(function () {});
-    }
-  }
+    wrap.addEventListener("click", function (e) { e.stopPropagation(); });
 
-  var body = function () { var w = document.getElementById("jvAsstWrap"); return w && w.querySelector(".bd"); };
+    say("bot", "這套系統的欄位、名稱都可以改。說一句話就行，我做得到的當場就改；做不到的我幫你記下來轉給我們的人。");
 
-  function menu() {
-    var b = body(); if (!b) return;
-    b.innerHTML =
-      '<button class="opt" data-go="add">加一個欄位<i>例如加「備註」、「聯絡電話」</i></button>' +
-      '<button class="opt" data-go="rename">改欄位的名稱<i>換成你們公司習慣的說法</i></button>' +
-      '<button class="opt" data-go="ask">其他修改<i>流程、畫面、規則——寫下來我們處理</i></button>';
-    b.querySelectorAll("[data-go]").forEach(function (x) {
-      x.addEventListener("click", function () {
-        var g = x.dataset.go;
-        if (g === "add") return addField();
-        if (g === "rename") return renameField();
-        return ask();
-      });
+    var ta = wrap.querySelector("#jvAsk textarea");
+    var send = wrap.querySelector("#jvAsk button");
+    send.addEventListener("click", function () { submit(ta.value); });
+    ta.addEventListener("keydown", function (e) {
+      /* Enter 送出、Shift+Enter 換行。聊天框裡這是大家的肌肉記憶。 */
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(ta.value); }
     });
+    wrap.querySelectorAll(".chips button").forEach(function (b) {
+      b.addEventListener("click", function () { submit(b.textContent); });
+    });
+    ta.focus();
   }
 
-  function backBtn(b) {
-    var back = el("button", { class: "back", type: "button" }, "← 回上一步");
-    back.addEventListener("click", menu);
-    b.appendChild(back);
+  var history = [];
+
+  function say(role, text, cls) {
+    var box = document.getElementById("jvChat");
+    if (!box) return null;
+    var m = el("div", { class: "m " + (cls || (role === "user" ? "me" : "bot")), text: text });
+    box.appendChild(m);
+    box.scrollTop = box.scrollHeight;
+    return m;
   }
 
-  function tableOptions() {
-    if (!schema || !schema.tables || !schema.tables.length) return null;
-    return schema.tables.map(function (t) {
-      return '<option value="' + esc(t.name) + '">' + esc(t.name) + "（" + t.columns.length + " 欄）</option>";
-    }).join("");
-  }
+  function submit(text) {
+    var msg = String(text || "").trim();
+    if (!msg) return;
+    var wrap = document.getElementById("jvAsstWrap");
+    if (!wrap) return;
+    var ta = wrap.querySelector("#jvAsk textarea");
+    var send = wrap.querySelector("#jvAsk button");
+    ta.value = "";
+    send.disabled = true;
+    say("user", msg);
+    history.push({ role: "user", text: msg });
+    var wait = say("bot", "想一下…", "thinking");
 
-  /* 改完欄位會把 schema 設成 null 讓它重抓。原本這裡只畫一句「讀取中」
-     卻沒有人真的去讀，於是改完一次之後，畫面就永遠停在那句話上。
-     現在由這支負責：沒有就抓，抓到再畫，抓不到才顯示錯誤。 */
-  function withSchema(render) {
-    var b = body(); if (!b) return;
-    if (schema && schema.tables && schema.tables.length) return render();
-    b.innerHTML = "";
-    backBtn(b);
-    b.insertAdjacentHTML("beforeend", '<p class="muted">正在讀取這套系統的資料表…</p>');
-    fetch("./_jv/schema", { cache: "no-store" })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        schema = d;
-        if (d && d.tables && d.tables.length) return render();
-        var bb = body(); if (!bb) return;
-        bb.innerHTML = "";
-        backBtn(bb);
-        bb.insertAdjacentHTML("beforeend", '<p class="muted">這套系統目前沒有可以修改的資料表。你可以用「其他修改」告訴我們想要什麼。</p>');
+    fetch("./_jv/chat", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message: msg, history: history.slice(-6) }) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (x) {
+        if (wait) wait.remove();
+        send.disabled = false;
+        var reply = (x.d && (x.d.reply || x.d.error)) || "我沒聽懂，換個說法再說一次？";
+        say("bot", reply, x.d && x.d.changed ? "done" : "bot");
+        history.push({ role: "assistant", text: reply });
+        /* 真的改了東西就重新整理，讓他馬上看到結果——只回一句「已改好」
+           而畫面沒變，他不會相信。 */
+        if (x.d && x.d.changed) {
+          say("bot", "重新整理畫面…", "thinking");
+          setTimeout(function () { location.reload(); }, 1200);
+        }
       })
       .catch(function () {
-        var bb = body(); if (!bb) return;
-        bb.innerHTML = "";
-        backBtn(bb);
-        bb.insertAdjacentHTML("beforeend", '<p class="muted">讀不到資料表，請重新整理頁面再試。</p>');
+        if (wait) wait.remove();
+        send.disabled = false;
+        say("bot", "連不上伺服器，稍後再試一次。");
       });
-  }
-
-  function addField() { withSchema(drawAdd); }
-  function drawAdd() {
-    var b = body(); if (!b) return;
-    var opts = tableOptions();
-    b.innerHTML = "";
-    backBtn(b);
-    b.insertAdjacentHTML("beforeend",
-      '<label>加在哪張表</label><select id="jvaT">' + opts + "</select>" +
-      '<label>欄位名稱</label><input id="jvaL" maxlength="40" placeholder="例如：備註" />' +
-      '<label>資料型別</label><select id="jvaTy">' +
-        '<option value="text">文字</option><option value="int">整數</option>' +
-        '<option value="number">數字（可有小數）</option><option value="date">日期</option>' +
-      "</select>" +
-      '<button class="go" type="button">加上去</button><div id="jvaMsg"></div>');
-    b.querySelector(".go").addEventListener("click", function () {
-      var label = b.querySelector("#jvaL").value.trim();
-      var msg = b.querySelector("#jvaMsg");
-      if (!label) { msg.innerHTML = '<div class="note err">請先寫欄位名稱</div>'; return; }
-      /* key 由名稱推導。中文推不出英數字時退回時間戳，總之要是個合法識別字
-         ——後端會擋掉不合法的，但在這裡先給一個能用的比讓他看到錯誤好。 */
-      var key = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-      if (!/^[a-z]/.test(key)) key = "c_" + Date.now().toString(36).slice(-6);
-      fetch("./_jv/columns", { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ table: b.querySelector("#jvaT").value, key: key, label: label,
-          type: b.querySelector("#jvaTy").value }) })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-        .then(function (x) {
-          if (!x.ok) { msg.innerHTML = '<div class="note err">' + esc(x.d.error || "加不上去") + "</div>"; return; }
-          msg.innerHTML = '<div class="note ok">已加上「' + esc(label) + '」。重新整理就會看到這一欄。</div>';
-          schema = null; // 結構變了，下次要重抓
-        })
-        .catch(function () { msg.innerHTML = '<div class="note err">連不上伺服器</div>'; });
-    });
-  }
-
-  function renameField() { withSchema(drawRename); }
-  function drawRename() {
-    var b = body(); if (!b) return;
-    var opts = tableOptions();
-    b.innerHTML = "";
-    backBtn(b);
-    b.insertAdjacentHTML("beforeend",
-      '<label>哪張表</label><select id="jvrT">' + opts + "</select>" +
-      '<label>哪個欄位</label><select id="jvrC"></select>' +
-      '<label>改成什麼名字</label><input id="jvrL" maxlength="40" />' +
-      '<button class="go" type="button">改名稱</button><div id="jvrMsg"></div>');
-    var tSel = b.querySelector("#jvrT"), cSel = b.querySelector("#jvrC"), lIn = b.querySelector("#jvrL");
-    function fillCols() {
-      var t = schema.tables.filter(function (x) { return x.name === tSel.value; })[0];
-      cSel.innerHTML = (t ? t.columns : []).map(function (c) {
-        return '<option value="' + esc(c.key) + '">' + esc(c.label) + "</option>";
-      }).join("");
-      lIn.value = cSel.options.length ? cSel.options[cSel.selectedIndex].textContent : "";
-    }
-    tSel.addEventListener("change", fillCols);
-    cSel.addEventListener("change", function () { lIn.value = cSel.options[cSel.selectedIndex].textContent; });
-    fillCols();
-    b.querySelector(".go").addEventListener("click", function () {
-      var msg = b.querySelector("#jvrMsg"), label = lIn.value.trim();
-      if (!label) { msg.innerHTML = '<div class="note err">請先寫新名稱</div>'; return; }
-      fetch("./_jv/columns", { method: "PATCH", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ table: tSel.value, key: cSel.value, label: label }) })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-        .then(function (x) {
-          if (!x.ok) { msg.innerHTML = '<div class="note err">' + esc(x.d.error || "改不了") + "</div>"; return; }
-          msg.innerHTML = '<div class="note ok">已改成「' + esc(label) + '」。重新整理就會看到。</div>';
-          schema = null;
-        })
-        .catch(function () { msg.innerHTML = '<div class="note err">連不上伺服器</div>'; });
-    });
-  }
-
-  /* 截圖縮到最寬 1400px 再送。原圖動輒好幾 MB，而我們要的是「指出位置」，
-     那個解析度綽綽有餘；不縮的話手機端上傳會等很久，也更容易撞上大小上限。
-     一律轉成 JPEG：貼上的螢幕截圖多半是 PNG，同樣畫質下 JPEG 小一個量級。 */
-  function shrink(blob, done) {
-    var url = URL.createObjectURL(blob);
-    var img = new Image();
-    img.onload = function () {
-      var w = img.width, h = img.height, max = 1400;
-      if (w > max) { h = Math.round(h * max / w); w = max; }
-      var cv = document.createElement("canvas");
-      cv.width = w; cv.height = h;
-      cv.getContext("2d").drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(url);
-      try { done(cv.toDataURL("image/jpeg", 0.82)); } catch (e) { done(null); }
-    };
-    img.onerror = function () { URL.revokeObjectURL(url); done(null); };
-    img.src = url;
-  }
-
-  function ask() {
-    var b = body(); if (!b) return;
-    var shotData = null;
-    b.innerHTML = "";
-    backBtn(b);
-    b.insertAdjacentHTML("beforeend",
-      '<p class="muted">流程要多一關、畫面要換位置、要多一個報表——寫得越具體，做出來越接近你要的。</p>' +
-      '<label>你想改成什麼樣子</label><textarea id="jvqT" maxlength="2000" placeholder="例如：出貨前要多一關主管簽核，沒簽核不能出貨。"></textarea>' +
-      '<label>截圖（可省略）</label>' +
-      '<div class="drop" id="jvqDrop"><span>按 Ctrl+V 貼上截圖，或點這裡選檔案</span></div>' +
-      '<input type="file" id="jvqFile" accept="image/*" hidden />' +
-      '<div id="jvqShot"></div>' +
-      '<button class="go" type="button">送出</button><div id="jvqMsg"></div>');
-
-    var drop = b.querySelector("#jvqDrop"), file = b.querySelector("#jvqFile");
-    var shotBox = b.querySelector("#jvqShot"), msg = b.querySelector("#jvqMsg");
-
-    function setShot(dataUrl) {
-      shotData = dataUrl;
-      if (!dataUrl) { shotBox.innerHTML = ""; drop.hidden = false; return; }
-      drop.hidden = true;
-      shotBox.innerHTML = '<div class="shot"><img alt="截圖預覽" src="' + dataUrl + '" />' +
-        '<button type="button" title="移除截圖" aria-label="移除截圖">×</button></div>';
-      shotBox.querySelector("button").addEventListener("click", function () { setShot(null); });
-    }
-
-    function take(blob) {
-      if (!blob || !/^image\//.test(blob.type)) return;
-      shrink(blob, function (d) {
-        if (d) setShot(d);
-        else msg.innerHTML = '<div class="note err">這張圖讀不進來，換一張試試</div>';
-      });
-    }
-
-    drop.addEventListener("click", function () { file.click(); });
-    file.addEventListener("change", function () { if (file.files[0]) take(file.files[0]); });
-
-    /* 貼上要能在整個面板任何地方生效——使用者剛截完圖，游標多半還不在輸入框裡。
-       只掛在 textarea 上，最常見的那個動作就會沒有反應。 */
-    var wrap = document.getElementById("jvAsstWrap");
-    wrap.addEventListener("paste", function (e) {
-      var items = (e.clipboardData && e.clipboardData.items) || [];
-      for (var i = 0; i < items.length; i += 1) {
-        if (items[i].type && items[i].type.indexOf("image/") === 0) {
-          e.preventDefault();
-          take(items[i].getAsFile());
-          return;
-        }
-      }
-    });
-    ["dragover", "dragleave", "drop"].forEach(function (ev) {
-      drop.addEventListener(ev, function (e) {
-        e.preventDefault();
-        drop.classList.toggle("on", ev === "dragover");
-        if (ev === "drop" && e.dataTransfer && e.dataTransfer.files[0]) take(e.dataTransfer.files[0]);
-      });
-    });
-
-    b.querySelector(".go").addEventListener("click", function () {
-      var text = b.querySelector("#jvqT").value.trim();
-      if (!text) { msg.innerHTML = '<div class="note err">請先寫下你想改的地方</div>'; return; }
-      msg.innerHTML = '<div class="note muted">送出中…</div>';
-      fetch("./_jv/request", { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text: text, shot: shotData,
-          /* 順手把他現在停在哪一頁帶上去。同一句「這裡要改」在不同畫面
-             意思完全不同，而使用者不會想到要交代這件事。 */
-          screen: (document.title || "") + " ｜ " + (location.hash || "") }) })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-        .then(function (x) {
-          if (!x.ok) { msg.innerHTML = '<div class="note err">' + esc(x.d.error || "送不出去") + "</div>"; return; }
-          msg.innerHTML = '<div class="note ok">已收到' + (x.d.shot ? "（含截圖）" : "") + "，會有人跟你聯絡。</div>";
-          b.querySelector("#jvqT").value = "";
-          setShot(null);
-        })
-        .catch(function () { msg.innerHTML = '<div class="note err">連不上伺服器</div>'; });
-    });
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);

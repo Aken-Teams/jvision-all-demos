@@ -17,6 +17,7 @@ import http from "node:http";
 import { ROOT, parseArgs, num, makeLogger } from "./lib/forge-common.mjs";
 import * as control from "./lib/control-db.mjs";
 import * as data from "./lib/instance-db.mjs";
+import * as chat from "./lib/instance-chat.mjs";
 
 const args = parseArgs();
 const log = makeLogger({ quiet: false });
@@ -163,6 +164,36 @@ const server = http.createServer(async (req, res) => {
         detail: { text, repo: inst.repo_name, screen: String(b.screen || "").slice(0, 120) || null,
           shot: shot ? shot.name : null } });
       return json(res, 201, { ok: true, shot: Boolean(shot) });
+    }
+
+    /* 用講的改系統。LLM 只負責「把一句話翻成一個動作」，動作本身仍然走
+       上面那幾支既有的 API——讓它直接碰資料庫的話，想錯一次就是客戶的資料出事。 */
+    if (p === "/_jv/chat" && req.method === "POST") {
+      const b = await readBody(req, 32768);
+      const message = String(b.message || "").trim().slice(0, 500);
+      if (!message) return json(res, 400, { error: "請說一下你想改什麼" });
+      const schema = await data.describe(dbName);
+      const d = await chat.decide(schema, message, Array.isArray(b.history) ? b.history : []);
+
+      try {
+        if (d.action === "add_column") {
+          await data.addColumn(dbName, d.table, { key: d.key, label: d.label, type: d.type }, actor);
+          return json(res, 200, { reply: d.reply, action: "add_column", changed: true });
+        }
+        if (d.action === "rename_column") {
+          await data.renameColumn(dbName, d.table, d.key, d.label, actor);
+          return json(res, 200, { reply: d.reply, action: "rename_column", changed: true });
+        }
+      } catch (error) {
+        /* 動作本身失敗（欄位已存在、名稱不合法…）要照實說，不要回一句
+           「已完成」——那會讓他以為改好了而不再追。 */
+        return json(res, 200, { reply: `這個我做不到：${error.message}`, action: "none", changed: false });
+      }
+
+      /* 做不到的收成待辦，跟右下角助理的「其他修改」走同一條路。 */
+      await control.recordEvent({ kind: "change.request", customerId: inst.customer_id,
+        instanceId: inst.id, actor, detail: { text: message, repo: inst.repo_name, via: "chat" } });
+      return json(res, 200, { reply: d.reply, action: "none", changed: false });
     }
 
     /* ── 實例的畫面檔 ─────────────────────────────────── */
