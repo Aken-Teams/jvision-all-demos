@@ -10,7 +10,9 @@
  *   node tools/instance-provision.mjs --order=<需求單編號>            （整張單一次開通）
  */
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { ROOT, EXIT, parseArgs, makeLogger } from "./lib/forge-common.mjs";
 import * as control from "./lib/control-db.mjs";
 import * as data from "./lib/instance-db.mjs";
@@ -21,15 +23,48 @@ const args = parseArgs();
 const log = makeLogger({ quiet: Boolean(args.quiet) });
 const DRY = Boolean(args["dry-run"]);
 const INSTANCES = path.join(ROOT, "var", "instances");
+/* tunnel 編號。與 ~/.cloudflared/jvdemo.yml 裡的同一條，改那個檔時要一起改。 */
+const TUNNEL_ID = "1909ee29-c8dd-499b-bad0-d1cdf5b8151e";
 
-/** 子網域：<公司>-<系統>，撞名加序號。host 在資料庫是 UNIQUE，這裡先讓它好看。 */
+/**
+ * 子網域：c-<公司>-<系統>.jvision-ai.com，撞名加序號。
+ *
+ * 只有三層。Cloudflare 免費的 Universal SSL 只簽一層萬用（*.jvision-ai.com），
+ * 第四層（xxx.c.jvdemo.jvision-ai.com）沒有憑證，瀏覽器 TLS 直接握手失敗——
+ * 實測就是這樣，tunnel 與分流都對，卡在憑證。
+ * c- 前綴讓它不可能撞到 www / app 這些真正的服務名。
+ */
 async function pickHost(customerSlug, repo) {
   const short = repo.replace(/^jvision-/, "").split("-").slice(0, 2).join("-").slice(0, 20);
-  const base = `${customerSlug}-${short}`.replace(/[^a-z0-9-]/g, "").slice(0, 50);
-  let host = `${base}.c.jvdemo.jvision-ai.com`;
+  const base = `c-${customerSlug}-${short}`.replace(/[^a-z0-9-]/g, "").slice(0, 55);
+  let host = `${base}.jvision-ai.com`;
   let n = 1;
-  while (await control.instanceByHost(host)) host = `${base}-${++n}.c.jvdemo.jvision-ai.com`;
+  while (await control.instanceByHost(host)) host = `${base}-${++n}.jvision-ai.com`;
   return host;
+}
+
+/**
+ * 幫這個主機名建一筆指向 tunnel 的 DNS 記錄。
+ *
+ * 刻意不用萬用 DNS：*.jvision-ai.com 會把整個公司網域的任何子網域都指到這條
+ * tunnel，www 與 app 那些真正的服務只要哪天記錄出問題就會被接管。逐一建立
+ * 的成本只是開通時多跑一個指令。
+ *
+ * 失敗不中斷開通——實例本身已經好了，路徑式入口照樣進得去，DNS 之後補得上。
+ */
+function routeDns(host) {
+  try {
+    execFileSync("cloudflared", ["tunnel", "--config", path.join(os.homedir(), ".cloudflared", "jvdemo.yml"),
+      "route", "dns", TUNNEL_ID, host],
+      { encoding: "utf8", timeout: 60000, stdio: "pipe" });
+    return true;
+  } catch (error) {
+    const msg = [error.stdout, error.stderr, error.message].map((x) => String(x || "")).join("\n");
+    /* 已經存在不算失敗——重跑開通時會遇到。 */
+    if (/already exists|record with that host/i.test(msg)) return true;
+    log.warn(`  DNS 沒建成（${msg.split("\n").filter(Boolean).pop()?.slice(0, 80)}）——路徑式入口仍可用`);
+    return false;
+  }
 }
 
 async function provisionOne({ repo, customer, orderId }) {
@@ -56,6 +91,7 @@ async function provisionOne({ repo, customer, orderId }) {
     bind({ repo, outDir: realDir });
     await data.createFromSchema(inst.db_name, schema);
     await control.setInstanceState(inst.id, "live", { dir: realDir });
+    routeDns(host);
     await control.recordEvent({ kind: "instance.live", customerId: customer.id, instanceId: inst.id,
       actor: customer.owner_email, detail: { repo, host } });
     log.info(`  ✅ ${repo} → ${host}`);

@@ -202,7 +202,11 @@ const readBody = (req, limit = 4096) => new Promise((resolve) => {
 
 /* 客戶的子網域。只認這個形狀，其餘一律走主站的邏輯——用「查得到就算」
    當條件的話，每個進來的怪 Host 都要查一次資料庫。 */
-const INSTANCE_HOST = /^[a-z0-9-]+\.c\.jvdemo\.jvision-ai\.com$/i;
+/* 兩種都認：c-xxx.jvision-ai.com 是現在的命名（吃得到 *.jvision-ai.com 的
+   憑證），xxx.c.jvdemo... 是舊的第四層命名，已開通的實例還指著它。
+   只認 c- 開頭：tunnel 的 ingress 只能寫 *.jvision-ai.com，把關要在這裡做，
+   否則任何指到這條 tunnel 的子網域都會被當成客戶系統。 */
+const INSTANCE_HOST = /^(c-[a-z0-9-]+\.jvision-ai\.com|[a-z0-9-]+\.c\.jvdemo\.jvision-ai\.com)$/i;
 
 /* host → 實例。每個請求查一次資料庫會把共用主機的往返延遲加在客戶身上；
    30 秒夠短，停用某個實例時不會拖太久才生效。 */
