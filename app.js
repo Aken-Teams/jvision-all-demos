@@ -286,16 +286,21 @@ function cardHeroHTML(project) {
     <div class="jv-card-embed absolute inset-0 overflow-hidden" data-src="${project.demoUrl}" style="background:${soft}">
       ${badge}
       <div class="jv-card-ph absolute inset-0 flex items-center justify-center" style="background:${soft}"><span class="material-symbols-outlined" style="font-size:38px;color:${hue};opacity:.4">${icon}</span></div>
-      <iframe class="jv-card-frame" title="${title} 系統畫面" loading="lazy" scrolling="no" style="border:0;width:1440px;height:900px;transform-origin:top left;pointer-events:none;opacity:0;transition:opacity .35s"></iframe>
+      <iframe class="jv-card-frame" title="${title} 系統畫面" loading="lazy" scrolling="no" style="border:0;width:${EMBED_W}px;height:${EMBED_H}px;transform-origin:top left;pointer-events:none;opacity:0;transition:opacity .35s"></iframe>
       <span class="case-id hidden">#${project.id}</span>
     </div>`;
 }
 
 /* 卡片 live demo：捲到才載入 + 縮放；resize 重算（只綁一次） */
+/* 預覽 iframe 內部的解析度。卡片實際只有 ~460px 寬，用 1440 渲染再縮到三分之一
+   是白做的像素——一頁同時開六個 iframe 時，那些多出來的排版與繪製都在搶同一條
+   主執行緒。降到 1152 仍在桌機斷點（1024）之上，版面不會塌成手機版。 */
+const EMBED_W = 1152, EMBED_H = 720;
+
 function scaleCardEmbed(wrap) {
   const f = wrap.querySelector(".jv-card-frame"); if (!f) return;
   const w = wrap.clientWidth; if (!w) return;
-  f.style.transform = "scale(" + (w / 1440) + ")";
+  f.style.transform = "scale(" + (w / EMBED_W) + ")";
 }
 let _cardIO = null, _cardResizeBound = false;
 /* 預覽 iframe 同時最多載 3 個。每個 iframe 是一整套 demo（字型＋圖表庫＋渲染），
