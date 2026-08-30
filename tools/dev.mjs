@@ -620,6 +620,46 @@ function startGateway() {
       } catch (error) { return json(res, error.status || 500, { error: error.message }); }
     }
 
+    /* 客戶從系統右下角助理送出的修改需求。收下來卻沒有人看得到，
+       等於沒有收——所以連同截圖一起在後台列出。 */
+    if (p === "/api/admin/change-requests") {
+      const id = adminOk();
+      if (!id) return json(res, 403, { error: "限管理者" });
+      try {
+        const rows = await mysql.q(
+          `SELECT e.id, e.at, e.actor, e.instance_id, e.detail_json, i.repo_name, i.host, c.name AS company
+             FROM events e
+             LEFT JOIN instances i ON i.id = e.instance_id
+             LEFT JOIN customers c ON c.id = e.customer_id
+            WHERE e.kind = 'change.request'
+            ORDER BY e.at DESC LIMIT 100`);
+        return json(res, 200, { requests: rows.map((r) => {
+          const d = typeof r.detail_json === "string" ? JSON.parse(r.detail_json || "{}") : (r.detail_json || {});
+          return { id: r.id, at: r.at, actor: r.actor, company: r.company, repo: r.repo_name,
+            instanceId: r.instance_id, text: d.text || "", screen: d.screen || null, shot: d.shot || null };
+        }) });
+      } catch { return json(res, 503, { error: "資料庫暫時無法連線" }); }
+    }
+
+    /* 截圖檔。檔名只認我們自己產生的格式，路徑組出來之後再確認一次仍在該實例
+       的 uploads 底下——檔名是外部輸入，只靠正則擋不夠。 */
+    const shotM = /^\/api\/admin\/change-shot\/([a-z0-9_]+)\/([a-z0-9-]+\.(?:png|jpg|webp))$/.exec(p);
+    if (shotM) {
+      const id = adminOk();
+      if (!id) return json(res, 403, { error: "限管理者" });
+      try {
+        const inst = await control.getInstance(shotM[1]);
+        if (!inst) return json(res, 404, { error: "找不到這個系統" });
+        const dir = path.resolve(inst.dir, "uploads");
+        const file = path.resolve(dir, shotM[2]);
+        if (!file.startsWith(dir + path.sep) || !fs.existsSync(file)) return json(res, 404, { error: "找不到截圖" });
+        const ext = path.extname(file).slice(1);
+        res.writeHead(200, { "content-type": ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg",
+          "cache-control": "private, max-age=300" });
+        return fs.createReadStream(file).pipe(res);
+      } catch { return json(res, 500, { error: "讀不到截圖" }); }
+    }
+
     /* ── GitHub 同步管理 ─────────────────────────────────
        站上每個專案都對應一個 GitHub repo，連結早就印在頁面上；repo 不存在
        時訪客點了是 404。這裡讓站主看得到差距並補上。 */
