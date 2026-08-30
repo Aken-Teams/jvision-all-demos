@@ -404,6 +404,22 @@ export async function listInstancesFor(email) {
  * 送出去只是多給人一點可以打的東西。所以另開一支，而不是在原本那支加欄位
  * ——加了欄位，總有一天會有人把整個物件直接 json 出去。
  */
+/**
+ * 這個人是不是已經複製過這一套。
+ *
+ * 沒有這一層的話，同一顆按鈕按兩次就開出兩套一樣的系統、佔兩份資料庫，
+ * 而使用者只會覺得「我剛剛不是按過了嗎」。已經有就直接帶他回去那一套。
+ */
+export async function instanceForRepo(email, repoName) {
+  await ensureSchema();
+  return one(`SELECT i.id, i.state
+     FROM instances i
+     LEFT JOIN customers c ON c.id = i.customer_id
+     LEFT JOIN members  m ON m.customer_id = i.customer_id AND m.email = ?
+    WHERE i.repo_name = ? AND i.state <> 'archived' AND (c.owner_email = ? OR m.email IS NOT NULL)
+    ORDER BY i.created_at DESC LIMIT 1`, [email, repoName, email]);
+}
+
 export async function listInstancePathsFor(email) {
   await ensureSchema();
   return q(`SELECT i.id, i.dir, i.db_name

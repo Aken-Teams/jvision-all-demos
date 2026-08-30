@@ -362,6 +362,42 @@ function startGateway() {
     /* 需求單：客戶從目錄挑幾套系統，寫下想改成什麼樣子。
        把關與許願池同一條——那條已經跑了幾個月，不另外開一套。
        金流之後才接，現在送出就是留下需求，狀態停在 draft。 */
+    /* 一鍵複製模板：開好他自己的副本，直接把他送進去改。
+       同步等開通完成——實測只要幾秒，而使用者就站在畫面前面等著進去；
+       做成背景工作反而要多一套查進度的機制，還要處理「開好了要怎麼通知他」。 */
+    if (p === "/api/templates/copy" && req.method === "POST") {
+      const id = visitor.read(req);
+      if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入", needsGoogle: true });
+      const { repoName } = await readBody(req);
+      if (!/^jvision-[a-z0-9-]+$/.test(String(repoName || ""))) return json(res, 400, { error: "專案代號不正確" });
+      if (!fs.existsSync(path.join(root, "content", "schema", `${repoName}.json`))) {
+        return json(res, 409, { error: "這一套還沒有資料表定義，暫時不能複製" });
+      }
+      try {
+        /* 已經複製過就帶他回去那一套。按兩次不該開出兩套一樣的系統。 */
+        const had = await control.instanceForRepo(id.email, repoName);
+        if (had && had.state === "live") return json(res, 200, { id: had.id, existing: true });
+
+        const customer = await control.ensureCustomer({ email: id.email });
+        const order = await control.createOrder({
+          status: "queued", customerId: customer.id, buyerEmail: id.email,
+          items: [{ repoName, title: repoName, want: "" }],
+          note: "從目錄一鍵複製",
+        });
+        execFileSync(process.execPath,
+          [path.join(root, "tools", "instance-provision.mjs"), `--order=${order.id}`],
+          { cwd: root, encoding: "utf8", timeout: 180000 });
+        const made = await control.instanceForRepo(id.email, repoName);
+        if (!made) return json(res, 500, { error: "開通沒有產出系統" });
+        actions.record({ actor: "訪客", action: "一鍵複製模板", target: repoName, status: 200,
+          visitor: who, who: visitor.labelOf(id), ip });
+        return json(res, 200, { id: made.id, existing: false });
+      } catch (error) {
+        console.error("[copy]", String(error.message).slice(0, 200));
+        return json(res, 503, { error: "開通失敗，請稍後再試" });
+      }
+    }
+
     if (p === "/api/orders" && req.method === "POST") {
       const id = visitor.read(req);
       if (!id) return json(res, 401, { error: "請先登入" });

@@ -445,10 +445,14 @@ function renderProjects() {
       chip.textContent = metric;
       metrics.append(chip);
     }
-    /* 模板複製：直接連到那一套的修改頁。沒有挑選狀態要維護，換頁重建卡片
-       也不會掉東西——這正是拿掉購物車之後省下來的一整類問題。 */
+    /* 模板複製：按下去就開好他自己的副本並直接進去改。
+       用 dataset 帶 repo，事件綁在 grid 上只綁一次——換頁會整批重建卡片，
+       每張卡各綁一個監聽的話，重建後全部失效。 */
     const copyLink = card.querySelector(".copy-link");
-    if (copyLink) copyLink.href = `customize?repo=${encodeURIComponent(project.repoName)}`;
+    if (copyLink) {
+      copyLink.dataset.repo = project.repoName;
+      copyLink.href = `customize?repo=${encodeURIComponent(project.repoName)}`;
+    }
 
     const detailUrl = `project?repo=${encodeURIComponent(project.repoName)}`;
     const fullScenario = project.contentDepth === "full-scenario";
@@ -487,6 +491,40 @@ function renderProjects() {
 }
 
 /* 事件委派綁在 grid 上、只綁一次：卡片每次換頁都會重建，逐張綁會越疊越多。 */
+let _copyBound = false;
+function bindCopyOnce() {
+  if (_copyBound) return;
+  _copyBound = true;
+  grid.addEventListener("click", async (event) => {
+    const a = event.target.closest(".copy-link");
+    if (!a || !a.dataset.repo) return;
+    event.preventDefault();
+    if (a.dataset.busy) return;              // 連按兩下不要開兩套
+    a.dataset.busy = "1";
+    const label = a.innerHTML;
+    a.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>建立你的副本…';
+    try {
+      const r = await fetch("/api/templates/copy", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ repoName: a.dataset.repo }),
+      });
+      const d = await r.json();
+      if (r.status === 401) { location.href = "/api/visitor/google/start?next=" + encodeURIComponent(location.pathname + location.search); return; }
+      if (!r.ok) throw new Error(d.error || "建立失敗");
+      /* 直接進去改。他要的是「開始改」，不是再看一頁說明。 */
+      location.href = "/-/i/" + d.id + "/";
+    } catch (err) {
+      /* 開不起來就退回「寫下想改什麼」那條路——那條不需要當場開通，
+         比丟一個錯誤訊息讓他卡在原地有用。 */
+      a.innerHTML = label;
+      delete a.dataset.busy;
+      if (confirm((err.message || "建立失敗") + "\n\n改成寫下你想改的地方，由我們幫你建？")) {
+        location.href = a.getAttribute("href");
+      }
+    }
+  });
+}
+
 function goPage(target) {
   const pages = Math.max(1, Math.ceil(state.filtered.length / PAGE_SIZE));
   const next = Math.min(Math.max(1, target), pages);
@@ -682,6 +720,7 @@ async function boot() {
   const footerEl = document.querySelector("#footerStats");
   if (footerEl) footerEl.textContent = `${state.projects.length} 個展示專案`;
   syncSortUi();
+  bindCopyOnce();
   renderQuickFilters();
   renderCatalogStats();
   applyFilters({ updateSuggestions: false, keepPage: true });
