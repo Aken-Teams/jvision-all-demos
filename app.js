@@ -1,9 +1,16 @@
+/* 預設看「最新上架」而不是相關性。沒有搜尋字串時相關性一律是 0，實際上是
+   照編號由小到大排——也就是最舊的排最前面。那個位置本身會製造點擊，點擊又
+   讓它們看起來熱門，是個自我強化的循環；每天新做的系統則永遠沉在後面。 */
+const DEFAULT_SORT = "newest";
+
 const state = {
   projects: [],
   filtered: [],
   query: "",
   category: "",
-  sort: "relevance",
+  sort: DEFAULT_SORT,
+  /* 使用者有沒有自己挑過排序。有的話就不要自作主張改它。 */
+  sortExplicit: false,
   page: 1,
   suggestionIndex: -1,
 };
@@ -137,7 +144,8 @@ function hydrateFromUrl() {
   const params = new URLSearchParams(window.location.search);
   state.query = params.get("q") || "";
   state.category = params.get("category") || "";
-  state.sort = params.get("sort") || "relevance";
+  state.sort = params.get("sort") || DEFAULT_SORT;
+  state.sortExplicit = params.has("sort");
   state.page = Math.max(1, parseInt(params.get("page"), 10) || 1);
   searchInput.value = state.query;
   categorySelect.value = state.category;
@@ -148,7 +156,7 @@ function syncUrl() {
   const params = new URLSearchParams();
   if (state.query) params.set("q", state.query);
   if (state.category) params.set("category", state.category);
-  if (state.sort !== "relevance") params.set("sort", state.sort);
+  if (state.sort !== DEFAULT_SORT) params.set("sort", state.sort);
   if (state.page > 1) params.set("page", String(state.page));
   const query = params.toString();
   history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
@@ -367,7 +375,7 @@ function renderActiveFilters() {
     chip.addEventListener("click", () => { clear(); applyFilters(); });
     container.append(chip);
   }
-  clearFilters.disabled = !entries.length && state.sort === "relevance";
+  clearFilters.disabled = !entries.length && state.sort === DEFAULT_SORT;
   for (const button of quickFilters.querySelectorAll("button")) {
     button.classList.toggle("active", button.dataset.category === state.category);
   }
@@ -578,10 +586,11 @@ function applyFilters({ updateSuggestions = true, keepPage = false } = {}) {
 function resetFilters() {
   state.query = "";
   state.category = "";
-  state.sort = "relevance";
+  state.sort = DEFAULT_SORT;
+  state.sortExplicit = false;
   searchInput.value = "";
   categorySelect.value = "";
-  sortSelect.value = "relevance";
+  sortSelect.value = DEFAULT_SORT;
   suggestions.hidden = true;
   applyFilters({ updateSuggestions: false });
 }
@@ -672,6 +681,7 @@ async function boot() {
   if (totalEl) animateCount(totalEl, state.projects.length);
   const footerEl = document.querySelector("#footerStats");
   if (footerEl) footerEl.textContent = `${state.projects.length} 個展示專案`;
+  syncSortUi();
   renderQuickFilters();
   renderCatalogStats();
   applyFilters({ updateSuggestions: false, keepPage: true });
@@ -684,12 +694,42 @@ async function boot() {
   }
 }
 
-searchInput.addEventListener("input", (event) => { state.query = event.target.value; applyFilters(); });
+function syncSortUi() {
+  sortSelect.value = state.sort;
+  /* 自訂下拉是另一份 DOM，不同步的話畫面會顯示舊的選項名。 */
+  const label = document.querySelector("#sortLabel");
+  const opt = document.querySelector(`.sort-opt[data-value="${state.sort}"]`);
+  if (label && opt) label.textContent = opt.dataset.label;
+  document.querySelectorAll(".sort-opt").forEach((b) => {
+    b.setAttribute("aria-selected", String(b.dataset.value === state.sort));
+  });
+}
+
+/* 打字搜尋時，「最新上架」會把最貼近的結果排到後面去。使用者沒自己挑過排序的話
+   就切到相關性，清空搜尋再切回來——並且同步下拉選單，讓他看得到排序變了，
+   而不是暗著改。 */
+function autoSort() {
+  if (state.sortExplicit) return;
+  const want = state.query.trim() ? "relevance" : DEFAULT_SORT;
+  if (state.sort === want) return;
+  state.sort = want;
+  syncSortUi();
+}
+
+searchInput.addEventListener("input", (event) => {
+  state.query = event.target.value;
+  autoSort();
+  applyFilters();
+});
 searchInput.addEventListener("keydown", handleSearchKeys);
 searchInput.addEventListener("focus", renderSuggestions);
 searchInput.addEventListener("blur", () => setTimeout(() => { suggestions.hidden = true; searchInput.setAttribute("aria-expanded", "false"); }, 120));
 categorySelect.addEventListener("change", (event) => { state.category = event.target.value; applyFilters(); });
-sortSelect.addEventListener("change", (event) => { state.sort = event.target.value; applyFilters({ updateSuggestions: false }); });
+sortSelect.addEventListener("change", (event) => {
+  state.sort = event.target.value;
+  state.sortExplicit = true;
+  applyFilters({ updateSuggestions: false });
+});
 clearFilters.addEventListener("click", resetFilters);
 catalogStatsBody.addEventListener("click", (event) => {
   const action = event.target.closest("button[data-category]");
