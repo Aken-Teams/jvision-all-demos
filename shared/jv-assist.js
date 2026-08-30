@@ -171,13 +171,54 @@
         if (x.d && x.d.changed) {
           say("bot", "重新整理畫面…", "thinking");
           setTimeout(function () { location.reload(); }, 1200);
+          return;
         }
+        /* 改程式碼是背景工作。這裡不能只回一句「我來改」就沒下文——
+           使用者不會知道要等多久，也不知道到底有沒有在做。 */
+        if (x.d && x.d.job) pollJob();
       })
       .catch(function () {
         if (wait) wait.remove();
         send.disabled = false;
         say("bot", "連不上伺服器，稍後再試一次。");
       });
+  }
+
+  /* 等背景的程式修改做完。每三秒問一次，並把已經等了多久顯示出來——
+     沉默的等待會讓人以為當掉了。 */
+  function pollJob() {
+    var wrap = document.getElementById("jvAsstWrap");
+    if (!wrap) return;
+    var send = wrap.querySelector("#jvAsk button");
+    var ta = wrap.querySelector("#jvAsk textarea");
+    send.disabled = true;
+    ta.disabled = true;
+    var line = say("bot", "改寫中…（通常一到三分鐘）", "thinking");
+
+    var timer = setInterval(function () {
+      fetch("./_jv/job", { cache: "no-store" })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (!document.getElementById("jvAsstWrap")) { clearInterval(timer); return; }
+          if (j.state === "running") {
+            if (line) line.textContent = "改寫中…已經 " + (j.seconds || 0) + " 秒（通常一到三分鐘）";
+            return;
+          }
+          clearInterval(timer);
+          if (line) line.remove();
+          send.disabled = false;
+          ta.disabled = false;
+          if (j.state === "done") {
+            say("bot", j.reply || "改好了。", "done");
+            say("bot", "重新整理畫面…", "thinking");
+            setTimeout(function () { location.reload(); }, 1400);
+          } else if (j.state === "failed") {
+            /* 失敗要說出原因並提醒他原本的畫面沒被動到——他才敢再試下一個講法。 */
+            say("bot", (j.reply || "這次沒改成。") + "（原本的畫面沒有被動到）");
+          }
+        })
+        .catch(function () { /* 一次問不到不要緊，下一輪再問 */ });
+    }, 3000);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);

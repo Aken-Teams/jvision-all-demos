@@ -18,6 +18,7 @@ import { ROOT, parseArgs, num, makeLogger } from "./lib/forge-common.mjs";
 import * as control from "./lib/control-db.mjs";
 import * as data from "./lib/instance-db.mjs";
 import * as chat from "./lib/instance-chat.mjs";
+import * as edit from "./lib/instance-edit.mjs";
 
 const args = parseArgs();
 const log = makeLogger({ quiet: false });
@@ -168,6 +169,14 @@ const server = http.createServer(async (req, res) => {
 
     /* 用講的改系統。LLM 只負責「把一句話翻成一個動作」，動作本身仍然走
        上面那幾支既有的 API——讓它直接碰資料庫的話，想錯一次就是客戶的資料出事。 */
+    /* 改程式碼是背景工作（要好幾分鐘），前端靠這一路問「做完了沒」。 */
+    if (p === "/_jv/job") {
+      const j = editJobs.get(inst.id);
+      if (!j) return json(res, 200, { state: "idle" });
+      return json(res, 200, { state: j.state, reply: j.reply || null,
+        seconds: Math.round((Date.now() - (j.startedAt || j.at)) / 1000) });
+    }
+
     if (p === "/_jv/chat" && req.method === "POST") {
       const b = await readBody(req, 32768);
       const message = String(b.message || "").trim().slice(0, 500);
@@ -183,6 +192,22 @@ const server = http.createServer(async (req, res) => {
         if (d.action === "rename_column") {
           await data.renameColumn(dbName, d.table, d.key, d.label, actor);
           return json(res, 200, { reply: d.reply, action: "rename_column", changed: true });
+        }
+        if (d.action === "undo") {
+          const ok = edit.undo(inst.dir);
+          return json(res, 200, {
+            reply: ok ? "已經還原成上一次修改前的樣子。" : "沒有可以還原的版本。",
+            action: "undo", changed: ok });
+        }
+        if (d.action === "edit_page") {
+          /* 改程式碼要好幾分鐘，不能讓請求掛在那裡等——瀏覽器會先逾時。
+             開成背景工作，前端用 /_jv/job 問進度。 */
+          const running = editJobs.get(inst.id);
+          if (running && running.state === "running") {
+            return json(res, 200, { reply: "上一個修改還在進行中，等它做完再說下一個。", action: "none", changed: false });
+          }
+          startEdit(inst, message);
+          return json(res, 200, { reply: d.reply, action: "edit_page", job: true, changed: false });
         }
         if (d.action === "rename_system") {
           const ok = await renameSystem(inst, d.label);
@@ -211,6 +236,26 @@ const server = http.createServer(async (req, res) => {
     json(res, code, { error: code >= 500 ? "伺服器錯誤" : error.message });
   }
 });
+
+/* 正在進行的頁面修改。放記憶體：這是「現在做到哪」的狀態，服務重啟時那件事
+   本來就沒做完，記在檔案裡反而會留下一個永遠 running 的假象。 */
+const editJobs = new Map();
+
+function startEdit(inst, instruction) {
+  editJobs.set(inst.id, { state: "running", startedAt: Date.now(), instruction });
+  edit.editPage(inst.dir, instruction)
+    .then((r) => {
+      editJobs.set(inst.id, r.ok
+        ? { state: "done", at: Date.now(), reply: "改好了，畫面重新整理就會看到。" }
+        : { state: "failed", at: Date.now(), reply: r.why });
+      control.recordEvent({ kind: r.ok ? "instance.edited" : "instance.edit_failed",
+        customerId: inst.customer_id, instanceId: inst.id, actor: null,
+        detail: { instruction: String(instruction).slice(0, 300), why: r.why || null } }).catch(() => {});
+    })
+    .catch((e) => {
+      editJobs.set(inst.id, { state: "failed", at: Date.now(), reply: `改的時候出錯了：${String(e.message).slice(0, 80)}` });
+    });
+}
 
 /**
  * 改整套系統的名稱。

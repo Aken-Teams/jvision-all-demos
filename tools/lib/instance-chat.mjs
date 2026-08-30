@@ -12,7 +12,7 @@ import { spawn } from "node:child_process";
 const TIMEOUT_MS = 90000;
 
 /** 只接受這幾種動作。LLM 回別的就當成 none，交給人處理。 */
-const ACTIONS = new Set(["add_column", "rename_column", "rename_system", "none"]);
+const ACTIONS = new Set(["add_column", "rename_column", "rename_system", "edit_page", "undo", "none"]);
 const TYPES = new Set(["text", "int", "number", "percent", "date", "enum"]);
 const KEY_RE = /^[a-z][a-z0-9_]{0,62}$/;
 
@@ -35,7 +35,10 @@ ${message}
 1. add_column —— 加一個欄位。要給 table、key、label、type。
 2. rename_column —— 改欄位的顯示名稱。要給 table、key（既有欄位的 key）、label（新名字）。
 3. rename_system —— 改整套系統的名稱（畫面最上方那個標題）。要給 label（新名稱）。
-4. none —— 你做不到的（改流程、改版面、加報表、串接外部系統…），或是他只是在問問題。
+4. edit_page —— 改這套系統的行為或畫面：加按鈕、改流程步驟、改計算方式、改版面、
+   加圖表、改文案。凡是「要動到程式或畫面」的都走這個。要在 reply 說會花幾分鐘。
+5. undo —— 他說「還原」「改回去」「取消剛才的修改」。
+6. none —— 你真的做不到的（串接外部系統、寄信、接金流…），或是他只是在問問題。
 
 ## 規則
 - key 只能用小寫英文與底線，開頭必須是英文字母。加欄位時自己取一個貼切的。
@@ -46,7 +49,7 @@ ${message}
   動作是 none 而且你做不到時，說明會轉給我們處理。
 
 只輸出 JSON，不要任何其他文字：
-{"action":"add_column|rename_column|rename_system|none","table":"","key":"","label":"","type":"","reply":""}`;
+{"action":"add_column|rename_column|rename_system|edit_page|undo|none","table":"","key":"","label":"","type":"","reply":""}`;
 }
 
 function runClaude(text) {
@@ -87,6 +90,9 @@ export async function decide(schema, message, history) {
 
   const reply = String(raw.reply || "").slice(0, 300) || fallback.reply;
   if (raw.action === "none") return { action: "none", reply };
+
+  if (raw.action === "edit_page") return { action: "edit_page", reply };
+  if (raw.action === "undo") return { action: "undo", reply };
 
   if (raw.action === "rename_system") {
     const label = String(raw.label || "").trim().slice(0, 60);
