@@ -123,6 +123,12 @@ async function restyleOne(repo, title) {
 
   if (DRY) return { repo, ok: true, why: "dry-run", style: styleFor(repo).palette.name };
 
+  /* 先量原檔的閘況。static-gate 是「出生時」的規則，早期匯入的 demo 本來就
+     過不了（注入過 agent-bridge、導覽是 JS 動態建的、stages 只有 5 個）。
+     拿絕對標準去要求它們，等於把改好的成品判定成失敗再還原——實測 125 筆
+     失敗裡有 94 筆是這樣來的。判準改成「不要比原本更糟」。 */
+  const baselineIssues = new Set((staticGate(repo).issues || []));
+
   fs.mkdirSync(BACKUP, { recursive: true });
   const backup = path.join(BACKUP, `${repo}.html`);
   if (!fs.existsSync(backup)) fs.writeFileSync(backup, before);
@@ -152,7 +158,8 @@ async function restyleOne(repo, title) {
   if (screenCount(after) < Math.min(6, screens)) return revert("畫面數變少");
 
   const gate = staticGate(repo);
-  if (!gate.pass) return revert(`品質閘未過：${gate.issues.slice(0, 2).join("／")}`);
+  const added = (gate.issues || []).filter((i) => !baselineIssues.has(i));
+  if (added.length) return revert(`改壞了：${added.slice(0, 2).join("／")}`);
 
   return { repo, ok: true, style: styleFor(repo).palette.name, bytes: Buffer.byteLength(after) };
 }
