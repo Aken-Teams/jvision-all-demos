@@ -54,6 +54,8 @@
   .kpi span{display:block;font-size:12px;color:var(--muted)}
   .kpi b{display:block;font-size:23px;margin-top:2px;font-variant-numeric:tabular-nums}
   .muted{color:var(--muted);font-size:12.5px}
+  .bar2{height:10px;border-radius:999px;background:#0f172a;border:1px solid var(--line);overflow:hidden}
+  .bar2 > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#818cf8);transition:width .4s}
 </style>
 </head>
 <body>
@@ -134,6 +136,30 @@
         <tbody id="qBody"><tr><td colspan="5" class="muted">讀取中…</td></tr></tbody>
       </table>
     </div>
+  </section>
+
+  <!-- 換裝產線 -->
+  <section class="card">
+    <h2>視覺換裝</h2>
+    <p class="sub">給每一套 demo 換一組自己的視覺風格（只動 demos/，不碰站台框架）。表頭文字被改動的會自動還原——那是客戶實例認表的依據。</p>
+    <div class="kpis">
+      <div class="kpi"><span>進度</span><b id="rsProg">—</b></div>
+      <div class="kpi"><span>成功</span><b id="rsDone">—</b></div>
+      <div class="kpi"><span>失敗（已還原）</span><b id="rsFail">—</b></div>
+      <div class="kpi"><span>預估剩餘</span><b id="rsEta" style="font-size:16px">—</b></div>
+    </div>
+    <div class="bar2"><i id="rsBar"></i></div>
+    <div class="row" style="margin-top:12px">
+      <span id="rsState" class="pill off">讀取中</span>
+      <span id="rsNow" class="muted"></span>
+      <span style="margin-left:auto"></span>
+      <label style="margin:0;color:var(--ink);font-size:13px">並行數
+        <input id="rsWorkers" type="number" min="1" max="12" value="6" style="width:64px;margin-left:6px" /></label>
+      <button id="rsStop" class="act danger" type="button">停止</button>
+      <button id="rsStart" class="act pri" type="button">開始／續跑</button>
+    </div>
+    <div id="rsMsg" class="msg"></div>
+    <div id="rsLists" class="row" style="margin-top:10px;align-items:flex-start;gap:22px"></div>
   </section>
 
   <!-- 客戶的修改需求 -->
@@ -289,6 +315,63 @@
       }).catch(function () { say($("queueMsg"), "連不上伺服器", false); });
   });
 
+  /* ── 換裝產線 ── */
+  function hhmm(ms) {
+    if (!ms || ms < 0) return "—";
+    var m = Math.round(ms / 60000);
+    if (m < 60) return m + " 分";
+    var h = Math.floor(m / 60);
+    return h >= 24 ? Math.floor(h / 24) + " 天 " + (h % 24) + " 小時" : h + " 小時 " + (m % 60) + " 分";
+  }
+  function loadRestyle() {
+    return api("/api/admin/restyle/status").then(function (x) {
+      if (!x.ok) return;
+      var d = x.d;
+      if (!d.started) {
+        $("rsState").textContent = "尚未開始";
+        $("rsState").className = "pill off";
+        $("rsProg").textContent = "—";
+        return;
+      }
+      var n = d.done + d.failed;
+      $("rsProg").textContent = n.toLocaleString("en-US") + " / " + (d.total || 0).toLocaleString("en-US");
+      $("rsDone").textContent = d.done.toLocaleString("en-US");
+      $("rsFail").textContent = d.failed.toLocaleString("en-US");
+      $("rsFail").style.color = d.failed ? "var(--warn)" : "var(--ok)";
+      $("rsEta").textContent = d.running ? hhmm(d.etaMs) : (d.finishedAt ? "已完成" : "已停止");
+      $("rsBar").style.width = d.total ? Math.min(100, (n / d.total) * 100) + "%" : "0";
+      $("rsState").textContent = d.running ? "換裝中（" + d.workers + " 條線）" : "已停止";
+      $("rsState").className = "pill " + (d.running ? "on" : "off");
+      $("rsNow").textContent = d.inFlight && d.inFlight.length
+        ? "正在改：" + d.inFlight.map(function (r) { return r.replace(/^jvision-/, ""); }).join("、")
+        : "";
+      $("rsStart").disabled = Boolean(d.running);
+      $("rsStop").disabled = !d.running;
+      $("rsLists").innerHTML =
+        '<div style="flex:1 1 260px"><div class="muted" style="margin-bottom:4px">最近完成</div>' +
+          ((d.recentDone || []).map(function (r) {
+            return '<div style="font-size:12.5px">' + esc(r.repo.replace(/^jvision-/, "")) +
+              ' <span class="muted">' + esc(r.style || "") + "</span></div>"; }).join("") || '<div class="muted">—</div>') +
+        "</div>" +
+        '<div style="flex:1 1 260px"><div class="muted" style="margin-bottom:4px">最近失敗（原檔已還原）</div>' +
+          ((d.recentFailed || []).map(function (r) {
+            return '<div style="font-size:12.5px">' + esc(r.repo.replace(/^jvision-/, "")) +
+              ' <span style="color:var(--warn)">' + esc(r.why || "") + "</span></div>"; }).join("") || '<div class="muted">—</div>') +
+        "</div>";
+    }).catch(function () {});
+  }
+  function restylePower(action) {
+    api("/api/admin/restyle/power", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: action, workers: Number($("rsWorkers").value) || 6 }) })
+      .then(function (x) {
+        if (!x.ok) return say($("rsMsg"), x.d.error || "做不到", false);
+        say($("rsMsg"), action === "start" ? "已開始，進度會自己更新" : "已送出停止（會把手上那幾套做完）", true);
+        setTimeout(loadRestyle, 1500);
+      }).catch(function () { say($("rsMsg"), "連不上伺服器", false); });
+  }
+  $("rsStart").addEventListener("click", function () { restylePower("start"); });
+  $("rsStop").addEventListener("click", function () { restylePower("stop"); });
+
   /* ── 客戶的修改需求 ── */
   function loadRequests() {
     return api("/api/admin/change-requests").then(function (x) {
@@ -342,8 +425,11 @@
   loadState();
   loadGithub();
   loadRequests();
+  loadRestyle();
   /* 同步在背景跑，數字要自己會動——不然使用者只能一直按重新整理。 */
   setInterval(loadGithub, 20000);
+  /* 換裝一套要好幾分鐘，10 秒一次夠即時也不會太吵。 */
+  setInterval(loadRestyle, 10000);
 })();
 </script>
 </body>

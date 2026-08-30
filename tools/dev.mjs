@@ -660,6 +660,59 @@ function startGateway() {
       } catch { return json(res, 500, { error: "讀不到截圖" }); }
     }
 
+    /* ── 換裝產線（每套 demo 換一套視覺風格）──────────────
+       跑很久，所以只回摘要與最近幾筆，不要把整份狀態檔丟給瀏覽器。 */
+    if (p === "/api/admin/restyle/status") {
+      const id = adminOk();
+      if (!id) return json(res, 403, { error: "限管理者" });
+      let st = null;
+      try { st = JSON.parse(fs.readFileSync(path.join(root, "docs/_state/restyle.json"), "utf8")); } catch { /* 沒跑過 */ }
+      if (!st) return json(res, 200, { started: false });
+      /* 狀態檔裡的 running 是「上次結束時寫的」，行程被 kill 掉不會有人更新它。
+         真正的答案要看 pid 還在不在。 */
+      let alive = false;
+      if (st.pid) { try { process.kill(st.pid, 0); alive = true; } catch { alive = false; } }
+      const done = (st.done || []).length, failed = (st.failed || []).length;
+      return json(res, 200, {
+        started: true, running: alive, total: st.total || 0, done, failed,
+        workers: st.workers || 0, etaMs: st.etaMs || null,
+        startedAt: st.startedAt || null, finishedAt: st.finishedAt || null,
+        inFlight: (st.inFlight || []).map((x) => x.repo),
+        recentDone: (st.done || []).slice(-6).reverse(),
+        recentFailed: (st.failed || []).slice(-6).reverse(),
+      });
+    }
+
+    if (p === "/api/admin/restyle/power" && req.method === "POST") {
+      const id = adminOk();
+      if (!id) return json(res, 403, { error: "限管理者" });
+      const { action, workers } = await readBody(req);
+      let st = null;
+      try { st = JSON.parse(fs.readFileSync(path.join(root, "docs/_state/restyle.json"), "utf8")); } catch { /* 無 */ }
+      const alive = st && st.pid && (() => { try { process.kill(st.pid, 0); return true; } catch { return false; } })();
+
+      if (action === "stop") {
+        if (!alive) return json(res, 409, { error: "沒有正在跑的換裝" });
+        /* SIGTERM 讓它把手上那幾套做完再收工並寫下狀態；SIGKILL 會留下
+           改到一半的檔案與對不上的進度。 */
+        try { process.kill(st.pid, "SIGTERM"); } catch { /* 已經自己結束了 */ }
+        actions.record({ actor: id.email, action: "停止換裝產線", status: 200, visitor: who });
+        return json(res, 200, { ok: true });
+      }
+      if (action === "start") {
+        if (alive) return json(res, 409, { error: "換裝已經在跑了" });
+        const n = Math.max(1, Math.min(12, Number(workers) || 6));
+        const out = fs.openSync(path.join(root, "var", "restyle.log"), "a");
+        const child = spawnProc(process.execPath,
+          [path.join(root, "tools", "restyle-demos.mjs"), `--workers=${n}`, "--resume", "--timeout=1200"],
+          { cwd: root, detached: true, stdio: ["ignore", out, out] });
+        child.unref();
+        actions.record({ actor: id.email, action: "啟動換裝產線", status: 200, visitor: who, detail: `${n} 條線` });
+        return json(res, 202, { ok: true });
+      }
+      return json(res, 400, { error: "action 只能是 start 或 stop" });
+    }
+
     /* ── GitHub 同步管理 ─────────────────────────────────
        站上每個專案都對應一個 GitHub repo，連結早就印在頁面上；repo 不存在
        時訪客點了是 404。這裡讓站主看得到差距並補上。 */
