@@ -20,6 +20,10 @@
  * 平行跑。codex 一套要好幾分鐘，序列跑完 1,900 多套是以月計的。
  * 進度寫在 docs/_state/restyle.json，後台「產線管理」看得到。
  *
+ * 風格來自 ui-ux-pro-max 技能（79 種風格、192 組配色、74 組字體搭配）。
+ * 安裝：npx ui-ux-pro-max-cli init --ai codex（裝到 .agents/，不進版控）。
+ * 沒裝的話會退回 lib/restyle-styles.mjs 的內建矩陣，產線照跑。
+ *
  *   node tools/restyle-demos.mjs --workers=4 [--limit=N] [--repos=a,b] [--dry-run]
  *   node tools/restyle-demos.mjs --resume            接續上次沒做完的
  *   node tools/restyle-demos.mjs --status            只看進度
@@ -30,6 +34,7 @@ import { ROOT, EXIT, parseArgs, num, list, makeLogger } from "./lib/forge-common
 import { staticGate } from "./lib/static-gate.mjs";
 import { runCodexWithRetry } from "./lib/codex-run.mjs";
 import { styleBrief, styleFor } from "./lib/restyle-styles.mjs";
+import * as uiux from "./lib/uiux-skill.mjs";
 
 const args = parseArgs();
 const log = makeLogger({ quiet: Boolean(args.quiet) });
@@ -79,13 +84,24 @@ function extractHtml(text) {
 
 const screenCount = (html) => new Set([...html.matchAll(/data-i=["']?(\d+)/g)].map((m) => m[1])).size;
 
-function prompt(repo, title, current) {
+function prompt(repo, title, current, ds) {
+  /* 有技能就用技能給的設計系統（含真實的色票、字體搭配、風格名與檢核表）；
+     沒有才退回內建矩陣。兩者都保證同一套 repo 永遠拿到同一種風格。 */
+  const styleSection = ds
+    ? `## 這一套要走的設計系統（由 ui-ux-pro-max 依產業與刻度選出）
+${ds.text}
+
+照上面的 STYLE、COLORS、TYPOGRAPHY 實作：色票直接當 CSS 變數用，字體用它給的
+Google Fonts 連結（<link> 放 <head>），KEY EFFECTS 要看得出來，AVOID 列的不要做，
+最後對照 PRE-DELIVERY CHECKLIST 自我檢查一遍。`
+    : `## 這一套要走的風格
+${styleBrief(repo)}`;
+
   return `你要幫這一套展示系統換一套全新的視覺風格。這是既有檔案 index.html，請直接改寫它。
 
 系統名稱：${title || repo}
 
-## 這一套要走的風格
-${styleBrief(repo)}
+${styleSection}
 
 ## 絕對不可以動的東西（動了這份改寫就作廢）
 1. 所有 <table> 的 <th> 文字**一個字都不能改**，也不能增減 <th> 的數量或順序。
@@ -124,14 +140,18 @@ ${styleBrief(repo)}
 ${current}`;
 }
 
-async function restyleOne(repo, title) {
+async function restyleOne(repo, title, category) {
   const file = path.join(DEMOS, repo, "index.html");
   if (!fs.existsSync(file)) return { repo, ok: false, why: "找不到 index.html" };
   const before = fs.readFileSync(file, "utf8");
   const fp = headerFingerprint(before);
   const screens = screenCount(before);
 
-  if (DRY) return { repo, ok: true, why: "dry-run", style: styleFor(repo).palette.name };
+  if (DRY) {
+    const d = uiux.available() ? await uiux.designSystem(repo, category, title).catch(() => null) : null;
+    const nm = d ? (d.text.match(/Name:\s*([^\n]+)/g) || [])[1]?.replace(/Name:\s*/, "").trim() : null;
+    return { repo, ok: true, why: "dry-run", style: nm || styleFor(repo).palette.name };
+  }
 
   /* 先量原檔的閘況。static-gate 是「出生時」的規則，早期匯入的 demo 本來就
      過不了（注入過 agent-bridge、導覽是 JS 動態建的、stages 只有 5 個）。
@@ -143,8 +163,12 @@ async function restyleOne(repo, title) {
   const backup = path.join(BACKUP, `${repo}.html`);
   if (!fs.existsSync(backup)) fs.writeFileSync(backup, before);
 
+  /* 技能查詢是本機資料、幾秒就好；查不到就回 null 走內建矩陣，
+     不讓一個加分項擋住整條產線。 */
+  const ds = uiux.available() ? await uiux.designSystem(repo, category, title).catch(() => null) : null;
+
   const r = await runCodexWithRetry({
-    prompt: prompt(repo, title, before),
+    prompt: prompt(repo, title, before, ds),
     cwd: ROOT,
     sandbox: "read-only",
     timeoutMs: TIMEOUT_MS,
@@ -171,7 +195,10 @@ async function restyleOne(repo, title) {
   const added = (gate.issues || []).filter((i) => !baselineIssues.has(i));
   if (added.length) return revert(`改壞了：${added.slice(0, 2).join("／")}`);
 
-  return { repo, ok: true, style: styleFor(repo).palette.name, bytes: Buffer.byteLength(after) };
+  const styleName = ds
+    ? (ds.text.match(/Name:\s*([^\n]+)/g) || [])[1]?.replace(/Name:\s*/, "").trim().slice(0, 40)
+    : styleFor(repo).palette.name;
+  return { repo, ok: true, style: styleName || styleFor(repo).palette.name, bytes: Buffer.byteLength(after) };
 }
 
 /* ── 主流程 ─────────────────────────────────────────── */
@@ -191,6 +218,14 @@ async function main() {
       const c = JSON.parse(fs.readFileSync(path.join(ROOT, "content", "catalog-index.json"), "utf8"));
       const arr = Array.isArray(c) ? c : (c.projects || c.items || []);
       return new Map(arr.map((x) => [x.repoName || x.repo, x.title]));
+    } catch { return new Map(); }
+  })();
+
+  const catalogCat = (() => {
+    try {
+      const c = JSON.parse(fs.readFileSync(path.join(ROOT, "content", "catalog-index.json"), "utf8"));
+      const arr = Array.isArray(c) ? c : (c.projects || c.items || []);
+      return new Map(arr.map((x) => [x.repoName || x.repo, x.category]));
     } catch { return new Map(); }
   })();
 
@@ -224,7 +259,7 @@ async function main() {
       const repo = queue[next++];
       state.inFlight = [...state.inFlight.filter((x) => x.worker !== id), { worker: id, repo, at: Date.now() }];
       saveState();
-      const r = await restyleOne(repo, catalog.get(repo));
+      const r = await restyleOne(repo, catalog.get(repo), catalogCat.get(repo));
       if (r.ok) { state.done.push({ repo: r.repo, style: r.style, at: Date.now() }); log.info(`  ✓ ${repo}（${r.style}）`); }
       else { state.failed.push({ repo: r.repo, why: r.why, at: Date.now() }); log.warn(`  ✖ ${repo}：${r.why}`); }
       state.inFlight = state.inFlight.filter((x) => x.worker !== id);
