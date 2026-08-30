@@ -81,6 +81,10 @@ const QUOTA_FILE = path.join(ROOT, "docs", "_state", "restyle-quota");
 const WORKERS = Math.max(1, Math.min(12, num(args.workers, 4)));
 const TIMEOUT_MS = num(args.timeout, 900) * 1000;
 const DRY = Boolean(args["dry-run"]);
+/* 指定 repo 的單套執行是「臨時跑一下」，不該動到整批的進度檔。
+   實測被這件事咬過兩次：測完一套之後，整批 1,958 套的完成紀錄變成 2/2，
+   得靠比對備份與現檔才救得回來。 */
+const ONE_OFF = Boolean(args.repos);
 /* 每日配額只定義在 docs/_state/restyle-quota 一個地方，後台改的也是那個檔。
    參數與檔案各存一份，改一邊就會不一致。 */
 function dailyQuota() {
@@ -95,6 +99,7 @@ function loadState() {
 }
 let state = null;
 function saveState() {
+  if (ONE_OFF) return;              // 臨時跑的不留痕跡
   state.updatedAt = new Date().toISOString();
   fs.mkdirSync(path.dirname(STATE), { recursive: true });
   const tmp = `${STATE}.tmp`;
