@@ -445,16 +445,10 @@ function renderProjects() {
       chip.textContent = metric;
       metrics.append(chip);
     }
-    /* 購物車按鈕。狀態不存在 DOM 裡而是每次從 JVCart 回讀——換頁會整批重建
-       卡片，靠 DOM 記憶必然掉勾。 */
-    const cartBtn = card.querySelector(".cart-toggle");
-    if (cartBtn) {
-      cartBtn.dataset.repo = project.repoName;
-      cartBtn.dataset.title = shortTitle(project.title) || project.repoName;
-      const picked = window.JVCart ? window.JVCart.has(project.repoName) : false;
-      cartBtn.setAttribute("aria-pressed", picked ? "true" : "false");
-      cartBtn.title = picked ? "已加入，點一下移除" : "加入方案";
-    }
+    /* 模板複製：直接連到那一套的修改頁。沒有挑選狀態要維護，換頁重建卡片
+       也不會掉東西——這正是拿掉購物車之後省下來的一整類問題。 */
+    const copyLink = card.querySelector(".copy-link");
+    if (copyLink) copyLink.href = `customize?repo=${encodeURIComponent(project.repoName)}`;
 
     const detailUrl = `project?repo=${encodeURIComponent(project.repoName)}`;
     const fullScenario = project.contentDepth === "full-scenario";
@@ -486,7 +480,6 @@ function renderProjects() {
   });
   grid.append(fragment);
   setupCardEmbeds();
-  bindCartOnce();
   document.querySelector("#resultSummary").textContent = state.filtered.length
     ? `找到 ${state.filtered.length} 個專案，第 ${state.page} / ${pages} 頁。`
     : "找到 0 個專案。";
@@ -494,30 +487,6 @@ function renderProjects() {
 }
 
 /* 事件委派綁在 grid 上、只綁一次：卡片每次換頁都會重建，逐張綁會越疊越多。 */
-let _cartBound = false;
-function bindCartOnce() {
-  if (_cartBound || !window.JVCart) return;
-  _cartBound = true;
-  grid.addEventListener("click", (event) => {
-    const btn = event.target.closest(".cart-toggle");
-    if (!btn) return;
-    const n = window.JVCart.has(btn.dataset.repo)
-      ? (window.JVCart.remove(btn.dataset.repo), 0)
-      : window.JVCart.add(btn.dataset.repo, btn.dataset.title);
-    if (n === -1) { alert(`一次最多挑選 ${window.JVCart.MAX} 套`); return; }
-    const picked = window.JVCart.has(btn.dataset.repo);
-    btn.setAttribute("aria-pressed", picked ? "true" : "false");
-    btn.title = picked ? "已加入，點一下移除" : "加入方案";
-  });
-  /* 別的分頁或購物車列清空了，這裡的按鈕要跟著回復未選狀態 */
-  document.addEventListener("jv-cart-change", () => {
-    grid.querySelectorAll(".cart-toggle").forEach((b) => {
-      const picked = window.JVCart.has(b.dataset.repo);
-      b.setAttribute("aria-pressed", picked ? "true" : "false");
-    });
-  });
-}
-
 function goPage(target) {
   const pages = Math.max(1, Math.ceil(state.filtered.length / PAGE_SIZE));
   const next = Math.min(Math.max(1, target), pages);

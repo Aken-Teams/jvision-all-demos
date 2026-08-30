@@ -139,7 +139,6 @@
     if (open) { open.remove(); btn.setAttribute("aria-expanded", "false"); return; }
     btn.setAttribute("aria-expanded", "true");
 
-    var cart = window.JVCart ? window.JVCart.count() : 0;
     var panel = document.createElement("div");
     panel.id = "jvAcctPanel";
     panel.innerHTML =
@@ -152,7 +151,6 @@
       '<div class="sec"><div class="lbl">我的需求單</div><div data-orders><div class="muted">讀取中…</div></div></div>' +
       '<div class="sec"><div class="lbl">用量</div><div data-usage><div class="muted">讀取中…</div></div></div>' +
       '<div class="acts">' +
-        '<a href="./cart"><span class="material-symbols-outlined ico">shopping_cart</span>挑選中的系統<span style="margin-left:auto" class="num">' + cart + "</span></a>" +
         '<a href="./account"><span class="material-symbols-outlined ico">settings</span>個人設定</a>' +
         '<a href="./catalog"><span class="material-symbols-outlined ico">apps</span>瀏覽專案目錄</a>' +
         (me.admin ? '<a href="./admin-actions"><span class="material-symbols-outlined ico">lock</span>後臺管理</a>' : "") +
