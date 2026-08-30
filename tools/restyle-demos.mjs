@@ -258,15 +258,18 @@ async function main() {
   const prev = loadState();
   if (args.repos) {
     queue = list(args.repos);
-    state = { startedAt: new Date().toISOString(), total: queue.length, done: [], failed: [], running: true };
+    state = { startedAt: new Date().toISOString(), total: queue.length, done: [], failed: [], running: true, stopRequested: false };
   } else if (args.resume && prev) {
     const seen = new Set([...prev.done.map((d) => d.repo), ...prev.failed.map((f) => f.repo)]);
     queue = all.filter((r) => !seen.has(r));
-    state = { ...prev, running: true, resumedAt: new Date().toISOString() };
+    /* finishedAt 也要清掉。它是上一輪結束的時間，留著會讓後台把還在跑的
+       這一輪顯示成「已完成」。 */
+    state = { ...prev, running: true, stopRequested: false, finishedAt: null,
+      resumedAt: new Date().toISOString() };
     state.total = prev.done.length + prev.failed.length + queue.length;
   } else {
     queue = all;
-    state = { startedAt: new Date().toISOString(), total: all.length, done: [], failed: [], running: true };
+    state = { startedAt: new Date().toISOString(), total: all.length, done: [], failed: [], running: true, stopRequested: false };
   }
   if (args.limit) queue = queue.slice(0, num(args.limit, 0));
 
