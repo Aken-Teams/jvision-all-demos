@@ -1,7 +1,8 @@
 // 一鍵啟動「前端靜態站 (:3000) + Agents 後端 (aiohttp :4610)」。
 // 用法：npm run dev   （Ctrl+C 會一起關閉兩者）
-import { spawn, spawnSync, execFile } from "node:child_process";
+import { spawn, spawnSync, execFile, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import fs from "node:fs";
 import path from "node:path";
 import http from "node:http";
 import * as usage from "./lib/usage-log.mjs";
@@ -15,6 +16,8 @@ import * as wishes from "./lib/wish-requests.mjs";
 import * as control from "./lib/control-db.mjs";
 import * as meUsage from "./lib/me-usage.mjs";
 import * as mysql from "./lib/mysql.mjs";
+import * as agentQueue from "./lib/agent-queue.mjs";
+import * as agentDir from "./lib/agent-direction.mjs";
 import { spawn as spawnProc } from "node:child_process";
 
 // 對外只開一個 port（PUBLIC_PORT）。靜態站和 Agents 後端都只綁 127.0.0.1，
@@ -152,6 +155,10 @@ const json = (res, code, body) => {
   res.writeHead(code, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   res.end(JSON.stringify(body));
 };
+
+/* 同一時間只允許一個 GitHub 同步在跑。兩個同時推同一批 repo 會互相打架，
+   而且都會撞上 GitHub 的限流。 */
+const ghSync = { child: null, startedAt: 0, lastCode: null };
 
 const readBody = (req) => new Promise((resolve) => {
   let raw = "";
@@ -543,6 +550,113 @@ function startGateway() {
     }
 
     // ── 專案生成紀錄 API ─────────────────────────────────
+    /* ── 產線管理（全部限管理者）─────────────────────────
+       這一組會啟停服務、改下一批要做什麼題目，權限比看報表嚴格得多，
+       所以每一支都自己再確認一次身分，不倚賴上游的頁面閘門。 */
+    const adminOk = () => {
+      const id = visitor.read(req);
+      return Boolean(id && id.email && google.allowed(auth.conf(), id.email)) ? id : null;
+    };
+
+    if (p === "/api/admin/agent/state") {
+      const id = adminOk();
+      if (!id) return json(res, 403, { error: "限管理者" });
+      const active = (k) => {
+        try { return execFileSync("systemctl", ["--user", "is-active", k], { encoding: "utf8" }).trim(); }
+        catch (e) { return String(e.stdout || "unknown").trim(); }
+      };
+      return json(res, 200, {
+        running: active("jvdemo-agent.service") === "active",
+        watchdog: active("jvdemo-watchdog.timer") === "active",
+        current: (() => { try { return fs.readFileSync(path.join(root, "docs/_state/agent-current.txt"), "utf8").trim(); } catch { return null; } })(),
+        direction: agentDir.read(),
+        queue: agentQueue.list(200),
+      });
+    }
+
+    if (p === "/api/admin/agent/power" && req.method === "POST") {
+      const id = adminOk();
+      if (!id) return json(res, 403, { error: "限管理者" });
+      const { action } = await readBody(req);
+      if (action !== "start" && action !== "stop") return json(res, 400, { error: "action 只能是 start 或 stop" });
+      /* 走既有的腳本而不是直接下 systemctl：停一個產線要同時處理看門狗、
+         停止旗標與服務本身，那三件事的順序寫在腳本裡，兩邊各寫一份必然會分岔。 */
+      try {
+        execFileSync("bash", [path.join(root, "tools", action === "stop" ? "agent-stop.sh" : "agent-start.sh")],
+          { cwd: root, encoding: "utf8", timeout: 60000 });
+      } catch (error) { return json(res, 500, { error: `執行失敗：${String(error.message).slice(0, 120)}` }); }
+      actions.record({ actor: id.email, action: action === "stop" ? "停止產線" : "啟動產線", status: 200, visitor: who });
+      return json(res, 200, { ok: true });
+    }
+
+    if (p === "/api/admin/agent/direction" && req.method === "PUT") {
+      const id = adminOk();
+      if (!id) return json(res, 403, { error: "限管理者" });
+      const b = await readBody(req);
+      const d = agentDir.write(b, id.email);
+      actions.record({ actor: id.email, action: "調整生成方向", status: 200, visitor: who,
+        detail: `每日 ${d.dailyQuota} 套${d.categories.length ? "／" + d.categories.join("、") : ""}` });
+      return json(res, 200, { direction: d });
+    }
+
+    if (p === "/api/admin/agent/queue") {
+      const id = adminOk();
+      if (!id) return json(res, 403, { error: "限管理者" });
+      try {
+        if (req.method === "GET") return json(res, 200, agentQueue.list(200));
+        if (req.method === "POST") {
+          const b = await readBody(req);
+          return json(res, 201, agentQueue.add(b, id.email, { first: Boolean(b.first) }));
+        }
+        if (req.method === "PATCH") {
+          const b = await readBody(req);
+          if (b.promote) return json(res, 200, agentQueue.promote(String(b.slug || "")));
+          return json(res, 200, agentQueue.update(String(b.slug || ""), b, id.email));
+        }
+        if (req.method === "DELETE") {
+          const slug = new URL(req.url, "http://x").searchParams.get("slug") || "";
+          return json(res, 200, agentQueue.remove(slug));
+        }
+      } catch (error) { return json(res, error.status || 500, { error: error.message }); }
+    }
+
+    /* ── GitHub 同步管理 ─────────────────────────────────
+       站上每個專案都對應一個 GitHub repo，連結早就印在頁面上；repo 不存在
+       時訪客點了是 404。這裡讓站主看得到差距並補上。 */
+    if (p === "/api/admin/github/status") {
+      const id = adminOk();
+      if (!id) return json(res, 403, { error: "限管理者" });
+      let synced = 0, lastAt = null;
+      try {
+        const st = JSON.parse(fs.readFileSync(path.join(root, "var", "github-sync.json"), "utf8"));
+        /* 這個檔的頂層直接就是 repo → 內容雜湊，沒有外層包裝。 */
+        synced = Object.keys(st).length;
+        lastAt = fs.statSync(path.join(root, "var", "github-sync.json")).mtime.toISOString();
+      } catch { /* 沒同步過就是 0 */ }
+      let total = 0;
+      try { total = fs.readdirSync(path.join(root, "demos")).filter((d) => d.startsWith("jvision-")).length; } catch { /* 目錄讀不到就回 0 */ }
+      return json(res, 200, { total, synced, missing: Math.max(0, total - synced), lastAt,
+        running: Boolean(ghSync.child) });
+    }
+
+    if (p === "/api/admin/github/sync" && req.method === "POST") {
+      const id = adminOk();
+      if (!id) return json(res, 403, { error: "限管理者" });
+      if (ghSync.child) return json(res, 409, { error: "同步正在進行中" });
+      /* 背景跑並 unref：一次補幾十個 repo 要好幾分鐘，讓瀏覽器掛在那裡等
+         一定會逾時，而中途斷線不該讓同步半途而廢。 */
+      const logPath = path.join(root, "var", "github-sync.log");
+      const out = fs.openSync(logPath, "a");
+      const child = spawnProc(process.execPath, [path.join(root, "tools", "github-sync.mjs"), "--all"],
+        { cwd: root, detached: true, stdio: ["ignore", out, out] });
+      child.unref();
+      ghSync.child = child;
+      ghSync.startedAt = Date.now();
+      child.on("exit", (code) => { ghSync.child = null; ghSync.lastCode = code; });
+      actions.record({ actor: id.email, action: "手動觸發 GitHub 同步", status: 200, visitor: who });
+      return json(res, 202, { ok: true });
+    }
+
     if (p === "/api/admin/builds") {
       const q = new URL(req.url, "http://x").searchParams;
       return json(res, 200, builds.list({

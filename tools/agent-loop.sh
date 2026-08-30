@@ -186,7 +186,11 @@ while true; do
   if [ "$(queue_len)" -eq 0 ]; then
     say "佇列空，重算缺口後開圓桌補 $REFILL 題"
     act "圓桌出題" "缺口補題" "" "目標 $REFILL 題"
-    node tools/topic-scout.mjs --count="$REFILL" --rounds=6 --out="$QUEUE" \
+    # 後台設定的生成方向（指定產業／自由文字）。沒設就是空字串，
+    # topic-scout 照原本的缺口分配走。用 eval 是因為 focus 會有空白，
+    # 直接展開會被切成好幾個參數。
+    DIRECTION=$(node tools/lib/agent-direction.mjs 2>/dev/null || true)
+    eval "node tools/topic-scout.mjs --count=\"$REFILL\" --rounds=6 --out=\"$QUEUE\" $DIRECTION" \
       > "$STATE/agent-scout.log" 2>&1
     if [ "$(queue_len)" -eq 0 ]; then
       # 補題失敗不停 agent。出題會因為 codex 逾時、額度、暫時性錯誤而失敗，
