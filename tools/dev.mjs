@@ -120,11 +120,16 @@ const ASSET = /\.(css|js|mjs|map|svg|png|jpe?g|webp|gif|ico|woff2?|txt)$/i;
    圖檔與字型給七天：它們改動時檔名通常也會換（webp 是新檔），不會拿到舊的。
    HTML 與 JSON 不快取：目錄與最近新增每天都在變，拿到舊的比慢更糟。 */
 const LONG_CACHE = /\.(png|jpe?g|webp|gif|ico|svg|woff2?)$/i;
+/* 站台自己的程式碼。這些檔案改一次就要立刻生效，而快取一小時的代價是
+   「畫面是新的、行為是舊的」——實測踩過：catalog.html 換成新按鈕、app.js 卻還是
+   Cloudflare 快取的舊版（35,806 vs 33,381 bytes），按鈕看得到但按了完全沒反應。
+   原本靠 ?v= 手動換版本字串來閃過，但那是人記得才有效的機制，而人就是會忘。
+   這些檔只有幾十 KB，每次重驗證換來的 304 遠比「舊版斷功能」便宜。 */
+const FIRST_PARTY_CODE = /^\/(app|agents|admin|project|project-expert)[a-z-]*\.js$|^\/shared\/.+\.(js|mjs)$/i;
+
 const cacheHeaderFor = (p) => {
   if (LONG_CACHE.test(p)) return "public, max-age=604800, stale-while-revalidate=86400";
-  /* bridge 注入在 1,628 套 demo 裡,快取一小時會讓改版後的功能(如 operate)
-     在使用者端啞火;它只有幾 KB,每次重驗證的代價遠小於「舊版斷功能」 */
-  if (p === "/shared/jv-agent-bridge.js") return "no-cache, must-revalidate";
+  if (FIRST_PARTY_CODE.test(p)) return "no-cache, must-revalidate";
   if (/\.(css|js|mjs)$/i.test(p)) return "public, max-age=3600";
   return null;
 };
