@@ -265,6 +265,26 @@ export async function claimOrder({ workerId, leaseMinutes = 20 }) {
  * 接受 draft 與 paid 兩種來源：現在沒有金流，訂單一直是 draft；之後接上金流
  * 會是 paid。兩種都放行，接金流時這裡不必再改。
  */
+/**
+ * 訂單進入待付款。金額在這一刻定案並寫進訂單——之後改價不該回頭影響已經
+ * 送出的單，那是客戶看到報價才按下付款的那個數字。
+ *
+ * 回傳 false 代表這張單已經不是 draft（重複按、或已經付過了）。
+ */
+export async function beginCheckout(orderId, { amount, provider, providerRef }) {
+  await ensureSchema();
+  const r = await q(`UPDATE orders SET status='pending', amount=?, provider=?, provider_ref=?
+    WHERE id=? AND status='draft'`, [Math.max(0, Number(amount) || 0), provider, providerRef, orderId]);
+  return r.affectedRows === 1;
+}
+
+/** 付款頁重開一次要換新的 ref，舊的回呼才不會把新的付款蓋掉。 */
+export async function updateCheckoutRef(orderId, providerRef) {
+  await ensureSchema();
+  const r = await q("UPDATE orders SET provider_ref=? WHERE id=? AND status='pending'", [providerRef, orderId]);
+  return r.affectedRows === 1;
+}
+
 export async function beginProvision(orderId) {
   await ensureSchema();
   const r = await q(`UPDATE orders SET status='provisioning', lease_owner=?, lease_until=?
@@ -286,6 +306,20 @@ export async function finishProvision(orderId, ok) {
     await q("UPDATE orders SET status='failed', lease_owner=NULL, lease_until=NULL WHERE id=?", [orderId]);
   }
   return getOrder(orderId);
+}
+
+/**
+ * 把 worker 搶到的單放回 paid，交給 instance-provision 走它自己的狀態轉移。
+ *
+ * claimOrder 為了搶單必須立刻把狀態改掉（不然第二個 worker 會搶到同一張），
+ * 但 instance-provision 只接受 draft/paid。與其讓兩邊各自標記狀態、日後改一邊
+ * 忘了另一邊，不如在這裡放回去，讓「怎麼標記開通結果」只有一份邏輯。
+ * 租約留著——這段期間別的 worker 仍然不該碰它。
+ */
+export async function resetPaid(orderId) {
+  await ensureSchema();
+  const r = await q("UPDATE orders SET status='paid' WHERE id=? AND status='provisioning'", [orderId]);
+  return r.affectedRows === 1;
 }
 
 /** 失敗或卡住的單要能重來。回到 draft，開通按鈕才會再出現。 */

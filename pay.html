@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>付款 ｜ JVision DEMO</title>
+<link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { ink:"#0f1e46", body:"#334155", muted:"#64748b", line:"#e2e8f0", soft:"#f5f8fc", brand:"#1e40af", brand2:"#3b82f6" },
+    fontFamily: { sans:['Inter','Noto Sans TC','Microsoft JhengHei','sans-serif'] },
+  } } };
+</script>
+<style>
+  [hidden] { display: none !important; }
+  body { font-family: Inter, 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; background:#f5f8fc; }
+</style>
+</head>
+<body class="text-body min-h-screen flex items-center justify-center px-6 py-12">
+  <main class="w-full max-w-md">
+    <div class="bg-white border border-line rounded-2xl p-8">
+      <!-- 這是模擬付款，一定要講清楚，不要讓人以為真的扣款了 -->
+      <div class="flex items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs font-bold mb-6">
+        <span class="material-symbols-outlined text-[18px]">science</span>
+        目前是模擬付款，不會真的扣款
+      </div>
+
+      <h1 class="text-xl font-black text-ink mb-1">確認付款</h1>
+      <p class="text-sm text-muted mb-6">確認後我們會開始建置你的系統。</p>
+
+      <dl class="text-sm border border-line rounded-xl divide-y divide-line mb-6">
+        <div class="flex justify-between px-4 py-3"><dt class="text-muted">需求單</dt><dd id="oid" class="font-mono text-xs text-ink">—</dd></div>
+        <div class="flex justify-between px-4 py-3"><dt class="text-muted">系統套數</dt><dd id="cnt" class="font-bold text-ink">—</dd></div>
+        <div class="flex justify-between px-4 py-3"><dt class="text-muted">金額</dt><dd id="amt" class="font-black text-ink text-base">—</dd></div>
+      </dl>
+
+      <button id="pay" type="button" class="w-full h-11 rounded-xl bg-brand text-white font-black hover:bg-brand2 transition-colors">確認付款</button>
+      <p id="msg" class="text-sm font-bold mt-3 text-center"></p>
+      <p class="text-xs text-muted mt-4 text-center"><a href="./cart" class="hover:text-brand">回上一步</a></p>
+    </div>
+  </main>
+
+<script>
+(function () {
+  "use strict";
+  var q = new URLSearchParams(location.search);
+  var ref = q.get("ref"), order = q.get("order"), sig = q.get("sig");
+  var $ = function (id) { return document.getElementById(id); };
+  $("oid").textContent = order || "—";
+
+  if (!ref || !order || !sig) {
+    $("msg").textContent = "付款連結不完整，請回購物車重新送出。";
+    $("msg").style.color = "#b91c1c";
+    $("pay").disabled = true;
+    return;
+  }
+
+  /* 金額與套數從自己的訂單讀，不從網址參數帶——網址是使用者改得動的，
+     顯示一個他自己改過的金額只會讓人以為可以少付。 */
+  fetch("/api/orders", { cache: "no-store" })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      var o = (d && d.orders || []).filter(function (x) { return x.id === order; })[0];
+      if (!o) return;
+      $("cnt").textContent = o.items.length + " 套";
+      $("amt").textContent = "NT$ " + Number(o.amount || 0).toLocaleString("en-US");
+      if (o.status === "paid" || o.status === "provisioning" || o.status === "delivered") {
+        $("msg").textContent = "這張單已經付過款了。";
+        $("msg").style.color = "#15803d";
+        $("pay").disabled = true;
+      }
+    })
+    .catch(function () {});
+
+  $("pay").addEventListener("click", function () {
+    $("pay").disabled = true;
+    $("msg").textContent = "處理中…";
+    $("msg").style.color = "#64748b";
+    fetch("/api/payment/callback", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ref: ref, sig: sig }),
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (x) {
+        if (!x.ok) {
+          $("msg").textContent = x.d.error || "付款失敗";
+          $("msg").style.color = "#b91c1c";
+          $("pay").disabled = false;
+          return;
+        }
+        $("msg").innerHTML = "付款完成，系統開始建置。<br />建好會在「我的系統」看得到。";
+        $("msg").style.color = "#15803d";
+      })
+      .catch(function () {
+        $("msg").textContent = "連不上伺服器";
+        $("msg").style.color = "#b91c1c";
+        $("pay").disabled = false;
+      });
+  });
+})();
+</script>
+<script src="./shared/jv-account.js" defer></script>
+</body>
+</html>

@@ -17,6 +17,7 @@ import * as control from "./lib/control-db.mjs";
 import * as meUsage from "./lib/me-usage.mjs";
 import * as mysql from "./lib/mysql.mjs";
 import * as shots from "./lib/shots.mjs";
+import * as payment from "./lib/payment/index.mjs";
 import * as agentQueue from "./lib/agent-queue.mjs";
 import * as agentDir from "./lib/agent-direction.mjs";
 import { spawn as spawnProc } from "node:child_process";
@@ -375,6 +376,63 @@ function startGateway() {
         console.error("[orders] 建立失敗：", error.message);
         return json(res, 503, { error: "資料庫暫時無法連線，請稍後再試" });
       }
+    }
+
+    /* 建立付款。金額在這一刻定案並寫進訂單——之後調價不該回頭影響
+       客戶看到報價才按下付款的那一筆。 */
+    if (p === "/api/orders/checkout" && req.method === "POST") {
+      const id = visitor.read(req);
+      if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
+      const { orderId } = await readBody(req);
+      try {
+        const order = await control.getOrder(String(orderId || ""));
+        if (!order) return json(res, 404, { error: "找不到這張需求單" });
+        /* 只能付自己的單。不看前端傳什麼，比對登入身分。 */
+        if (order.buyer_email !== id.email) return json(res, 403, { error: "這不是你的需求單" });
+
+        const co = await payment.createCheckout(order);
+        if (order.status === "pending") {
+          /* 重新開付款頁：換新的 ref，舊的回呼才不會把新的付款蓋掉。 */
+          await control.updateCheckoutRef(order.id, co.ref);
+          return json(res, 200, { url: co.url, amount: order.amount });
+        }
+        let price = 30000;
+        try { price = Number(JSON.parse(fs.readFileSync(path.join(root, "docs/_state/pricing.json"), "utf8")).perSystem) || 0; }
+        catch { /* 讀不到就用預設 */ }
+        const amount = price * order.items.length;
+        const ok = await control.beginCheckout(order.id, { amount, provider: payment.config().provider || "mock", providerRef: co.ref });
+        if (!ok) return json(res, 409, { error: "這張單已經不是待付款的狀態" });
+        return json(res, 200, { url: co.url, amount });
+      } catch (error) {
+        if (error.status) return json(res, error.status, { error: error.message });
+        return json(res, 503, { error: "資料庫暫時無法連線" });
+      }
+    }
+
+    /* 付款回呼。**只做一件事**：把訂單推進 paid。建置交給 worker 主動拉單——
+       回呼掉了還有 worker 定期掃，回呼重複了狀態機擋住。
+       這一路不看登入身分：金流商打過來時沒有使用者的 cookie，真偽由簽章決定。 */
+    if (p === "/api/payment/callback" && (req.method === "POST" || req.method === "GET")) {
+      const body = req.method === "POST"
+        ? await readBody(req)
+        : Object.fromEntries(new URL(req.url, "http://x").searchParams);
+      let v;
+      try { v = await payment.verifyCallback(req, body); }
+      catch { v = { ok: false }; }
+      if (!v.ok || !v.orderId) {
+        actions.record({ actor: "金流", action: "付款回呼驗證失敗", status: 400, visitor: who, ip });
+        return json(res, 400, { error: "回呼驗證失敗" });
+      }
+      try {
+        const first = await control.markPaid({ orderId: v.orderId, provider: payment.config().provider || "mock", providerRef: v.ref });
+        /* 重複的回呼拿到 false，什麼都不做也回 200——對金流商來說這通已經
+           成功送達，回錯誤只會讓它一直重送。 */
+        if (first) {
+          await control.recordEvent({ kind: "order.paid", actor: null, detail: { orderId: v.orderId, ref: v.ref } });
+          actions.record({ actor: "金流", action: "付款完成", target: v.orderId, status: 200, visitor: who, ip });
+        }
+        return json(res, 200, { ok: true, first });
+      } catch { return json(res, 503, { error: "資料庫暫時無法連線" }); }
     }
 
     if (p === "/api/orders" && req.method === "GET") {

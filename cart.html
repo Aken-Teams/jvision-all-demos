@@ -84,7 +84,7 @@
                 class="px-6 py-3 bg-brand text-white font-bold rounded-lg hover:bg-brand2 transition-colors disabled:opacity-50">
           送出需求
         </button>
-        <span id="hint" class="text-sm text-muted">送出後不會立刻收費，我們會先跟你確認範圍。</span>
+        <span id="hint" class="text-sm text-muted">送出後會顯示金額與付款連結，付款完成才開始建置。</span>
       </div>
     </form>
 
@@ -93,8 +93,13 @@
       <span class="material-symbols-outlined text-[44px] text-green-600">task_alt</span>
       <p class="mt-3 text-ink font-bold text-lg">收到了</p>
       <p class="text-sm text-muted mt-1">需求單號 <code id="orderId" class="font-mono text-ink"></code></p>
-      <p class="text-sm text-muted mt-3 max-w-md mx-auto">我們會依你寫的內容把系統做成可以實際使用的版本，完成後寄信通知你。</p>
-      <a href="./catalog.html" class="inline-block mt-6 px-5 py-2.5 border border-line text-ink text-sm font-bold rounded-lg">繼續逛目錄</a>
+      <p class="text-sm text-muted mt-3 max-w-md mx-auto">付款後我們會依你寫的內容把系統做成可以實際使用的版本，建好會在「我的系統」看得到。</p>
+      <p id="payAmount" class="text-sm text-ink font-bold mt-4"></p>
+      <div class="mt-5 flex flex-wrap gap-3 justify-center">
+        <a id="payLink" href="#" hidden class="px-6 py-2.5 bg-brand text-white text-sm font-black rounded-lg hover:bg-brand2 transition-colors">前往付款</a>
+        <a href="./catalog.html" class="px-5 py-2.5 border border-line text-ink text-sm font-bold rounded-lg">繼續逛目錄</a>
+      </div>
+      <p id="payMsg" class="text-xs text-muted mt-3"></p>
     </section>
   </main>
 
@@ -325,6 +330,22 @@
         $("#orderId").textContent = data.id;
         JVCart.clear();
         show("done");
+        /* 送出之後立刻幫他把付款準備好。這一步失敗不該讓他以為需求單也沒送成
+           ——單已經在了，之後從「我的需求單」也回得來。 */
+        fetch("/api/orders/checkout", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ orderId: data.id }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((co) => {
+            if (!co || !co.url) throw new Error();
+            $("#payLink").href = co.url;
+            $("#payLink").hidden = false;
+            $("#payAmount").textContent = "金額 NT$ " + Number(co.amount || 0).toLocaleString("en-US");
+          })
+          .catch(() => {
+            $("#payMsg").textContent = "付款連結暫時產生不出來，需求單已經收到了，稍後可以從右上角「我的需求單」再付。";
+          });
       } catch (err) {
         btn.disabled = false;
         $("#hint").textContent = "✖ " + err.message;
