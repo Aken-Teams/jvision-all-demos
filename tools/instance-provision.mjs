@@ -76,6 +76,16 @@ async function main() {
     customer = await control.ensureCustomer({ email: order.buyer_email });
     repos = order.items.map((x) => x.repoName);
     log.step(`需求單 ${order.id}：${order.buyer_email}，${repos.length} 套`);
+    /* 先把單推進「開通中」再動手。條件由資料庫判，兩個人同時按開通只有一個
+       會贏，另一個直接被擋下來——不然會開出兩套一模一樣的系統。
+       dry-run 不動狀態：那是拿來看會做什麼的，不該留下痕跡。 */
+    if (!DRY) {
+      const won = await control.beginProvision(order.id);
+      if (!won) {
+        log.error(`這張單目前是「${order.status}」，不是可以開通的狀態（已經有人在處理或已完成）`);
+        process.exit(EXIT.BAD_INPUT);
+      }
+    }
   } else {
     if (!args.repo || !args.email) {
       log.error("用法：--repo=<repo> --email=<信箱> [--company=名稱]  或  --order=<需求單編號>");
@@ -92,8 +102,15 @@ async function main() {
     catch (error) { log.error(`  ✖ ${error.message}`); }
   }
 
-  if (orderId && done.length) {
-    await control.setInstanceState.call(null, done[0].id, "live", {}).catch(() => {});
+  /* 全部成功才算交付。一張單開了三套只成功兩套，那張單不是「完成」——
+     標成完成的話，沒開出來的那一套就再也沒有人會回頭處理。 */
+  if (orderId && !DRY) {
+    const ok = done.length === repos.length && done.length > 0;
+    await control.finishProvision(orderId, ok);
+    await control.recordEvent({ kind: ok ? "order.delivered" : "order.failed",
+      customerId: customer.id, actor: customer.owner_email,
+      detail: { orderId, done: done.length, total: repos.length } });
+    log.info(ok ? "  需求單標記為已交付" : `  需求單標記為失敗（成功 ${done.length}/${repos.length}）`);
   }
   if (!DRY) log.step(`完成 ${done.length}/${repos.length} 套`);
   for (const d of done) log.info(`  https://${d.host}`);

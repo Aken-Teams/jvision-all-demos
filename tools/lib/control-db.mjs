@@ -255,6 +255,47 @@ export async function claimOrder({ workerId, leaseMinutes = 20 }) {
   });
 }
 
+/**
+ * 把訂單推進「開通中」。
+ *
+ * 條件寫在 WHERE 裡，由資料庫保證只有一個人贏——「先查再改」中間有空隙，
+ * 兩個人同時按開通會各自以為自己是第一個，然後開出兩套一樣的系統。
+ * 回 false 代表這張單已經有人在處理或已經處理完了。
+ *
+ * 接受 draft 與 paid 兩種來源：現在沒有金流，訂單一直是 draft；之後接上金流
+ * 會是 paid。兩種都放行，接金流時這裡不必再改。
+ */
+export async function beginProvision(orderId) {
+  await ensureSchema();
+  const r = await q(`UPDATE orders SET status='provisioning', lease_owner=?, lease_until=?
+    WHERE id=? AND status IN ('draft','paid')`,
+    ["manual", new Date(Date.now() + 20 * 60000).toISOString().slice(0, 19).replace("T", " "), orderId]);
+  return r.affectedRows === 1;
+}
+
+/**
+ * 開通結束。成功寫 delivered 與完成時間，失敗寫 failed 並放掉租約，
+ * 讓它可以被重新開通——失敗的單卡在 provisioning 就再也沒有人能碰它。
+ */
+export async function finishProvision(orderId, ok) {
+  await ensureSchema();
+  if (ok) {
+    await q("UPDATE orders SET status='delivered', provisioned_at=?, lease_owner=NULL, lease_until=NULL WHERE id=?",
+      [now(), orderId]);
+  } else {
+    await q("UPDATE orders SET status='failed', lease_owner=NULL, lease_until=NULL WHERE id=?", [orderId]);
+  }
+  return getOrder(orderId);
+}
+
+/** 失敗或卡住的單要能重來。回到 draft，開通按鈕才會再出現。 */
+export async function resetOrder(orderId) {
+  await ensureSchema();
+  const r = await q(`UPDATE orders SET status='draft', lease_owner=NULL, lease_until=NULL
+    WHERE id=? AND status IN ('failed','provisioning')`, [orderId]);
+  return r.affectedRows === 1;
+}
+
 export async function recordEvent({ kind, customerId = null, instanceId = null, actor = null, detail = null }) {
   await ensureSchema();
   await q("INSERT INTO events(at,kind,customer_id,instance_id,actor,detail_json) VALUES(?,?,?,?,?,?)",

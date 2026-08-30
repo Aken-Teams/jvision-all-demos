@@ -57,6 +57,17 @@
   .acts button:disabled{opacity:.5;cursor:progress}
   .empty{padding:34px;text-align:center;color:var(--muted);background:var(--card);
          border:1px solid var(--line);border-radius:12px}
+  .ost{font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:999px}
+  .ost-draft{background:rgba(148,163,184,.18);color:var(--muted)}
+  .ost-paid{background:rgba(56,189,248,.16);color:var(--accent)}
+  .ost-provisioning{background:rgba(251,191,36,.16);color:var(--warn)}
+  .ost-delivered{background:rgba(74,222,128,.16);color:var(--ok)}
+  .ost-failed{background:rgba(248,113,113,.16);color:var(--bad)}
+  .obtn{padding:6px 13px;border-radius:8px;border:1px solid var(--line);background:transparent;
+        color:var(--ink);font-family:inherit;font-size:13px;cursor:pointer}
+  .obtn:hover{border-color:var(--accent)}
+  .obtn.pri{background:var(--accent);color:#082f49;border-color:transparent;font-weight:700}
+  .obtn:disabled{opacity:.5;cursor:default}
   footer{padding:18px 22px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);margin-top:24px}
 </style>
 </head>
@@ -106,7 +117,18 @@ function render(orders) {
       <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap">
         <strong style="font-size:15px">${esc(o.buyer_email)}</strong>
         <span class="muted" style="font-size:12px">${when(o.created_at)}</span>
+        <span class="ost ost-${esc(o.status)}">${statusText(o.status)}</span>
         <code class="muted" style="font-size:11px;margin-left:auto">${esc(o.id)}</code>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        ${o.status === "draft" || o.status === "paid"
+          ? `<button type="button" class="obtn pri" data-provision="${esc(o.id)}">開通這張單</button>`
+          : ""}
+        ${o.status === "failed" || o.status === "provisioning"
+          ? `<button type="button" class="obtn" data-reset="${esc(o.id)}">放回可開通</button>`
+          : ""}
+        ${o.provisioned_at ? `<span class="muted" style="font-size:12px">開通於 ${when(o.provisioned_at)}</span>` : ""}
+        <span class="omsg" data-msg="${esc(o.id)}" style="font-size:12.5px"></span>
       </div>
       ${o.note ? `<p class="muted" style="margin:8px 0 0;font-size:13px">備註：${esc(o.note)}</p>` : ""}
       <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
@@ -125,6 +147,41 @@ function render(orders) {
       </div>
     </article>`).join("");
 }
+
+const STATUS_TEXT = { draft: "待開通", pending: "待付款", paid: "已付款",
+  provisioning: "開通中", delivered: "已交付", failed: "開通失敗" };
+function statusText(s) { return STATUS_TEXT[s] || s; }
+
+function say(id, text, ok) {
+  const el = document.querySelector(`[data-msg="${id}"]`);
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = ok ? "var(--ok)" : "var(--bad)";
+}
+
+document.addEventListener("click", async (e) => {
+  const prov = e.target.closest("[data-provision]");
+  const reset = e.target.closest("[data-reset]");
+  if (!prov && !reset) return;
+  const btn = prov || reset;
+  const id = btn.dataset.provision || btn.dataset.reset;
+  btn.disabled = true;
+  say(id, prov ? "開通中，請稍候…" : "重設中…", true);
+  try {
+    const r = await fetch(prov ? "/api/admin/orders/provision" : "/api/admin/orders/reset", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ orderId: id }),
+    });
+    const d = await r.json();
+    if (!r.ok) { say(id, d.error || "失敗", false); btn.disabled = false; return; }
+    say(id, prov ? "已開通" : "已放回可開通", true);
+    /* 重新載入才看得到新的狀態與開通時間——就地改一個徽章，其餘欄位會不同步。 */
+    setTimeout(load, 900);
+  } catch {
+    say(id, "連不上伺服器", false);
+    btn.disabled = false;
+  }
+});
 
 load();
 </script>

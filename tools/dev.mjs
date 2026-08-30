@@ -733,6 +733,42 @@ function startGateway() {
       } catch { return json(res, 500, { error: "讀不到截圖" }); }
     }
 
+    /* 從後台開通一張需求單。狀態由 instance-provision 自己推進——
+       兩個人同時按只有一個會贏，那個判斷寫在資料庫的 WHERE 裡。 */
+    if (p === "/api/admin/orders/provision" && req.method === "POST") {
+      const id = adminOk();
+      if (!id) return json(res, 403, { error: "限管理者" });
+      const { orderId } = await readBody(req);
+      if (!/^o_[a-z0-9_]+$/i.test(String(orderId || ""))) return json(res, 400, { error: "需求單編號不正確" });
+      /* 同步等它跑完：開通只是複製檔案與建資料庫，實測幾秒鐘。
+         做成背景工作反而要多一套查詢進度的機制，而使用者就站在畫面前面等結果。 */
+      try {
+        const out = execFileSync(process.execPath,
+          [path.join(root, "tools", "instance-provision.mjs"), `--order=${orderId}`],
+          { cwd: root, encoding: "utf8", timeout: 300000 });
+        actions.record({ actor: id.email, action: "開通需求單", target: orderId, status: 200, visitor: who });
+        return json(res, 200, { ok: true, log: String(out).slice(-1200) });
+      } catch (error) {
+        const msg = String(error.stdout || error.stderr || error.message).slice(-600);
+        actions.record({ actor: id.email, action: "開通需求單失敗", target: orderId, status: 500, visitor: who, note: msg.slice(0, 120) });
+        return json(res, 500, { error: "開通失敗", log: msg });
+      }
+    }
+
+    /* 失敗或卡住的單放回可開通狀態。卡在 provisioning 的單沒有人碰得到，
+       而卡住的原因常常是外部的（資料庫斷線、磁碟滿），修好之後要能重來。 */
+    if (p === "/api/admin/orders/reset" && req.method === "POST") {
+      const id = adminOk();
+      if (!id) return json(res, 403, { error: "限管理者" });
+      const { orderId } = await readBody(req);
+      try {
+        const ok = await control.resetOrder(String(orderId || ""));
+        if (!ok) return json(res, 409, { error: "這張單不是失敗或開通中的狀態" });
+        actions.record({ actor: id.email, action: "重設需求單狀態", target: orderId, status: 200, visitor: who });
+        return json(res, 200, { ok: true });
+      } catch { return json(res, 503, { error: "資料庫暫時無法連線" }); }
+    }
+
     /* 訂單附的截圖。跟客戶實例那邊同一套規則（見 lib/shots.mjs）。 */
     const ordShot = /^\/api\/admin\/order-shot\/([A-Za-z0-9_-]+)\/([a-z0-9-]+\.(?:png|jpg|webp))$/.exec(p);
     if (ordShot) {
