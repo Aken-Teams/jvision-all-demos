@@ -81,6 +81,34 @@ function searchableText(project) {
   ].join(" "));
 }
 
+/* 排序用的上架日期與瀏覽數。命名刻意不叫 catalogStats——那個名字已經被
+   頁面上的「產業分類統計」區塊用掉了，兩個混在一起改的人會挑錯。
+
+   抓不到就留空：「最新上架」退回用案例編號（編號遞增，實測與上架日期同向的
+   比例是 99%），「最多人看」則全部同分而落回編號排序。目錄能不能用，不該
+   取決於一份排序用的加分資料。 */
+const sortStats = { addedAt: {}, views: {} };
+
+function loadSortStats() {
+  return fetch("/api/catalog/stats", { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      if (!d) return;
+      sortStats.addedAt = d.addedAt || {};
+      sortStats.views = d.views || {};
+    })
+    .catch(() => {});
+}
+
+/* 上架時間。沒有真實日期時用案例編號代替——它是遞增的，相對先後仍然是對的。 */
+function addedTime(project) {
+  const iso = sortStats.addedAt[project.repoName];
+  if (iso) { const t = Date.parse(iso); if (!Number.isNaN(t)) return t; }
+  return Number(project.id) || 0;
+}
+
+const viewsOf = (project) => sortStats.views[project.repoName] || 0;
+
 function relevance(project, query) {
   if (!query) return 0;
   const title = normalize(project.title);
@@ -529,6 +557,10 @@ function applyFilters({ updateSuggestions = true, keepPage = false } = {}) {
     return queryMatch && categoryMatch;
   });
   state.filtered.sort((a, b) => {
+    /* 新的在前。同一天上架的用編號決定先後，順序才不會每次載入都不一樣。 */
+    if (state.sort === "newest") return addedTime(b) - addedTime(a) || Number(b.id) - Number(a.id);
+    /* 多人看的在前。沒人看過的一律 0，用編號決定先後才不會亂跳。 */
+    if (state.sort === "popular") return viewsOf(b) - viewsOf(a) || Number(b.id) - Number(a.id);
     if (state.sort === "title") return String(a.title).localeCompare(String(b.title), "zh-Hant");
     if (state.sort === "id") return (a.catalogSequence || 0) - (b.catalogSequence || 0);
     return relevance(b, query) - relevance(a, query) || Number(a.id) - Number(b.id);
@@ -620,6 +652,10 @@ async function boot() {
      customerWorkflow 一個就佔 21%，而這一頁只是列表與搜尋。實測那個檔是目錄頁
      最大的單一資源（傳輸 429 KB）。精簡版讀不到就退回完整版——目錄頁能不能開，
      不該取決於一個為了加速而生的衍生檔。 */
+  /* 排序用的統計跟索引並行拿，不要串著等。它只影響「最新上架／最多人看」
+     兩個排序，晚幾百毫秒到都沒關係，但讓它排在索引後面就是白多等一趟。 */
+  const statsReady = loadSortStats();
+
   let response = await fetch("./content/catalog-index.json").catch(() => null);
   if (!response || !response.ok) response = await fetch("./projects-index.json?v=20260730-2");
   if (!response.ok) throw new Error("專案索引無法讀取");
@@ -636,6 +672,13 @@ async function boot() {
   renderQuickFilters();
   renderCatalogStats();
   applyFilters({ updateSuggestions: false, keepPage: true });
+
+  /* 統計晚一步到的話，重畫一次。使用者可能是帶著 ?sort=popular 的網址進來的，
+     那時第一次排序拿到的還是空的統計，看起來就像排序沒作用。 */
+  await statsReady;
+  if (state.sort === "newest" || state.sort === "popular") {
+    applyFilters({ updateSuggestions: false, keepPage: true });
+  }
 }
 
 searchInput.addEventListener("input", (event) => { state.query = event.target.value; applyFilters(); });

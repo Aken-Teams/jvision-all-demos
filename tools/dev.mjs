@@ -161,6 +161,9 @@ const json = (res, code, body) => {
    而且都會撞上 GitHub 的限流。 */
 const ghSync = { child: null, startedAt: 0, lastCode: null };
 
+/* 目錄排序資料的快取。 */
+const catalogStats = { at: 0, body: "{}" };
+
 /* 上限預設 4KB——這裡的 API 收的都是短短的表單。帶截圖的需求單另外放寬，
    由呼叫端指定。不做成無上限：沒有上限的 body 就是一個記憶體開關。
    超過上限時直接斷線，前端會看到 "Failed to fetch"；那不是好訊息，但比
@@ -255,6 +258,40 @@ function startGateway() {
 
     /* AI 引擎狀態：claude 或 codex 任一無法使用時 ready=false，
        前端右上角據此顯示「伺服尚未準備好」。 */
+    /* 目錄的排序資料：每套是什麼時候上架的、被看過幾次。
+       這兩個數字誰都看得到（目錄本身就是公開的），所以不設限；但它要掃
+       usage.jsonl，所以快取五分鐘——目錄頁每次載入都重算會把 CPU 燒在
+       一個五分鐘內幾乎不會變的答案上。 */
+    if (p === "/api/catalog/stats") {
+      const now = Date.now();
+      if (!catalogStats.at || now - catalogStats.at > 300000) {
+        const addedAt = {};
+        try {
+          const m = JSON.parse(fs.readFileSync(path.join(root, "docs", "DEMO_FORGE_MANIFEST.json"), "utf8"));
+          const arr = Array.isArray(m) ? m : (m.entries || Object.values(m).find(Array.isArray) || []);
+          for (const x of arr) if (x.repoName && x.createdAt) addedAt[x.repoName] = x.createdAt;
+        } catch { /* 沒有 manifest 就只靠案例編號排序 */ }
+
+        const views = {};
+        try {
+          /* 只認 demo 的瀏覽。整份掃過去——目前四千行，長到會慢再說，
+             現在為它做索引是還沒發生的問題。 */
+          for (const line of fs.readFileSync(path.join(root, "var", "usage.jsonl"), "utf8").split("\n")) {
+            if (!line) continue;
+            try {
+              const r = JSON.parse(line);
+              if (r.kind === "demo" && r.target) views[r.target] = (views[r.target] || 0) + 1;
+            } catch { /* 壞行跳過 */ }
+          }
+        } catch { /* 還沒有使用紀錄 */ }
+
+        catalogStats.body = JSON.stringify({ addedAt, views });
+        catalogStats.at = now;
+      }
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300" });
+      return res.end(catalogStats.body);
+    }
+
     if (p === "/api/health/engines") return json(res, 200, await enginesReady());
 
     if (p === "/api/visitor/me") {
