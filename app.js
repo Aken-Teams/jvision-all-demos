@@ -85,9 +85,9 @@ function searchableText(project) {
    頁面上的「產業分類統計」區塊用掉了，兩個混在一起改的人會挑錯。
 
    抓不到就留空：「最新上架」退回用案例編號（編號遞增，實測與上架日期同向的
-   比例是 99%），「最多人看」則全部同分而落回編號排序。目錄能不能用，不該
+   比例是 99%），「最近熱門」則全部同分而落回編號排序。目錄能不能用，不該
    取決於一份排序用的加分資料。 */
-const sortStats = { addedAt: {}, views: {} };
+const sortStats = { addedAt: {}, views: {}, hotDays: 30, coverDays: 0 };
 
 function loadSortStats() {
   return fetch("/api/catalog/stats", { cache: "no-store" })
@@ -96,6 +96,8 @@ function loadSortStats() {
       if (!d) return;
       sortStats.addedAt = d.addedAt || {};
       sortStats.views = d.views || {};
+      sortStats.hotDays = d.hotDays || 30;
+      sortStats.coverDays = d.coverDays || 0;
     })
     .catch(() => {});
 }
@@ -559,7 +561,8 @@ function applyFilters({ updateSuggestions = true, keepPage = false } = {}) {
   state.filtered.sort((a, b) => {
     /* 新的在前。同一天上架的用編號決定先後，順序才不會每次載入都不一樣。 */
     if (state.sort === "newest") return addedTime(b) - addedTime(a) || Number(b.id) - Number(a.id);
-    /* 多人看的在前。沒人看過的一律 0，用編號決定先後才不會亂跳。 */
+    /* 最近熱門：只算統計窗內的瀏覽，新上架的才有機會冒出來。
+       沒人看過的一律 0，用編號決定先後才不會亂跳。 */
     if (state.sort === "popular") return viewsOf(b) - viewsOf(a) || Number(b.id) - Number(a.id);
     if (state.sort === "title") return String(a.title).localeCompare(String(b.title), "zh-Hant");
     if (state.sort === "id") return (a.catalogSequence || 0) - (b.catalogSequence || 0);

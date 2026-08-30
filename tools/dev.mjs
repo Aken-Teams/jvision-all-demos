@@ -163,6 +163,9 @@ const ghSync = { child: null, startedAt: 0, lastCode: null };
 
 /* 目錄排序資料的快取。 */
 const catalogStats = { at: 0, body: "{}" };
+/* 「最近熱門」的統計窗。站上每天都在新增系統，窗開太大等於在比誰上線得久，
+   新做的永遠擠不進來；開太小又會被一兩天的偶然波動主導。 */
+const HOT_DAYS = 30;
 
 /* 上限預設 4KB——這裡的 API 收的都是短短的表單。帶截圖的需求單另外放寬，
    由呼叫端指定。不做成無上限：沒有上限的 body 就是一個記憶體開關。
@@ -273,6 +276,9 @@ function startGateway() {
         } catch { /* 沒有 manifest 就只靠案例編號排序 */ }
 
         const views = {};
+        const viewsAll = {};
+        let oldest = null;
+        const since = new Date(now - HOT_DAYS * 86400000).toISOString();
         try {
           /* 只認 demo 的瀏覽。整份掃過去——目前四千行，長到會慢再說，
              現在為它做索引是還沒發生的問題。 */
@@ -280,12 +286,21 @@ function startGateway() {
             if (!line) continue;
             try {
               const r = JSON.parse(line);
-              if (r.kind === "demo" && r.target) views[r.target] = (views[r.target] || 0) + 1;
+              if (r.kind !== "demo" || !r.target) continue;
+              if (!oldest || r.at < oldest) oldest = r.at;
+              viewsAll[r.target] = (viewsAll[r.target] || 0) + 1;
+              if (r.at >= since) views[r.target] = (views[r.target] || 0) + 1;
             } catch { /* 壞行跳過 */ }
           }
         } catch { /* 還沒有使用紀錄 */ }
 
-        catalogStats.body = JSON.stringify({ addedAt, views });
+        /* 一併回報紀錄實際涵蓋幾天。統計窗 30 天但只有 8 天的資料時，
+           「最近熱門」其實等於「歷來累計」——前端要講清楚，不要讓人以為
+           排序壞了。 */
+        const coverDays = oldest
+          ? Math.max(1, Math.round((now - Date.parse(oldest)) / 86400000)) : 0;
+
+        catalogStats.body = JSON.stringify({ addedAt, views, viewsAll, hotDays: HOT_DAYS, coverDays });
         catalogStats.at = now;
       }
       res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300" });
