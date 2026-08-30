@@ -182,7 +182,7 @@ for (let i = 0; i < todo.length; i += 1) {
          錯誤訊息與 ps 都看得到 token。GIT_TERMINAL_PROMPT=0 保證缺憑證時
          立刻失敗而不是等待輸入。 */
       const basic = Buffer.from(`x-access-token:${TOKEN}`).toString("base64");
-      const g = (...a) => execFileSync("git", a, { cwd: tmp, stdio: "pipe", timeout: 120000,
+      const g = (...a) => execFileSync("git", a, { cwd: tmp, stdio: "pipe", encoding: "utf8", timeout: 120000,
         env: { ...process.env,
           GIT_TERMINAL_PROMPT: "0",
           GIT_CONFIG_COUNT: "1",

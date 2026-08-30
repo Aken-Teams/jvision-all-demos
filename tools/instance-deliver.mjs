@@ -192,7 +192,7 @@ async function main() {
        走 HTTPS 而不是 SSH：systemd unit 內的 22 埠出流量實測會無限期懸掛。
        憑證用 GIT_CONFIG_* 傳，放在網址或 argv 裡的話 ps 與錯誤訊息都看得到。 */
     const basic = Buffer.from(`x-access-token:${TOKEN}`).toString("base64");
-    const g = (...a) => execFileSync("git", a, { cwd: tmp, stdio: "pipe", timeout: 180000,
+    const g = (...a) => execFileSync("git", a, { cwd: tmp, stdio: "pipe", encoding: "utf8", timeout: 180000,
       env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_CONFIG_COUNT: "1",
         GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
         GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basic}` } });
@@ -211,9 +211,12 @@ async function main() {
       /* GitHub 不讓沒有 workflow 權限的 token 推 .github/workflows/。
          少一個 CI 檔不該讓整份交付失敗——其餘的東西客戶照樣跑得起來，
          那個檔另外給他自己放。 */
-      /* 三個都串起來看。execFileSync 失敗時 error.stdout 常常是「空的 Buffer」，
-         而空 Buffer 在 JS 裡是 truthy——用 || 串會永遠選到它，真正的訊息在
-         stderr 裡卻永遠讀不到，於是這個 catch 形同虛設。 */
+      /* 三個都串起來看，不要用 || 挑一個。
+         execFileSync 沒設 encoding 時 stdout/stderr 是 Buffer，而「空的 Buffer」
+         在 JS 裡是 truthy——用 || 串會永遠選到空的那個，真正的訊息在 stderr 卻
+         永遠讀不到，整個 catch 形同虛設（實測踩過，查了半天）。
+         上面已經補上 encoding: "utf8" 之後它們是字串、空字串是 falsy，但這裡
+         仍然串起來：來源萬一再變回 Buffer，這段不該又悄悄失效。 */
       const msg = [error.stdout, error.stderr, error.message].map((x) => String(x || "")).join("\n");
       if (!/workflow\` scope|workflows/.test(msg)) throw error;
       log.warn("  token 沒有 workflow 權限，這次不含 CI 設定檔");
