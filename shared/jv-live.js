@@ -115,7 +115,10 @@
       style: "flex:1;min-width:120px;padding:6px 12px;border:1px solid var(--line,#e2e8f0);border-radius:8px;font:inherit;font-size:13px" });
     var add = el("button", { type: "button", text: "＋ 新增",
       style: "padding:6px 14px;border:0;border-radius:8px;background:var(--blue,#1e40af);color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer" });
-    var bar = el("div", { style: "display:flex;gap:8px;align-items:center;margin:0 0 10px;flex-wrap:wrap" }, [search, add]);
+    /* 加一個標記，導覽才有辦法穩定地指到這一列（用 class 或位置去猜，
+       demo 換了版面就會指錯地方）。 */
+    var bar = el("div", { "data-jv-toolbar": "1",
+      style: "display:flex;gap:8px;align-items:center;margin:0 0 10px;flex-wrap:wrap" }, [search, add]);
 
     var ctxOf = function () { return state.bound.filter(function (c) { return c.table === table; })[0]; };
     var timer;

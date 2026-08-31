@@ -24,6 +24,7 @@ const MARK_CLOSE = "<!-- jv-live:end -->";
 const INJECT = `${MARK_OPEN}
 <script src="./_jv/live.js"></script>
 <script src="./_jv/assist.js"></script>
+<script src="./_jv/tour.js"></script>
 ${MARK_CLOSE}`;
 
 /**
@@ -67,7 +68,7 @@ export function bind({ repo, outDir }) {
 
   if (DRY) {
     log.info(`  將寫入 ${path.relative(ROOT, pub)}/index.html（${(Buffer.byteLength(html) / 1024).toFixed(1)} KB）`);
-    log.info(`  將寫入 ${path.relative(ROOT, jv)}/live.js、assist.js、schema.json、favicon.svg`);
+    log.info(`  將寫入 ${path.relative(ROOT, jv)}/live.js、assist.js、tour.js、tour.json、schema.json、favicon.svg`);
     log.info(`  資料表：${schema.tables.map((t) => `${t.name}(${t.columns.length}欄)`).join(" ")}`);
     return { dryRun: true, schema };
   }
@@ -78,6 +79,25 @@ export function bind({ repo, outDir }) {
   /* 右下角的修改助理。跟 live.js 一樣複製進實例而不是連回站台——
      實例交付給客戶之後是獨立部署的，連回來就會斷。 */
   fs.copyFileSync(path.join(ROOT, "shared", "jv-assist.js"), path.join(jv, "assist.js"));
+  /* 第一次進來的導覽。 */
+  fs.copyFileSync(path.join(ROOT, "shared", "jv-tour.js"), path.join(jv, "tour.js"));
+
+  /* 導覽要講的內容。寫成檔而不是讓腳本自己去猜：系統叫什麼、管哪些欄位，
+     這些站台這邊就知道，交付出去之後客戶端也讀得到同一份。 */
+  const meta = (() => {
+    try {
+      const c = JSON.parse(fs.readFileSync(path.join(ROOT, "content", "catalog-index.json"), "utf8"));
+      return (c.projects || []).find((x) => x.repoName === repo) || {};
+    } catch { return {}; }
+  })();
+  const t0 = schema.tables[0];
+  fs.writeFileSync(path.join(jv, "tour.json"), JSON.stringify({
+    title: meta.title || repo.replace(/^jvision-/, ""),
+    description: meta.description || null,
+    primaryUser: meta.primaryUser || null,
+    tables: schema.tables.length,
+    fields: t0 ? t0.columns.map((c) => c.label) : [],
+  }, null, 2) + "\n");
   fs.copyFileSync(path.join(ROOT, "favicon.svg"), path.join(jv, "favicon.svg"));
   /* schema 也放一份在實例裡：交付 repo 給客戶時他要看得懂自己的資料結構。
      runtime 走的是 API（./_jv/schema），不讀這個檔。 */
