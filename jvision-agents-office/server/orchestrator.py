@@ -25,6 +25,27 @@ _TASK_HINT_RE = re.compile(
     r"報告|儀表|摘要|分析|彙整|查|現況|狀況|數據|資料|趨勢|比較|列出|統計|操作|標記|改成|設為|更新為|kpi", re.I)
 
 
+# 護欄:不該回答的問題(洩底層/資安攻擊/繞過/惡意),進 LLM 前就攔下
+_GUARD_RE = re.compile(
+    r"底層|模型是什麼|什麼模型|哪個模型|哪一個模型|哪家|你是.*(gpt|claude|gemini|openai|anthropic|llama|模型)|"
+    r"gpt|claude|gemini|openai|anthropic|llama|參數量|訓練資料|system\s*prompt|系統提示|提示詞|prompt\s*injection|"
+    r"越獄|jailbreak|忽略.*指令|繞過|破解|漏洞|滲透|入侵|攻擊|木馬|後門|惡意|挖礦|爬取整站|"
+    r"你的原始碼|你的程式碼|api\s*key|金鑰|密碼|token|資料庫連線|連線字串",
+    re.I)
+# 白名單:站上剛好有「防呆/漏油鎖車」等系統,含這些詞的正常業務問句不該被護欄誤攔
+_GUARD_ALLOW_RE = re.compile(r"防呆|鎖車|漏油|工單|報表|庫存|訂單|派工|良率|稼動|商機|客戶")
+_GUARD_REPLY = (
+    "這個問題我無法回答喔。我是 JVision 的系統助理,專注在兩件事:\n\n"
+    "1) 查站上系統的實際數據並彙整成報告\n"
+    "2) 執行操作指令(例:把 WO-01 標記完成)\n\n"
+    "想了解哪套系統或要做什麼操作呢?")
+
+
+def _is_blocked(question):
+    q = question.strip()
+    return bool(_GUARD_RE.search(q)) and not _GUARD_ALLOW_RE.search(q)
+
+
 def _is_smalltalk(question):
     qs = question.strip()
     if _SMALLTALK_RE.match(qs):
@@ -549,6 +570,12 @@ async def run(question: str, mode, emit):
     if _try_operation(question, emit):
         return
     emit({"type": "status", "message": "指揮官分析需求、判斷領域…"})
+    if _is_blocked(question):
+        emit({"type": "message", "id": "orchestrator", "name": "智策", "role": "總指揮",
+              "dataMode": "reasoning", "text": _GUARD_REPLY})
+        emit({"type": "final", "message": "完成。"})
+        return
+
     if _is_smalltalk(question):
         kind = "chat"
         doms = []

@@ -1,0 +1,45 @@
+# JV Demo（AI 軍火庫）對外隧道設定
+#
+# 刻意與 nsysu-bm.yml 分開成獨立的一條 tunnel：獨立設定檔、獨立程序、
+# 獨立 tunnel ID。共用同一條的話，每次調整 ingress 都得重啟該程序，
+# bm.nsysugaa.com 會跟著中斷。
+
+tunnel: 1909ee29-c8dd-499b-bad0-d1cdf5b8151e
+credentials-file: /home/aken/.cloudflared/1909ee29-c8dd-499b-bad0-d1cdf5b8151e.json
+
+ingress:
+  - hostname: jvdemo.jvision-ai.com
+    service: http://127.0.0.1:3000
+    originRequest:
+      # 讓 gateway 看到真實的對外主機名，站內產生的絕對網址才會是
+      # https://jvdemo.jvision-ai.com/...，而不是 localhost:3000。
+      httpHostHeader: jvdemo.jvision-ai.com
+      # demo 頁面較大（單檔 40–75KB）且首頁會併發載入多個預覽，
+      # 預設 100 條連線在區網外容易排隊。
+      connectTimeout: 30s
+      keepAliveConnections: 200
+  # 客戶專屬子網域。一條萬用規則，之後新增客戶是零基礎設施動作——
+  # 寫一筆 instances 就活了，不必再改這個檔、也不必再重啟這條 tunnel。
+  # 刻意**不設** httpHostHeader：gateway 要看到真實的客戶主機名才分得出是哪一套。
+  # 客戶專屬子網域。用 c- 前綴而不是第四層（*.c.jvdemo...）：
+  # Cloudflare 免費的 Universal SSL 只簽一層萬用（*.jvision-ai.com），
+  # 第四層的名稱沒有憑證，TLS 直接握手失敗。三層才吃得到既有憑證。
+  # 前綴讓它不可能撞到 www / app 這些真正的服務名。
+  #
+  # ingress 只能寫 *.jvision-ai.com（cloudflared 不接受 c-*.… 這種樣式），
+  # 但這條規則只對「DNS 已經指到這條 tunnel」的主機名生效——www 與 app 有自己的
+  # DNS 記錄指向別處，永遠不會走到這裡。真正的把關在 gateway：它只認 c- 開頭的
+  # 主機名當客戶系統，其餘一律照主站邏輯走。
+  # 這一條放在 jvdemo.jvision-ai.com 之後，主站不受影響。
+  - hostname: "*.jvision-ai.com"
+    service: http://127.0.0.1:3000
+    originRequest:
+      connectTimeout: 30s
+      keepAliveConnections: 200
+  # 舊的第四層命名留著：已經開通的實例還指著它，等全部搬完再拿掉。
+  - hostname: "*.c.jvdemo.jvision-ai.com"
+    service: http://127.0.0.1:3000
+    originRequest:
+      connectTimeout: 30s
+      keepAliveConnections: 200
+  - service: http_status:404
