@@ -7,11 +7,27 @@
  *
  * 動的永遠是 var/instances/<id>/public/index.html——原始 demo 是目錄展示品，
  * 唯讀。
+ *
+ * 改法有兩段：先請模型只回「把這一段換成那一段」，套不進去才退回整份重寫。
+ * 取代區塊是主要路徑，理由是正確性不是速度——整份重寫時，模型有機會在
+ * 你沒看的地方打錯字（實測過一次：做對了「把字放大」，同時把一行不相干的
+ * 跳脫函式從 &gt; 打成 &gt，五道護欄全過，頁面照常顯示）。
+ * 沒被 find 命中的地方一個位元組都不會變，那一類壞法就發生不了。
  */
 import fs from "node:fs";
 import path from "node:path";
+import { ROOT } from "./forge-common.mjs";
 import { runCodexWithRetry } from "./codex-run.mjs";
+import { applyEdits } from "./instance-patch.mjs";
 import * as versions from "./instance-versions.mjs";
+
+const EDIT_SCHEMA = path.join(ROOT, "tools", "schemas", "instance-edit.schema.json");
+
+/* auto＝先試取代區塊、套不進去才整份重寫（預設）。
+   另外兩個值是給量測與緊急處置用的：取代區塊哪天出問題，
+   設 JV_EDIT_MODE=rewrite 就能不改程式直接切回舊路徑。 */
+const MODE = ["auto", "patch", "rewrite"].includes(process.env.JV_EDIT_MODE)
+  ? process.env.JV_EDIT_MODE : "auto";
 
 const MARK_OPEN = "<!-- jv-live:start -->";
 const MARK_CLOSE = "<!-- jv-live:end -->";
@@ -37,7 +53,7 @@ function extractHtml(text) {
   return a >= 0 && b > a ? body.slice(a, b + 7) : null;
 }
 
-function prompt(instruction, html, hasImage) {
+function rewritePrompt(instruction, html, hasImage) {
   return `你要依使用者的要求，改這一套系統的程式與畫面。
 
 ## 使用者要的
@@ -68,23 +84,71 @@ ${hasImage ? "\n使用者另外附了一張截圖，那是他指的位置或想�
 ${html}`;
 }
 
+/* 取代區塊用的說明。跟整份重寫共用同一套「不可以動的東西」，
+   差別在輸出：只要那幾段要換的原文與新內容。 */
+function patchPrompt(instruction, html, hasImage) {
+  return `你要依使用者的要求，改這一套系統的程式與畫面。
+
+## 使用者要的
+${instruction}
+${hasImage ? "\n使用者另外附了一張截圖，那是他指的位置或想要的樣子。以截圖為準——\n文字描述位置常常會失真，圖上圈的地方才是他真正要改的。\n" : ""}
+
+## 怎麼回答
+不要重寫整份檔案。只要告訴我「把哪一段換成什麼」，我會自己套進去。
+
+每一處給一組 find / replace：
+- find 必須是檔案裡**逐字元完全相同**的一段原文，包含空白與縮排。
+  不可以憑印象重打，要從下面的檔案內容裡整段複製。
+- find 必須在整份檔案中**只出現一次**。如果那段文字很短、可能重複，
+  就往前後多帶幾行一起當成 find，讓它變成唯一的。
+- replace 是要換上去的新內容。要刪掉那一段就給空字串。
+- 沒有要改的地方就不要放進來。只回真正需要動的那幾處。
+
+## 不可以動的東西（動了這次修改就會被退回）
+1. 所有 <table> 的 <th> 文字一個字都不能改，也不能增減 <th> 的數量或順序。
+   那些欄位名稱是這套系統與它的資料庫對應的依據，改了資料就接不上。
+   如果使用者要的就是改欄位名稱，請不要動——那件事系統有另外的方式處理。
+2. \`${MARK_OPEN}\` 與 \`${MARK_CLOSE}\` 之間的那幾行 script 標籤必須原封不動。
+   那是系統的執行時與修改助理；拿掉的話使用者就再也沒有辦法修改這套系統了。
+3. 畫面（data-i）的數量不可以變少。
+4. 不可以引用任何本地檔案（不要出現 <script src="./...">），圖表庫維持原本的 CDN。
+5. 不可以使用 setInterval。
+6. 只改使用者要求的那件事。不要順手重排、重新縮排或整理其他地方的程式碼——
+   那些改動看起來無害，但每一次都是一次打錯字的機會。
+
+以下是目前的 index.html：
+
+${html}`;
+}
+
 /**
- * 改一次。回 { ok, why }。
+ * 請模型只回「把這一段換成那一段」，然後套進去。
  *
- * 失敗一律還原成原本的檔案——半改的頁面比沒改更糟，客戶會看到一個
- * 似是而非的畫面而不知道發生什麼事。
+ * 回 { ok, text, applied, note } 或 { ok:false, why }。失敗不是災難——
+ * 呼叫端會退回整份重寫，客戶不會遇到「這次不能改」。
  */
-export async function editPage(dir, instruction, { timeoutMs = 900000, model, imagePath, displayName } = {}) {
-  const file = path.join(dir, "public", "index.html");
-  if (!fs.existsSync(file)) return { ok: false, why: "找不到這套系統的畫面檔" };
-  const before = fs.readFileSync(file, "utf8");
-
-  /* 第一次修改之前，先把他複製過來的原始樣子留成第一版。
-     少了這一步，客戶改一次就再也回不到最初——而那是他最想回去的地方。 */
-  versions.ensureBaseline(dir, displayName ?? null);
-
+async function tryPatch(before, instruction, { dir, timeoutMs, model, imagePath }) {
   const r = await runCodexWithRetry({
-    prompt: prompt(instruction, before, Boolean(imagePath)),
+    prompt: patchPrompt(instruction, before, Boolean(imagePath)),
+    cwd: dir,
+    sandbox: "read-only",
+    schemaPath: EDIT_SCHEMA,
+    timeoutMs,
+    model,
+    images: imagePath ? [imagePath] : undefined,
+  }, { retries: 0 });
+  if (!r.ok) return { ok: false, why: String(r.error || "").slice(0, 80) || "沒有回應" };
+  if (!r.json || !Array.isArray(r.json.edits)) return { ok: false, why: "回的格式不對" };
+
+  const applied = applyEdits(before, r.json.edits);
+  if (!applied.ok) return { ok: false, why: applied.why };
+  return { ok: true, text: applied.text, applied: applied.applied, note: r.json.note || "" };
+}
+
+/** 整份重寫。取代區塊套不進去時的退路。 */
+async function tryRewrite(before, instruction, { dir, timeoutMs, model, imagePath }) {
+  const r = await runCodexWithRetry({
+    prompt: rewritePrompt(instruction, before, Boolean(imagePath)),
     cwd: dir,
     sandbox: "read-only",
     timeoutMs,
@@ -97,20 +161,59 @@ export async function editPage(dir, instruction, { timeoutMs = 900000, model, im
     const detail = String(r.error || "").slice(0, 80);
     return { ok: false, why: detail ? `改不成：${detail}` : "改的時候逾時了，請再說一次或把要求拆小一點" };
   }
-
   const after = extractHtml(r.text);
   if (!after) return { ok: false, why: "沒有產出完整的頁面" };
-  if (after === before) return { ok: false, why: "看起來沒有需要改的地方" };
+  return { ok: true, text: after };
+}
 
-  const revert = (why) => { fs.writeFileSync(file, before); return { ok: false, why }; };
+/**
+ * 改一次。回 { ok, why, how, versionId }。
+ *
+ * how 是這次走的是哪條路（patch / rewrite），只為了讓我們量得出退回全文重寫
+ * 的比例——那個數字要是一直很高，就代表取代區塊的說明還沒寫對。
+ *
+ * 失敗一律還原成原本的檔案——半改的頁面比沒改更糟，客戶會看到一個
+ * 似是而非的畫面而不知道發生什麼事。
+ */
+export async function editPage(dir, instruction, { timeoutMs = 900000, model, imagePath, displayName, mode } = {}) {
+  const file = path.join(dir, "public", "index.html");
+  if (!fs.existsSync(file)) return { ok: false, why: "找不到這套系統的畫面檔" };
+  const before = fs.readFileSync(file, "utf8");
+
+  /* 第一次修改之前，先把他複製過來的原始樣子留成第一版。
+     少了這一步，客戶改一次就再也回不到最初——而那是他最想回去的地方。 */
+  versions.ensureBaseline(dir, displayName ?? null);
+
+  const opts = { dir, timeoutMs, model, imagePath };
+  const use = mode || MODE;
+  let how = use === "rewrite" ? "rewrite" : "patch";
+  let note = "";
+  let result = how === "rewrite"
+    ? await tryRewrite(before, instruction, opts)
+    : await tryPatch(before, instruction, opts);
+
+  if (!result.ok && how === "patch" && use !== "patch") {
+    /* 套不進去就整份重寫。取代區塊失敗的原因多半是它把原文記錯了一兩個字，
+       那時候整份重寫仍然做得出正確的結果——不該讓客戶因為我們的內部策略
+       而收到一句「這次不能改」。 */
+    how = "rewrite";
+    result = await tryRewrite(before, instruction, opts);
+  }
+  if (!result.ok) return { ok: false, why: result.why, how };
+  note = result.note || "";
+
+  const after = result.text;
+  if (after === before) return { ok: false, why: "看起來沒有需要改的地方", how };
+
+  const revert = (why) => { fs.writeFileSync(file, before); return { ok: false, why, how }; };
   fs.writeFileSync(file, after);
 
   if (headerFingerprint(after) !== headerFingerprint(before)) return revert("這個改法會動到資料表的欄位名稱，那樣資料會接不上");
   if (!after.includes(MARK_OPEN) || !after.includes(MARK_CLOSE)) return revert("這個改法會把修改助理拿掉，那樣你就沒辦法再改它了");
   if (screens(after) < screens(before)) return revert("這個改法會讓畫面變少");
-  /* 本地腳本只允許 ./_jv/ 底下那兩支——那正是實例的執行時與修改助理，
+  /* 本地腳本只允許 ./_jv/ 底下那幾支——那正是實例的執行時與修改助理，
      必須在。這條規則原本是從 demo 的規則抄來的（demo 要單檔自足），
-     直接套到實例上會把每一次修改都擋掉，因為那兩行本來就在檔案裡。 */
+     直接套到實例上會把每一次修改都擋掉，因為那幾行本來就在檔案裡。 */
   const badLocal = (after.match(/<script[^>]+src=["']\.[^"']*["']/gi) || [])
     .filter((tag) => !/["']\.\/_jv\//.test(tag));
   if (badLocal.length) return revert("這個改法引用了本地檔案，交付出去會壞掉");
@@ -118,8 +221,8 @@ export async function editPage(dir, instruction, { timeoutMs = 900000, model, im
 
   /* 過了所有護欄才記成版本。中途被退回的東西不該出現在他的版本清單上，
      那些頁面從來沒有真的存在過。 */
-  const versionId = versions.record(dir, { note: String(instruction).slice(0, 200), action: "edit" });
-  return { ok: true, bytes: Buffer.byteLength(after), versionId };
+  const versionId = versions.record(dir, { note: note || String(instruction).slice(0, 200), action: "edit" });
+  return { ok: true, bytes: Buffer.byteLength(after), versionId, how, applied: result.applied || null };
 }
 
 /**

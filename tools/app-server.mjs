@@ -345,7 +345,8 @@ const server = http.createServer(async (req, res) => {
 const editJobs = new Map();
 
 function startEdit(inst, instruction, imagePath, sessionId) {
-  editJobs.set(inst.id, { state: "running", startedAt: Date.now(), instruction });
+  const startedAt = Date.now();
+  editJobs.set(inst.id, { state: "running", startedAt, instruction });
   edit.editPage(inst.dir, instruction, { imagePath, displayName: inst.display_name || null })
     .then((r) => {
       editJobs.set(inst.id, r.ok
@@ -358,9 +359,13 @@ function startEdit(inst, instruction, imagePath, sessionId) {
           text: r.ok ? "改好了，畫面重新整理就會看到。" : r.why,
           action: r.ok ? "edit_page" : "edit_failed", versionId: r.versionId || null }).catch(() => {});
       }
+      /* how／applied 記下來才量得出「退回整份重寫」的比例。那個數字一直高的話，
+         代表取代區塊的說明還沒寫對，而不是這條路走不通。 */
       control.recordEvent({ kind: r.ok ? "instance.edited" : "instance.edit_failed",
         customerId: inst.customer_id, instanceId: inst.id, actor: null,
-        detail: { instruction: String(instruction).slice(0, 300), why: r.why || null } }).catch(() => {});
+        detail: { instruction: String(instruction).slice(0, 300), why: r.why || null,
+          how: r.how || null, applied: r.applied || null,
+          seconds: Math.round((Date.now() - startedAt) / 1000) } }).catch(() => {});
     })
     .catch((e) => {
       editJobs.set(inst.id, { state: "failed", at: Date.now(), reply: `改的時候出錯了：${String(e.message).slice(0, 80)}` });
