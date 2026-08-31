@@ -1,0 +1,250 @@
+{
+  "id": 4482,
+  "repoName": "jvision-speech-transcribe-review",
+  "title": "語音轉錄與智慧校對工作台",
+  "category": "AI 工程平台",
+  "systemType": "ai-platform",
+  "generated": "2026-08-31T05:00:43.252Z",
+  "hero": {
+    "tagline": "把長音訊變成可用的逐字稿：保留時間軸與說話人，並用大模型逐條校對同音與誤辨字詞。",
+    "highlights": [
+      {
+        "icon": "mic",
+        "label": "涵蓋流程",
+        "value": "上傳→轉錄→校對→交付"
+      },
+      {
+        "icon": "groups",
+        "label": "適用角色",
+        "value": "會議紀錄 / 客服品保 / 影音團隊"
+      },
+      {
+        "icon": "auto_awesome",
+        "label": "AI 用在哪",
+        "value": "熱詞提示與上下文校對"
+      }
+    ]
+  },
+  "problem": {
+    "summary": "長會議與客訴錄音轉成文字之後，專有名詞被拆錯、同音字誤辨、時間軸對不上剪輯，人工從頭校一次比自己打還慢。",
+    "points": [
+      "專有名詞與人名沒有進 ASR 提示，每份都要重改一次",
+      "同音字要看上下文才判斷得出來，逐字校對耗時",
+      "時間戳在切段接縫處重複或漏字，字幕對不上",
+      "誰講的沒有標記，會議紀錄還要再聽一次"
+    ]
+  },
+  "system": {
+    "summary": "上傳音訊後自動切段轉錄，保留詞級時間戳與說話人標記，再由大模型逐條比對出建議修正，人只需要否決少數幾條。",
+    "modules": [
+      {
+        "name": "轉錄佇列",
+        "desc": "長音訊自動切段並行處理，失敗的段落單獨重試。"
+      },
+      {
+        "name": "時間軸與 SRT",
+        "desc": "詞級時間戳，可直接輸出 SRT / VTT / TXT / JSON。"
+      },
+      {
+        "name": "說話人分離",
+        "desc": "先分出 S01/S02，再由人指定真實姓名並沿用聲紋。"
+      },
+      {
+        "name": "智慧校對",
+        "desc": "以上下文修正同音與誤辨字詞，每處都留原文與理由。"
+      },
+      {
+        "name": "熱詞提示",
+        "desc": "專有名詞與人名進入 ASR 提示，減少重複的錯誤。"
+      },
+      {
+        "name": "交付稽核",
+        "desc": "每次匯出留一筆，含當時使用的模型與設定。"
+      }
+    ]
+  },
+  "architecture": {
+    "summary": "ASR 走本地 vLLM，校對走 LiteLLM 相容端點，兩者都可換；金鑰只用於當次請求。",
+    "layers": [
+      {
+        "name": "前端工作台",
+        "desc": "上傳、設定、逐字稿檢視與差異對照。"
+      },
+      {
+        "name": "轉錄服務",
+        "desc": "vLLM 部署的 ASR 模型，容器內預設 http://vllm:8000。"
+      },
+      {
+        "name": "校對服務",
+        "desc": "LiteLLM 相容 API，模型與推理強度可調。"
+      },
+      {
+        "name": "儲存與稽核",
+        "desc": "逐字稿、差異紀錄與交付紀錄。"
+      }
+    ]
+  },
+  "flow": {
+    "inputs": [
+      "音訊或影片檔（≤100MB / 90 分鐘）",
+      "熱詞與專有名詞清單",
+      "校對模型與推理強度"
+    ],
+    "stages": [
+      {
+        "title": "建立轉錄工作",
+        "role": "操作人員",
+        "desc": "選檔案、開時間序與說話人、填熱詞與校對設定。",
+        "demo": "v0"
+      },
+      {
+        "title": "轉錄佇列",
+        "role": "系統",
+        "desc": "長音訊切段並行轉錄，逐段更新進度。",
+        "demo": "v1"
+      },
+      {
+        "title": "逐字稿與時間軸",
+        "role": "操作人員",
+        "desc": "檢視逐段文字與起訖時間，輸出標準字幕檔。",
+        "demo": "v2"
+      },
+      {
+        "title": "說話人分離",
+        "role": "操作人員",
+        "desc": "把 S01/S02 對應到真實姓名。",
+        "demo": "v3"
+      },
+      {
+        "title": "智慧校對差異",
+        "role": "覆核者",
+        "desc": "逐條看建議修正與理由，可個別否決。",
+        "decision": {
+          "label": "低信心段落是否過多？",
+          "yes": "標記需人工確認",
+          "no": "直接交付"
+        },
+        "demo": "v4"
+      },
+      {
+        "title": "交付與稽核",
+        "role": "覆核者",
+        "desc": "匯出格式並留下交付紀錄。",
+        "demo": "v5"
+      }
+    ]
+  },
+  "benefits": {
+    "summary": "把逐字稿從「還要再校一次」變成「可以直接用」。",
+    "metrics": [
+      {
+        "label": "字錯率",
+        "before": "7.9%",
+        "after": "3.2%"
+      },
+      {
+        "label": "一小時音訊處理時間",
+        "before": "約 55 分鐘",
+        "after": "約 11 分鐘"
+      },
+      {
+        "label": "人工校對段落",
+        "before": "全份 312 段",
+        "after": "47 段"
+      }
+    ]
+  },
+  "records": {
+    "title": "轉錄工作",
+    "columns": [
+      {
+        "key": "job_no",
+        "label": "工作編號"
+      },
+      {
+        "key": "file_name",
+        "label": "檔案"
+      },
+      {
+        "key": "duration",
+        "label": "長度"
+      },
+      {
+        "key": "status",
+        "label": "狀態"
+      },
+      {
+        "key": "progress",
+        "label": "進度"
+      },
+      {
+        "key": "review_model",
+        "label": "校對模型"
+      }
+    ],
+    "rows": [
+      {
+        "job_no": "JOB-2418",
+        "file_name": "Lee01.mp3",
+        "duration": "48:12",
+        "status": "轉錄中",
+        "progress": "72%",
+        "review_model": "deepseek-v4-flash"
+      },
+      {
+        "job_no": "JOB-2417",
+        "file_name": "法說會_Q3.wav",
+        "duration": "1:12:40",
+        "status": "校對中",
+        "progress": "94%",
+        "review_model": "deepseek-v4-flash"
+      },
+      {
+        "job_no": "JOB-2416",
+        "file_name": "客訴電話_0829.m4a",
+        "duration": "09:35",
+        "status": "已完成",
+        "progress": "100%",
+        "review_model": "deepseek-v4-flash"
+      },
+      {
+        "job_no": "JOB-2415",
+        "file_name": "產線教育訓練.mp4",
+        "duration": "32:08",
+        "status": "已完成",
+        "progress": "100%",
+        "review_model": "deepseek-v4-flash"
+      },
+      {
+        "job_no": "JOB-2414",
+        "file_name": "董事會紀錄.wav",
+        "duration": "1:41:22",
+        "status": "需人工確認",
+        "progress": "100%",
+        "review_model": "deepseek-v4-flash"
+      },
+      {
+        "job_no": "JOB-2413",
+        "file_name": "門市晨會.mp3",
+        "duration": "06:44",
+        "status": "失敗｜音軌損毀",
+        "progress": "12%",
+        "review_model": "—"
+      }
+    ]
+  },
+  "decisionRules": [
+    {
+      "when": "低信心段落超過 5%",
+      "then": "整份標記需人工確認，不直接交付"
+    },
+    {
+      "when": "段數超過 100",
+      "then": "校對自動改用 low 推理強度，避免先耗時再重試"
+    },
+    {
+      "when": "音軌損毀或無聲",
+      "then": "整份標記失敗，不消耗校對額度"
+    }
+  ]
+}
