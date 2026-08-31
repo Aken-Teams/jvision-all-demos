@@ -90,6 +90,36 @@ const DDL = [
      max_rows_per_table INT NOT NULL DEFAULT 100000
    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
+  /* 對話。v0 最好的地方是「Chat 本身就是自然語言版的開發日誌」——
+     客戶不用懂 git diff，看得懂「我上禮拜叫它做了什麼」。
+     原本對話只存在前端的一個陣列裡，關掉視窗就沒了。
+
+     放控制面而不是各實例自己的資料庫：實例資料庫會被交付到 GitHub、
+     也可能被 drop，而對話歷史是平台的中繼資料，不該跟著客戶的業務資料走。 */
+  `CREATE TABLE IF NOT EXISTS chat_sessions (
+     id VARCHAR(40) PRIMARY KEY,
+     instance_id VARCHAR(40) NOT NULL,
+     title VARCHAR(120),
+     created_at DATETIME NOT NULL,
+     last_at DATETIME NOT NULL,
+     INDEX idx_instance (instance_id, last_at)
+   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  /* version_id 是這句話造成了哪一個版本。有了它，版本清單上的每一版
+     都指得回「當初是誰、說了哪一句話才變成這樣」。 */
+  `CREATE TABLE IF NOT EXISTS chat_messages (
+     id BIGINT AUTO_INCREMENT PRIMARY KEY,
+     session_id VARCHAR(40) NOT NULL,
+     role VARCHAR(12) NOT NULL,
+     text TEXT,
+     action VARCHAR(24),
+     version_id VARCHAR(40),
+     shot VARCHAR(80),
+     actor VARCHAR(190),
+     at DATETIME NOT NULL,
+     INDEX idx_session (session_id, id)
+   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
   /* 個人偏好。跟 customers 分開，是因為一個人可能只是別人公司的成員、
      從來沒有自己的 customers 列，但他一樣要能改自己的顯示名稱。
      以信箱為主鍵：登入身分就是信箱，不需要再發一組編號。 */
@@ -363,6 +393,60 @@ export async function recordEvent({ kind, customerId = null, instanceId = null, 
   await ensureSchema();
   await q("INSERT INTO events(at,kind,customer_id,instance_id,actor,detail_json) VALUES(?,?,?,?,?,?)",
     [now(), kind, customerId, instanceId, actor, detail ? JSON.stringify(detail) : null]);
+}
+
+/* ── 對話 ─────────────────────────────────────────────
+   一個實例底下有好幾次對話（session），一次對話裡有好幾句話。
+   這是 v0 側欄那個「專案 → 這個專案的幾次 Chat」的形狀。 */
+
+/** 開一次新對話。標題留白，等第一句話進來再補。 */
+export async function createSession(instanceId, title = null) {
+  await ensureSchema();
+  const id = newId("s");
+  const t = now();
+  await q("INSERT INTO chat_sessions(id,instance_id,title,created_at,last_at) VALUES(?,?,?,?,?)",
+    [id, instanceId, title ? String(title).slice(0, 120) : null, t, t]);
+  return { id, instance_id: instanceId, title, created_at: t, last_at: t };
+}
+
+export async function listSessions(instanceId, limit = 30) {
+  await ensureSchema();
+  const n = Math.max(1, Math.min(100, Number(limit) || 30));
+  return q(`SELECT s.id, s.title, s.created_at, s.last_at,
+       (SELECT COUNT(*) FROM chat_messages m WHERE m.session_id = s.id) AS messages
+     FROM chat_sessions s WHERE s.instance_id = ?
+     ORDER BY s.last_at DESC LIMIT ${n}`, [instanceId]);
+}
+
+/** 這次對話是不是屬於這個實例。前端傳什麼 sessionId 都不該跨到別套系統。 */
+export async function sessionInInstance(sessionId, instanceId) {
+  await ensureSchema();
+  const r = await one("SELECT id FROM chat_sessions WHERE id=? AND instance_id=?", [sessionId, instanceId]);
+  return Boolean(r);
+}
+
+export async function listMessages(sessionId, limit = 200) {
+  await ensureSchema();
+  const n = Math.max(1, Math.min(500, Number(limit) || 200));
+  return q(`SELECT role, text, action, version_id, shot, at FROM chat_messages
+     WHERE session_id = ? ORDER BY id LIMIT ${n}`, [sessionId]);
+}
+
+/**
+ * 記一句話。
+ *
+ * 標題只在第一句使用者的話進來時補上——用他自己說的那句當標題，
+ * 側欄上才看得出那次對話在做什麼（「把統計數字放大」比「對話 3」有用）。
+ */
+export async function addMessage({ sessionId, role, text, action = null, versionId = null, shot = null, actor = null }) {
+  await ensureSchema();
+  const t = now();
+  await q(`INSERT INTO chat_messages(session_id,role,text,action,version_id,shot,actor,at)
+     VALUES(?,?,?,?,?,?,?,?)`,
+    [sessionId, role, text == null ? null : String(text).slice(0, 4000), action, versionId, shot,
+      actor ? String(actor).slice(0, 190) : null, t]);
+  await q("UPDATE chat_sessions SET last_at=?, title=COALESCE(title, ?) WHERE id=?",
+    [t, role === "user" ? String(text || "").slice(0, 120) : null, sessionId]);
 }
 
 /**

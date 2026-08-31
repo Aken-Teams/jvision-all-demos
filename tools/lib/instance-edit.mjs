@@ -11,6 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { runCodexWithRetry } from "./codex-run.mjs";
+import * as versions from "./instance-versions.mjs";
 
 const MARK_OPEN = "<!-- jv-live:start -->";
 const MARK_CLOSE = "<!-- jv-live:end -->";
@@ -73,14 +74,14 @@ ${html}`;
  * 失敗一律還原成原本的檔案——半改的頁面比沒改更糟，客戶會看到一個
  * 似是而非的畫面而不知道發生什麼事。
  */
-export async function editPage(dir, instruction, { timeoutMs = 900000, model, imagePath } = {}) {
+export async function editPage(dir, instruction, { timeoutMs = 900000, model, imagePath, displayName } = {}) {
   const file = path.join(dir, "public", "index.html");
   if (!fs.existsSync(file)) return { ok: false, why: "找不到這套系統的畫面檔" };
   const before = fs.readFileSync(file, "utf8");
 
-  /* 每次改之前留一份。客戶說「改壞了、還原」時要有東西可以還原，
-     而且只留最近一次——留一整串版本要有介面讓他挑，那是另一件事。 */
-  fs.writeFileSync(path.join(dir, "public", "index.prev.html"), before);
+  /* 第一次修改之前，先把他複製過來的原始樣子留成第一版。
+     少了這一步，客戶改一次就再也回不到最初——而那是他最想回去的地方。 */
+  versions.ensureBaseline(dir, displayName ?? null);
 
   const r = await runCodexWithRetry({
     prompt: prompt(instruction, before, Boolean(imagePath)),
@@ -115,17 +116,21 @@ export async function editPage(dir, instruction, { timeoutMs = 900000, model, im
   if (badLocal.length) return revert("這個改法引用了本地檔案，交付出去會壞掉");
   if (/setInterval\s*\(/.test(after)) return revert("這個改法用了 setInterval，那會讓頁面一直在背景跑");
 
-  return { ok: true, bytes: Buffer.byteLength(after) };
+  /* 過了所有護欄才記成版本。中途被退回的東西不該出現在他的版本清單上，
+     那些頁面從來沒有真的存在過。 */
+  const versionId = versions.record(dir, { note: String(instruction).slice(0, 200), action: "edit" });
+  return { ok: true, bytes: Buffer.byteLength(after), versionId };
 }
 
-/** 還原成上一次修改前的樣子。 */
+/**
+ * 還原成上一版。
+ *
+ * 原本是拿 index.prev.html 跟現在的檔案交換，所以只有一個來回；
+ * 現在往版本清單裡退一格，而且退這件事本身也會記成新版本，
+ * 所以「還原了之後又想回去」走得回來。
+ */
 export function undo(dir) {
-  const file = path.join(dir, "public", "index.html");
-  const prev = path.join(dir, "public", "index.prev.html");
-  if (!fs.existsSync(prev)) return false;
-  const cur = fs.readFileSync(file, "utf8");
-  fs.writeFileSync(file, fs.readFileSync(prev, "utf8"));
-  /* 交換而不是刪掉：再說一次「還原」就會回到剛才那版，等於一個來回的復原。 */
-  fs.writeFileSync(prev, cur);
-  return true;
+  const id = versions.previous(dir);
+  if (!id) return false;
+  return versions.restore(dir, id).ok;
 }

@@ -61,6 +61,18 @@
     .m.thinking { align-self:flex-start; color:#94a3b8; font-size:.78rem; }
     .m img { max-width:100%; border-radius:.45rem; display:block; }
 
+    /* 系統底下的那幾次對話。縮排＋左邊一條線，看得出是隸屬關係而不是同一層。 */
+    .ses { display:block; width:100%; text-align:left; padding:.32rem .5rem; margin-left:.85rem;
+           border-left:2px solid #e2e8f0; cursor:pointer; background:none; font:inherit;
+           font-size:.74rem; color:#64748b; line-height:1.4; overflow:hidden;
+           text-overflow:ellipsis; white-space:nowrap; }
+    .ses:hover { color:#1e40af; border-left-color:#bfdbfe; }
+    .ses[aria-current="true"] { color:#1e40af; font-weight:800; border-left-color:#1e40af; background:#f0f6ff; }
+    .ses.new { color:#1e40af; font-weight:800; }
+
+    .ver { display:flex; align-items:flex-start; gap:.6rem; padding:.6rem .75rem; border:1px solid #e2e8f0; border-radius:.6rem; }
+    .ver.cur { border-color:#1e40af; background:#f0f6ff; }
+
     .chip { font-size:.72rem; border:1px solid #e2e8f0; background:#fff; color:#64748b; border-radius:9999px; padding:.22rem .6rem; cursor:pointer; font-family:inherit; }
     .chip:hover { border-color:#1e40af; color:#1e40af; }
 
@@ -121,6 +133,8 @@
             <b class="block text-sm font-black text-ink leading-tight">修改助理</b>
             <small id="chatSub" class="block text-xs text-muted truncate">用講的就好</small>
           </div>
+          <button id="newChat" type="button" class="btn btn-ghost h-7 px-2 ml-auto shrink-0" title="開一次新的對話">
+            <span class="material-symbols-outlined text-[16px]">add_comment</span>新對話</button>
         </div>
       </div>
       <div id="chatBox" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2"></div>
@@ -181,7 +195,13 @@
 
       <!-- 紀錄 -->
       <div id="tab-log" hidden class="col flex-1 overflow-y-auto">
-        <div id="logBody" class="p-4 space-y-2"></div>
+        <div class="p-4">
+          <h3 class="text-sm font-black text-ink mb-1">版本</h3>
+          <p class="text-xs text-muted mb-3">每一次成功的修改都留了一份。可以先看看那一版長什麼樣，再決定要不要回去。</p>
+          <div id="verBody" class="space-y-2"></div>
+          <h3 class="text-sm font-black text-ink mt-6 mb-3">其他紀錄</h3>
+          <div id="logBody" class="space-y-2"></div>
+        </div>
       </div>
 
       <!-- 交付 -->
@@ -277,6 +297,12 @@
             esc(STATE_TEXT[s.state] || s.state) + (s.role === "owner" ? " · 擁有者" : " · 成員") + "</i>";
           b.addEventListener("click", function () { select(s.id); });
           box.appendChild(b);
+          /* 每個系統底下留一個位置放它的幾次對話。只有選中的那一套會填東西——
+             一次把 11 套的對話全撈回來，側欄會長到看不完，而且多打十次資料庫。 */
+          var kids = document.createElement("div");
+          kids.className = "space-y-0.5 mb-1";
+          kids.dataset.kids = s.id;
+          box.appendChild(kids);
         });
         /* 網址指定的優先，沒有就開第一套——進來就看到東西，比看到空畫面好。 */
         var want = new URLSearchParams(location.search).get("i");
@@ -300,11 +326,9 @@
     $("chatSub").textContent = cur.title || cur.repo_name;
 
     /* 換系統＝換一段對話。留著上一套的內容會讓人以為助理記得那些事。 */
-    hist = [];
-    $("chatBox").innerHTML = "";
     setShot(null);
-    say("bot", "這是「" + (cur.title || cur.repo_name) + "」。欄位、名稱、畫面、流程都能改——說一句話就好，我做得到的當場就改，改程式邏輯的要等一兩分鐘。");
     loadChips();
+    loadSessions();
 
     loaded = { data: false, code: false, log: false };
     showTab("preview");
@@ -320,8 +344,81 @@
   }
 
   /* ── ② 對話 ───────────────────────────────────────── */
-  var hist = [];
+  var hist = [];              // 送給模型當上下文的最近幾句
+  var curSession = null;      // 目前這次對話。null 代表「還沒開始的新對話」
   var pendingShot = null;
+
+  /* 這套系統底下的幾次對話。以前對話只活在這個變數裡，關掉分頁就沒了；
+     現在存在控制面，所以「我上禮拜叫它做了什麼」隔幾天回來還看得到。 */
+  /* keepOpen＝只重畫側欄那份清單，不要碰現在正開著的對話。
+     送出第一句話之後要把新對話補進側欄，但那一刻聊天視窗裡正有東西，
+     順手 openSession 會把他剛講的話洗掉。 */
+  function loadSessions(keepOpen) {
+    var box = document.querySelector('[data-kids="' + cur.id + '"]');
+    document.querySelectorAll("[data-kids]").forEach(function (k) { if (k !== box) k.innerHTML = ""; });
+    if (!box) return;
+    box.innerHTML = "";
+    fetch(api("/_jv/sessions"), { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var list = (d && d.sessions) || [];
+        var nb = document.createElement("button");
+        nb.type = "button";
+        nb.className = "ses new";
+        nb.textContent = "＋ 新對話";
+        nb.addEventListener("click", function () { openSession(null); });
+        box.appendChild(nb);
+        list.forEach(function (x) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "ses";
+          b.dataset.ses = x.id;
+          b.title = x.title || "（還沒說話）";
+          b.textContent = x.title || "（還沒說話）";
+          b.addEventListener("click", function () { openSession(x.id); });
+          box.appendChild(b);
+        });
+        if (keepOpen) { markSession(curSession); return; }
+        /* 進來就接著上次那一段講。開一個空白對話的話，他要自己想起
+           「上次講到哪」——而那正是我們現在存得住的東西。 */
+        openSession(list.length ? list[0].id : null);
+      })
+      .catch(function () { if (!keepOpen) openSession(null); });
+  }
+
+  function markSession(id) {
+    document.querySelectorAll(".ses[data-ses]").forEach(function (b) {
+      b.setAttribute("aria-current", b.dataset.ses === id ? "true" : "false");
+    });
+  }
+
+  /* 打開某一次對話（id 為 null 代表開新的）。 */
+  function openSession(id) {
+    curSession = id;
+    hist = [];
+    $("chatBox").innerHTML = "";
+    markSession(id);
+    if (!id) {
+      say("bot", "這是「" + (cur.title || cur.repo_name) + "」。欄位、名稱、畫面、流程都能改——說一句話就好，我做得到的當場就改，改程式邏輯的要等一兩分鐘。");
+      return;
+    }
+    fetch(api("/_jv/sessions/" + encodeURIComponent(id)), { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var msgs = (d && d.messages) || [];
+        if (!msgs.length) { say("bot", "這次對話還沒有內容。"); return; }
+        msgs.forEach(function (m) {
+          var cls = m.role === "user" ? "me"
+            : (m.action === "edit_failed" ? "err" : (m.action && m.action !== "none" ? "done" : "bot"));
+          say(m.role === "user" ? "user" : "bot", m.text || "", cls);
+          hist.push({ role: m.role, text: m.text || "" });
+        });
+        hist = hist.slice(-6);
+      })
+      .catch(function () { say("bot", "讀不到這次對話的內容。", "err"); });
+  }
+
+  $("newChat").addEventListener("click", function () { if (cur) openSession(null); });
 
   var api = function (path) { return "/-/i/" + encodeURIComponent(cur.id) + path; };
 
@@ -437,12 +534,15 @@
     var wait = say("bot", "想一下…", "thinking");
 
     fetch(api("/_jv/chat"), { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ message: msg, history: hist.slice(-6), shot: shot }) })
+      body: JSON.stringify({ message: msg, history: hist.slice(-6), shot: shot, sessionId: curSession }) })
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (x) {
         wait.remove();
         send.disabled = false;
         var d = x.d || {};
+        /* 第一句話會開出一次新對話，把編號收下來——不然下一句又會另開一次，
+           側欄上就會出現一串各只有一句話的對話。 */
+        if (d.sessionId && d.sessionId !== curSession) { curSession = d.sessionId; loadSessions(true); }
         var reply = d.reply || d.error || "我沒聽懂，換個說法再說一次？";
         say("bot", reply, d.changed ? "done" : (x.ok ? "bot" : "err"));
         hist.push({ role: "assistant", text: reply });
@@ -644,15 +744,88 @@
     "instance.reverted": ["還原版本", "#a16207"],
   };
 
+  var VER_ACTION = { baseline: "原始", edit: "修改", restore: "還原" };
+
+  /* 版本清單。最新的在最上面，目前這一版標起來。 */
+  function loadVersions() {
+    $("verBody").innerHTML = '<p class="text-xs text-muted">載入中…</p>';
+    fetch(api("/_jv/versions"), { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var vs = (d && d.versions) || [];
+        if (!vs.length) {
+          $("verBody").innerHTML = '<p class="text-xs text-muted">還沒有版本。第一次改程式或畫面的時候，會先把現在的樣子留起來。</p>';
+          return;
+        }
+        var box = $("verBody");
+        box.innerHTML = "";
+        vs.forEach(function (v, i) {
+          var row = document.createElement("div");
+          row.className = "ver" + (i === 0 ? " cur" : "");
+          var left = document.createElement("div");
+          left.className = "flex-1 min-w-0";
+          left.innerHTML =
+            '<div class="flex items-center gap-2">' +
+              '<span class="text-xs font-black text-brand">' + esc(VER_ACTION[v.action] || v.action) + "</span>" +
+              (i === 0 ? '<span class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 rounded px-1.5">現在這一版</span>' : "") +
+              '<span class="text-xs text-muted ml-auto">' + esc(String(v.at).slice(0, 16)) + "</span>" +
+            "</div>" +
+            '<p class="text-sm text-ink mt-1 break-words">' + esc(v.note || "（沒有說明）") + "</p>" +
+            '<p class="text-xs text-muted mt-0.5">' + Math.round((v.bytes || 0) / 1024) + " KB</p>";
+          var acts = document.createElement("div");
+          acts.className = "flex flex-col gap-1 shrink-0";
+          var see = document.createElement("a");
+          see.className = "btn btn-ghost h-7 px-2 text-xs";
+          see.textContent = "看看";
+          see.target = "_blank";
+          see.rel = "noreferrer";
+          see.href = "/-/i/" + encodeURIComponent(cur.id) + "/_jv/versions/" + encodeURIComponent(v.id) + "/html";
+          acts.appendChild(see);
+          if (i !== 0) {
+            var back = document.createElement("button");
+            back.type = "button";
+            back.className = "btn btn-primary h-7 px-2 text-xs";
+            back.textContent = "回到這版";
+            back.addEventListener("click", function () { restoreVersion(v, back); });
+            acts.appendChild(back);
+          }
+          row.appendChild(left);
+          row.appendChild(acts);
+          box.appendChild(row);
+        });
+      })
+      .catch(function () { $("verBody").innerHTML = '<p class="text-xs text-red-600">讀不到版本清單。</p>'; });
+  }
+
+  function restoreVersion(v, btn) {
+    /* 這會換掉他現在看到的整個畫面，先問一句。歷史不會被砍掉——
+       還原本身也是一個新版本，所以按錯了還走得回來，這點要講出來，
+       不然沒有人敢按。 */
+    if (!confirm("要回到「" + (v.note || v.id) + "」這一版嗎？\n\n現在這一版會留在清單上，隨時可以再切回來。")) return;
+    btn.disabled = true;
+    btn.textContent = "還原中…";
+    fetch(api("/_jv/versions/restore"), { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: v.id }) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (x) {
+        if (!x.ok) { btn.disabled = false; btn.textContent = "回到這版"; alert(x.d.error || "還原失敗"); return; }
+        say("bot", "已經回到「" + (v.note || v.id) + "」那一版。", "done");
+        afterChange();
+        showTab("log");
+      })
+      .catch(function () { btn.disabled = false; btn.textContent = "回到這版"; alert("連不上伺服器"); });
+  }
+
   function loadLog() {
     loaded.log = true;
+    loadVersions();
     $("logBody").innerHTML = '<p class="text-xs text-muted">載入中…</p>';
     fetch("/api/me/instances/" + encodeURIComponent(cur.id) + "/events", { cache: "no-store" })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         var evs = (d && d.events) || [];
         if (!evs.length) {
-          $("logBody").innerHTML = '<p class="text-xs text-muted">還沒有修改紀錄。在左邊說一句話改點東西，就會出現在這裡。</p>';
+          $("logBody").innerHTML = '<p class="text-xs text-muted">還沒有其他紀錄。</p>';
           return;
         }
         $("logBody").innerHTML = evs.map(function (e) {

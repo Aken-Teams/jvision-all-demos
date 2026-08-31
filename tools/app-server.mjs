@@ -20,6 +20,7 @@ import * as data from "./lib/instance-db.mjs";
 import * as chat from "./lib/instance-chat.mjs";
 import * as edit from "./lib/instance-edit.mjs";
 import * as shots from "./lib/shots.mjs";
+import * as versions from "./lib/instance-versions.mjs";
 
 const args = parseArgs();
 const log = makeLogger({ quiet: false });
@@ -183,27 +184,106 @@ const server = http.createServer(async (req, res) => {
         seconds: Math.round((Date.now() - (j.startedAt || j.at)) / 1000) });
     }
 
+    /* 這套系統的幾次對話。v0 側欄那個「專案 → 這個專案的幾次 Chat」的形狀。 */
+    if (p === "/_jv/sessions") {
+      if (req.method === "GET") return json(res, 200, { sessions: await control.listSessions(inst.id) });
+      if (req.method === "POST") return json(res, 201, { session: await control.createSession(inst.id) });
+    }
+    {
+      const m = /^\/_jv\/sessions\/([a-z0-9_]+)$/.exec(p);
+      if (m && req.method === "GET") {
+        /* 這次對話必須屬於這個實例。前端傳什麼編號都不該跨到別人的系統上。 */
+        if (!await control.sessionInInstance(m[1], inst.id)) return json(res, 404, { error: "找不到這次對話" });
+        return json(res, 200, { messages: await control.listMessages(m[1]) });
+      }
+    }
+
+    /* 版本。每一次成功的修改都留一份，隨時回得去。 */
+    if (p === "/_jv/versions" && req.method === "GET") {
+      return json(res, 200, { versions: versions.list(inst.dir).slice().reverse() });
+    }
+    {
+      /* 先看看那一版長什麼樣，再決定要不要還原。直接吐那一版的 HTML——
+         它本來就在這個實例的網域上跑過，沒有比現在多開任何東西。 */
+      const m = /^\/_jv\/versions\/([a-z0-9-]+)\/html$/.exec(p);
+      if (m && req.method === "GET") {
+        const body = versions.read(inst.dir, m[1]);
+        if (body == null) return json(res, 404, { error: "找不到這個版本" });
+        res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+        return res.end(body);
+      }
+    }
+    if (p === "/_jv/versions/restore" && req.method === "POST") {
+      const b = await readBody(req);
+      const r = versions.restore(inst.dir, String(b.id || "").slice(0, 40));
+      if (!r.ok) return json(res, 400, { error: r.why });
+      /* 畫面退回去了，資料庫記的系統名稱也要跟著退——不然清單上顯示的名字
+         跟畫面上寫的會是兩回事。 */
+      if (r.displayName !== undefined) {
+        await control.renameInstance(inst.id, r.displayName);
+        cache.delete(inst.id);
+      }
+      await control.recordEvent({ kind: "instance.reverted", customerId: inst.customer_id,
+        instanceId: inst.id, actor, detail: { to: String(b.id).slice(0, 40) } });
+      return json(res, 200, { ok: true });
+    }
+
     if (p === "/_jv/chat" && req.method === "POST") {
       /* 帶截圖時 body 會大很多，前端已經縮到最寬 1400px。 */
       const b = await readBody(req, 6 * 1024 * 1024);
       const message = String(b.message || "").trim().slice(0, 500);
       if (!message) return json(res, 400, { error: "請說一下你想改什麼" });
+
+      /* 截圖只存一次。原本是在 edit_page 那一支裡才存，但現在使用者說的每一句
+         都要落地，圖也要跟著那句話留下來——存兩次會在 uploads 裡留下孤兒檔。 */
+      let shotName = null;
+      let shotPath = null;
+      if (b.shot) {
+        try {
+          const saved = shots.saveShot(path.join(inst.dir, "uploads"), b.shot);
+          if (saved) { shotName = saved.name; shotPath = path.join(inst.dir, "uploads", saved.name); }
+        } catch { /* 存不進去就純用文字，不要因為圖而整件事做不成 */ }
+      }
+
+      /* 對話要留得住。原本只存在前端一個陣列裡，關掉視窗就沒了——
+         而那些話正是「這套系統為什麼變成現在這樣」的唯一紀錄。
+         落地失敗一律降級成「這次不記」：記不下來不該讓他連話都說不了。 */
+      let sessionId = null;
+      try {
+        const want = String(b.sessionId || "").slice(0, 40);
+        if (want && await control.sessionInInstance(want, inst.id)) sessionId = want;
+        if (!sessionId) sessionId = (await control.createSession(inst.id)).id;
+        await control.addMessage({ sessionId, role: "user", text: message, actor, shot: shotName });
+      } catch { sessionId = null; }
+
+      /* 每一條回覆都要走這裡才會被記下來。原本有七個 return，
+         逐一補一次寫入必然會漏掉其中一兩個。 */
+      const done = async (payload) => {
+        if (sessionId) {
+          try {
+            await control.addMessage({ sessionId, role: "assistant", text: payload.reply,
+              action: payload.action || null, versionId: payload.versionId || null });
+          } catch { /* 記不下來不影響他已經拿到的結果 */ }
+        }
+        return json(res, 200, { ...payload, sessionId });
+      };
+
       const schema = await data.describe(dbName);
       const d = await chat.decide(schema, message, Array.isArray(b.history) ? b.history : []);
 
       try {
         if (d.action === "add_column") {
           await data.addColumn(dbName, d.table, { key: d.key, label: d.label, type: d.type }, actor);
-          return json(res, 200, { reply: d.reply, action: "add_column", changed: true });
+          return done({ reply: d.reply, action: "add_column", changed: true });
         }
         if (d.action === "rename_column") {
           await data.renameColumn(dbName, d.table, d.key, d.label, actor);
-          return json(res, 200, { reply: d.reply, action: "rename_column", changed: true });
+          return done({ reply: d.reply, action: "rename_column", changed: true });
         }
         if (d.action === "undo") {
           const ok = edit.undo(inst.dir);
-          return json(res, 200, {
-            reply: ok ? "已經還原成上一次修改前的樣子。" : "沒有可以還原的版本。",
+          return done({
+            reply: ok ? "已經還原成上一版了。" : "沒有可以還原的版本。",
             action: "undo", changed: ok });
         }
         if (d.action === "edit_page") {
@@ -213,7 +293,7 @@ const server = http.createServer(async (req, res) => {
              右邊當場重載，同一件事在那裡才成立。把他要說的話一起帶過去，
              到了那邊按送出就好，不必再打一次。 */
           if (b.from === "assist") {
-            return json(res, 200, { action: "handoff", changed: false,
+            return done({ action: "handoff", changed: false,
               reply: "這種修改要動到程式與畫面，在工作台做比較好——那裡左邊講話、右邊當場看到結果。我把你剛才說的帶過去。",
               url: `${SITE}/workspace.html?i=${encodeURIComponent(inst.id)}&q=${encodeURIComponent(message)}` });
           }
@@ -221,36 +301,34 @@ const server = http.createServer(async (req, res) => {
              開成背景工作，前端用 /_jv/job 問進度。 */
           const running = editJobs.get(inst.id);
           if (running && running.state === "running") {
-            return json(res, 200, { reply: "上一個修改還在進行中，等它做完再說下一個。", action: "none", changed: false });
+            return done({ reply: "上一個修改還在進行中，等它做完再說下一個。", action: "none", changed: false });
           }
-          /* 截圖存進這個實例自己的 uploads，路徑交給 codex 當附件。 */
-          let img = null;
-          if (b.shot) {
-            try {
-              const saved = shots.saveShot(path.join(inst.dir, "uploads"), b.shot);
-              if (saved) img = path.join(inst.dir, "uploads", saved.name);
-            } catch { /* 存不進去就純用文字改，不要因為圖而整件事做不成 */ }
-          }
-          startEdit(inst, message, img);
-          return json(res, 200, { reply: d.reply, action: "edit_page", job: true, changed: false });
+          startEdit(inst, message, shotPath, sessionId);
+          return done({ reply: d.reply, action: "edit_page", job: true, changed: false });
         }
         if (d.action === "rename_system") {
-          const ok = await renameSystem(inst, d.label);
-          if (!ok) return json(res, 200, { reply: "我找不到畫面上原本的系統名稱，可能被改過了。你可以直接說「把畫面上的 ○○ 改成 ××」。", action: "none", changed: false });
+          const r = renameSystem(inst, d.label);
+          if (!r) return done({ reply: "我找不到畫面上原本的系統名稱，可能被改過了。你可以直接說「把畫面上的 ○○ 改成 ××」。", action: "none", changed: false });
           await control.renameInstance(inst.id, d.label);
           cache.delete(inst.id);   // 名稱換了，快取裡那份要作廢
-          return json(res, 200, { reply: d.reply, action: "rename_system", changed: true });
+          /* 只換到瀏覽器分頁標題時要照實說。原本一律回模型那句
+             「畫面最上方的標題會直接更新」，但畫面上根本沒變——
+             他會盯著沒變的畫面以為系統壞了。 */
+          return done({
+            reply: r.visible ? d.reply
+              : `已經改成「${d.label}」了，不過畫面上那個標題的字跟目錄上的不完全一樣，所以只換到了瀏覽器分頁的名稱。你可以直接說「把畫面上的 ○○ 改成 ${d.label}」，我就能連畫面一起改。`,
+            action: "rename_system", changed: true });
         }
       } catch (error) {
         /* 動作本身失敗（欄位已存在、名稱不合法…）要照實說，不要回一句
            「已完成」——那會讓他以為改好了而不再追。 */
-        return json(res, 200, { reply: `這個我做不到：${error.message}`, action: "none", changed: false });
+        return done({ reply: `這個我做不到：${error.message}`, action: "none", changed: false });
       }
 
       /* 做不到的收成待辦，跟右下角助理的「其他修改」走同一條路。 */
       await control.recordEvent({ kind: "change.request", customerId: inst.customer_id,
         instanceId: inst.id, actor, detail: { text: message, repo: inst.repo_name, via: "chat" } });
-      return json(res, 200, { reply: d.reply, action: "none", changed: false });
+      return done({ reply: d.reply, action: "none", changed: false });
     }
 
     /* ── 實例的畫面檔 ─────────────────────────────────── */
@@ -266,13 +344,20 @@ const server = http.createServer(async (req, res) => {
    本來就沒做完，記在檔案裡反而會留下一個永遠 running 的假象。 */
 const editJobs = new Map();
 
-function startEdit(inst, instruction, imagePath) {
+function startEdit(inst, instruction, imagePath, sessionId) {
   editJobs.set(inst.id, { state: "running", startedAt: Date.now(), instruction });
-  edit.editPage(inst.dir, instruction, { imagePath })
+  edit.editPage(inst.dir, instruction, { imagePath, displayName: inst.display_name || null })
     .then((r) => {
       editJobs.set(inst.id, r.ok
         ? { state: "done", at: Date.now(), reply: "改好了，畫面重新整理就會看到。" }
         : { state: "failed", at: Date.now(), reply: r.why });
+      /* 結果也要進對話。這件事要跑好幾分鐘，回覆是在請求早就結束之後才出現的
+         ——不在這裡補記的話，對話裡就只剩「我來改」而永遠沒有下文。 */
+      if (sessionId) {
+        control.addMessage({ sessionId, role: "assistant",
+          text: r.ok ? "改好了，畫面重新整理就會看到。" : r.why,
+          action: r.ok ? "edit_page" : "edit_failed", versionId: r.versionId || null }).catch(() => {});
+      }
       control.recordEvent({ kind: r.ok ? "instance.edited" : "instance.edit_failed",
         customerId: inst.customer_id, instanceId: inst.id, actor: null,
         detail: { instruction: String(instruction).slice(0, 300), why: r.why || null } }).catch(() => {});
@@ -296,8 +381,18 @@ function renameSystem(inst, label) {
   /* 原本的名字：先用這個實例目前的名稱，沒有就用目錄上的標題。 */
   const old = inst.display_name || titleOf(inst.repo_name);
   if (!old || !html.includes(old)) return false;
+  /* 改名也是動到 index.html，所以一樣要留版本。少了這一段，客戶改完名字
+     說「還原」，退回去的會是更早以前那一版，而中間那次改名憑空消失。
+     凡是寫這個檔的地方都要走版本，不能只有 instance-edit 記得。 */
+  versions.ensureBaseline(inst.dir);
   fs.writeFileSync(file, html.split(old).join(label));
-  return true;
+  versions.record(inst.dir, { note: `把系統名稱改成「${label}」`, action: "edit", displayName: label });
+  /* 有沒有改到畫面上看得到的地方。目錄上的標題常常比畫面上的標題長
+     （目錄寫「語音轉錄與智慧校對工作台」，畫面上的 h1 只有「語音轉錄與智慧校對」），
+     那種情況下只有 <title> 會被換到——分頁名稱變了、畫面沒變，
+     而助理照樣回一句「畫面最上方的標題會直接更新」。說了不實的話比沒改更糟。 */
+  const visible = html.replace(/<title>[\s\S]*?<\/title>/i, "").includes(old);
+  return { ok: true, visible };
 }
 
 /* repo → 目錄上的標題。實例服務不該再去讀 1.4MB 的目錄索引，所以只讀一次留著。 */
