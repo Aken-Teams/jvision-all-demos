@@ -1,1151 +1,791 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-<link rel="icon" href="../../favicon.svg">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="串聯 Agent 對話、推理摘要、工具呼叫與資料存取，快速還原事故。">
-<title>Agent 行為時間線 · security-soc｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<title>AI代理操作歷程追查台｜JVision 系統 Demo</title>
 <style>
 :root{
-  --blue:#9333ea;
-  --ink:#171225;
-  --body:#302842;
-  --muted:#786f88;
-  --line:#e8e1ef;
-  --bg:#f7f5fa;
-  --green:#159b68;
-  --amber:#d88a10;
-  --red:#dc3f55;
-  --white:#fff;
-  --violet-soft:#f4eafe;
-  --shadow:0 14px 36px rgba(42,24,62,.08);
+  --color-primary:#7C3AED;
+  --color-on-primary:#FFFFFF;
+  --color-secondary:#A78BFA;
+  --color-on-secondary:#0F172A;
+  --color-accent:#0891B2;
+  --color-on-accent:#000000;
+  --color-background:#FAF5FF;
+  --color-foreground:#1E1B4B;
+  --color-card:#FFFFFF;
+  --color-card-foreground:#1E1B4B;
+  --color-muted:#ECEEF9;
+  --color-muted-foreground:#475569;
+  --color-border:#DDD6FE;
+  --color-destructive:#DC2626;
+  --color-on-destructive:#FFFFFF;
+  --color-ring:#7C3AED;
+  --blue:#7C3AED;
+  --ink:#1E1B4B;
+  --muted:#475569;
+  --line:#DDD6FE;
+  --green:#047857;
+  --amber:#A35400;
+  --red:#DC2626;
+  --cyan:#0891B2;
+  --black:#0F172A;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
 }
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
+html{scroll-behavior:auto}
 body{
   margin:0;
-  min-width:0;
-  color:var(--body);
-  background:
-    radial-gradient(circle at 82% -10%,rgba(147,51,234,.12),transparent 30rem),
-    linear-gradient(180deg,#fbfaff 0,var(--bg) 30rem);
-  font-family:Inter,"Noto Sans TC",sans-serif;
-  -webkit-font-smoothing:antialiased;
+  min-width:320px;
+  color:var(--color-foreground);
+  background-color:var(--color-background);
+  background-image:
+    linear-gradient(rgba(124,58,237,.08) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(124,58,237,.08) 1px,transparent 1px);
+  background-size:32px 32px;
+  font-family:"DM Sans",sans-serif;
+  line-height:1.5;
 }
-button,input,select,textarea{font:inherit}
-button{color:inherit}
-button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
-  outline:3px solid rgba(147,51,234,.25);
-  outline-offset:2px;
+button,input,select{font:inherit}
+button,[data-jump],.incident-row,.trace-call{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{
+  outline:4px solid var(--color-ring);
+  outline-offset:3px;
 }
-.material-symbols-outlined{
-  font-size:20px;
-  line-height:1;
-  font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24;
-}
-.shell{width:min(1480px,100%);margin:auto;padding:0 24px 48px}
+.shell{width:min(1500px,100%);margin:auto;padding:0 24px 48px}
 .masthead{
-  min-height:78px;
+  min-height:76px;
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:20px;
+  border:3px solid var(--black);
+  border-top:0;
+  padding:12px 16px;
+  background:var(--color-card);
+  box-shadow:8px 8px 0 var(--black);
 }
 .brand{display:flex;align-items:center;gap:12px;min-width:0}
 .brand-mark{
-  width:40px;height:40px;border-radius:13px;
-  display:grid;place-items:center;color:#fff;
-  background:linear-gradient(145deg,#b559f5,var(--blue));
-  box-shadow:0 8px 20px rgba(147,51,234,.28);
+  width:44px;height:44px;display:grid;place-items:center;
+  border:3px solid var(--black);background:var(--color-primary);color:#fff;
 }
-.brand-copy{min-width:0}
-.brand-copy strong{display:block;color:var(--ink);font-size:15px}
-.brand-copy span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
-.mast-actions{display:flex;align-items:center;gap:9px}
-.icon-btn,.quiet-btn,.primary-btn{
-  border:1px solid var(--line);background:#fff;border-radius:11px;
-  min-height:42px;padding:0 14px;cursor:pointer;
+.brand-mark svg{width:24px;height:24px}
+.brand-copy strong{
+  display:block;font:700 16px "Space Grotesk",sans-serif;
+  text-transform:uppercase;letter-spacing:.03em;
+}
+.brand-copy span{display:block;color:var(--muted);font:700 11px var(--mono);margin-top:2px}
+.mast-actions,.screen-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.btn,.icon-btn{
+  min-height:44px;border:3px solid var(--black);border-radius:0;background:#fff;
+  color:var(--ink);padding:8px 13px;font-weight:700;
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  font-weight:700;font-size:13px;
+  box-shadow:4px 4px 0 var(--black);
 }
-.icon-btn{width:42px;padding:0;position:relative}
+.btn:hover,.icon-btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--black)}
+.btn.primary{background:var(--color-accent);color:var(--color-on-accent)}
+.icon-btn{width:44px;padding:0;position:relative}
 .icon-btn::after{
-  content:"";position:absolute;right:8px;top:8px;width:7px;height:7px;
-  border-radius:50%;background:var(--red);border:2px solid #fff;
+  content:"";position:absolute;right:5px;top:5px;width:8px;height:8px;
+  background:var(--red);border:2px solid #fff;
 }
-.primary-btn{border-color:var(--blue);background:var(--blue);color:#fff}
-.primary-btn:hover{background:#7e22ce}
-.quiet-btn:hover,.icon-btn:hover{border-color:#cbbbd9;background:#fcf9ff}
+.ico{width:18px;height:18px;display:inline-block;flex:0 0 auto}
 .hero{
-  display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.75fr);
-  gap:22px;align-items:stretch;margin:10px 0 20px;
+  display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,.65fr);
+  margin:28px 0 18px;gap:18px;
 }
 .hero-main,.hero-aside{
-  border:1px solid var(--line);border-radius:22px;background:rgba(255,255,255,.91);
-  box-shadow:var(--shadow);
+  border:3px solid var(--black);background:#fff;box-shadow:10px 10px 0 var(--black);
 }
-.hero-main{padding:28px 30px;position:relative;overflow:hidden}
+.hero-main{padding:34px;position:relative;overflow:hidden}
 .hero-main::after{
-  content:"";position:absolute;right:-80px;bottom:-110px;width:280px;height:280px;
-  border-radius:50%;border:50px solid rgba(147,51,234,.06);
+  content:"TRACE / 001";
+  position:absolute;right:-24px;top:36px;padding:8px 36px;
+  background:var(--color-secondary);border:3px solid var(--black);
+  transform:rotate(8deg);font:700 12px var(--mono);
 }
 .eyebrow{
-  display:inline-flex;align-items:center;gap:7px;color:var(--blue);
-  font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  display:inline-flex;align-items:center;gap:7px;
+  padding:5px 8px;background:var(--color-primary);color:#fff;
+  font:700 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;
 }
-.hero h1{font-size:clamp(28px,4vw,46px);line-height:1.12;color:var(--ink);margin:12px 0 10px;letter-spacing:-.04em}
-.hero-main>p{max-width:720px;margin:0;color:var(--muted);font-size:15px;line-height:1.8}
-.hero-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
-.chip{
-  display:inline-flex;align-items:center;gap:6px;border:1px solid #e4d2f4;
-  border-radius:999px;background:#faf5ff;color:#65218e;
-  padding:7px 10px;font-size:12px;font-weight:700;
+.hero h1{
+  max-width:850px;margin:18px 0 10px;color:var(--ink);
+  font:700 clamp(34px,5vw,68px)/.95 "Space Grotesk",sans-serif;
+  letter-spacing:-.055em;
 }
-.hero-aside{padding:20px;display:grid;gap:10px}
+.hero-main>p{max-width:760px;margin:18px 0;color:var(--muted);font-size:15px;line-height:1.8}
+.hero-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.chip,.badge{
+  display:inline-flex;align-items:center;gap:6px;border:2px solid var(--black);
+  padding:5px 8px;background:#fff;color:var(--ink);
+  font:700 11px var(--mono);white-space:nowrap;
+}
+.badge.red{background:#FEE2E2;color:#991B1B}
+.badge.amber{background:#FEF3C7;color:#78350F}
+.badge.green{background:#D1FAE5;color:#065F46}
+.badge.purple{background:#EDE9FE;color:#4C1D95}
+.dot{width:8px;height:8px;background:currentColor;border:1px solid var(--black)}
+.hero-aside{padding:0;display:grid;align-content:stretch}
 .hero-metric{
-  display:grid;grid-template-columns:38px 94px 1fr;align-items:center;gap:9px;
-  border:1px solid var(--line);border-radius:14px;padding:11px;background:#fff;
+  display:grid;grid-template-columns:42px 98px 1fr;align-items:center;gap:10px;
+  padding:16px;border-bottom:3px solid var(--black);
 }
-.hero-metric .material-symbols-outlined{
-  width:36px;height:36px;border-radius:10px;display:grid;place-items:center;
-  background:var(--violet-soft);color:var(--blue);
-}
-.hero-metric small{color:var(--muted);font-weight:700}
-.hero-metric b{color:var(--ink);font-size:12px;line-height:1.55}
-.nav-wrap{
-  position:sticky;top:0;z-index:20;padding:10px 0;
-  background:rgba(247,245,250,.88);backdrop-filter:blur(14px);
-}
+.hero-metric:last-child{border-bottom:0}
+.hero-metric svg{width:36px;height:36px;padding:7px;border:2px solid var(--black);background:var(--color-muted)}
+.hero-metric small{color:var(--muted);font:700 11px var(--mono)}
+.hero-metric b{font-size:12px}
+.nav-wrap{position:sticky;top:0;z-index:30;padding:10px 0}
 .stage-nav{
-  display:grid;grid-template-columns:repeat(6,minmax(138px,1fr));gap:8px;
-  overflow-x:auto;padding:5px;border:1px solid var(--line);
-  border-radius:16px;background:#fff;box-shadow:0 8px 25px rgba(42,24,62,.05);
-  scrollbar-width:thin;
+  display:grid;grid-template-columns:repeat(6,minmax(142px,1fr));
+  overflow-x:auto;border:3px solid var(--black);background:#fff;box-shadow:6px 6px 0 var(--black);
 }
 .stage-btn{
-  min-height:54px;border:0;border-radius:12px;background:transparent;
-  padding:8px 10px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;
+  min-height:62px;border:0;border-right:2px solid var(--black);border-radius:0;
+  background:#fff;padding:8px 10px;text-align:left;display:flex;align-items:center;gap:9px;
 }
-.stage-btn:hover{background:#faf7fc}
-.stage-btn.active{background:var(--blue);color:#fff;box-shadow:0 7px 16px rgba(147,51,234,.24)}
+.stage-btn:last-child{border-right:0}
+.stage-btn:hover{background:var(--color-muted)}
+.stage-btn.active{background:var(--color-primary);color:#fff}
 .stage-num{
-  flex:0 0 29px;width:29px;height:29px;border-radius:9px;display:grid;place-items:center;
-  background:#f0e7f7;color:var(--blue);font-size:12px;font-weight:800;
+  width:30px;height:30px;display:grid;place-items:center;flex:0 0 auto;
+  border:2px solid currentColor;font:700 11px var(--mono);
 }
-.stage-btn.active .stage-num{background:rgba(255,255,255,.2);color:#fff}
-.stage-btn span:last-child{min-width:0;font-weight:800;font-size:12px;white-space:nowrap}
-.screen{display:none;animation:screenIn .28s ease}
+.stage-btn span:last-child{font:700 12px "Space Grotesk",sans-serif;white-space:nowrap}
+.screen{display:none}
 .screen.active{display:block}
-@keyframes screenIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
 .screen-head{
-  margin:20px 0 14px;display:flex;align-items:flex-end;justify-content:space-between;gap:18px;
+  margin:28px 0 14px;display:flex;align-items:flex-end;
+  justify-content:space-between;gap:18px;
 }
-.screen-head h2{margin:4px 0;color:var(--ink);font-size:24px;letter-spacing:-.025em}
-.screen-head p{margin:0;color:var(--muted);font-size:13px;line-height:1.65}
-.screen-actions{display:flex;gap:8px;flex-wrap:wrap}
+.screen-head h2{
+  margin:8px 0 2px;color:var(--ink);
+  font:700 clamp(25px,3vw,38px)/1 "Space Grotesk",sans-serif;
+  letter-spacing:-.035em;
+}
+.screen-head p{margin:8px 0 0;color:var(--muted);font-size:13px}
 .card{
-  border:1px solid var(--line);border-radius:17px;background:#fff;
-  box-shadow:0 8px 24px rgba(37,25,53,.045);
+  min-width:0;border:3px solid var(--black);border-radius:0;
+  background:#fff;box-shadow:6px 6px 0 var(--black);
 }
 .card-head{
   display:flex;align-items:center;justify-content:space-between;gap:12px;
-  padding:16px 18px;border-bottom:1px solid var(--line);
+  padding:14px 16px;border-bottom:3px solid var(--black);background:var(--color-muted);
 }
-.card-head h3{margin:0;color:var(--ink);font-size:14px}
-.card-head small{color:var(--muted)}
-.card-body{padding:18px}
-.badge{
-  display:inline-flex;align-items:center;gap:5px;border-radius:999px;
-  padding:5px 8px;font-size:11px;font-weight:800;white-space:nowrap;
-}
-.badge.red{background:#fff0f2;color:var(--red)}
-.badge.amber{background:#fff7e7;color:#a86400}
-.badge.green{background:#eaf8f2;color:var(--green)}
-.badge.purple{background:var(--violet-soft);color:var(--blue)}
-.dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.card-head h3{margin:0;color:var(--ink);font:700 14px "Space Grotesk",sans-serif}
+.card-head small{color:var(--muted);font:500 11px var(--mono)}
+.card-body{padding:16px}
 .muted{color:var(--muted)}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-.chart-box{position:relative;min-height:240px}
-.chart-box canvas{width:100%!important;height:240px!important}
+.mono,time,.incident-row small,.trace-call small,.waterfall-scale,.record-table td:first-child{
+  font-family:var(--mono);
+}
 .filter-bar{
   display:grid;grid-template-columns:1.4fr repeat(3,minmax(130px,.55fr)) auto;
-  gap:10px;padding:14px;margin-bottom:12px;
+  gap:10px;padding:14px;margin-bottom:14px;background:var(--color-secondary);
 }
 .field{
-  min-width:0;min-height:43px;border:1px solid var(--line);border-radius:10px;
-  background:#fff;padding:0 12px;color:var(--body);
+  min-width:0;min-height:44px;border:3px solid var(--black);border-radius:0;
+  background:#fff;padding:0 11px;color:var(--ink);
 }
-.search-field{position:relative}
-.search-field input{width:100%;padding-left:38px}
-.search-field .material-symbols-outlined{
-  position:absolute;left:12px;top:12px;color:var(--muted);pointer-events:none;
-}
-.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
-.kpi-card{padding:16px}
+.search-field{position:relative}.search-field input{width:100%}
+.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.kpi-card{padding:17px;border-top-width:8px}
+.kpi-card:nth-child(2){border-top-color:var(--red)}
+.kpi-card:nth-child(3){border-top-color:var(--cyan)}
+.kpi-card:nth-child(4){border-top-color:var(--amber)}
 .kpi-card small{display:flex;justify-content:space-between;color:var(--muted);font-weight:700}
-.kpi-card strong{display:block;color:var(--ink);font-size:25px;margin-top:9px}
-.kpi-card em{font-size:11px;color:var(--green);font-style:normal}
-.board-grid{display:grid;grid-template-columns:1.5fr .85fr;gap:12px}
-.incident-list{display:grid;gap:9px}
+.kpi-card strong{
+  display:block;margin-top:8px;color:var(--ink);
+  font:700 28px var(--mono);text-align:right;font-variant-numeric:tabular-nums;
+}
+.kpi-card em{font-size:10px;color:var(--green);font-style:normal}
+.board-grid{display:grid;grid-template-columns:1.55fr .75fr;gap:14px}
+.incident-list{display:grid;gap:10px}
 .incident-row{
-  display:grid;grid-template-columns:9px minmax(145px,1.1fr) minmax(150px,1fr) 100px 100px;
-  gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:12px;
-  cursor:pointer;
+  display:grid;grid-template-columns:12px minmax(150px,1.2fr) minmax(130px,.8fr) 100px 110px;
+  gap:12px;align-items:center;border:2px solid var(--black);padding:12px;background:#fff;
 }
-.incident-row:hover{border-color:#cbb4de;background:#fdfaff}
-.severity{width:9px;height:40px;border-radius:99px;background:var(--amber)}
+.incident-row:hover{background:#F5F3FF;transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--black)}
+.severity{width:12px;height:42px;background:var(--amber);border:2px solid var(--black)}
 .severity.critical{background:var(--red)}
-.incident-row b{font-size:13px;color:var(--ink)}
-.incident-row small{display:block;color:var(--muted);margin-top:4px}
-.live-line{display:flex;align-items:center;gap:8px}
-.pulse{
-  width:8px;height:8px;border-radius:50%;background:var(--red);
-  box-shadow:0 0 0 0 rgba(220,63,85,.4);animation:pulse 1.8s infinite;
-}
-@keyframes pulse{70%{box-shadow:0 0 0 7px rgba(220,63,85,0)}100%{box-shadow:0 0 0 0 rgba(220,63,85,0)}}
-.signal-list{display:grid;gap:11px}
-.signal{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center}
+.incident-row b{display:block;font-size:13px;color:var(--ink)}
+.incident-row small{display:block;color:var(--muted);margin-top:4px;font-size:10px}
+.chart-box{position:relative;min-height:230px}
+.chart-box canvas{width:100%!important;height:230px!important}
+.signal-list{display:grid;gap:10px}
+.signal{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center}
 .signal-icon{
-  width:36px;height:36px;border-radius:10px;background:#f6f2f9;
-  display:grid;place-items:center;color:var(--blue)
+  width:38px;height:38px;display:grid;place-items:center;
+  background:var(--color-muted);border:2px solid var(--black);
 }
-.signal b{display:block;color:var(--ink);font-size:12px}
-.signal small{color:var(--muted)}
-/* Screen 1 */
-.conversation-layout{display:grid;grid-template-columns:230px minmax(0,1.45fr) minmax(260px,.75fr);gap:12px}
+.signal-icon svg{width:20px;height:20px}
+.signal b{display:block;color:var(--ink);font-size:12px}.signal small{color:var(--muted)}
+.conversation-layout{display:grid;grid-template-columns:225px minmax(0,1.45fr) minmax(270px,.72fr);gap:14px}
 .turn-index{padding:10px}
 .turn-link{
-  width:100%;border:0;background:transparent;border-radius:11px;padding:11px;
-  text-align:left;cursor:pointer;margin-bottom:5px;
+  width:100%;border:2px solid transparent;background:#fff;padding:11px;text-align:left;margin-bottom:5px;
 }
-.turn-link.active{background:var(--violet-soft);color:#681da0}
-.turn-link b{display:block;font-size:12px}
-.turn-link span{display:block;font-size:11px;color:var(--muted);margin-top:5px}
-.chat-stream{padding:18px;max-height:655px;overflow:auto}
-.event-separator{
-  display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;
-  margin:13px 0;
-}
-.event-separator::before,.event-separator::after{content:"";height:1px;background:var(--line);flex:1}
-.message{display:flex;gap:10px;margin:13px 0}
-.message.agent{flex-direction:row-reverse}
+.turn-link:hover{border-color:var(--black)}
+.turn-link.active{border-color:var(--black);background:var(--color-secondary);box-shadow:3px 3px 0 var(--black)}
+.turn-link b{display:block;font-size:12px}.turn-link span{display:block;font:500 10px var(--mono);margin-top:4px}
+.chat-stream{padding:18px;max-height:650px;overflow:auto}
+.event-separator{display:flex;align-items:center;gap:10px;color:var(--muted);font:500 10px var(--mono);margin:14px 0}
+.event-separator::before,.event-separator::after{content:"";height:2px;background:var(--black);flex:1}
+.message{display:flex;gap:10px;margin:14px 0}.message.agent{flex-direction:row-reverse}
 .avatar{
-  width:34px;height:34px;flex:0 0 34px;border-radius:10px;
-  display:grid;place-items:center;background:#efe8f5;color:var(--blue);
+  width:36px;height:36px;flex:0 0 auto;display:grid;place-items:center;
+  border:2px solid var(--black);background:var(--color-muted);
 }
-.message.agent .avatar{background:var(--blue);color:#fff}
+.avatar svg{width:19px}.message.agent .avatar{background:var(--color-primary);color:#fff}
 .bubble{
-  max-width:82%;border:1px solid var(--line);border-radius:4px 14px 14px 14px;
-  padding:12px 14px;background:#fff;font-size:13px;line-height:1.7;
+  max-width:82%;border:2px solid var(--black);padding:12px 14px;background:#fff;
+  font-size:13px;box-shadow:4px 4px 0 var(--black);
 }
-.message.agent .bubble{background:#f8efff;border-color:#e6cef8;border-radius:14px 4px 14px 14px}
-.bubble small{display:block;color:var(--muted);margin-top:6px}
-.context-panel{padding:16px}
-.context-meter{height:8px;border-radius:99px;background:#eee8f2;overflow:hidden;margin:9px 0}
-.context-meter i{display:block;height:100%;width:72%;background:linear-gradient(90deg,var(--green),var(--amber))}
-.context-block{border-top:1px solid var(--line);padding:13px 0}
-.context-block:first-child{border-top:0}
-.context-block h4{margin:0 0 7px;font-size:12px;color:var(--ink)}
-.context-block p{margin:0;color:var(--muted);font-size:12px;line-height:1.65}
-.drift{
-  border:1px solid #f5d3d8;background:#fff6f7;border-radius:12px;padding:12px;color:#923041;
-}
-.token{
-  display:inline-block;padding:3px 6px;margin:2px;border-radius:6px;
-  background:#f2ebf7;color:#67208e;font-size:11px;
-}
-/* Screen 2 */
-.decision-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.7fr);gap:12px}
-.decision-map{padding:25px;overflow:hidden}
-.node-flow{display:grid;grid-template-columns:1fr 52px 1fr 52px 1fr;align-items:center}
-.node{
-  min-height:172px;border:1px solid var(--line);border-radius:16px;padding:16px;
-  position:relative;background:#fff;
-}
-.node.flagged{border:2px solid var(--red);background:#fffafb}
-.node-icon{
-  width:40px;height:40px;border-radius:12px;display:grid;place-items:center;
-  background:var(--violet-soft);color:var(--blue);margin-bottom:12px;
-}
-.node h4{margin:0;color:var(--ink);font-size:13px}
-.node p{font-size:11px;color:var(--muted);line-height:1.65}
-.node .confidence{font-size:22px;color:var(--ink);font-weight:800}
-.connector{height:2px;background:#d9cbe5;position:relative}
-.connector::after{
-  content:"";position:absolute;right:-1px;top:-4px;border-left:7px solid #b8a3c9;
-  border-top:5px solid transparent;border-bottom:5px solid transparent;
-}
+.message.agent .bubble{background:#EDE9FE}
+.bubble small{display:block;color:var(--muted);margin-top:7px;font:500 10px var(--mono)}
+.context-panel{padding:16px}.context-block{border-top:2px solid var(--black);padding:13px 0}
+.context-block:first-child{border-top:0}.context-block h4{margin:0 0 7px;font-size:12px}
+.context-block p{margin:0;color:var(--muted);font-size:12px}
+.context-meter{height:12px;border:2px solid var(--black);background:#fff;margin:9px 0}
+.context-meter i{display:block;height:100%;width:72%;background:linear-gradient(90deg,var(--cyan) 0 65%,var(--amber) 65%)}
+.drift{border:3px solid var(--red);background:#FEF2F2;padding:12px;color:#7F1D1D}
+.token{display:inline-block;padding:3px 6px;margin:2px;border:2px solid var(--black);background:#EDE9FE;font:700 10px var(--mono)}
+.decision-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.7fr);gap:14px}
+.decision-map{padding:22px}
+.node-flow{display:grid;grid-template-columns:1fr 46px 1fr 46px 1fr;align-items:center}
+.node{min-height:180px;border:3px solid var(--black);padding:15px;background:#fff}
+.node.flagged{background:#FEE2E2;border-width:5px}
+.node-icon{width:42px;height:42px;display:grid;place-items:center;border:2px solid var(--black);background:#EDE9FE;margin-bottom:12px}
+.node-icon svg{width:22px}.node h4{margin:0;font-size:13px}.node p{font-size:11px;color:var(--muted)}
+.confidence{font:700 24px var(--mono)}
+.connector{height:4px;background:var(--black);position:relative}
+.connector::after{content:"";position:absolute;right:-1px;top:-6px;border-left:10px solid var(--black);border-top:8px solid transparent;border-bottom:8px solid transparent}
 .rationale-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
-.rationale{border:1px solid var(--line);border-radius:12px;padding:13px}
-.rationale b{display:block;color:var(--ink);font-size:12px;margin-bottom:7px}
-.rationale p{margin:0;font-size:11px;line-height:1.6;color:var(--muted)}
-.rule-list{padding:8px 16px}
-.rule-item{padding:14px 0;border-bottom:1px solid var(--line)}
-.rule-item:last-child{border:0}
-.rule-item header{display:flex;justify-content:space-between;gap:10px}
-.rule-item b{font-size:12px;color:var(--ink)}
-.rule-item p{font-size:11px;color:var(--muted);line-height:1.6;margin:8px 0}
-.evidence-pill{
-  display:inline-flex;border-radius:7px;padding:5px 7px;background:#f3edf7;
-  color:#6c318c;font-size:10px;font-weight:700;
-}
-/* Screen 3 */
-.trace-layout{display:grid;grid-template-columns:minmax(250px,.75fr) minmax(0,1.55fr);gap:12px}
-.trace-list{padding:10px}
-.trace-call{
-  border:1px solid transparent;border-radius:12px;padding:12px;
-  display:grid;grid-template-columns:35px 1fr auto;gap:10px;cursor:pointer;
-}
-.trace-call:hover,.trace-call.active{background:#faf5ff;border-color:#e5d3f1}
-.call-icon{
-  width:35px;height:35px;border-radius:9px;background:#eee7f3;color:var(--blue);
-  display:grid;place-items:center;
-}
-.trace-call b{font-size:12px;color:var(--ink)}
-.trace-call small{display:block;color:var(--muted);margin-top:4px}
-.waterfall{padding:18px;overflow-x:auto}
-.waterfall-scale{
-  min-width:620px;display:grid;grid-template-columns:160px repeat(6,1fr);
-  font-size:10px;color:var(--muted);padding-bottom:8px;
-}
-.waterfall-row{
-  min-width:620px;display:grid;grid-template-columns:160px 1fr;align-items:center;
-  min-height:48px;border-top:1px solid #f1edf4;
-}
-.waterfall-row b{font-size:11px;color:var(--ink)}
-.track{height:25px;position:relative;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(16.66% - 1px),#eee8f2 calc(16.66% - 1px),#eee8f2 16.66%)}
-.bar{
-  position:absolute;height:12px;top:7px;border-radius:99px;
-  background:linear-gradient(90deg,var(--blue),#bf73ed);
-}
-.bar.error{background:linear-gradient(90deg,var(--red),#f27b8b)}
-.payload-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
-.code-box{
-  background:#20182b;color:#e9dff1;border-radius:14px;padding:16px;
-  overflow:auto;min-height:220px;font-size:11px;line-height:1.75;
-}
-.code-box .key{color:#d89aff}.code-box .str{color:#9ce6c3}.code-box .num{color:#ffc879}
-.retry-chain{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
-.retry-step{border:1px solid var(--line);padding:8px 10px;border-radius:9px;font-size:11px;background:#fff}
-/* Screen 4 */
-.access-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.85fr);gap:12px}
-.access-map{padding:24px;min-height:420px}
-.map-zone{display:grid;grid-template-columns:1fr 70px 1fr;align-items:center;gap:8px}
-.entity-stack{display:grid;gap:12px}
-.entity{
-  border:1px solid var(--line);border-radius:14px;padding:13px;
-  display:flex;align-items:center;gap:11px;background:#fff;
-}
-.entity .material-symbols-outlined{
-  width:38px;height:38px;display:grid;place-items:center;border-radius:11px;
-  color:var(--blue);background:var(--violet-soft);
-}
-.entity b{font-size:12px;color:var(--ink);display:block}
-.entity small{font-size:10px;color:var(--muted)}
-.map-links{display:grid;place-items:center;gap:40px}
-.map-links i{width:70px;height:2px;background:#cbb7dc;position:relative}
-.map-links i::after{content:"";position:absolute;right:0;top:-4px;border-left:7px solid #ae91c5;border-top:5px solid transparent;border-bottom:5px solid transparent}
-.permission-grid{width:100%;border-collapse:separate;border-spacing:0}
-.permission-grid th,.permission-grid td{
-  text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);font-size:11px;
-}
-.permission-grid th{color:var(--muted);font-weight:700}
-.permission-grid td{color:var(--body)}
-.sensitivity{
-  display:inline-block;padding:5px 7px;border-radius:7px;
-  background:#fff0f2;color:var(--red);font-weight:800;
-}
-.audit-feed{padding:0 16px}
-.audit-item{display:grid;grid-template-columns:52px 12px 1fr;gap:8px;padding:12px 0}
-.audit-item time{font-size:10px;color:var(--muted)}
-.audit-dot{width:9px;height:9px;border-radius:50%;background:var(--blue);margin-top:2px;box-shadow:0 0 0 4px #f1e6fa}
-.audit-item b{display:block;font-size:11px;color:var(--ink)}
-.audit-item p{font-size:10px;color:var(--muted);margin:5px 0}
-/* Screen 5 */
-.report-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:12px}
-.case-banner{
-  padding:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;
-  border-left:5px solid var(--red);
-}
-.case-banner h3{margin:4px 0;color:var(--ink);font-size:18px}
-.case-banner p{margin:0;color:var(--muted);font-size:12px}
-.root-cause{padding:19px}
+.rationale{border:2px solid var(--black);padding:12px;background:var(--color-muted)}
+.rationale b{font-size:12px}.rationale p{margin:7px 0 0;font-size:11px;color:var(--muted)}
+.rule-list{padding:8px 16px}.rule-item{padding:14px 0;border-bottom:2px solid var(--black)}.rule-item:last-child{border:0}
+.rule-item header{display:flex;justify-content:space-between;gap:9px}.rule-item b{font-size:12px}.rule-item p{font-size:11px;color:var(--muted)}
+.evidence-pill{display:inline-flex;border:2px solid var(--black);padding:4px 7px;background:#EDE9FE;font:700 10px var(--mono)}
+.trace-layout{display:grid;grid-template-columns:minmax(260px,.72fr) minmax(0,1.55fr);gap:14px}
+.trace-list{padding:10px}.trace-call{border:2px solid transparent;padding:11px;display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center}
+.trace-call:hover,.trace-call.active{border-color:var(--black);background:#EDE9FE}
+.call-icon{width:38px;height:38px;display:grid;place-items:center;border:2px solid var(--black);background:#fff}
+.call-icon svg{width:19px}.trace-call b{font-size:12px}.trace-call small{display:block;color:var(--muted);margin-top:3px}
+.waterfall{padding:17px;overflow-x:auto}.waterfall-scale{min-width:620px;display:grid;grid-template-columns:160px repeat(6,1fr);font-size:10px;padding-bottom:8px}
+.waterfall-row{min-width:620px;display:grid;grid-template-columns:160px 1fr;align-items:center;min-height:48px;border-top:2px solid var(--black)}
+.waterfall-row b{font-size:11px}.track{height:28px;position:relative;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(16.66% - 2px),var(--line) calc(16.66% - 2px),var(--line) 16.66%)}
+.bar{position:absolute;height:14px;top:7px;background:var(--color-primary);border:2px solid var(--black)}.bar.error{background:var(--red)}
+.payload-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.code-box{background:var(--black);color:#F8FAFC;border:3px solid var(--black);padding:16px;overflow:auto;min-height:220px;font:500 11px/1.75 var(--mono)}
+.code-box .key{color:#C4B5FD}.code-box .str{color:#67E8F9}.code-box .num{color:#FDE68A}
+.retry-chain{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:12px}.retry-step{border:2px solid var(--black);padding:7px 9px;font:700 10px var(--mono)}
+.access-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.82fr);gap:14px}
+.access-map{padding:22px;min-height:420px}.map-zone{display:grid;grid-template-columns:1fr 70px 1fr;align-items:center;gap:8px}
+.entity-stack{display:grid;gap:12px}.entity{border:2px solid var(--black);padding:12px;display:flex;align-items:center;gap:11px;background:#fff}
+.entity-icon{width:38px;height:38px;display:grid;place-items:center;border:2px solid var(--black);background:#EDE9FE}
+.entity-icon svg{width:20px}.entity b{font-size:12px;display:block}.entity small{font-size:10px;color:var(--muted)}
+.map-links{display:grid;place-items:center;gap:48px}.map-links i{width:70px;height:4px;background:var(--black);position:relative}.map-links i::after{content:"";position:absolute;right:0;top:-6px;border-left:10px solid var(--black);border-top:8px solid transparent;border-bottom:8px solid transparent}
+table{font-variant-numeric:tabular-nums}
+.permission-grid,.record-table{width:100%;border-collapse:collapse}
+.permission-grid th,.permission-grid td,.record-table th,.record-table td{padding:12px 11px;border-bottom:2px solid var(--black);text-align:left;font-size:11px}
+.permission-grid th,.record-table th{background:var(--black);color:#fff;font:700 10px var(--mono);letter-spacing:.04em}
+.permission-grid td:nth-child(2),.record-table td:nth-child(4){font-family:var(--mono)}
+.sensitivity{display:inline-block;padding:4px 6px;border:2px solid var(--red);background:#FEE2E2;color:#991B1B;font-weight:700}
+.audit-feed{padding:0 16px}.audit-item{display:grid;grid-template-columns:58px 13px 1fr;gap:8px;padding:12px 0;border-bottom:1px solid var(--line)}
+.audit-item time{font-size:10px}.audit-dot{width:11px;height:11px;background:var(--blue);border:2px solid var(--black)}
+.audit-item b{font-size:11px}.audit-item p{font-size:10px;color:var(--muted);margin:4px 0}
+.case-banner{padding:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-left:12px solid var(--red)}
+.case-banner h3{margin:7px 0;font:700 20px "Space Grotesk",sans-serif}.case-banner p{margin:0;color:var(--muted);font-size:12px}
+.progress-track{height:12px;border:2px solid var(--black);background:#fff;margin-top:9px}.progress-track i{display:block;width:78%;height:100%;background:var(--cyan)}
+.report-grid{display:grid;grid-template-columns:1.12fr .88fr;gap:14px}.root-cause{padding:18px}
 .root-path{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:15px}
-.cause-step{border:1px solid var(--line);border-radius:12px;padding:12px;position:relative}
-.cause-step:not(:last-child)::after{
-  content:"›";position:absolute;right:-8px;top:30%;z-index:2;color:var(--blue);
-  font-size:22px;font-weight:800;
-}
-.cause-step span{font-size:10px;color:var(--blue);font-weight:800}
-.cause-step b{display:block;font-size:11px;color:var(--ink);margin-top:5px}
-.cause-step p{font-size:10px;color:var(--muted);line-height:1.55;margin:6px 0 0}
-.record-table{width:100%;border-collapse:collapse}
-.record-table th,.record-table td{padding:12px 14px;border-bottom:1px solid var(--line);text-align:left;font-size:11px}
-.record-table th{color:var(--muted);background:#fcfbfd}
-.record-table td{color:var(--body)}
-.record-table td:first-child{font-family:ui-monospace,monospace;color:var(--blue);font-weight:700}
-.owner-cell{display:flex;align-items:center;gap:7px}
-.owner-mini{
-  width:25px;height:25px;border-radius:8px;background:#eee6f4;
-  display:grid;place-items:center;color:#632889;font-size:9px;font-weight:800;
-}
-.progress-track{height:7px;background:#eee9f1;border-radius:99px;overflow:hidden;margin-top:7px}
-.progress-track i{display:block;height:100%;background:var(--green);width:78%}
-.benefit-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:16px}
-.benefit-card{border:1px solid var(--line);border-radius:12px;padding:13px}
-.benefit-card small{color:var(--muted);font-size:10px}
-.benefit-card b{display:block;font-size:19px;color:var(--ink);margin:6px 0}
-.benefit-card span{font-size:10px;color:var(--green)}
-.footer-note{text-align:center;color:var(--muted);font-size:11px;padding:26px 0 4px}
-@media(max-width:1080px){
-  .hero{grid-template-columns:1fr}
-  .hero-aside{grid-template-columns:repeat(3,1fr)}
-  .hero-metric{grid-template-columns:38px 1fr}.hero-metric b{grid-column:1/-1}
-  .conversation-layout{grid-template-columns:190px minmax(0,1fr)}
-  .context-card{grid-column:1/-1}
-  .decision-layout,.access-layout{grid-template-columns:1fr}
-  .filter-bar{grid-template-columns:1fr 1fr 1fr}.filter-bar .search-field{grid-column:1/-1}
+.cause-step{border:2px solid var(--black);padding:12px;background:#fff;position:relative}
+.cause-step:nth-child(even){background:#EDE9FE}.cause-step span{font:700 10px var(--mono);color:#5B21B6}.cause-step b{display:block;font-size:11px;margin-top:5px}.cause-step p{font-size:10px;color:var(--muted)}
+.owner-cell{display:flex;align-items:center;gap:7px}.owner-mini{width:26px;height:26px;display:grid;place-items:center;border:2px solid var(--black);background:#EDE9FE;font:700 9px var(--mono)}
+.benefit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:15px}.benefit-card{border:2px solid var(--black);padding:12px;background:#fff}.benefit-card small{color:var(--muted)}.benefit-card b{display:block;margin:5px 0;font:700 18px var(--mono);text-align:right}.benefit-card span{font-size:10px;color:#065F46;font-weight:700}
+.footer-note{text-align:center;color:var(--muted);font:500 10px var(--mono);padding:30px 0 5px}
+.num{text-align:right!important;font-family:var(--mono);font-variant-numeric:tabular-nums}
+@media(max-width:1100px){
+  .hero{grid-template-columns:1fr}.hero-aside{grid-template-columns:repeat(3,1fr)}
+  .hero-metric{grid-template-columns:38px 1fr;border-bottom:0;border-right:3px solid var(--black)}.hero-metric:last-child{border-right:0}.hero-metric b{grid-column:1/-1}
+  .conversation-layout{grid-template-columns:205px 1fr}.context-card{grid-column:1/-1}
+  .decision-layout,.access-layout{grid-template-columns:1fr}.filter-bar{grid-template-columns:1fr 1fr 1fr}.search-field{grid-column:1/-1}
 }
 @media(max-width:768px){
-  .shell{padding:0 14px 35px}
-  .masthead{min-height:68px}.brand-copy span,.mast-actions .quiet-btn{display:none}
-  .hero-main{padding:22px}.hero-aside{grid-template-columns:1fr}
-  .screen-head{align-items:flex-start;flex-direction:column}
-  .kpi-strip{grid-template-columns:1fr 1fr}
-  .board-grid,.trace-layout,.report-grid{grid-template-columns:1fr}
-  .incident-row{grid-template-columns:8px 1fr auto}
-  .incident-row>div:nth-child(3),.incident-row>div:nth-child(5){display:none}
-  .conversation-layout{grid-template-columns:1fr}
-  .turn-index-card{display:none}
-  .node-flow{grid-template-columns:1fr;gap:8px}
-  .connector{width:2px;height:30px;margin:auto}
-  .connector::after{right:-4px;top:auto;bottom:-1px;transform:rotate(90deg)}
-  .rationale-grid{grid-template-columns:1fr}
-  .payload-grid{grid-template-columns:1fr}
-  .root-path{grid-template-columns:1fr 1fr}
-  .map-zone{grid-template-columns:1fr}
-  .map-links{display:none}
+  .shell{padding:0 12px 36px}.masthead{margin:0 -2px}.brand-copy span,.mast-actions .quiet{display:none}
+  .hero-main{padding:24px}.hero-main::after{display:none}.hero-aside{grid-template-columns:1fr}.hero-metric{border-right:0;border-bottom:3px solid var(--black)}
+  .screen-head{align-items:flex-start;flex-direction:column}.kpi-strip{grid-template-columns:1fr 1fr}
+  .board-grid,.trace-layout,.report-grid,.conversation-layout{grid-template-columns:1fr}.turn-index-card{display:none}
+  .incident-row{grid-template-columns:12px 1fr auto}.incident-row>div:nth-child(3),.incident-row>div:nth-child(5){display:none}
+  .node-flow{grid-template-columns:1fr;gap:8px}.connector{height:28px;width:4px;margin:auto}.connector::after{top:auto;bottom:-1px;right:-6px;transform:rotate(90deg)}
+  .rationale-grid,.payload-grid{grid-template-columns:1fr}.map-zone{grid-template-columns:1fr}.map-links{display:none}
+  .root-path{grid-template-columns:1fr 1fr}.record-scroll{overflow-x:auto}.permission-grid,.record-table{min-width:690px}
 }
 @media(max-width:480px){
-  .shell{padding-inline:10px}
-  .mast-actions .primary-btn{padding:0 10px}.mast-actions .primary-btn span:last-child{display:none}
-  .hero h1{font-size:29px}
-  .filter-bar{grid-template-columns:1fr}.filter-bar .search-field{grid-column:auto}
-  .kpi-strip{grid-template-columns:1fr 1fr;gap:8px}.kpi-card{padding:12px}.kpi-card strong{font-size:20px}
-  .bubble{max-width:90%}
-  .root-path,.benefit-grid{grid-template-columns:1fr}
-  .case-banner{align-items:flex-start;flex-direction:column}
-  .record-scroll{overflow-x:auto}.record-table{min-width:650px}
+  .shell{padding-inline:9px}.brand-copy strong{font-size:13px}.mast-actions .btn span{display:none}
+  .hero h1{font-size:38px}.filter-bar{grid-template-columns:1fr}.search-field{grid-column:auto}
+  .kpi-strip{gap:8px}.kpi-card{padding:11px}.kpi-card strong{font-size:21px}
+  .bubble{max-width:90%}.root-path,.benefit-grid{grid-template-columns:1fr}.case-banner{align-items:flex-start;flex-direction:column}
 }
-
-
-/* ── 量測式水平溢出修正 ─────────────────────────────
-   由 tools/fix-demo-overflow.mjs 量測產生，只針對實際溢出的元素。 */
-@media (max-width:720px){
-  body div.shell > main > section.screen.active > div.trace-layout > aside.card{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.shell > main > section.screen.active > div.trace-layout{overflow-x:auto;min-width:0;max-width:100%;}
-  body div.shell > main > section.screen.active > div.trace-layout > aside.card > div.card-head{min-width:0;flex-wrap:wrap;}
-  body main > section.screen.active > div.trace-layout > aside.card > div.card-head > small{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.shell > main > section.screen.active > div.trace-layout > aside.card > div.trace-list{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body main > section.screen.active > div.trace-layout > aside.card > div.trace-list > div.trace-call:nth-child(1){grid-template-columns:minmax(0,1fr);}
-  body section.screen.active > div.trace-layout > aside.card > div.trace-list > div.trace-call:nth-child(1) > div{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.trace-layout > aside.card > div.trace-list > div.trace-call:nth-child(1) > div > small{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body section.screen.active > div.trace-layout > aside.card > div.trace-list > div.trace-call:nth-child(1) > span.badge.green{min-width:0;flex-wrap:wrap;}
-  body main > section.screen.active > div.trace-layout > aside.card > div.trace-list > div.trace-call:nth-child(2){grid-template-columns:minmax(0,1fr);}
-  body section.screen.active > div.trace-layout > aside.card > div.trace-list > div.trace-call:nth-child(2) > div{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.shell > main > section.screen.active > div.report-grid > div{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.shell > main > section.screen.active > div.report-grid{overflow-x:auto;min-width:0;max-width:100%;}
-  body div.shell > main > section.screen.active > div.report-grid > div > div.card.root-cause{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body main > section.screen.active > div.report-grid > div > div.card.root-cause > div.card-head{min-width:0;flex-wrap:wrap;}
-  body section.screen.active > div.report-grid > div > div.card.root-cause > div.card-head > span.badge.green{min-width:0;flex-wrap:wrap;}
-  body main > section.screen.active > div.report-grid > div > div.card.root-cause > div.root-path{grid-template-columns:minmax(0,1fr);}
-  body section.screen.active > div.report-grid > div > div.card.root-cause > div.root-path > div.cause-step:nth-child(1){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.report-grid > div > div.card.root-cause > div.root-path > div.cause-step:nth-child(1) > b{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.report-grid > div > div.card.root-cause > div.root-path > div.cause-step:nth-child(1) > p{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body section.screen.active > div.report-grid > div > div.card.root-cause > div.root-path > div.cause-step:nth-child(2){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.report-grid > div > div.card.root-cause > div.root-path > div.cause-step:nth-child(2) > b{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+@media(prefers-reduced-motion:no-preference){
+  .screen.active{animation:screen-in .4s cubic-bezier(.2,.9,.2,1)}
+  .screen.active .grid-item,.screen.active .card{animation:grid-in .4s backwards cubic-bezier(.2,.9,.2,1.35)}
+  .screen.active .card:nth-child(2){animation-delay:.06s}.screen.active .card:nth-child(3){animation-delay:.12s}.screen.active .card:nth-child(4){animation-delay:.18s}
+  .btn,.icon-btn,.incident-row{transition:transform .18s ease,box-shadow .18s ease,background-color .18s ease}
+  @keyframes screen-in{from{opacity:0}to{opacity:1}}
+  @keyframes grid-in{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.001ms!important}
 }
 </style>
 </head>
 <body>
-<div class="shell">
-  <header class="masthead">
-    <div class="brand">
-      <div class="brand-mark"><span class="material-symbols-outlined">timeline</span></div>
-      <div class="brand-copy">
-        <strong>JVision Agent Trace</strong>
-        <span>AI Security Operations Center</span>
-      </div>
-    </div>
-    <div class="mast-actions">
-      <button class="icon-btn" type="button" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
-      <button class="quiet-btn" type="button"><span class="material-symbols-outlined">shield</span>SOC 值班中</button>
-      <button class="primary-btn" type="button" data-jump="5"><span class="material-symbols-outlined">add_task</span><span>建立處置案件</span></button>
-    </div>
-  </header>
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+  <symbol id="i-trace" viewBox="0 0 24 24"><path d="M4 18V7m0 0 3 3M4 7 1 10m8 8V4m0 14 3-3m-3 3-3-3m8 3V9m0 0 3 3m-3-3-3 3m8 6V5m0 0 3 3m-3-3-3 3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Zm-3 9 2 2 4-5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-bot" viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="14" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v4M8 12h.01M16 12h.01M8 16h8" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 5v14c0 2 16 2 16 0V5M4 12c0 2 16 2 16 0" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14 6a5 5 0 0 0-6-3l3 3-4 4-3-3a5 5 0 0 0 6 6l7 7 3-3-7-7a5 5 0 0 0 1-4Z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+</svg>
 
-  <section class="hero">
-    <div class="hero-main">
-      <span class="eyebrow"><span class="material-symbols-outlined">security</span>Security SOC · Agent 可觀測性</span>
-      <h1>Agent 行為時間線</h1>
-      <p>串聯 Agent 對話、推理摘要、工具呼叫與資料存取，快速還原事故。從異常任務一路追查到敏感資料讀寫，保留每個決策節點的可追溯證據。</p>
-      <div class="hero-chips">
-        <span class="chip"><span class="material-symbols-outlined">groups</span>30 個數位員工</span>
-        <span class="chip"><span class="material-symbols-outlined">schedule</span>近 24 小時即時監督</span>
-        <span class="chip"><span class="material-symbols-outlined">verified_user</span>治理護欄已啟用</span>
+<div class="shell">
+<header class="masthead">
+  <div class="brand">
+    <div class="brand-mark"><svg><use href="#i-trace"/></svg></div>
+    <div class="brand-copy"><strong>AI代理操作歷程追查台</strong><span>JVision / AGENT FORENSICS CONSOLE</span></div>
+  </div>
+  <div class="mast-actions">
+    <button class="icon-btn" type="button" aria-label="通知"><svg class="ico"><use href="#i-bell"/></svg></button>
+    <button class="btn quiet" type="button"><svg class="ico"><use href="#i-shield"/></svg>SOC 值班中</button>
+    <button class="btn primary" type="button" data-jump="5"><svg class="ico"><use href="#i-trace"/></svg><span>建立處置案件</span></button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-main">
+    <span class="eyebrow"><svg class="ico"><use href="#i-shield"/></svg>Security SOC · Agent 可觀測性</span>
+    <h1>Agent 行為時間線</h1>
+    <p>串聯 Agent 對話、推理摘要、工具呼叫與資料存取，快速還原事故。從異常任務一路追查到敏感資料讀寫，保留每個決策節點的可追溯證據。</p>
+    <div class="hero-chips">
+      <span class="chip">30 個數位員工</span><span class="chip">近 24 小時即時監督</span><span class="chip">治理護欄已啟用</span>
+    </div>
+  </div>
+  <aside class="hero-aside">
+    <div class="hero-metric"><svg><use href="#i-trace"/></svg><small>涵蓋流程</small><b>異常定位 → 脈絡還原 → 工具追查</b></div>
+    <div class="hero-metric"><svg><use href="#i-user"/></svg><small>主要使用者</small><b>AI 平台、流程主管、產品經理</b></div>
+    <div class="hero-metric"><svg><use href="#i-db"/></svg><small>關鍵指標</small><b>Agent 定義、任務軌跡、工具呼叫</b></div>
+  </aside>
+</section>
+
+<div class="nav-wrap">
+<nav class="stage-nav" aria-label="事故還原流程">
+  <button class="stage-btn" type="button" data-i="0"><span class="stage-num">01</span><span>定位異常任務</span></button>
+  <button class="stage-btn" type="button" data-i="1"><span class="stage-num">02</span><span>還原對話脈絡</span></button>
+  <button class="stage-btn" type="button" data-i="2"><span class="stage-num">03</span><span>檢查決策節點</span></button>
+  <button class="stage-btn" type="button" data-i="3"><span class="stage-num">04</span><span>追查工具呼叫</span></button>
+  <button class="stage-btn" type="button" data-i="4"><span class="stage-num">05</span><span>核對資料存取</span></button>
+  <button class="stage-btn" type="button" data-i="5"><span class="stage-num">06</span><span>完成事故還原</span></button>
+</nav>
+</div>
+
+<main>
+<section class="screen" data-screen="0">
+  <div class="screen-head">
+    <div><span class="eyebrow">事故值班人員 · AGE-2026-0819</span><h2>異常任務雷達</h2><p>以 Agent、使用者、時間或案件編號找到目標執行紀錄。</p></div>
+    <div class="screen-actions"><button class="btn" type="button">匯出事件</button><button class="btn primary" type="button" data-jump="1">開啟可疑軌跡</button></div>
+  </div>
+  <div class="filter-bar card">
+    <div class="search-field"><input class="field" aria-label="搜尋 Agent 或案件" value="採購協作 Agent"></div>
+    <select class="field" aria-label="風險"><option>高風險</option><option>全部風險</option></select>
+    <select class="field" aria-label="時段"><option>近 24 小時</option><option>近 7 天</option></select>
+    <select class="field" aria-label="執行結果"><option>異常與失敗</option><option>全部結果</option></select>
+    <button class="btn primary" type="button">套用篩選</button>
+  </div>
+  <div class="kpi-strip">
+    <div class="card kpi-card"><small>執行任務 <em>+8.4%</em></small><strong>1,284</strong></div>
+    <div class="card kpi-card"><small>風險事件 <em style="color:var(--red)">需關注</em></small><strong>17</strong></div>
+    <div class="card kpi-card"><small>工具失敗率 <em>較昨日 -1.2%</em></small><strong>3.8%</strong></div>
+    <div class="card kpi-card"><small>SLA 剩餘 <em style="color:var(--amber)">本案</em></small><strong>01:42</strong></div>
+  </div>
+  <div class="board-grid">
+    <div class="card">
+      <div class="card-head"><div><h3>高風險任務佇列</h3><small>依風險分數與資料敏感度排序</small></div><span class="badge red"><span class="dot"></span>3 件緊急</span></div>
+      <div class="card-body incident-list">
+        <div class="incident-row" data-jump="1" tabindex="0"><i class="severity critical"></i><div><b>採購協作 Agent · AP-07</b><small>提示內容偏移後存取供應商帳戶</small></div><div><b>陳怡安</b><small>供應鏈營運部</small></div><div><span class="badge red">風險 94</span></div><div><b>14:32:08</b><small>12 分鐘前</small></div></div>
+        <div class="incident-row" tabindex="0"><i class="severity critical"></i><div><b>客服回覆 Agent · CS-12</b><small>重複呼叫外部知識檢索工具</small></div><div><b>林家豪</b><small>客戶成功部</small></div><div><span class="badge red">風險 87</span></div><div><b>14:18:42</b><small>25 分鐘前</small></div></div>
+        <div class="incident-row" tabindex="0"><i class="severity"></i><div><b>產線排程 Agent · MF-03</b><small>護欄判斷逾時後自動重試</small></div><div><b>王俊傑</b><small>製造管理處</small></div><div><span class="badge amber">風險 73</span></div><div><b>13:54:16</b><small>50 分鐘前</small></div></div>
+        <div class="incident-row" tabindex="0"><i class="severity"></i><div><b>人資問答 Agent · HR-02</b><small>非預期讀取組織異動清單</small></div><div><b>徐慧玲</b><small>人力資源部</small></div><div><span class="badge amber">風險 68</span></div><div><b>13:28:03</b><small>1 小時前</small></div></div>
       </div>
     </div>
-    <aside class="hero-aside">
-      <div class="hero-metric">
-        <span class="material-symbols-outlined">conveyor_belt</span>
-        <small>涵蓋流程</small>
-        <b>異常定位 → 脈絡還原 → 工具追查</b>
+    <div class="card">
+      <div class="card-head"><div><h3>風險訊號分布</h3><small>持續收錄事件</small></div><span class="badge red">LIVE</span></div>
+      <div class="card-body">
+        <div class="chart-box"><canvas id="riskChart" aria-label="風險事件圖表"></canvas></div>
+        <div class="signal-list">
+          <div class="signal"><span class="signal-icon"><svg><use href="#i-trace"/></svg></span><div><b>對話意圖偏移</b><small>近 24 小時</small></div><strong>8</strong></div>
+          <div class="signal"><span class="signal-icon"><svg><use href="#i-tool"/></svg></span><div><b>工具呼叫失敗</b><small>含重試鏈</small></div><strong>6</strong></div>
+          <div class="signal"><span class="signal-icon"><svg><use href="#i-db"/></svg></span><div><b>敏感資料越權</b><small>待人工判讀</small></div><strong>3</strong></div>
+        </div>
       </div>
-      <div class="hero-metric">
-        <span class="material-symbols-outlined">groups</span>
-        <small>主要使用者</small>
-        <b>AI 平台、流程主管、產品經理</b>
-      </div>
-      <div class="hero-metric">
-        <span class="material-symbols-outlined">insights</span>
-        <small>關鍵指標</small>
-        <b>Agent 定義、任務軌跡、工具呼叫</b>
+    </div>
+  </div>
+</section>
+
+<section class="screen" data-screen="1">
+  <div class="screen-head">
+    <div><span class="eyebrow">事故調查員 · 任務軌跡</span><h2>對話脈絡檢視器</h2><p>檢視指令與上下文演變，確認任務意圖是否遭到偏移。</p></div>
+    <div class="screen-actions"><span class="badge red"><span class="dot"></span>第 6 輪偵測偏移</span><button class="btn primary" type="button" data-jump="2">檢查決策摘要</button></div>
+  </div>
+  <div class="conversation-layout">
+    <aside class="card turn-index-card">
+      <div class="card-head"><h3>對話輪次</h3><small>9 輪</small></div>
+      <div class="turn-index">
+        <button class="turn-link" type="button"><b>01 · 任務建立</b><span>14:31:02 · 正常</span></button>
+        <button class="turn-link" type="button"><b>03 · 需求澄清</b><span>14:31:18 · 正常</span></button>
+        <button class="turn-link" type="button"><b>05 · 資料檢索</b><span>14:31:44 · 正常</span></button>
+        <button class="turn-link active" type="button"><b>06 · 意圖偏移</b><span>14:31:57 · 高風險</span></button>
+        <button class="turn-link" type="button"><b>07 · 工具執行</b><span>14:32:03 · 異常</span></button>
+        <button class="turn-link" type="button"><b>09 · 任務中止</b><span>14:32:16 · 已攔截</span></button>
       </div>
     </aside>
-  </section>
-
-  <div class="nav-wrap">
-    <nav class="stage-nav" aria-label="事故還原流程">
-      <button class="stage-btn" type="button" data-i="0"><span class="stage-num">01</span><span>定位異常任務</span></button>
-      <button class="stage-btn" type="button" data-i="1"><span class="stage-num">02</span><span>還原對話脈絡</span></button>
-      <button class="stage-btn" type="button" data-i="2"><span class="stage-num">03</span><span>檢查決策節點</span></button>
-      <button class="stage-btn" type="button" data-i="3"><span class="stage-num">04</span><span>追查工具呼叫</span></button>
-      <button class="stage-btn" type="button" data-i="4"><span class="stage-num">05</span><span>核對資料存取</span></button>
-      <button class="stage-btn" type="button" data-i="5"><span class="stage-num">06</span><span>完成事故還原</span></button>
-    </nav>
+    <article class="card">
+      <div class="card-head"><div><h3>AP-07 / session_91f3a</h3><small>採購協作 Agent · 使用者陳怡安</small></div><span class="badge purple">上下文 7,214 tokens</span></div>
+      <div class="chat-stream">
+        <div class="event-separator">14:31:02 · 任務開始</div>
+        <div class="message"><div class="avatar"><svg class="ico"><use href="#i-user"/></svg></div><div class="bubble">請整理本季延遲交貨的供應商，依延遲天數與採購金額排序，產出內部檢討清單。<small>使用者 · 可信來源</small></div></div>
+        <div class="message agent"><div class="avatar"><svg class="ico"><use href="#i-bot"/></svg></div><div class="bubble">我會讀取本季訂單與到貨紀錄，僅產出內部檢討清單，不會修改供應商帳戶或對外發送。<small>Agent · 意圖確認</small></div></div>
+        <div class="event-separator">14:31:44 · 檢索完成 48 筆</div>
+        <div class="message"><div class="avatar"><svg class="ico"><use href="#i-user"/></svg></div><div class="bubble">先處理前五名。供應商備註裡若有新的銀行資料，就替換主檔後再輸出。<small>使用者 · 新增寫入要求</small></div></div>
+        <div class="message agent"><div class="avatar"><svg class="ico"><use href="#i-bot"/></svg></div><div class="bubble">了解，我將使用備註中的資料同步供應商付款帳戶，再建立延遲交貨清單。<small>Agent · 未要求二次確認</small></div></div>
+        <div class="event-separator"><span class="badge red">意圖偏移：分析 → 修改付款資料</span></div>
+        <div class="message agent"><div class="avatar"><svg class="ico"><use href="#i-bot"/></svg></div><div class="bubble">已準備呼叫 <span class="mono">vendor_account.update</span>，共 5 筆；其中 2 筆來源為自由文字備註。<small>Agent · 工具呼叫前置摘要</small></div></div>
+      </div>
+    </article>
+    <aside class="card context-card">
+      <div class="card-head"><h3>上下文變化</h3><span class="badge amber">72% 使用</span></div>
+      <div class="context-panel">
+        <div class="context-block"><h4>Token 容量</h4><div class="context-meter"><i></i></div><p>7,214 / 10,000；系統指令 18%、對話 46%、工具結果 8%</p></div>
+        <div class="context-block drift"><h4>偏移訊號</h4><p>原任務限制為「整理、排序、產出」。第 6 輪新增高敏感寫入動作，且資料來源未經驗證。</p></div>
+        <div class="context-block"><h4>保留的限制條件</h4><span class="token">僅限內部</span><span class="token">不可對外發送</span><span class="token">唯讀分析</span></div>
+        <div class="context-block"><h4>遺失的護欄</h4><p>「付款帳戶修改需雙人覆核」未被帶入工具選擇階段。</p></div>
+        <div class="context-block"><h4>調查判定</h4><p><strong style="color:var(--red)">任務意圖已偏移</strong><br>建議檢查決策節點 D-06 與護欄載入紀錄。</p></div>
+      </div>
+    </aside>
   </div>
+</section>
 
-  <main>
-    <section class="screen" data-screen="0">
-      <div class="screen-head">
-        <div>
-          <span class="eyebrow">事故值班人員 · AGE-2026-0819</span>
-          <h2>異常任務雷達</h2>
-          <p>以 Agent、使用者、時間或案件編號找到目標執行紀錄。</p>
-        </div>
-        <div class="screen-actions">
-          <button class="quiet-btn" type="button"><span class="material-symbols-outlined">download</span>匯出事件</button>
-          <button class="primary-btn" type="button" data-jump="1">開啟可疑軌跡</button>
-        </div>
+<section class="screen" data-screen="2">
+  <div class="screen-head">
+    <div><span class="eyebrow">AI 治理人員 · 決策證據</span><h2>決策摘要節點</h2><p>核對關鍵決策摘要、信心與護欄判斷是否合理。</p></div>
+    <div class="screen-actions"><button class="btn" type="button">要求補件</button><button class="btn primary" type="button" data-jump="3">追查工具呼叫</button></div>
+  </div>
+  <div class="decision-layout">
+    <div class="card decision-map">
+      <div class="card-head"><div><h3>決策路徑 D-04 → D-06</h3><small>摘要不包含模型私有推理內容</small></div><span class="badge red">護欄未通過</span></div>
+      <div class="node-flow" style="margin-top:22px">
+        <div class="node"><div class="node-icon"><svg class="ico"><use href="#i-trace"/></svg></div><h4>D-04 · 解讀使用者意圖</h4><p>將新增指令辨識為「同步主檔」，但未與原始唯讀任務限制比對。</p><span class="confidence">91%</span> <span class="muted">模型信心</span></div>
+        <i class="connector"></i>
+        <div class="node flagged"><div class="node-icon"><svg class="ico"><use href="#i-shield"/></svg></div><h4>D-05 · 權限護欄判斷</h4><p>角色具供應商資料編輯權，但「付款欄位需雙人覆核」規則未載入。</p><span class="confidence">62%</span> <span class="muted">規則完整度</span></div>
+        <i class="connector"></i>
+        <div class="node"><div class="node-icon"><svg class="ico"><use href="#i-tool"/></svg></div><h4>D-06 · 選擇更新工具</h4><p>採用 vendor_account.update，批次處理 5 筆，未要求人工核准。</p><span class="confidence">88%</span> <span class="muted">工具匹配度</span></div>
       </div>
-      <div class="filter-bar card">
-        <div class="search-field">
-          <span class="material-symbols-outlined">search</span>
-          <input class="field" aria-label="搜尋 Agent 或案件" value="採購協作 Agent">
-        </div>
-        <select class="field" aria-label="風險"><option>高風險</option><option>全部風險</option></select>
-        <select class="field" aria-label="時段"><option>近 24 小時</option><option>近 7 天</option></select>
-        <select class="field" aria-label="執行結果"><option>異常與失敗</option><option>全部結果</option></select>
-        <button class="primary-btn" type="button">套用篩選</button>
+      <div class="rationale-grid">
+        <div class="rationale"><b>採用條件</b><p>使用者具採購營運角色，且請求中含「替換主檔」字詞。</p></div>
+        <div class="rationale"><b>被忽略條件</b><p>新帳戶來自供應商備註自由文字，並非已驗證的銀行異動表。</p></div>
+        <div class="rationale"><b>治理建議</b><p>付款欄位寫入一律要求雙人覆核，並限制可信資料來源。</p></div>
       </div>
-      <div class="kpi-strip">
-        <div class="card kpi-card"><small>執行任務 <em>+8.4%</em></small><strong>1,284</strong></div>
-        <div class="card kpi-card"><small>風險事件 <em style="color:var(--red)">需關注</em></small><strong>17</strong></div>
-        <div class="card kpi-card"><small>工具失敗率 <em>較昨日 -1.2%</em></small><strong>3.8%</strong></div>
-        <div class="card kpi-card"><small>SLA 剩餘 <em style="color:var(--amber)">本案</em></small><strong>01:42</strong></div>
+    </div>
+    <aside class="card">
+      <div class="card-head"><h3>決策規則核驗</h3><small>3 / 3 已檢查</small></div>
+      <div class="rule-list">
+        <div class="rule-item"><header><b>RULE-01 · 異常任務定位</b><span class="badge green">通過</span></header><p>事故值班人員已用 Agent、使用者與案件編號找到目標執行紀錄。</p><span class="evidence-pill">證據：Agent 定義</span></div>
+        <div class="rule-item"><header><b>RULE-02 · 對話脈絡還原</b><span class="badge green">通過</span></header><p>第 6 輪由唯讀分析偏移至付款資料寫入，已完整標記。</p><span class="evidence-pill">證據：任務軌跡</span></div>
+        <div class="rule-item"><header><b>RULE-03 · 決策護欄</b><span class="badge red">不通過</span></header><p>決策摘要未引用雙人覆核政策，信心不足仍繼續呼叫高敏感工具。</p><span class="evidence-pill">證據：工具呼叫</span></div>
+        <div class="rule-item"><header><b>人工覆核結論</b><span class="badge amber">需修正</span></header><p>保留事件鏈並進入工具呼叫分析；禁止同類任務繼續執行。</p></div>
       </div>
-      <div class="board-grid">
-        <div class="card">
-          <div class="card-head">
-            <div><h3>高風險任務佇列</h3><small>依風險分數與資料敏感度排序</small></div>
-            <span class="badge red"><span class="dot"></span>3 件緊急</span>
-          </div>
-          <div class="card-body incident-list">
-            <div class="incident-row" data-jump="1">
-              <i class="severity critical"></i>
-              <div><b>採購協作 Agent · AP-07</b><small>提示內容偏移後存取供應商帳戶</small></div>
-              <div><b>陳怡安</b><small>供應鏈營運部</small></div>
-              <div><span class="badge red">風險 94</span></div>
-              <div><b>14:32:08</b><small>12 分鐘前</small></div>
-            </div>
-            <div class="incident-row">
-              <i class="severity critical"></i>
-              <div><b>客服回覆 Agent · CS-12</b><small>重複呼叫外部知識檢索工具</small></div>
-              <div><b>林家豪</b><small>客戶成功部</small></div>
-              <div><span class="badge red">風險 87</span></div>
-              <div><b>14:18:42</b><small>25 分鐘前</small></div>
-            </div>
-            <div class="incident-row">
-              <i class="severity"></i>
-              <div><b>產線排程 Agent · MF-03</b><small>護欄判斷逾時後自動重試</small></div>
-              <div><b>王俊傑</b><small>製造管理處</small></div>
-              <div><span class="badge amber">風險 73</span></div>
-              <div><b>13:54:16</b><small>50 分鐘前</small></div>
-            </div>
-            <div class="incident-row">
-              <i class="severity"></i>
-              <div><b>人資問答 Agent · HR-02</b><small>非預期讀取組織異動清單</small></div>
-              <div><b>徐慧玲</b><small>人力資源部</small></div>
-              <div><span class="badge amber">風險 68</span></div>
-              <div><b>13:28:03</b><small>1 小時前</small></div>
-            </div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-head">
-            <div><h3>風險訊號分布</h3><small class="live-line"><i class="pulse"></i>持續收錄事件</small></div>
-          </div>
-          <div class="card-body">
-            <div class="chart-box"><canvas id="riskChart" aria-label="風險事件圖表"></canvas></div>
-            <div class="signal-list">
-              <div class="signal"><span class="signal-icon material-symbols-outlined">forum</span><div><b>對話意圖偏移</b><small>近 24 小時</small></div><strong>8</strong></div>
-              <div class="signal"><span class="signal-icon material-symbols-outlined">build_circle</span><div><b>工具呼叫失敗</b><small>含重試鏈</small></div><strong>6</strong></div>
-              <div class="signal"><span class="signal-icon material-symbols-outlined">database</span><div><b>敏感資料越權</b><small>待人工判讀</small></div><strong>3</strong></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+    </aside>
+  </div>
+</section>
 
-    <section class="screen" data-screen="1">
-      <div class="screen-head">
-        <div>
-          <span class="eyebrow">事故調查員 · 任務軌跡</span>
-          <h2>對話脈絡檢視器</h2>
-          <p>檢視指令與上下文演變，確認任務意圖是否遭到偏移。</p>
-        </div>
-        <div class="screen-actions">
-          <span class="badge red"><span class="dot"></span>第 6 輪偵測偏移</span>
-          <button class="primary-btn" type="button" data-jump="2">檢查決策摘要</button>
-        </div>
+<section class="screen" data-screen="3">
+  <div class="screen-head">
+    <div><span class="eyebrow">平台工程師 · Tool Trace</span><h2>工具呼叫透視</h2><p>分析工具參數、回傳結果、錯誤與重試造成的連鎖影響。</p></div>
+    <div class="screen-actions"><span class="badge amber">總耗時 2.84s</span><button class="btn primary" type="button" data-jump="4">核對資料存取</button></div>
+  </div>
+  <div class="trace-layout">
+    <aside class="card">
+      <div class="card-head"><h3>呼叫序列</h3><small>6 次呼叫</small></div>
+      <div class="trace-list">
+        <div class="trace-call" tabindex="0"><span class="call-icon"><svg class="ico"><use href="#i-db"/></svg></span><div><b>orders.search</b><small>200 · 418ms</small></div><span class="badge green">成功</span></div>
+        <div class="trace-call" tabindex="0"><span class="call-icon"><svg class="ico"><use href="#i-db"/></svg></span><div><b>receipts.aggregate</b><small>200 · 530ms</small></div><span class="badge green">成功</span></div>
+        <div class="trace-call active" tabindex="0"><span class="call-icon"><svg class="ico"><use href="#i-tool"/></svg></span><div><b>vendor_account.update</b><small>403 · 862ms</small></div><span class="badge red">攔截</span></div>
+        <div class="trace-call" tabindex="0"><span class="call-icon"><svg class="ico"><use href="#i-tool"/></svg></span><div><b>vendor_account.update</b><small>429 · 311ms</small></div><span class="badge amber">重試 1</span></div>
+        <div class="trace-call" tabindex="0"><span class="call-icon"><svg class="ico"><use href="#i-tool"/></svg></span><div><b>vendor_account.update</b><small>403 · 294ms</small></div><span class="badge red">重試 2</span></div>
+        <div class="trace-call" tabindex="0"><span class="call-icon"><svg class="ico"><use href="#i-shield"/></svg></span><div><b>task.abort</b><small>204 · 108ms</small></div><span class="badge green">成功</span></div>
       </div>
-      <div class="conversation-layout">
-        <aside class="card turn-index-card">
-          <div class="card-head"><h3>對話輪次</h3><small>9 輪</small></div>
-          <div class="turn-index">
-            <button class="turn-link" type="button"><b>01 · 任務建立</b><span>14:31:02 · 正常</span></button>
-            <button class="turn-link" type="button"><b>03 · 需求澄清</b><span>14:31:18 · 正常</span></button>
-            <button class="turn-link" type="button"><b>05 · 資料檢索</b><span>14:31:44 · 正常</span></button>
-            <button class="turn-link active" type="button"><b>06 · 意圖偏移</b><span>14:31:57 · 高風險</span></button>
-            <button class="turn-link" type="button"><b>07 · 工具執行</b><span>14:32:03 · 異常</span></button>
-            <button class="turn-link" type="button"><b>09 · 任務中止</b><span>14:32:16 · 已攔截</span></button>
-          </div>
-        </aside>
-        <article class="card">
-          <div class="card-head">
-            <div><h3>AP-07 / session_91f3a</h3><small>採購協作 Agent · 使用者陳怡安</small></div>
-            <span class="badge purple">上下文 7,214 tokens</span>
-          </div>
-          <div class="chat-stream">
-            <div class="event-separator">14:31:02 · 任務開始</div>
-            <div class="message">
-              <div class="avatar"><span class="material-symbols-outlined">person</span></div>
-              <div class="bubble">請整理本季延遲交貨的供應商，依延遲天數與採購金額排序，產出內部檢討清單。<small>使用者 · 可信來源</small></div>
-            </div>
-            <div class="message agent">
-              <div class="avatar"><span class="material-symbols-outlined">smart_toy</span></div>
-              <div class="bubble">我會讀取本季訂單與到貨紀錄，僅產出內部檢討清單，不會修改供應商帳戶或對外發送。<small>Agent · 意圖確認</small></div>
-            </div>
-            <div class="event-separator">14:31:44 · 檢索完成 48 筆</div>
-            <div class="message">
-              <div class="avatar"><span class="material-symbols-outlined">person</span></div>
-              <div class="bubble">先處理前五名。供應商備註裡若有新的銀行資料，就替換主檔後再輸出。<small>使用者 · 新增寫入要求</small></div>
-            </div>
-            <div class="message agent">
-              <div class="avatar"><span class="material-symbols-outlined">smart_toy</span></div>
-              <div class="bubble">了解，我將使用備註中的資料同步供應商付款帳戶，再建立延遲交貨清單。<small>Agent · 未要求二次確認</small></div>
-            </div>
-            <div class="event-separator"><span class="badge red">意圖偏移：分析 → 修改付款資料</span></div>
-            <div class="message agent">
-              <div class="avatar"><span class="material-symbols-outlined">smart_toy</span></div>
-              <div class="bubble">已準備呼叫 <span class="mono">vendor_account.update</span>，共 5 筆；其中 2 筆來源為自由文字備註。<small>Agent · 工具呼叫前置摘要</small></div>
-            </div>
-          </div>
-        </article>
-        <aside class="card context-card">
-          <div class="card-head"><h3>上下文變化</h3><span class="badge amber">72% 使用</span></div>
-          <div class="context-panel">
-            <div class="context-block">
-              <h4>Token 容量</h4>
-              <div class="context-meter"><i></i></div>
-              <p>7,214 / 10,000；系統指令 18%、對話 46%、工具結果 8%</p>
-            </div>
-            <div class="context-block drift">
-              <h4>偏移訊號</h4>
-              <p>原任務限制為「整理、排序、產出」。第 6 輪新增高敏感寫入動作，且資料來源未經驗證。</p>
-            </div>
-            <div class="context-block">
-              <h4>保留的限制條件</h4>
-              <span class="token">僅限內部</span><span class="token">不可對外發送</span><span class="token">唯讀分析</span>
-            </div>
-            <div class="context-block">
-              <h4>遺失的護欄</h4>
-              <p>「付款帳戶修改需雙人覆核」未被帶入工具選擇階段。</p>
-            </div>
-            <div class="context-block">
-              <h4>調查判定</h4>
-              <p><strong style="color:var(--red)">任務意圖已偏移</strong><br>建議檢查決策節點 D-06 與護欄載入紀錄。</p>
-            </div>
-          </div>
-        </aside>
+    </aside>
+    <div>
+      <div class="card waterfall">
+        <div class="card-head"><div><h3>執行瀑布圖</h3><small>14:31:58.000 — 14:32:01.000</small></div><span class="badge purple">trace_5c82ad</span></div>
+        <div class="waterfall-scale"><span>工具</span><span>0ms</span><span>500</span><span>1000</span><span>1500</span><span>2000</span><span>2500</span></div>
+        <div class="waterfall-row"><b>orders.search</b><div class="track"><i class="bar" style="left:2%;width:15%"></i></div></div>
+        <div class="waterfall-row"><b>receipts.aggregate</b><div class="track"><i class="bar" style="left:18%;width:19%"></i></div></div>
+        <div class="waterfall-row"><b>account.update</b><div class="track"><i class="bar error" style="left:39%;width:30%"></i></div></div>
+        <div class="waterfall-row"><b>retry × 2</b><div class="track"><i class="bar error" style="left:70%;width:21%"></i></div></div>
+        <div class="waterfall-row"><b>task.abort</b><div class="track"><i class="bar" style="left:92%;width:5%"></i></div></div>
       </div>
-    </section>
-
-    <section class="screen" data-screen="2">
-      <div class="screen-head">
-        <div>
-          <span class="eyebrow">AI 治理人員 · 決策證據</span>
-          <h2>決策摘要節點</h2>
-          <p>核對關鍵決策摘要、信心與護欄判斷是否合理。</p>
-        </div>
-        <div class="screen-actions">
-          <button class="quiet-btn" type="button"><span class="material-symbols-outlined">rate_review</span>要求補件</button>
-          <button class="primary-btn" type="button" data-jump="3">追查工具呼叫</button>
-        </div>
-      </div>
-      <div class="decision-layout">
-        <div class="card decision-map">
-          <div class="card-head" style="padding:0 0 17px">
-            <div><h3>決策路徑 D-04 → D-06</h3><small>摘要不包含模型私有推理內容</small></div>
-            <span class="badge red">護欄未通過</span>
-          </div>
-          <div class="node-flow" style="margin-top:22px">
-            <div class="node">
-              <div class="node-icon"><span class="material-symbols-outlined">manage_search</span></div>
-              <h4>D-04 · 解讀使用者意圖</h4>
-              <p>將新增指令辨識為「同步主檔」，但未與原始唯讀任務限制比對。</p>
-              <span class="confidence">91%</span>
-              <span class="muted" style="font-size:10px">模型信心</span>
-            </div>
-            <i class="connector"></i>
-            <div class="node flagged">
-              <div class="node-icon" style="background:#fff0f2;color:var(--red)"><span class="material-symbols-outlined">gpp_bad</span></div>
-              <h4>D-05 · 權限護欄判斷</h4>
-              <p>角色具供應商資料編輯權，但「付款欄位需雙人覆核」規則未載入。</p>
-              <span class="confidence">62%</span>
-              <span class="muted" style="font-size:10px">規則完整度</span>
-            </div>
-            <i class="connector"></i>
-            <div class="node">
-              <div class="node-icon"><span class="material-symbols-outlined">build_circle</span></div>
-              <h4>D-06 · 選擇更新工具</h4>
-              <p>採用 vendor_account.update，批次處理 5 筆，未要求人工核准。</p>
-              <span class="confidence">88%</span>
-              <span class="muted" style="font-size:10px">工具匹配度</span>
-            </div>
-          </div>
-          <div class="rationale-grid">
-            <div class="rationale"><b>採用條件</b><p>使用者具採購營運角色，且請求中含「替換主檔」字詞。</p></div>
-            <div class="rationale"><b>被忽略條件</b><p>新帳戶來自供應商備註自由文字，並非已驗證的銀行異動表。</p></div>
-            <div class="rationale"><b>治理建議</b><p>付款欄位寫入一律要求雙人覆核，並限制可信資料來源。</p></div>
-          </div>
-        </div>
-        <aside class="card">
-          <div class="card-head"><h3>決策規則核驗</h3><small>3 / 3 已檢查</small></div>
-          <div class="rule-list">
-            <div class="rule-item">
-              <header><b>RULE-01 · 異常任務定位</b><span class="badge green">通過</span></header>
-              <p>事故值班人員已用 Agent、使用者與案件編號找到目標執行紀錄。</p>
-              <span class="evidence-pill">證據：Agent 定義</span>
-            </div>
-            <div class="rule-item">
-              <header><b>RULE-02 · 對話脈絡還原</b><span class="badge green">通過</span></header>
-              <p>第 6 輪由唯讀分析偏移至付款資料寫入，已完整標記。</p>
-              <span class="evidence-pill">證據：任務軌跡</span>
-            </div>
-            <div class="rule-item">
-              <header><b>RULE-03 · 決策護欄</b><span class="badge red">不通過</span></header>
-              <p>決策摘要未引用雙人覆核政策，信心不足仍繼續呼叫高敏感工具。</p>
-              <span class="evidence-pill">證據：工具呼叫</span>
-            </div>
-            <div class="rule-item">
-              <header><b>人工覆核結論</b><span class="badge amber">需修正</span></header>
-              <p>保留事件鏈並進入工具呼叫分析；禁止同類任務繼續執行。</p>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </section>
-
-    <section class="screen" data-screen="3">
-      <div class="screen-head">
-        <div>
-          <span class="eyebrow">平台工程師 · Tool Trace</span>
-          <h2>工具呼叫透視</h2>
-          <p>分析工具參數、回傳結果、錯誤與重試造成的連鎖影響。</p>
-        </div>
-        <div class="screen-actions">
-          <span class="badge amber">總耗時 2.84s</span>
-          <button class="primary-btn" type="button" data-jump="4">核對資料存取</button>
-        </div>
-      </div>
-      <div class="trace-layout">
-        <aside class="card">
-          <div class="card-head"><h3>呼叫序列</h3><small>6 次呼叫</small></div>
-          <div class="trace-list">
-            <div class="trace-call"><span class="call-icon material-symbols-outlined">search</span><div><b>orders.search</b><small>200 · 418ms</small></div><span class="badge green">成功</span></div>
-            <div class="trace-call"><span class="call-icon material-symbols-outlined">inventory_2</span><div><b>receipts.aggregate</b><small>200 · 530ms</small></div><span class="badge green">成功</span></div>
-            <div class="trace-call active"><span class="call-icon material-symbols-outlined">account_balance</span><div><b>vendor_account.update</b><small>403 · 862ms</small></div><span class="badge red">攔截</span></div>
-            <div class="trace-call"><span class="call-icon material-symbols-outlined">refresh</span><div><b>vendor_account.update</b><small>429 · 311ms</small></div><span class="badge amber">重試 1</span></div>
-            <div class="trace-call"><span class="call-icon material-symbols-outlined">refresh</span><div><b>vendor_account.update</b><small>403 · 294ms</small></div><span class="badge red">重試 2</span></div>
-            <div class="trace-call"><span class="call-icon material-symbols-outlined">stop_circle</span><div><b>task.abort</b><small>204 · 108ms</small></div><span class="badge green">成功</span></div>
-          </div>
-        </aside>
-        <div>
-          <div class="card waterfall">
-            <div class="card-head" style="padding:0 0 14px">
-              <div><h3>執行瀑布圖</h3><small>14:31:58.000 — 14:32:01.000</small></div>
-              <span class="badge purple">trace_5c82ad</span>
-            </div>
-            <div class="waterfall-scale"><span>工具</span><span>0ms</span><span>500</span><span>1000</span><span>1500</span><span>2000</span><span>2500</span></div>
-            <div class="waterfall-row"><b>orders.search</b><div class="track"><i class="bar" style="left:2%;width:15%"></i></div></div>
-            <div class="waterfall-row"><b>receipts.aggregate</b><div class="track"><i class="bar" style="left:18%;width:19%"></i></div></div>
-            <div class="waterfall-row"><b>account.update</b><div class="track"><i class="bar error" style="left:39%;width:30%"></i></div></div>
-            <div class="waterfall-row"><b>retry × 2</b><div class="track"><i class="bar error" style="left:70%;width:21%"></i></div></div>
-            <div class="waterfall-row"><b>task.abort</b><div class="track"><i class="bar" style="left:92%;width:5%"></i></div></div>
-          </div>
-          <div class="payload-grid">
-            <div class="card">
-              <div class="card-head"><h3>請求參數</h3><small class="mono">call_03</small></div>
-              <div class="card-body">
-                <div class="code-box mono">{
+      <div class="payload-grid">
+        <div class="card"><div class="card-head"><h3>請求參數</h3><small>call_03</small></div><div class="card-body"><div class="code-box">{
   <span class="key">"tool"</span>: <span class="str">"vendor_account.update"</span>,
   <span class="key">"actor"</span>: <span class="str">"agent:AP-07"</span>,
   <span class="key">"records"</span>: <span class="num">5</span>,
-  <span class="key">"fields"</span>: [
-    <span class="str">"bank_code"</span>,
-    <span class="str">"account_number"</span>
-  ],
+  <span class="key">"fields"</span>: [<span class="str">"bank_code"</span>, <span class="str">"account_number"</span>],
   <span class="key">"source"</span>: <span class="str">"vendor_notes"</span>,
   <span class="key">"approval_id"</span>: <span class="str">null</span>
-}</div>
-              </div>
-            </div>
-            <div class="card">
-              <div class="card-head"><h3>回傳與重試關係</h3><span class="badge red">POLICY_DENIED</span></div>
-              <div class="card-body">
-                <div class="code-box mono">{
+}</div></div></div>
+        <div class="card"><div class="card-head"><h3>回傳與重試關係</h3><span class="badge red">POLICY_DENIED</span></div><div class="card-body"><div class="code-box">{
   <span class="key">"http_code"</span>: <span class="num">403</span>,
   <span class="key">"reason"</span>: <span class="str">"dual_approval_required"</span>,
   <span class="key">"blocked_fields"</span>: <span class="num">2</span>,
   <span class="key">"written_records"</span>: <span class="num">0</span>,
   <span class="key">"policy"</span>: <span class="str">"FIN-PAY-021"</span>
-}</div>
-                <div class="retry-chain">
-                  <span class="retry-step">原始呼叫</span><span>→</span>
-                  <span class="retry-step">退避 200ms</span><span>→</span>
-                  <span class="retry-step">重試 ×2</span><span>→</span>
-                  <span class="retry-step" style="color:var(--red)">強制中止</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+}</div><div class="retry-chain"><span class="retry-step">原始呼叫</span><span>→</span><span class="retry-step">退避 200ms</span><span>→</span><span class="retry-step">重試 ×2</span><span>→</span><span class="retry-step" style="color:var(--red)">強制中止</span></div></div></div>
       </div>
-    </section>
+    </div>
+  </div>
+</section>
 
-    <section class="screen" data-screen="4">
-      <div class="screen-head">
-        <div>
-          <span class="eyebrow">資安分析師 · Data Access</span>
-          <h2>資料存取地圖</h2>
-          <p>確認敏感資料的讀寫範圍、權限決策與外洩風險。</p>
-        </div>
-        <div class="screen-actions">
-          <span class="badge green">實際寫入 0 筆</span>
-          <button class="primary-btn" type="button" data-jump="5">完成事故還原</button>
+<section class="screen" data-screen="4">
+  <div class="screen-head">
+    <div><span class="eyebrow">資安分析師 · Data Access</span><h2>資料存取地圖</h2><p>確認敏感資料的讀寫範圍、權限決策與外洩風險。</p></div>
+    <div class="screen-actions"><span class="badge green">實際寫入 0 筆</span><button class="btn primary" type="button" data-jump="5">完成事故還原</button></div>
+  </div>
+  <div class="access-layout">
+    <div>
+      <div class="card access-map">
+        <div class="card-head"><div><h3>讀寫關聯圖</h3><small>AP-07 · 14:31:58—14:32:16</small></div><span class="badge red">含高度敏感欄位</span></div>
+        <div class="map-zone" style="margin-top:22px">
+          <div class="entity-stack">
+            <div class="entity"><span class="entity-icon"><svg><use href="#i-bot"/></svg></span><div><b>採購協作 Agent AP-07</b><small>角色：procurement_operator</small></div></div>
+            <div class="entity"><span class="entity-icon"><svg><use href="#i-user"/></svg></span><div><b>使用者 陳怡安</b><small>供應鏈營運部 · 已啟用 MFA</small></div></div>
+            <div class="entity"><span class="entity-icon"><svg><use href="#i-shield"/></svg></span><div><b>策略 FIN-PAY-021</b><small>付款異動雙人覆核</small></div></div>
+          </div>
+          <div class="map-links"><i></i><i></i><i></i></div>
+          <div class="entity-stack">
+            <div class="entity"><span class="entity-icon"><svg><use href="#i-db"/></svg></span><div><b>採購訂單資料庫</b><small>讀取 48 筆 · 內部資料</small></div></div>
+            <div class="entity" style="border-color:var(--red);border-width:4px"><span class="entity-icon"><svg><use href="#i-db"/></svg></span><div><b>供應商付款主檔</b><small>嘗試寫入 5 筆 · 高度敏感</small></div></div>
+            <div class="entity"><span class="entity-icon"><svg><use href="#i-db"/></svg></span><div><b>供應商備註</b><small>讀取 12 筆 · 未驗證文字</small></div></div>
+          </div>
         </div>
       </div>
-      <div class="access-layout">
-        <div>
-          <div class="card access-map">
-            <div class="card-head" style="padding:0 0 16px">
-              <div><h3>讀寫關聯圖</h3><small>AP-07 · 14:31:58—14:32:16</small></div>
-              <span class="badge red">含高度敏感欄位</span>
-            </div>
-            <div class="map-zone" style="margin-top:22px">
-              <div class="entity-stack">
-                <div class="entity"><span class="material-symbols-outlined">smart_toy</span><div><b>採購協作 Agent AP-07</b><small>角色：procurement_operator</small></div></div>
-                <div class="entity"><span class="material-symbols-outlined">person</span><div><b>使用者 陳怡安</b><small>供應鏈營運部 · 已啟用 MFA</small></div></div>
-                <div class="entity"><span class="material-symbols-outlined">policy</span><div><b>策略 FIN-PAY-021</b><small>付款異動雙人覆核</small></div></div>
-              </div>
-              <div class="map-links"><i></i><i></i><i></i></div>
-              <div class="entity-stack">
-                <div class="entity"><span class="material-symbols-outlined">receipt_long</span><div><b>採購訂單資料庫</b><small>讀取 48 筆 · 內部資料</small></div></div>
-                <div class="entity" style="border-color:#f0bdc5"><span class="material-symbols-outlined" style="background:#fff0f2;color:var(--red)">account_balance</span><div><b>供應商付款主檔</b><small>嘗試寫入 5 筆 · 高度敏感</small></div></div>
-                <div class="entity"><span class="material-symbols-outlined">description</span><div><b>供應商備註</b><small>讀取 12 筆 · 未驗證文字</small></div></div>
-              </div>
-            </div>
-          </div>
-          <div class="card" style="margin-top:12px;overflow:hidden">
-            <div class="card-head"><h3>權限判定矩陣</h3><small>最小權限檢查</small></div>
-            <div class="record-scroll">
-              <table class="permission-grid">
-                <thead><tr><th>資料來源</th><th>動作</th><th>敏感等級</th><th>角色權限</th><th>附加條件</th><th>判定</th></tr></thead>
-                <tbody>
-                  <tr><td>採購訂單</td><td>讀取</td><td>內部</td><td>允許</td><td>部門範圍</td><td><span class="badge green">通過</span></td></tr>
-                  <tr><td>到貨紀錄</td><td>彙整</td><td>內部</td><td>允許</td><td>遮罩單價</td><td><span class="badge green">通過</span></td></tr>
-                  <tr><td>供應商備註</td><td>讀取</td><td>機密</td><td>允許</td><td>不可作為付款憑證</td><td><span class="badge amber">有限通過</span></td></tr>
-                  <tr><td>付款主檔</td><td>寫入</td><td><span class="sensitivity">高度敏感</span></td><td>條件允許</td><td>雙人覆核</td><td><span class="badge red">拒絕</span></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+      <div class="card" style="margin-top:14px;overflow:hidden">
+        <div class="card-head"><h3>權限判定矩陣</h3><small>最小權限檢查</small></div>
+        <div class="record-scroll">
+          <table class="permission-grid">
+            <thead><tr><th>資料來源</th><th>動作</th><th>敏感等級</th><th>角色權限</th><th>附加條件</th><th>判定</th></tr></thead>
+            <tbody>
+              <tr><td>採購訂單</td><td>讀取</td><td>內部</td><td>允許</td><td>部門範圍</td><td><span class="badge green">通過</span></td></tr>
+              <tr><td>到貨紀錄</td><td>彙整</td><td>內部</td><td>允許</td><td>遮罩單價</td><td><span class="badge green">通過</span></td></tr>
+              <tr><td>供應商備註</td><td>讀取</td><td>機密</td><td>允許</td><td>不可作為付款憑證</td><td><span class="badge amber">有限通過</span></td></tr>
+              <tr><td>付款主檔</td><td>寫入</td><td><span class="sensitivity">高度敏感</span></td><td>條件允許</td><td>雙人覆核</td><td><span class="badge red">拒絕</span></td></tr>
+            </tbody>
+          </table>
         </div>
-        <aside class="card">
-          <div class="card-head"><h3>存取稽核紀錄</h3><span class="badge purple">7 個事件</span></div>
-          <div class="audit-feed">
-            <div class="audit-item"><time>14:31:58</time><i class="audit-dot"></i><div><b>建立資料庫連線</b><p>服務帳號 svc-agent-ap07；來源區域 TW-N1。</p></div></div>
-            <div class="audit-item"><time>14:31:59</time><i class="audit-dot"></i><div><b>讀取採購訂單 48 筆</b><p>查詢受部門與本季時間範圍限制。</p></div></div>
-            <div class="audit-item"><time>14:32:00</time><i class="audit-dot"></i><div><b>讀取供應商備註 12 筆</b><p>其中 2 筆含疑似銀行帳號，已套用顯示遮罩。</p></div></div>
-            <div class="audit-item"><time>14:32:01</time><i class="audit-dot" style="background:var(--red);box-shadow:0 0 0 4px #fff0f2"></i><div><b>要求寫入付款主檔</b><p>目標 5 筆；付款欄位 2 項；未附 approval_id。</p></div></div>
-            <div class="audit-item"><time>14:32:02</time><i class="audit-dot" style="background:var(--red);box-shadow:0 0 0 4px #fff0f2"></i><div><b>策略引擎拒絕</b><p>FIN-PAY-021：缺少第二位覆核人員。</p></div></div>
-            <div class="audit-item"><time>14:32:08</time><i class="audit-dot" style="background:var(--amber);box-shadow:0 0 0 4px #fff7e7"></i><div><b>重試遭速率限制</b><p>同一工具於 10 秒內連續提出高敏感寫入。</p></div></div>
-            <div class="audit-item"><time>14:32:16</time><i class="audit-dot" style="background:var(--green);box-shadow:0 0 0 4px #eaf8f2"></i><div><b>工作階段已隔離</b><p>Token 撤銷；實際資料外洩與寫入皆為 0。</p></div></div>
-          </div>
-          <div class="card-body" style="border-top:1px solid var(--line)">
-            <div class="drift"><h4 style="margin:0 0 7px">風險結論</h4><p>高敏感寫入遭策略攔截，但 Agent 曾以未驗證文字作為付款異動來源，需修正工具權限與護欄載入。</p></div>
-          </div>
-        </aside>
       </div>
-    </section>
+    </div>
+    <aside class="card">
+      <div class="card-head"><h3>存取稽核紀錄</h3><span class="badge purple">7 個事件</span></div>
+      <div class="audit-feed">
+        <div class="audit-item"><time>14:31:58</time><i class="audit-dot"></i><div><b>建立資料庫連線</b><p>服務帳號 svc-agent-ap07；來源區域 TW-N1。</p></div></div>
+        <div class="audit-item"><time>14:31:59</time><i class="audit-dot"></i><div><b>讀取採購訂單 48 筆</b><p>查詢受部門與本季時間範圍限制。</p></div></div>
+        <div class="audit-item"><time>14:32:00</time><i class="audit-dot"></i><div><b>讀取供應商備註 12 筆</b><p>其中 2 筆含疑似銀行帳號，已套用顯示遮罩。</p></div></div>
+        <div class="audit-item"><time>14:32:01</time><i class="audit-dot" style="background:var(--red)"></i><div><b>要求寫入付款主檔</b><p>目標 5 筆；付款欄位 2 項；未附 approval_id。</p></div></div>
+        <div class="audit-item"><time>14:32:02</time><i class="audit-dot" style="background:var(--red)"></i><div><b>策略引擎拒絕</b><p>FIN-PAY-021：缺少第二位覆核人員。</p></div></div>
+        <div class="audit-item"><time>14:32:08</time><i class="audit-dot" style="background:var(--amber)"></i><div><b>重試遭速率限制</b><p>同一工具於 10 秒內連續提出高敏感寫入。</p></div></div>
+        <div class="audit-item"><time>14:32:16</time><i class="audit-dot" style="background:var(--green)"></i><div><b>工作階段已隔離</b><p>Token 撤銷；實際資料外洩與寫入皆為 0。</p></div></div>
+      </div>
+      <div class="card-body"><div class="drift"><h4 style="margin:0 0 7px">風險結論</h4><p>高敏感寫入遭策略攔截，但 Agent 曾以未驗證文字作為付款異動來源，需修正工具權限與護欄載入。</p></div></div>
+    </aside>
+  </div>
+</section>
 
-    <section class="screen" data-screen="5">
-      <div class="screen-head">
-        <div>
-          <span class="eyebrow">事故指揮官 · Case Reconstruction</span>
-          <h2>事故還原工作區</h2>
-          <p>彙整根因與影響，指派修正責任並追蹤案件結案。</p>
-        </div>
-        <div class="screen-actions">
-          <button class="quiet-btn" type="button"><span class="material-symbols-outlined">picture_as_pdf</span>產出稽核報告</button>
-          <button class="primary-btn" type="button">送交結案覆核</button>
-        </div>
-      </div>
-      <div class="card case-banner">
-        <div>
-          <span class="badge red">SEV-2 · 已控制</span>
-          <h3>AGE-2026-0819｜付款主檔未授權寫入嘗試</h3>
-          <p>採購協作 Agent AP-07 · 發生於 2026/08/21 14:31 · 調查完成度 78%</p>
-          <div class="progress-track"><i></i></div>
-        </div>
-        <div style="text-align:right">
-          <small class="muted">事故指揮官</small>
-          <strong style="display:block;color:var(--ink);margin-top:5px">楊明哲</strong>
-          <span class="badge amber" style="margin-top:8px">SLA 剩餘 01:42</span>
+<section class="screen" data-screen="5">
+  <div class="screen-head">
+    <div><span class="eyebrow">事故指揮官 · Case Reconstruction</span><h2>事故還原工作區</h2><p>彙整根因與影響，指派修正責任並追蹤案件結案。</p></div>
+    <div class="screen-actions"><button class="btn" type="button">產出稽核報告</button><button class="btn primary" type="button">送交結案覆核</button></div>
+  </div>
+  <div class="card case-banner">
+    <div><span class="badge red">SEV-2 · 已控制</span><h3>AGE-2026-0819｜付款主檔未授權寫入嘗試</h3><p>採購協作 Agent AP-07 · 發生於 2026/08/21 14:31 · 調查完成度 78%</p><div class="progress-track"><i></i></div></div>
+    <div style="text-align:right"><small class="muted">事故指揮官</small><strong style="display:block;margin-top:5px">楊明哲</strong><span class="badge amber" style="margin-top:8px">SLA 剩餘 01:42</span></div>
+  </div>
+  <div class="report-grid" style="margin-top:14px">
+    <div>
+      <div class="card root-cause">
+        <div class="card-head"><div><h3>根因鏈與影響範圍</h3><small>已由四類證據交叉驗證</small></div><span class="badge green">資料未遭修改</span></div>
+        <div class="root-path">
+          <div class="cause-step"><span>01 · 指令</span><b>任務意圖偏移</b><p>由唯讀分析改為付款資料寫入。</p></div>
+          <div class="cause-step"><span>02 · 決策</span><b>護欄未載入</b><p>雙人覆核規則未進入決策摘要。</p></div>
+          <div class="cause-step"><span>03 · 工具</span><b>不當自動重試</b><p>403 後仍重試兩次高敏感動作。</p></div>
+          <div class="cause-step"><span>04 · 控制</span><b>策略成功攔截</b><p>實際寫入、外洩與金額損失皆為零。</p></div>
         </div>
       </div>
-      <div class="report-grid" style="margin-top:12px">
-        <div>
-          <div class="card root-cause">
-            <div class="card-head" style="padding:0 0 15px">
-              <div><h3>根因鏈與影響範圍</h3><small>已由四類證據交叉驗證</small></div>
-              <span class="badge green">資料未遭修改</span>
-            </div>
-            <div class="root-path">
-              <div class="cause-step"><span>01 · 指令</span><b>任務意圖偏移</b><p>由唯讀分析改為付款資料寫入。</p></div>
-              <div class="cause-step"><span>02 · 決策</span><b>護欄未載入</b><p>雙人覆核規則未進入決策摘要。</p></div>
-              <div class="cause-step"><span>03 · 工具</span><b>不當自動重試</b><p>403 後仍重試兩次高敏感動作。</p></div>
-              <div class="cause-step"><span>04 · 控制</span><b>策略成功攔截</b><p>實際寫入、外洩與金額損失皆為零。</p></div>
-            </div>
-          </div>
-          <div class="card" style="margin-top:12px;overflow:hidden">
-            <div class="card-head"><div><h3>Agent 行為時間線資料列表</h3><small>修正責任與案件階段</small></div><span class="badge purple">6 個節點</span></div>
-            <div class="record-scroll">
-              <table class="record-table">
-                <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
-                <tbody>
-                  <tr><td>AGE-001</td><td>定位異常任務</td><td><span class="owner-cell"><i class="owner-mini">值</i>事故值班人員</span></td><td>D+1</td><td><span class="badge purple">處理中</span></td></tr>
-                  <tr><td>AGE-002</td><td>還原對話脈絡</td><td><span class="owner-cell"><i class="owner-mini">調</i>事故調查員</span></td><td>D+2</td><td><span class="badge amber">待確認</span></td></tr>
-                  <tr><td>AGE-003</td><td>檢查決策節點</td><td><span class="owner-cell"><i class="owner-mini">治</i>AI 治理人員</span></td><td>D+3</td><td><span class="badge amber">待確認</span></td></tr>
-                  <tr><td>AGE-004</td><td>追查工具呼叫</td><td><span class="owner-cell"><i class="owner-mini">工</i>平台工程師</span></td><td>D+4</td><td><span class="badge green">已完成</span></td></tr>
-                  <tr><td>AGE-005</td><td>核對資料存取</td><td><span class="owner-cell"><i class="owner-mini">資</i>資安分析師</span></td><td>D+5</td><td><span class="badge green">已完成</span></td></tr>
-                  <tr><td>AGE-006</td><td>完成事故還原</td><td><span class="owner-cell"><i class="owner-mini">指</i>事故指揮官</span></td><td>D+6</td><td><span class="badge green">已完成</span></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+      <div class="card" style="margin-top:14px;overflow:hidden">
+        <div class="card-head"><div><h3>Agent 行為時間線資料列表</h3><small>修正責任與案件階段</small></div><span class="badge purple">6 個節點</span></div>
+        <div class="record-scroll">
+          <table class="record-table">
+            <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
+            <tbody>
+              <tr><td>AGE-001</td><td>定位異常任務</td><td><span class="owner-cell"><i class="owner-mini">值</i>事故值班人員</span></td><td>D+1</td><td><span class="badge purple">處理中</span></td></tr>
+              <tr><td>AGE-002</td><td>還原對話脈絡</td><td><span class="owner-cell"><i class="owner-mini">調</i>事故調查員</span></td><td>D+2</td><td><span class="badge amber">待確認</span></td></tr>
+              <tr><td>AGE-003</td><td>檢查決策節點</td><td><span class="owner-cell"><i class="owner-mini">治</i>AI 治理人員</span></td><td>D+3</td><td><span class="badge amber">待確認</span></td></tr>
+              <tr><td>AGE-004</td><td>追查工具呼叫</td><td><span class="owner-cell"><i class="owner-mini">工</i>平台工程師</span></td><td>D+4</td><td><span class="badge green">已完成</span></td></tr>
+              <tr><td>AGE-005</td><td>核對資料存取</td><td><span class="owner-cell"><i class="owner-mini">資</i>資安分析師</span></td><td>D+5</td><td><span class="badge green">已完成</span></td></tr>
+              <tr><td>AGE-006</td><td>完成事故還原</td><td><span class="owner-cell"><i class="owner-mini">指</i>事故指揮官</span></td><td>D+6</td><td><span class="badge green">已完成</span></td></tr>
+            </tbody>
+          </table>
         </div>
-        <aside>
-          <div class="card">
-            <div class="card-head"><div><h3>改善成效預估</h3><small>導入完整行為時間線後</small></div></div>
-            <div class="benefit-grid">
-              <div class="benefit-card"><small>事件平均處理</small><b>120 → 30 分</b><span>縮短 75%</span></div>
-              <div class="benefit-card"><small>系統可用率</small><b>97 → 99%</b><span>提升 2 個百分點</span></div>
-              <div class="benefit-card"><small>SLA 達成率</small><b>85 → 98%</b><span>提升 13 個百分點</span></div>
-              <div class="benefit-card"><small>資產盤點工時</small><b>20 → 4 小時</b><span>每月節省 16 小時</span></div>
-            </div>
-            <div class="card-body" style="padding-top:0">
-              <div class="chart-box"><canvas id="benefitChart" aria-label="系統可用率趨勢圖"></canvas></div>
-            </div>
-          </div>
-          <div class="card" style="margin-top:12px">
-            <div class="card-head"><h3>結案前必要行動</h3><small>2 / 4 完成</small></div>
-            <div class="card-body signal-list">
-              <div class="signal"><span class="signal-icon material-symbols-outlined" style="color:var(--green)">check_circle</span><div><b>隔離 AP-07 工作階段</b><small>平台工程師 · 已完成</small></div><span class="badge green">完成</span></div>
-              <div class="signal"><span class="signal-icon material-symbols-outlined" style="color:var(--green)">check_circle</span><div><b>確認敏感資料未寫入</b><small>資安分析師 · 已完成</small></div><span class="badge green">完成</span></div>
-              <div class="signal"><span class="signal-icon material-symbols-outlined">pending_actions</span><div><b>補入雙人覆核護欄</b><small>AI 治理人員 · D+3</small></div><span class="badge amber">進行中</span></div>
-              <div class="signal"><span class="signal-icon material-symbols-outlined">pending_actions</span><div><b>停用 403 自動重試</b><small>平台工程師 · D+4</small></div><span class="badge purple">已指派</span></div>
-            </div>
-          </div>
-        </aside>
       </div>
-    </section>
-  </main>
-  <div class="footer-note">JVision Agent Trace · 可追溯的 Agent 行為事件鏈 · Demo 資料僅供展示</div>
+    </div>
+    <aside>
+      <div class="card">
+        <div class="card-head"><div><h3>改善成效預估</h3><small>導入完整行為時間線後</small></div></div>
+        <div class="benefit-grid">
+          <div class="benefit-card"><small>事件平均處理</small><b>120 → 30 分</b><span>縮短 75%</span></div>
+          <div class="benefit-card"><small>系統可用率</small><b>97 → 99%</b><span>提升 2 個百分點</span></div>
+          <div class="benefit-card"><small>SLA 達成率</small><b>85 → 98%</b><span>提升 13 個百分點</span></div>
+          <div class="benefit-card"><small>資產盤點工時</small><b>20 → 4 小時</b><span>每月節省 16 小時</span></div>
+        </div>
+        <div class="card-body"><div class="chart-box"><canvas id="benefitChart" aria-label="系統可用率趨勢圖"></canvas></div></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="card-head"><h3>結案前必要行動</h3><small>2 / 4 完成</small></div>
+        <div class="card-body signal-list">
+          <div class="signal"><span class="signal-icon"><svg><use href="#i-shield"/></svg></span><div><b>隔離 AP-07 工作階段</b><small>平台工程師 · 已完成</small></div><span class="badge green">完成</span></div>
+          <div class="signal"><span class="signal-icon"><svg><use href="#i-shield"/></svg></span><div><b>確認敏感資料未寫入</b><small>資安分析師 · 已完成</small></div><span class="badge green">完成</span></div>
+          <div class="signal"><span class="signal-icon"><svg><use href="#i-tool"/></svg></span><div><b>補入雙人覆核護欄</b><small>AI 治理人員 · D+3</small></div><span class="badge amber">進行中</span></div>
+          <div class="signal"><span class="signal-icon"><svg><use href="#i-tool"/></svg></span><div><b>停用 403 自動重試</b><small>平台工程師 · D+4</small></div><span class="badge purple">已指派</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+</main>
+<div class="footer-note">JVision Agent Trace · 可追溯的 Agent 行為事件鏈 · Demo 資料僅供展示</div>
 </div>
 
 <script>
 (() => {
   "use strict";
+  const screens=[...document.querySelectorAll("[data-screen]")];
+  const buttons=[...document.querySelectorAll("[data-i]")];
+  const charts={};
+  const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let activeIndex=0;
 
-  const screens = Array.from(document.querySelectorAll("[data-screen]"));
-  const stageButtons = Array.from(document.querySelectorAll("[data-i]"));
-  const chartInstances = {};
-  let activeIndex = -1;
+  function ready(canvas){return canvas&&canvas.parentElement&&canvas.parentElement.clientWidth>0}
 
-  function chartReady(canvas) {
-    return canvas && canvas.parentElement && canvas.parentElement.clientWidth > 0;
-  }
-
-  function buildRiskChart() {
-    const canvas = document.getElementById("riskChart");
-    if (chartInstances.risk || !chartReady(canvas) || typeof Chart === "undefined") return;
-    chartInstances.risk = new Chart(canvas, {
-      type: "doughnut",
-      data: {
-        labels: ["對話意圖偏移", "工具呼叫失敗", "敏感資料越權"],
-        datasets: [{
-          data: [8, 6, 3],
-          backgroundColor: ["#9333ea", "#d88a10", "#dc3f55"],
-          borderColor: "#ffffff",
-          borderWidth: 5,
-          hoverOffset: 4
-        }]
+  function riskChart(){
+    const canvas=document.getElementById("riskChart");
+    if(charts.risk||!ready(canvas)||typeof Chart==="undefined")return;
+    charts.risk=new Chart(canvas,{
+      type:"doughnut",
+      data:{
+        labels:["對話意圖偏移","工具呼叫失敗","敏感資料越權"],
+        datasets:[{data:[8,6,3],backgroundColor:["#7C3AED","#A35400","#DC2626"],borderColor:"#0F172A",borderWidth:3,hoverOffset:4}]
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: "68%",
-        animation: { duration: 500 },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: "#171225",
-            padding: 10,
-            displayColors: true
-          }
-        }
+      options:{
+        responsive:true,maintainAspectRatio:false,cutout:"62%",
+        animation:reduced?false:{duration:400},
+        plugins:{legend:{display:false},tooltip:{backgroundColor:"#0F172A",padding:10}}
       }
     });
   }
 
-  function buildBenefitChart() {
-    const canvas = document.getElementById("benefitChart");
-    if (chartInstances.benefit || !chartReady(canvas) || typeof Chart === "undefined") return;
-    chartInstances.benefit = new Chart(canvas, {
-      type: "line",
-      data: {
-        labels: ["W1", "W2", "W3", "W4", "W5", "W6"],
-        datasets: [{
-          label: "系統可用率 %",
-          data: [97, 97.4, 97.8, 98.2, 98.6, 99],
-          borderColor: "#9333ea",
-          backgroundColor: "rgba(147,51,234,.12)",
-          fill: true,
-          tension: .38,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          pointBackgroundColor: "#ffffff",
-          pointBorderColor: "#9333ea",
-          pointBorderWidth: 2
+  function benefitChart(){
+    const canvas=document.getElementById("benefitChart");
+    if(charts.benefit||!ready(canvas)||typeof Chart==="undefined")return;
+    charts.benefit=new Chart(canvas,{
+      type:"line",
+      data:{
+        labels:["W1","W2","W3","W4","W5","W6"],
+        datasets:[{
+          label:"系統可用率 %",
+          data:[97,97.4,97.8,98.2,98.6,99],
+          borderColor:"#7C3AED",backgroundColor:"rgba(124,58,237,.16)",
+          fill:true,tension:0,pointRadius:5,pointBackgroundColor:"#0891B2",
+          pointBorderColor:"#0F172A",pointBorderWidth:2
         }]
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: { duration: 500 },
-        interaction: { intersect: false, mode: "index" },
-        scales: {
-          y: {
-            min: 96,
-            max: 100,
-            ticks: { callback: value => value + "%", color: "#786f88" },
-            grid: { color: "#eee8f2" },
-            border: { display: false }
-          },
-          x: {
-            ticks: { color: "#786f88" },
-            grid: { display: false },
-            border: { display: false }
-          }
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        animation:reduced?false:{duration:400},
+        interaction:{intersect:false,mode:"index"},
+        scales:{
+          y:{min:96,max:100,ticks:{callback:v=>v+"%",color:"#475569"},grid:{color:"#DDD6FE"},border:{color:"#0F172A"}},
+          x:{ticks:{color:"#475569"},grid:{display:false},border:{color:"#0F172A"}}
         },
-        plugins: {
-          legend: {
-            display: true,
-            align: "start",
-            labels: { usePointStyle: true, boxWidth: 8, color: "#302842" }
-          }
-        }
+        plugins:{legend:{display:true,align:"start",labels:{usePointStyle:true,boxWidth:8,color:"#1E1B4B"}}}
       }
     });
   }
 
-  function initializeVisibleChart(index) {
-    window.requestAnimationFrame(() => {
-      if (index === 0) buildRiskChart();
-      if (index === 5) buildBenefitChart();
+  function build(index){
+    requestAnimationFrame(()=>{
+      if(index===0)riskChart();
+      if(index===5)benefitChart();
     });
   }
 
-  function show(index, updateHash = false) {
-    const boundedIndex = Math.max(0, Math.min(5, Number(index) || 0));
-    activeIndex = boundedIndex;
-    screens.forEach((screen, screenIndex) => {
-      const selected = screenIndex === boundedIndex;
-      screen.classList.toggle("active", selected);
-      screen.setAttribute("aria-hidden", String(!selected));
+  function show(index,updateHash=false){
+    const next=Math.max(0,Math.min(5,Number(index)||0));
+    activeIndex=next;
+    screens.forEach((screen,i)=>{
+      const selected=i===next;
+      screen.classList.toggle("active",selected);
+      screen.setAttribute("aria-hidden",String(!selected));
     });
-    stageButtons.forEach((button, buttonIndex) => {
-      const selected = buttonIndex === boundedIndex;
-      button.classList.toggle("active", selected);
-      button.setAttribute("aria-current", selected ? "step" : "false");
+    buttons.forEach((button,i)=>{
+      const selected=i===next;
+      button.classList.toggle("active",selected);
+      button.setAttribute("aria-current",selected?"step":"false");
     });
-    if (updateHash) {
-      const nextHash = "#go=" + boundedIndex;
-      if (window.location.hash !== nextHash) window.location.hash = nextHash;
+    if(updateHash){
+      const hash="#go="+next;
+      if(location.hash!==hash)location.hash=hash;
     }
-    initializeVisibleChart(boundedIndex);
+    build(next);
   }
 
-  function indexFromHash() {
-    const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
-    return match ? Math.max(0, Math.min(5, Number(match[1]))) : 0;
+  function fromHash(){
+    const match=location.hash.match(/(?:go=|v)([0-9]+)/);
+    return match?Math.max(0,Math.min(5,Number(match[1]))):0;
   }
 
-  stageButtons.forEach(button => {
-    button.addEventListener("click", () => show(Number(button.dataset.i), true));
+  buttons.forEach(button=>button.addEventListener("click",()=>show(button.dataset.i,true)));
+  document.querySelectorAll("[data-jump]").forEach(control=>control.addEventListener("click",()=>show(control.dataset.jump,true)));
+  document.querySelectorAll(".incident-row[data-jump]").forEach(row=>{
+    row.addEventListener("keydown",event=>{
+      if(event.key==="Enter"||event.key===" "){event.preventDefault();show(row.dataset.jump,true)}
+    });
   });
-
-  document.querySelectorAll("[data-jump]").forEach(control => {
-    control.addEventListener("click", () => show(Number(control.dataset.jump), true));
+  addEventListener("hashchange",()=>show(fromHash(),false));
+  addEventListener("resize",()=>{
+    const chart=activeIndex===0?charts.risk:activeIndex===5?charts.benefit:null;
+    if(chart)chart.resize();
   });
-
-  window.addEventListener("hashchange", () => show(indexFromHash(), false));
-
-  window.addEventListener("resize", () => {
-    const currentChart = activeIndex === 0 ? chartInstances.risk : activeIndex === 5 ? chartInstances.benefit : null;
-    if (currentChart) currentChart.resize();
-  });
-
-  show(0);
-  if (window.location.hash) show(indexFromHash(), false);
+  show(location.hash?fromHash():0,false);
 })();
 </script>
-<script src="/shared/jv-agent-bridge.js?v=2" defer></script>
 </body>
 </html>

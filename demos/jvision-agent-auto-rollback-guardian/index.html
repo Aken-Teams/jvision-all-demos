@@ -3,799 +3,395 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Agent 自動回滾守門員 · it-ops｜Jvision 系統 Demo</title>
+<title>AI異常版本自動還原器 · Jvision 系統 Demo</title>
 <link rel="icon" href="../../favicon.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0">
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
 <style>
 :root{
-  --blue:#1e40af;
-  --ink:#111827;
-  --body:#334155;
-  --muted:#64748b;
-  --line:#dbe3ef;
-  --bg:#f4f7fb;
-  --green:#15803d;
-  --amber:#b45309;
-  --red:#dc2626;
-  --white:#fff;
-  --blue-soft:#eef3ff;
-  --green-soft:#ecfdf3;
+  --color-primary:#7c3aed;
+  --color-on-primary:#fff;
+  --color-secondary:#a78bfa;
+  --color-on-secondary:#0f172a;
+  --color-accent:#0891b2;
+  --color-on-accent:#000;
+  --color-background:#faf5ff;
+  --color-foreground:#1e1b4b;
+  --color-card:#fff;
+  --color-card-foreground:#1e1b4b;
+  --color-muted:#eceef9;
+  --color-muted-foreground:#475569;
+  --color-border:#ddd6fe;
+  --color-destructive:#dc2626;
+  --color-on-destructive:#fff;
+  --color-ring:#7c3aed;
+  --blue:var(--color-primary);
+  --ink:var(--color-foreground);
+  --muted:var(--color-muted-foreground);
+  --line:var(--color-border);
+  --body:#312e5a;
+  --green:#047857;
+  --amber:#a34f00;
+  --red:#b91c1c;
+  --green-soft:#ecfdf5;
   --amber-soft:#fff7ed;
-  --red-soft:#fff1f2;
-  --shadow:0 12px 32px rgba(15,23,42,.08);
+  --red-soft:#fef2f2;
+  --purple-soft:#f3e8ff;
+  --cyan-soft:#ecfeff;
+  --shadow:0 20px 50px rgba(76,29,149,.09);
+  --shadow-sm:0 8px 24px rgba(76,29,149,.07);
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{
   margin:0;
-  background:var(--bg);
+  min-width:320px;
+  background:
+    radial-gradient(circle at 8% 0,rgba(167,139,250,.19),transparent 28rem),
+    radial-gradient(circle at 94% 12%,rgba(8,145,178,.11),transparent 25rem),
+    var(--color-background);
   color:var(--body);
-  font-family:Inter,"Noto Sans TC",system-ui,sans-serif;
+  font-family:"DM Sans",system-ui,sans-serif;
   -webkit-font-smoothing:antialiased;
 }
-button,input,select,textarea{font:inherit}
+button,input,select{font:inherit}
 button{cursor:pointer}
-button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
-  outline:3px solid rgba(30,64,175,.25);
-  outline-offset:2px;
+button,input,select{min-height:44px}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{
+  outline:3px solid var(--color-ring);
+  outline-offset:3px;
 }
 .material-symbols-outlined{font-size:21px;line-height:1}
-.shell{min-height:100vh;display:grid;grid-template-columns:78px minmax(0,1fr)}
+.mono,time,.metric-value,.health-score,.incident-id,.incident-clock strong,
+.trace,.version h3,.mini-metric strong,.outcome strong,.action-table td:first-child{
+  font-variant-numeric:tabular-nums;
+}
+.shell{min-height:100vh;display:grid;grid-template-columns:248px minmax(0,1fr)}
 .rail{
-  position:fixed;inset:0 auto 0 0;width:78px;
-  background:#0f1d46;color:#fff;z-index:30;
-  display:flex;flex-direction:column;align-items:center;
-  border-right:1px solid rgba(255,255,255,.1);
+  position:fixed;inset:0 auto 0 0;width:248px;padding:22px 16px;
+  background:rgba(255,255,255,.86);backdrop-filter:blur(22px);
+  border-right:1px solid rgba(124,58,237,.16);z-index:30;
+  display:flex;flex-direction:column;
 }
-.brand{
-  width:44px;height:44px;margin:18px 0 24px;border-radius:14px;
-  display:grid;place-items:center;background:#fff;color:var(--blue);
-  font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.18);
+.brand{display:flex;align-items:center;gap:12px;padding:0 8px 24px}
+.brand-mark{
+  width:44px;height:44px;border-radius:15px;display:grid;place-items:center;
+  color:#fff;background:linear-gradient(135deg,var(--color-primary),var(--color-accent));
+  box-shadow:0 10px 24px rgba(124,58,237,.25);font-family:"Space Grotesk";font-weight:700
 }
-.rail-nav{display:flex;flex-direction:column;gap:9px;width:100%;padding:0 11px}
+.brand-copy strong{display:block;color:var(--ink);font-family:"Space Grotesk";font-size:14px}
+.brand-copy small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.rail-label{padding:0 10px 9px;color:#6d648a;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.rail-nav{display:grid;gap:7px}
 .nav-btn{
-  border:0;background:transparent;color:#9eacd3;min-height:52px;
-  border-radius:14px;display:grid;place-items:center;position:relative;
-  transition:.18s ease;
+  border:1px solid transparent;background:transparent;color:#5d5777;border-radius:13px;
+  padding:0 12px;display:flex;align-items:center;gap:11px;text-align:left;
+  transition:background .2s,border-color .2s,color .2s,transform .2s;
 }
-.nav-btn:hover{background:rgba(255,255,255,.08);color:#fff}
-.nav-btn.active{background:#fff;color:var(--blue);box-shadow:0 8px 20px rgba(0,0,0,.17)}
-.nav-btn::after{
-  content:attr(aria-label);position:absolute;left:58px;white-space:nowrap;
-  background:var(--ink);color:#fff;padding:7px 10px;border-radius:7px;
-  font-size:12px;opacity:0;pointer-events:none;transform:translateX(-4px);
-  transition:.15s;z-index:50;
+.nav-btn span:last-child{font-size:12px;font-weight:700}
+.nav-btn:hover{background:var(--purple-soft);color:var(--blue);transform:translateX(2px)}
+.nav-btn.active{
+  background:linear-gradient(100deg,var(--purple-soft),var(--cyan-soft));
+  color:var(--blue);border-color:#c4b5fd;box-shadow:var(--shadow-sm)
 }
-.nav-btn:hover::after{opacity:1;transform:none}
-.rail-foot{margin-top:auto;padding:0 0 18px}
-.avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#29478e;font-weight:700;font-size:12px}
+.rail-foot{
+  margin-top:auto;border:1px solid var(--line);background:#fff;border-radius:15px;
+  padding:11px;display:flex;align-items:center;gap:9px
+}
+.avatar{width:36px;height:36px;border-radius:11px;background:var(--purple-soft);color:var(--blue);display:grid;place-items:center;font-weight:700;font-size:11px}
+.rail-foot strong{display:block;color:var(--ink);font-size:12px}.rail-foot small{color:var(--muted);font-size:10px}
 .workspace{grid-column:2;min-width:0}
 .appbar{
-  min-height:72px;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);
-  border-bottom:1px solid var(--line);display:flex;align-items:center;
-  justify-content:space-between;padding:12px 28px;position:sticky;top:0;z-index:20;
+  min-height:76px;position:sticky;top:0;z-index:20;padding:13px 30px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px;
+  background:rgba(250,245,255,.82);backdrop-filter:blur(18px);
+  border-bottom:1px solid rgba(124,58,237,.12)
 }
-.app-id{display:flex;align-items:center;gap:12px;min-width:0}
-.app-id h1{font-size:17px;color:var(--ink);margin:0;white-space:nowrap}
-.app-id p{font-size:12px;color:var(--muted);margin:3px 0 0}
-.live{display:flex;align-items:center;gap:7px;color:var(--green);font-size:12px;font-weight:700}
-.live-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 5px rgba(34,197,94,.12);animation:pulse 2s infinite}
-@keyframes pulse{50%{box-shadow:0 0 0 9px rgba(34,197,94,0)}}
-.app-actions{display:flex;gap:8px;align-items:center}
+.app-id{display:flex;align-items:center;gap:11px;min-width:0}
+.app-icon{width:38px;height:38px;border-radius:12px;background:#fff;border:1px solid var(--line);color:var(--blue);display:grid;place-items:center}
+.app-id h1{margin:0;color:var(--ink);font:600 17px "Space Grotesk"}
+.app-id p{margin:3px 0 0;color:var(--muted);font-size:11px}
+.app-actions,.live{display:flex;align-items:center;gap:8px}
+.live{font-size:11px;color:var(--green);font-weight:700}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);position:relative}
+.live-dot::after{content:"";position:absolute;inset:-5px;border:1px solid var(--green);border-radius:50%;animation:pulse 2s ease-out infinite}
+.content{max-width:1560px;margin:auto;padding:28px 30px 50px}
+.view{display:none}.view.active{display:block}
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:21px}
+.eyebrow{color:var(--blue);font:700 10px "Space Grotesk";letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px}
+.page-head h2{margin:0;color:var(--ink);font:700 clamp(25px,3vw,34px)/1.12 "Space Grotesk";letter-spacing:-.035em}
+.page-head p{max-width:720px;margin:9px 0 0;color:var(--muted);font-size:13px;line-height:1.7}
 .btn{
-  border:1px solid var(--line);background:#fff;color:var(--ink);
-  border-radius:10px;min-height:40px;padding:0 14px;font-weight:700;
-  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:12px;
+  padding:0 15px;font-weight:700;font-size:12px;display:inline-flex;align-items:center;
+  justify-content:center;gap:7px;box-shadow:0 2px 7px rgba(76,29,149,.04);
+  transition:transform .2s,box-shadow .2s,border-color .2s,background .2s
 }
-.btn:hover{border-color:#9fb0ca;background:#f8fafc}
-.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
-.btn.danger{background:var(--red);border-color:var(--red);color:#fff}
-.icon-btn{width:40px;padding:0}
-.content{padding:24px 28px 42px;max-width:1600px;margin:auto}
-.view{display:none}
-.view.active{display:block;animation:rise .25s ease both}
-@keyframes rise{from{opacity:0;transform:translateY(5px)}}
-.page-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:20px}
-.eyebrow{font-size:11px;letter-spacing:.13em;text-transform:uppercase;font-weight:800;color:var(--blue);margin-bottom:7px}
-.page-head h2{font-size:27px;line-height:1.2;margin:0;color:var(--ink);letter-spacing:-.02em}
-.page-head p{margin:7px 0 0;color:var(--muted);font-size:14px;max-width:720px;line-height:1.7}
-.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700}
-.pill.green{color:var(--green);background:var(--green-soft)}
-.pill.amber{color:var(--amber);background:var(--amber-soft)}
-.pill.red{color:var(--red);background:var(--red-soft)}
-.pill.blue{color:var(--blue);background:var(--blue-soft)}
-.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 3px 12px rgba(15,23,42,.035)}
-.card-head{padding:17px 19px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
-.card-head h3{font-size:15px;color:var(--ink);margin:0}
-.card-head small{color:var(--muted)}
+.btn:hover{border-color:#a78bfa;transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+.btn.primary{color:#fff;background:linear-gradient(135deg,var(--blue),#6d28d9);border-color:var(--blue)}
+.btn.accent{color:#fff;background:var(--color-accent);border-color:var(--color-accent)}
+.btn.danger{color:#fff;background:var(--red);border-color:var(--red)}
+.icon-btn{width:44px;padding:0}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;
+  font-size:11px;font-weight:700;white-space:nowrap;border:1px solid transparent
+}
+.pill.green{color:#065f46;background:var(--green-soft);border-color:#a7f3d0}
+.pill.amber{color:#8a4100;background:var(--amber-soft);border-color:#fed7aa}
+.pill.red{color:#991b1b;background:var(--red-soft);border-color:#fecaca}
+.pill.blue{color:#5b21b6;background:var(--purple-soft);border-color:#d8b4fe}
+.card{
+  background:rgba(255,255,255,.93);border:1px solid rgba(124,58,237,.15);
+  border-radius:20px;box-shadow:var(--shadow-sm);overflow:hidden
+}
+.card-head{min-height:60px;padding:16px 19px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.card-head h3{margin:0;color:var(--ink);font:600 14px "Space Grotesk"}.card-head small{color:var(--muted);font-size:10px}
 .card-body{padding:19px}
 .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-.metric{padding:17px}
-.metric-row{display:flex;justify-content:space-between;gap:10px;align-items:center}
-.metric-icon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--blue-soft);color:var(--blue)}
-.metric-label{font-size:12px;color:var(--muted);font-weight:600}
-.metric-value{margin-top:10px;font-size:25px;color:var(--ink);font-weight:800;letter-spacing:-.04em}
-.metric-sub{font-size:11px;color:var(--muted);margin-top:5px}
-.up{color:var(--green);font-weight:700}
-.down{color:var(--red);font-weight:700}
-.progress{height:7px;background:#e8edf5;border-radius:10px;overflow:hidden}
-.progress>span{height:100%;display:block;background:var(--blue);border-radius:inherit}
-.split-main{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.72fr);gap:16px;margin-top:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.metric{padding:17px;position:relative}
+.metric::before{content:"";position:absolute;left:0;top:18px;bottom:18px;width:3px;border-radius:4px;background:linear-gradient(var(--blue),var(--color-accent))}
+.metric-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.metric-label{font-size:11px;color:var(--muted);font-weight:700}
+.metric-icon{width:37px;height:37px;border-radius:12px;background:var(--purple-soft);color:var(--blue);display:grid;place-items:center}
+.metric-value{margin-top:11px;color:var(--ink);font:700 25px "Space Grotesk";text-align:right}
+.metric-sub{margin-top:4px;color:var(--muted);font-size:10px;text-align:right}
+.split-main,.diag-layout,.impact-layout,.probe-layout,.closure-grid{display:grid;gap:16px;margin-top:16px}
+.split-main{grid-template-columns:minmax(0,1.55fr) minmax(290px,.7fr)}
+.diag-layout{grid-template-columns:minmax(0,1.4fr) minmax(290px,.75fr)}
+.impact-layout{grid-template-columns:minmax(0,1.35fr) minmax(310px,.65fr)}
+.probe-layout{grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr)}
+.closure-grid{grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr)}
 .chart-box{height:285px}
-.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
-.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
-.agent-list{display:grid;gap:10px}
-.agent-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:11px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px}
-.agent-mark{width:35px;height:35px;border-radius:10px;display:grid;place-items:center;color:var(--blue);background:var(--blue-soft)}
-.agent-row strong{font-size:13px;color:var(--ink);display:block}
-.agent-row small{font-size:11px;color:var(--muted)}
-.health-score{font-weight:800;font-size:13px}
-.alert-strip{margin-top:16px;border:1px solid #fecaca;background:#fff7f7;border-radius:15px;padding:16px;display:flex;gap:14px;align-items:center}
-.alert-strip .alarm{width:42px;height:42px;flex:0 0 auto;border-radius:12px;background:var(--red-soft);color:var(--red);display:grid;place-items:center}
-.alert-strip strong{display:block;color:var(--ink);font-size:14px}
-.alert-strip p{margin:3px 0 0;font-size:12px;color:var(--muted)}
-.alert-strip .btn{margin-left:auto}
-
-/* View 1 */
-.rule-layout{display:grid;grid-template-columns:minmax(270px,.65fr) minmax(0,1.35fr);gap:16px}
+.legend{display:flex;gap:14px;color:var(--muted);font-size:10px}.legend i{display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:3px}
+.agent-list,.cause-list{display:grid;gap:9px}
+.agent-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px;border:1px solid var(--line);border-radius:13px;background:#fff}
+.agent-mark,.activity-icon{width:34px;height:34px;border-radius:11px;background:var(--purple-soft);color:var(--blue);display:grid;place-items:center}
+.agent-row strong,.probe strong,.activity strong{display:block;color:var(--ink);font-size:12px}
+.agent-row small,.probe small{color:var(--muted);font-size:10px}
+.health-score{font-weight:700}.up{color:var(--green);font-weight:700}.down{color:var(--red);font-weight:700}
+.alert-strip{margin-top:16px;padding:15px;border:1px solid #fecaca;border-radius:18px;background:#fffafb;display:flex;align-items:center;gap:13px}
+.alarm{width:42px;height:42px;flex:0 0 auto;border-radius:13px;background:var(--red-soft);color:var(--red);display:grid;place-items:center}
+.alert-strip strong{display:block;color:var(--ink);font-size:13px}.alert-strip p{margin:4px 0 0;color:var(--muted);font-size:11px}.alert-strip .btn{margin-left:auto}
+.rule-layout{display:grid;grid-template-columns:minmax(250px,.6fr) minmax(0,1.4fr);gap:16px}
 .process-list{padding:10px}
-.process-item{width:100%;text-align:left;border:1px solid transparent;background:transparent;border-radius:12px;padding:13px;display:flex;gap:11px;align-items:center;color:var(--body);margin-bottom:4px}
-.process-item.active{background:var(--blue-soft);border-color:#c7d5ff;color:var(--blue)}
-.process-item strong{font-size:13px;display:block}
-.process-item small{font-size:11px;color:var(--muted)}
-.form-section{padding:20px;border-bottom:1px solid var(--line)}
-.form-section:last-child{border-bottom:0}
-.section-title{display:flex;gap:10px;align-items:center;margin-bottom:16px}
-.step-no{width:27px;height:27px;border-radius:9px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:800}
-.section-title h3{margin:0;font-size:15px;color:var(--ink)}
-.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-.field label{display:block;font-size:12px;color:var(--body);font-weight:700;margin-bottom:7px}
-.input-wrap{height:42px;border:1px solid var(--line);border-radius:10px;background:#fff;display:flex;align-items:center;padding:0 12px;gap:7px}
-.input-wrap input,.input-wrap select{border:0;outline:0;width:100%;background:transparent;color:var(--ink)}
-.thresholds{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
-.threshold{border:1px solid var(--line);border-radius:12px;padding:14px}
-.threshold-head{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:700}
-.threshold strong{font-size:21px;color:var(--ink)}
-.range-track{margin:15px 0 7px;height:5px;background:#e6ebf3;border-radius:9px;position:relative}
-.range-track::after{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--fill);background:var(--blue);border-radius:inherit}
-.range-track i{position:absolute;left:var(--fill);top:50%;width:15px;height:15px;border:3px solid var(--blue);background:#fff;border-radius:50%;transform:translate(-50%,-50%);z-index:2}
-.mode-group{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.mode{border:1px solid var(--line);border-radius:12px;padding:13px}
-.mode.selected{border:2px solid var(--blue);background:var(--blue-soft)}
-.mode strong{font-size:13px;color:var(--ink);display:block;margin:8px 0 4px}
-.mode small{color:var(--muted);line-height:1.5}
-.sticky-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#fff;padding:14px 20px;border-top:1px solid var(--line);border-radius:0 0 16px 16px}
-
-/* View 2 */
-.incident-hero{background:linear-gradient(120deg,#111d3f,#1e3a8a);color:#fff;border-radius:17px;padding:22px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px}
-.incident-hero h3{margin:4px 0 7px;font-size:21px}
-.incident-hero p{margin:0;color:#cbd5e1;font-size:13px;line-height:1.65}
-.incident-id{font-size:11px;color:#93c5fd;font-weight:800;letter-spacing:.1em}
-.incident-clock{text-align:right}
-.incident-clock strong{display:block;font-size:25px}
-.incident-clock small{color:#bfdbfe}
-.diag-layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(290px,.75fr);gap:16px;margin-top:16px}
-.timeline{padding:8px 20px 20px}
-.event{display:grid;grid-template-columns:64px 22px minmax(0,1fr);gap:10px;min-height:76px}
-.event-time{font-size:11px;color:var(--muted);padding-top:4px}
-.event-axis{position:relative}
-.event-axis::after{content:"";position:absolute;top:17px;bottom:-4px;left:10px;width:1px;background:var(--line)}
-.event:last-child .event-axis::after{display:none}
-.event-dot{width:21px;height:21px;border:5px solid #dbe7ff;background:var(--blue);border-radius:50%;position:relative;z-index:2}
-.event.red .event-dot{background:var(--red);border-color:#fee2e2}
-.event.amber .event-dot{background:#d97706;border-color:#ffedd5}
-.event-copy{padding-bottom:17px}
-.event-copy strong{font-size:13px;color:var(--ink)}
-.event-copy p{font-size:12px;color:var(--muted);margin:4px 0 0;line-height:1.55}
-.trace{background:#101827;color:#dbeafe;border-radius:12px;padding:14px;font:11px/1.7 ui-monospace,SFMono-Regular,monospace;overflow:auto}
-.trace .key{color:#93c5fd}.trace .bad{color:#fca5a5}.trace .good{color:#86efac}
-.cause-list{display:grid;gap:9px}
-.cause{border:1px solid var(--line);border-radius:12px;padding:13px}
-.cause-line{display:flex;justify-content:space-between;gap:10px}
-.cause strong{font-size:13px;color:var(--ink)}
-.cause p{font-size:11px;color:var(--muted);line-height:1.5;margin:6px 0 10px}
-.confidence{height:6px;border-radius:10px;background:#edf1f7;overflow:hidden}
-.confidence span{display:block;height:100%;background:var(--red);border-radius:inherit}
-
-/* View 3 */
-.compare-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-.version{position:relative;padding:19px;overflow:hidden}
-.version.recommended{border:2px solid var(--blue)}
-.ribbon{position:absolute;right:-31px;top:15px;transform:rotate(42deg);background:var(--blue);color:#fff;font-size:9px;font-weight:800;padding:5px 34px}
-.version-id{display:flex;align-items:center;gap:9px}
-.version-dot{width:33px;height:33px;border-radius:10px;background:var(--blue-soft);color:var(--blue);display:grid;place-items:center}
-.version h3{font-size:16px;color:var(--ink);margin:0}
-.version .release{font-size:11px;color:var(--muted);margin-top:3px}
-.version-metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin:16px 0}
-.mini-metric{background:#f7f9fc;border-radius:10px;padding:10px}
-.mini-metric span{display:block;color:var(--muted);font-size:10px}
-.mini-metric strong{display:block;color:var(--ink);font-size:15px;margin-top:4px}
-.check-list{list-style:none;padding:0;margin:0;display:grid;gap:9px}
-.check-list li{font-size:12px;display:flex;gap:7px;align-items:flex-start}
-.check-list .material-symbols-outlined{font-size:16px;color:var(--green)}
-.impact-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(310px,.7fr);gap:16px;margin-top:16px}
-.impact-map{padding:20px}
-.route{display:flex;align-items:center;justify-content:center;gap:11px;min-height:155px}
-.route-node{border:1px solid var(--line);border-radius:13px;padding:13px;text-align:center;min-width:120px;background:#fff}
-.route-node.active{border-color:var(--blue);background:var(--blue-soft)}
-.route-arrow{color:#94a3b8}
-.approval-box{padding:19px}
-.approver{display:flex;gap:11px;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--line)}
-.approver .avatar{background:#dbeafe;color:var(--blue)}
-.approver strong{display:block;font-size:13px;color:var(--ink)}
-.approver small{font-size:11px;color:var(--muted)}
-.note{border:1px solid var(--line);background:#f8fafc;border-radius:10px;padding:11px;font-size:11px;color:var(--muted);line-height:1.6;margin:14px 0}
-.approval-actions{display:grid;grid-template-columns:1fr 1.5fr;gap:9px}
-
-/* View 4 */
-.verify-banner{display:flex;align-items:center;gap:15px;padding:18px;background:linear-gradient(90deg,#ecfdf3,#f0f9ff);border:1px solid #bbf7d0;border-radius:16px}
-.verify-icon{width:48px;height:48px;border-radius:50%;background:var(--green);color:#fff;display:grid;place-items:center;flex:0 0 auto}
-.verify-banner h3{margin:0 0 4px;color:var(--ink);font-size:17px}
-.verify-banner p{margin:0;color:var(--muted);font-size:12px}
-.verify-banner .pill{margin-left:auto;background:#fff}
-.probe-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);gap:16px;margin-top:16px}
-.probe-list{padding:8px 18px 18px}
-.probe{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
-.probe:last-child{border-bottom:0}
-.probe-check{width:31px;height:31px;border-radius:50%;background:var(--green-soft);color:var(--green);display:grid;place-items:center}
-.probe strong{display:block;font-size:13px;color:var(--ink)}
-.probe small{font-size:11px;color:var(--muted)}
-.probe-time{font-size:11px;color:var(--muted)}
-.gauge-wrap{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-.gauge{height:190px}
-.quality-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
-.quality{background:#f8fafc;border-radius:11px;padding:11px;text-align:center}
-.quality span{font-size:10px;color:var(--muted)}
-.quality strong{display:block;margin-top:4px;color:var(--ink)}
-
-/* View 5 */
-.closure-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:16px}
-.summary-cover{padding:22px;background:linear-gradient(135deg,#fff,#f3f6ff)}
-.summary-title{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding-bottom:18px;border-bottom:1px solid var(--line)}
-.summary-title h3{color:var(--ink);font-size:19px;margin:4px 0 5px}
-.summary-title p{font-size:12px;color:var(--muted);margin:0}
-.outcome-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:17px 0}
-.outcome{padding:12px;border:1px solid var(--line);border-radius:11px}
-.outcome span{font-size:10px;color:var(--muted)}
-.outcome strong{display:block;font-size:17px;color:var(--ink);margin-top:5px}
-.section-label{font-size:12px;font-weight:800;color:var(--ink);margin:18px 0 10px}
-.action-table{width:100%;border-collapse:collapse;font-size:12px}
-.action-table th{text-align:left;color:var(--muted);font-size:10px;letter-spacing:.05em;padding:9px;border-bottom:1px solid var(--line)}
-.action-table td{padding:11px 9px;border-bottom:1px solid var(--line);color:var(--body)}
-.action-table tr:last-child td{border-bottom:0}
-.activity-list{padding:4px 18px 18px}
-.activity{display:flex;gap:11px;padding:14px 0;border-bottom:1px solid var(--line)}
-.activity:last-child{border-bottom:0}
-.activity-icon{width:31px;height:31px;border-radius:9px;background:var(--blue-soft);color:var(--blue);display:grid;place-items:center;flex:0 0 auto}
-.activity strong{font-size:12px;color:var(--ink);display:block}
-.activity p{font-size:11px;color:var(--muted);line-height:1.5;margin:4px 0}
-.activity time{font-size:10px;color:#94a3b8}
-.export-actions{display:grid;gap:8px;padding:16px;border-top:1px solid var(--line)}
-.mobile-title{display:none}
-@media(max-width:1080px){
-  .grid-4{grid-template-columns:repeat(2,1fr)}
-  .split-main,.diag-layout,.impact-layout,.probe-layout,.closure-grid{grid-template-columns:1fr}
-  .compare-grid{grid-template-columns:1fr 1fr}
-  .rule-layout{grid-template-columns:250px minmax(0,1fr)}
+.process-item{width:100%;border:1px solid transparent;background:transparent;color:var(--body);border-radius:13px;padding:11px;display:flex;align-items:center;gap:10px;text-align:left;margin-bottom:5px;transition:.2s}
+.process-item:hover,.process-item.active{background:var(--purple-soft);border-color:#c4b5fd;color:var(--blue)}
+.process-item strong{display:block;font-size:12px}.process-item small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.form-section{padding:20px;border-bottom:1px solid var(--line)}.form-section:last-of-type{border:0}
+.section-title{display:flex;align-items:center;gap:9px;margin-bottom:15px}
+.step-no{width:27px;height:27px;border-radius:9px;background:linear-gradient(135deg,var(--blue),var(--color-accent));color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700}
+.section-title h3{margin:0;color:var(--ink);font:600 14px "Space Grotesk"}
+.field-grid,.thresholds,.mode-group{display:grid;gap:11px}.field-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.thresholds,.mode-group{grid-template-columns:repeat(3,minmax(0,1fr))}
+.field label{display:block;margin-bottom:6px;color:var(--body);font-size:11px;font-weight:700}
+.input-wrap{min-height:44px;padding:0 11px;border:1px solid var(--line);border-radius:11px;background:#fff;display:flex;align-items:center;gap:6px}
+.input-wrap:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px rgba(124,58,237,.14)}
+.input-wrap input,.input-wrap select{width:100%;border:0;outline:0;background:transparent;color:var(--ink)}
+.threshold,.mode{padding:13px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.threshold-head{display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:700}.threshold strong{color:var(--ink);font:700 19px "Space Grotesk"}
+.range-track{height:6px;margin:14px 0 7px;border-radius:10px;background:var(--color-muted);position:relative}
+.range-track::after{content:"";position:absolute;inset:0 auto 0 0;width:var(--fill);border-radius:inherit;background:linear-gradient(90deg,var(--blue),var(--color-accent))}
+.range-track i{position:absolute;left:var(--fill);top:50%;width:15px;height:15px;border:3px solid var(--blue);background:#fff;border-radius:50%;transform:translate(-50%,-50%)}
+.threshold small,.mode small{color:var(--muted);font-size:10px;line-height:1.5}
+.mode.selected{border:2px solid var(--blue);background:linear-gradient(135deg,var(--purple-soft),#fff)}
+.mode strong{display:block;margin:7px 0 3px;color:var(--ink);font-size:12px}
+.sticky-actions{padding:13px 20px;background:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px}.sticky-actions small{color:var(--muted)}
+.incident-hero{padding:22px;border:1px solid #c4b5fd;border-radius:20px;background:linear-gradient(125deg,#312e81,#6d28d9 58%,#0e7490);color:#fff;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;box-shadow:var(--shadow)}
+.incident-id{color:#cffafe;font:700 10px "Space Grotesk";letter-spacing:.12em}.incident-hero h3{margin:5px 0 7px;font:600 21px "Space Grotesk"}.incident-hero p{margin:0;color:#ede9fe;font-size:12px;line-height:1.65}
+.incident-clock{text-align:right}.incident-clock strong{display:block;font:700 24px "Space Grotesk"}.incident-clock small{color:#ddd6fe}
+.timeline{padding:10px 20px 18px}.event{display:grid;grid-template-columns:64px 22px minmax(0,1fr);gap:9px;min-height:74px}.event-time{padding-top:4px;color:var(--muted);font:10px "Space Grotesk"}
+.event-axis{position:relative}.event-axis::after{content:"";position:absolute;top:17px;bottom:-4px;left:10px;width:1px;background:var(--line)}.event:last-child .event-axis::after{display:none}
+.event-dot{position:relative;z-index:2;display:block;width:21px;height:21px;border:5px solid #ddd6fe;border-radius:50%;background:var(--blue)}
+.event.red .event-dot{border-color:#fecaca;background:var(--red)}.event.amber .event-dot{border-color:#fed7aa;background:var(--amber)}
+.event-copy{padding-bottom:15px}.event-copy strong{color:var(--ink);font-size:12px}.event-copy p{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.5}
+.trace{overflow:auto;padding:14px;border-radius:13px;background:#1e1b4b;color:#ede9fe;font:10px/1.7 ui-monospace,monospace}.trace .key{color:#67e8f9}.trace .bad{color:#fca5a5}.trace .good{color:#86efac}
+.cause{padding:12px;border:1px solid var(--line);border-radius:13px}.cause-line{display:flex;justify-content:space-between;gap:8px}.cause strong{color:var(--ink);font-size:12px}.cause p{margin:5px 0 9px;color:var(--muted);font-size:10px;line-height:1.5}
+.confidence{height:6px;border-radius:9px;background:var(--color-muted);overflow:hidden}.confidence span{display:block;height:100%;border-radius:inherit;background:var(--red)}
+.compare-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.version{position:relative;padding:18px}.version.recommended{border:2px solid var(--blue);box-shadow:0 18px 38px rgba(124,58,237,.15)}
+.ribbon{position:absolute;right:-29px;top:15px;transform:rotate(42deg);padding:5px 32px;background:var(--blue);color:#fff;font-size:9px;font-weight:700}
+.version-id{display:flex;align-items:center;gap:9px}.version-dot{width:34px;height:34px;border-radius:11px;background:var(--purple-soft);color:var(--blue);display:grid;place-items:center}.version h3{margin:0;color:var(--ink);font:600 15px "Space Grotesk"}.release{color:var(--muted);font-size:10px}
+.version-metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:15px 0}.mini-metric,.quality{padding:10px;border-radius:11px;background:#f8f7ff;border:1px solid #ede9fe}.mini-metric span,.quality span{display:block;color:var(--muted);font-size:9px}.mini-metric strong,.quality strong{display:block;margin-top:4px;color:var(--ink);font-size:14px}
+.check-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}.check-list li{display:flex;align-items:flex-start;gap:6px;font-size:11px}.check-list .material-symbols-outlined{font-size:16px;color:var(--green)}
+.impact-map,.approval-box{padding:18px}.route{min-height:150px;display:flex;align-items:center;justify-content:center;gap:9px}.route-node{min-width:112px;padding:12px;text-align:center;border:1px solid var(--line);border-radius:13px;background:#fff}.route-node.active{border-color:var(--blue);background:var(--purple-soft)}.route-node strong{display:block;color:var(--ink);font-size:11px}.route-node small{color:var(--muted)}.route-arrow{color:#7c6f99}
+.approver{display:flex;align-items:center;gap:10px;padding-bottom:13px;border-bottom:1px solid var(--line)}.approver strong{display:block;color:var(--ink);font-size:12px}.approver small{color:var(--muted);font-size:10px}
+.note{margin:13px 0;padding:11px;border:1px solid var(--line);border-radius:11px;background:#faf9ff;color:var(--muted);font-size:10px;line-height:1.6}.approval-actions{display:grid;grid-template-columns:1fr 1.5fr;gap:8px}
+.verify-banner{padding:17px;border:1px solid #a7f3d0;border-radius:19px;background:linear-gradient(100deg,#ecfdf5,#ecfeff,#faf5ff);display:flex;align-items:center;gap:14px}
+.verify-icon{width:47px;height:47px;flex:0 0 auto;border-radius:15px;background:var(--green);color:#fff;display:grid;place-items:center}.verify-banner h3{margin:0 0 3px;color:var(--ink);font:600 16px "Space Grotesk"}.verify-banner p{margin:0;color:var(--muted);font-size:11px}.verify-banner>.pill{margin-left:auto}
+.probe-list{padding:7px 18px 17px}.probe{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:11px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line)}.probe:last-child{border:0}.probe-check{width:31px;height:31px;border-radius:10px;background:var(--green-soft);color:var(--green);display:grid;place-items:center}.probe-time{color:var(--muted);font-size:10px}
+.gauge-wrap{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}.gauge{height:190px}.quality-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.quality{text-align:center}
+.summary-cover{padding:21px;background:linear-gradient(145deg,#fff,#faf5ff)}.summary-title{padding-bottom:17px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.summary-title h3{margin:5px 0;color:var(--ink);font:600 18px "Space Grotesk"}.summary-title p{margin:0;color:var(--muted);font-size:10px}
+.outcome-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:16px 0}.outcome{padding:11px;border:1px solid var(--line);border-radius:12px;background:#fff}.outcome span{color:var(--muted);font-size:9px}.outcome strong{display:block;margin:4px 0;color:var(--ink);font:700 16px "Space Grotesk"}.outcome small{font-size:9px}
+.section-label{margin:17px 0 9px;color:var(--ink);font-size:11px;font-weight:700}
+.action-table{width:100%;border-collapse:collapse;font-size:11px}.action-table th{padding:9px;text-align:left;color:#5b526f;font-size:9px;letter-spacing:.04em;border-bottom:1px solid var(--line)}.action-table td{padding:10px 9px;border-bottom:1px solid var(--line)}.action-table td:nth-child(4),.action-table th:nth-child(4){text-align:right}.action-table tr:last-child td{border:0}
+.activity-list{padding:3px 17px 15px}.activity{display:flex;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}.activity:last-child{border:0}.activity p{margin:3px 0;color:var(--muted);font-size:10px;line-height:1.5}.activity time{color:#706680;font-size:9px}.export-actions{display:grid;gap:7px;padding:14px;border-top:1px solid var(--line)}
+.typing{display:inline-flex;gap:3px;align-items:center}.typing i{width:4px;height:4px;border-radius:50%;background:currentColor;animation:typing 1.2s infinite}.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes pulse{to{opacity:0;transform:scale(1.7)}}@keyframes typing{0%,60%,100%{transform:none;opacity:.4}30%{transform:translateY(-3px);opacity:1}}
+@keyframes reveal{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+.view.active .card,.view.active .incident-hero,.view.active .verify-banner,.view.active .alert-strip{animation:reveal .4s both}.view.active .card:nth-child(2){animation-delay:.06s}.view.active .card:nth-child(3){animation-delay:.12s}.view.active .card:nth-child(4){animation-delay:.18s}
+@media(max-width:1100px){
+  .shell{grid-template-columns:88px minmax(0,1fr)}.rail{width:88px;padding-inline:12px}.brand-copy,.rail-label,.nav-btn span:last-child,.rail-foot strong,.rail-foot small{display:none}.brand{padding-inline:10px}.nav-btn{justify-content:center;padding:0}.rail-foot{justify-content:center}
+  .grid-4{grid-template-columns:repeat(2,1fr)}.split-main,.diag-layout,.impact-layout,.probe-layout,.closure-grid{grid-template-columns:1fr}.rule-layout{grid-template-columns:230px minmax(0,1fr)}
 }
 @media(max-width:760px){
-  .shell{display:block;padding-bottom:72px}
-  .workspace{display:block}
-  .rail{
-    width:100%;height:68px;inset:auto 0 0 0;display:block;
-    border-right:0;border-top:1px solid rgba(255,255,255,.12);
-  }
-  .brand,.rail-foot{display:none}
-  .rail-nav{height:100%;padding:7px 8px;display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
-  .nav-btn{min-height:52px}
-  .nav-btn::after{display:none}
-  .appbar{padding:10px 16px;min-height:64px}
-  .app-id h1{font-size:14px;white-space:normal}
-  .app-id p,.app-actions .btn span:not(.material-symbols-outlined),.app-actions>.live{display:none}
-  .content{padding:18px 14px 30px}
-  .page-head{display:block}
-  .page-head h2{font-size:23px}
-  .page-head .pill{margin-top:12px}
-  .grid-3,.compare-grid{grid-template-columns:1fr}
-  .rule-layout{grid-template-columns:1fr}
-  .process-list{display:flex;overflow:auto;gap:7px}
-  .process-item{min-width:190px;margin:0}
-  .thresholds,.mode-group{grid-template-columns:1fr}
-  .incident-hero{grid-template-columns:1fr}
-  .incident-clock{text-align:left}
-  .route{justify-content:flex-start;overflow:auto;padding-bottom:8px}
-  .route-node{min-width:115px}
-  .outcome-grid{grid-template-columns:1fr}
+  .shell{display:block;padding-bottom:76px}.workspace{display:block}.rail{width:100%;height:70px;inset:auto 0 0;padding:7px 8px;border:0;border-top:1px solid var(--line)}.brand,.rail-label,.rail-foot{display:none}.rail-nav{height:100%;grid-template-columns:repeat(6,1fr);gap:4px}.nav-btn{min-height:54px}.appbar{padding:10px 14px}.app-id h1{font-size:14px}.app-id p,.live,.app-actions .btn:last-child{display:none}.content{padding:20px 14px 32px}.page-head{display:block}.page-head>.pill{margin-top:12px}.page-head h2{font-size:25px}
+  .rule-layout,.compare-grid{grid-template-columns:1fr}.process-list{display:flex;gap:7px;overflow:auto}.process-item{min-width:180px;margin:0}.thresholds,.mode-group{grid-template-columns:1fr}.incident-hero{grid-template-columns:1fr}.incident-clock{text-align:left}.route{justify-content:flex-start;overflow:auto}.route-node{flex:0 0 112px}.summary-title{flex-wrap:wrap}
 }
 @media(max-width:480px){
-  .grid-4,.grid-2,.field-grid{grid-template-columns:1fr}
-  .app-actions .icon-btn:first-child{display:none}
-  .page-head h2{font-size:21px}
-  .card-head{padding:14px}
-  .card-body{padding:14px}
-  .alert-strip{align-items:flex-start;flex-wrap:wrap}
-  .alert-strip .btn{margin-left:56px}
-  .event{grid-template-columns:50px 18px minmax(0,1fr)}
-  .event-dot{width:18px;height:18px}
-  .event-axis::after{left:8px}
-  .gauge-wrap,.quality-grid{grid-template-columns:1fr}
-  .gauge{height:170px}
-  .approval-actions{grid-template-columns:1fr}
-  .probe{grid-template-columns:auto minmax(0,1fr)}
-  .probe-time{grid-column:2}
-  .action-table{min-width:520px}
-  .table-scroll{overflow:auto}
+  .grid-4,.grid-3,.grid-2,.field-grid,.outcome-grid,.quality-grid{grid-template-columns:1fr}.app-actions .icon-btn{display:none}.card-head,.alert-strip,.verify-banner,.sticky-actions{flex-wrap:wrap}.alert-strip .btn,.verify-banner>.pill{margin-left:0}.event{grid-template-columns:52px 19px minmax(0,1fr)}.version-metrics,.gauge-wrap,.approval-actions{grid-template-columns:1fr}.probe{grid-template-columns:auto minmax(0,1fr)}.probe-time{grid-column:2}.table-scroll{overflow:auto}.action-table{min-width:520px}
 }
-
-
-/* ── 量測式水平溢出修正 ─────────────────────────────
-   由 tools/fix-demo-overflow.mjs 量測產生，只針對實際溢出的元素。 */
-@media (max-width:720px){
-  body div.shell > main.workspace > div.content > section.view.active > div.rule-layout > aside.card{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.shell > main.workspace > div.content > section.view.active > div.rule-layout{overflow-x:auto;min-width:0;max-width:100%;}
-  body main.workspace > div.content > section.view.active > div.rule-layout > aside.card > div.card-head{min-width:0;flex-wrap:wrap;}
-  body div.content > section.view.active > div.rule-layout > aside.card > div.card-head > small{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body main.workspace > div.content > section.view.active > div.rule-layout > aside.card > div.process-list{min-width:0;flex-wrap:wrap;}
-  body div.shell > main.workspace > div.content > section.view.active > div.rule-layout > article.card{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body main.workspace > div.content > section.view.active > div.rule-layout > article.card > div.form-section:nth-child(1){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.content > section.view.active > div.rule-layout > article.card > div.form-section:nth-child(1) > div.section-title{min-width:0;flex-wrap:wrap;}
-  body div.content > section.view.active > div.rule-layout > article.card > div.form-section:nth-child(1) > div.field-grid{grid-template-columns:minmax(0,1fr);}
-  body section.view.active > div.rule-layout > article.card > div.form-section:nth-child(1) > div.field-grid > div.field:nth-child(1){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.rule-layout > article.card > div.form-section:nth-child(1) > div.field-grid > div.field:nth-child(1) > label{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.shell > main.workspace > div.content > section.view.active > div.impact-layout > article.card.impact-map{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.shell > main.workspace > div.content > section.view.active > div.impact-layout{overflow-x:auto;min-width:0;max-width:100%;}
-  body main.workspace > div.content > section.view.active > div.impact-layout > article.card.impact-map > div.card-head{min-width:0;flex-wrap:wrap;}
-  body div.content > section.view.active > div.impact-layout > article.card.impact-map > div.card-head > span.pill.green{min-width:0;flex-wrap:wrap;}
-  body main.workspace > div.content > section.view.active > div.impact-layout > article.card.impact-map > div.route{min-width:0;flex-wrap:wrap;}
-  body main.workspace > div.content > section.view.active > div.impact-layout > article.card.impact-map > div.grid-3{grid-template-columns:minmax(0,1fr);}
-  body div.content > section.view.active > div.impact-layout > article.card.impact-map > div.grid-3 > div.mini-metric:nth-child(1){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body section.view.active > div.impact-layout > article.card.impact-map > div.grid-3 > div.mini-metric:nth-child(1) > span{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body section.view.active > div.impact-layout > article.card.impact-map > div.grid-3 > div.mini-metric:nth-child(1) > strong{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.content > section.view.active > div.impact-layout > article.card.impact-map > div.grid-3 > div.mini-metric:nth-child(2){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body section.view.active > div.impact-layout > article.card.impact-map > div.grid-3 > div.mini-metric:nth-child(2) > span{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.shell > main.workspace > div.content > section.view.active > div.closure-grid > article.card.summary-cover{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.shell > main.workspace > div.content > section.view.active > div.closure-grid{overflow-x:auto;min-width:0;max-width:100%;}
-  body main.workspace > div.content > section.view.active > div.closure-grid > article.card.summary-cover > div.summary-title{min-width:0;flex-wrap:wrap;}
-  body div.content > section.view.active > div.closure-grid > article.card.summary-cover > div.summary-title > span.material-symbols-outlined{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body main.workspace > div.content > section.view.active > div.closure-grid > article.card.summary-cover > div.outcome-grid{grid-template-columns:minmax(0,1fr);}
-  body div.content > section.view.active > div.closure-grid > article.card.summary-cover > div.outcome-grid > div.outcome:nth-child(1){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body section.view.active > div.closure-grid > article.card.summary-cover > div.outcome-grid > div.outcome:nth-child(1) > strong{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.content > section.view.active > div.closure-grid > article.card.summary-cover > div.outcome-grid > div.outcome:nth-child(2){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body section.view.active > div.closure-grid > article.card.summary-cover > div.outcome-grid > div.outcome:nth-child(2) > strong{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body div.content > section.view.active > div.closure-grid > article.card.summary-cover > div.outcome-grid > div.outcome:nth-child(3){max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body section.view.active > div.closure-grid > article.card.summary-cover > div.outcome-grid > div.outcome:nth-child(3) > strong{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
 </style>
 </head>
 <body>
 <div class="shell">
   <aside class="rail" aria-label="流程導覽">
-    <div class="brand" aria-label="Jvision">JV</div>
+    <div class="brand"><div class="brand-mark" aria-hidden="true">AI</div><div class="brand-copy"><strong>異常版本還原器</strong><small>AGENT RECOVERY CONSOLE</small></div></div>
+    <div class="rail-label">Recovery workflow</div>
     <nav class="rail-nav">
-      <button class="nav-btn" data-i="0" aria-label="監看版本健康"><span class="material-symbols-outlined">monitor_heart</span></button>
-      <button class="nav-btn" data-i="1" aria-label="定義守門條件"><span class="material-symbols-outlined">rule_settings</span></button>
-      <button class="nav-btn" data-i="2" aria-label="診斷越界原因"><span class="material-symbols-outlined">troubleshoot</span></button>
-      <button class="nav-btn" data-i="3" aria-label="核准回滾方案"><span class="material-symbols-outlined">published_with_changes</span></button>
-      <button class="nav-btn" data-i="4" aria-label="驗證恢復狀態"><span class="material-symbols-outlined">fact_check</span></button>
-      <button class="nav-btn" data-i="5" aria-label="結案與回報"><span class="material-symbols-outlined">emergency_home</span></button>
+      <button class="nav-btn" data-i="0" aria-label="監看版本健康"><span class="material-symbols-outlined">monitor_heart</span><span>監看版本健康</span></button>
+      <button class="nav-btn" data-i="1" aria-label="定義守門條件"><span class="material-symbols-outlined">rule_settings</span><span>定義守門條件</span></button>
+      <button class="nav-btn" data-i="2" aria-label="診斷越界原因"><span class="material-symbols-outlined">troubleshoot</span><span>診斷越界原因</span></button>
+      <button class="nav-btn" data-i="3" aria-label="核准回滾方案"><span class="material-symbols-outlined">published_with_changes</span><span>核准回滾方案</span></button>
+      <button class="nav-btn" data-i="4" aria-label="驗證恢復狀態"><span class="material-symbols-outlined">fact_check</span><span>驗證恢復狀態</span></button>
+      <button class="nav-btn" data-i="5" aria-label="結案與回報"><span class="material-symbols-outlined">inventory</span><span>結案與回報</span></button>
     </nav>
-    <div class="rail-foot"><div class="avatar">AL</div></div>
+    <div class="rail-foot"><div class="avatar">AL</div><div><strong>AI 平台團隊</strong><small>Production workspace</small></div></div>
   </aside>
 
   <main class="workspace">
     <header class="appbar">
-      <div class="app-id">
-        <span class="material-symbols-outlined" style="color:var(--blue)">shield_with_heart</span>
-        <div>
-          <h1>Agent 自動回滾守門員</h1>
-          <p>IT 維運管理平台 · 製造企業數位員工環境</p>
-        </div>
-      </div>
+      <div class="app-id"><div class="app-icon"><span class="material-symbols-outlined">shield_with_heart</span></div><div><h1>AI異常版本自動還原器</h1><p>IT 維運管理平台 · 製造企業數位員工環境</p></div></div>
       <div class="app-actions">
-        <div class="live"><i class="live-dot"></i>監控服務正常</div>
+        <div class="live"><i class="live-dot"></i><span>監控服務正常</span></div>
         <button class="btn icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
-        <button class="btn"><span class="material-symbols-outlined">help</span><span>操作指南</span></button>
+        <button class="btn"><span class="material-symbols-outlined">help</span>操作指南</button>
       </div>
     </header>
 
     <div class="content">
       <section class="view" data-view="0">
-        <div class="page-head">
-          <div>
-            <div class="eyebrow">Stage 01 · Version health</div>
-            <h2>監看版本健康</h2>
-            <p>查看 30 個數位員工的品質、成本與失敗趨勢，優先鎖定越過安全門檻的 Agent。</p>
-          </div>
-          <span class="pill red"><span class="material-symbols-outlined">warning</span>2 個高風險 Agent</span>
-        </div>
-
+        <div class="page-head"><div><div class="eyebrow">Stage 01 · Version health</div><h2>監看版本健康</h2><p>查看 30 個數位員工的品質、成本與失敗趨勢，優先鎖定越過安全門檻的 Agent。</p></div><span class="pill red"><span class="material-symbols-outlined">warning</span>2 個高風險 Agent</span></div>
         <div class="grid-4">
-          <article class="card metric">
-            <div class="metric-row"><span class="metric-label">線上 Agent</span><span class="metric-icon"><span class="material-symbols-outlined">smart_toy</span></span></div>
-            <div class="metric-value">30</div><div class="metric-sub">28 健康 · 2 需關注</div>
-          </article>
-          <article class="card metric">
-            <div class="metric-row"><span class="metric-label">任務成功率</span><span class="pill red">-4.8%</span></div>
-            <div class="metric-value">92.1%</div><div class="metric-sub">安全門檻 ≥ 96.0%</div>
-          </article>
-          <article class="card metric">
-            <div class="metric-row"><span class="metric-label">單任務成本</span><span class="pill amber">+31%</span></div>
-            <div class="metric-value">$0.84</div><div class="metric-sub">近 6 小時平均成本</div>
-          </article>
-          <article class="card metric">
-            <div class="metric-row"><span class="metric-label">系統可用率</span><span class="pill green">目標內</span></div>
-            <div class="metric-value">99.02%</div><div class="metric-sub">本週已提升 0.42%</div>
-          </article>
+          <article class="card metric"><div class="metric-row"><span class="metric-label">線上 Agent</span><span class="metric-icon"><span class="material-symbols-outlined">smart_toy</span></span></div><div class="metric-value">30</div><div class="metric-sub">28 健康 · 2 需關注</div></article>
+          <article class="card metric"><div class="metric-row"><span class="metric-label">任務成功率</span><span class="pill red"><span class="material-symbols-outlined">trending_down</span>-4.8%</span></div><div class="metric-value">92.1%</div><div class="metric-sub">安全門檻 ≥ 96.0%</div></article>
+          <article class="card metric"><div class="metric-row"><span class="metric-label">單任務成本</span><span class="pill amber"><span class="material-symbols-outlined">trending_up</span>+31%</span></div><div class="metric-value">$0.84</div><div class="metric-sub">近 6 小時平均成本</div></article>
+          <article class="card metric"><div class="metric-row"><span class="metric-label">系統可用率</span><span class="pill green"><span class="material-symbols-outlined">check_circle</span>目標內</span></div><div class="metric-value">99.02%</div><div class="metric-sub">本週已提升 0.42%</div></article>
         </div>
-
         <div class="split-main">
-          <article class="card">
-            <div class="card-head">
-              <div><h3>品質與成本健康趨勢</h3><small>客服訂單協調 Agent · v3.8.2 · 最近 12 小時</small></div>
-              <div class="legend"><span><i style="background:#1e40af"></i>成功率</span><span><i style="background:#dc2626"></i>成本指數</span></div>
-            </div>
-            <div class="card-body"><div id="healthChart" class="chart-box" aria-label="健康趨勢圖"></div></div>
-          </article>
-
-          <article class="card">
-            <div class="card-head"><h3>風險排序</h3><small>即時評分</small></div>
-            <div class="card-body agent-list">
-              <div class="agent-row">
-                <span class="agent-mark"><span class="material-symbols-outlined">support_agent</span></span>
-                <div><strong>客服訂單協調</strong><small>v3.8.2 · 連續失敗 7 次</small></div><span class="health-score down">41</span>
-              </div>
-              <div class="agent-row">
-                <span class="agent-mark"><span class="material-symbols-outlined">inventory_2</span></span>
-                <div><strong>備品庫存巡檢</strong><small>v2.4.1 · 成本超標 18%</small></div><span class="health-score" style="color:var(--amber)">66</span>
-              </div>
-              <div class="agent-row">
-                <span class="agent-mark"><span class="material-symbols-outlined">precision_manufacturing</span></span>
-                <div><strong>產線排程助理</strong><small>v5.1.0 · 指標穩定</small></div><span class="health-score up">97</span>
-              </div>
-              <div class="agent-row">
-                <span class="agent-mark"><span class="material-symbols-outlined">local_shipping</span></span>
-                <div><strong>交期追蹤專員</strong><small>v4.7.6 · 指標穩定</small></div><span class="health-score up">95</span>
-              </div>
-            </div>
-          </article>
+          <article class="card"><div class="card-head"><div><h3>品質與成本健康趨勢</h3><small>客服訂單協調 Agent · v3.8.2 · 最近 12 小時</small></div><div class="legend"><span><i style="background:#7c3aed"></i>成功率</span><span><i style="background:#dc2626"></i>成本指數</span></div></div><div class="card-body"><div id="healthChart" class="chart-box" aria-label="健康趨勢圖"></div></div></article>
+          <article class="card"><div class="card-head"><h3>風險排序</h3><small>AI 即時評分 <span class="typing" aria-label="分析中"><i></i><i></i><i></i></span></small></div><div class="card-body agent-list">
+            <div class="agent-row"><span class="agent-mark"><span class="material-symbols-outlined">support_agent</span></span><div><strong>客服訂單協調</strong><small>v3.8.2 · 連續失敗 7 次</small></div><span class="health-score down" aria-label="高風險 41 分">41</span></div>
+            <div class="agent-row"><span class="agent-mark"><span class="material-symbols-outlined">inventory_2</span></span><div><strong>備品庫存巡檢</strong><small>v2.4.1 · 成本超標 18%</small></div><span class="health-score" style="color:var(--amber)" aria-label="需關注 66 分">66</span></div>
+            <div class="agent-row"><span class="agent-mark"><span class="material-symbols-outlined">precision_manufacturing</span></span><div><strong>產線排程助理</strong><small>v5.1.0 · 指標穩定</small></div><span class="health-score up" aria-label="健康 97 分">97</span></div>
+            <div class="agent-row"><span class="agent-mark"><span class="material-symbols-outlined">local_shipping</span></span><div><strong>交期追蹤專員</strong><small>v4.7.6 · 指標穩定</small></div><span class="health-score up" aria-label="健康 95 分">95</span></div>
+          </div></article>
         </div>
-
-        <div class="alert-strip">
-          <div class="alarm"><span class="material-symbols-outlined">crisis_alert</span></div>
-          <div><strong>客服訂單協調 Agent 已觸發品質與成本雙重門檻</strong><p>08:42 起成功率降至 88.4%，工具呼叫成本較基準增加 47%。建議立即進入因果診斷。</p></div>
-          <button class="btn danger" data-jump="2">診斷事件</button>
-        </div>
+        <div class="alert-strip"><div class="alarm"><span class="material-symbols-outlined">crisis_alert</span></div><div><strong>客服訂單協調 Agent 已觸發品質與成本雙重門檻</strong><p>08:42 起成功率降至 88.4%，工具呼叫成本較基準增加 47%。建議立即進入因果診斷。</p></div><button class="btn danger" data-jump="2">診斷事件</button></div>
       </section>
 
       <section class="view" data-view="1">
-        <div class="page-head">
-          <div>
-            <div class="eyebrow">Stage 02 · Guardrail policy</div>
-            <h2>定義守門條件</h2>
-            <p>為高風險業務流程設定品質下降、成本暴增與連續失敗的回滾觸發條件。</p>
-          </div>
-          <span class="pill blue"><span class="material-symbols-outlined">verified_user</span>政策草稿 GR-028</span>
-        </div>
-
+        <div class="page-head"><div><div class="eyebrow">Stage 02 · Guardrail policy</div><h2>定義守門條件</h2><p>為高風險業務流程設定品質下降、成本暴增與連續失敗的回滾觸發條件。</p></div><span class="pill blue"><span class="material-symbols-outlined">verified_user</span>政策草稿 GR-028</span></div>
         <div class="rule-layout">
-          <aside class="card">
-            <div class="card-head"><h3>業務流程</h3><small>6 項</small></div>
-            <div class="process-list">
-              <button class="process-item active"><span class="material-symbols-outlined">support_agent</span><span><strong>客服訂單協調</strong><small>高風險 · 12 個工具</small></span></button>
-              <button class="process-item"><span class="material-symbols-outlined">inventory_2</span><span><strong>備品庫存巡檢</strong><small>中風險 · 8 個工具</small></span></button>
-              <button class="process-item"><span class="material-symbols-outlined">factory</span><span><strong>產線異常通報</strong><small>高風險 · 10 個工具</small></span></button>
-              <button class="process-item"><span class="material-symbols-outlined">local_shipping</span><span><strong>供應交期追蹤</strong><small>中風險 · 7 個工具</small></span></button>
-            </div>
-          </aside>
-
+          <aside class="card"><div class="card-head"><h3>業務流程</h3><small>6 項</small></div><div class="process-list">
+            <button class="process-item active"><span class="material-symbols-outlined">support_agent</span><span><strong>客服訂單協調</strong><small>高風險 · 12 個工具</small></span></button>
+            <button class="process-item"><span class="material-symbols-outlined">inventory_2</span><span><strong>備品庫存巡檢</strong><small>中風險 · 8 個工具</small></span></button>
+            <button class="process-item"><span class="material-symbols-outlined">factory</span><span><strong>產線異常通報</strong><small>高風險 · 10 個工具</small></span></button>
+            <button class="process-item"><span class="material-symbols-outlined">local_shipping</span><span><strong>供應交期追蹤</strong><small>中風險 · 7 個工具</small></span></button>
+          </div></aside>
           <article class="card">
-            <div class="form-section">
-              <div class="section-title"><span class="step-no">1</span><h3>政策基本資料</h3></div>
-              <div class="field-grid">
-                <div class="field"><label for="policyLabel">守門政策名稱</label><div class="input-wrap"><input id="policyLabel" value="客服訂單協調－高風險守門政策"></div></div>
-                <div class="field"><label for="observeWindow">觀察窗</label><div class="input-wrap"><select id="observeWindow"><option>最近 15 分鐘</option><option>最近 30 分鐘</option></select></div></div>
-              </div>
-            </div>
-
-            <div class="form-section">
-              <div class="section-title"><span class="step-no">2</span><h3>觸發門檻</h3></div>
-              <div class="thresholds">
-                <div class="threshold">
-                  <div class="threshold-head"><span>任務成功率低於</span><strong>94%</strong></div>
-                  <div class="range-track" style="--fill:72%"><i></i></div>
-                  <small>目前基準 98.2%</small>
-                </div>
-                <div class="threshold">
-                  <div class="threshold-head"><span>單任務成本增幅</span><strong>25%</strong></div>
-                  <div class="range-track" style="--fill:55%"><i></i></div>
-                  <small>目前基準 $0.57</small>
-                </div>
-                <div class="threshold">
-                  <div class="threshold-head"><span>連續失敗次數</span><strong>5 次</strong></div>
-                  <div class="range-track" style="--fill:42%"><i></i></div>
-                  <small>排除人工取消任務</small>
-                </div>
-              </div>
-            </div>
-
-            <div class="form-section">
-              <div class="section-title"><span class="step-no">3</span><h3>允許的自動化程度</h3></div>
-              <div class="mode-group">
-                <div class="mode"><span class="material-symbols-outlined">notifications_active</span><strong>僅通知</strong><small>保留線上版本，只通知負責人調查。</small></div>
-                <div class="mode selected"><span class="material-symbols-outlined" style="color:var(--blue)">approval</span><strong>核准後回滾</strong><small>產生回滾計畫，由產品經理核准切換。</small></div>
-                <div class="mode"><span class="material-symbols-outlined">bolt</span><strong>全自動回滾</strong><small>門檻連續成立時，自動切換穩定版本。</small></div>
-              </div>
-            </div>
-
-            <div class="form-section">
-              <div class="section-title"><span class="step-no">4</span><h3>安全限制</h3></div>
-              <div class="grid-2">
-                <label class="mode selected"><span class="pill green">已啟用</span><strong>交易工具唯讀</strong><small>回滾驗證期間禁止寫入 ERP 訂單。</small></label>
-                <label class="mode selected"><span class="pill green">已啟用</span><strong>人工接管佇列</strong><small>未完成任務轉交服務台，不自動重送。</small></label>
-              </div>
-            </div>
-
-            <div class="sticky-actions">
-              <small>最後編輯：流程主管 王怡文 · 剛剛</small>
-              <div><button class="btn">儲存草稿</button> <button class="btn primary">啟用政策</button></div>
-            </div>
+            <div class="form-section"><div class="section-title"><span class="step-no">1</span><h3>政策基本資料</h3></div><div class="field-grid"><div class="field"><label for="policyLabel">守門政策名稱</label><div class="input-wrap"><input id="policyLabel" value="客服訂單協調－高風險守門政策"></div></div><div class="field"><label for="observeWindow">觀察窗</label><div class="input-wrap"><select id="observeWindow"><option>最近 15 分鐘</option><option>最近 30 分鐘</option></select></div></div></div></div>
+            <div class="form-section"><div class="section-title"><span class="step-no">2</span><h3>觸發門檻</h3></div><div class="thresholds">
+              <div class="threshold"><div class="threshold-head"><span>任務成功率低於</span><strong>94%</strong></div><div class="range-track" style="--fill:72%"><i></i></div><small>目前基準 98.2%</small></div>
+              <div class="threshold"><div class="threshold-head"><span>單任務成本增幅</span><strong>25%</strong></div><div class="range-track" style="--fill:55%"><i></i></div><small>目前基準 $0.57</small></div>
+              <div class="threshold"><div class="threshold-head"><span>連續失敗次數</span><strong>5 次</strong></div><div class="range-track" style="--fill:42%"><i></i></div><small>排除人工取消任務</small></div>
+            </div></div>
+            <div class="form-section"><div class="section-title"><span class="step-no">3</span><h3>允許的自動化程度</h3></div><div class="mode-group">
+              <div class="mode"><span class="material-symbols-outlined">notifications_active</span><strong>僅通知</strong><small>保留線上版本，只通知負責人調查。</small></div>
+              <div class="mode selected"><span class="material-symbols-outlined" style="color:var(--blue)">approval</span><strong>核准後回滾</strong><small>產生回滾計畫，由產品經理核准切換。</small></div>
+              <div class="mode"><span class="material-symbols-outlined">bolt</span><strong>全自動回滾</strong><small>門檻連續成立時，自動切換穩定版本。</small></div>
+            </div></div>
+            <div class="form-section"><div class="section-title"><span class="step-no">4</span><h3>安全限制</h3></div><div class="grid-2">
+              <label class="mode selected"><span class="pill green"><span class="material-symbols-outlined">check</span>已啟用</span><strong>交易工具唯讀</strong><small>回滾驗證期間禁止寫入 ERP 訂單。</small></label>
+              <label class="mode selected"><span class="pill green"><span class="material-symbols-outlined">check</span>已啟用</span><strong>人工接管佇列</strong><small>未完成任務轉交服務台，不自動重送。</small></label>
+            </div></div>
+            <div class="sticky-actions"><small>最後編輯：流程主管 王怡文 · 剛剛</small><div><button class="btn">儲存草稿</button> <button class="btn primary">啟用政策</button></div></div>
           </article>
         </div>
       </section>
 
       <section class="view" data-view="2">
-        <div class="page-head">
-          <div>
-            <div class="eyebrow">Stage 03 · Causal diagnosis</div>
-            <h2>診斷越界原因</h2>
-            <p>比對異常時間線、任務軌跡與工具呼叫，排序最可能造成指標越界的版本變更。</p>
-          </div>
-          <span class="pill red"><span class="material-symbols-outlined">emergency</span>重大事件 SEV-2</span>
-        </div>
-
-        <div class="incident-hero">
-          <div>
-            <div class="incident-id">INC-20260822-014</div>
-            <h3>客服訂單協調 Agent 品質越界</h3>
-            <p>新版本 v3.8.2 上線後，ERP 報價工具參數錯誤率快速升高，並觸發額外重試，使成功率下降且成本同步增加。</p>
-          </div>
-          <div class="incident-clock"><small>事件已持續</small><strong>00:23:18</strong><span class="pill red">調查中</span></div>
-        </div>
-
+        <div class="page-head"><div><div class="eyebrow">Stage 03 · Causal diagnosis</div><h2>診斷越界原因</h2><p>比對異常時間線、任務軌跡與工具呼叫，排序最可能造成指標越界的版本變更。</p></div><span class="pill red"><span class="material-symbols-outlined">emergency</span>重大事件 SEV-2</span></div>
+        <div class="incident-hero"><div><div class="incident-id">INC-20260822-014</div><h3>客服訂單協調 Agent 品質越界</h3><p>新版本 v3.8.2 上線後，ERP 報價工具參數錯誤率快速升高，並觸發額外重試，使成功率下降且成本同步增加。</p></div><div class="incident-clock"><small>事件已持續</small><strong>00:23:18</strong><span class="pill red">調查中</span></div></div>
         <div class="diag-layout">
-          <article class="card">
-            <div class="card-head"><h3>異常時間線</h3><small>Agent 定義 · 任務軌跡 · 工具呼叫</small></div>
-            <div class="timeline">
-              <div class="event">
-                <time class="event-time">08:18:04</time><div class="event-axis"><i class="event-dot"></i></div>
-                <div class="event-copy"><strong>v3.8.2 流量提升至 100%</strong><p>部署檢查完成，初始探針 20/20 通過。</p></div>
-              </div>
-              <div class="event amber">
-                <time class="event-time">08:31:27</time><div class="event-axis"><i class="event-dot"></i></div>
-                <div class="event-copy"><strong>ERP 報價工具延遲升高</strong><p>P95 延遲由 1.2 秒升至 4.8 秒，首次超過警示線。</p></div>
-              </div>
-              <div class="event red">
-                <time class="event-time">08:42:11</time><div class="event-axis"><i class="event-dot"></i></div>
-                <div class="event-copy"><strong>品質與成本雙重門檻觸發</strong><p>成功率 88.4%，成本增加 47%，連續失敗 7 次。</p></div>
-              </div>
-              <div class="event">
-                <time class="event-time">08:43:02</time><div class="event-axis"><i class="event-dot"></i></div>
-                <div class="event-copy"><strong>自動凍結新任務</strong><p>新進任務轉往安全佇列，既有 86 筆任務持續監控。</p></div>
-              </div>
-            </div>
-            <div class="card-body" style="padding-top:0">
-              <div class="trace"><span class="key">trace_id</span>: "tr_8ef203"<br><span class="key">agent_version</span>: "3.8.2"<br><span class="key">tool</span>: "erp.quote.create"<br><span class="bad">error</span>: "customer_tier expects enum, received string[]"<br><span class="key">retry_count</span>: 3<br><span class="key">token_cost</span>: 0.091<br><span class="good">stable_version_result</span>: "accepted in v3.7.9"</div>
-            </div>
-          </article>
-
-          <aside>
-            <article class="card">
-              <div class="card-head"><h3>候選因果線索</h3><small>模型排序</small></div>
-              <div class="card-body cause-list">
-                <div class="cause">
-                  <div class="cause-line"><strong>工具參數結構變更</strong><span class="pill red">92%</span></div>
-                  <p>v3.8.2 將 customer_tier 改為陣列，但 ERP 介面仍接受單一列舉值。</p>
-                  <div class="confidence"><span style="width:92%"></span></div>
-                </div>
-                <div class="cause">
-                  <div class="cause-line"><strong>重試策略放寬</strong><span class="pill amber">76%</span></div>
-                  <p>最大重試由 1 次提高為 3 次，放大失敗工具呼叫的成本。</p>
-                  <div class="confidence"><span style="width:76%;background:#d97706"></span></div>
-                </div>
-                <div class="cause">
-                  <div class="cause-line"><strong>提示詞路由偏移</strong><span class="pill blue">31%</span></div>
-                  <p>少量任務誤選企業客戶流程，但不足以單獨造成越界。</p>
-                  <div class="confidence"><span style="width:31%;background:var(--blue)"></span></div>
-                </div>
-              </div>
-            </article>
-            <button class="btn primary" style="width:100%;margin-top:12px" data-jump="3"><span class="material-symbols-outlined">published_with_changes</span>產生回滾方案</button>
-          </aside>
+          <article class="card"><div class="card-head"><h3>異常時間線</h3><small>Agent 定義 · 任務軌跡 · 工具呼叫</small></div><div class="timeline">
+            <div class="event"><time class="event-time">08:18:04</time><div class="event-axis"><i class="event-dot"></i></div><div class="event-copy"><strong>v3.8.2 流量提升至 100%</strong><p>部署檢查完成，初始探針 20/20 通過。</p></div></div>
+            <div class="event amber"><time class="event-time">08:31:27</time><div class="event-axis"><i class="event-dot"></i></div><div class="event-copy"><strong>ERP 報價工具延遲升高</strong><p>P95 延遲由 1.2 秒升至 4.8 秒，首次超過警示線。</p></div></div>
+            <div class="event red"><time class="event-time">08:42:11</time><div class="event-axis"><i class="event-dot"></i></div><div class="event-copy"><strong>品質與成本雙重門檻觸發</strong><p>成功率 88.4%，成本增加 47%，連續失敗 7 次。</p></div></div>
+            <div class="event"><time class="event-time">08:43:02</time><div class="event-axis"><i class="event-dot"></i></div><div class="event-copy"><strong>自動凍結新任務</strong><p>新進任務轉往安全佇列，既有 86 筆任務持續監控。</p></div></div>
+          </div><div class="card-body" style="padding-top:0"><div class="trace"><span class="key">trace_id</span>: "tr_8ef203"<br><span class="key">agent_version</span>: "3.8.2"<br><span class="key">tool</span>: "erp.quote.create"<br><span class="bad">error</span>: "customer_tier expects enum, received string[]"<br><span class="key">retry_count</span>: 3<br><span class="key">token_cost</span>: 0.091<br><span class="good">stable_version_result</span>: "accepted in v3.7.9"</div></div></article>
+          <aside><article class="card"><div class="card-head"><h3>候選因果線索</h3><small>模型排序 <span class="typing" aria-label="分析中"><i></i><i></i><i></i></span></small></div><div class="card-body cause-list">
+            <div class="cause"><div class="cause-line"><strong>工具參數結構變更</strong><span class="pill red">高可信 · 92%</span></div><p>v3.8.2 將 customer_tier 改為陣列，但 ERP 介面仍接受單一列舉值。</p><div class="confidence"><span style="width:92%"></span></div></div>
+            <div class="cause"><div class="cause-line"><strong>重試策略放寬</strong><span class="pill amber">中高可信 · 76%</span></div><p>最大重試由 1 次提高為 3 次，放大失敗工具呼叫的成本。</p><div class="confidence"><span style="width:76%;background:var(--amber)"></span></div></div>
+            <div class="cause"><div class="cause-line"><strong>提示詞路由偏移</strong><span class="pill blue">低可信 · 31%</span></div><p>少量任務誤選企業客戶流程，但不足以單獨造成越界。</p><div class="confidence"><span style="width:31%;background:var(--blue)"></span></div></div>
+          </div></article><button class="btn primary" style="width:100%;margin-top:12px" data-jump="3"><span class="material-symbols-outlined">published_with_changes</span>產生回滾方案</button></aside>
         </div>
       </section>
 
       <section class="view" data-view="3">
-        <div class="page-head">
-          <div>
-            <div class="eyebrow">Stage 04 · Rollback approval</div>
-            <h2>核准回滾方案</h2>
-            <p>比較候選穩定版本、流量影響與預估恢復時間，核准後將服務安全切回已驗證版本。</p>
-          </div>
-          <span class="pill amber"><span class="material-symbols-outlined">pending_actions</span>等待產品經理核准</span>
-        </div>
-
+        <div class="page-head"><div><div class="eyebrow">Stage 04 · Rollback approval</div><h2>核准回滾方案</h2><p>比較候選穩定版本、流量影響與預估恢復時間，核准後將服務安全切回已驗證版本。</p></div><span class="pill amber"><span class="material-symbols-outlined">pending_actions</span>等待產品經理核准</span></div>
         <div class="compare-grid">
-          <article class="card version">
-            <div class="version-id"><span class="version-dot"><span class="material-symbols-outlined">history</span></span><div><h3>v3.7.6</h3><div class="release">穩定運行 28 天</div></div></div>
-            <div class="version-metrics">
-              <div class="mini-metric"><span>成功率</span><strong>97.6%</strong></div>
-              <div class="mini-metric"><span>單任務成本</span><strong>$0.61</strong></div>
-              <div class="mini-metric"><span>探針通過</span><strong>46 / 48</strong></div>
-              <div class="mini-metric"><span>恢復時間</span><strong>8 分鐘</strong></div>
-            </div>
-            <ul class="check-list"><li><span class="material-symbols-outlined">check_circle</span>權限行為已驗證</li><li><span class="material-symbols-outlined">check_circle</span>相容現行 ERP 介面</li></ul>
-          </article>
-
-          <article class="card version recommended">
-            <div class="ribbon">建議</div>
-            <div class="version-id"><span class="version-dot"><span class="material-symbols-outlined">verified</span></span><div><h3>v3.7.9</h3><div class="release">穩定運行 17 天</div></div></div>
-            <div class="version-metrics">
-              <div class="mini-metric"><span>成功率</span><strong>98.4%</strong></div>
-              <div class="mini-metric"><span>單任務成本</span><strong>$0.57</strong></div>
-              <div class="mini-metric"><span>探針通過</span><strong>48 / 48</strong></div>
-              <div class="mini-metric"><span>恢復時間</span><strong>5 分鐘</strong></div>
-            </div>
-            <ul class="check-list"><li><span class="material-symbols-outlined">check_circle</span>完整通過回歸驗證</li><li><span class="material-symbols-outlined">check_circle</span>保留新版訂單分類能力</li></ul>
-          </article>
-
-          <article class="card version">
-            <div class="version-id"><span class="version-dot"><span class="material-symbols-outlined">experiment</span></span><div><h3>v3.8.1</h3><div class="release">穩定運行 3 天</div></div></div>
-            <div class="version-metrics">
-              <div class="mini-metric"><span>成功率</span><strong>96.2%</strong></div>
-              <div class="mini-metric"><span>單任務成本</span><strong>$0.69</strong></div>
-              <div class="mini-metric"><span>探針通過</span><strong>44 / 48</strong></div>
-              <div class="mini-metric"><span>恢復時間</span><strong>4 分鐘</strong></div>
-            </div>
-            <ul class="check-list"><li><span class="material-symbols-outlined">check_circle</span>含新版工具觀測欄位</li><li style="color:var(--amber)"><span class="material-symbols-outlined" style="color:var(--amber)">warning</span>企業報價情境未完整驗證</li></ul>
-          </article>
+          <article class="card version"><div class="version-id"><span class="version-dot"><span class="material-symbols-outlined">history</span></span><div><h3>v3.7.6</h3><div class="release">穩定運行 28 天</div></div></div><div class="version-metrics"><div class="mini-metric"><span>成功率</span><strong>97.6%</strong></div><div class="mini-metric"><span>單任務成本</span><strong>$0.61</strong></div><div class="mini-metric"><span>探針通過</span><strong>46 / 48</strong></div><div class="mini-metric"><span>恢復時間</span><strong>8 分鐘</strong></div></div><ul class="check-list"><li><span class="material-symbols-outlined">check_circle</span>權限行為已驗證</li><li><span class="material-symbols-outlined">check_circle</span>相容現行 ERP 介面</li></ul></article>
+          <article class="card version recommended"><div class="ribbon">建議</div><div class="version-id"><span class="version-dot"><span class="material-symbols-outlined">verified</span></span><div><h3>v3.7.9</h3><div class="release">穩定運行 17 天</div></div></div><div class="version-metrics"><div class="mini-metric"><span>成功率</span><strong>98.4%</strong></div><div class="mini-metric"><span>單任務成本</span><strong>$0.57</strong></div><div class="mini-metric"><span>探針通過</span><strong>48 / 48</strong></div><div class="mini-metric"><span>恢復時間</span><strong>5 分鐘</strong></div></div><ul class="check-list"><li><span class="material-symbols-outlined">check_circle</span>完整通過回歸驗證</li><li><span class="material-symbols-outlined">check_circle</span>保留新版訂單分類能力</li></ul></article>
+          <article class="card version"><div class="version-id"><span class="version-dot"><span class="material-symbols-outlined">experiment</span></span><div><h3>v3.8.1</h3><div class="release">穩定運行 3 天</div></div></div><div class="version-metrics"><div class="mini-metric"><span>成功率</span><strong>96.2%</strong></div><div class="mini-metric"><span>單任務成本</span><strong>$0.69</strong></div><div class="mini-metric"><span>探針通過</span><strong>44 / 48</strong></div><div class="mini-metric"><span>恢復時間</span><strong>4 分鐘</strong></div></div><ul class="check-list"><li><span class="material-symbols-outlined">check_circle</span>含新版工具觀測欄位</li><li style="color:var(--amber)"><span class="material-symbols-outlined" style="color:var(--amber)">warning</span>企業報價情境未完整驗證</li></ul></article>
         </div>
-
         <div class="impact-layout">
-          <article class="card impact-map">
-            <div class="card-head" style="padding:0 0 14px"><h3>切換計畫與影響範圍</h3><span class="pill green">無資料遺失</span></div>
-            <div class="route">
-              <div class="route-node"><span class="material-symbols-outlined">pause_circle</span><strong style="display:block">凍結派工</strong><small>0:00</small></div>
-              <span class="route-arrow material-symbols-outlined">arrow_forward</span>
-              <div class="route-node active"><span class="material-symbols-outlined">swap_horiz</span><strong style="display:block">切至 v3.7.9</strong><small>0:45</small></div>
-              <span class="route-arrow material-symbols-outlined">arrow_forward</span>
-              <div class="route-node"><span class="material-symbols-outlined">science</span><strong style="display:block">執行探針</strong><small>2:10</small></div>
-              <span class="route-arrow material-symbols-outlined">arrow_forward</span>
-              <div class="route-node"><span class="material-symbols-outlined">play_circle</span><strong style="display:block">恢復流量</strong><small>5:00</small></div>
-            </div>
-            <div class="grid-3">
-              <div class="mini-metric"><span>受影響任務</span><strong>86 筆</strong></div>
-              <div class="mini-metric"><span>人工接管</span><strong>12 筆</strong></div>
-              <div class="mini-metric"><span>預估恢復</span><strong>5 分鐘</strong></div>
-            </div>
-          </article>
-
-          <aside class="card approval-box">
-            <div class="approver"><div class="avatar">PM</div><div><strong>陳立衡 · 產品經理</strong><small>事件核准人 · MFA 已驗證</small></div></div>
-            <div class="note">核准 v3.7.9。切換後先開放 10% 流量執行 48 項關鍵探針，全部通過後再恢復 100%。</div>
-            <div class="field"><label for="approvalCode">變更單號</label><div class="input-wrap"><span class="material-symbols-outlined">tag</span><input id="approvalCode" value="CHG-2026-0822-37"></div></div>
-            <div class="approval-actions" style="margin-top:14px">
-              <button class="btn">退回補件</button>
-              <button class="btn primary" data-jump="4"><span class="material-symbols-outlined">approval</span>核准並切換</button>
-            </div>
-          </aside>
+          <article class="card impact-map"><div class="card-head" style="padding:0 0 14px"><h3>切換計畫與影響範圍</h3><span class="pill green"><span class="material-symbols-outlined">database</span>無資料遺失</span></div><div class="route"><div class="route-node"><span class="material-symbols-outlined">pause_circle</span><strong>凍結派工</strong><small>0:00</small></div><span class="route-arrow material-symbols-outlined">arrow_forward</span><div class="route-node active"><span class="material-symbols-outlined">swap_horiz</span><strong>切至 v3.7.9</strong><small>0:45</small></div><span class="route-arrow material-symbols-outlined">arrow_forward</span><div class="route-node"><span class="material-symbols-outlined">science</span><strong>執行探針</strong><small>2:10</small></div><span class="route-arrow material-symbols-outlined">arrow_forward</span><div class="route-node"><span class="material-symbols-outlined">play_circle</span><strong>恢復流量</strong><small>5:00</small></div></div><div class="grid-3"><div class="mini-metric"><span>受影響任務</span><strong>86 筆</strong></div><div class="mini-metric"><span>人工接管</span><strong>12 筆</strong></div><div class="mini-metric"><span>預估恢復</span><strong>5 分鐘</strong></div></div></article>
+          <aside class="card approval-box"><div class="approver"><div class="avatar">PM</div><div><strong>陳立衡 · 產品經理</strong><small>事件核准人 · MFA 已驗證</small></div></div><div class="note">核准 v3.7.9。切換後先開放 10% 流量執行 48 項關鍵探針，全部通過後再恢復 100%。</div><div class="field"><label for="approvalCode">變更單號</label><div class="input-wrap"><span class="material-symbols-outlined">tag</span><input id="approvalCode" value="CHG-2026-0822-37"></div></div><div class="approval-actions" style="margin-top:14px"><button class="btn">退回補件</button><button class="btn primary" data-jump="4"><span class="material-symbols-outlined">approval</span>核准並切換</button></div></aside>
         </div>
       </section>
 
       <section class="view" data-view="4">
-        <div class="page-head">
-          <div>
-            <div class="eyebrow">Stage 05 · Recovery verification</div>
-            <h2>驗證恢復狀態</h2>
-            <p>執行關鍵探針任務，確認品質、成本、工具權限與服務可用率均已回到安全區間。</p>
-          </div>
-          <span class="pill green"><span class="material-symbols-outlined">task_alt</span>48 / 48 探針通過</span>
-        </div>
-
-        <div class="verify-banner">
-          <div class="verify-icon"><span class="material-symbols-outlined">verified</span></div>
-          <div><h3>服務已安全切換至 v3.7.9</h3><p>100% 流量恢復，連續 10 分鐘未偵測到品質、成本或權限異常。</p></div>
-          <span class="pill green">安全區間</span>
-        </div>
-
+        <div class="page-head"><div><div class="eyebrow">Stage 05 · Recovery verification</div><h2>驗證恢復狀態</h2><p>執行關鍵探針任務，確認品質、成本、工具權限與服務可用率均已回到安全區間。</p></div><span class="pill green"><span class="material-symbols-outlined">task_alt</span>48 / 48 探針通過</span></div>
+        <div class="verify-banner"><div class="verify-icon"><span class="material-symbols-outlined">verified</span></div><div><h3>服務已安全切換至 v3.7.9</h3><p>100% 流量恢復，連續 10 分鐘未偵測到品質、成本或權限異常。</p></div><span class="pill green"><span class="material-symbols-outlined">shield</span>安全區間</span></div>
         <div class="probe-layout">
-          <article class="card">
-            <div class="card-head"><h3>關鍵探針任務</h3><small>最近執行 09:10:42</small></div>
-            <div class="probe-list">
-              <div class="probe"><span class="probe-check"><span class="material-symbols-outlined">check</span></span><div><strong>標準客戶報價建立</strong><small>ERP 工具回傳正確，價格與稅率驗證一致</small></div><time class="probe-time">1.12 秒</time></div>
-              <div class="probe"><span class="probe-check"><span class="material-symbols-outlined">check</span></span><div><strong>企業客戶等級判斷</strong><small>customer_tier 使用合法列舉值 enterprise</small></div><time class="probe-time">0.84 秒</time></div>
-              <div class="probe"><span class="probe-check"><span class="material-symbols-outlined">check</span></span><div><strong>缺料訂單人工轉交</strong><small>正確建立服務台項目，未重複派工</small></div><time class="probe-time">1.47 秒</time></div>
-              <div class="probe"><span class="probe-check"><span class="material-symbols-outlined">check</span></span><div><strong>唯讀權限防護</strong><small>驗證期間 ERP 寫入請求成功攔截</small></div><time class="probe-time">0.39 秒</time></div>
-              <div class="probe"><span class="probe-check"><span class="material-symbols-outlined">check</span></span><div><strong>高併發訂單摘要</strong><small>50 筆併發任務完成，無逾時或遺漏</small></div><time class="probe-time">3.21 秒</time></div>
-            </div>
-          </article>
-
-          <aside class="card">
-            <div class="card-head"><h3>恢復指標</h3><span class="pill green">通過</span></div>
-            <div class="card-body">
-              <div class="gauge-wrap">
-                <div id="availabilityGauge" class="gauge" aria-label="系統可用率儀表"></div>
-                <div id="qualityGauge" class="gauge" aria-label="成功率儀表"></div>
-              </div>
-              <div class="quality-grid">
-                <div class="quality"><span>單任務成本</span><strong>$0.56</strong></div>
-                <div class="quality"><span>P95 延遲</span><strong>1.18 秒</strong></div>
-                <div class="quality"><span>權限異常</span><strong style="color:var(--green)">0 次</strong></div>
-              </div>
-              <button class="btn primary" style="width:100%;margin-top:14px" data-jump="5">確認恢復並結案</button>
-            </div>
-          </aside>
+          <article class="card"><div class="card-head"><h3>關鍵探針任務</h3><small>最近執行 09:10:42</small></div><div class="probe-list">
+            <div class="probe"><span class="probe-check"><span class="material-symbols-outlined">check</span></span><div><strong>標準客戶報價建立</strong><small>ERP 工具回傳正確，價格與稅率驗證一致</small></div><time class="probe-time">1.12 秒</time></div>
+            <div class="probe"><span class="probe-check"><span class="material-symbols-outlined">check</span></span><div><strong>企業客戶等級判斷</strong><small>customer_tier 使用合法列舉值 enterprise</small></div><time class="probe-time">0.84 秒</time></div>
+            <div class="probe"><span class="probe-check"><span class="material-symbols-outlined">check</span></span><div><strong>缺料訂單人工轉交</strong><small>正確建立服務台項目，未重複派工</small></div><time class="probe-time">1.47 秒</time></div>
+            <div class="probe"><span class="probe-check"><span class="material-symbols-outlined">check</span></span><div><strong>唯讀權限防護</strong><small>驗證期間 ERP 寫入請求成功攔截</small></div><time class="probe-time">0.39 秒</time></div>
+            <div class="probe"><span class="probe-check"><span class="material-symbols-outlined">check</span></span><div><strong>高併發訂單摘要</strong><small>50 筆併發任務完成，無逾時或遺漏</small></div><time class="probe-time">3.21 秒</time></div>
+          </div></article>
+          <aside class="card"><div class="card-head"><h3>恢復指標</h3><span class="pill green"><span class="material-symbols-outlined">check_circle</span>通過</span></div><div class="card-body"><div class="gauge-wrap"><div id="availabilityGauge" class="gauge" aria-label="系統可用率儀表"></div><div id="qualityGauge" class="gauge" aria-label="成功率儀表"></div></div><div class="quality-grid"><div class="quality"><span>單任務成本</span><strong>$0.56</strong></div><div class="quality"><span>P95 延遲</span><strong>1.18 秒</strong></div><div class="quality"><span>權限異常</span><strong style="color:var(--green)">0 次</strong></div></div><button class="btn primary" style="width:100%;margin-top:14px" data-jump="5">確認恢復並結案</button></div></aside>
         </div>
       </section>
 
       <section class="view" data-view="5">
-        <div class="page-head">
-          <div>
-            <div class="eyebrow">Stage 06 · Incident closure</div>
-            <h2>結案與回報</h2>
-            <p>處理殘留人工項目，完成可追溯的事件摘要、改善清單與利害關係人回報。</p>
-          </div>
-          <span class="pill green"><span class="material-symbols-outlined">inventory</span>事件已結案</span>
-        </div>
-
+        <div class="page-head"><div><div class="eyebrow">Stage 06 · Incident closure</div><h2>結案與回報</h2><p>處理殘留人工項目，完成可追溯的事件摘要、改善清單與利害關係人回報。</p></div><span class="pill green"><span class="material-symbols-outlined">inventory</span>事件已結案</span></div>
         <div class="closure-grid">
           <article class="card summary-cover">
-            <div class="summary-title">
-              <div><span class="pill blue">INC-20260822-014</span><h3>客服訂單協調 Agent 自動回滾報告</h3><p>發生時間 2026/08/22 08:42 · 恢復時間 09:10 · 負責人 AI 平台團隊</p></div>
-              <span class="material-symbols-outlined" style="font-size:40px;color:var(--green)">task_alt</span>
-            </div>
-            <div class="outcome-grid">
-              <div class="outcome"><span>事件平均處理</span><strong>28 分鐘</strong><small class="up">較原流程 -77%</small></div>
-              <div class="outcome"><span>系統可用率</span><strong>99.02%</strong><small class="up">目標 ≥ 99%</small></div>
-              <div class="outcome"><span>SLA 達成率</span><strong>98%</strong><small class="up">提升 13%</small></div>
-            </div>
-
-            <div class="section-label">根因與處置摘要</div>
-            <div class="note" style="margin:0;color:var(--body)">
-              v3.8.2 將 ERP 報價工具的客戶等級參數由單值改為陣列，造成工具驗證失敗；同版新增的三次重試策略進一步放大成本。系統凍結新任務並由產品經理核准切回 v3.7.9，48 項探針全數通過後恢復流量。
-            </div>
-
-            <div class="section-label">後續修正清單</div>
-            <div class="table-scroll">
-              <table class="action-table">
-                <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead>
-                <tbody>
-                  <tr><td>AGE-001</td><td>補強 ERP 工具契約測試</td><td>AI 平台負責人</td><td>D+1</td><td><span class="pill amber">處理中</span></td></tr>
-                  <tr><td>AGE-002</td><td>調整重試成本門檻</td><td>流程主管</td><td>D+2</td><td><span class="pill blue">待確認</span></td></tr>
-                  <tr><td>AGE-003</td><td>建立企業客戶回歸資料集</td><td>AI 平台負責人</td><td>D+3</td><td><span class="pill blue">待確認</span></td></tr>
-                  <tr><td>AGE-004</td><td>更新版本發布檢核表</td><td>產品經理</td><td>D+4</td><td><span class="pill green">已完成</span></td></tr>
-                </tbody>
-              </table>
-            </div>
+            <div class="summary-title"><div><span class="pill blue">INC-20260822-014</span><h3>客服訂單協調 Agent 自動回滾報告</h3><p>發生時間 2026/08/22 08:42 · 恢復時間 09:10 · 負責人 AI 平台團隊</p></div><span class="material-symbols-outlined" style="font-size:40px;color:var(--green)">task_alt</span></div>
+            <div class="outcome-grid"><div class="outcome"><span>事件平均處理</span><strong>28 分鐘</strong><small class="up">較原流程 -77%</small></div><div class="outcome"><span>系統可用率</span><strong>99.02%</strong><small class="up">目標 ≥ 99%</small></div><div class="outcome"><span>SLA 達成率</span><strong>98%</strong><small class="up">提升 13%</small></div></div>
+            <div class="section-label">根因與處置摘要</div><div class="note" style="margin:0;color:var(--body)">v3.8.2 將 ERP 報價工具的客戶等級參數由單值改為陣列，造成工具驗證失敗；同版新增的三次重試策略進一步放大成本。系統凍結新任務並由產品經理核准切回 v3.7.9，48 項探針全數通過後恢復流量。</div>
+            <div class="section-label">後續修正清單</div><div class="table-scroll"><table class="action-table"><thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th></tr></thead><tbody>
+              <tr><td>AGE-001</td><td>補強 ERP 工具契約測試</td><td>AI 平台負責人</td><td>D+1</td><td><span class="pill amber">處理中</span></td></tr>
+              <tr><td>AGE-002</td><td>調整重試成本門檻</td><td>流程主管</td><td>D+2</td><td><span class="pill blue">待確認</span></td></tr>
+              <tr><td>AGE-003</td><td>建立企業客戶回歸資料集</td><td>AI 平台負責人</td><td>D+3</td><td><span class="pill blue">待確認</span></td></tr>
+              <tr><td>AGE-004</td><td>更新版本發布檢核表</td><td>產品經理</td><td>D+4</td><td><span class="pill green">已完成</span></td></tr>
+            </tbody></table></div>
           </article>
-
-          <aside class="card">
-            <div class="card-head"><h3>操作紀錄</h3><small>完整稽核軌跡</small></div>
-            <div class="activity-list">
-              <div class="activity"><span class="activity-icon"><span class="material-symbols-outlined">monitor_heart</span></span><div><strong>健康門檻觸發</strong><p>成功率、成本與連續失敗三項條件成立。</p><time>08:42 · 系統</time></div></div>
-              <div class="activity"><span class="activity-icon"><span class="material-symbols-outlined">troubleshoot</span></span><div><strong>完成因果診斷</strong><p>工具參數結構變更信心度 92%。</p><time>08:49 · 林志豪</time></div></div>
-              <div class="activity"><span class="activity-icon"><span class="material-symbols-outlined">approval</span></span><div><strong>回滾方案核准</strong><p>核准切換至穩定版本 v3.7.9。</p><time>08:55 · 陳立衡</time></div></div>
-              <div class="activity"><span class="activity-icon"><span class="material-symbols-outlined">fact_check</span></span><div><strong>恢復驗證完成</strong><p>48 項探針通過，流量恢復至 100%。</p><time>09:10 · 王怡文</time></div></div>
-              <div class="activity"><span class="activity-icon"><span class="material-symbols-outlined">inventory</span></span><div><strong>事件正式結案</strong><p>改善清單已派送並通知三位利害關係人。</p><time>09:16 · 林志豪</time></div></div>
-            </div>
-            <div class="export-actions">
-              <button class="btn"><span class="material-symbols-outlined">picture_as_pdf</span>匯出事件報告</button>
-              <button class="btn primary"><span class="material-symbols-outlined">send</span>發送利害關係人</button>
-            </div>
-          </aside>
+          <aside class="card"><div class="card-head"><h3>操作紀錄</h3><small>完整稽核軌跡</small></div><div class="activity-list">
+            <div class="activity"><span class="activity-icon"><span class="material-symbols-outlined">monitor_heart</span></span><div><strong>健康門檻觸發</strong><p>成功率、成本與連續失敗三項條件成立。</p><time>08:42 · 系統</time></div></div>
+            <div class="activity"><span class="activity-icon"><span class="material-symbols-outlined">troubleshoot</span></span><div><strong>完成因果診斷</strong><p>工具參數結構變更信心度 92%。</p><time>08:49 · 林志豪</time></div></div>
+            <div class="activity"><span class="activity-icon"><span class="material-symbols-outlined">approval</span></span><div><strong>回滾方案核准</strong><p>核准切換至穩定版本 v3.7.9。</p><time>08:55 · 陳立衡</time></div></div>
+            <div class="activity"><span class="activity-icon"><span class="material-symbols-outlined">fact_check</span></span><div><strong>恢復驗證完成</strong><p>48 項探針通過，流量恢復至 100%。</p><time>09:10 · 王怡文</time></div></div>
+            <div class="activity"><span class="activity-icon"><span class="material-symbols-outlined">inventory</span></span><div><strong>事件正式結案</strong><p>改善清單已派送並通知三位利害關係人。</p><time>09:16 · 林志豪</time></div></div>
+          </div><div class="export-actions"><button class="btn"><span class="material-symbols-outlined">picture_as_pdf</span>匯出事件報告</button><button class="btn primary"><span class="material-symbols-outlined">send</span>發送利害關係人</button></div></aside>
         </div>
       </section>
     </div>
@@ -805,140 +401,133 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 <script>
 (() => {
   "use strict";
+  const views=[...document.querySelectorAll("[data-view]")];
+  const nav=[...document.querySelectorAll("[data-i]")];
+  const charts={};
+  const reduceMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const viewNodes = Array.from(document.querySelectorAll("[data-view]"));
-  const navNodes = Array.from(document.querySelectorAll("[data-i]"));
-  const chartRegistry = {};
-
-  function hashIndex() {
-    const matched = window.location.hash.match(/(?:go=|v)([0-9]+)/);
-    if (!matched) return 0;
-    const parsed = Number(matched[1]);
-    return Number.isInteger(parsed) && parsed >= 0 && parsed <= 5 ? parsed : 0;
+  function hashIndex(){
+    const match=location.hash.match(/(?:go=|v)([0-9]+)/);
+    const value=match?Number(match[1]):0;
+    return Number.isInteger(value)&&value>=0&&value<=5?value:0;
   }
 
-  function baseChartOptions() {
-    return {
-      chart: {
-        fontFamily: 'Inter, "Noto Sans TC", sans-serif',
-        toolbar: { show: false },
-        animations: { enabled: true, speed: 450 }
+  function base(){
+    return{
+      chart:{
+        fontFamily:'"DM Sans", sans-serif',
+        toolbar:{show:false},
+        animations:{enabled:!reduceMotion,speed:400}
       },
-      dataLabels: { enabled: false },
-      grid: { borderColor: "#e7edf5", strokeDashArray: 4 },
-      tooltip: { theme: "light" },
-      legend: { show: false }
+      dataLabels:{enabled:false},
+      grid:{borderColor:"#e5ddf5",strokeDashArray:4},
+      tooltip:{theme:"light"},
+      legend:{show:false}
     };
   }
 
-  function initHealthChart() {
-    const chartElement = document.querySelector("#healthChart");
-    if (!chartElement || chartElement.clientWidth < 1 || chartRegistry.health) return;
-    const options = baseChartOptions();
-    Object.assign(options, {
-      chart: { ...options.chart, type: "line", height: 285 },
-      series: [
-        { name: "成功率 %", type: "area", data: [98.4,98.1,97.9,97.5,96.8,95.2,93.4,91.8,88.4,90.2,91.3,92.1] },
-        { name: "成本指數", type: "line", data: [100,101,99,103,108,116,124,132,147,141,136,131] }
+  function initHealth(){
+    const el=document.querySelector("#healthChart");
+    if(!el||el.clientWidth<1||charts.health)return;
+    const options=base();
+    Object.assign(options,{
+      chart:{...options.chart,type:"line",height:285},
+      series:[
+        {name:"成功率 %",type:"area",data:[98.4,98.1,97.9,97.5,96.8,95.2,93.4,91.8,88.4,90.2,91.3,92.1]},
+        {name:"成本指數",type:"line",data:[100,101,99,103,108,116,124,132,147,141,136,131]}
       ],
-      colors: ["#1e40af","#dc2626"],
-      stroke: { width: [3,3], curve: "smooth" },
-      fill: { type: ["gradient","solid"], gradient: { opacityFrom: .26, opacityTo: .02 } },
-      xaxis: {
-        categories: ["22:00","23:00","00:00","01:00","02:00","03:00","04:00","05:00","06:00","07:00","08:00","09:00"],
-        labels: { style: { colors: "#64748b", fontSize: "10px" } }
+      colors:["#7c3aed","#dc2626"],
+      stroke:{width:[3,3],curve:"smooth"},
+      fill:{type:["gradient","solid"],gradient:{opacityFrom:.3,opacityTo:.02}},
+      markers:{size:0,hover:{size:5}},
+      xaxis:{
+        categories:["22:00","23:00","00:00","01:00","02:00","03:00","04:00","05:00","06:00","07:00","08:00","09:00"],
+        labels:{style:{colors:"#475569",fontSize:"10px"}}
       },
-      yaxis: [
-        { min: 85, max: 100, labels: { formatter: value => value.toFixed(0) + "%", style: { colors: "#64748b" } } },
-        { opposite: true, min: 80, max: 160, labels: { formatter: value => value.toFixed(0), style: { colors: "#64748b" } } }
+      yaxis:[
+        {min:85,max:100,labels:{formatter:v=>v.toFixed(0)+"%",style:{colors:"#475569"}}},
+        {opposite:true,min:80,max:160,labels:{formatter:v=>v.toFixed(0),style:{colors:"#475569"}}}
       ],
-      annotations: {
-        yaxis: [{ y: 94, borderColor: "#dc2626", strokeDashArray: 5, label: { text: "品質門檻 94%", style: { background: "#dc2626", color: "#fff", fontSize: "10px" } } }]
-      }
+      annotations:{yaxis:[{y:94,borderColor:"#dc2626",strokeDashArray:5,label:{text:"品質門檻 94%",style:{background:"#dc2626",color:"#fff",fontSize:"10px"}}}]}
     });
-    chartRegistry.health = new ApexCharts(chartElement, options);
-    chartRegistry.health.render();
+    charts.health=new ApexCharts(el,options);
+    charts.health.render();
   }
 
-  function radialOptions(labelText, valueNumber, colorValue) {
-    const options = baseChartOptions();
-    return {
+  function radial(label,value,color){
+    const options=base();
+    return{
       ...options,
-      chart: { ...options.chart, type: "radialBar", height: 190 },
-      series: [valueNumber],
-      colors: [colorValue],
-      plotOptions: {
-        radialBar: {
-          startAngle: -125,
-          endAngle: 125,
-          hollow: { size: "62%" },
-          track: { background: "#edf2f7", strokeWidth: "100%" },
-          dataLabels: {
-            name: { show: true, offsetY: 23, color: "#64748b", fontSize: "11px" },
-            value: { offsetY: -12, color: "#111827", fontSize: "23px", fontWeight: 800, formatter: value => Number(value).toFixed(1) + "%" }
-          }
+      chart:{...options.chart,type:"radialBar",height:190},
+      series:[value],
+      colors:[color],
+      plotOptions:{radialBar:{
+        startAngle:-125,endAngle:125,
+        hollow:{size:"62%"},
+        track:{background:"#eceef9",strokeWidth:"100%"},
+        dataLabels:{
+          name:{show:true,offsetY:23,color:"#475569",fontSize:"11px"},
+          value:{offsetY:-12,color:"#1e1b4b",fontSize:"23px",fontWeight:700,formatter:v=>Number(v).toFixed(1)+"%"}
         }
-      },
-      labels: [labelText],
-      stroke: { lineCap: "round" }
+      }},
+      labels:[label],
+      stroke:{lineCap:"round"}
     };
   }
 
-  function initRecoveryCharts() {
-    const availabilityElement = document.querySelector("#availabilityGauge");
-    const qualityElement = document.querySelector("#qualityGauge");
-    if (availabilityElement && availabilityElement.clientWidth > 0 && !chartRegistry.availability) {
-      chartRegistry.availability = new ApexCharts(availabilityElement, radialOptions("系統可用率", 99.0, "#15803d"));
-      chartRegistry.availability.render();
+  function initRecovery(){
+    const availability=document.querySelector("#availabilityGauge");
+    const quality=document.querySelector("#qualityGauge");
+    if(availability&&availability.clientWidth>0&&!charts.availability){
+      charts.availability=new ApexCharts(availability,radial("系統可用率",99,"#047857"));
+      charts.availability.render();
     }
-    if (qualityElement && qualityElement.clientWidth > 0 && !chartRegistry.quality) {
-      chartRegistry.quality = new ApexCharts(qualityElement, radialOptions("任務成功率", 98.4, "#1e40af"));
-      chartRegistry.quality.render();
+    if(quality&&quality.clientWidth>0&&!charts.quality){
+      charts.quality=new ApexCharts(quality,radial("任務成功率",98.4,"#7c3aed"));
+      charts.quality.render();
     }
   }
 
-  function initVisibleCharts(viewIndex) {
-    if (viewIndex === 0) initHealthChart();
-    if (viewIndex === 4) initRecoveryCharts();
+  function show(index){
+    const safe=Number.isInteger(Number(index))&&Number(index)>=0&&Number(index)<=5?Number(index):0;
+    views.forEach((node,i)=>{
+      const selected=i===safe;
+      node.classList.toggle("active",selected);
+      node.setAttribute("aria-hidden",selected?"false":"true");
+    });
+    nav.forEach((node,i)=>{
+      const selected=i===safe;
+      node.classList.toggle("active",selected);
+      node.setAttribute("aria-current",selected?"step":"false");
+    });
+    requestAnimationFrame(()=>{
+      if(safe===0)initHealth();
+      if(safe===4)initRecovery();
+    });
   }
 
-  function show(viewIndex) {
-    const safeIndex = Number.isInteger(Number(viewIndex)) && Number(viewIndex) >= 0 && Number(viewIndex) <= 5 ? Number(viewIndex) : 0;
-    viewNodes.forEach((node, index) => {
-      const selected = index === safeIndex;
-      node.classList.toggle("active", selected);
-      node.setAttribute("aria-hidden", selected ? "false" : "true");
-    });
-    navNodes.forEach((node, index) => {
-      const selected = index === safeIndex;
-      node.classList.toggle("active", selected);
-      node.setAttribute("aria-current", selected ? "step" : "false");
-    });
-    window.requestAnimationFrame(() => initVisibleCharts(safeIndex));
-  }
+  nav.forEach(node=>node.addEventListener("click",()=>{
+    const next=Number(node.dataset.i);
+    if(location.hash==="#go="+next)show(next);
+    else location.hash="go="+next;
+  }));
 
-  window.show = show;
+  document.querySelectorAll("[data-jump]").forEach(node=>node.addEventListener("click",()=>{
+    const next=Number(node.dataset.jump);
+    if(location.hash==="#go="+next)show(next);
+    else location.hash="go="+next;
+  }));
 
-  navNodes.forEach(node => {
-    node.addEventListener("click", () => {
-      const nextIndex = Number(node.dataset.i);
-      if (window.location.hash === "#go=" + nextIndex) show(nextIndex);
-      else window.location.hash = "go=" + nextIndex;
+  addEventListener("hashchange",()=>show(hashIndex()));
+  document.addEventListener("visibilitychange",()=>{
+    Object.values(charts).forEach(chart=>{
+      if(!chart)return;
+      if(document.hidden&&typeof chart.pauseAnimation==="function")chart.pauseAnimation();
     });
   });
-
-  document.querySelectorAll("[data-jump]").forEach(node => {
-    node.addEventListener("click", () => {
-      const nextIndex = Number(node.dataset.jump);
-      if (window.location.hash === "#go=" + nextIndex) show(nextIndex);
-      else window.location.hash = "go=" + nextIndex;
-    });
-  });
-
-  window.addEventListener("hashchange", () => show(hashIndex()));
+  window.show=show;
   show(hashIndex());
 })();
 </script>
-<script src="/shared/jv-agent-bridge.js?v=2" defer></script>
 </body>
 </html>

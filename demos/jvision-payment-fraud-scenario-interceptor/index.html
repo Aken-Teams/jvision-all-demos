@@ -1,1043 +1,775 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="../../favicon.svg">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&amp;family=Fira+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
 <title>付款詐欺情境攔截器 · security-soc｜Jvision 系統 Demo</title>
 <style>
 :root{
-  --blue:#be123c;
-  --ink:#172033;
-  --body:#334155;
-  --muted:#718096;
-  --line:#e5e9f0;
-  --bg:#f6f8fb;
-  --green:#11875d;
-  --amber:#c27803;
-  --red:#dc3545;
-  --white:#fff;
-  --rose-soft:#fff1f4;
-  --shadow:0 12px 35px rgba(15,23,42,.08);
+  --color-primary:#0F172A;
+  --color-on-primary:#FFFFFF;
+  --color-secondary:#1E293B;
+  --color-on-secondary:#FFFFFF;
+  --color-accent:#22C55E;
+  --color-on-accent:#0F172A;
+  --color-background:#020617;
+  --color-foreground:#F8FAFC;
+  --color-card:#0E1223;
+  --color-card-foreground:#F8FAFC;
+  --color-muted:#1A1E2F;
+  --color-muted-foreground:#94A3B8;
+  --color-border:#334155;
+  --color-destructive:#EF4444;
+  --color-on-destructive:#000000;
+  --color-ring:#FFFFFF;
+  --blue:#22C55E;
+  --ink:#F8FAFC;
+  --muted:#94A3B8;
+  --line:#334155;
+  --green:#22C55E;
+  --amber:#FBBF24;
+  --red:#F87171;
+  --cyan:#38BDF8;
+  --violet:#A78BFA;
+  --shadow:0 18px 48px rgba(0,0,0,.34);
+  --radius:10px;
 }
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
+html{color-scheme:dark;scroll-behavior:smooth}
 body{
   margin:0;
-  background:var(--bg);
-  color:var(--body);
-  font-family:Inter,"Noto Sans TC",sans-serif;
+  min-width:320px;
+  background:
+    radial-gradient(circle at 82% -10%,rgba(34,197,94,.09),transparent 32rem),
+    var(--color-background);
+  color:var(--color-foreground);
+  font-family:"Fira Sans",sans-serif;
   line-height:1.5;
   overflow-x:hidden;
 }
-button,input,textarea,select{font:inherit}
+button,input,textarea{font:inherit}
 button{color:inherit}
+button,.queue-row,.choice,.filter-chip{cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{
+  outline:2px solid var(--color-ring);
+  outline-offset:3px;
+  box-shadow:0 0 0 5px rgba(34,197,94,.25);
+}
 .material-symbols-outlined{
-  font-size:21px;
+  font-size:20px;
+  line-height:1;
   font-variation-settings:"FILL" 0,"wght" 450,"GRAD" 0,"opsz" 24;
 }
-.app-shell{display:grid;grid-template-columns:78px minmax(0,1fr);min-height:100vh}
+.mono,.stat-value,.money,.score-ring,.data-fresh,.field strong,.pattern strong,
+.context-table td:last-child,.rule-id,.timeline-time,.case-number,.amount-block strong{
+  font-family:"Fira Code",monospace;
+  font-variant-numeric:tabular-nums;
+}
+.app-shell{display:grid;grid-template-columns:72px minmax(0,1fr);min-height:100vh}
 .rail{
-  position:fixed;
-  inset:0 auto 0 0;
-  width:78px;
-  z-index:40;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  padding:18px 10px;
-  background:#fff;
-  border-right:1px solid var(--line);
+  position:fixed;inset:0 auto 0 0;z-index:30;width:72px;
+  display:flex;flex-direction:column;align-items:center;padding:16px 10px;
+  background:rgba(2,6,23,.94);border-right:1px solid var(--line);
+  backdrop-filter:blur(14px);
 }
 .brand{
-  width:45px;height:45px;border-radius:15px;
-  display:grid;place-items:center;
-  color:#fff;background:linear-gradient(145deg,#e11d48,var(--blue));
-  box-shadow:0 9px 22px rgba(190,18,60,.25);
-  font-size:14px;font-weight:800;letter-spacing:-.04em;
+  width:42px;height:42px;display:grid;place-items:center;border-radius:9px;
+  color:var(--color-on-accent);background:var(--color-accent);
+  box-shadow:0 0 22px rgba(34,197,94,.24);
+  font:700 13px "Fira Code",monospace;
 }
-.rail-nav{display:grid;gap:9px;margin:auto 0}
-.nav-btn{
-  position:relative;width:48px;height:48px;border:0;border-radius:14px;
-  display:grid;place-items:center;background:transparent;color:#8791a4;
-  cursor:pointer;transition:.18s ease;
+.rail-nav{display:grid;gap:7px;margin:auto 0}
+.nav-btn,.icon-btn{
+  border:1px solid transparent;background:transparent;color:var(--muted);
+  display:grid;place-items:center;transition:background .2s,color .2s,border-color .2s,transform .2s;
 }
-.nav-btn:hover{background:#f8edf0;color:var(--blue)}
-.nav-btn.active{background:var(--rose-soft);color:var(--blue);box-shadow:inset 0 0 0 1px #ffd4df}
+.nav-btn{position:relative;width:46px;height:46px;border-radius:9px}
+.nav-btn:hover,.icon-btn:hover{color:var(--ink);background:var(--color-secondary);border-color:var(--line)}
+.nav-btn.active{color:var(--blue);background:#10271d;border-color:#1d5a35}
 .nav-btn.active::before{
-  content:"";position:absolute;left:-10px;width:3px;height:24px;
-  border-radius:0 5px 5px 0;background:var(--blue);
+  content:"";position:absolute;left:-11px;width:3px;height:24px;
+  border-radius:0 3px 3px 0;background:var(--blue);box-shadow:0 0 10px var(--blue);
 }
-.nav-btn:focus-visible,.btn:focus-visible,.icon-btn:focus-visible,
-.queue-row:focus-visible,.choice:focus-visible,.filter-chip:focus-visible{
-  outline:3px solid rgba(190,18,60,.22);outline-offset:2px;
-}
-.rail-help{color:#9ba4b5;width:44px;height:44px;display:grid;place-items:center}
-.main{grid-column:2;min-width:0;padding:0 30px 38px}
+.rail-help{color:var(--muted)}
+.main{grid-column:2;min-width:0;padding:0 28px 36px}
 .app-header{
-  min-height:76px;display:flex;align-items:center;justify-content:space-between;
+  min-height:70px;display:flex;align-items:center;justify-content:space-between;
   gap:18px;border-bottom:1px solid var(--line);
 }
-.header-title{display:flex;align-items:center;gap:13px;min-width:0}
-.header-title h1{font-size:19px;line-height:1.25;margin:0;color:var(--ink);white-space:nowrap}
-.header-title p{margin:3px 0 0;color:var(--muted);font-size:12px}
-.live-dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px #e2f6ee}
-.header-actions{display:flex;align-items:center;gap:10px}
-.data-fresh{font-size:12px;color:var(--muted)}
-.icon-btn{
-  width:40px;height:40px;border:1px solid var(--line);border-radius:12px;
-  display:grid;place-items:center;background:#fff;cursor:pointer;
+.header-title,.header-actions,.user,.actions,.eyebrow,.vendor-id,.legend-row{
+  display:flex;align-items:center;
 }
-.user{
-  display:flex;align-items:center;gap:9px;padding-left:6px;
-  font-size:13px;font-weight:700;color:var(--ink)
+.header-title{gap:12px;min-width:0}
+.header-title h1{margin:0;color:var(--ink);font-size:17px;line-height:1.25}
+.header-title p{margin:2px 0 0;color:var(--muted);font-size:11px}
+.live-dot{
+  width:9px;height:9px;border-radius:50%;background:var(--blue);
+  box-shadow:0 0 0 4px rgba(34,197,94,.12),0 0 12px rgba(34,197,94,.7);
 }
+.header-actions{gap:9px}
+.data-fresh{font-size:10px;color:var(--muted)}
+.icon-btn{width:38px;height:38px;border-color:var(--line);border-radius:8px}
+.user{gap:8px;font-size:12px;font-weight:600}
 .avatar{
-  width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
-  color:#fff;background:#253047;font-size:12px;
+  width:34px;height:34px;border-radius:8px;display:grid;place-items:center;
+  background:var(--color-secondary);border:1px solid var(--line);
+  color:var(--ink);font:600 11px "Fira Code",monospace;
 }
-.screen{display:none;animation:screenIn .24s ease}
-.screen.active{display:block}
-@keyframes screenIn{from{opacity:.2;transform:translateY(5px)}to{opacity:1;transform:none}}
-.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;padding:27px 0 20px}
-.eyebrow{
-  display:flex;align-items:center;gap:7px;color:var(--blue);
-  font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+.screen{display:none}
+.screen.active{display:block;animation:screen-in .34s ease both}
+@keyframes screen-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.page-head{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:20px;padding:24px 0 18px;
 }
-.page-head h2{margin:5px 0 4px;color:var(--ink);font-size:27px;letter-spacing:-.035em;line-height:1.2}
-.page-head p{margin:0;color:var(--muted);font-size:13px}
-.actions{display:flex;flex-wrap:wrap;gap:9px}
+.eyebrow{gap:7px;color:var(--blue);font:600 10px "Fira Code",monospace;letter-spacing:.08em}
+.page-head h2{margin:5px 0 3px;color:var(--ink);font-size:25px;line-height:1.2;letter-spacing:-.025em}
+.page-head p{margin:0;color:var(--muted);font-size:12px}
+.actions{gap:8px;flex-wrap:wrap}
 .btn{
-  min-height:42px;border-radius:11px;padding:0 15px;border:1px solid var(--line);
-  background:#fff;display:inline-flex;align-items:center;justify-content:center;
-  gap:7px;font-size:13px;font-weight:700;cursor:pointer;
+  min-height:39px;padding:0 13px;border:1px solid var(--line);border-radius:8px;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  background:var(--color-card);font-size:12px;font-weight:600;
+  transition:background .2s,border-color .2s,color .2s,transform .2s;
 }
-.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
-.btn.danger{background:#fff1f2;border-color:#fecdd3;color:#b4233b}
-.btn.success{background:#eaf8f2;border-color:#b7e8d5;color:#087052}
-.card{background:#fff;border:1px solid var(--line);border-radius:17px;box-shadow:0 3px 12px rgba(15,23,42,.025)}
-.card-pad{padding:19px}
-.card-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
-.card-title h3{margin:0;color:var(--ink);font-size:15px}
-.card-title small{color:var(--muted)}
+.btn:hover{background:var(--color-secondary);border-color:#64748b;transform:translateY(-1px)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:var(--color-on-accent)}
+.btn.primary:hover{background:#4ade80;border-color:#4ade80}
+.btn.danger{color:#FCA5A5;background:#2a1118;border-color:#7f1d1d}
+.btn.success{color:#86EFAC;background:#0d2619;border-color:#166534}
+.card{
+  background:linear-gradient(145deg,rgba(16,22,42,.98),rgba(10,14,30,.98));
+  border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,.16);
+}
+.card-pad,.chart-card,.approval-panel,.approver,.case-summary,.timeline{padding:17px}
+.card-title{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px
+}
+.card-title h3{margin:0;color:var(--ink);font-size:13px}
+.card-title small{color:var(--muted);font-size:10px}
 .badge{
-  display:inline-flex;align-items:center;gap:5px;border-radius:999px;
-  padding:4px 9px;font-size:11px;font-weight:800;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:999px;
+  font-size:10px;font-weight:700;white-space:nowrap;border:1px solid transparent;
 }
-.badge.high{background:#fff0f2;color:#b5153a}
-.badge.medium{background:#fff7e5;color:#9b6500}
-.badge.good{background:#eaf8f2;color:#087052}
-.badge.neutral{background:#f0f3f7;color:#58657a}
-.badge.dark{background:#263248;color:#fff}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:15px}
-.stat{padding:16px 17px;position:relative;overflow:hidden}
-.stat::after{
-  content:"";position:absolute;width:62px;height:62px;border-radius:50%;
-  right:-19px;top:-22px;background:var(--rose-soft)
+.badge.high{color:#FCA5A5;background:#2b121a;border-color:#7f1d1d}
+.badge.medium{color:#FDE68A;background:#2a200c;border-color:#854d0e}
+.badge.good{color:#86EFAC;background:#0c2818;border-color:#166534}
+.badge.neutral{color:#CBD5E1;background:#172033;border-color:#475569}
+.badge.dark{color:#E2E8F0;background:#111827;border-color:#475569}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-bottom:13px}
+.stat{padding:15px;position:relative;overflow:hidden}
+.stat::before{
+  content:"";position:absolute;inset:0 auto 0 0;width:2px;background:var(--blue);
+  box-shadow:0 0 12px var(--blue);
 }
-.stat-label{font-size:12px;color:var(--muted);font-weight:600}
-.stat-value{margin-top:7px;color:var(--ink);font-size:25px;line-height:1;font-weight:800}
-.stat-value small{font-size:12px;margin-left:4px;color:var(--muted);font-weight:600}
-.delta{margin-top:8px;font-size:11px;color:var(--green);font-weight:700}
-.delta.risk{color:var(--red)}
-.grid-queue{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.65fr);gap:15px}
-.queue-tools{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.stat-label{color:var(--muted);font-size:10px;font-weight:600}
+.stat-value{margin-top:6px;color:var(--ink);font-size:22px;font-weight:700;line-height:1.1}
+.stat-value small{font-size:10px;color:var(--muted);margin-left:4px}
+.delta{margin-top:7px;color:#86EFAC;font-size:10px}
+.delta.risk{color:#FCA5A5}
+.grid-queue,.verify-layout,.behavior-grid,.network-layout,.decision-grid,.case-layout{
+  display:grid;gap:13px;
+}
+.grid-queue{grid-template-columns:minmax(0,1.5fr) minmax(300px,.65fr)}
+.queue-tools{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .filter-chip{
-  border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 11px;
-  font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;
+  padding:5px 9px;border:1px solid var(--line);border-radius:999px;
+  color:var(--muted);background:#0b1020;font-size:10px;font-weight:600;
 }
-.filter-chip.selected{border-color:#f3a9ba;background:var(--rose-soft);color:var(--blue)}
+.filter-chip:hover{color:var(--ink);border-color:#64748b}
+.filter-chip.selected{color:#86EFAC;background:#0d2619;border-color:#22c55e}
 .search{
-  display:flex;align-items:center;gap:7px;border:1px solid var(--line);
-  border-radius:10px;padding:0 10px;background:#fff;min-height:35px;
+  min-height:33px;padding:0 9px;display:flex;align-items:center;gap:7px;
+  border:1px solid var(--line);border-radius:7px;background:#070b18;
 }
-.search input{width:150px;border:0;outline:0;color:var(--ink);background:transparent;font-size:12px}
+.search input{width:155px;border:0;outline:0;background:transparent;color:var(--ink);font-size:11px}
+.search input::placeholder{color:#7c8aa0}
 .queue-head,.queue-row{
-  display:grid;grid-template-columns:80px minmax(150px,1.3fr) 115px 92px 88px;
-  align-items:center;gap:10px;
+  display:grid;grid-template-columns:70px minmax(160px,1.35fr) 126px 92px 82px;
+  align-items:center;gap:9px;
 }
-.queue-head{padding:9px 12px;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase}
+.queue-head{padding:8px 10px;color:var(--muted);font:600 9px "Fira Code",monospace;text-transform:uppercase}
 .queue-row{
-  width:100%;border:0;border-top:1px solid var(--line);padding:12px;
-  text-align:left;background:#fff;cursor:pointer;
+  width:100%;padding:11px 10px;border:0;border-top:1px solid #253047;
+  text-align:left;background:transparent;font-size:11px;
 }
-.queue-row:hover,.queue-row.selected{background:#fff8fa}
-.queue-row.selected{box-shadow:inset 3px 0 var(--blue)}
+.queue-row:hover{background:#11192b}
+.queue-row.selected{background:#102219;box-shadow:inset 2px 0 var(--blue)}
 .vendor{min-width:0}
-.vendor strong{display:block;color:var(--ink);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.vendor small{font-size:10px;color:var(--muted)}
-.money{font-size:12px;color:var(--ink);font-weight:800}
-.risk-score{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:var(--red)}
+.vendor strong{display:block;color:var(--ink);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vendor small{display:block;color:var(--muted);font:9px "Fira Code",monospace}
+.money{text-align:right;color:var(--ink);font-size:11px;font-weight:600}
+.risk-score{display:flex;align-items:center;color:#FCA5A5}
 .score-ring{
-  width:31px;height:31px;border-radius:50%;display:grid;place-items:center;
-  color:#fff;background:var(--blue);font-size:10px;
+  width:32px;height:26px;border-radius:6px;display:grid;place-items:center;
+  background:#7f1d1d!important;border:1px solid #ef4444;color:#fff;font-size:10px;
 }
-.inspector{padding:18px}
-.payment-hero{
-  padding:16px;border-radius:14px;color:#fff;
-  background:linear-gradient(130deg,#242f45,#3e2330);
+.inspector,.source-chain,.clue-panel{padding:17px}
+.payment-hero,.decision-banner{
+  color:var(--ink);background:
+    linear-gradient(120deg,rgba(34,197,94,.13),transparent 54%),
+    #080d1b;border:1px solid #255c39;
 }
-.payment-hero small{opacity:.7}
-.payment-hero h3{margin:6px 0 2px;font-size:23px}
-.payment-hero p{margin:0;font-size:12px;opacity:.8}
-.signal-list{display:grid;gap:8px;margin:14px 0}
-.signal{
-  display:flex;gap:10px;padding:10px;border:1px solid var(--line);
-  border-radius:11px;background:#fff;
+.payment-hero{padding:15px;border-radius:8px}
+.payment-hero small{color:#86EFAC;font:9px "Fira Code",monospace}
+.payment-hero h3{margin:5px 0 2px;font:700 21px "Fira Code",monospace;text-shadow:0 0 10px rgba(255,255,255,.16)}
+.payment-hero p{margin:0;color:#CBD5E1;font-size:10px}
+.signal-list{display:grid;gap:7px;margin:12px 0}
+.signal,.check-row{
+  display:flex;align-items:flex-start;gap:9px;padding:9px;
+  border:1px solid #29364e;border-radius:8px;background:#090e1c;
 }
 .signal .material-symbols-outlined{color:var(--blue)}
-.signal strong{display:block;color:var(--ink);font-size:12px}
-.signal p{margin:2px 0 0;color:var(--muted);font-size:10px}
+.signal strong,.check-row strong{display:block;color:var(--ink);font-size:10px}
+.signal p,.check-row small{display:block;margin:2px 0 0;color:var(--muted);font-size:9px}
 .mini-chart{height:165px;min-width:0}
-.audit-note{padding:11px;border-left:3px solid var(--amber);background:#fff9ea;border-radius:8px;font-size:11px;color:#765100}
-
-/* Account verification */
-.verify-layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(300px,.7fr);gap:15px}
-.compare-card{padding:20px}
+.audit-note,.clue-link,.anomaly-callout{
+  padding:10px;border-radius:7px;font-size:10px;
+  color:#FDE68A;background:#251d0b;border:1px solid #713f12;
+}
+.verify-layout{grid-template-columns:minmax(0,1.05fr) minmax(290px,.7fr)}
+.compare-card{padding:18px}
 .vendor-banner{
-  display:flex;align-items:center;justify-content:space-between;gap:14px;
-  padding:15px;border:1px solid var(--line);border-radius:13px;background:#fbfcfe;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:13px;border:1px solid var(--line);border-radius:8px;background:#090e1b;
 }
-.vendor-id{display:flex;align-items:center;gap:12px}
+.vendor-id{gap:11px}
 .vendor-logo{
-  width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
-  color:var(--blue);background:var(--rose-soft);font-weight:800;
+  width:42px;height:42px;border-radius:8px;display:grid;place-items:center;
+  color:#86EFAC;background:#10271d;border:1px solid #166534;font:700 12px "Fira Code";
 }
-.vendor-id strong{display:block;color:var(--ink)}
-.vendor-id small{color:var(--muted)}
-.compare-grid{display:grid;grid-template-columns:1fr 46px 1fr;gap:10px;margin-top:17px}
-.bank-panel{border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
-.bank-panel.changed{border-color:#f4a6b9;background:#fffafb}
-.bank-panel h3{font-size:13px;color:var(--ink);margin:0 0 13px}
-.field{padding:9px 0;border-bottom:1px dashed var(--line)}
+.vendor-id strong{display:block;color:var(--ink);font-size:12px}
+.vendor-id small{color:var(--muted);font-size:9px}
+.compare-grid{display:grid;grid-template-columns:1fr 36px 1fr;gap:8px;margin-top:14px}
+.bank-panel{min-width:0;padding:14px;border:1px solid var(--line);border-radius:8px;background:#090e1b}
+.bank-panel.changed{border-color:#7f1d1d;background:#1c0d14}
+.bank-panel h3{margin:0 0 10px;color:var(--ink);font-size:11px}
+.field{padding:7px 0;border-bottom:1px dashed #334155}
 .field:last-child{border:0}
-.field span{display:block;font-size:10px;color:var(--muted)}
-.field strong{display:block;margin-top:2px;font-size:12px;color:var(--ink);overflow-wrap:anywhere}
-.diff{color:var(--blue)!important}
+.field span{display:block;color:var(--muted);font-size:9px}
+.field strong{display:block;margin-top:2px;color:var(--ink);font-size:10px;overflow-wrap:anywhere}
+.diff{color:#FCA5A5!important}
 .compare-arrow{display:grid;place-items:center;color:var(--blue)}
-.evidence{display:grid;gap:10px}
-.check-row{display:flex;align-items:flex-start;gap:10px;padding:11px;border:1px solid var(--line);border-radius:12px}
+.evidence{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .check-icon{
-  flex:0 0 29px;width:29px;height:29px;border-radius:9px;
-  display:grid;place-items:center;background:#e9f8f2;color:var(--green)
+  flex:0 0 27px;width:27px;height:27px;border-radius:6px;display:grid;place-items:center;
+  color:#86EFAC;background:#0d2619;border:1px solid #166534;
 }
-.check-icon.warn{background:#fff4db;color:var(--amber)}
-.check-row strong{display:block;color:var(--ink);font-size:12px}
-.check-row small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
-.source-chain{padding:18px}
-.chain-step{position:relative;display:flex;gap:11px;padding-bottom:18px}
-.chain-step:not(:last-child)::after{content:"";position:absolute;left:14px;top:29px;bottom:0;width:1px;background:var(--line)}
+.check-icon.warn{color:#FDE68A;background:#2a200c;border-color:#854d0e}
+.chain-step{position:relative;display:flex;gap:10px;padding-bottom:16px}
+.chain-step:not(:last-child)::after{content:"";position:absolute;left:13px;top:27px;bottom:0;width:1px;background:var(--line)}
 .chain-mark{
-  z-index:1;flex:0 0 29px;width:29px;height:29px;border-radius:50%;
-  display:grid;place-items:center;background:#f0f3f7;color:#596579;font-size:11px;font-weight:800
+  z-index:1;flex:0 0 27px;width:27px;height:27px;border-radius:6px;display:grid;place-items:center;
+  color:#CBD5E1;background:#172033;border:1px solid #475569;font:600 10px "Fira Code";
 }
-.chain-step.flag .chain-mark{background:var(--rose-soft);color:var(--blue)}
-.chain-step strong{display:block;color:var(--ink);font-size:12px}
-.chain-step p{margin:2px 0 0;color:var(--muted);font-size:10px}
-
-/* Behavior */
-.behavior-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(290px,.65fr);gap:15px}
-.chart-card{padding:18px;min-width:0}
-.behavior-chart{height:310px;min-width:0}
-.radar-chart{height:255px;min-width:0}
-.legend-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:11px}
-.legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
-.patterns{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:15px}
-.pattern{padding:13px;border:1px solid var(--line);border-radius:12px}
-.pattern span{font-size:10px;color:var(--muted)}
-.pattern strong{display:block;color:var(--ink);font-size:17px;margin-top:4px}
-.pattern p{margin:4px 0 0;color:var(--red);font-size:10px;font-weight:700}
+.chain-step.flag .chain-mark{color:#FCA5A5;background:#2b121a;border-color:#7f1d1d}
+.chain-step strong{display:block;color:var(--ink);font-size:10px}
+.chain-step p{margin:2px 0 0;color:var(--muted);font-size:9px}
+.behavior-grid{grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr)}
+.behavior-chart{height:310px}.radar-chart{height:255px}
+.legend-row{gap:13px;color:var(--muted);font-size:10px}
+.legend-dot{display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:2px}
+.patterns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:13px}
+.pattern{padding:11px;border:1px solid var(--line);border-radius:8px;background:#090e1b}
+.pattern span{color:var(--muted);font-size:9px}
+.pattern strong{display:block;margin-top:3px;color:var(--ink);font-size:15px}
+.pattern p{margin:3px 0 0;color:#FCA5A5;font-size:9px}
 .context-table{width:100%;border-collapse:collapse}
-.context-table td{padding:10px 4px;border-bottom:1px solid var(--line);font-size:11px}
+.context-table td{padding:8px 3px;border-bottom:1px solid #29364e;font-size:10px}
 .context-table td:first-child{color:var(--muted)}
-.context-table td:last-child{text-align:right;color:var(--ink);font-weight:700}
-.anomaly-callout{
-  margin-top:13px;padding:14px;border-radius:13px;
-  background:linear-gradient(135deg,#fff0f3,#fff8fa);border:1px solid #ffd0dc
-}
-.anomaly-callout strong{color:var(--blue);font-size:13px}
-.anomaly-callout p{font-size:11px;color:#815163;margin:5px 0 0}
-
-/* Network */
-.network-layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,.6fr);gap:15px}
+.context-table td:last-child{text-align:right;color:var(--ink);font-weight:600}
+.anomaly-callout{margin-top:11px;color:#FCA5A5;background:#2b121a;border-color:#7f1d1d}
+.anomaly-callout strong{font-size:11px}.anomaly-callout p{margin:4px 0 0;color:#FECACA}
+.network-layout{grid-template-columns:minmax(0,1.4fr) minmax(290px,.6fr)}
 .network-canvas{
-  position:relative;height:520px;overflow:hidden;
+  position:relative;height:500px;overflow:hidden;border:1px solid var(--line);border-radius:var(--radius);
   background:
-    radial-gradient(circle at 50% 45%,rgba(190,18,60,.07),transparent 28%),
-    linear-gradient(#f1f3f7 1px,transparent 1px),
-    linear-gradient(90deg,#f1f3f7 1px,transparent 1px);
+    radial-gradient(circle at 50% 45%,rgba(34,197,94,.11),transparent 25%),
+    linear-gradient(rgba(51,65,85,.22) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(51,65,85,.22) 1px,transparent 1px),#060a16;
   background-size:auto,28px 28px,28px 28px;
-  border-radius:17px;border:1px solid var(--line);
 }
 .net-lines{position:absolute;inset:0;width:100%;height:100%}
-.net-lines line{stroke:#b8c0cd;stroke-width:1.4}
-.net-lines .danger-line{stroke:var(--blue);stroke-width:2;stroke-dasharray:6 4}
+.net-lines line{stroke:#64748b;stroke-width:1.3}
+.net-lines .danger-line{stroke:#ef4444;stroke-width:2;stroke-dasharray:6 4}
 .node{
-  position:absolute;transform:translate(-50%,-50%);z-index:2;
+  position:absolute;z-index:2;transform:translate(-50%,-50%);
   display:grid;place-items:center;text-align:center;border-radius:50%;
-  box-shadow:0 7px 18px rgba(15,23,42,.12);border:3px solid #fff;
-  font-size:10px;font-weight:800;line-height:1.15;
+  border:2px solid #64748b;box-shadow:0 10px 22px rgba(0,0,0,.4);
+  font-size:9px;font-weight:600;line-height:1.2;
 }
-.node.main-node{left:50%;top:45%;width:94px;height:94px;background:#263248;color:#fff}
-.node.account-a{left:74%;top:24%;width:77px;height:77px;background:var(--blue);color:#fff}
-.node.account-b{left:78%;top:67%;width:68px;height:68px;background:#fff0f3;color:var(--blue)}
-.node.vendor-a{left:23%;top:25%;width:76px;height:76px;background:#fff;color:var(--ink)}
-.node.person-a{left:26%;top:70%;width:68px;height:68px;background:#fff7e5;color:#8c5c00}
-.node.staff-a{left:51%;top:82%;width:64px;height:64px;background:#eaf8f2;color:#087052}
-.node.contact-a{left:51%;top:14%;width:59px;height:59px;background:#eef1f6;color:#48566b}
-.network-tools{position:absolute;left:14px;top:14px;display:flex;gap:6px}
-.network-tools .icon-btn{width:35px;height:35px;background:#fff}
+.node.main-node{left:50%;top:45%;width:90px;height:90px;color:#fff;background:#172033}
+.node.account-a{left:74%;top:24%;width:74px;height:74px;color:#FCA5A5;background:#2b121a;border-color:#ef4444}
+.node.account-b{left:78%;top:67%;width:66px;height:66px;color:#FCA5A5;background:#210d14;border-color:#ef4444}
+.node.vendor-a{left:23%;top:25%;width:74px;height:74px;color:#E2E8F0;background:#111827}
+.node.person-a{left:26%;top:70%;width:66px;height:66px;color:#FDE68A;background:#29200e;border-color:#a16207}
+.node.staff-a{left:51%;top:82%;width:62px;height:62px;color:#86EFAC;background:#0d2619;border-color:#16a34a}
+.node.contact-a{left:51%;top:14%;width:58px;height:58px;color:#CBD5E1;background:#172033}
+.network-tools{position:absolute;z-index:4;left:12px;top:12px;display:flex;gap:5px}
 .net-legend{
-  position:absolute;left:14px;bottom:14px;padding:10px 12px;border-radius:11px;
-  background:rgba(255,255,255,.92);font-size:10px;box-shadow:var(--shadow)
+  position:absolute;left:12px;bottom:12px;padding:8px 10px;border-radius:7px;
+  color:#CBD5E1;background:rgba(2,6,23,.92);border:1px solid var(--line);font-size:9px;
 }
-.clue-panel{padding:18px}
-.clue-score{display:flex;align-items:center;gap:14px;padding-bottom:15px;border-bottom:1px solid var(--line)}
+.clue-score{display:flex;align-items:center;gap:12px;padding-bottom:13px;border-bottom:1px solid var(--line)}
 .big-score{
-  flex:0 0 66px;width:66px;height:66px;border-radius:50%;display:grid;place-items:center;
-  background:conic-gradient(var(--blue) 0 86%,#edf0f4 86%);position:relative
+  position:relative;flex:0 0 62px;width:62px;height:62px;border-radius:50%;
+  display:grid;place-items:center;background:conic-gradient(#ef4444 0 86%,#1e293b 86%);
 }
-.big-score::after{content:"";position:absolute;inset:7px;border-radius:50%;background:#fff}
-.big-score strong{position:relative;z-index:1;color:var(--blue);font-size:17px}
-.clue-score h3{margin:0;color:var(--ink);font-size:14px}
-.clue-score p{margin:3px 0 0;color:var(--muted);font-size:10px}
-.clue{padding:12px 0;border-bottom:1px solid var(--line)}
-.clue-head{display:flex;justify-content:space-between;gap:10px}
-.clue strong{font-size:12px;color:var(--ink)}
-.clue p{font-size:10px;color:var(--muted);margin:4px 0 0}
-.clue-link{margin-top:12px;padding:11px;border-radius:10px;background:#fff5f7;color:#8f1733;font-size:11px}
-
-/* Decision */
-.decision-wrap{max-width:1120px;margin:0 auto}
+.big-score::after{content:"";position:absolute;inset:6px;border-radius:50%;background:#080d1a}
+.big-score strong{position:relative;z-index:1;color:#FCA5A5;font:700 15px "Fira Code"}
+.clue-score h3{margin:0;color:var(--ink);font-size:12px}
+.clue-score p,.clue p{margin:3px 0 0;color:var(--muted);font-size:9px}
+.clue{padding:10px 0;border-bottom:1px solid #29364e}
+.clue-head{display:flex;justify-content:space-between;gap:8px}
+.clue strong{font-size:10px;color:var(--ink)}
+.clue-link{margin-top:11px;color:#FECACA;background:#2b121a;border-color:#7f1d1d}
+.decision-wrap{max-width:1120px;margin:auto}
 .decision-banner{
-  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center;
-  padding:23px;background:linear-gradient(125deg,#202b3f,#421d29);color:#fff;
-  border-radius:18px;box-shadow:var(--shadow)
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
+  gap:20px;padding:20px;border-radius:var(--radius);box-shadow:var(--shadow);
 }
-.decision-banner h3{font-size:21px;margin:5px 0}
-.decision-banner p{font-size:11px;margin:0;color:#cbd2de}
-.amount-block{text-align:right}
-.amount-block small{display:block;color:#cbd2de}
-.amount-block strong{font-size:27px}
-.risk-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);margin:15px 0;border:1px solid var(--line);border-radius:15px;overflow:hidden}
-.risk-cell{padding:15px;background:#fff}
-.risk-cell span{display:block;font-size:10px;color:var(--muted)}
-.risk-cell strong{display:block;margin-top:5px;color:var(--ink);font-size:13px}
-.rules-list{display:grid;gap:9px}
-.rule-row{
-  display:grid;grid-template-columns:74px minmax(0,1fr) 110px;
-  gap:12px;align-items:center;padding:13px;border:1px solid var(--line);border-radius:12px
+.decision-banner h3{margin:5px 0;color:var(--ink);font-size:18px}
+.decision-banner p{margin:0;color:#CBD5E1;font-size:10px}
+.amount-block{text-align:right}.amount-block small{display:block;color:var(--muted);font-size:9px}
+.amount-block strong{font-size:23px;text-shadow:0 0 10px rgba(255,255,255,.15)}
+.risk-strip{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin:13px 0;
+  overflow:hidden;border:1px solid var(--line);border-radius:9px;background:var(--line);
 }
-.rule-id{color:var(--muted);font-size:10px;font-weight:800}
-.rule-row strong{font-size:11px;color:var(--ink)}
-.rule-evidence{text-align:right;font-size:10px;color:var(--muted)}
-.decision-grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:15px}
-.approval-panel{padding:19px}
-.choice-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.risk-cell{padding:12px;background:var(--color-card)}
+.risk-cell span{display:block;color:var(--muted);font-size:9px}
+.risk-cell strong{display:block;margin-top:4px;color:var(--ink);font-size:11px}
+.decision-grid{grid-template-columns:minmax(0,1fr) 320px}
+.choice-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .choice{
-  border:1px solid var(--line);border-radius:13px;padding:15px 10px;background:#fff;
-  cursor:pointer;text-align:center;min-height:112px
+  min-height:103px;padding:13px 8px;border:1px solid var(--line);
+  border-radius:8px;background:#090e1b;text-align:center;
 }
-.choice .material-symbols-outlined{font-size:27px;color:var(--muted)}
-.choice strong{display:block;margin-top:6px;font-size:12px;color:var(--ink)}
-.choice small{font-size:9px;color:var(--muted)}
-.choice.selected{border-color:var(--blue);background:var(--rose-soft);box-shadow:inset 0 0 0 1px var(--blue)}
-.choice.selected .material-symbols-outlined,.choice.selected strong{color:var(--blue)}
-.approval-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-.meta-box{padding:11px;border-radius:11px;background:#f7f9fc}
-.meta-box span{display:block;color:var(--muted);font-size:9px}
-.meta-box strong{display:block;color:var(--ink);font-size:11px;margin-top:3px}
-.approver{padding:19px}
-.approver-person{display:flex;align-items:center;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--line)}
-.approver-person strong{display:block;font-size:12px;color:var(--ink)}
-.approver-person small{font-size:10px;color:var(--muted)}
+.choice:hover{background:#11192b;border-color:#64748b}
+.choice .material-symbols-outlined{color:var(--muted);font-size:25px}
+.choice strong{display:block;margin-top:5px;color:var(--ink);font-size:10px}
+.choice small{display:block;color:var(--muted);font-size:8px}
+.choice.selected{background:#10271d;border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
+.choice.selected .material-symbols-outlined,.choice.selected strong{color:#86EFAC}
+.approval-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.meta-box{padding:10px;border-radius:7px;background:#090e1b;border:1px solid #29364e}
+.meta-box span{display:block;color:var(--muted);font-size:8px}
+.meta-box strong{display:block;margin-top:3px;color:var(--ink);font-size:10px}
+.rules-list{display:grid;gap:7px}
+.rule-row{
+  display:grid;grid-template-columns:67px minmax(0,1fr) 105px;gap:10px;align-items:center;
+  padding:11px;border:1px solid var(--line);border-radius:7px;background:#090e1b;
+}
+.rule-id{color:#86EFAC;font-size:9px}
+.rule-row strong{color:var(--ink);font-size:10px}
+.rule-evidence{text-align:right;color:var(--muted);font-size:9px}
+.approver-person{display:flex;align-items:center;gap:9px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.approver-person strong{display:block;color:var(--ink);font-size:10px}
+.approver-person small{display:block;color:var(--muted);font-size:9px}
 textarea{
-  width:100%;min-height:90px;margin:13px 0;padding:11px;resize:vertical;
-  border:1px solid var(--line);border-radius:11px;outline:0;font-size:11px;color:var(--ink)
+  width:100%;min-height:90px;margin:11px 0;padding:10px;resize:vertical;
+  color:var(--ink);background:#070b18;border:1px solid var(--line);border-radius:7px;font-size:10px;
 }
-textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(190,18,60,.1)}
+textarea:focus{border-color:var(--blue)}
 .full{width:100%}
-
-/* Investigation */
-.case-layout{display:grid;grid-template-columns:290px minmax(0,1fr);gap:15px}
-.case-summary{padding:18px;align-self:start}
-.case-number{font-size:11px;color:var(--muted)}
-.case-summary h3{font-size:17px;color:var(--ink);margin:5px 0}
-.case-summary>p{font-size:11px;color:var(--muted);margin:0 0 15px}
-.case-progress{height:7px;border-radius:99px;background:#edf0f4;overflow:hidden}
-.case-progress span{display:block;width:88%;height:100%;background:var(--green)}
-.summary-pairs{display:grid;gap:11px;margin:15px 0}
-.summary-pair{display:flex;justify-content:space-between;gap:10px;font-size:11px}
-.summary-pair span{color:var(--muted)}
-.summary-pair strong{color:var(--ink);text-align:right}
-.case-main{display:grid;gap:15px}
-.timeline{padding:20px}
-.timeline-item{position:relative;display:grid;grid-template-columns:75px 28px minmax(0,1fr);gap:10px;padding-bottom:19px}
-.timeline-item:not(:last-child)::after{content:"";position:absolute;left:88px;top:27px;bottom:0;width:2px;background:var(--line)}
-.timeline-time{font-size:10px;color:var(--muted);padding-top:5px}
+.case-layout{grid-template-columns:280px minmax(0,1fr)}
+.case-summary{align-self:start}
+.case-number{color:#86EFAC;font-size:9px}
+.case-summary h3{margin:5px 0;color:var(--ink);font-size:15px}
+.case-summary>p{margin:0 0 13px;color:var(--muted);font-size:10px}
+.case-progress{height:6px;overflow:hidden;border-radius:99px;background:#1e293b}
+.case-progress span{display:block;width:88%;height:100%;background:var(--blue);box-shadow:0 0 10px var(--blue)}
+.summary-pairs{display:grid;gap:8px;margin:13px 0}
+.summary-pair{display:flex;justify-content:space-between;gap:9px;font-size:10px}
+.summary-pair span{color:var(--muted)}.summary-pair strong{color:var(--ink);text-align:right}
+.case-main{display:grid;gap:13px}
+.timeline-item{
+  position:relative;display:grid;grid-template-columns:65px 26px minmax(0,1fr);
+  gap:9px;padding-bottom:16px;
+}
+.timeline-item:not(:last-child)::after{content:"";position:absolute;left:77px;top:25px;bottom:0;width:1px;background:var(--line)}
+.timeline-time{padding-top:5px;color:var(--muted);font-size:9px}
 .timeline-icon{
-  z-index:1;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
-  background:#eaf8f2;color:var(--green)
+  z-index:1;width:26px;height:26px;border-radius:6px;display:grid;place-items:center;
+  color:#86EFAC;background:#0d2619;border:1px solid #166534;
 }
-.timeline-icon .material-symbols-outlined{font-size:15px}
-.timeline-content{padding:1px 0}
-.timeline-content strong{font-size:12px;color:var(--ink)}
-.timeline-content p{margin:3px 0 0;font-size:10px;color:var(--muted)}
-.timeline-content .evidence-tag{display:inline-block;margin-top:6px;padding:3px 7px;border-radius:6px;background:#f0f3f7;font-size:9px;color:#526076}
-.outcome-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.outcome{padding:15px}
-.outcome .material-symbols-outlined{color:var(--green)}
-.outcome strong{display:block;font-size:12px;color:var(--ink);margin:5px 0 2px}
-.outcome p{margin:0;font-size:10px;color:var(--muted)}
+.timeline-icon .material-symbols-outlined{font-size:14px}
+.timeline-content strong{color:var(--ink);font-size:10px}
+.timeline-content p{margin:2px 0 0;color:var(--muted);font-size:9px}
+.evidence-tag{
+  display:inline-block;margin-top:5px;padding:3px 6px;border:1px solid #475569;
+  border-radius:5px;color:#CBD5E1;background:#172033;font:8px "Fira Code",monospace;
+}
+.outcome-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.outcome{padding:13px}.outcome .material-symbols-outlined{color:#86EFAC}
+.outcome strong{display:block;margin:4px 0 2px;color:var(--ink);font-size:10px}
+.outcome p{margin:0;color:var(--muted);font-size:9px}
 .report-footer{
-  display:flex;align-items:center;justify-content:space-between;gap:15px;
-  padding:15px 18px;border:1px solid #b7e8d5;background:#f0fbf6;border-radius:14px
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:13px 15px;border:1px solid #166534;border-radius:8px;background:#0b2116;
 }
-.report-footer strong{font-size:12px;color:#086548}
-.report-footer p{margin:2px 0 0;font-size:10px;color:#48816d}
-
-/* Responsive */
-@media(max-width:980px){
+.report-footer strong{color:#86EFAC;font-size:10px}
+.report-footer p{margin:2px 0 0;color:#A7F3D0;font-size:9px}
+@media(max-width:1024px){
   .stats{grid-template-columns:repeat(2,1fr)}
   .grid-queue,.verify-layout,.behavior-grid,.network-layout,.decision-grid{grid-template-columns:1fr}
   .case-layout{grid-template-columns:1fr}
-  .queue-head,.queue-row{grid-template-columns:72px minmax(140px,1fr) 100px 75px}
+  .queue-head,.queue-row{grid-template-columns:64px minmax(140px,1fr) 120px 80px}
   .queue-head>:nth-child(5),.queue-row>:nth-child(5){display:none}
-  .network-canvas{height:460px}
 }
-@media(max-width:700px){
-  .app-shell{display:block;padding-bottom:76px}
+@media(max-width:768px){
+  .app-shell{display:block;padding-bottom:72px}
   .rail{
-    inset:auto 0 0 0;width:auto;height:68px;padding:7px 10px;
-    flex-direction:row;border-right:0;border-top:1px solid var(--line)
+    inset:auto 0 0;width:auto;height:66px;padding:7px 9px;
+    flex-direction:row;border:0;border-top:1px solid var(--line);
   }
   .brand,.rail-help{display:none}
-  .rail-nav{width:100%;margin:0;display:grid;grid-template-columns:repeat(6,1fr);gap:3px}
-  .nav-btn{width:100%;height:52px;border-radius:12px}
-  .nav-btn.active::before{left:50%;top:-7px;width:22px;height:3px;transform:translateX(-50%);border-radius:0 0 4px 4px}
-  .main{padding:0 14px 24px}
-  .app-header{min-height:65px}
-  .header-title h1{font-size:15px;white-space:normal}
-  .header-title p,.data-fresh,.user span{display:none}
-  .page-head{align-items:flex-start;flex-direction:column;padding:21px 0 16px}
-  .page-head h2{font-size:23px}
-  .actions{width:100%}.actions .btn{flex:1}
-  .stats{grid-template-columns:1fr 1fr;gap:9px}
-  .stat{padding:13px}.stat-value{font-size:21px}
+  .rail-nav{width:100%;margin:0;grid-template-columns:repeat(6,1fr);gap:3px}
+  .nav-btn{width:100%;height:50px}
+  .nav-btn.active::before{left:50%;top:-8px;width:22px;height:3px;transform:translateX(-50%)}
+  .main{padding:0 13px 22px}
+  .app-header{min-height:62px}
+  .header-title h1{font-size:14px}.header-title p,.data-fresh,.user span{display:none}
+  .page-head{align-items:flex-start;flex-direction:column;padding:19px 0 14px}
+  .page-head h2{font-size:21px}.actions{width:100%}.actions .btn{flex:1}
+  .stats{gap:8px}.stat{padding:12px}.stat-value{font-size:19px}
   .queue-head{display:none}
-  .queue-row{grid-template-columns:64px minmax(0,1fr) 82px;padding:12px 9px}
+  .queue-row{grid-template-columns:50px minmax(0,1fr) 105px;padding:10px 7px}
   .queue-row>:nth-child(4),.queue-row>:nth-child(5){display:none}
-  .queue-tools{display:grid}
-  .search input{width:100%}.search{width:100%}
-  .compare-grid{grid-template-columns:1fr}
-  .compare-arrow{transform:rotate(90deg);height:28px}
-  .patterns{grid-template-columns:1fr}
+  .queue-tools{display:grid}.search,.search input{width:100%}
+  .compare-grid{grid-template-columns:1fr}.compare-arrow{height:24px;transform:rotate(90deg)}
+  .evidence{grid-template-columns:1fr}
+  .patterns,.choice-grid,.outcome-grid{grid-template-columns:1fr}
   .risk-strip{grid-template-columns:1fr 1fr}
-  .rule-row{grid-template-columns:60px minmax(0,1fr)}
-  .rule-evidence{display:none}
-  .choice-grid{grid-template-columns:1fr}
-  .choice{min-height:82px}
+  .decision-banner{grid-template-columns:1fr}.amount-block{text-align:left}
+  .rule-row{grid-template-columns:58px minmax(0,1fr)}.rule-evidence{display:none}
   .approval-meta{grid-template-columns:1fr}
-  .decision-banner{grid-template-columns:1fr}
-  .amount-block{text-align:left}
-  .outcome-grid{grid-template-columns:1fr}
-  .report-footer{align-items:flex-start;flex-direction:column}
   .network-canvas{height:410px}
-  .node.main-node{width:76px;height:76px}
-  .node.account-a,.node.vendor-a{width:62px;height:62px}
-  .node.account-b,.node.person-a{width:57px;height:57px}
-  .node.staff-a,.node.contact-a{width:52px;height:52px}
-  .timeline-item{grid-template-columns:58px 25px minmax(0,1fr)}
-  .timeline-item:not(:last-child)::after{left:70px}
+  .timeline-item{grid-template-columns:50px 24px minmax(0,1fr)}
+  .timeline-item:not(:last-child)::after{left:61px}
 }
 @media(max-width:410px){
   .stats{grid-template-columns:1fr}
-  .header-actions .icon-btn:first-child{display:none}
-  .queue-row{grid-template-columns:58px minmax(0,1fr) 68px}
-  .payment-hero h3{font-size:20px}
+  .header-actions .icon-btn:first-of-type{display:none}
+  .queue-row{grid-template-columns:44px minmax(0,1fr) 92px}
+  .risk-strip{grid-template-columns:1fr}
+  .report-footer{align-items:flex-start;flex-direction:column}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  .screen.active{animation:none}
 }
 </style>
 </head>
 <body>
 <div class="app-shell">
-  <aside class="rail" aria-label="流程導覽">
-    <div class="brand" aria-label="Jvision">JV</div>
-    <nav class="rail-nav">
-      <button class="nav-btn" data-i="0" aria-label="篩選高風險付款" title="篩選高風險付款"><span class="material-symbols-outlined">payments</span></button>
-      <button class="nav-btn" data-i="1" aria-label="核驗帳戶變更" title="核驗帳戶變更"><span class="material-symbols-outlined">manage_accounts</span></button>
-      <button class="nav-btn" data-i="2" aria-label="檢查行為偏差" title="檢查行為偏差"><span class="material-symbols-outlined">query_stats</span></button>
-      <button class="nav-btn" data-i="3" aria-label="追查關係網絡" title="追查關係網絡"><span class="material-symbols-outlined">hub</span></button>
-      <button class="nav-btn" data-i="4" aria-label="決定攔截措施" title="決定攔截措施"><span class="material-symbols-outlined">shield_lock</span></button>
-      <button class="nav-btn" data-i="5" aria-label="完成調查處置" title="完成調查處置"><span class="material-symbols-outlined">travel_explore</span></button>
-    </nav>
-    <div class="rail-help"><span class="material-symbols-outlined">help</span></div>
-  </aside>
+<aside class="rail" aria-label="流程導覽">
+  <div class="brand" aria-label="Jvision">JV</div>
+  <nav class="rail-nav">
+    <button class="nav-btn" data-i="0" aria-label="篩選高風險付款" title="篩選高風險付款"><span class="material-symbols-outlined">payments</span></button>
+    <button class="nav-btn" data-i="1" aria-label="核驗帳戶變更" title="核驗帳戶變更"><span class="material-symbols-outlined">manage_accounts</span></button>
+    <button class="nav-btn" data-i="2" aria-label="檢查行為偏差" title="檢查行為偏差"><span class="material-symbols-outlined">query_stats</span></button>
+    <button class="nav-btn" data-i="3" aria-label="追查關係網絡" title="追查關係網絡"><span class="material-symbols-outlined">hub</span></button>
+    <button class="nav-btn" data-i="4" aria-label="決定攔截措施" title="決定攔截措施"><span class="material-symbols-outlined">shield_lock</span></button>
+    <button class="nav-btn" data-i="5" aria-label="完成調查處置" title="完成調查處置"><span class="material-symbols-outlined">travel_explore</span></button>
+  </nav>
+  <div class="rail-help"><span class="material-symbols-outlined">help</span></div>
+</aside>
 
-  <main class="main">
-    <header class="app-header">
-      <div class="header-title">
-        <span class="live-dot" aria-hidden="true"></span>
-        <div>
-          <h1>付款詐欺情境攔截器</h1>
-          <p>Security SOC · 放款前即時風險控制</p>
-        </div>
-      </div>
-      <div class="header-actions">
-        <span class="data-fresh">資料更新 09:42:16</span>
-        <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
-        <button class="icon-btn" aria-label="安全狀態"><span class="material-symbols-outlined">verified_user</span></button>
-        <div class="user"><div class="avatar">CC</div><span>陳財務長</span></div>
-      </div>
-    </header>
+<main class="main">
+<header class="app-header">
+  <div class="header-title"><span class="live-dot" aria-hidden="true"></span><div><h1>付款詐欺情境攔截器</h1><p>Security SOC · 放款前即時風險控制</p></div></div>
+  <div class="header-actions">
+    <span class="data-fresh">資料更新 09:42:16</span>
+    <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+    <button class="icon-btn" aria-label="安全狀態"><span class="material-symbols-outlined">verified_user</span></button>
+    <div class="user"><div class="avatar">CC</div><span>陳財務長</span></div>
+  </div>
+</header>
 
-    <section class="screen" data-screen="0">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow"><span class="material-symbols-outlined">filter_alt</span>流程 01 · 資金人員</div>
-          <h2>篩選高風險付款</h2>
-          <p>從付款風險佇列確認異常分數、付款期限及潛在損失。</p>
-        </div>
-        <div class="actions">
-          <button class="btn"><span class="material-symbols-outlined">tune</span>調整門檻</button>
-          <button class="btn primary" data-next="1">核驗選取項目<span class="material-symbols-outlined">arrow_forward</span></button>
-        </div>
+<section class="screen" data-screen="0">
+  <div class="page-head"><div><div class="eyebrow"><span class="material-symbols-outlined">filter_alt</span>流程 01 · 資金人員</div><h2>篩選高風險付款</h2><p>從付款風險佇列確認異常分數、付款期限及潛在損失。</p></div><div class="actions"><button class="btn"><span class="material-symbols-outlined">tune</span>調整門檻</button><button class="btn primary" data-next="1">核驗選取項目<span class="material-symbols-outlined">arrow_forward</span></button></div></div>
+  <div class="stats">
+    <article class="card stat"><div class="stat-label">今日待審付款</div><div class="stat-value">128<small>筆</small></div><div class="delta">較昨日 +12 筆</div></article>
+    <article class="card stat"><div class="stat-label">高風險指令</div><div class="stat-value">7<small>筆</small></div><div class="delta risk">警示：潛在曝險 NT$ 18.6M</div></article>
+    <article class="card stat"><div class="stat-label">銀行可用餘額</div><div class="stat-value">286.4<small>M</small></div><div class="delta">完成：12 個帳戶同步完成</div></article>
+    <article class="card stat"><div class="stat-label">攔截命中率</div><div class="stat-value">94.2<small>%</small></div><div class="delta">提升：本週 +3.1%</div></article>
+  </div>
+  <div class="grid-queue">
+    <section class="card card-pad">
+      <div class="queue-tools"><div class="chips"><button class="filter-chip selected">全部 128</button><button class="filter-chip">高風險 7</button><button class="filter-chip">即將到期 16</button><button class="filter-chip">帳戶異動 5</button></div><label class="search"><span class="material-symbols-outlined">search</span><input aria-label="搜尋付款" placeholder="搜尋供應商或編號"></label></div>
+      <div class="queue-head"><span>風險</span><span>付款對象</span><span>金額</span><span>期限</span><span>狀態</span></div>
+      <button class="queue-row selected"><span class="risk-score"><span class="score-ring">92</span></span><span class="vendor"><strong>昇岳國際顧問有限公司</strong><small>PAY-001 · 新收款帳戶</small></span><span class="money">NT$ 8,460,000</span><span class="mono">D+1 14:00</span><span class="badge high">處理中</span></button>
+      <button class="queue-row"><span class="risk-score"><span class="score-ring">84</span></span><span class="vendor"><strong>Pacific Circuit Pte.</strong><small>PAY-007 · 非慣用幣別</small></span><span class="money">US$ 148,200</span><span class="mono">今日 16:30</span><span class="badge high">待審</span></button>
+      <button class="queue-row"><span class="risk-score"><span class="score-ring">76</span></span><span class="vendor"><strong>惠達物流服務</strong><small>PAY-014 · 金額偏離</small></span><span class="money">NT$ 3,290,000</span><span class="mono">D+2 10:00</span><span class="badge medium">待確認</span></button>
+      <button class="queue-row"><span class="risk-score"><span class="score-ring">71</span></span><span class="vendor"><strong>Nexcore Materials GmbH</strong><small>PAY-021 · 深夜操作</small></span><span class="money">€ 72,600</span><span class="mono">D+2 15:00</span><span class="badge medium">待確認</span></button>
+      <button class="queue-row"><span class="risk-score"><span class="score-ring">58</span></span><span class="vendor"><strong>金泰設備股份有限公司</strong><small>PAY-026 · 頻率偏高</small></span><span class="money">NT$ 1,180,000</span><span class="mono">D+3 11:00</span><span class="badge neutral">監看</span></button>
+    </section>
+    <aside class="card inspector">
+      <div class="payment-hero"><small>選取付款 · PAY-001</small><h3>NT$ 8,460,000</h3><p>國泰世華 013 → 國際匯款帳戶 8841</p></div>
+      <div class="signal-list">
+        <div class="signal"><span class="material-symbols-outlined">account_balance</span><div><strong>收款帳戶 18 小時前異動</strong><p>異動管道：外部供應商入口，尚未完成回撥。</p></div></div>
+        <div class="signal"><span class="material-symbols-outlined">schedule</span><div><strong>付款時段偏離 97%</strong><p>建立於 02:14，歷史付款集中於工作日 10–16 時。</p></div></div>
+        <div class="signal"><span class="material-symbols-outlined">link</span><div><strong>發現 3 組共享關係</strong><p>新帳戶與離職員工聯絡資料存在間接連結。</p></div></div>
       </div>
+      <div class="card-title"><h3>近六週對帳錯誤</h3><span class="badge good">改善 8 → 1</span></div>
+      <div id="queueTrend" class="mini-chart"></div>
+      <div class="audit-note">模型建議：付款前必須完成帳戶所有權及既有聯絡窗口雙通道核驗。</div>
+    </aside>
+  </div>
+</section>
 
-      <div class="stats">
-        <article class="card stat"><div class="stat-label">今日待審付款</div><div class="stat-value">128<small>筆</small></div><div class="delta">較昨日 +12 筆</div></article>
-        <article class="card stat"><div class="stat-label">高風險指令</div><div class="stat-value">7<small>筆</small></div><div class="delta risk">潛在曝險 NT$ 18.6M</div></article>
-        <article class="card stat"><div class="stat-label">銀行可用餘額</div><div class="stat-value">286.4<small>M</small></div><div class="delta">12 個帳戶同步完成</div></article>
-        <article class="card stat"><div class="stat-label">攔截命中率</div><div class="stat-value">94.2<small>%</small></div><div class="delta">本週提升 3.1%</div></article>
+<section class="screen" data-screen="1">
+  <div class="page-head"><div><div class="eyebrow"><span class="material-symbols-outlined">manage_accounts</span>流程 02 · 資金人員</div><h2>核驗帳戶變更</h2><p>比對收款帳戶異動來源、時間與既有主檔授權紀錄。</p></div><div class="actions"><button class="btn danger">退回補件</button><button class="btn primary" data-next="2">送交行為檢查<span class="material-symbols-outlined">arrow_forward</span></button></div></div>
+  <div class="verify-layout">
+    <section class="card compare-card">
+      <div class="vendor-banner"><div class="vendor-id"><div class="vendor-logo">SY</div><div><strong>昇岳國際顧問有限公司</strong><small>供應商 V-10482 · 合作 4 年 7 個月</small></div></div><span class="badge high"><span class="material-symbols-outlined">warning</span>重大異動</span></div>
+      <div class="compare-grid">
+        <div class="bank-panel"><h3>既有核准主檔</h3><div class="field"><span>銀行名稱</span><strong>兆豐國際商業銀行</strong></div><div class="field"><span>銀行代碼</span><strong>017</strong></div><div class="field"><span>帳戶末五碼</span><strong>••••• 26104</strong></div><div class="field"><span>戶名</span><strong>昇岳國際顧問有限公司</strong></div><div class="field"><span>建立日期</span><strong>2022/03/18 · ERP 主檔匯入</strong></div></div>
+        <div class="compare-arrow"><span class="material-symbols-outlined">east</span></div>
+        <div class="bank-panel changed"><h3>本次變更資料</h3><div class="field"><span>銀行名稱</span><strong class="diff">華南商業銀行</strong></div><div class="field"><span>銀行代碼</span><strong class="diff">008</strong></div><div class="field"><span>帳戶末五碼</span><strong class="diff">••••• 88419</strong></div><div class="field"><span>戶名</span><strong class="diff">昇岳國際商務服務</strong></div><div class="field"><span>變更時間</span><strong class="diff">2026/08/20 15:42 · 供應商入口</strong></div></div>
       </div>
+      <div class="card-title" style="margin-top:16px"><h3>核驗證據</h3><small>3 / 5 已通過</small></div>
+      <div class="evidence">
+        <div class="check-row"><div class="check-icon"><span class="material-symbols-outlined">check</span></div><div><strong>通過：供應商登入驗證</strong><small>MFA 裝置為既有裝置，登入地點：台北市內湖區。</small></div></div>
+        <div class="check-row"><div class="check-icon"><span class="material-symbols-outlined">check</span></div><div><strong>通過：變更申請文件格式</strong><small>公司章與表單欄位完整，文件雜湊已存證。</small></div></div>
+        <div class="check-row"><div class="check-icon warn"><span class="material-symbols-outlined">priority_high</span></div><div><strong>警示：既有聯絡窗口回撥未完成</strong><small>原登記電話撥打 2 次無人接聽，不得使用申請信件內的新電話。</small></div></div>
+        <div class="check-row"><div class="check-icon warn"><span class="material-symbols-outlined">priority_high</span></div><div><strong>警示：戶名與法人登記不完全一致</strong><small>「顧問有限公司」變更為「商務服務」，需補正式銀行證明。</small></div></div>
+      </div>
+    </section>
+    <aside class="card source-chain">
+      <div class="card-title"><h3>異動來源軌跡</h3><span class="badge neutral">事件紀錄</span></div>
+      <div class="chain-step"><div class="chain-mark">1</div><div><strong>供應商入口登入</strong><p>08/20 15:37 · Chrome / Windows · 已知裝置</p></div></div>
+      <div class="chain-step flag"><div class="chain-mark">2</div><div><strong>新增陌生受款帳戶</strong><p>08/20 15:42 · 表單由新 IP 103.27.18.44 送出</p></div></div>
+      <div class="chain-step"><div class="chain-mark">3</div><div><strong>第一層審核通過</strong><p>08/20 16:03 · 採購專員 林○安</p></div></div>
+      <div class="chain-step flag"><div class="chain-mark">4</div><div><strong>大額付款指令建立</strong><p>08/21 02:14 · 距帳戶異動僅 10 小時 32 分</p></div></div>
+      <div class="chain-step"><div class="chain-mark">5</div><div><strong>SOC 自動暫停</strong><p>08/21 02:14 · RULE-02 命中，等待人工核驗</p></div></div>
+      <div class="card-title"><h3>雙重確認</h3></div>
+      <div class="check-row"><div class="check-icon"><span class="material-symbols-outlined">mail</span></div><div><strong>原始企業信箱</strong><small>已寄出確認碼 · 尚未回覆</small></div></div>
+      <div class="check-row" style="margin-top:7px"><div class="check-icon warn"><span class="material-symbols-outlined">call</span></div><div><strong>登記電話回撥</strong><small>第 3 次回撥排程 · 10:00</small></div></div>
+    </aside>
+  </div>
+</section>
 
-      <div class="grid-queue">
-        <section class="card card-pad">
-          <div class="queue-tools">
-            <div class="chips">
-              <button class="filter-chip selected">全部 128</button>
-              <button class="filter-chip">高風險 7</button>
-              <button class="filter-chip">即將到期 16</button>
-              <button class="filter-chip">帳戶異動 5</button>
-            </div>
-            <label class="search"><span class="material-symbols-outlined">search</span><input aria-label="搜尋付款" placeholder="搜尋供應商或編號"></label>
-          </div>
-          <div class="queue-head"><span>風險</span><span>付款對象</span><span>金額</span><span>期限</span><span>狀態</span></div>
-          <button class="queue-row selected">
-            <span class="risk-score"><span class="score-ring">92</span></span>
-            <span class="vendor"><strong>昇岳國際顧問有限公司</strong><small>PAY-001 · 新收款帳戶</small></span>
-            <span class="money">NT$ 8,460,000</span><span>D+1 14:00</span><span class="badge high">處理中</span>
-          </button>
-          <button class="queue-row">
-            <span class="risk-score"><span class="score-ring" style="background:#d15b17">84</span></span>
-            <span class="vendor"><strong>Pacific Circuit Pte.</strong><small>PAY-007 · 非慣用幣別</small></span>
-            <span class="money">US$ 148,200</span><span>今日 16:30</span><span class="badge high">待審</span>
-          </button>
-          <button class="queue-row">
-            <span class="risk-score"><span class="score-ring" style="background:#d19017">76</span></span>
-            <span class="vendor"><strong>惠達物流服務</strong><small>PAY-014 · 金額偏離</small></span>
-            <span class="money">NT$ 3,290,000</span><span>D+2 10:00</span><span class="badge medium">待確認</span>
-          </button>
-          <button class="queue-row">
-            <span class="risk-score"><span class="score-ring" style="background:#d19017">71</span></span>
-            <span class="vendor"><strong>Nexcore Materials GmbH</strong><small>PAY-021 · 深夜操作</small></span>
-            <span class="money">€ 72,600</span><span>D+2 15:00</span><span class="badge medium">待確認</span>
-          </button>
-          <button class="queue-row">
-            <span class="risk-score"><span class="score-ring" style="background:#718096">58</span></span>
-            <span class="vendor"><strong>金泰設備股份有限公司</strong><small>PAY-026 · 頻率偏高</small></span>
-            <span class="money">NT$ 1,180,000</span><span>D+3 11:00</span><span class="badge neutral">監看</span>
-          </button>
+<section class="screen" data-screen="2">
+  <div class="page-head"><div><div class="eyebrow"><span class="material-symbols-outlined">query_stats</span>流程 03 · Treas 新增</div><h2>檢查行為偏差</h2><p>判讀付款模式、操作情境與歷史交易的異常程度。</p></div><div class="actions"><button class="btn"><span class="material-symbols-outlined">download</span>匯出分析</button><button class="btn primary" data-next="3">追查關係網絡<span class="material-symbols-outlined">arrow_forward</span></button></div></div>
+  <div class="behavior-grid">
+    <section class="card chart-card">
+      <div class="card-title"><div><h3>付款金額與歷史行為帶</h3><small>近 12 次同供應商付款 · 單位：百萬元</small></div><span class="badge high">警示：本次偏離 +264%</span></div>
+      <div id="behaviorChart" class="behavior-chart"></div>
+      <div class="legend-row"><span><i class="legend-dot" style="background:#64748b"></i>歷史付款</span><span><i class="legend-dot" style="background:#ef4444"></i>本次付款</span><span><i class="legend-dot" style="background:#fbbf24"></i>正常範圍</span></div>
+      <div class="patterns"><div class="pattern"><span>金額 Z-score</span><strong>3.84</strong><p>警示：超過高風險門檻 2.5</p></div><div class="pattern"><span>付款頻率</span><strong>2.7×</strong><p>警示：七日內第 3 筆申請</p></div><div class="pattern"><span>操作時段</span><strong>02:14</strong><p>警示：歷史從未於深夜建單</p></div></div>
+    </section>
+    <aside>
+      <section class="card chart-card"><div class="card-title"><h3>多維行為輪廓</h3><span class="badge high">異常 88 / 100</span></div><div id="radarChart" class="radar-chart"></div></section>
+      <section class="card card-pad" style="margin-top:13px">
+        <div class="card-title"><h3>本次操作情境</h3><span class="material-symbols-outlined">fingerprint</span></div>
+        <table class="context-table">
+          <tr><td>操作人</td><td>王○仁 · 資金專員</td></tr>
+          <tr><td>裝置可信度</td><td>警示：新瀏覽器指紋</td></tr>
+          <tr><td>來源網路</td><td>海外 VPN · 新加坡</td></tr>
+          <tr><td>付款幣別</td><td>TWD · 慣用</td></tr>
+          <tr><td>建立至核准</td><td>警示：6 分鐘 · 過快</td></tr>
+          <tr><td>歷史中位金額</td><td>NT$ 2.32M</td></tr>
+        </table>
+        <div class="anomaly-callout"><strong>警示：複合偏差成立</strong><p>高額、深夜、新裝置與帳戶近期異動同時發生，非單一業務事件可合理解釋。</p></div>
+      </section>
+    </aside>
+  </div>
+</section>
+
+<section class="screen" data-screen="3">
+  <div class="page-head"><div><div class="eyebrow"><span class="material-symbols-outlined">hub</span>流程 04 · 風險調查員</div><h2>追查關係網絡</h2><p>檢視供應商、帳戶及內外部人員間的可疑連結。</p></div><div class="actions"><button class="btn"><span class="material-symbols-outlined">visibility</span>顯示全部關係</button><button class="btn primary" data-next="4">提交攔截建議<span class="material-symbols-outlined">arrow_forward</span></button></div></div>
+  <div class="network-layout">
+    <section class="network-canvas" aria-label="可疑關係網絡圖">
+      <svg class="net-lines" viewBox="0 0 800 520" preserveAspectRatio="none" aria-hidden="true"><line x1="400" y1="234" x2="184" y2="130"/><line class="danger-line" x1="400" y1="234" x2="592" y2="125"/><line class="danger-line" x1="400" y1="234" x2="624" y2="348"/><line x1="400" y1="234" x2="208" y2="364"/><line x1="400" y1="234" x2="408" y2="426"/><line x1="400" y1="234" x2="408" y2="73"/><line class="danger-line" x1="592" y1="125" x2="208" y2="364"/><line class="danger-line" x1="624" y1="348" x2="408" y2="426"/><line x1="184" y1="130" x2="408" y2="73"/></svg>
+      <div class="network-tools"><button class="icon-btn" aria-label="放大"><span class="material-symbols-outlined">add</span></button><button class="icon-btn" aria-label="縮小"><span class="material-symbols-outlined">remove</span></button><button class="icon-btn" aria-label="置中"><span class="material-symbols-outlined">center_focus_strong</span></button></div>
+      <div class="node main-node">昇岳國際<br>供應商</div><div class="node account-a">高風險<br>新帳戶 88419</div><div class="node account-b">高風險<br>中繼帳戶 20377</div><div class="node vendor-a">關聯公司<br>岳昇商務</div><div class="node person-a">待查<br>前員工 李○偉</div><div class="node staff-a">內部人員<br>王○仁</div><div class="node contact-a">聯絡人<br>Sharon L.</div>
+      <div class="net-legend"><div><i class="legend-dot" style="background:#ef4444"></i>虛線：高風險關係</div><div><i class="legend-dot" style="background:#64748b"></i>實線：一般關係</div></div>
+    </section>
+    <aside class="card clue-panel">
+      <div class="clue-score"><div class="big-score"><strong>86</strong></div><div><h3>關係風險：重大</h3><p>7 個實體 · 9 條關係 · 3 條高風險連線</p></div></div>
+      <div class="clue"><div class="clue-head"><strong>電話號碼重複使用</strong><span class="badge high">強證據</span></div><p>新帳戶開戶聯絡電話與前員工李○偉在 2024 年的緊急聯絡電話一致。</p></div>
+      <div class="clue"><div class="clue-head"><strong>裝置指紋交會</strong><span class="badge high">強證據</span></div><p>建立付款的瀏覽器指紋曾登入「中繼帳戶 20377」的網銀確認頁。</p></div>
+      <div class="clue"><div class="clue-head"><strong>地址高度相似</strong><span class="badge medium">待查</span></div><p>昇岳國際與岳昇商務登記地址僅樓層不同，負責人姓氏相同。</p></div>
+      <div class="clue"><div class="clue-head"><strong>內部人員連結</strong><span class="badge medium">待查</span></div><p>資金專員王○仁與中繼帳戶聯絡人共享兩組社群公開關係。</p></div>
+      <div class="clue-link"><strong>調查建議：</strong>凍結 PAY-001，分別使用既有供應商電話與銀行官方管道驗證，不採用變更申請中的聯絡資料。</div>
+    </aside>
+  </div>
+</section>
+
+<section class="screen" data-screen="4">
+  <div class="page-head"><div><div class="eyebrow"><span class="material-symbols-outlined">shield_lock</span>流程 05 · 財務長</div><h2>決定攔截措施</h2><p>核准暫停、退回或加強驗證，防止高風險款項實際出帳。</p></div><div class="actions"><span class="badge high">警示：距放款截止 02:17:34</span></div></div>
+  <div class="decision-wrap">
+    <section class="decision-banner"><div><span class="badge high">高風險 · 92 / 100</span><h3>PAY-001 · 昇岳國際顧問有限公司</h3><p>帳戶異動、行為偏差與關係網絡三項證據一致指向詐欺風險。</p></div><div class="amount-block"><small>待放款金額</small><strong>NT$ 8,460,000</strong></div></section>
+    <div class="risk-strip"><div class="risk-cell"><span>帳戶異動</span><strong>警示：未通過</strong></div><div class="risk-cell"><span>行為偏差</span><strong>警示：88 · 高度異常</strong></div><div class="risk-cell"><span>關係網絡</span><strong>警示：3 條強連結</strong></div><div class="risk-cell"><span>潛在損失</span><strong class="mono">NT$ 8.46M</strong></div></div>
+    <div class="decision-grid">
+      <div>
+        <section class="card approval-panel">
+          <div class="card-title"><h3>選擇放款控制措施</h3><small>重大動作需財務長核准</small></div>
+          <div class="choice-grid"><button class="choice selected"><span class="material-symbols-outlined">pause_circle</span><strong>暫停付款</strong><small>保留指令，等待調查結果</small></button><button class="choice"><span class="material-symbols-outlined">assignment_return</span><strong>退回付款</strong><small>取消本次指令並重新申請</small></button><button class="choice"><span class="material-symbols-outlined">enhanced_encryption</span><strong>加強驗證</strong><small>完成銀行與供應商雙重確認</small></button></div>
+          <div class="approval-meta"><div class="meta-box"><span>控制有效期限</span><strong class="mono">2026/08/23 18:00</strong></div><div class="meta-box"><span>解除條件</span><strong>回撥、銀行證明、雙人覆核</strong></div></div>
         </section>
-
-        <aside class="card inspector">
-          <div class="payment-hero"><small>選取付款 · PAY-001</small><h3>NT$ 8,460,000</h3><p>國泰世華 013 → 國際匯款帳戶 8841</p></div>
-          <div class="signal-list">
-            <div class="signal"><span class="material-symbols-outlined">account_balance</span><div><strong>收款帳戶 18 小時前異動</strong><p>異動管道：外部供應商入口，尚未完成回撥。</p></div></div>
-            <div class="signal"><span class="material-symbols-outlined">schedule</span><div><strong>付款時段偏離 97%</strong><p>建立於 02:14，歷史付款集中於工作日 10–16 時。</p></div></div>
-            <div class="signal"><span class="material-symbols-outlined">link</span><div><strong>發現 3 組共享關係</strong><p>新帳戶與離職員工聯絡資料存在間接連結。</p></div></div>
-          </div>
-          <div class="card-title"><h3>近六週對帳錯誤</h3><span class="badge good">8 → 1</span></div>
-          <div id="queueTrend" class="mini-chart"></div>
-          <div class="audit-note">模型建議：付款前必須完成帳戶所有權及既有聯絡窗口雙通道核驗。</div>
-        </aside>
+        <section class="card card-pad" style="margin-top:13px"><div class="card-title"><h3>決策規則與證據</h3><span class="badge neutral">合規稽核</span></div><div class="rules-list"><div class="rule-row"><span class="rule-id">RULE-01</span><strong>高風險付款由資金人員確認異常分數、期限及潛在損失。</strong><span class="rule-evidence">銀行餘額 · 通過</span></div><div class="rule-row"><span class="rule-id">RULE-02</span><strong>帳戶異動須核對來源、時間與既有主檔授權紀錄。</strong><span class="rule-evidence">警示：現金流 · 未通過</span></div><div class="rule-row"><span class="rule-id">RULE-03</span><strong>Treas 新增判讀付款模式、操作情境與歷史交易異常程度。</strong><span class="rule-evidence">警示：應收應付 · 未通過</span></div></div></section>
       </div>
-    </section>
+      <aside class="card approver">
+        <div class="card-title"><h3>核准與簽署</h3><span class="material-symbols-outlined">verified_user</span></div>
+        <div class="approver-person"><div class="avatar">CC</div><div><strong>陳怡君 · 財務長</strong><small>最終核准權限 · MFA 已驗證</small></div></div>
+        <label for="approvalNote" style="display:block;margin-top:11px;font-size:10px;font-weight:600">決策理由</label>
+        <textarea id="approvalNote">帳戶異動未完成既有窗口回撥，且新帳戶與前員工存在強關聯。暫停付款並轉交風險調查，完成雙通道驗證前不得解除。</textarea>
+        <div class="summary-pairs"><div class="summary-pair"><span>通知對象</span><strong>資金、採購、法遵</strong></div><div class="summary-pair"><span>稽核編號</span><strong class="mono">AUD-20260821-019</strong></div><div class="summary-pair"><span>簽署方式</span><strong>企業憑證 + MFA</strong></div></div>
+        <button class="btn primary full" data-next="5"><span class="material-symbols-outlined">lock</span>核准暫停並建立案件</button>
+      </aside>
+    </div>
+  </div>
+</section>
 
-    <section class="screen" data-screen="1">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow"><span class="material-symbols-outlined">manage_accounts</span>流程 02 · 資金人員</div>
-          <h2>核驗帳戶變更</h2>
-          <p>比對收款帳戶異動來源、時間與既有主檔授權紀錄。</p>
-        </div>
-        <div class="actions">
-          <button class="btn danger">退回補件</button>
-          <button class="btn primary" data-next="2">送交行為檢查<span class="material-symbols-outlined">arrow_forward</span></button>
-        </div>
-      </div>
-
-      <div class="verify-layout">
-        <section class="card compare-card">
-          <div class="vendor-banner">
-            <div class="vendor-id"><div class="vendor-logo">SY</div><div><strong>昇岳國際顧問有限公司</strong><small>供應商 V-10482 · 合作 4 年 7 個月</small></div></div>
-            <span class="badge high"><span class="material-symbols-outlined" style="font-size:14px">warning</span>重大異動</span>
-          </div>
-          <div class="compare-grid">
-            <div class="bank-panel">
-              <h3>既有核准主檔</h3>
-              <div class="field"><span>銀行名稱</span><strong>兆豐國際商業銀行</strong></div>
-              <div class="field"><span>銀行代碼</span><strong>017</strong></div>
-              <div class="field"><span>帳戶末五碼</span><strong>••••• 26104</strong></div>
-              <div class="field"><span>戶名</span><strong>昇岳國際顧問有限公司</strong></div>
-              <div class="field"><span>建立日期</span><strong>2022/03/18 · ERP 主檔匯入</strong></div>
-            </div>
-            <div class="compare-arrow"><span class="material-symbols-outlined">east</span></div>
-            <div class="bank-panel changed">
-              <h3>本次變更資料</h3>
-              <div class="field"><span>銀行名稱</span><strong class="diff">華南商業銀行</strong></div>
-              <div class="field"><span>銀行代碼</span><strong class="diff">008</strong></div>
-              <div class="field"><span>帳戶末五碼</span><strong class="diff">••••• 88419</strong></div>
-              <div class="field"><span>戶名</span><strong class="diff">昇岳國際商務服務</strong></div>
-              <div class="field"><span>變更時間</span><strong class="diff">2026/08/20 15:42 · 供應商入口</strong></div>
-            </div>
-          </div>
-          <div class="card-title" style="margin-top:18px"><h3>核驗證據</h3><small>3 / 5 已通過</small></div>
-          <div class="evidence">
-            <div class="check-row"><div class="check-icon"><span class="material-symbols-outlined">check</span></div><div><strong>供應商登入驗證通過</strong><small>MFA 裝置為既有裝置，登入地點：台北市內湖區。</small></div></div>
-            <div class="check-row"><div class="check-icon"><span class="material-symbols-outlined">check</span></div><div><strong>變更申請文件格式正確</strong><small>公司章與表單欄位完整，文件雜湊已存證。</small></div></div>
-            <div class="check-row"><div class="check-icon warn"><span class="material-symbols-outlined">priority_high</span></div><div><strong>既有聯絡窗口回撥未完成</strong><small>原登記電話撥打 2 次無人接聽，不得使用申請信件內的新電話。</small></div></div>
-            <div class="check-row"><div class="check-icon warn"><span class="material-symbols-outlined">priority_high</span></div><div><strong>戶名與法人登記不完全一致</strong><small>「顧問有限公司」變更為「商務服務」，需補正式銀行證明。</small></div></div>
-          </div>
-        </section>
-
-        <aside class="card source-chain">
-          <div class="card-title"><h3>異動來源軌跡</h3><span class="badge neutral">事件紀錄</span></div>
-          <div class="chain-step"><div class="chain-mark">1</div><div><strong>供應商入口登入</strong><p>08/20 15:37 · Chrome / Windows · 已知裝置</p></div></div>
-          <div class="chain-step flag"><div class="chain-mark">2</div><div><strong>新增陌生受款帳戶</strong><p>08/20 15:42 · 表單由新 IP 103.27.18.44 送出</p></div></div>
-          <div class="chain-step"><div class="chain-mark">3</div><div><strong>第一層審核通過</strong><p>08/20 16:03 · 採購專員 林○安</p></div></div>
-          <div class="chain-step flag"><div class="chain-mark">4</div><div><strong>大額付款指令建立</strong><p>08/21 02:14 · 距帳戶異動僅 10 小時 32 分</p></div></div>
-          <div class="chain-step"><div class="chain-mark">5</div><div><strong>SOC 自動暫停</strong><p>08/21 02:14 · RULE-02 命中，等待人工核驗</p></div></div>
-          <div class="card-title" style="margin-top:5px"><h3>雙重確認</h3></div>
-          <div class="check-row"><div class="check-icon"><span class="material-symbols-outlined">mail</span></div><div><strong>原始企業信箱</strong><small>已寄出確認碼 · 尚未回覆</small></div></div>
-          <div class="check-row" style="margin-top:8px"><div class="check-icon warn"><span class="material-symbols-outlined">call</span></div><div><strong>登記電話回撥</strong><small>第 3 次回撥排程 · 10:00</small></div></div>
-        </aside>
-      </div>
-    </section>
-
-    <section class="screen" data-screen="2">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow"><span class="material-symbols-outlined">query_stats</span>流程 03 · Treas 新增</div>
-          <h2>檢查行為偏差</h2>
-          <p>判讀付款模式、操作情境與歷史交易的異常程度。</p>
-        </div>
-        <div class="actions">
-          <button class="btn"><span class="material-symbols-outlined">download</span>匯出分析</button>
-          <button class="btn primary" data-next="3">追查關係網絡<span class="material-symbols-outlined">arrow_forward</span></button>
-        </div>
-      </div>
-
-      <div class="behavior-grid">
-        <section class="card chart-card">
-          <div class="card-title">
-            <div><h3>付款金額與歷史行為帶</h3><small>近 12 次同供應商付款 · 單位：百萬元</small></div>
-            <span class="badge high">本次偏離 +264%</span>
-          </div>
-          <div id="behaviorChart" class="behavior-chart"></div>
-          <div class="legend-row">
-            <span><i class="legend-dot" style="background:#cbd3df"></i>歷史付款</span>
-            <span><i class="legend-dot" style="background:#be123c"></i>本次付款</span>
-            <span><i class="legend-dot" style="background:#f2b6c5"></i>正常範圍</span>
-          </div>
-          <div class="patterns">
-            <div class="pattern"><span>金額 Z-score</span><strong>3.84</strong><p>超過高風險門檻 2.5</p></div>
-            <div class="pattern"><span>付款頻率</span><strong>2.7×</strong><p>七日內第 3 筆申請</p></div>
-            <div class="pattern"><span>操作時段</span><strong>02:14</strong><p>歷史從未於深夜建單</p></div>
-          </div>
-        </section>
-
-        <aside>
-          <section class="card chart-card">
-            <div class="card-title"><h3>多維行為輪廓</h3><span class="badge high">異常 88 / 100</span></div>
-            <div id="radarChart" class="radar-chart"></div>
-          </section>
-          <section class="card card-pad" style="margin-top:15px">
-            <div class="card-title"><h3>本次操作情境</h3><span class="material-symbols-outlined" style="color:var(--muted)">fingerprint</span></div>
-            <table class="context-table">
-              <tr><td>操作人</td><td>王○仁 · 資金專員</td></tr>
-              <tr><td>裝置可信度</td><td style="color:var(--amber)">新瀏覽器指紋</td></tr>
-              <tr><td>來源網路</td><td>海外 VPN · 新加坡</td></tr>
-              <tr><td>付款幣別</td><td>TWD · 慣用</td></tr>
-              <tr><td>建立至核准</td><td style="color:var(--red)">6 分鐘 · 過快</td></tr>
-              <tr><td>歷史中位金額</td><td>NT$ 2.32M</td></tr>
-            </table>
-            <div class="anomaly-callout"><strong>複合偏差成立</strong><p>高額、深夜、新裝置與帳戶近期異動同時發生，非單一業務事件可合理解釋。</p></div>
-          </section>
-        </aside>
-      </div>
-    </section>
-
-    <section class="screen" data-screen="3">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow"><span class="material-symbols-outlined">hub</span>流程 04 · 風險調查員</div>
-          <h2>追查關係網絡</h2>
-          <p>檢視供應商、帳戶及內外部人員間的可疑連結。</p>
-        </div>
-        <div class="actions">
-          <button class="btn"><span class="material-symbols-outlined">visibility</span>顯示全部關係</button>
-          <button class="btn primary" data-next="4">提交攔截建議<span class="material-symbols-outlined">arrow_forward</span></button>
-        </div>
-      </div>
-
-      <div class="network-layout">
-        <section class="network-canvas" aria-label="可疑關係網絡圖">
-          <svg class="net-lines" viewBox="0 0 800 520" preserveAspectRatio="none" aria-hidden="true">
-            <line x1="400" y1="234" x2="184" y2="130"></line>
-            <line class="danger-line" x1="400" y1="234" x2="592" y2="125"></line>
-            <line class="danger-line" x1="400" y1="234" x2="624" y2="348"></line>
-            <line x1="400" y1="234" x2="208" y2="364"></line>
-            <line x1="400" y1="234" x2="408" y2="426"></line>
-            <line x1="400" y1="234" x2="408" y2="73"></line>
-            <line class="danger-line" x1="592" y1="125" x2="208" y2="364"></line>
-            <line class="danger-line" x1="624" y1="348" x2="408" y2="426"></line>
-            <line x1="184" y1="130" x2="408" y2="73"></line>
-          </svg>
-          <div class="network-tools">
-            <button class="icon-btn" aria-label="放大"><span class="material-symbols-outlined">add</span></button>
-            <button class="icon-btn" aria-label="縮小"><span class="material-symbols-outlined">remove</span></button>
-            <button class="icon-btn" aria-label="置中"><span class="material-symbols-outlined">center_focus_strong</span></button>
-          </div>
-          <div class="node main-node">昇岳國際<br>供應商</div>
-          <div class="node account-a">新帳戶<br>88419</div>
-          <div class="node account-b">中繼帳戶<br>20377</div>
-          <div class="node vendor-a">關聯公司<br>岳昇商務</div>
-          <div class="node person-a">前員工<br>李○偉</div>
-          <div class="node staff-a">內部人員<br>王○仁</div>
-          <div class="node contact-a">聯絡人<br>Sharon L.</div>
-          <div class="net-legend">
-            <div><i class="legend-dot" style="background:#be123c"></i>高風險實體</div>
-            <div><i class="legend-dot" style="background:#b8c0cd"></i>一般關係</div>
-          </div>
-        </section>
-
-        <aside class="card clue-panel">
-          <div class="clue-score">
-            <div class="big-score"><strong>86</strong></div>
-            <div><h3>關係風險：重大</h3><p>7 個實體 · 9 條關係 · 3 條高風險連線</p></div>
-          </div>
-          <div class="clue">
-            <div class="clue-head"><strong>電話號碼重複使用</strong><span class="badge high">強證據</span></div>
-            <p>新帳戶開戶聯絡電話與前員工李○偉在 2024 年的緊急聯絡電話一致。</p>
-          </div>
-          <div class="clue">
-            <div class="clue-head"><strong>裝置指紋交會</strong><span class="badge high">強證據</span></div>
-            <p>建立付款的瀏覽器指紋曾登入「中繼帳戶 20377」的網銀確認頁。</p>
-          </div>
-          <div class="clue">
-            <div class="clue-head"><strong>地址高度相似</strong><span class="badge medium">待查</span></div>
-            <p>昇岳國際與岳昇商務登記地址僅樓層不同，負責人姓氏相同。</p>
-          </div>
-          <div class="clue">
-            <div class="clue-head"><strong>內部人員連結</strong><span class="badge medium">待查</span></div>
-            <p>資金專員王○仁與中繼帳戶聯絡人共享兩組社群公開關係。</p>
-          </div>
-          <div class="clue-link"><strong>調查建議：</strong>凍結 PAY-001，分別使用既有供應商電話與銀行官方管道驗證，不採用變更申請中的聯絡資料。</div>
-        </aside>
-      </div>
-    </section>
-
-    <section class="screen" data-screen="4">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow"><span class="material-symbols-outlined">shield_lock</span>流程 05 · 財務長</div>
-          <h2>決定攔截措施</h2>
-          <p>核准暫停、退回或加強驗證，防止高風險款項實際出帳。</p>
-        </div>
-        <div class="actions"><span class="badge high">距放款截止 02:17:34</span></div>
-      </div>
-
-      <div class="decision-wrap">
-        <section class="decision-banner">
-          <div><span class="badge high">高風險 · 92 / 100</span><h3>PAY-001 · 昇岳國際顧問有限公司</h3><p>帳戶異動、行為偏差與關係網絡三項證據一致指向詐欺風險。</p></div>
-          <div class="amount-block"><small>待放款金額</small><strong>NT$ 8,460,000</strong></div>
-        </section>
-
-        <div class="risk-strip">
-          <div class="risk-cell"><span>帳戶異動</span><strong style="color:var(--red)">未通過</strong></div>
-          <div class="risk-cell"><span>行為偏差</span><strong style="color:var(--red)">88 · 高度異常</strong></div>
-          <div class="risk-cell"><span>關係網絡</span><strong style="color:var(--red)">3 條強連結</strong></div>
-          <div class="risk-cell"><span>潛在損失</span><strong>NT$ 8.46M</strong></div>
-        </div>
-
-        <div class="decision-grid">
-          <div>
-            <section class="card approval-panel">
-              <div class="card-title"><h3>選擇放款控制措施</h3><small>重大動作需財務長核准</small></div>
-              <div class="choice-grid">
-                <button class="choice selected"><span class="material-symbols-outlined">pause_circle</span><strong>暫停付款</strong><small>保留指令，等待調查結果</small></button>
-                <button class="choice"><span class="material-symbols-outlined">assignment_return</span><strong>退回付款</strong><small>取消本次指令並重新申請</small></button>
-                <button class="choice"><span class="material-symbols-outlined">enhanced_encryption</span><strong>加強驗證</strong><small>完成銀行與供應商雙重確認</small></button>
-              </div>
-              <div class="approval-meta">
-                <div class="meta-box"><span>控制有效期限</span><strong>2026/08/23 18:00</strong></div>
-                <div class="meta-box"><span>解除條件</span><strong>回撥、銀行證明、雙人覆核</strong></div>
-              </div>
-            </section>
-
-            <section class="card card-pad" style="margin-top:15px">
-              <div class="card-title"><h3>決策規則與證據</h3><span class="badge neutral">合規稽核</span></div>
-              <div class="rules-list">
-                <div class="rule-row"><span class="rule-id">RULE-01</span><strong>高風險付款由資金人員確認異常分數、期限及潛在損失。</strong><span class="rule-evidence">銀行餘額 · 通過</span></div>
-                <div class="rule-row"><span class="rule-id">RULE-02</span><strong>帳戶異動須核對來源、時間與既有主檔授權紀錄。</strong><span class="rule-evidence" style="color:var(--red)">現金流 · 未通過</span></div>
-                <div class="rule-row"><span class="rule-id">RULE-03</span><strong>Treas 新增判讀付款模式、操作情境與歷史交易異常程度。</strong><span class="rule-evidence" style="color:var(--red)">應收應付 · 未通過</span></div>
-              </div>
-            </section>
-          </div>
-
-          <aside class="card approver">
-            <div class="card-title"><h3>核准與簽署</h3><span class="material-symbols-outlined" style="color:var(--blue)">verified_user</span></div>
-            <div class="approver-person"><div class="avatar">CC</div><div><strong>陳怡君 · 財務長</strong><small>最終核准權限 · MFA 已驗證</small></div></div>
-            <label for="approvalNote" style="display:block;margin-top:13px;font-size:11px;font-weight:700;color:var(--ink)">決策理由</label>
-            <textarea id="approvalNote">帳戶異動未完成既有窗口回撥，且新帳戶與前員工存在強關聯。暫停付款並轉交風險調查，完成雙通道驗證前不得解除。</textarea>
-            <div class="summary-pairs">
-              <div class="summary-pair"><span>通知對象</span><strong>資金、採購、法遵</strong></div>
-              <div class="summary-pair"><span>稽核編號</span><strong>AUD-20260821-019</strong></div>
-              <div class="summary-pair"><span>簽署方式</span><strong>企業憑證 + MFA</strong></div>
-            </div>
-            <button class="btn primary full" data-next="5"><span class="material-symbols-outlined">lock</span>核准暫停並建立案件</button>
-          </aside>
-        </div>
-      </div>
-    </section>
-
-    <section class="screen" data-screen="5">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow"><span class="material-symbols-outlined">travel_explore</span>流程 06 · 風險調查員</div>
-          <h2>完成調查處置</h2>
-          <p>記錄外部回撥、帳戶確認、案件結論與後續控制改善。</p>
-        </div>
-        <div class="actions">
-          <button class="btn"><span class="material-symbols-outlined">picture_as_pdf</span>產生稽核報告</button>
-          <button class="btn success"><span class="material-symbols-outlined">task_alt</span>結案歸檔</button>
-        </div>
-      </div>
-
-      <div class="case-layout">
-        <aside class="card case-summary">
-          <span class="case-number">案件 FR-2026-0821-007</span>
-          <h3>疑似付款帳戶置換詐欺</h3>
-          <p>由 PAY-001 自動升級建立，所有付款控制與調查證據已完整保存。</p>
-          <div class="card-title"><strong style="font-size:11px;color:var(--ink)">調查完成度</strong><small>88%</small></div>
-          <div class="case-progress"><span></span></div>
-          <div class="summary-pairs">
-            <div class="summary-pair"><span>案件等級</span><strong style="color:var(--red)">重大</strong></div>
-            <div class="summary-pair"><span>負責人</span><strong>林芷晴</strong></div>
-            <div class="summary-pair"><span>建立時間</span><strong>08/21 09:48</strong></div>
-            <div class="summary-pair"><span>目前階段</span><strong>結案覆核</strong></div>
-            <div class="summary-pair"><span>攔截金額</span><strong>NT$ 8.46M</strong></div>
-            <div class="summary-pair"><span>資金損失</span><strong style="color:var(--green)">NT$ 0</strong></div>
-          </div>
-          <div class="audit-note">付款指令仍為暫停狀態，替代付款將使用原核准帳戶重新建立。</div>
-        </aside>
-
-        <div class="case-main">
-          <section class="card timeline">
-            <div class="card-title"><h3>調查與處置時間軸</h3><span class="badge good">證據鏈完整</span></div>
-            <div class="timeline-item">
-              <div class="timeline-time">09:52</div><div class="timeline-icon"><span class="material-symbols-outlined">call</span></div>
-              <div class="timeline-content"><strong>完成既有供應商窗口回撥</strong><p>財務主管確認未提出帳戶異動，亦未授權任何人提交變更表單。</p><span class="evidence-tag">錄音 REC-9817 · 已取得同意</span></div>
-            </div>
-            <div class="timeline-item">
-              <div class="timeline-time">10:18</div><div class="timeline-icon"><span class="material-symbols-outlined">account_balance</span></div>
-              <div class="timeline-content"><strong>向銀行官方管道核對新帳戶</strong><p>華南銀行確認戶名為個人商號，與供應商法人名稱及統編不符。</p><span class="evidence-tag">銀行確認函 BNK-44028</span></div>
-            </div>
-            <div class="timeline-item">
-              <div class="timeline-time">10:41</div><div class="timeline-icon"><span class="material-symbols-outlined">security</span></div>
-              <div class="timeline-content"><strong>封鎖遭入侵的供應商入口帳號</strong><p>撤銷工作階段、重設驗證因子，並封鎖來源 IP 與相關裝置指紋。</p><span class="evidence-tag">SOC 事件 EVT-620194</span></div>
-            </div>
-            <div class="timeline-item">
-              <div class="timeline-time">11:06</div><div class="timeline-icon"><span class="material-symbols-outlined">person_search</span></div>
-              <div class="timeline-content"><strong>內部人員訪談完成</strong><p>王○仁表示於釣魚網站輸入過企業帳密；存取紀錄支持憑證遭竊判定。</p><span class="evidence-tag">訪談紀錄 INT-2108</span></div>
-            </div>
-            <div class="timeline-item">
-              <div class="timeline-time">11:34</div><div class="timeline-icon"><span class="material-symbols-outlined">gavel</span></div>
-              <div class="timeline-content"><strong>案件定性：帳號接管與付款置換</strong><p>確認為外部攻擊者接管供應商帳號、置換收款帳戶並嘗試誘導放款。</p><span class="evidence-tag">結論 REV-01 · 待法遵覆核</span></div>
-            </div>
-          </section>
-
-          <div class="outcome-grid">
-            <article class="card outcome"><span class="material-symbols-outlined">savings</span><strong>損失成功避免</strong><p>NT$ 8,460,000 未實際出帳，銀行端付款檔已撤回。</p></article>
-            <article class="card outcome"><span class="material-symbols-outlined">policy</span><strong>控制規則強化</strong><p>帳戶異動後 72 小時內的大額付款一律要求雙人回撥。</p></article>
-            <article class="card outcome"><span class="material-symbols-outlined">school</span><strong>人員改善措施</strong><p>資金與採購團隊完成釣魚辨識及付款變更驗證訓練。</p></article>
-          </div>
-
-          <div class="report-footer">
-            <div><strong>付款詐欺情境攔截器處理結果與可追溯的操作紀錄</strong><p>包含資安報表、事件紀錄、合規稽核與 12 份原始證據。</p></div>
-            <span class="badge good"><span class="material-symbols-outlined" style="font-size:14px">verified</span>稽核雜湊已封存</span>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
+<section class="screen" data-screen="5">
+  <div class="page-head"><div><div class="eyebrow"><span class="material-symbols-outlined">travel_explore</span>流程 06 · 風險調查員</div><h2>完成調查處置</h2><p>記錄外部回撥、帳戶確認、案件結論與後續控制改善。</p></div><div class="actions"><button class="btn"><span class="material-symbols-outlined">picture_as_pdf</span>產生稽核報告</button><button class="btn success"><span class="material-symbols-outlined">task_alt</span>結案歸檔</button></div></div>
+  <div class="case-layout">
+    <aside class="card case-summary">
+      <span class="case-number">案件 FR-2026-0821-007</span><h3>疑似付款帳戶置換詐欺</h3><p>由 PAY-001 自動升級建立，所有付款控制與調查證據已完整保存。</p>
+      <div class="card-title"><strong style="font-size:10px">調查完成度</strong><small>88%</small></div><div class="case-progress"><span></span></div>
+      <div class="summary-pairs"><div class="summary-pair"><span>案件等級</span><strong>警示：重大</strong></div><div class="summary-pair"><span>負責人</span><strong>林芷晴</strong></div><div class="summary-pair"><span>建立時間</span><strong class="mono">08/21 09:48</strong></div><div class="summary-pair"><span>目前階段</span><strong>結案覆核</strong></div><div class="summary-pair"><span>攔截金額</span><strong class="mono">NT$ 8.46M</strong></div><div class="summary-pair"><span>資金損失</span><strong>成功避免 · NT$ 0</strong></div></div>
+      <div class="audit-note">付款指令仍為暫停狀態，替代付款將使用原核准帳戶重新建立。</div>
+    </aside>
+    <div class="case-main">
+      <section class="card timeline">
+        <div class="card-title"><h3>調查與處置時間軸</h3><span class="badge good">完成：證據鏈完整</span></div>
+        <div class="timeline-item"><div class="timeline-time">09:52</div><div class="timeline-icon"><span class="material-symbols-outlined">call</span></div><div class="timeline-content"><strong>完成既有供應商窗口回撥</strong><p>財務主管確認未提出帳戶異動，亦未授權任何人提交變更表單。</p><span class="evidence-tag">錄音 REC-9817 · 已取得同意</span></div></div>
+        <div class="timeline-item"><div class="timeline-time">10:18</div><div class="timeline-icon"><span class="material-symbols-outlined">account_balance</span></div><div class="timeline-content"><strong>向銀行官方管道核對新帳戶</strong><p>華南銀行確認戶名為個人商號，與供應商法人名稱及統編不符。</p><span class="evidence-tag">銀行確認函 BNK-44028</span></div></div>
+        <div class="timeline-item"><div class="timeline-time">10:41</div><div class="timeline-icon"><span class="material-symbols-outlined">security</span></div><div class="timeline-content"><strong>封鎖遭入侵的供應商入口帳號</strong><p>撤銷工作階段、重設驗證因子，並封鎖來源 IP 與相關裝置指紋。</p><span class="evidence-tag">SOC 事件 EVT-620194</span></div></div>
+        <div class="timeline-item"><div class="timeline-time">11:06</div><div class="timeline-icon"><span class="material-symbols-outlined">person_search</span></div><div class="timeline-content"><strong>內部人員訪談完成</strong><p>王○仁表示於釣魚網站輸入過企業帳密；存取紀錄支持憑證遭竊判定。</p><span class="evidence-tag">訪談紀錄 INT-2108</span></div></div>
+        <div class="timeline-item"><div class="timeline-time">11:34</div><div class="timeline-icon"><span class="material-symbols-outlined">gavel</span></div><div class="timeline-content"><strong>案件定性：帳號接管與付款置換</strong><p>確認為外部攻擊者接管供應商帳號、置換收款帳戶並嘗試誘導放款。</p><span class="evidence-tag">結論 REV-01 · 待法遵覆核</span></div></div>
+      </section>
+      <div class="outcome-grid"><article class="card outcome"><span class="material-symbols-outlined">savings</span><strong>損失成功避免</strong><p>NT$ 8,460,000 未實際出帳，銀行端付款檔已撤回。</p></article><article class="card outcome"><span class="material-symbols-outlined">policy</span><strong>控制規則強化</strong><p>帳戶異動後 72 小時內的大額付款一律要求雙人回撥。</p></article><article class="card outcome"><span class="material-symbols-outlined">school</span><strong>人員改善措施</strong><p>資金與採購團隊完成釣魚辨識及付款變更驗證訓練。</p></article></div>
+      <div class="report-footer"><div><strong>付款詐欺情境攔截器處理結果與可追溯的操作紀錄</strong><p>包含資安報表、事件紀錄、合規稽核與 12 份原始證據。</p></div><span class="badge good"><span class="material-symbols-outlined">verified</span>完成：稽核雜湊已封存</span></div>
+    </div>
+  </div>
+</section>
+</main>
 </div>
 
 <script>
 (() => {
   "use strict";
+  const screens=[...document.querySelectorAll("[data-screen]")];
+  const navButtons=[...document.querySelectorAll("[data-i]")];
+  const charts={};
+  const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const font='"Fira Code","Fira Sans",sans-serif';
 
-  const screens = Array.from(document.querySelectorAll("[data-screen]"));
-  const navButtons = Array.from(document.querySelectorAll("[data-i]"));
-  const chartRegistry = {};
-  let activeIndex = -1;
-
-  function chartReady(elementId) {
-    const element = document.getElementById(elementId);
-    return element && element.getBoundingClientRect().width > 0 && window.ApexCharts;
+  function ready(id){
+    const el=document.getElementById(id);
+    return el&&el.getBoundingClientRect().width>0&&window.ApexCharts;
   }
-
-  function createQueueChart() {
-    if (chartRegistry.queue || !chartReady("queueTrend")) return;
-    const element = document.getElementById("queueTrend");
-    chartRegistry.queue = new ApexCharts(element, {
-      chart: {type:"area",height:165,toolbar:{show:false},sparkline:{enabled:false},fontFamily:"Inter, Noto Sans TC, sans-serif"},
-      series:[{name:"對帳錯誤 件/月",data:[8,6.6,5.2,3.8,2.4,1]}],
-      colors:["#be123c"],
-      stroke:{curve:"smooth",width:2.5},
-      fill:{type:"gradient",gradient:{shadeIntensity:1,opacityFrom:.28,opacityTo:.03,stops:[0,90,100]}},
+  function baseChart(type,height){
+    return{
+      chart:{type,height,toolbar:{show:false},animations:{enabled:!reduced},fontFamily:font,foreColor:"#94A3B8",background:"transparent"},
       dataLabels:{enabled:false},
-      grid:{borderColor:"#edf0f4",strokeDashArray:4,padding:{left:2,right:8}},
-      xaxis:{categories:["W1","W2","W3","W4","W5","W6"],labels:{style:{fontSize:"9px",colors:"#8b95a7"}},axisBorder:{show:false},axisTicks:{show:false}},
-      yaxis:{min:0,max:9,tickAmount:3,labels:{style:{fontSize:"9px",colors:"#8b95a7"}}},
-      tooltip:{theme:"light",y:{formatter:value => value + " 件/月"}}
-    });
-    chartRegistry.queue.render();
+      grid:{borderColor:"#29364e",strokeDashArray:4},
+      tooltip:{theme:"dark"}
+    };
   }
-
-  function createBehaviorCharts() {
-    if (!chartRegistry.behavior && chartReady("behaviorChart")) {
-      const element = document.getElementById("behaviorChart");
-      chartRegistry.behavior = new ApexCharts(element, {
-        chart:{type:"line",height:310,toolbar:{show:false},fontFamily:"Inter, Noto Sans TC, sans-serif"},
+  function queueChart(){
+    if(charts.queue||!ready("queueTrend"))return;
+    const options=baseChart("area",165);
+    Object.assign(options,{
+      series:[{name:"對帳錯誤 件/月",data:[8,6.6,5.2,3.8,2.4,1]}],
+      colors:["#22C55E"],
+      stroke:{curve:"smooth",width:2},
+      fill:{type:"gradient",gradient:{shadeIntensity:1,opacityFrom:.26,opacityTo:.02,stops:[0,90,100]}},
+      xaxis:{categories:["W1","W2","W3","W4","W5","W6"],labels:{style:{fontSize:"9px",colors:"#94A3B8"}},axisBorder:{show:false},axisTicks:{show:false}},
+      yaxis:{min:0,max:9,tickAmount:3,labels:{style:{fontSize:"9px",colors:"#94A3B8"}}},
+      tooltip:{theme:"dark",y:{formatter:v=>v+" 件/月"}}
+    });
+    charts.queue=new ApexCharts(document.getElementById("queueTrend"),options);
+    charts.queue.render();
+  }
+  function behaviorCharts(){
+    if(!charts.behavior&&ready("behaviorChart")){
+      const options=baseChart("line",310);
+      Object.assign(options,{
         series:[
-          {name:"歷史付款",type:"column",data:[2.1,1.8,2.6,2.3,1.9,2.7,2.4,2.2,3.1,2.5,2.0,null]},
+          {name:"歷史付款",type:"column",data:[2.1,1.8,2.6,2.3,1.9,2.7,2.4,2.2,3.1,2.5,2,null]},
           {name:"本次付款",type:"column",data:[null,null,null,null,null,null,null,null,null,null,null,8.46]},
-          {name:"正常上限",type:"line",data:[3.2,3.2,3.2,3.2,3.2,3.2,3.2,3.2,3.2,3.2,3.2,3.2]}
+          {name:"正常上限",type:"line",data:Array(12).fill(3.2)}
         ],
-        colors:["#cbd3df","#be123c","#e9a3b4"],
-        plotOptions:{bar:{columnWidth:"48%",borderRadius:5}},
+        colors:["#64748B","#EF4444","#FBBF24"],
+        plotOptions:{bar:{columnWidth:"48%",borderRadius:3}},
         stroke:{width:[0,0,2],curve:"straight",dashArray:[0,0,6]},
-        dataLabels:{enabled:false},
-        grid:{borderColor:"#edf0f4",strokeDashArray:4},
-        xaxis:{
-          categories:["09/12","10/04","10/29","11/18","12/06","01/09","02/14","03/12","04/08","05/16","06/21","08/21"],
-          labels:{rotate:-35,style:{fontSize:"9px",colors:"#8490a3"}},axisBorder:{show:false},axisTicks:{show:false}
-        },
-        yaxis:{min:0,max:10,tickAmount:5,labels:{formatter:value => value.toFixed(0)+"M",style:{fontSize:"9px",colors:"#8490a3"}}},
+        xaxis:{categories:["09/12","10/04","10/29","11/18","12/06","01/09","02/14","03/12","04/08","05/16","06/21","08/21"],labels:{rotate:-35,style:{fontSize:"9px",colors:"#94A3B8"}},axisBorder:{show:false},axisTicks:{show:false}},
+        yaxis:{min:0,max:10,tickAmount:5,labels:{formatter:v=>v.toFixed(0)+"M",style:{fontSize:"9px",colors:"#94A3B8"}}},
         legend:{show:false},
-        tooltip:{shared:true,intersect:false,y:{formatter:value => value === null ? "—" : "NT$ "+value+"M"}}
+        tooltip:{theme:"dark",shared:true,intersect:false,y:{formatter:v=>v===null?"—":"NT$ "+v+"M"}}
       });
-      chartRegistry.behavior.render();
+      charts.behavior=new ApexCharts(document.getElementById("behaviorChart"),options);
+      charts.behavior.render();
     }
-
-    if (!chartRegistry.radar && chartReady("radarChart")) {
-      const radarElement = document.getElementById("radarChart");
-      chartRegistry.radar = new ApexCharts(radarElement, {
-        chart:{type:"radar",height:255,toolbar:{show:false},fontFamily:"Inter, Noto Sans TC, sans-serif"},
-        series:[
-          {name:"本次",data:[96,88,82,91,74,86]},
-          {name:"歷史基準",data:[28,32,24,21,35,30]}
-        ],
-        colors:["#be123c","#aeb7c5"],
-        stroke:{width:2},
-        fill:{opacity:[.15,.06]},
-        markers:{size:3},
-        xaxis:{categories:["金額","時段","頻率","裝置","幣別","操作人"],labels:{style:{fontSize:"10px",colors:["#5f6b7d","#5f6b7d","#5f6b7d","#5f6b7d","#5f6b7d","#5f6b7d"]}}},
+    if(!charts.radar&&ready("radarChart")){
+      charts.radar=new ApexCharts(document.getElementById("radarChart"),{
+        ...baseChart("radar",255),
+        series:[{name:"本次",data:[96,88,82,91,74,86]},{name:"歷史基準",data:[28,32,24,21,35,30]}],
+        colors:["#EF4444","#64748B"],stroke:{width:2},fill:{opacity:[.18,.08]},markers:{size:3},
+        xaxis:{categories:["金額","時段","頻率","裝置","幣別","操作人"],labels:{style:{fontSize:"10px",colors:Array(6).fill("#CBD5E1")}}},
         yaxis:{show:false,min:0,max:100},
-        legend:{position:"bottom",fontSize:"10px",markers:{width:8,height:8}}
+        legend:{position:"bottom",fontSize:"10px",labels:{colors:"#CBD5E1"}}
       });
-      chartRegistry.radar.render();
+      charts.radar.render();
     }
   }
-
-  function initializeCharts(indexValue) {
-    requestAnimationFrame(() => {
-      if (indexValue === 0) createQueueChart();
-      if (indexValue === 2) createBehaviorCharts();
-    });
+  function initCharts(i){
+    requestAnimationFrame(()=>{if(i===0)queueChart();if(i===2)behaviorCharts()});
   }
-
-  window.show = function show(indexValue) {
-    const parsedIndex = Number(indexValue);
-    const safeIndex = Number.isFinite(parsedIndex) ? Math.max(0, Math.min(5, parsedIndex)) : 0;
-    activeIndex = safeIndex;
-
-    screens.forEach((screenElement, screenIndex) => {
-      const isActive = screenIndex === safeIndex;
-      screenElement.classList.toggle("active", isActive);
-      screenElement.setAttribute("aria-hidden", String(!isActive));
+  function show(index){
+    const n=Math.max(0,Math.min(5,Number(index)||0));
+    screens.forEach((screen,i)=>{
+      const active=i===n;
+      screen.classList.toggle("active",active);
+      screen.setAttribute("aria-hidden",String(!active));
     });
-
-    navButtons.forEach((buttonElement, buttonIndex) => {
-      const isActive = buttonIndex === safeIndex;
-      buttonElement.classList.toggle("active", isActive);
-      buttonElement.setAttribute("aria-current", isActive ? "step" : "false");
+    navButtons.forEach((button,i)=>{
+      const active=i===n;
+      button.classList.toggle("active",active);
+      button.setAttribute("aria-current",active?"step":"false");
     });
-
-    initializeCharts(safeIndex);
-    window.scrollTo({top:0,behavior:"smooth"});
-  };
-
-  function indexFromHash() {
-    const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
-    return match ? Math.max(0, Math.min(5, Number(match[1]))) : 0;
+    initCharts(n);
+    scrollTo({top:0,behavior:reduced?"auto":"smooth"});
   }
-
-  function navigateTo(indexValue) {
-    const safeIndex = Math.max(0, Math.min(5, Number(indexValue)));
-    if (window.location.hash === "#go=" + safeIndex) {
-      window.show(safeIndex);
-    } else {
-      window.location.hash = "go=" + safeIndex;
-    }
+  function hashIndex(){
+    const match=location.hash.match(/(?:go=|v)([0-9]+)/);
+    return match?Math.max(0,Math.min(5,Number(match[1]))):0;
   }
-
-  navButtons.forEach(buttonElement => {
-    buttonElement.addEventListener("click", () => navigateTo(buttonElement.dataset.i));
-  });
-
-  document.querySelectorAll("[data-next]").forEach(buttonElement => {
-    buttonElement.addEventListener("click", () => navigateTo(buttonElement.dataset.next));
-  });
-
-  document.querySelectorAll(".filter-chip").forEach(chipElement => {
-    chipElement.addEventListener("click", () => {
-      chipElement.parentElement.querySelectorAll(".filter-chip").forEach(item => item.classList.remove("selected"));
-      chipElement.classList.add("selected");
-    });
-  });
-
-  document.querySelectorAll(".queue-row").forEach(rowElement => {
-    rowElement.addEventListener("click", () => {
-      rowElement.parentElement.querySelectorAll(".queue-row").forEach(item => item.classList.remove("selected"));
-      rowElement.classList.add("selected");
-    });
-  });
-
-  document.querySelectorAll(".choice").forEach(choiceElement => {
-    choiceElement.addEventListener("click", () => {
-      choiceElement.parentElement.querySelectorAll(".choice").forEach(item => item.classList.remove("selected"));
-      choiceElement.classList.add("selected");
-    });
-  });
-
-  window.addEventListener("hashchange", () => window.show(indexFromHash()));
-  window.show(indexFromHash());
+  function navigate(index){
+    const n=Math.max(0,Math.min(5,Number(index)));
+    if(location.hash==="#go="+n)show(n);
+    else location.hash="go="+n;
+  }
+  navButtons.forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.i)));
+  document.querySelectorAll("[data-next]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.next)));
+  document.querySelectorAll(".filter-chip").forEach(chip=>chip.addEventListener("click",()=>{
+    chip.parentElement.querySelectorAll(".filter-chip").forEach(item=>item.classList.remove("selected"));
+    chip.classList.add("selected");
+  }));
+  document.querySelectorAll(".queue-row").forEach(row=>row.addEventListener("click",()=>{
+    row.parentElement.querySelectorAll(".queue-row").forEach(item=>item.classList.remove("selected"));
+    row.classList.add("selected");
+  }));
+  document.querySelectorAll(".choice").forEach(choice=>choice.addEventListener("click",()=>{
+    choice.parentElement.querySelectorAll(".choice").forEach(item=>item.classList.remove("selected"));
+    choice.classList.add("selected");
+  }));
+  addEventListener("hashchange",()=>show(hashIndex()));
+  show(hashIndex());
 })();
 </script>
-<script src="/shared/jv-agent-bridge.js?v=2" defer></script>
 </body>
 </html>

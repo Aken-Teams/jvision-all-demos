@@ -6,188 +6,564 @@
   <title>FT Yield Management（最終測試良率管理）｜Jvision 系統 Demo</title>
   <meta name="description" content="半導體最終測試良率管理：測試數據採集、良率看板、Bin 分佈分析、異常判定與批次攔截處置" />
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,500,0,0&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root{
-      --accent:#b45309; --accent2:#f59e0b; --accent-soft:#fef3c7;
-      --bg:#f4f5f7; --panel:#ffffff; --ink:#1f2937; --muted:#6b7280;
-      --line:#e5e7eb; --sidebar:#1c1917; --sidebar2:#292524;
-      --good:#16a34a; --warn:#f59e0b; --bad:#dc2626; --info:#0ea5e9;
+      --color-primary:#2563eb;
+      --color-on-primary:#fff;
+      --color-secondary:#3b82f6;
+      --color-on-secondary:#000;
+      --color-accent:#ea580c;
+      --color-on-accent:#000;
+      --color-background:#f8fafc;
+      --color-foreground:#1e293b;
+      --color-card:#fff;
+      --color-card-foreground:#1e293b;
+      --color-muted:#e9eff8;
+      --color-muted-foreground:#475569;
+      --color-border:#e2e8f0;
+      --color-destructive:#dc2626;
+      --color-on-destructive:#fff;
+      --color-ring:#2563eb;
+      --blue:#2563eb;
+      --ink:#1e293b;
+      --muted:#475569;
+      --line:#e2e8f0;
+      --good:#15803d;
+      --warn:#a74406;
+      --bad:#b91c1c;
+      --info:#075985;
+      --black:#0f172a;
+      --grid:rgba(37,99,235,.075);
+      --shadow:6px 6px 0 #0f172a;
     }
-    *{box-sizing:border-box;}
-    html,body{margin:0;padding:0;}
+    *{box-sizing:border-box}
+    html{scroll-behavior:auto}
+    html,body{margin:0;min-height:100%}
     body{
-      font-family:"Inter","Noto Sans TC",system-ui,sans-serif;
-      background:var(--bg); color:var(--ink); line-height:1.5;
+      background-color:var(--color-background);
+      background-image:
+        linear-gradient(var(--grid) 1px,transparent 1px),
+        linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+      background-size:32px 32px;
+      color:var(--ink);
+      font-family:"Fira Sans",system-ui,sans-serif;
+      line-height:1.5;
       -webkit-font-smoothing:antialiased;
     }
-    .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;vertical-align:middle;}
-    .layout{display:flex; min-height:100vh; align-items:stretch;}
-    /* sidebar */
+    button{font:inherit}
+    button,a{cursor:pointer}
+    button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
+      outline:3px solid var(--color-ring);
+      outline-offset:3px;
+    }
+    .material-symbols-outlined{
+      font-family:"Material Symbols Outlined";
+      font-weight:500;
+      font-style:normal;
+      line-height:1;
+      vertical-align:middle;
+    }
+    .layout{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:100vh}
     .sidebar{
-      width:248px; flex:0 0 248px; background:var(--sidebar); color:#e7e5e4;
-      display:flex; flex-direction:column; padding:20px 14px; gap:6px; min-width:0;
+      position:sticky;
+      top:0;
+      z-index:20;
+      height:100vh;
+      display:flex;
+      flex-direction:column;
+      gap:20px;
+      padding:22px 18px;
+      overflow:auto;
+      color:#fff;
+      background:var(--black);
+      border-right:4px solid var(--black);
     }
-    .brand{display:flex; align-items:center; gap:11px; padding:6px 8px 16px;}
-    .brand .logo{
-      width:40px; height:40px; border-radius:11px; flex:0 0 40px;
-      background:linear-gradient(135deg,var(--accent),var(--accent2));
-      display:flex; align-items:center; justify-content:center; color:#fff;
+    .brand{
+      display:grid;
+      grid-template-columns:48px minmax(0,1fr);
+      gap:12px;
+      align-items:center;
+      padding-bottom:20px;
+      border-bottom:2px solid #475569;
     }
-    .brand .logo .material-symbols-outlined{font-size:24px;}
-    .brand b{display:block; font-size:14px; letter-spacing:.3px;}
-    .brand span{display:block; font-size:11px; color:#a8a29e;}
-    .navwrap{display:flex; flex-direction:column; gap:4px; min-width:0;}
+    .logo{
+      width:48px;
+      height:48px;
+      display:grid;
+      place-items:center;
+      color:#000;
+      background:var(--color-accent);
+      border:2px solid #fff;
+      box-shadow:4px 4px 0 var(--color-primary);
+    }
+    .logo .material-symbols-outlined{font-size:27px}
+    .brand b{
+      display:block;
+      font-family:"Fira Code",monospace;
+      font-size:14px;
+      line-height:1.2;
+      letter-spacing:.04em;
+    }
+    .brand span:not(.material-symbols-outlined){
+      display:block;
+      margin-top:4px;
+      color:#cbd5e1;
+      font-size:11px;
+    }
+    .navwrap{display:flex;flex-direction:column;gap:8px}
     .navbtn{
-      display:flex; align-items:center; gap:12px; width:100%;
-      background:transparent; border:0; color:#d6d3d1; cursor:pointer;
-      padding:11px 12px; border-radius:10px; text-align:left; font:inherit;
-      font-size:13.5px; transition:background .15s,color .15s; min-width:0;
+      position:relative;
+      width:100%;
+      min-height:48px;
+      display:grid;
+      grid-template-columns:24px minmax(0,1fr) 24px;
+      align-items:center;
+      gap:10px;
+      padding:10px 11px;
+      color:#e2e8f0;
+      text-align:left;
+      background:transparent;
+      border:2px solid #475569;
+      border-radius:0;
     }
-    .navbtn .material-symbols-outlined{font-size:21px; flex:0 0 auto;}
-    .navbtn .nlabel{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;}
-    .navbtn .nnum{margin-left:auto; font-size:11px; color:#78716c; flex:0 0 auto;}
-    .navbtn:hover{background:#3a3531; color:#fff;}
-    .navbtn.active{background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff;}
-    .navbtn.active .nnum{color:#fff5e6;}
-    .sidefoot{margin-top:auto; padding:12px 10px 2px; font-size:11px; color:#78716c; border-top:1px solid #3a3531;}
-    /* main */
-    .main{flex:1 1 auto; min-width:0; display:flex; flex-direction:column;}
+    .navbtn:hover{color:#fff;background:#1e293b;border-color:#94a3b8}
+    .navbtn.active{
+      left:8px;
+      color:#000;
+      background:var(--color-accent);
+      border-color:#fff;
+      box-shadow:-8px 0 0 var(--color-primary);
+      font-weight:700;
+    }
+    .navbtn .material-symbols-outlined{font-size:20px}
+    .nlabel{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .nnum{
+      font-family:"Fira Code",monospace;
+      color:inherit;
+      font-size:10px;
+      text-align:right;
+    }
+    .sidefoot{
+      margin-top:auto;
+      padding-top:14px;
+      color:#cbd5e1;
+      border-top:2px solid #475569;
+      font-family:"Fira Code",monospace;
+      font-size:10px;
+      line-height:1.7;
+    }
+    .main{min-width:0}
     .topbar{
-      background:var(--panel); border-bottom:1px solid var(--line);
-      padding:16px 26px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+      position:sticky;
+      top:0;
+      z-index:15;
+      min-height:94px;
+      display:flex;
+      align-items:center;
+      gap:18px;
+      padding:18px 28px;
+      background:rgba(248,250,252,.96);
+      border-bottom:4px solid var(--black);
     }
-    .topbar .tt{min-width:0;}
-    .topbar h1{margin:0; font-size:18px; font-weight:800; letter-spacing:.2px;}
-    .topbar p{margin:2px 0 0; font-size:12.5px; color:var(--muted);}
+    .tt{min-width:0}
+    .topbar h1{
+      margin:0;
+      font-size:clamp(20px,2vw,29px);
+      font-weight:700;
+      line-height:1.1;
+      letter-spacing:-.035em;
+    }
+    .topbar p{margin:6px 0 0;color:var(--muted);font-size:12px}
     .top-badge{
-      margin-left:auto; display:inline-flex; align-items:center; gap:6px;
-      background:var(--accent-soft); color:#92400e; padding:6px 12px;
-      border-radius:999px; font-size:12px; font-weight:700; flex:0 0 auto;
+      margin-left:auto;
+      display:inline-flex;
+      align-items:center;
+      gap:7px;
+      flex:0 0 auto;
+      padding:8px 12px;
+      color:#fff;
+      background:var(--color-primary);
+      border:2px solid var(--black);
+      box-shadow:3px 3px 0 var(--black);
+      font-family:"Fira Code",monospace;
+      font-size:11px;
+      font-weight:700;
     }
-    .top-badge .material-symbols-outlined{font-size:16px;}
-    .content{padding:24px 26px 44px; min-width:0;}
-    /* generic */
-    .grid{display:grid; gap:16px; min-width:0;}
-    .g4{grid-template-columns:repeat(4,1fr);}
-    .g3{grid-template-columns:repeat(3,1fr);}
-    .g2{grid-template-columns:repeat(2,1fr);}
-    .g23{grid-template-columns:2fr 1fr;}
-    .g32{grid-template-columns:1fr 2fr;}
-    .card{
-      background:var(--panel); border:1px solid var(--line); border-radius:14px;
-      padding:18px; min-width:0;
+    .top-badge .material-symbols-outlined{font-size:17px}
+    .content{width:100%;max-width:1600px;margin:0 auto;padding:28px 28px 48px}
+    .screen-intro{
+      position:relative;
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:22px;
+      align-items:end;
+      min-height:168px;
+      margin-bottom:22px;
+      padding:24px;
+      overflow:hidden;
+      color:#fff;
+      background:var(--color-primary);
+      border:3px solid var(--black);
+      box-shadow:var(--shadow);
     }
-    .card h3{margin:0 0 3px; font-size:14px; font-weight:800;}
-    .card .sub{margin:0 0 14px; font-size:12px; color:var(--muted);}
-    .sechead{display:flex; align-items:center; gap:9px; margin:0 0 15px; min-width:0;}
-    .sechead .material-symbols-outlined{
-      font-size:20px; color:var(--accent); background:var(--accent-soft);
-      padding:7px; border-radius:9px; flex:0 0 auto;
+    .screen-intro::after{
+      content:"FT / QUALITY";
+      position:absolute;
+      right:-12px;
+      top:-18px;
+      color:rgba(255,255,255,.12);
+      font:700 clamp(42px,7vw,96px)/1 "Fira Code",monospace;
+      white-space:nowrap;
+      pointer-events:none;
     }
-    .sechead h2{margin:0; font-size:16px; font-weight:800;}
-    .sechead .sub2{margin:0; font-size:12px; color:var(--muted);}
-    /* kpi */
+    .eyebrow{
+      position:relative;
+      z-index:1;
+      display:inline-block;
+      margin-bottom:12px;
+      padding:4px 8px;
+      color:#000;
+      background:#fff;
+      border:2px solid var(--black);
+      font:700 10px/1.4 "Fira Code",monospace;
+      letter-spacing:.12em;
+    }
+    .screen-intro h2{
+      position:relative;
+      z-index:1;
+      max-width:680px;
+      margin:0;
+      font-size:clamp(25px,4vw,48px);
+      line-height:1;
+      letter-spacing:-.055em;
+    }
+    .screen-intro p{
+      position:relative;
+      z-index:1;
+      max-width:680px;
+      margin:12px 0 0;
+      color:#eff6ff;
+      font-size:13px;
+    }
+    .hero-mark{
+      position:relative;
+      z-index:1;
+      width:112px;
+      height:112px;
+      display:grid;
+      place-items:center;
+      color:#000;
+      background:var(--color-accent);
+      border:3px solid var(--black);
+      box-shadow:7px 7px 0 #fff;
+    }
+    .hero-mark .material-symbols-outlined{font-size:54px}
+    .grid{display:grid;gap:16px;min-width:0}
+    .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .g23{grid-template-columns:minmax(0,2fr) minmax(280px,1fr)}
+    .g32{grid-template-columns:minmax(280px,1fr) minmax(0,2fr)}
+    .card,.kpi{
+      min-width:0;
+      background:var(--color-card);
+      border:2px solid var(--black);
+      border-radius:0;
+    }
+    .card{padding:18px}
+    .card.major{box-shadow:5px 5px 0 var(--color-muted)}
+    .card h3{
+      margin:0 0 4px;
+      font-size:15px;
+      font-weight:700;
+      letter-spacing:-.01em;
+    }
+    .card .sub{margin:0 0 15px;color:var(--muted);font-size:11px}
+    .sechead{display:flex;align-items:center;gap:10px;margin:0 0 16px}
+    .sechead>.material-symbols-outlined{
+      flex:0 0 auto;
+      padding:8px;
+      color:#fff;
+      background:var(--color-primary);
+      border:2px solid var(--black);
+      font-size:20px;
+    }
+    .sechead h2{margin:0;font-size:16px}
+    .sub2{margin:2px 0 0;color:var(--muted);font-size:11px}
     .kpi{
-      background:var(--panel); border:1px solid var(--line); border-radius:14px;
-      padding:16px 17px; min-width:0; position:relative; overflow:hidden;
+      position:relative;
+      min-height:142px;
+      padding:16px 16px 15px 20px;
+      overflow:hidden;
+      box-shadow:4px 4px 0 var(--black);
     }
-    .kpi .klab{font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px;}
-    .kpi .klab .material-symbols-outlined{font-size:16px; color:var(--accent);}
-    .kpi .kval{font-size:27px; font-weight:900; margin-top:8px; letter-spacing:-.5px;}
-    .kpi .kval small{font-size:14px; font-weight:700; color:var(--muted);}
-    .kpi .ktag{margin-top:7px; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:3px;}
-    .kpi .ktag .material-symbols-outlined{font-size:14px;}
-    .up{color:var(--good);} .down{color:var(--bad);} .flat{color:var(--muted);}
-    .kpi .strip{position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--accent);}
-    /* chart wrap */
-    .chartbox{position:relative; width:100%; overflow:hidden;}
-    /* table */
-    .tbl{width:100%; border-collapse:collapse; font-size:12.5px; min-width:560px;}
+    .kpi:nth-child(even){transform:translateY(7px)}
+    .strip{position:absolute;inset:0 auto 0 0;width:7px;background:var(--color-primary)}
+    .kpi:nth-child(2n) .strip{background:var(--color-accent)}
+    .klab{
+      display:flex;
+      align-items:center;
+      gap:7px;
+      color:var(--muted);
+      font-size:11px;
+      font-weight:600;
+    }
+    .klab .material-symbols-outlined{
+      color:var(--color-primary);
+      font-size:18px;
+    }
+    .kval{
+      margin-top:9px;
+      font:700 clamp(26px,3vw,36px)/1.1 "Fira Code",monospace;
+      letter-spacing:-.06em;
+      font-variant-numeric:tabular-nums;
+    }
+    .kval small{
+      margin-left:4px;
+      color:var(--muted);
+      font-family:"Fira Sans",sans-serif;
+      font-size:13px;
+      letter-spacing:0;
+    }
+    .ktag{
+      margin-top:10px;
+      display:inline-flex;
+      align-items:center;
+      font-size:11px;
+      font-weight:700;
+    }
+    .ktag .material-symbols-outlined{font-size:15px}
+    .up{color:var(--good)}
+    .down{color:var(--bad)}
+    .flat{color:var(--muted)}
+    .chartbox{position:relative;width:100%;overflow:hidden}
+    .table-wrap{overflow-x:auto;border:2px solid var(--black)}
+    .tbl{
+      width:100%;
+      min-width:560px;
+      border-collapse:collapse;
+      color:var(--ink);
+      font-size:12px;
+    }
     .tbl th{
-      text-align:left; padding:10px 12px; font-size:11px; font-weight:700;
-      color:var(--muted); text-transform:uppercase; letter-spacing:.4px;
-      border-bottom:2px solid var(--line); background:#fafafa; white-space:nowrap;
+      padding:10px 11px;
+      color:#fff;
+      text-align:left;
+      white-space:nowrap;
+      background:var(--black);
+      border-right:1px solid #475569;
+      font:600 10px/1.3 "Fira Code",monospace;
+      letter-spacing:.06em;
     }
-    .tbl td{padding:11px 12px; border-bottom:1px solid var(--line); white-space:nowrap;}
-    .tbl tr:last-child td{border-bottom:0;}
-    .tbl tr:hover td{background:#fffbeb;}
-    .mono{font-family:"Inter",monospace; font-variant-numeric:tabular-nums; font-weight:600;}
-    /* pills */
-    .pill{display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700;}
-    .pill.g{background:#dcfce7; color:#166534;}
-    .pill.y{background:#fef3c7; color:#92400e;}
-    .pill.r{background:#fee2e2; color:#991b1b;}
-    .pill.b{background:#e0f2fe; color:#075985;}
-    .pill.n{background:#f3f4f6; color:#374151;}
-    .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
-    /* bars */
-    .barrow{display:flex; align-items:center; gap:12px; margin-bottom:13px; min-width:0;}
-    .barrow .bl{width:92px; flex:0 0 92px; font-size:12.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-    .bartrack{flex:1 1 auto; height:11px; background:#f1f0ee; border-radius:999px; overflow:hidden; min-width:0;}
-    .barfill{height:100%; border-radius:999px; background:linear-gradient(90deg,var(--accent),var(--accent2));}
-    .barrow .bv{width:64px; flex:0 0 64px; text-align:right; font-size:12px; font-weight:700; font-variant-numeric:tabular-nums;}
-    /* board */
-    .board{display:grid; grid-template-columns:repeat(4,1fr); gap:13px; min-width:640px;}
-    .col{background:#fafafa; border:1px solid var(--line); border-radius:12px; padding:12px; min-width:0;}
-    .col .ch{font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:space-between; margin-bottom:11px;}
-    .col .ch .cnt{background:#e7e5e4; color:#57534e; border-radius:999px; padding:1px 9px; font-size:11px;}
-    .ticket{background:#fff; border:1px solid var(--line); border-radius:10px; padding:11px; margin-bottom:9px; border-left:3px solid var(--accent);}
-    .ticket .tid{font-size:10.5px; color:var(--muted); font-weight:700;}
-    .ticket .tt2{font-size:12.5px; font-weight:700; margin:3px 0 6px;}
-    .ticket .tm{font-size:11px; color:var(--muted); display:flex; align-items:center; gap:5px;}
-    .ticket .tm .material-symbols-outlined{font-size:14px;}
-    /* timeline */
-    .tl{position:relative; padding-left:26px; min-width:0;}
-    .tl::before{content:""; position:absolute; left:8px; top:4px; bottom:4px; width:2px; background:var(--line);}
-    .tlitem{position:relative; padding-bottom:20px; min-width:0;}
-    .tlitem:last-child{padding-bottom:0;}
-    .tlitem .tdot{position:absolute; left:-24px; top:2px; width:14px; height:14px; border-radius:50%; background:var(--panel); border:3px solid var(--accent);}
-    .tlitem.done .tdot{background:var(--accent); border-color:var(--accent);}
-    .tlitem .th{font-size:13px; font-weight:800;}
-    .tlitem .tsub{font-size:11.5px; color:var(--muted); margin-top:2px;}
-    .tlitem .tbody{font-size:12.5px; margin-top:6px; background:#fafafa; border:1px solid var(--line); border-radius:9px; padding:9px 11px;}
-    /* misc */
-    .flexcards{display:flex; flex-wrap:wrap; gap:12px; min-width:0;}
-    .minicard{flex:1 1 150px; background:#fafafa; border:1px solid var(--line); border-radius:11px; padding:13px; min-width:0;}
-    .minicard .ml{font-size:11.5px; color:var(--muted);}
-    .minicard .mv{font-size:20px; font-weight:900; margin-top:4px;}
-    .legend{display:flex; flex-wrap:wrap; gap:14px; margin-top:12px; font-size:12px; color:var(--muted);}
-    .legend span{display:inline-flex; align-items:center; gap:6px;}
-    .wafer{display:grid; grid-template-columns:repeat(11,1fr); gap:3px; max-width:340px; margin:0 auto;}
-    .wcell{aspect-ratio:1/1; border-radius:3px; background:#e5e7eb;}
-    .note{background:var(--accent-soft); border:1px solid #fcd34d; border-radius:11px; padding:12px 14px; font-size:12.5px; color:#78350f; display:flex; gap:9px; align-items:flex-start;}
-    .note .material-symbols-outlined{font-size:18px; color:var(--accent); flex:0 0 auto; margin-top:1px;}
-    .gauge-wrap{display:flex; align-items:center; gap:18px; flex-wrap:wrap; min-width:0;}
-    .stepbtn{display:inline-flex; align-items:center; gap:5px; background:var(--accent); color:#fff; border:0; border-radius:9px; padding:8px 14px; font:inherit; font-size:12.5px; font-weight:700; cursor:pointer;}
-    .stepbtn.ghost{background:#fff; color:var(--accent); border:1px solid var(--accent);}
-    .prog{height:9px; border-radius:999px; background:#f1f0ee; overflow:hidden;}
-    .prog > i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2));}
-    .kv{display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px dashed var(--line); font-size:12.5px;}
-    .kv:last-child{border-bottom:0;}
-    .kv b{font-weight:800;}
-    /* responsive */
-    @media(max-width:1100px){ .g4{grid-template-columns:repeat(2,1fr);} }
-    @media(max-width:860px){
-      .layout{flex-direction:column;}
-      .sidebar{width:auto; flex:none; flex-direction:row; flex-wrap:wrap; align-items:center; padding:12px 14px; gap:8px;}
-      .brand{padding:0 10px 0 4px; flex:0 0 auto;}
-      .sidefoot{display:none;}
-      .navwrap{flex-direction:row; flex-wrap:wrap; gap:6px; flex:1 1 100%;}
-      .navbtn{width:auto; padding:9px 12px;}
-      .navbtn .nnum{display:none;}
+    .tbl th:last-child{border-right:0}
+    .tbl td{
+      padding:10px 11px;
+      white-space:nowrap;
+      border-right:1px solid var(--line);
+      border-bottom:1px solid var(--line);
     }
-    @media(max-width:820px){
-      .g4,.g3,.g2,.g23,.g32{grid-template-columns:1fr;}
+    .tbl td:last-child{border-right:0}
+    .tbl tbody tr:last-child td{border-bottom:0}
+    .tbl tbody tr:nth-child(even) td{background:#f1f5f9}
+    .tbl tbody tr:hover td{background:#dbeafe}
+    .tbl td:nth-last-child(-n+4){font-variant-numeric:tabular-nums}
+    .num{text-align:right!important;font-variant-numeric:tabular-nums}
+    .mono{
+      font-family:"Fira Code",monospace;
+      font-variant-numeric:tabular-nums;
+      font-weight:600;
     }
-    @media(max-width:560px){
-      .navbtn .nlabel{display:none;}
-      .navbtn{padding:9px;}
-      .content{padding:18px 14px 40px;}
-      .topbar{padding:14px 16px;}
-      .top-badge{margin-left:0;}
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:5px;
+      min-height:24px;
+      padding:3px 8px;
+      border:1px solid currentColor;
+      border-radius:0;
+      font-size:10px;
+      font-weight:700;
+    }
+    .pill.g{color:#14532d;background:#dcfce7}
+    .pill.y{color:#78350f;background:#fef3c7}
+    .pill.r{color:#7f1d1d;background:#fee2e2}
+    .pill.b{color:#0c4a6e;background:#e0f2fe}
+    .pill.n{color:#334155;background:#e2e8f0}
+    .dot{width:8px;height:8px;display:inline-block;border:1px solid currentColor}
+    .barrow{
+      display:grid;
+      grid-template-columns:100px minmax(70px,1fr) 62px;
+      align-items:center;
+      gap:10px;
+      margin-bottom:13px;
+    }
+    .bl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:600}
+    .bartrack{height:13px;overflow:hidden;background:var(--color-muted);border:1px solid var(--black)}
+    .barfill{height:100%;background:var(--color-primary)}
+    .barrow:nth-of-type(even) .barfill{background:var(--color-accent)}
+    .bv{text-align:right;font:600 11px "Fira Code",monospace;font-variant-numeric:tabular-nums}
+    .board{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:12px;min-width:760px}
+    .col{padding:11px;background:var(--color-muted);border:2px solid var(--black)}
+    .ch{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:11px;
+      padding-bottom:8px;
+      border-bottom:2px solid var(--black);
+      font-size:11px;
+      font-weight:700;
+    }
+    .cnt{
+      min-width:24px;
+      padding:2px 6px;
+      color:#fff;
+      text-align:center;
+      background:var(--black);
+      font-family:"Fira Code",monospace;
+    }
+    .ticket{
+      margin-bottom:9px;
+      padding:10px;
+      background:#fff;
+      border:2px solid var(--black);
+      border-left:7px solid var(--color-primary);
+    }
+    .ticket:last-child{margin-bottom:0}
+    .tid{color:var(--muted);font:600 10px "Fira Code",monospace}
+    .tt2{margin:4px 0 7px;font-size:12px;font-weight:700}
+    .tm{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:10px}
+    .tm .material-symbols-outlined{font-size:14px}
+    .tl{position:relative;padding-left:28px}
+    .tl::before{content:"";position:absolute;left:7px;top:4px;bottom:4px;width:3px;background:var(--black)}
+    .tlitem{position:relative;padding-bottom:18px}
+    .tlitem:last-child{padding-bottom:0}
+    .tdot{
+      position:absolute;
+      left:-28px;
+      top:1px;
+      width:16px;
+      height:16px;
+      background:#fff;
+      border:3px solid var(--color-accent);
+    }
+    .tlitem.done .tdot{background:var(--color-primary);border-color:var(--black)}
+    .th{font-size:12px;font-weight:700}
+    .tsub{margin-top:2px;color:var(--muted);font:500 10px "Fira Code",monospace}
+    .tbody{margin-top:6px;padding:8px 10px;background:#f8fafc;border:1px solid var(--black);font-size:11px}
+    .legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:13px;color:var(--muted);font-size:10px}
+    .legend span{display:inline-flex;align-items:center;gap:5px}
+    .wafer{
+      width:min(100%,320px);
+      display:grid;
+      grid-template-columns:repeat(11,1fr);
+      gap:3px;
+      margin:0 auto;
+      padding:10px;
+      background:#e2e8f0;
+      border:2px solid var(--black);
+    }
+    .wcell{aspect-ratio:1;border:1px solid rgba(15,23,42,.2)}
+    .note{
+      display:flex;
+      gap:9px;
+      align-items:flex-start;
+      padding:12px;
+      color:#7f1d1d;
+      background:#fff1f2;
+      border:2px solid var(--color-destructive);
+      font-size:11px;
+      font-weight:600;
+    }
+    .note .material-symbols-outlined{flex:0 0 auto;font-size:18px}
+    .stepbtn{
+      min-height:42px;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:9px 14px;
+      color:#fff;
+      background:var(--color-primary);
+      border:2px solid var(--black);
+      border-radius:0;
+      box-shadow:3px 3px 0 var(--black);
+      font-size:11px;
+      font-weight:700;
+    }
+    .stepbtn:hover{background:#1d4ed8;box-shadow:1px 1px 0 var(--black);transform:translate(2px,2px)}
+    .stepbtn.ghost{color:#000;background:var(--color-accent)}
+    .stepbtn.ghost:hover{background:#c2410c}
+    .prog{height:12px;overflow:hidden;background:var(--color-muted);border:1px solid var(--black)}
+    .prog>i{display:block;height:100%;background:var(--color-primary)}
+    .kv{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:14px;
+      padding:9px 0;
+      border-bottom:1px dashed #94a3b8;
+      font-size:11px;
+    }
+    .kv:last-child{border-bottom:0}
+    .kv b{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+    .section-gap{margin-bottom:20px}
+    @media (prefers-reduced-motion:no-preference){
+      .navbtn,.stepbtn{transition:background-color .18s,color .18s,border-color .18s,box-shadow .18s,transform .18s}
+      #screen>*{animation:reveal .36s ease-out both}
+      #screen>*:nth-child(2){animation-delay:.04s}
+      #screen>*:nth-child(3){animation-delay:.08s}
+      @keyframes reveal{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+    }
+    @media (prefers-reduced-motion:reduce){
+      *,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}
+    }
+    @media(max-width:1180px){
+      .g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .g23,.g32{grid-template-columns:1fr}
+    }
+    @media(max-width:900px){
+      .layout{display:block}
+      .sidebar{
+        position:relative;
+        width:100%;
+        height:auto;
+        padding:14px;
+        gap:12px;
+        border-right:0;
+        border-bottom:4px solid var(--black);
+      }
+      .brand{padding-bottom:12px}
+      .navwrap{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+      .navbtn.active{left:0;box-shadow:0 4px 0 var(--color-primary)}
+      .sidefoot{display:none}
+      .topbar{top:0;padding:15px 18px}
+      .content{padding:22px 18px 42px}
+    }
+    @media(max-width:640px){
+      .navwrap{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .nnum{display:none}
+      .navbtn{grid-template-columns:22px minmax(0,1fr)}
+      .topbar{align-items:flex-start}
+      .top-badge{padding:7px 9px;font-size:9px}
+      .screen-intro{grid-template-columns:1fr;min-height:0;padding:20px}
+      .hero-mark{width:72px;height:72px}
+      .hero-mark .material-symbols-outlined{font-size:36px}
+      .g4,.g3,.g2{grid-template-columns:1fr}
+      .kpi:nth-child(even){transform:none}
+      .barrow{grid-template-columns:88px minmax(60px,1fr) 52px}
+      .kv{grid-template-columns:1fr}
+      .kv b{text-align:left}
+    }
+    @media(max-width:390px){
+      .brand{grid-template-columns:42px minmax(0,1fr)}
+      .logo{width:42px;height:42px}
+      .navbtn{padding:9px 8px;font-size:11px}
+      .content{padding:18px 12px 36px}
+      .topbar{padding:13px 12px}
+      .topbar p{display:none}
+      .top-badge{margin-left:0}
     }
   </style>
 </head>
@@ -197,408 +573,552 @@
       <div class="brand">
         <div class="logo"><span class="material-symbols-outlined">precision_manufacturing</span></div>
         <div>
-          <b>FT Yield MGMT</b>
-          <span>最終測試良率管理</span>
+          <b>FT YIELD MGMT</b>
+          <span>產品最終測試良率管理</span>
         </div>
       </div>
-      <nav class="navwrap" id="nav"></nav>
-      <div class="sidefoot">Fab-2 · FT Area · v3.2<br/>資料為模擬展示用途</div>
+      <nav class="navwrap" id="nav" aria-label="主要功能"></nav>
+      <div class="sidefoot">FAB-2 / FT AREA / V3.2<br />資料為模擬展示用途</div>
     </aside>
+
     <main class="main">
-      <div class="topbar">
+      <header class="topbar">
         <div class="tt">
           <h1 id="pgTitle">測試數據採集</h1>
           <p id="pgSub">測試機台即時串接與 STDF/Log 匯入</p>
         </div>
         <div class="top-badge"><span class="material-symbols-outlined">bolt</span>即時 · Fab-2 FT</div>
-      </div>
-      <div class="content" id="screen"></div>
+      </header>
+      <div class="content" id="screen" aria-live="polite"></div>
     </main>
   </div>
 
   <script>
   (function(){
-    var accent="#b45309", accent2="#f59e0b";
+    "use strict";
+
+    var accent="#2563eb", accent2="#ea580c";
     var charts={};
-    function destroyCharts(){ for(var k in charts){ try{charts[k].destroy();}catch(e){} } charts={}; }
+
+    function destroyCharts(){
+      for(var k in charts){
+        try{ charts[k].destroy(); }catch(e){}
+      }
+      charts={};
+    }
 
     var NAV=[
-      {icon:"monitoring", name:"測試數據採集", sub:"測試機台即時串接與 STDF/Log 匯入"},
-      {icon:"dashboard", name:"良率看板", sub:"FT 良率即時監控與趨勢"},
-      {icon:"insights", name:"Bin 分佈分析", sub:"Hard/Soft Bin 分佈與 Pareto"},
-      {icon:"warning", name:"異常判定", sub:"良率異常偵測與 SBL/YBL 告警"},
-      {icon:"shield", name:"批次攔截處置", sub:"低良率批次隔離與放行決策"},
-      {icon:"account_tree", name:"追溯稽核", sub:"Lot / 測試機台追溯與稽核紀錄"}
+      {icon:"monitoring",name:"測試數據採集",sub:"測試機台即時串接與 STDF/Log 匯入"},
+      {icon:"dashboard",name:"良率看板",sub:"FT 良率即時監控與趨勢"},
+      {icon:"insights",name:"Bin 分佈分析",sub:"Hard/Soft Bin 分佈與 Pareto"},
+      {icon:"warning",name:"異常判定",sub:"良率異常偵測與 SBL/YBL 告警"},
+      {icon:"shield",name:"批次攔截處置",sub:"低良率批次隔離與放行決策"},
+      {icon:"account_tree",name:"追溯稽核",sub:"Lot / 測試機台追溯與稽核紀錄"}
     ];
 
-    // ---------- nav ----------
     var nav=document.getElementById("nav");
-    var html="";
+    var navHtml="";
     for(var i=0;i<NAV.length;i++){
-      html+='<button class="navbtn" data-i="'+i+'">'+
-        '<span class="material-symbols-outlined">'+NAV[i].icon+'</span>'+
+      navHtml+='<button class="navbtn" type="button" data-i="'+i+'" aria-label="'+NAV[i].name+'">'+
+        '<span class="material-symbols-outlined" aria-hidden="true">'+NAV[i].icon+'</span>'+
         '<span class="nlabel">'+NAV[i].name+'</span>'+
         '<span class="nnum">0'+i+'</span></button>';
     }
-    nav.innerHTML=html;
+    nav.innerHTML=navHtml;
+
     nav.addEventListener("click",function(e){
-      var b=e.target.closest("[data-i]"); if(!b) return;
+      var b=e.target.closest("[data-i]");
+      if(!b)return;
       location.hash="v"+b.getAttribute("data-i");
     });
 
-    function esc(s){return String(s);}
+    function hero(index){
+      var titles=[
+        "連線、解析、驗證。每一顆 Die 都留下可信紀錄。",
+        "用一個畫面掌握正在發生的良率變化。",
+        "把失效分佈拆開，快速找到最值得處理的原因。",
+        "在異常擴大前，以規則辨識風險並立即標記。",
+        "從隔離到放行，讓每一次決策都有清楚依據。",
+        "串起批次、機台、程式與操作，完整回看品質歷程。"
+      ];
+      return '<section class="screen-intro">'+
+        '<div><span class="eyebrow">QUALITY CONTROL / 0'+index+'</span>'+
+        '<h2>'+titles[index]+'</h2><p>'+NAV[index].sub+'，支援現場品質團隊快速辨識、追蹤與處置。</p></div>'+
+        '<div class="hero-mark"><span class="material-symbols-outlined" aria-hidden="true">'+NAV[index].icon+'</span></div>'+
+      '</section>';
+    }
+
+    function statusPill(cls,text,icon){
+      return '<span class="pill '+cls+'"><span class="material-symbols-outlined" style="font-size:13px" aria-hidden="true">'+icon+'</span>'+text+'</span>';
+    }
+
     function bar(label,val,max,unit){
       var pct=Math.max(2,Math.round(val/max*100));
       return '<div class="barrow"><div class="bl">'+label+'</div>'+
-        '<div class="bartrack"><div class="barfill" style="width:'+pct+'%"></div></div>'+
+        '<div class="bartrack" role="progressbar" aria-label="'+label+'" aria-valuemin="0" aria-valuemax="'+max+'" aria-valuenow="'+val+'">'+
+        '<div class="barfill" style="width:'+pct+'%"></div></div>'+
         '<div class="bv">'+val+(unit||"")+'</div></div>';
     }
 
-    // ---------- screen 0: 測試數據採集 ----------
-    function s0(){
-      var machines=[
-        {id:"FT-A01", model:"Advantest V93000", lot:"LOT-24915", prog:"TP_MCU8_v12", site:"8", thr:"3.2M", state:"執行中", pct:72, sc:"g"},
-        {id:"FT-A02", model:"Teradyne UltraFLEX", lot:"LOT-24917", prog:"TP_PMIC_v07", site:"4", thr:"1.8M", state:"執行中", pct:41, sc:"g"},
-        {id:"FT-A03", model:"Advantest V93000", lot:"LOT-24902", prog:"TP_MCU8_v12", site:"8", thr:"—", state:"待料", pct:0, sc:"n"},
-        {id:"FT-B01", model:"Teradyne J750", lot:"LOT-24911", prog:"TP_LOGIC_v03", site:"16", thr:"4.6M", state:"執行中", pct:88, sc:"g"},
-        {id:"FT-B02", model:"Chroma 3680", lot:"LOT-24908", prog:"TP_RF_v02", site:"2", thr:"0.4M", state:"異常", pct:33, sc:"r"},
-        {id:"FT-B03", model:"Teradyne UltraFLEX", lot:"LOT-24919", prog:"TP_PMIC_v07", site:"4", thr:"2.1M", state:"執行中", pct:57, sc:"g"}
-      ];
-      var rows="";
-      for(var i=0;i<machines.length;i++){var m=machines[i];
-        var st=m.sc==="g"?'<span class="pill g"><span class="dot" style="background:#16a34a"></span>'+m.state+'</span>':
-               m.sc==="r"?'<span class="pill r"><span class="dot" style="background:#dc2626"></span>'+m.state+'</span>':
-               '<span class="pill n">'+m.state+'</span>';
-        rows+='<tr><td class="mono">'+m.id+'</td><td>'+m.model+'</td><td class="mono">'+m.lot+'</td>'+
-          '<td class="mono">'+m.prog+'</td><td style="text-align:center">'+m.site+'</td>'+
-          '<td class="mono">'+m.thr+'</td><td>'+st+'</td>'+
-          '<td><div class="prog" style="width:110px"><i style="width:'+m.pct+'%"></i></div></td></tr>';
-      }
-      return ''+
-      '<div class="grid g4" style="margin-bottom:18px">'+
-        kpi("hub","串接測試機台","24","台",'<span class="up"><span class="material-symbols-outlined">check_circle</span>22 台在線</span>')+
-        kpi("dataset","今日採集筆數","18.4","M<small> die</small>",'<span class="up"><span class="material-symbols-outlined">trending_up</span>+6.2% vs 昨</span>')+
-        kpi("sync","解析延遲","1.8","秒",'<span class="up"><span class="material-symbols-outlined">bolt</span>即時串流</span>')+
-        kpi("error","解析失敗檔","3","筆",'<span class="down"><span class="material-symbols-outlined">warning</span>需重傳</span>')+
-      '</div>'+
-      '<div class="grid g23" style="margin-bottom:18px">'+
-        '<div class="card"><h3>測試機台採集狀態</h3><p class="sub">STDF / Log 即時串接與測試程式對應</p>'+
-          '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>機台</th><th>機型</th><th>Lot</th><th>測試程式</th><th>Site</th><th>吞吐</th><th>狀態</th><th>進度</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'+
-        '<div class="card"><h3>近 12 小時採集量</h3><p class="sub">每小時解析 die 數（千顆）</p>'+
-          '<div class="chartbox" style="height:230px"><canvas id="c0a"></canvas></div></div>'+
-      '</div>'+
-      '<div class="grid g2">'+
-        '<div class="card"><h3>資料來源健康度</h3><p class="sub">近一小時各介面連線品質</p>'+
-          bar("STDF 串流",99,100,"%")+bar("MES 對接",97,100,"%")+bar("Wafer Map",94,100,"%")+bar("測試程式庫",100,100,"%")+bar("時鐘同步",96,100,"%")+
-        '</div>'+
-        '<div class="card"><h3>解析事件</h3><p class="sub">最新資料採集動作</p>'+
-          '<div class="tl">'+
-            tlitem("done","FT-B01 · LOT-24911 解析完成","09:41 · 4.6M die 匯入","Hard Bin 已對應，良率初算 96.2%")+
-            tlitem("done","FT-A01 批次切換","09:28 · TP_MCU8_v12","載入良率門檻檔 YL-MCU8-2024Q3")+
-            tlitem("","FT-B02 解析告警","09:12 · Log 格式異常","Site 2 缺 EOL 標記，已排入重傳佇列")+
-            tlitem("done","FT-A02 開始採集","08:55 · LOT-24917","串流建立，延遲 1.6s")+
-          '</div>'+
-        '</div>'+
-      '</div>';
-    }
-
-    // ---------- screen 1: 良率看板 ----------
-    function s1(){
-      var lots=[
-        {id:"LOT-24911", prod:"MCU8-A", tested:"4.60M", yield:96.2, tgt:95, d:"+1.2", sc:"g"},
-        {id:"LOT-24915", prod:"MCU8-A", tested:"3.20M", yield:94.1, tgt:95, d:"-0.9", sc:"y"},
-        {id:"LOT-24917", prod:"PMIC-D", tested:"1.80M", yield:97.8, tgt:96, d:"+1.8", sc:"g"},
-        {id:"LOT-24908", prod:"RF-T2", tested:"0.40M", yield:88.4, tgt:93, d:"-4.6", sc:"r"},
-        {id:"LOT-24919", prod:"PMIC-D", tested:"2.10M", yield:96.9, tgt:96, d:"+0.9", sc:"g"}
-      ];
-      var rows="";
-      for(var i=0;i<lots.length;i++){var l=lots[i];
-        var p=l.sc==="g"?"g":l.sc==="y"?"y":"r";
-        rows+='<tr><td class="mono">'+l.id+'</td><td>'+l.prod+'</td><td class="mono">'+l.tested+'</td>'+
-          '<td class="mono"><b>'+l.yield+'%</b></td><td class="mono">'+l.tgt+'%</td>'+
-          '<td class="mono '+(l.d.charAt(0)==="+"?"up":"down")+'">'+l.d+'%</td>'+
-          '<td><span class="pill '+p+'">'+(l.sc==="g"?"達標":l.sc==="y"?"觀察":"未達標")+'</span></td></tr>';
-      }
-      return ''+
-      '<div class="grid g4" style="margin-bottom:18px">'+
-        kpi("verified","FT 平均良率","95.4","%",'<span class="up"><span class="material-symbols-outlined">trending_up</span>+0.8pp 週</span>')+
-        kpi("task_alt","達標批次","41","/48",'<span class="up"><span class="material-symbols-outlined">check</span>85.4%</span>')+
-        kpi("warning","未達標批次","4","批",'<span class="down"><span class="material-symbols-outlined">flag</span>已標記</span>')+
-        kpi("insights","測試 CPK","1.42","",'<span class="up"><span class="material-symbols-outlined">arrow_upward</span>製程穩定</span>')+
-      '</div>'+
-      '<div class="grid g23" style="margin-bottom:18px">'+
-        '<div class="card"><h3>近 14 日良率趨勢</h3><p class="sub">FT 良率 vs 目標門檻</p>'+
-          '<div class="chartbox" style="height:250px"><canvas id="c1a"></canvas></div></div>'+
-        '<div class="card"><h3>依產品別良率</h3><p class="sub">本週各產品平均 FT 良率</p>'+
-          '<div class="chartbox" style="height:250px"><canvas id="c1b"></canvas></div></div>'+
-      '</div>'+
-      '<div class="card"><h3>在測批次良率明細</h3><p class="sub">即時比對目標門檻，未達標自動標記</p>'+
-        '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Lot</th><th>產品</th><th>測試數</th><th>良率</th><th>目標</th><th>差異</th><th>判定</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
-    }
-
-    // ---------- screen 2: Bin 分佈分析 ----------
-    function s2(){
-      var bins=[
-        {bin:"Bin1", name:"Pass / 良品", cat:"HB", n:"4.42M", pct:96.1, sc:"g"},
-        {bin:"Bin4", name:"Continuity 開短路", cat:"HB", n:"78.2K", pct:1.70, sc:"r"},
-        {bin:"Bin7", name:"Vdd 電流超規", cat:"HB", n:"41.5K", pct:0.90, sc:"y"},
-        {bin:"Bin9", name:"Timing Fail", cat:"HB", n:"33.1K", pct:0.72, sc:"y"},
-        {bin:"Bin12", name:"Functional Fail", cat:"HB", n:"22.8K", pct:0.50, sc:"y"},
-        {bin:"Bin15", name:"Retest / Soft", cat:"SB", n:"7.1K", pct:0.15, sc:"n"}
-      ];
-      var rows="";
-      for(var i=0;i<bins.length;i++){var b=bins[i];
-        var p=b.sc==="g"?"g":b.sc==="r"?"r":b.sc==="y"?"y":"n";
-        rows+='<tr><td class="mono">'+b.bin+'</td><td>'+b.name+'</td>'+
-          '<td><span class="pill '+(b.cat==="HB"?"b":"n")+'">'+b.cat+'</span></td>'+
-          '<td class="mono">'+b.n+'</td><td class="mono">'+b.pct+'%</td>'+
-          '<td><span class="pill '+p+'">'+(b.sc==="g"?"正常":b.sc==="r"?"主因":b.sc==="y"?"關注":"—")+'</span></td></tr>';
-      }
-      // wafer heat cells
-      var wafer="";
-      for(var k=0;k<121;k++){
-        var edge=(k<11||k>109||k%11===0||k%11===10);
-        var col=edge?(Math.random()<0.35?"#dc2626":"#f59e0b"):(Math.random()<0.06?"#f59e0b":"#16a34a");
-        if(Math.random()<0.02) col="#dc2626";
-        wafer+='<div class="wcell" style="background:'+col+'"></div>';
-      }
-      return ''+
-      '<div class="grid g4" style="margin-bottom:18px">'+
-        kpi("category","Hard Bin 種類","12","",'<span class="flat"><span class="material-symbols-outlined">list</span>本 Lot 觸發</span>')+
-        kpi("dangerous","首要失效 Bin","Bin4","",'<span class="down"><span class="material-symbols-outlined">bolt</span>1.70% 占比</span>')+
-        kpi("replay","複測回收率","62","%",'<span class="up"><span class="material-symbols-outlined">recycling</span>Soft Bin</span>')+
-        kpi("blur_on","邊緣不良集中","edge","",'<span class="down"><span class="material-symbols-outlined">crop_free</span>Ring 型態</span>')+
-      '</div>'+
-      '<div class="grid g23" style="margin-bottom:18px">'+
-        '<div class="card"><h3>失效 Bin Pareto</h3><p class="sub">各失效 Bin 占比（不含良品）與累積</p>'+
-          '<div class="chartbox" style="height:250px"><canvas id="c2a"></canvas></div></div>'+
-        '<div class="card"><h3>Wafer Bin Map</h3><p class="sub">LOT-24908 · W07 空間分佈</p>'+
-          '<div class="wafer">'+wafer+'</div>'+
-          '<div class="legend"><span><span class="dot" style="background:#16a34a"></span>良品</span><span><span class="dot" style="background:#f59e0b"></span>參數邊界</span><span><span class="dot" style="background:#dc2626"></span>失效</span></div>'+
-        '</div>'+
-      '</div>'+
-      '<div class="card"><h3>Bin 分佈明細</h3><p class="sub">Hard / Soft Bin 統計與占比</p>'+
-        '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Bin</th><th>說明</th><th>類別</th><th>顆數</th><th>占比</th><th>判定</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
-    }
-
-    // ---------- screen 3: 異常判定 ----------
-    function s3(){
-      return ''+
-      '<div class="grid g4" style="margin-bottom:18px">'+
-        kpi("notifications_active","待處置告警","6","件",'<span class="down"><span class="material-symbols-outlined">priority_high</span>2 件高風險</span>')+
-        kpi("rule","SBL 觸發","3","次",'<span class="down"><span class="material-symbols-outlined">flag</span>單一 Bin 超限</span>')+
-        kpi("trending_down","YBL 觸發","2","次",'<span class="down"><span class="material-symbols-outlined">south</span>良率跌破</span>')+
-        kpi("timer","平均反應","4.2","分",'<span class="up"><span class="material-symbols-outlined">bolt</span>-63% vs 人工</span>')+
-      '</div>'+
-      '<div class="grid g23" style="margin-bottom:18px">'+
-        '<div class="card"><h3>良率控制圖（YBL）</h3><p class="sub">連續批次良率與上下控制界線</p>'+
-          '<div class="chartbox" style="height:250px"><canvas id="c3a"></canvas></div>'+
-          '<div class="note" style="margin-top:14px"><span class="material-symbols-outlined">warning</span>LOT-24908 良率 88.4% 跌破 YBL 下限 92%，並偵測 Bin4 較基線 +410%，已觸發 YBL+SBL 雙重告警。</div>'+
-        '</div>'+
-        '<div class="card"><h3>異常判定規則</h3><p class="sub">SBL / YBL 判定條件</p>'+
-          '<div class="kv"><span>YBL 良率下限</span><b>92.0%</b></div>'+
-          '<div class="kv"><span>YBL 逐批跌幅</span><b>&gt; 2.5pp</b></div>'+
-          '<div class="kv"><span>SBL 單一 Bin 上限</span><b>1.20%</b></div>'+
-          '<div class="kv"><span>Bin 突增基線比</span><b>&gt; 200%</b></div>'+
-          '<div class="kv"><span>連續未達標批數</span><b>≥ 2</b></div>'+
-          '<div class="kv"><span>邊緣不良判定</span><b>Ring 型態</b></div>'+
-          '<div style="margin-top:16px"><div class="prog"><i style="width:88%"></i></div><div class="sub" style="margin:8px 0 0">規則命中率 88% · 誤報 6%</div></div>'+
-        '</div>'+
-      '</div>'+
-      '<div class="card"><h3>異常告警清單</h3><p class="sub">依風險排序，待判定 → 待處置</p>'+
-        '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>告警</th><th>Lot</th><th>類型</th><th>觸發條件</th><th>風險</th><th>狀態</th></tr></thead><tbody>'+
-          alarmRow("AL-8841","LOT-24908","YBL","良率 88.4% &lt; 92%","高","待處置","r")+
-          alarmRow("AL-8840","LOT-24908","SBL","Bin4 1.70% &gt; 1.20%","高","待處置","r")+
-          alarmRow("AL-8837","LOT-24915","YBL","逐批跌 0.9pp 連 2 批","中","判定中","y")+
-          alarmRow("AL-8832","LOT-24902","SBL","Bin7 0.90% 逼近上限","中","觀察","y")+
-          alarmRow("AL-8828","LOT-24905","EDGE","邊緣 Ring 型態","低","已排除","g")+
-        '</tbody></table></div></div>';
-    }
-    function alarmRow(id,lot,type,cond,risk,st,sc){
-      var rp=risk==="高"?"r":risk==="中"?"y":"g";
-      var sp=sc==="r"?"r":sc==="y"?"y":"g";
-      return '<tr><td class="mono">'+id+'</td><td class="mono">'+lot+'</td>'+
-        '<td><span class="pill b">'+type+'</span></td><td>'+cond+'</td>'+
-        '<td><span class="pill '+rp+'">'+risk+'</span></td>'+
-        '<td><span class="pill '+sp+'">'+st+'</span></td></tr>';
-    }
-
-    // ---------- screen 4: 批次攔截處置 ----------
-    function s4(){
-      return ''+
-      '<div class="grid g4" style="margin-bottom:18px">'+
-        kpi("gpp_bad","隔離中批次","3","批",'<span class="down"><span class="material-symbols-outlined">lock</span>停止出貨</span>')+
-        kpi("published_with_changes","本月攔截","17","批",'<span class="flat"><span class="material-symbols-outlined">history</span>累計</span>')+
-        kpi("verified_user","攔截率","98.6","%",'<span class="up"><span class="material-symbols-outlined">check</span>異常批</span>')+
-        kpi("schedule","平均處置","3.4","小時",'<span class="up"><span class="material-symbols-outlined">bolt</span>-58%</span>')+
-      '</div>'+
-      '<div class="card" style="margin-bottom:18px"><div class="sechead"><span class="material-symbols-outlined">shield</span><div><h2 style="font-size:15px">批次處置看板</h2><p class="sub2">隔離 → 複測 → 決策 → 放行/報廢</p></div></div>'+
-        '<div style="overflow-x:auto"><div class="board">'+
-          boardCol("隔離中","2",[
-            ticket("LOT-24908","RF-T2 · 88.4% 未達標","lock","YBL+SBL · 待複測"),
-            ticket("LOT-24915","MCU8-A · 觀察中","visibility","連 2 批下滑")
-          ])+
-          boardCol("複測中","1",[
-            ticket("LOT-24902","MCU8-A · Bin7 逼近上限","autorenew","抽 5 wafer 複測")
-          ])+
-          boardCol("決策中","1",[
-            ticket("LOT-24897","PMIC-D · 邊緣不良","gavel","MRB 會議 14:00")
-          ])+
-          boardCol("已處置","2",[
-            ticket("LOT-24888","LOGIC-C · 放行","check_circle","複測達標 95.8%"),
-            ticket("LOT-24879","RF-T2 · 報廢","delete","局部 wafer 報廢")
-          ])+
-        '</div></div>'+
-      '</div>'+
-      '<div class="grid g23">'+
-        '<div class="card"><h3>本月處置結果分佈</h3><p class="sub">攔截批次最終決策</p>'+
-          '<div class="chartbox" style="height:230px"><canvas id="c4a"></canvas></div></div>'+
-        '<div class="card"><h3>處置作業卡</h3><p class="sub">LOT-24908 · RF-T2</p>'+
-          '<div class="kv"><span>觸發告警</span><b>AL-8841 / AL-8840</b></div>'+
-          '<div class="kv"><span>目前狀態</span><b><span class="pill r">隔離中</span></b></div>'+
-          '<div class="kv"><span>負責人</span><b>品質經理 · 陳彥廷</b></div>'+
-          '<div class="kv"><span>建議措施</span><b>抽樣複測 + Wafer Sort 回溯</b></div>'+
-          '<div class="kv"><span>影響數量</span><b>0.40M die</b></div>'+
-          '<div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap">'+
-            '<button class="stepbtn"><span class="material-symbols-outlined" style="font-size:16px">autorenew</span>啟動複測</button>'+
-            '<button class="stepbtn ghost"><span class="material-symbols-outlined" style="font-size:16px">description</span>建立 NCR</button>'+
-          '</div>'+
-        '</div>'+
-      '</div>';
-    }
-    function boardCol(title,cnt,items){
-      return '<div class="col"><div class="ch"><span>'+title+'</span><span class="cnt">'+cnt+'</span></div>'+items.join("")+'</div>';
-    }
-    function ticket(id,tt,ic,meta){
-      return '<div class="ticket"><div class="tid">'+id+'</div><div class="tt2">'+tt+'</div>'+
-        '<div class="tm"><span class="material-symbols-outlined">'+ic+'</span>'+meta+'</div></div>';
-    }
-
-    // ---------- screen 5: 追溯稽核 ----------
-    function s5(){
-      var logs=[
-        {t:"09:41", u:"系統", act:"STDF 匯入", obj:"LOT-24911 / FT-B01", res:"良率 96.2%"},
-        {t:"09:12", u:"系統", act:"YBL 告警觸發", obj:"LOT-24908", res:"AL-8841"},
-        {t:"09:05", u:"陳彥廷", act:"批次隔離", obj:"LOT-24908", res:"停止出貨"},
-        {t:"08:48", u:"林孟潔", act:"複測放行", obj:"LOT-24888", res:"95.8% 達標"},
-        {t:"08:20", u:"王柏森", act:"門檻調整", obj:"YL-MCU8-2024Q3", res:"YBL 92→92.5%"},
-        {t:"07:55", u:"系統", act:"測試程式載入", obj:"TP_RF_v02", res:"版本核可"}
-      ];
-      var rows="";
-      for(var i=0;i<logs.length;i++){var g=logs[i];
-        rows+='<tr><td class="mono">'+g.t+'</td><td>'+g.u+'</td><td>'+g.act+'</td>'+
-          '<td class="mono">'+g.obj+'</td><td>'+g.res+'</td></tr>';
-      }
-      return ''+
-      '<div class="grid g4" style="margin-bottom:18px">'+
-        kpi("account_tree","可追溯批次","1,284","批",'<span class="up"><span class="material-symbols-outlined">check</span>100% 覆蓋</span>')+
-        kpi("bolt","追溯耗時","15","秒",'<span class="up"><span class="material-symbols-outlined">trending_down</span>-92%</span>')+
-        kpi("history","稽核紀錄","8,417","筆",'<span class="flat"><span class="material-symbols-outlined">lock</span>不可竄改</span>')+
-        kpi("fact_check","稽核合規","100","%",'<span class="up"><span class="material-symbols-outlined">verified</span>近 90 天</span>')+
-      '</div>'+
-      '<div class="grid g32" style="margin-bottom:18px">'+
-        '<div class="card"><h3>批次追溯鏈</h3><p class="sub">LOT-24908 · 由 FT 回溯至 Wafer / 測試機台</p>'+
-          '<div class="tl">'+
-            tlitem("done","Wafer Sort（CP）","W07 · 2026-08-09","CP 良率 93.1% · Prober PB-03")+
-            tlitem("done","封裝 Assembly","AS-LOT-11902 · 2026-08-11","QFN-48 · Line 2")+
-            tlitem("done","最終測試 FT","FT-B02 · TP_RF_v02","良率 88.4% · 觸發 YBL")+
-            tlitem("","批次隔離","2026-08-14 09:05","品質經理 陳彥廷 · 待複測")+
-          '</div>'+
-        '</div>'+
-        '<div class="card"><h3>追溯查詢維度</h3><p class="sub">關聯覆蓋率</p>'+
-          bar("測試機台",100,100,"%")+bar("測試程式",100,100,"%")+bar("Wafer/CP",98,100,"%")+bar("封裝批",96,100,"%")+bar("良率門檻",100,100,"%")+bar("操作人員",100,100,"%")+
-        '</div>'+
-      '</div>'+
-      '<div class="card"><h3>稽核操作紀錄</h3><p class="sub">系統與人員操作留痕（不可竄改）</p>'+
-        '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>時間</th><th>操作者</th><th>動作</th><th>對象</th><th>結果</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
-    }
-
-    // ---------- shared helpers ----------
     function kpi(icon,lab,val,unit,tag){
-      return '<div class="kpi"><span class="strip"></span>'+
-        '<div class="klab"><span class="material-symbols-outlined">'+icon+'</span>'+lab+'</div>'+
+      return '<article class="kpi"><span class="strip"></span>'+
+        '<div class="klab"><span class="material-symbols-outlined" aria-hidden="true">'+icon+'</span>'+lab+'</div>'+
         '<div class="kval">'+val+'<small>'+(unit||"")+'</small></div>'+
-        '<div class="ktag">'+tag+'</div></div>';
+        '<div class="ktag">'+tag+'</div></article>';
     }
+
     function tlitem(cls,h,sub,body){
-      return '<div class="tlitem '+cls+'"><span class="tdot"></span>'+
+      return '<div class="tlitem '+cls+'"><span class="tdot" aria-hidden="true"></span>'+
         '<div class="th">'+h+'</div><div class="tsub">'+sub+'</div>'+
         '<div class="tbody">'+body+'</div></div>';
     }
 
-    // ---------- chart init ----------
-    var GRID="#eceae7", TICK="#9ca3af";
-    function baseOpts(){
-      return {responsive:true, maintainAspectRatio:false,
-        plugins:{legend:{labels:{font:{family:"Inter",size:11},color:"#374151",boxWidth:12}}},
-        scales:{x:{grid:{display:false},ticks:{color:TICK,font:{size:10}}},
-                y:{grid:{color:GRID},ticks:{color:TICK,font:{size:10}}}}};
+    function boardCol(title,cnt,items){
+      return '<div class="col"><div class="ch"><span>'+title+'</span><span class="cnt">'+cnt+'</span></div>'+items.join("")+'</div>';
     }
+
+    function ticket(id,title,icon,meta){
+      return '<div class="ticket"><div class="tid">'+id+'</div><div class="tt2">'+title+'</div>'+
+        '<div class="tm"><span class="material-symbols-outlined" aria-hidden="true">'+icon+'</span>'+meta+'</div></div>';
+    }
+
+    function s0(){
+      var machines=[
+        {id:"FT-A01",model:"Advantest V93000",lot:"LOT-24915",prog:"TP_MCU8_v12",site:"8",thr:"3.2M",state:"執行中",pct:72,sc:"g"},
+        {id:"FT-A02",model:"Teradyne UltraFLEX",lot:"LOT-24917",prog:"TP_PMIC_v07",site:"4",thr:"1.8M",state:"執行中",pct:41,sc:"g"},
+        {id:"FT-A03",model:"Advantest V93000",lot:"LOT-24902",prog:"TP_MCU8_v12",site:"8",thr:"—",state:"待料",pct:0,sc:"n"},
+        {id:"FT-B01",model:"Teradyne J750",lot:"LOT-24911",prog:"TP_LOGIC_v03",site:"16",thr:"4.6M",state:"執行中",pct:88,sc:"g"},
+        {id:"FT-B02",model:"Chroma 3680",lot:"LOT-24908",prog:"TP_RF_v02",site:"2",thr:"0.4M",state:"異常",pct:33,sc:"r"},
+        {id:"FT-B03",model:"Teradyne UltraFLEX",lot:"LOT-24919",prog:"TP_PMIC_v07",site:"4",thr:"2.1M",state:"執行中",pct:57,sc:"g"}
+      ];
+      var rows="";
+      for(var i=0;i<machines.length;i++){
+        var m=machines[i];
+        var st=m.sc==="g"?statusPill("g",m.state,"check_circle"):
+          m.sc==="r"?statusPill("r",m.state,"error"):statusPill("n",m.state,"pause_circle");
+        rows+='<tr><td class="mono">'+m.id+'</td><td>'+m.model+'</td><td class="mono">'+m.lot+'</td>'+
+          '<td class="mono">'+m.prog+'</td><td class="num">'+m.site+'</td><td class="mono num">'+m.thr+'</td><td>'+st+'</td>'+
+          '<td><div class="prog" role="progressbar" aria-label="'+m.id+' 進度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+m.pct+'" style="width:110px"><i style="width:'+m.pct+'%"></i></div></td></tr>';
+      }
+      return hero(0)+
+        '<div class="grid g4 section-gap">'+
+          kpi("hub","串接測試機台","24","台",'<span class="up"><span class="material-symbols-outlined">check_circle</span>22 台在線</span>')+
+          kpi("dataset","今日採集筆數","18.4","M die",'<span class="up"><span class="material-symbols-outlined">trending_up</span>+6.2% vs 昨</span>')+
+          kpi("sync","解析延遲","1.8","秒",'<span class="up"><span class="material-symbols-outlined">bolt</span>即時串流</span>')+
+          kpi("error","解析失敗檔","3","筆",'<span class="down"><span class="material-symbols-outlined">warning</span>需重傳</span>')+
+        '</div>'+
+        '<div class="grid g23 section-gap">'+
+          '<section class="card major"><h3>測試機台採集狀態</h3><p class="sub">STDF / Log 即時串接與測試程式對應</p>'+
+            '<div class="table-wrap"><table class="tbl"><thead><tr><th>機台</th><th>機型</th><th>Lot</th><th>測試程式</th><th>Site</th><th>吞吐</th><th>狀態</th><th>進度</th></tr></thead><tbody>'+rows+'</tbody></table></div></section>'+
+          '<section class="card"><h3>近 12 小時採集量</h3><p class="sub">每小時解析 die 數（千顆）</p><div class="chartbox" style="height:245px"><canvas id="c0a"></canvas></div></section>'+
+        '</div>'+
+        '<div class="grid g2">'+
+          '<section class="card"><h3>資料來源健康度</h3><p class="sub">近一小時各介面連線品質</p>'+
+            bar("STDF 串流",99,100,"%")+bar("MES 對接",97,100,"%")+bar("Wafer Map",94,100,"%")+bar("測試程式庫",100,100,"%")+bar("時鐘同步",96,100,"%")+
+          '</section>'+
+          '<section class="card"><h3>解析事件</h3><p class="sub">最新資料採集動作</p><div class="tl">'+
+            tlitem("done","FT-B01 · LOT-24911 解析完成","09:41 · 4.6M die 匯入","Hard Bin 已對應，良率初算 96.2%")+
+            tlitem("done","FT-A01 批次切換","09:28 · TP_MCU8_v12","載入良率門檻檔 YL-MCU8-2024Q3")+
+            tlitem("","FT-B02 解析告警","09:12 · Log 格式異常","Site 2 缺 EOL 標記，已排入重傳佇列")+
+            tlitem("done","FT-A02 開始採集","08:55 · LOT-24917","串流建立，延遲 1.6s")+
+          '</div></section>'+
+        '</div>';
+    }
+
+    function s1(){
+      var lots=[
+        {id:"LOT-24911",prod:"MCU8-A",tested:"4.60M",yield:96.2,tgt:95,d:"+1.2",sc:"g"},
+        {id:"LOT-24915",prod:"MCU8-A",tested:"3.20M",yield:94.1,tgt:95,d:"-0.9",sc:"y"},
+        {id:"LOT-24917",prod:"PMIC-D",tested:"1.80M",yield:97.8,tgt:96,d:"+1.8",sc:"g"},
+        {id:"LOT-24908",prod:"RF-T2",tested:"0.40M",yield:88.4,tgt:93,d:"-4.6",sc:"r"},
+        {id:"LOT-24919",prod:"PMIC-D",tested:"2.10M",yield:96.9,tgt:96,d:"+0.9",sc:"g"}
+      ];
+      var rows="";
+      for(var i=0;i<lots.length;i++){
+        var l=lots[i];
+        var judgement=l.sc==="g"?statusPill("g","達標","check_circle"):
+          l.sc==="y"?statusPill("y","觀察","visibility"):statusPill("r","未達標","error");
+        rows+='<tr><td class="mono">'+l.id+'</td><td>'+l.prod+'</td><td class="mono num">'+l.tested+'</td>'+
+          '<td class="mono num"><b>'+l.yield+'%</b></td><td class="mono num">'+l.tgt+'%</td>'+
+          '<td class="mono num '+(l.d.charAt(0)==="+"?"up":"down")+'">'+l.d+'%</td><td>'+judgement+'</td></tr>';
+      }
+      return hero(1)+
+        '<div class="grid g4 section-gap">'+
+          kpi("verified","FT 平均良率","95.4","%",'<span class="up"><span class="material-symbols-outlined">trending_up</span>+0.8pp 週</span>')+
+          kpi("task_alt","達標批次","41","/48",'<span class="up"><span class="material-symbols-outlined">check</span>85.4%</span>')+
+          kpi("warning","未達標批次","4","批",'<span class="down"><span class="material-symbols-outlined">flag</span>已標記</span>')+
+          kpi("insights","測試 CPK","1.42","",'<span class="up"><span class="material-symbols-outlined">arrow_upward</span>製程穩定</span>')+
+        '</div>'+
+        '<div class="grid g23 section-gap">'+
+          '<section class="card major"><h3>近 14 日良率趨勢</h3><p class="sub">FT 良率 vs 目標門檻</p><div class="chartbox" style="height:260px"><canvas id="c1a"></canvas></div></section>'+
+          '<section class="card"><h3>依產品別良率</h3><p class="sub">本週各產品平均 FT 良率</p><div class="chartbox" style="height:260px"><canvas id="c1b"></canvas></div></section>'+
+        '</div>'+
+        '<section class="card"><h3>在測批次良率明細</h3><p class="sub">即時比對目標門檻，未達標自動標記</p>'+
+          '<div class="table-wrap"><table class="tbl"><thead><tr><th>Lot</th><th>產品</th><th>測試數</th><th>良率</th><th>目標</th><th>差異</th><th>判定</th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
+    }
+
+    function s2(){
+      var bins=[
+        {bin:"Bin1",name:"Pass / 良品",cat:"HB",n:"4.42M",pct:96.1,sc:"g"},
+        {bin:"Bin4",name:"Continuity 開短路",cat:"HB",n:"78.2K",pct:1.70,sc:"r"},
+        {bin:"Bin7",name:"Vdd 電流超規",cat:"HB",n:"41.5K",pct:0.90,sc:"y"},
+        {bin:"Bin9",name:"Timing Fail",cat:"HB",n:"33.1K",pct:0.72,sc:"y"},
+        {bin:"Bin12",name:"Functional Fail",cat:"HB",n:"22.8K",pct:0.50,sc:"y"},
+        {bin:"Bin15",name:"Retest / Soft",cat:"SB",n:"7.1K",pct:0.15,sc:"n"}
+      ];
+      var rows="";
+      for(var i=0;i<bins.length;i++){
+        var b=bins[i];
+        var verdict=b.sc==="g"?statusPill("g","正常","check_circle"):
+          b.sc==="r"?statusPill("r","主因","error"):
+          b.sc==="y"?statusPill("y","關注","visibility"):statusPill("n","—","remove");
+        rows+='<tr><td class="mono">'+b.bin+'</td><td>'+b.name+'</td>'+
+          '<td><span class="pill '+(b.cat==="HB"?"b":"n")+'">'+b.cat+'</span></td>'+
+          '<td class="mono num">'+b.n+'</td><td class="mono num">'+b.pct+'%</td><td>'+verdict+'</td></tr>';
+      }
+      var wafer="";
+      for(var k=0;k<121;k++){
+        var edge=(k<11||k>109||k%11===0||k%11===10);
+        var seed=(k*37+17)%100;
+        var col=edge?(seed<35?"#dc2626":"#ea580c"):(seed<6?"#ea580c":"#15803d");
+        if((k*19)%97<2)col="#dc2626";
+        wafer+='<div class="wcell" style="background:'+col+'"></div>';
+      }
+      return hero(2)+
+        '<div class="grid g4 section-gap">'+
+          kpi("category","Hard Bin 種類","12","",'<span class="flat"><span class="material-symbols-outlined">list</span>本 Lot 觸發</span>')+
+          kpi("dangerous","首要失效 Bin","Bin4","",'<span class="down"><span class="material-symbols-outlined">bolt</span>1.70% 占比</span>')+
+          kpi("replay","複測回收率","62","%",'<span class="up"><span class="material-symbols-outlined">recycling</span>Soft Bin</span>')+
+          kpi("blur_on","邊緣不良集中","edge","",'<span class="down"><span class="material-symbols-outlined">crop_free</span>Ring 型態</span>')+
+        '</div>'+
+        '<div class="grid g23 section-gap">'+
+          '<section class="card major"><h3>失效 Bin Pareto</h3><p class="sub">各失效 Bin 占比（不含良品）與累積</p><div class="chartbox" style="height:260px"><canvas id="c2a"></canvas></div></section>'+
+          '<section class="card"><h3>Wafer Bin Map</h3><p class="sub">LOT-24908 · W07 空間分佈</p>'+
+            '<div class="wafer" role="img" aria-label="Wafer Bin Map：良品、參數邊界與失效晶粒空間分佈">'+wafer+'</div>'+
+            '<div class="legend"><span><span class="dot" style="background:#15803d"></span>良品</span><span><span class="dot" style="background:#ea580c"></span>參數邊界</span><span><span class="dot" style="background:#dc2626"></span>失效</span></div>'+
+          '</section>'+
+        '</div>'+
+        '<section class="card"><h3>Bin 分佈明細</h3><p class="sub">Hard / Soft Bin 統計與占比</p>'+
+          '<div class="table-wrap"><table class="tbl"><thead><tr><th>Bin</th><th>說明</th><th>類別</th><th>顆數</th><th>占比</th><th>判定</th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
+    }
+
+    function alarmRow(id,lot,type,cond,risk,st,sc){
+      var riskPill=risk==="高"?statusPill("r",risk,"priority_high"):
+        risk==="中"?statusPill("y",risk,"warning"):statusPill("g",risk,"info");
+      var statePill=sc==="r"?statusPill("r",st,"pending_actions"):
+        sc==="y"?statusPill("y",st,"hourglass_top"):statusPill("g",st,"check_circle");
+      return '<tr><td class="mono">'+id+'</td><td class="mono">'+lot+'</td>'+
+        '<td><span class="pill b">'+type+'</span></td><td>'+cond+'</td><td>'+riskPill+'</td><td>'+statePill+'</td></tr>';
+    }
+
+    function s3(){
+      return hero(3)+
+        '<div class="grid g4 section-gap">'+
+          kpi("notifications_active","待處置告警","6","件",'<span class="down"><span class="material-symbols-outlined">priority_high</span>2 件高風險</span>')+
+          kpi("rule","SBL 觸發","3","次",'<span class="down"><span class="material-symbols-outlined">flag</span>單一 Bin 超限</span>')+
+          kpi("trending_down","YBL 觸發","2","次",'<span class="down"><span class="material-symbols-outlined">south</span>良率跌破</span>')+
+          kpi("timer","平均反應","4.2","分",'<span class="up"><span class="material-symbols-outlined">bolt</span>-63% vs 人工</span>')+
+        '</div>'+
+        '<div class="grid g23 section-gap">'+
+          '<section class="card major"><h3>良率控制圖（YBL）</h3><p class="sub">連續批次良率與上下控制界線</p>'+
+            '<div class="chartbox" style="height:260px"><canvas id="c3a"></canvas></div>'+
+            '<div class="note" style="margin-top:14px"><span class="material-symbols-outlined" aria-hidden="true">warning</span><span><b>高風險：</b>LOT-24908 良率 88.4% 跌破 YBL 下限 92%，並偵測 Bin4 較基線 +410%，已觸發 YBL+SBL 雙重告警。</span></div>'+
+          '</section>'+
+          '<section class="card"><h3>異常判定規則</h3><p class="sub">SBL / YBL 判定條件</p>'+
+            '<div class="kv"><span>YBL 良率下限</span><b>92.0%</b></div>'+
+            '<div class="kv"><span>YBL 逐批跌幅</span><b>&gt; 2.5pp</b></div>'+
+            '<div class="kv"><span>SBL 單一 Bin 上限</span><b>1.20%</b></div>'+
+            '<div class="kv"><span>Bin 突增基線比</span><b>&gt; 200%</b></div>'+
+            '<div class="kv"><span>連續未達標批數</span><b>≥ 2</b></div>'+
+            '<div class="kv"><span>邊緣不良判定</span><b>Ring 型態</b></div>'+
+            '<div style="margin-top:16px"><div class="prog" role="progressbar" aria-label="規則命中率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="88"><i style="width:88%"></i></div><div class="sub" style="margin:8px 0 0">規則命中率 88% · 誤報 6%</div></div>'+
+          '</section>'+
+        '</div>'+
+        '<section class="card"><h3>異常告警清單</h3><p class="sub">依風險排序，待判定 → 待處置</p>'+
+          '<div class="table-wrap"><table class="tbl"><thead><tr><th>告警</th><th>Lot</th><th>類型</th><th>觸發條件</th><th>風險</th><th>狀態</th></tr></thead><tbody>'+
+            alarmRow("AL-8841","LOT-24908","YBL","良率 88.4% &lt; 92%","高","待處置","r")+
+            alarmRow("AL-8840","LOT-24908","SBL","Bin4 1.70% &gt; 1.20%","高","待處置","r")+
+            alarmRow("AL-8837","LOT-24915","YBL","逐批跌 0.9pp 連 2 批","中","判定中","y")+
+            alarmRow("AL-8832","LOT-24902","SBL","Bin7 0.90% 逼近上限","中","觀察","y")+
+            alarmRow("AL-8828","LOT-24905","EDGE","邊緣 Ring 型態","低","已排除","g")+
+          '</tbody></table></div></section>';
+    }
+
+    function s4(){
+      return hero(4)+
+        '<div class="grid g4 section-gap">'+
+          kpi("gpp_bad","隔離中批次","3","批",'<span class="down"><span class="material-symbols-outlined">lock</span>停止出貨</span>')+
+          kpi("published_with_changes","本月攔截","17","批",'<span class="flat"><span class="material-symbols-outlined">history</span>累計</span>')+
+          kpi("verified_user","攔截率","98.6","%",'<span class="up"><span class="material-symbols-outlined">check</span>異常批</span>')+
+          kpi("schedule","平均處置","3.4","小時",'<span class="up"><span class="material-symbols-outlined">bolt</span>-58%</span>')+
+        '</div>'+
+        '<section class="card major section-gap"><div class="sechead"><span class="material-symbols-outlined">shield</span><div><h2>批次處置看板</h2><p class="sub2">隔離 → 複測 → 決策 → 放行/報廢</p></div></div>'+
+          '<div style="overflow-x:auto"><div class="board">'+
+            boardCol("隔離中","2",[
+              ticket("LOT-24908","RF-T2 · 88.4% 未達標","lock","YBL+SBL · 待複測"),
+              ticket("LOT-24915","MCU8-A · 觀察中","visibility","連 2 批下滑")
+            ])+
+            boardCol("複測中","1",[
+              ticket("LOT-24902","MCU8-A · Bin7 逼近上限","autorenew","抽 5 wafer 複測")
+            ])+
+            boardCol("決策中","1",[
+              ticket("LOT-24897","PMIC-D · 邊緣不良","gavel","MRB 會議 14:00")
+            ])+
+            boardCol("已處置","2",[
+              ticket("LOT-24888","LOGIC-C · 放行","check_circle","複測達標 95.8%"),
+              ticket("LOT-24879","RF-T2 · 報廢","delete","局部 wafer 報廢")
+            ])+
+          '</div></div>'+
+        '</section>'+
+        '<div class="grid g23">'+
+          '<section class="card"><h3>本月處置結果分佈</h3><p class="sub">攔截批次最終決策</p><div class="chartbox" style="height:240px"><canvas id="c4a"></canvas></div></section>'+
+          '<section class="card"><h3>處置作業卡</h3><p class="sub">LOT-24908 · RF-T2</p>'+
+            '<div class="kv"><span>觸發告警</span><b>AL-8841 / AL-8840</b></div>'+
+            '<div class="kv"><span>目前狀態</span><b>'+statusPill("r","隔離中","lock")+'</b></div>'+
+            '<div class="kv"><span>負責人</span><b>品質經理 · 陳彥廷</b></div>'+
+            '<div class="kv"><span>建議措施</span><b>抽樣複測 + Wafer Sort 回溯</b></div>'+
+            '<div class="kv"><span>影響數量</span><b>0.40M die</b></div>'+
+            '<div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">'+
+              '<button class="stepbtn" type="button"><span class="material-symbols-outlined" style="font-size:17px">autorenew</span>啟動複測</button>'+
+              '<button class="stepbtn ghost" type="button"><span class="material-symbols-outlined" style="font-size:17px">description</span>建立 NCR</button>'+
+            '</div>'+
+          '</section>'+
+        '</div>';
+    }
+
+    function s5(){
+      var logs=[
+        {t:"09:41",u:"系統",act:"STDF 匯入",obj:"LOT-24911 / FT-B01",res:"良率 96.2%"},
+        {t:"09:12",u:"系統",act:"YBL 告警觸發",obj:"LOT-24908",res:"AL-8841"},
+        {t:"09:05",u:"陳彥廷",act:"批次隔離",obj:"LOT-24908",res:"停止出貨"},
+        {t:"08:48",u:"林孟潔",act:"複測放行",obj:"LOT-24888",res:"95.8% 達標"},
+        {t:"08:20",u:"王柏森",act:"門檻調整",obj:"YL-MCU8-2024Q3",res:"YBL 92→92.5%"},
+        {t:"07:55",u:"系統",act:"測試程式載入",obj:"TP_RF_v02",res:"版本核可"}
+      ];
+      var rows="";
+      for(var i=0;i<logs.length;i++){
+        var g=logs[i];
+        rows+='<tr><td class="mono">'+g.t+'</td><td>'+g.u+'</td><td>'+g.act+'</td>'+
+          '<td class="mono">'+g.obj+'</td><td>'+g.res+'</td></tr>';
+      }
+      return hero(5)+
+        '<div class="grid g4 section-gap">'+
+          kpi("account_tree","可追溯批次","1,284","批",'<span class="up"><span class="material-symbols-outlined">check</span>100% 覆蓋</span>')+
+          kpi("bolt","追溯耗時","15","秒",'<span class="up"><span class="material-symbols-outlined">trending_down</span>-92%</span>')+
+          kpi("history","稽核紀錄","8,417","筆",'<span class="flat"><span class="material-symbols-outlined">lock</span>不可竄改</span>')+
+          kpi("fact_check","稽核合規","100","%",'<span class="up"><span class="material-symbols-outlined">verified</span>近 90 天</span>')+
+        '</div>'+
+        '<div class="grid g32 section-gap">'+
+          '<section class="card major"><h3>批次追溯鏈</h3><p class="sub">LOT-24908 · 由 FT 回溯至 Wafer / 測試機台</p><div class="tl">'+
+            tlitem("done","Wafer Sort（CP）","W07 · 2026-08-09","CP 良率 93.1% · Prober PB-03")+
+            tlitem("done","封裝 Assembly","AS-LOT-11902 · 2026-08-11","QFN-48 · Line 2")+
+            tlitem("done","最終測試 FT","FT-B02 · TP_RF_v02","良率 88.4% · 觸發 YBL")+
+            tlitem("","批次隔離","2026-08-14 09:05","品質經理 陳彥廷 · 待複測")+
+          '</div></section>'+
+          '<section class="card"><h3>追溯查詢維度</h3><p class="sub">關聯覆蓋率</p>'+
+            bar("測試機台",100,100,"%")+bar("測試程式",100,100,"%")+bar("Wafer/CP",98,100,"%")+bar("封裝批",96,100,"%")+bar("良率門檻",100,100,"%")+bar("操作人員",100,100,"%")+
+          '</section>'+
+        '</div>'+
+        '<section class="card"><h3>稽核操作紀錄</h3><p class="sub">系統與人員操作留痕（不可竄改）</p>'+
+          '<div class="table-wrap"><table class="tbl"><thead><tr><th>時間</th><th>操作者</th><th>動作</th><th>對象</th><th>結果</th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
+    }
+
+    var GRID="#d9e2ef", TICK="#475569";
+
+    function baseOpts(){
+      return {
+        responsive:true,
+        maintainAspectRatio:false,
+        animation:window.matchMedia("(prefers-reduced-motion: reduce)").matches?false:{duration:350},
+        plugins:{
+          legend:{
+            labels:{
+              color:"#1e293b",
+              boxWidth:12,
+              boxHeight:12,
+              font:{family:"Fira Sans",size:11,weight:"600"}
+            }
+          },
+          tooltip:{
+            titleFont:{family:"Fira Code"},
+            bodyFont:{family:"Fira Sans"},
+            backgroundColor:"#0f172a",
+            titleColor:"#fff",
+            bodyColor:"#fff",
+            cornerRadius:0,
+            padding:10
+          }
+        },
+        scales:{
+          x:{
+            grid:{display:false},
+            border:{color:"#0f172a"},
+            ticks:{color:TICK,font:{family:"Fira Code",size:9}}
+          },
+          y:{
+            grid:{color:GRID},
+            border:{color:"#0f172a"},
+            ticks:{color:TICK,font:{family:"Fira Code",size:9}}
+          }
+        }
+      };
+    }
+
     function mkChart(id,cfg){
-      var el=document.getElementById(id); if(!el) return;
+      var el=document.getElementById(id);
+      if(!el)return;
       charts[id]=new Chart(el.getContext("2d"),cfg);
     }
+
     function initCharts(idx){
       if(idx===0){
-        var lab=[], d=[]; for(var h=0;h<12;h++){lab.push(((22+h)%24)+":00"); d.push(900+Math.round(Math.sin(h/2)*300+h*60));}
-        mkChart("c0a",{type:"bar",data:{labels:lab,datasets:[{label:"解析 die（千顆）",data:d,backgroundColor:accent2,borderRadius:5,barThickness:14}]},options:baseOpts()});
+        var lab=[],d=[];
+        for(var h=0;h<12;h++){
+          lab.push(((22+h)%24)+":00");
+          d.push(900+Math.round(Math.sin(h/2)*300+h*60));
+        }
+        mkChart("c0a",{
+          type:"bar",
+          data:{labels:lab,datasets:[{
+            label:"解析 die（千顆）",
+            data:d,
+            backgroundColor:lab.map(function(_,i){return i%3===2?accent2:accent;}),
+            borderColor:"#0f172a",
+            borderWidth:1,
+            borderRadius:0,
+            barThickness:14
+          }]},
+          options:baseOpts()
+        });
       }else if(idx===1){
-        var days=[]; for(var i=1;i<=14;i++)days.push("D"+i);
+        var days=[];
+        for(var i=1;i<=14;i++)days.push("D"+i);
         var y=[94.1,94.6,95.0,95.3,94.8,95.6,95.9,95.2,94.4,95.8,96.1,95.7,95.9,96.3];
-        var o=baseOpts(); o.scales.y.min=90; o.scales.y.max=98;
-        mkChart("c1a",{type:"line",data:{labels:days,datasets:[
-          {label:"FT 良率 %",data:y,borderColor:accent,backgroundColor:"rgba(180,83,9,.12)",fill:true,tension:.35,pointRadius:2,borderWidth:2},
-          {label:"目標 95%",data:days.map(function(){return 95;}),borderColor:"#94a3b8",borderDash:[6,4],pointRadius:0,borderWidth:1.5,fill:false}
-        ]},options:o});
-        mkChart("c1b",{type:"bar",data:{labels:["MCU8-A","PMIC-D","RF-T2","LOGIC-C","SENSOR-E"],datasets:[{label:"良率 %",data:[95.1,97.4,88.4,96.0,93.2],backgroundColor:[accent,accent2,"#dc2626","#0ea5e9","#6b7280"],borderRadius:5}]},
-          options:(function(){var o2=baseOpts();o2.indexAxis="y";o2.scales.x.min=80;o2.scales.x.max=100;o2.plugins.legend.display=false;return o2;})()});
+        var o=baseOpts();
+        o.scales.y.min=90;
+        o.scales.y.max=98;
+        mkChart("c1a",{
+          type:"line",
+          data:{labels:days,datasets:[
+            {label:"FT 良率 %",data:y,borderColor:accent,backgroundColor:"rgba(37,99,235,.13)",fill:true,tension:0,pointRadius:3,pointBackgroundColor:"#fff",pointBorderColor:"#0f172a",pointBorderWidth:1.5,borderWidth:3},
+            {label:"目標 95%",data:days.map(function(){return 95;}),borderColor:"#ea580c",borderDash:[6,4],pointRadius:0,borderWidth:2,fill:false}
+          ]},
+          options:o
+        });
+        var o2=baseOpts();
+        o2.indexAxis="y";
+        o2.scales.x.min=80;
+        o2.scales.x.max=100;
+        o2.plugins.legend.display=false;
+        mkChart("c1b",{
+          type:"bar",
+          data:{labels:["MCU8-A","PMIC-D","RF-T2","LOGIC-C","SENSOR-E"],datasets:[{
+            label:"良率 %",
+            data:[95.1,97.4,88.4,96.0,93.2],
+            backgroundColor:[accent,accent,"#dc2626",accent2,"#475569"],
+            borderColor:"#0f172a",
+            borderWidth:1,
+            borderRadius:0
+          }]},
+          options:o2
+        });
       }else if(idx===2){
         var bl=["Bin4","Bin7","Bin9","Bin12","Bin15","其他"];
         var bv=[1.70,0.90,0.72,0.50,0.15,0.12];
-        var cum=[], s=0, tot=0; for(var a=0;a<bv.length;a++)tot+=bv[a];
-        for(var b=0;b<bv.length;b++){s+=bv[b]; cum.push(+(s/tot*100).toFixed(1));}
-        var o3=baseOpts(); o3.scales.y1={position:"right",grid:{display:false},min:0,max:100,ticks:{color:TICK,font:{size:10},callback:function(v){return v+"%";}}};
-        mkChart("c2a",{data:{labels:bl,datasets:[
-          {type:"bar",label:"占比 %",data:bv,backgroundColor:accent,borderRadius:5,yAxisID:"y",order:2},
-          {type:"line",label:"累積 %",data:cum,borderColor:accent2,backgroundColor:accent2,yAxisID:"y1",tension:.3,pointRadius:3,borderWidth:2,order:1}
-        ]},options:o3});
+        var cum=[],s=0,tot=0;
+        for(var a=0;a<bv.length;a++)tot+=bv[a];
+        for(var b=0;b<bv.length;b++){s+=bv[b];cum.push(+(s/tot*100).toFixed(1));}
+        var o3=baseOpts();
+        o3.scales.y1={
+          position:"right",
+          grid:{display:false},
+          border:{color:"#0f172a"},
+          min:0,
+          max:100,
+          ticks:{color:TICK,font:{family:"Fira Code",size:9},callback:function(v){return v+"%";}}
+        };
+        mkChart("c2a",{
+          data:{labels:bl,datasets:[
+            {type:"bar",label:"占比 %",data:bv,backgroundColor:[accent2,accent,accent,accent,accent,accent],borderColor:"#0f172a",borderWidth:1,borderRadius:0,yAxisID:"y",order:2},
+            {type:"line",label:"累積 %",data:cum,borderColor:"#0f172a",backgroundColor:"#0f172a",yAxisID:"y1",tension:0,pointRadius:4,pointStyle:"rect",borderWidth:2,order:1}
+          ]},
+          options:o3
+        });
       }else if(idx===3){
-        var ll=[]; for(var i=1;i<=10;i++)ll.push("L"+i);
+        var ll=[];
+        for(var j=1;j<=10;j++)ll.push("L"+j);
         var yd=[95.6,95.1,94.8,95.9,96.2,95.3,94.9,93.4,92.1,88.4];
-        var o4=baseOpts(); o4.scales.y.min=85; o4.scales.y.max=98;
-        mkChart("c3a",{type:"line",data:{labels:ll,datasets:[
-          {label:"批次良率 %",data:yd,borderColor:accent,backgroundColor:"rgba(180,83,9,.10)",fill:true,tension:.3,pointRadius:3,borderWidth:2,
-            pointBackgroundColor:yd.map(function(v){return v<92?"#dc2626":accent;})},
-          {label:"YBL 下限 92%",data:ll.map(function(){return 92;}),borderColor:"#dc2626",borderDash:[6,4],pointRadius:0,borderWidth:1.5,fill:false},
-          {label:"目標 95%",data:ll.map(function(){return 95;}),borderColor:"#94a3b8",borderDash:[3,3],pointRadius:0,borderWidth:1.5,fill:false}
-        ]},options:o4});
+        var o4=baseOpts();
+        o4.scales.y.min=85;
+        o4.scales.y.max=98;
+        mkChart("c3a",{
+          type:"line",
+          data:{labels:ll,datasets:[
+            {label:"批次良率 %",data:yd,borderColor:accent,backgroundColor:"rgba(37,99,235,.11)",fill:true,tension:0,pointRadius:4,borderWidth:3,pointStyle:"rect",pointBackgroundColor:yd.map(function(v){return v<92?"#dc2626":accent;})},
+            {label:"YBL 下限 92%",data:ll.map(function(){return 92;}),borderColor:"#dc2626",borderDash:[6,4],pointRadius:0,borderWidth:2,fill:false},
+            {label:"目標 95%",data:ll.map(function(){return 95;}),borderColor:accent2,borderDash:[3,3],pointRadius:0,borderWidth:2,fill:false}
+          ]},
+          options:o4
+        });
       }else if(idx===4){
-        var o5=baseOpts(); o5.scales={};
-        mkChart("c4a",{type:"doughnut",data:{labels:["複測放行","局部報廢","降規使用","待決策"],datasets:[{data:[9,3,3,2],backgroundColor:[accent,"#dc2626","#f59e0b","#9ca3af"],borderWidth:2,borderColor:"#fff"}]},
-          options:(function(){o5.cutout="62%";o5.plugins.legend.position="right";return o5;})()});
+        var o5=baseOpts();
+        o5.scales={};
+        o5.cutout="58%";
+        o5.plugins.legend.position="right";
+        mkChart("c4a",{
+          type:"doughnut",
+          data:{
+            labels:["複測放行","局部報廢","降規使用","待決策"],
+            datasets:[{
+              data:[9,3,3,2],
+              backgroundColor:[accent,"#dc2626",accent2,"#64748b"],
+              borderWidth:3,
+              borderColor:"#fff"
+            }]
+          },
+          options:o5
+        });
       }
     }
 
-    // ---------- show ----------
     var screens=[s0,s1,s2,s3,s4,s5];
+
     function show(i){
       i=Math.max(0,Math.min(i,screens.length-1));
       destroyCharts();
+
       var btns=document.querySelectorAll("[data-i]");
-      for(var b=0;b<btns.length;b++){ btns[b].classList.toggle("active", +btns[b].getAttribute("data-i")===i); }
+      for(var b=0;b<btns.length;b++){
+        var active=+btns[b].getAttribute("data-i")===i;
+        btns[b].classList.toggle("active",active);
+        btns[b].setAttribute("aria-current",active?"page":"false");
+      }
+
       document.getElementById("pgTitle").textContent=NAV[i].name;
       document.getElementById("pgSub").textContent=NAV[i].sub;
+
       var container=document.getElementById("screen");
       container.innerHTML=screens[i]();
       void container.offsetHeight;
       initCharts(i);
     }
+
     window.__show=show;
 
-    function fromHash(){var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);if(!m){show(0);return;}var n=document.querySelectorAll("[data-i]").length||6;show(Math.min(+m[1],n-1));try{window.scrollTo(0,0);}catch(e){}}
-    window.addEventListener("hashchange",fromHash);fromHash();
+    function fromHash(){
+      var m=(location.hash||"").match(/(?:go=|v)([0-9]+)/);
+      if(!m){
+        show(0);
+        return;
+      }
+      var n=document.querySelectorAll("[data-i]").length||6;
+      show(Math.min(+m[1],n-1));
+      try{window.scrollTo(0,0);}catch(e){}
+    }
+
+    window.addEventListener("hashchange",fromHash);
+    fromHash();
   })();
   </script>
-<script src="/shared/jv-agent-bridge.js?v=2" defer></script>
 </body>
 </html>

@@ -3,388 +3,904 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>設備能源基線漂移偵測器 · esg-energy｜Jvision 系統 Demo</title>
+<title>設備異常耗能偵測器 · esg-energy｜Jvision 系統 Demo</title>
 <link rel="icon" href="../../favicon.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1&amp;display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&amp;family=Fira+Sans:wght@300;400;500;600;700;800&amp;display=swap">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root{
-  --blue:#9333ea;
-  --ink:#181222;
-  --body:#342c40;
-  --muted:#736b7e;
-  --line:#e8e1ed;
-  --bg:#f8f6fa;
-  --green:#16845b;
-  --amber:#c87508;
-  --red:#d04458;
-  --white:#fff;
-  --purple-soft:#f4eafe;
-  --shadow:0 12px 34px rgba(52,31,70,.08);
-  --radius:18px
+  --color-primary:#2563EB;
+  --color-on-primary:#FFFFFF;
+  --color-secondary:#3B82F6;
+  --color-on-secondary:#000000;
+  --color-accent:#EA580C;
+  --color-on-accent:#000000;
+  --color-background:#F8FAFC;
+  --color-foreground:#1E293B;
+  --color-card:#FFFFFF;
+  --color-card-foreground:#1E293B;
+  --color-muted:#E9EFF8;
+  --color-muted-foreground:#475569;
+  --color-border:#CBD5E1;
+  --color-destructive:#DC2626;
+  --color-on-destructive:#FFFFFF;
+  --color-ring:#2563EB;
+  --blue:var(--color-primary);
+  --ink:var(--color-foreground);
+  --muted:var(--color-muted-foreground);
+  --line:var(--color-border);
+  --green:#047857;
+  --amber:#B45309;
+  --red:var(--color-destructive);
+  --white:#FFFFFF;
+  --black:#0F172A;
+  --grid:rgba(37,99,235,.07);
+  --shadow:6px 6px 0 #0F172A;
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{
+  min-width:0;
   margin:0;
-  color:var(--body);
-  background:
-    radial-gradient(circle at 88% 4%,rgba(147,51,234,.09),transparent 24rem),
-    linear-gradient(180deg,#fff 0,#faf8fc 20rem,var(--bg) 100%);
-  font-family:Inter,"Noto Sans TC",system-ui,sans-serif;
-  min-width:0
+  color:var(--color-foreground);
+  background-color:var(--color-background);
+  background-image:
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:32px 32px;
+  font-family:"Fira Sans",system-ui,sans-serif;
 }
 button,input,select,textarea{font:inherit}
 button{color:inherit}
+button:not(:disabled),select{cursor:pointer}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
-  outline:3px solid rgba(147,51,234,.24);
-  outline-offset:2px
+  outline:3px solid var(--color-ring);
+  outline-offset:3px;
 }
-.material-symbols-outlined{font-size:20px;line-height:1}
+button:disabled{cursor:not-allowed;opacity:.65}
+svg{display:block}
+.icon{
+  width:20px;
+  height:20px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2;
+  stroke-linecap:square;
+  stroke-linejoin:miter;
+  flex:0 0 auto;
+}
+.mono,.metric-value,.machine-code,.drift-num,time,td:first-child{
+  font-family:"Fira Code",monospace;
+  font-variant-numeric:tabular-nums;
+}
 .app-shell{min-height:100vh}
 .site-header{
-  position:sticky;top:0;z-index:30;
-  border-bottom:1px solid rgba(232,225,237,.9);
-  background:rgba(255,255,255,.9);
-  backdrop-filter:blur(16px)
+  position:sticky;
+  top:0;
+  z-index:30;
+  background:var(--color-card);
+  border-bottom:3px solid var(--black);
 }
 .header-row{
-  width:min(1440px,100%);
+  width:min(1520px,100%);
+  min-height:72px;
   margin:auto;
-  padding:12px clamp(16px,3vw,42px);
-  display:flex;align-items:center;gap:18px
+  padding:0 clamp(14px,3vw,40px);
+  display:flex;
+  align-items:stretch;
 }
-.brand{display:flex;align-items:center;gap:11px;min-width:255px}
+.brand{
+  width:310px;
+  padding:10px 20px 10px 0;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  border-right:2px solid var(--black);
+}
 .brand-mark{
-  width:38px;height:38px;border-radius:12px;
-  color:#fff;background:linear-gradient(145deg,#7e22ce,var(--blue));
-  display:grid;place-items:center;
-  box-shadow:0 8px 18px rgba(147,51,234,.25)
+  width:44px;
+  height:44px;
+  display:grid;
+  place-items:center;
+  color:var(--color-on-primary);
+  background:var(--color-primary);
+  border:2px solid var(--black);
+  box-shadow:3px 3px 0 var(--black);
 }
-.brand-copy strong{display:block;color:var(--ink);font-size:14px}
-.brand-copy span{display:block;color:var(--muted);font-size:11px;margin-top:2px}
-.nav-scroll{flex:1;overflow-x:auto;scrollbar-width:none}
-.nav-scroll::-webkit-scrollbar{display:none}
-.stage-nav{display:flex;gap:6px;min-width:max-content;justify-content:center}
+.brand-mark .icon{width:24px;height:24px}
+.brand-copy strong{
+  display:block;
+  color:var(--ink);
+  font-size:14px;
+  line-height:1.25;
+  font-weight:800;
+}
+.brand-copy span{
+  display:block;
+  margin-top:4px;
+  color:var(--muted);
+  font-family:"Fira Code",monospace;
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.08em;
+}
+.nav-scroll{flex:1;overflow-x:auto;scrollbar-width:thin}
+.stage-nav{height:100%;display:flex;min-width:max-content}
 .stage-btn{
-  min-height:42px;border:0;background:transparent;border-radius:11px;
-  padding:7px 12px;display:flex;align-items:center;gap:8px;
-  cursor:pointer;color:var(--muted);font-size:12px;font-weight:700;
-  transition:.2s ease
+  min-width:104px;
+  min-height:69px;
+  padding:8px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  border:0;
+  border-right:1px solid var(--line);
+  background:var(--color-card);
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
 }
 .stage-btn b{
-  width:23px;height:23px;border-radius:8px;background:#f0ebf3;
-  display:grid;place-items:center;font-size:11px
+  min-width:27px;
+  height:27px;
+  padding:0 4px;
+  display:grid;
+  place-items:center;
+  color:var(--ink);
+  background:var(--color-muted);
+  border:1px solid var(--black);
+  font-family:"Fira Code",monospace;
+  font-size:10px;
 }
-.stage-btn:hover{background:#faf6fd;color:var(--blue)}
-.stage-btn.active{color:var(--blue);background:var(--purple-soft)}
-.stage-btn.active b{background:var(--blue);color:#fff}
+.stage-btn:hover{color:var(--blue);background:#EFF6FF}
+.stage-btn.active{
+  color:var(--color-on-primary);
+  background:var(--color-primary);
+}
+.stage-btn.active b{
+  color:var(--black);
+  background:#FFFFFF;
+}
 .live-pill{
-  display:flex;align-items:center;gap:7px;white-space:nowrap;
-  padding:8px 11px;border:1px solid #d9eee5;border-radius:999px;
-  color:var(--green);background:#f5fcf8;font-size:11px;font-weight:800
+  min-width:148px;
+  padding:0 14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  color:#065F46;
+  background:#ECFDF5;
+  border-left:2px solid var(--black);
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
 }
-.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
-@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(22,132,91,0)}0%,100%{box-shadow:0 0 0 0 rgba(22,132,91,.18)}}
-main{width:min(1440px,100%);margin:auto;padding:24px clamp(16px,3vw,42px) 42px}
-.view{display:none;animation:appear .28s ease}
-.view.active{display:block}
-@keyframes appear{from{opacity:.35;transform:translateY(5px)}}
+.live-dot{
+  width:10px;
+  height:10px;
+  background:var(--green);
+  border:2px solid #064E3B;
+  animation:pulse 1.8s infinite;
+}
+@keyframes pulse{50%{transform:scale(.7);opacity:.55}}
+main{
+  width:min(1520px,100%);
+  margin:auto;
+  padding:30px clamp(14px,3vw,40px) 42px;
+}
+.view{display:none}
+.view.active{display:block;animation:reveal .35s ease-out}
+@keyframes reveal{
+  from{opacity:0;transform:translateY(12px)}
+  to{opacity:1;transform:none}
+}
 .page-heading{
-  display:flex;align-items:flex-end;justify-content:space-between;gap:18px;
-  margin-bottom:18px
+  min-height:150px;
+  margin-bottom:22px;
+  padding:22px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:end;
+  gap:24px;
+  color:#FFFFFF;
+  background:var(--black);
+  border:3px solid var(--black);
+  box-shadow:8px 8px 0 var(--color-primary);
+  position:relative;
+  overflow:hidden;
+}
+.page-heading:after{
+  content:attr(data-stage);
+  position:absolute;
+  right:18px;
+  top:-25px;
+  color:rgba(255,255,255,.08);
+  font:700 116px/1 "Fira Code",monospace;
+  pointer-events:none;
 }
 .eyebrow{
-  color:var(--blue);font-size:11px;font-weight:800;letter-spacing:.12em;
-  text-transform:uppercase;margin-bottom:7px
+  margin-bottom:8px;
+  color:#93C5FD;
+  font-family:"Fira Code",monospace;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.12em;
+  text-transform:uppercase;
 }
 h1,h2,h3,p{margin-top:0}
-h1{font-size:clamp(24px,3vw,36px);line-height:1.2;color:var(--ink);margin-bottom:7px}
-h2{color:var(--ink);font-size:18px;margin-bottom:6px}
-h3{color:var(--ink);font-size:14px;margin-bottom:5px}
-.page-heading p,.subtle{color:var(--muted);font-size:13px;line-height:1.65;margin-bottom:0}
-.heading-actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
-.btn{
-  min-height:42px;border-radius:11px;padding:9px 14px;border:1px solid var(--line);
-  background:#fff;font-size:12px;font-weight:800;cursor:pointer;
-  display:inline-flex;align-items:center;justify-content:center;gap:7px
+h1{
+  max-width:820px;
+  margin-bottom:8px;
+  color:#FFFFFF;
+  font-size:clamp(27px,4vw,48px);
+  line-height:1;
+  letter-spacing:-.035em;
+  font-weight:800;
 }
-.btn:hover{border-color:#ceb4e3}
-.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 8px 20px rgba(147,51,234,.2)}
+h2{
+  margin-bottom:5px;
+  color:var(--ink);
+  font-size:17px;
+  line-height:1.25;
+  font-weight:800;
+}
+h3{
+  margin-bottom:5px;
+  color:var(--ink);
+  font-size:13px;
+  font-weight:800;
+}
+.page-heading p{
+  max-width:790px;
+  margin:0;
+  color:#CBD5E1;
+  font-size:13px;
+  line-height:1.6;
+}
+.subtle{
+  margin-bottom:0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.55;
+}
+.heading-actions{
+  position:relative;
+  z-index:1;
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:9px;
+}
+.btn{
+  min-height:44px;
+  padding:9px 14px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  color:var(--ink);
+  background:#FFFFFF;
+  border:2px solid var(--black);
+  box-shadow:3px 3px 0 var(--black);
+  font-size:12px;
+  font-weight:800;
+}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 var(--black)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--black)}
+.btn.primary{
+  color:#FFFFFF;
+  background:var(--color-primary);
+}
+.btn.accent{
+  color:#000000;
+  background:var(--color-accent);
+}
 .card{
-  background:rgba(255,255,255,.96);border:1px solid var(--line);
-  border-radius:var(--radius);box-shadow:var(--shadow);min-width:0
+  min-width:0;
+  background:var(--color-card);
+  border:2px solid var(--black);
+  box-shadow:var(--shadow);
 }
 .card-head{
-  display:flex;align-items:center;justify-content:space-between;gap:14px;
-  padding:17px 18px;border-bottom:1px solid var(--line)
+  min-height:64px;
+  padding:13px 15px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  border-bottom:2px solid var(--black);
+  background:#FFFFFF;
 }
-.card-head p{margin:3px 0 0;color:var(--muted);font-size:11px}
-.card-body{padding:18px}
-.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
-.metric{padding:16px}
-.metric-label{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:11px;font-weight:700}
-.metric-value{font-size:25px;line-height:1.1;color:var(--ink);font-weight:800;margin:10px 0 7px}
-.metric-note{font-size:11px;color:var(--muted)}
-.delta{font-weight:800}.delta.good{color:var(--green)}.delta.warn{color:var(--amber)}.delta.bad{color:var(--red)}
-.grid-2{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,.8fr);gap:14px}
-.grid-even{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.split-rail{display:grid;grid-template-columns:260px minmax(0,1fr);gap:14px}
-.chart-wrap{position:relative;width:100%;height:280px}
-.chart-sm{height:205px}
+.card-head p{
+  margin:3px 0 0;
+  color:var(--muted);
+  font-size:11px;
+}
+.card-body{padding:16px}
+.metric-grid{
+  margin-bottom:18px;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+}
+.metric{
+  min-height:142px;
+  padding:15px;
+  box-shadow:4px 4px 0 var(--black);
+  position:relative;
+}
+.metric:nth-child(2n){transform:translateY(7px)}
+.metric:before{
+  content:"";
+  position:absolute;
+  left:-2px;
+  top:-2px;
+  width:9px;
+  height:calc(100% + 4px);
+  background:var(--color-primary);
+  border-right:2px solid var(--black);
+}
+.metric-label{
+  padding-left:9px;
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:700;
+}
+.metric-value{
+  margin:14px 0 8px;
+  padding-left:9px;
+  color:var(--ink);
+  font-size:clamp(21px,2.2vw,29px);
+  line-height:1;
+  font-weight:700;
+  text-align:right;
+}
+.metric-note{
+  padding-left:9px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+}
+.delta{font-weight:800}
+.delta.good{color:#047857}
+.delta.warn{color:#92400E}
+.delta.bad{color:#B91C1C}
+.grid-2{
+  display:grid;
+  grid-template-columns:minmax(0,1.65fr) minmax(290px,.85fr);
+  gap:16px;
+}
+.grid-even{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.split-rail{display:grid;grid-template-columns:258px minmax(0,1fr);gap:16px}
+.chart-wrap{position:relative;width:100%;height:278px}
 .badge{
-  display:inline-flex;align-items:center;gap:5px;border-radius:999px;
-  padding:5px 8px;font-size:10px;font-weight:800;white-space:nowrap
+  min-height:27px;
+  padding:4px 8px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border:1px solid currentColor;
+  font-family:"Fira Code",monospace;
+  font-size:10px;
+  line-height:1.2;
+  font-weight:700;
+  white-space:nowrap;
 }
-.badge.green{color:var(--green);background:#eaf7f1}
-.badge.amber{color:var(--amber);background:#fff5e5}
-.badge.red{color:var(--red);background:#ffedf0}
-.badge.purple{color:var(--blue);background:var(--purple-soft)}
+.badge:before{content:"";width:7px;height:7px;background:currentColor}
+.badge.green{color:#065F46;background:#D1FAE5}
+.badge.amber{color:#78350F;background:#FEF3C7}
+.badge.red{color:#991B1B;background:#FEE2E2}
+.badge.blue,.badge.purple{color:#1E40AF;background:#DBEAFE}
 .icon-box{
-  width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
-  color:var(--blue);background:var(--purple-soft);flex:0 0 auto
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  color:#FFFFFF;
+  background:var(--color-primary);
+  border:2px solid var(--black);
+  box-shadow:3px 3px 0 var(--black);
+  flex:0 0 auto;
 }
 .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .select,.input{
-  border:1px solid var(--line);background:#fff;border-radius:10px;
-  min-height:40px;padding:8px 11px;color:var(--body);font-size:12px;max-width:100%
+  min-height:42px;
+  max-width:100%;
+  padding:8px 10px;
+  color:var(--ink);
+  background:#FFFFFF;
+  border:2px solid var(--black);
+  font-size:12px;
 }
 .input{min-width:200px}
-.progress{height:7px;background:#eee8f2;border-radius:999px;overflow:hidden}
-.progress span{display:block;height:100%;border-radius:inherit;background:var(--blue)}
+.progress{
+  height:10px;
+  overflow:hidden;
+  background:var(--color-muted);
+  border:1px solid var(--black);
+}
+.progress span{display:block;height:100%;background:var(--color-primary)}
 .table-scroll{overflow-x:auto}
-table{width:100%;border-collapse:collapse;min-width:670px}
+table{width:100%;min-width:670px;border-collapse:collapse}
 th{
-  color:var(--muted);font-size:10px;text-align:left;text-transform:uppercase;
-  letter-spacing:.05em;padding:11px 12px;border-bottom:1px solid var(--line)
+  padding:11px 12px;
+  color:#FFFFFF;
+  background:var(--black);
+  border-right:1px solid #475569;
+  font-family:"Fira Code",monospace;
+  font-size:10px;
+  text-align:left;
+  letter-spacing:.05em;
+  text-transform:uppercase;
 }
-td{font-size:12px;padding:13px 12px;border-bottom:1px solid #f0ebf3}
-tr:last-child td{border-bottom:0}
-.row-title{font-weight:800;color:var(--ink)}
+th:last-child{border-right:0}
+td{
+  padding:12px;
+  border-right:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  font-size:12px;
+}
+td:last-child{border-right:0}
+tbody tr:nth-child(even){background:#F1F5F9}
+tbody tr:hover{background:#DBEAFE}
+.row-title{color:var(--ink);font-weight:700}
 .avatar{
-  width:27px;height:27px;border-radius:9px;background:#eee4f6;color:var(--blue);
-  display:inline-grid;place-items:center;font-size:10px;font-weight:800;margin-right:7px
+  width:28px;
+  height:28px;
+  margin-right:7px;
+  display:inline-grid;
+  place-items:center;
+  color:#FFFFFF;
+  background:var(--color-primary);
+  border:1px solid var(--black);
+  font-size:10px;
+  font-weight:800;
 }
-.kebab{border:0;background:transparent;padding:8px;border-radius:8px;cursor:pointer}
-.workbench-side{padding:14px}
+.workbench-side{padding:13px}
 .side-label{
-  color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.08em;
-  text-transform:uppercase;padding:6px 8px 10px
+  margin:-13px -13px 10px;
+  padding:11px 12px;
+  color:#FFFFFF;
+  background:var(--black);
+  font-family:"Fira Code",monospace;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
 }
 .asset-item{
-  width:100%;border:1px solid transparent;background:transparent;border-radius:12px;
-  padding:11px;display:flex;align-items:center;gap:10px;text-align:left;
-  cursor:pointer;margin-bottom:5px
+  width:100%;
+  min-height:58px;
+  margin-bottom:7px;
+  padding:9px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  text-align:left;
+  background:#FFFFFF;
+  border:1px solid var(--line);
 }
-.asset-item:hover,.asset-item.selected{background:var(--purple-soft);border-color:#e5d0f6}
-.asset-item strong{display:block;color:var(--ink);font-size:12px}
-.asset-item small{color:var(--muted);font-size:10px}
-.status-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
-.dot-green{background:var(--green)}.dot-amber{background:var(--amber)}.dot-red{background:var(--red)}
+.asset-item:hover{border-color:var(--black);background:#EFF6FF}
+.asset-item.selected{
+  color:#FFFFFF;
+  background:var(--color-primary);
+  border:2px solid var(--black);
+  box-shadow:3px 3px 0 var(--black);
+}
+.asset-item strong{display:block;color:inherit;font-size:12px}
+.asset-item small{display:block;margin-top:3px;color:inherit;font-size:10px;opacity:.8}
+.status-dot{width:9px;height:9px;border:1px solid var(--black);flex:0 0 auto}
+.dot-green{background:#10B981}
+.dot-amber{background:#F59E0B}
+.dot-red{background:#EF4444}
 .callout{
-  border:1px solid #e3cdf6;background:linear-gradient(135deg,#faf5ff,#fff);
-  border-radius:14px;padding:14px
+  padding:14px;
+  background:#FFF7ED;
+  border:2px solid var(--black);
+  border-left:9px solid var(--color-accent);
 }
 .callout strong{color:var(--ink);font-size:12px}
-.callout p{color:var(--muted);font-size:11px;line-height:1.6;margin:5px 0 0}
-.section-gap{margin-top:14px}
-.mono{font-variant-numeric:tabular-nums}
-.footer-note{text-align:center;color:var(--muted);font-size:10px;margin-top:22px}
-
-/* v0 baseline */
-.baseline-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.form-field label{display:block;font-size:10px;color:var(--muted);font-weight:800;margin:0 0 6px}
-.form-field .input,.form-field .select{width:100%;min-width:0}
-.model-score{display:flex;align-items:center;gap:16px;padding:15px;border-radius:14px;background:#faf7fc}
-.score-ring{
-  width:72px;height:72px;border-radius:50%;
-  background:conic-gradient(var(--blue) 0 92%,#eee7f2 92%);
-  display:grid;place-items:center;position:relative;flex:0 0 auto
+.callout p{margin:5px 0 0;color:#475569;font-size:11px;line-height:1.6}
+.section-gap{margin-top:16px}
+.footer-note{
+  margin-top:28px;
+  padding:12px;
+  color:#FFFFFF;
+  background:var(--black);
+  border:2px solid var(--black);
+  font-family:"Fira Code",monospace;
+  font-size:10px;
+  text-align:center;
 }
-.score-ring:after{content:"";position:absolute;inset:7px;background:#fff;border-radius:50%}
-.score-ring b{z-index:1;color:var(--ink);font-size:17px}
+.baseline-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.form-field label{
+  display:block;
+  margin-bottom:6px;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+}
+.form-field .input,.form-field .select{width:100%;min-width:0}
+.model-score{
+  padding:14px;
+  display:flex;
+  align-items:center;
+  gap:15px;
+  background:var(--color-muted);
+  border:2px solid var(--black);
+}
+.score-ring{
+  width:72px;
+  height:72px;
+  display:grid;
+  place-items:center;
+  position:relative;
+  flex:0 0 auto;
+  background:conic-gradient(var(--color-primary) 0 92%,#CBD5E1 92%);
+  border:2px solid var(--black);
+}
+.score-ring:after{
+  content:"";
+  position:absolute;
+  inset:8px;
+  background:#FFFFFF;
+  border:2px solid var(--black);
+}
+.score-ring b{z-index:1;color:var(--ink);font:700 17px "Fira Code",monospace}
 .assumption-list{list-style:none;padding:0;margin:0}
 .assumption-list li{
-  display:flex;align-items:flex-start;gap:9px;padding:10px 0;
-  border-bottom:1px solid var(--line);font-size:11px;line-height:1.5
+  padding:10px 0;
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+  border-bottom:1px solid var(--line);
+  font-size:11px;
+  line-height:1.5;
 }
 .assumption-list li:last-child{border-bottom:0}
-.assumption-list .material-symbols-outlined{color:var(--green);font-size:17px}
-
-/* v1 fleet */
-.equipment-map{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
-.machine{
-  border:1px solid var(--line);border-radius:14px;padding:14px;
-  cursor:pointer;background:#fff;transition:.2s
+.check-icon{
+  width:18px;
+  height:18px;
+  padding:2px;
+  color:#FFFFFF;
+  background:var(--green);
+  border:1px solid var(--black);
+  flex:0 0 auto;
 }
-.machine:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
-.machine.alert{border-color:#f2bfc6;background:#fffafb}
-.machine.watch{border-color:#f1d6a4;background:#fffdf8}
+.equipment-map{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.machine{
+  padding:13px;
+  background:#FFFFFF;
+  border:2px solid var(--black);
+  cursor:pointer;
+}
+.machine:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--black)}
+.machine.alert{border-left:10px solid var(--red);background:#FFF7F7}
+.machine.watch{border-left:10px solid #D97706;background:#FFFBEB}
 .machine-head{display:flex;justify-content:space-between;gap:8px}
 .machine-code{font-size:10px;color:var(--muted)}
-.machine strong{display:block;color:var(--ink);font-size:13px;margin-top:3px}
-.drift-num{font-size:20px;font-weight:800;margin:17px 0 8px}
-.spark-bars{height:34px;display:flex;align-items:flex-end;gap:3px}
-.spark-bars i{flex:1;background:#d9c3eb;border-radius:3px 3px 0 0;min-height:4px}
-.alert .spark-bars i{background:#eaaab3}
+.machine strong{display:block;margin-top:3px;color:var(--ink);font-size:13px}
+.drift-num{margin:17px 0 8px;font-size:20px;font-weight:700;text-align:right}
+.spark-bars{height:35px;display:flex;align-items:flex-end;gap:3px}
+.spark-bars i{min-height:4px;flex:1;background:#60A5FA;border:1px solid var(--black)}
+.alert .spark-bars i{background:#F87171}
 .rank-list{display:grid;gap:8px}
 .rank-row{
-  display:grid;grid-template-columns:28px minmax(0,1fr) auto;
-  gap:9px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px
+  padding:9px;
+  display:grid;
+  grid-template-columns:29px minmax(0,1fr) auto;
+  align-items:center;
+  gap:9px;
+  border:1px solid var(--black);
 }
-.rank-no{width:26px;height:26px;border-radius:8px;background:#f4eef8;display:grid;place-items:center;font-size:10px;font-weight:800}
-.rank-row strong{font-size:11px;color:var(--ink);display:block}
-.rank-row small{font-size:10px;color:var(--muted)}
-
-/* v2 correction */
+.rank-no{
+  width:27px;
+  height:27px;
+  display:grid;
+  place-items:center;
+  color:#FFFFFF;
+  background:var(--black);
+  font:700 10px "Fira Code",monospace;
+}
+.rank-row strong{display:block;color:var(--ink);font-size:11px}
+.rank-row small{color:var(--muted);font-size:10px}
 .filter-chip{
-  border:1px solid var(--line);background:#fff;border-radius:999px;
-  min-height:36px;padding:7px 11px;font-size:11px;font-weight:700;cursor:pointer
+  min-height:38px;
+  padding:7px 11px;
+  color:var(--ink);
+  background:#FFFFFF;
+  border:2px solid var(--black);
+  font-size:11px;
+  font-weight:700;
 }
-.filter-chip.on{color:var(--blue);border-color:#d8b9f0;background:var(--purple-soft)}
+.filter-chip.on{
+  color:#FFFFFF;
+  background:var(--color-primary);
+  box-shadow:3px 3px 0 var(--black);
+}
+.filter-chip.on:before{content:"✓ ";font-family:"Fira Code",monospace}
 .factor-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.factor{border:1px solid var(--line);border-radius:13px;padding:13px}
+.factor{padding:12px;border:2px solid var(--black);background:#FFFFFF}
 .factor-head{display:flex;justify-content:space-between;gap:8px;font-size:11px}
-.factor strong{color:var(--ink)}
-.switch{width:34px;height:19px;border-radius:99px;background:#d8d0dc;padding:3px}
-.switch:after{content:"";display:block;width:13px;height:13px;border-radius:50%;background:#fff}
-.switch.on{background:var(--blue)}
-.switch.on:after{margin-left:15px}
-.compare-band{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:13px}
-.compare-value{border-radius:15px;padding:17px;background:#faf8fb;text-align:center}
+.switch{
+  width:37px;
+  height:21px;
+  padding:3px;
+  background:#CBD5E1;
+  border:1px solid var(--black);
+}
+.switch:after{
+  content:"";
+  display:block;
+  width:13px;
+  height:13px;
+  background:#FFFFFF;
+  border:1px solid var(--black);
+}
+.switch.on{background:var(--color-primary)}
+.switch.on:after{margin-left:16px}
+.compare-band{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  align-items:center;
+  gap:12px;
+}
+.compare-value{
+  padding:16px;
+  text-align:center;
+  background:var(--color-muted);
+  border:2px solid var(--black);
+}
 .compare-value span{display:block;color:var(--muted);font-size:10px}
-.compare-value b{display:block;color:var(--ink);font-size:25px;margin:8px 0}
-.arrow-circle{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--purple-soft);color:var(--blue)}
-
-/* v3 reasoning */
+.compare-value b{display:block;margin:8px 0;font:700 25px "Fira Code",monospace}
+.arrow-box{
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  color:#FFFFFF;
+  background:var(--color-primary);
+  border:2px solid var(--black);
+}
 .cause-list{display:grid;gap:9px}
 .cause{
-  border:1px solid var(--line);border-radius:14px;padding:13px;
-  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px
+  padding:12px;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  border:2px solid var(--black);
 }
-.confidence{font-size:17px;color:var(--ink);font-weight:800}
+.confidence{color:var(--ink);font:700 17px "Fira Code",monospace}
 .signal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
-.signal{padding:13px;border-radius:13px;background:#faf8fb}
+.signal{padding:12px;background:var(--color-muted);border:1px solid var(--black)}
 .signal span{color:var(--muted);font-size:10px}
-.signal b{display:block;color:var(--ink);font-size:18px;margin:6px 0}
-.timeline{position:relative;padding-left:21px}
-.timeline:before{content:"";position:absolute;left:6px;top:7px;bottom:8px;width:2px;background:#e4d8eb}
-.event{position:relative;padding:0 0 17px 8px}
+.signal b{display:block;margin:6px 0;color:var(--ink);font:700 17px "Fira Code",monospace}
+.timeline{position:relative;padding-left:22px}
+.timeline:before{
+  content:"";
+  position:absolute;
+  left:7px;
+  top:5px;
+  bottom:8px;
+  width:3px;
+  background:var(--black);
+}
+.event{position:relative;padding:0 0 17px 9px}
 .event:last-child{padding-bottom:0}
 .event:before{
-  content:"";position:absolute;left:-19px;top:4px;width:10px;height:10px;
-  border-radius:50%;background:#fff;border:3px solid var(--blue)
+  content:"";
+  position:absolute;
+  left:-20px;
+  top:3px;
+  width:11px;
+  height:11px;
+  background:var(--color-primary);
+  border:2px solid var(--black);
 }
-.event time{font-size:10px;color:var(--blue);font-weight:800}
-.event strong{font-size:11px;color:var(--ink);display:block;margin:3px 0}
-.event p{font-size:10px;color:var(--muted);line-height:1.5;margin:0}
-
-/* v4 scenario */
-.scenario-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.scenario{padding:17px;position:relative;overflow:hidden}
-.scenario.recommended{border:2px solid var(--blue)}
+.event time{color:#1D4ED8;font-size:10px;font-weight:700}
+.event strong{display:block;margin:3px 0;color:var(--ink);font-size:11px}
+.event p{margin:0;color:var(--muted);font-size:10px;line-height:1.5}
+.scenario-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+.scenario{padding:16px;position:relative;overflow:hidden}
+.scenario.recommended{
+  border:4px solid var(--color-primary);
+  box-shadow:8px 8px 0 var(--black);
+  transform:translateY(-8px);
+}
 .ribbon{
-  position:absolute;right:-31px;top:17px;transform:rotate(45deg);
-  background:var(--blue);color:#fff;padding:4px 32px;font-size:9px;font-weight:800
+  position:absolute;
+  right:-38px;
+  top:20px;
+  width:140px;
+  padding:5px;
+  transform:rotate(45deg);
+  color:#000000;
+  background:var(--color-accent);
+  border-block:2px solid var(--black);
+  font-size:9px;
+  font-weight:800;
+  text-align:center;
 }
 .scenario-title{display:flex;align-items:center;gap:10px}
-.scenario-price{font-size:27px;font-weight:800;color:var(--ink);margin:18px 0 3px}
-.scenario-price small{font-size:11px;color:var(--muted);font-weight:600}
-.scenario ul{padding-left:17px;margin:14px 0;color:var(--muted);font-size:11px;line-height:1.9}
-.roi-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:11px}
-.roi-row b{color:var(--ink)}
-
-/* v5 approval */
+.scenario-price{
+  margin:18px 0 3px;
+  color:var(--ink);
+  font:700 25px "Fira Code",monospace;
+  text-align:right;
+}
+.scenario-price small{font:600 10px "Fira Sans",sans-serif;color:var(--muted)}
+.scenario ul{margin:14px 0;padding-left:17px;color:var(--muted);font-size:11px;line-height:1.9}
+.roi-row{
+  padding:9px 0;
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  border-top:1px solid var(--line);
+  font-size:11px;
+}
+.roi-row b{color:var(--ink);font-family:"Fira Code",monospace;text-align:right}
 .approval-hero{
-  padding:20px;display:grid;grid-template-columns:minmax(0,1fr) auto;
-  align-items:center;gap:18px;background:linear-gradient(125deg,#fff,#f7edff)
+  padding:20px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:18px;
+  background:#EFF6FF;
+  border-left:14px solid var(--color-primary);
 }
 .approval-title{display:flex;align-items:center;gap:14px}
 .approval-icon{
-  width:52px;height:52px;border-radius:17px;background:var(--purple-soft);
-  color:var(--blue);display:grid;place-items:center
+  width:54px;
+  height:54px;
+  display:grid;
+  place-items:center;
+  color:#FFFFFF;
+  background:var(--color-primary);
+  border:2px solid var(--black);
+  box-shadow:4px 4px 0 var(--black);
 }
-.approval-icon .material-symbols-outlined{font-size:27px}
 .approval-meta{display:flex;gap:20px;flex-wrap:wrap;margin-top:15px}
-.approval-meta span{font-size:10px;color:var(--muted)}
-.approval-meta b{display:block;color:var(--ink);font-size:12px;margin-top:3px}
-.checklist{display:grid;gap:9px}
+.approval-meta span{color:var(--muted);font-size:10px}
+.approval-meta b{
+  display:block;
+  margin-top:3px;
+  color:var(--ink);
+  font:600 11px "Fira Code",monospace;
+}
+.checklist{display:grid;gap:8px}
 .check{
-  border:1px solid var(--line);border-radius:13px;padding:12px;
-  display:flex;gap:10px;align-items:flex-start
+  padding:11px;
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  border:1px solid var(--black);
 }
 .check-mark{
-  width:21px;height:21px;border-radius:7px;background:#e9f7f1;
-  color:var(--green);display:grid;place-items:center;flex:0 0 auto
+  width:22px;
+  height:22px;
+  display:grid;
+  place-items:center;
+  color:#FFFFFF;
+  background:var(--green);
+  border:1px solid var(--black);
+  flex:0 0 auto;
+  font-weight:800;
 }
-.check strong{display:block;font-size:11px;color:var(--ink)}
-.check small{font-size:10px;color:var(--muted)}
-.decision-box{padding:18px;background:#181222;color:#fff;border-radius:var(--radius)}
-.decision-box h2{color:#fff}
-.decision-box p{color:#c8bdcf;font-size:11px;line-height:1.6}
-.decision-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:16px}
-.decision-actions .btn{border-color:#44394c;background:#292031;color:#fff}
-.decision-actions .btn.primary{background:var(--blue);border-color:var(--blue)}
+.check strong{display:block;color:var(--ink);font-size:11px}
+.check small{color:var(--muted);font-size:10px}
+.decision-box{
+  padding:19px;
+  color:#FFFFFF;
+  background:var(--black);
+  border:3px solid var(--black);
+  box-shadow:7px 7px 0 var(--color-accent);
+}
+.decision-box h2{color:#FFFFFF;font-size:21px}
+.decision-box p{color:#CBD5E1;font-size:11px;line-height:1.6}
+.decision-actions{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.decision-actions .btn{box-shadow:3px 3px 0 #64748B}
+.decision-actions .btn.primary{background:var(--color-accent);color:#000000}
 .recovery-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
-.recovery{padding:13px;border:1px solid var(--line);border-radius:13px}
+.recovery{padding:12px;border:1px solid var(--black);background:#FFFFFF}
 .recovery span{display:block;color:var(--muted);font-size:10px}
-.recovery b{display:block;color:var(--ink);font-size:17px;margin:7px 0 4px}
-.toast{
-  position:fixed;right:20px;bottom:20px;z-index:50;max-width:310px;
-  padding:13px 16px;border-radius:13px;background:#181222;color:#fff;
-  box-shadow:0 15px 35px rgba(0,0,0,.18);font-size:12px;
-  transform:translateY(120px);opacity:0;transition:.3s
+.recovery b{
+  display:block;
+  margin:7px 0 4px;
+  color:var(--ink);
+  font:700 16px "Fira Code",monospace;
+  text-align:right;
 }
-.toast.show{transform:translateY(0);opacity:1}
-@media(max-width:1050px){
-  .brand{min-width:auto}.brand-copy{display:none}.live-pill{display:none}
+.toast{
+  position:fixed;
+  right:20px;
+  bottom:20px;
+  z-index:50;
+  max-width:330px;
+  padding:13px 16px;
+  color:#FFFFFF;
+  background:var(--black);
+  border:2px solid #FFFFFF;
+  box-shadow:6px 6px 0 var(--color-primary);
+  font-size:12px;
+  transform:translateY(120px);
+  opacity:0;
+}
+.toast.show{transform:none;opacity:1;transition:.25s ease-out}
+@media(max-width:1100px){
+  .brand{width:auto;min-width:58px}.brand-copy{display:none}.live-pill{display:none}
   .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .grid-2,.split-rail{grid-template-columns:1fr}
   .scenario-grid{grid-template-columns:1fr}
+  .scenario.recommended{transform:none}
 }
-@media(max-width:760px){
-  .header-row{align-items:center;gap:9px;padding:9px 12px}
-  .brand-mark{width:35px;height:35px}
-  .stage-btn{padding:6px 9px}.stage-btn span:last-child{display:none}
-  main{padding:18px 14px 32px}
-  .page-heading{display:block}.heading-actions{justify-content:flex-start;margin-top:13px}
-  .grid-even,.grid-3,.equipment-map,.factor-grid,.signal-grid{grid-template-columns:1fr}
-  .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .scenario-grid{grid-template-columns:1fr}
+@media(max-width:768px){
+  .header-row{padding:0 10px}
+  .brand{padding-right:10px}
+  .brand-mark{width:38px;height:38px;box-shadow:none}
+  .stage-btn{min-width:54px;padding:7px}
+  .stage-btn span{display:none}
+  main{padding:20px 12px 34px}
+  .page-heading{min-height:210px;padding:18px;grid-template-columns:1fr;align-items:end}
+  .page-heading:after{font-size:88px}
+  .heading-actions{justify-content:flex-start}
+  .grid-even,.equipment-map,.factor-grid,.signal-grid{grid-template-columns:1fr}
   .approval-hero{grid-template-columns:1fr}
-  .approval-hero>.badge{justify-self:start}
   .recovery-grid{grid-template-columns:1fr}
   .baseline-form{grid-template-columns:1fr}
-  .chart-wrap{height:240px}
+  .chart-wrap{height:245px}
 }
 @media(max-width:440px){
   .metric-grid{grid-template-columns:1fr 1fr;gap:8px}
-  .metric{padding:13px}.metric-value{font-size:20px}
-  .card-head,.card-body{padding:14px}
-  .compare-band{grid-template-columns:1fr}.arrow-circle{transform:rotate(90deg);margin:auto}
+  .metric{min-height:132px;padding:12px}
+  .metric:nth-child(2n){transform:none}
+  .metric-value{font-size:19px}
+  .card-head,.card-body{padding:12px}
+  .compare-band{grid-template-columns:1fr}
+  .arrow-box{margin:auto;transform:rotate(90deg)}
   .decision-actions{grid-template-columns:1fr}
   .approval-meta{display:grid;grid-template-columns:1fr 1fr}
+  .approval-title{align-items:flex-start}
 }
 @media(prefers-reduced-motion:reduce){
-  *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  html{scroll-behavior:auto}
+  *,*:before,*:after{animation:none!important;transition:none!important}
+  .view.active{animation:none}
 }
 </style>
 </head>
 <body>
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <symbol id="i-energy" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></symbol>
+  <symbol id="i-train" viewBox="0 0 24 24"><path d="M4 17V7l8-4 8 4v10l-8 4-8-4Z"/><path d="m8 12 3 3 5-6"/></symbol>
+  <symbol id="i-warning" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 9v5m0 3v.01"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10m6 10V4m6 16v-7m4 7H2"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 4v6h6"/><path d="M5.5 15a8 8 0 1 0 .5-8l-2 3"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+  <symbol id="i-tool" viewBox="0 0 24 24"><path d="m14 7 3-3 3 3-3 3"/><path d="m15 9-11 11m3-3 3 3"/></symbol>
+  <symbol id="i-print" viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4V9h16v9h-2"/><path d="M6 14h12v7H6z"/></symbol>
+</svg>
+
 <div class="app-shell">
 <header class="site-header">
   <div class="header-row">
     <div class="brand">
-      <div class="brand-mark"><span class="material-symbols-outlined">energy_savings_leaf</span></div>
+      <div class="brand-mark"><svg class="icon"><use href="#i-energy"/></svg></div>
       <div class="brand-copy">
-        <strong>設備能源基線漂移偵測器</strong>
-        <span>JVISION · ESG ENERGY</span>
+        <strong>設備異常耗能偵測器</strong>
+        <span>JVISION / ESG ENERGY</span>
       </div>
     </div>
-    <div class="nav-scroll" aria-label="流程導覽">
-      <nav class="stage-nav">
+    <div class="nav-scroll">
+      <nav class="stage-nav" aria-label="流程導覽">
         <button class="stage-btn" data-i="0" type="button"><b>01</b><span>建立基線</span></button>
         <button class="stage-btn" data-i="1" type="button"><b>02</b><span>辨識漂移</span></button>
         <button class="stage-btn" data-i="2" type="button"><b>03</b><span>校正工況</span></button>
@@ -398,738 +914,544 @@ tr:last-child td{border-bottom:0}
 </header>
 
 <main>
-  <section class="view" data-view="0" aria-labelledby="v0-title">
-    <div class="page-heading">
-      <div>
-        <div class="eyebrow">Stage 01 · 能源工程師工作台</div>
-        <h1 id="v0-title">建立設備能耗基線</h1>
-        <p>依正常工況確認單位產出能耗模型，讓設備在相同產量與產品組合下可公平比較。</p>
-      </div>
-      <div class="heading-actions">
-        <button class="btn" type="button" data-action="toast"><span class="material-symbols-outlined">history</span>版本紀錄</button>
-        <button class="btn primary" type="button" data-next="1"><span class="material-symbols-outlined">model_training</span>儲存並訓練</button>
-      </div>
+<section class="view" data-view="0" aria-labelledby="v0-title">
+  <div class="page-heading" data-stage="01">
+    <div>
+      <div class="eyebrow">Stage 01 · 能源工程師工作台</div>
+      <h1 id="v0-title">建立設備能耗基線</h1>
+      <p>依正常工況確認單位產出能耗模型，讓設備在相同產量與產品組合下可公平比較。</p>
     </div>
-
-    <div class="metric-grid">
-      <article class="card metric">
-        <div class="metric-label"><span>納入設備</span><span class="material-symbols-outlined">precision_manufacturing</span></div>
-        <div class="metric-value mono">24</div>
-        <div class="metric-note">3 條產線 · 近 90 日</div>
-      </article>
-      <article class="card metric">
-        <div class="metric-label"><span>有效樣本</span><span class="material-symbols-outlined">database</span></div>
-        <div class="metric-value mono">18,420</div>
-        <div class="metric-note"><span class="delta good">98.2%</span> 資料完整率</div>
-      </article>
-      <article class="card metric">
-        <div class="metric-label"><span>基線誤差</span><span class="material-symbols-outlined">query_stats</span></div>
-        <div class="metric-value mono">±3.8%</div>
-        <div class="metric-note">低於驗收門檻 5%</div>
-      </article>
-      <article class="card metric">
-        <div class="metric-label"><span>最近更新</span><span class="material-symbols-outlined">update</span></div>
-        <div class="metric-value mono">08:42</div>
-        <div class="metric-note">電表與 MES 已對時</div>
-      </article>
+    <div class="heading-actions">
+      <button class="btn" type="button" data-action="toast"><svg class="icon"><use href="#i-history"/></svg>版本紀錄</button>
+      <button class="btn accent" type="button" data-next="1"><svg class="icon"><use href="#i-train"/></svg>儲存並訓練</button>
     </div>
+  </div>
 
-    <div class="split-rail">
-      <aside class="card workbench-side">
-        <div class="side-label">基線資產</div>
-        <button class="asset-item selected" type="button">
-          <i class="status-dot dot-green"></i><span><strong>空壓機 AC-07</strong><small>組裝一廠 · 45 kW</small></span>
-        </button>
-        <button class="asset-item" type="button">
-          <i class="status-dot dot-green"></i><span><strong>射出機 IM-12</strong><small>成型二線 · 120 kW</small></span>
-        </button>
-        <button class="asset-item" type="button">
-          <i class="status-dot dot-amber"></i><span><strong>冷凍機 CH-03</strong><small>中央機房 · 180 RT</small></span>
-        </button>
-        <button class="asset-item" type="button">
-          <i class="status-dot dot-green"></i><span><strong>回焊爐 RF-02</strong><small>電子裝配 · 68 kW</small></span>
-        </button>
-        <div class="callout section-gap">
-          <strong>基線資料範圍</strong>
-          <p>永續報告、排放清冊與電表係數已完成欄位映射；異常停機時段將自動排除。</p>
-        </div>
-      </aside>
+  <div class="metric-grid">
+    <article class="card metric"><div class="metric-label"><span>納入設備</span><span>ASSET</span></div><div class="metric-value">24</div><div class="metric-note">3 條產線 · 近 90 日</div></article>
+    <article class="card metric"><div class="metric-label"><span>有效樣本</span><span>DATA</span></div><div class="metric-value">18,420</div><div class="metric-note"><span class="delta good">通過 · 98.2%</span> 資料完整率</div></article>
+    <article class="card metric"><div class="metric-label"><span>基線誤差</span><span>MAPE</span></div><div class="metric-value">±3.8%</div><div class="metric-note">正常 · 低於驗收門檻 5%</div></article>
+    <article class="card metric"><div class="metric-label"><span>最近更新</span><span>SYNC</span></div><div class="metric-value">08:42</div><div class="metric-note">正常 · 電表與 MES 已對時</div></article>
+  </div>
 
-      <div>
-        <div class="grid-even">
-          <article class="card">
-            <div class="card-head">
-              <div><h2>模型設定</h2><p>AC-07 · 單位產出能耗回歸模型</p></div>
-              <span class="badge green"><span class="material-symbols-outlined">verified</span>資料通過</span>
+  <div class="split-rail">
+    <aside class="card workbench-side">
+      <div class="side-label">基線資產 / Baseline Assets</div>
+      <button class="asset-item selected" type="button"><i class="status-dot dot-green"></i><span><strong>空壓機 AC-07</strong><small>正常 · 組裝一廠 · 45 kW</small></span></button>
+      <button class="asset-item" type="button"><i class="status-dot dot-green"></i><span><strong>射出機 IM-12</strong><small>正常 · 成型二線 · 120 kW</small></span></button>
+      <button class="asset-item" type="button"><i class="status-dot dot-amber"></i><span><strong>冷凍機 CH-03</strong><small>注意 · 中央機房 · 180 RT</small></span></button>
+      <button class="asset-item" type="button"><i class="status-dot dot-green"></i><span><strong>回焊爐 RF-02</strong><small>正常 · 電子裝配 · 68 kW</small></span></button>
+      <div class="callout section-gap"><strong>基線資料範圍</strong><p>永續報告、排放清冊與電表係數已完成欄位映射；異常停機時段將自動排除。</p></div>
+    </aside>
+
+    <div>
+      <div class="grid-even">
+        <article class="card">
+          <div class="card-head"><div><h2>模型設定</h2><p>AC-07 · 單位產出能耗回歸模型</p></div><span class="badge green">資料通過</span></div>
+          <div class="card-body">
+            <div class="baseline-form">
+              <div class="form-field"><label for="asset">設備</label><select id="asset" class="select"><option>AC-07 空壓機</option></select></div>
+              <div class="form-field"><label for="window">訓練期間</label><select id="window" class="select"><option>近 90 日</option><option>近 180 日</option></select></div>
+              <div class="form-field"><label for="output">產出單位</label><select id="output" class="select"><option>千件</option></select></div>
+              <div class="form-field"><label for="shift">班次範圍</label><select id="shift" class="select"><option>日班＋夜班</option></select></div>
+              <div class="form-field"><label for="idle">待機排除門檻</label><input id="idle" class="input" value="負載低於 12%"></div>
+              <div class="form-field"><label for="recipe">產品組合</label><select id="recipe" class="select"><option>A17 / B04 / C22</option></select></div>
             </div>
-            <div class="card-body">
-              <div class="baseline-form">
-                <div class="form-field"><label for="asset">設備</label><select id="asset" class="select"><option>AC-07 空壓機</option></select></div>
-                <div class="form-field"><label for="window">訓練期間</label><select id="window" class="select"><option>近 90 日</option><option>近 180 日</option></select></div>
-                <div class="form-field"><label for="output">產出單位</label><select id="output" class="select"><option>千件</option></select></div>
-                <div class="form-field"><label for="shift">班次範圍</label><select id="shift" class="select"><option>日班＋夜班</option></select></div>
-                <div class="form-field"><label for="idle">待機排除門檻</label><input id="idle" class="input" value="負載低於 12%"></div>
-                <div class="form-field"><label for="recipe">產品組合</label><select id="recipe" class="select"><option>A17 / B04 / C22</option></select></div>
-              </div>
-              <div class="model-score section-gap">
-                <div class="score-ring"><b>92</b></div>
-                <div>
-                  <h3>基線可信度良好</h3>
-                  <p class="subtle">R² 0.91 · MAPE 3.8% · 通過跨班次驗證，可用於漂移監測。</p>
-                </div>
-              </div>
+            <div class="model-score section-gap">
+              <div class="score-ring"><b>92</b></div>
+              <div><h3>基線可信度良好</h3><p class="subtle">R² 0.91 · MAPE 3.8% · 通過跨班次驗證，可用於漂移監測。</p></div>
             </div>
-          </article>
-
-          <article class="card">
-            <div class="card-head">
-              <div><h2>產量與合理能耗</h2><p>紫線為模型基線，點位為正常工況樣本</p></div>
-              <span class="badge purple">kWh / 千件</span>
-            </div>
-            <div class="card-body"><div class="chart-wrap"><canvas id="baselineChart"></canvas></div></div>
-          </article>
-        </div>
-
-        <article class="card section-gap">
-          <div class="card-head">
-            <div><h2>模型假設檢核</h2><p>建立基線前的資料與工況確認</p></div>
-            <span class="badge green">4 / 4 完成</span>
-          </div>
-          <div class="card-body grid-even">
-            <ul class="assumption-list">
-              <li><span class="material-symbols-outlined">check_circle</span><span><b>電表倍率一致</b><br>CT/PT 係數已與 2026 排放清冊核對。</span></li>
-              <li><span class="material-symbols-outlined">check_circle</span><span><b>產量時間戳對齊</b><br>MES 完工數以 15 分鐘區間彙整。</span></li>
-            </ul>
-            <ul class="assumption-list">
-              <li><span class="material-symbols-outlined">check_circle</span><span><b>異常停機已排除</b><br>共移除 126 個維修與換線區間。</span></li>
-              <li><span class="material-symbols-outlined">check_circle</span><span><b>樣本涵蓋完整</b><br>三種產品與兩班制皆有足夠樣本。</span></li>
-            </ul>
           </div>
         </article>
+        <article class="card">
+          <div class="card-head"><div><h2>產量與合理能耗</h2><p>藍線為模型基線，點位為正常工況樣本</p></div><span class="badge blue">kWh / 千件</span></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="baselineChart"></canvas></div></div>
+        </article>
       </div>
-    </div>
-  </section>
 
-  <section class="view" data-view="1" aria-labelledby="v1-title">
-    <div class="page-heading">
-      <div>
-        <div class="eyebrow">Stage 02 · 漂移偵測 AI</div>
-        <h1 id="v1-title">辨識能耗惡化趨勢</h1>
-        <p>即時找出持續偏離正規化基線的設備，標示漂移幅度、起始時間與累積浪費。</p>
-      </div>
-      <div class="heading-actions">
-        <select class="select" aria-label="監測區間"><option>最近 30 日</option><option>最近 90 日</option></select>
-        <button class="btn primary" type="button" data-next="2"><span class="material-symbols-outlined">tune</span>進入工況校正</button>
-      </div>
-    </div>
-
-    <div class="metric-grid">
-      <article class="card metric"><div class="metric-label"><span>監測設備</span><span class="badge green">在線</span></div><div class="metric-value">24</div><div class="metric-note">每 15 分鐘評分</div></article>
-      <article class="card metric"><div class="metric-label"><span>高風險漂移</span><span class="material-symbols-outlined">warning</span></div><div class="metric-value">3</div><div class="metric-note"><span class="delta bad">+1</span> 較昨日增加</div></article>
-      <article class="card metric"><div class="metric-label"><span>累積超額用電</span><span class="material-symbols-outlined">electric_bolt</span></div><div class="metric-value">18.6 MWh</div><div class="metric-note">估計成本 NT$ 63,240</div></article>
-      <article class="card metric"><div class="metric-label"><span>AI 訊號品質</span><span class="material-symbols-outlined">neurology</span></div><div class="metric-value">96.4%</div><div class="metric-note">無缺值警報</div></article>
-    </div>
-
-    <div class="grid-2">
-      <article class="card">
-        <div class="card-head">
-          <div><h2>設備漂移雷達</h2><p>依偏離幅度與持續天數自動分級</p></div>
-          <div class="toolbar"><span class="badge red">3 高風險</span><span class="badge amber">2 觀察</span></div>
-        </div>
-        <div class="card-body">
-          <div class="equipment-map">
-            <div class="machine alert">
-              <div class="machine-head"><div><span class="machine-code">AC-07</span><strong>空壓機</strong></div><span class="badge red">高風險</span></div>
-              <div class="drift-num delta bad">+14.8%</div><div class="metric-note">連續偏離 19 日 · 起始 08/03</div>
-              <div class="spark-bars"><i style="height:22%"></i><i style="height:31%"></i><i style="height:43%"></i><i style="height:57%"></i><i style="height:72%"></i><i style="height:88%"></i></div>
-            </div>
-            <div class="machine alert">
-              <div class="machine-head"><div><span class="machine-code">CH-03</span><strong>冷凍機</strong></div><span class="badge red">高風險</span></div>
-              <div class="drift-num delta bad">+11.2%</div><div class="metric-note">連續偏離 12 日 · 起始 08/10</div>
-              <div class="spark-bars"><i style="height:27%"></i><i style="height:35%"></i><i style="height:48%"></i><i style="height:62%"></i><i style="height:76%"></i><i style="height:82%"></i></div>
-            </div>
-            <div class="machine alert">
-              <div class="machine-head"><div><span class="machine-code">IM-12</span><strong>射出機</strong></div><span class="badge red">高風險</span></div>
-              <div class="drift-num delta bad">+9.7%</div><div class="metric-note">連續偏離 9 日 · 起始 08/13</div>
-              <div class="spark-bars"><i style="height:32%"></i><i style="height:36%"></i><i style="height:48%"></i><i style="height:51%"></i><i style="height:68%"></i><i style="height:77%"></i></div>
-            </div>
-            <div class="machine watch">
-              <div class="machine-head"><div><span class="machine-code">RF-02</span><strong>回焊爐</strong></div><span class="badge amber">觀察</span></div>
-              <div class="drift-num delta warn">+5.4%</div><div class="metric-note">連續偏離 4 日 · 起始 08/18</div>
-              <div class="spark-bars"><i style="height:28%"></i><i style="height:34%"></i><i style="height:30%"></i><i style="height:42%"></i><i style="height:48%"></i><i style="height:55%"></i></div>
-            </div>
-            <div class="machine">
-              <div class="machine-head"><div><span class="machine-code">P-18</span><strong>循環泵</strong></div><span class="badge green">正常</span></div>
-              <div class="drift-num delta good">+1.1%</div><div class="metric-note">基線範圍內 · 穩定</div>
-              <div class="spark-bars"><i style="height:38%"></i><i style="height:35%"></i><i style="height:42%"></i><i style="height:37%"></i><i style="height:40%"></i><i style="height:39%"></i></div>
-            </div>
-            <div class="machine">
-              <div class="machine-head"><div><span class="machine-code">OV-05</span><strong>乾燥烘箱</strong></div><span class="badge green">正常</span></div>
-              <div class="drift-num delta good">−0.8%</div><div class="metric-note">優於基線 · 穩定</div>
-              <div class="spark-bars"><i style="height:42%"></i><i style="height:40%"></i><i style="height:36%"></i><i style="height:38%"></i><i style="height:34%"></i><i style="height:32%"></i></div>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      <article class="card">
-        <div class="card-head"><div><h2>處置優先序</h2><p>依浪費成本、漂移速度與生產影響排序</p></div><span class="material-symbols-outlined">sort</span></div>
-        <div class="card-body rank-list">
-          <div class="rank-row"><span class="rank-no">1</span><div><strong>AC-07 空壓機</strong><small>每日超耗 682 kWh</small></div><span class="badge red">立即</span></div>
-          <div class="rank-row"><span class="rank-no">2</span><div><strong>CH-03 冷凍機</strong><small>每日超耗 491 kWh</small></div><span class="badge red">立即</span></div>
-          <div class="rank-row"><span class="rank-no">3</span><div><strong>IM-12 射出機</strong><small>每日超耗 227 kWh</small></div><span class="badge amber">48 小時</span></div>
-          <div class="rank-row"><span class="rank-no">4</span><div><strong>RF-02 回焊爐</strong><small>每日超耗 96 kWh</small></div><span class="badge purple">觀察</span></div>
-          <div class="callout">
-            <strong>AI 偵測摘要</strong>
-            <p>AC-07 在相同產量下的單位能耗已連續 19 日上升，變化點落於 8 月 3 日 14:00，非單次尖峰。</p>
-          </div>
+      <article class="card section-gap">
+        <div class="card-head"><div><h2>模型假設檢核</h2><p>建立基線前的資料與工況確認</p></div><span class="badge green">4 / 4 完成</span></div>
+        <div class="card-body grid-even">
+          <ul class="assumption-list">
+            <li><svg class="check-icon"><use href="#i-check"/></svg><span><b>電表倍率一致</b><br>CT/PT 係數已與 2026 排放清冊核對。</span></li>
+            <li><svg class="check-icon"><use href="#i-check"/></svg><span><b>產量時間戳對齊</b><br>MES 完工數以 15 分鐘區間彙整。</span></li>
+          </ul>
+          <ul class="assumption-list">
+            <li><svg class="check-icon"><use href="#i-check"/></svg><span><b>異常停機已排除</b><br>共移除 126 個維修與換線區間。</span></li>
+            <li><svg class="check-icon"><use href="#i-check"/></svg><span><b>樣本涵蓋完整</b><br>三種產品與兩班制皆有足夠樣本。</span></li>
+          </ul>
         </div>
       </article>
     </div>
+  </div>
+</section>
 
-    <article class="card section-gap">
-      <div class="card-head">
-        <div><h2>AC-07 漂移曲線</h2><p>實際能耗、預測基線與 95% 信賴帶比較</p></div>
-        <span class="badge red">已超過 10% 警戒線</span>
+<section class="view" data-view="1" aria-labelledby="v1-title">
+  <div class="page-heading" data-stage="02">
+    <div><div class="eyebrow">Stage 02 · 漂移偵測 AI</div><h1 id="v1-title">辨識能耗惡化趨勢</h1><p>即時找出持續偏離正規化基線的設備，標示漂移幅度、起始時間與累積浪費。</p></div>
+    <div class="heading-actions"><select class="select" aria-label="監測區間"><option>最近 30 日</option><option>最近 90 日</option></select><button class="btn accent" type="button" data-next="2"><svg class="icon"><use href="#i-chart"/></svg>進入工況校正</button></div>
+  </div>
+
+  <div class="metric-grid">
+    <article class="card metric"><div class="metric-label"><span>監測設備</span><span>ONLINE</span></div><div class="metric-value">24</div><div class="metric-note">正常 · 每 15 分鐘評分</div></article>
+    <article class="card metric"><div class="metric-label"><span>高風險漂移</span><span>ALERT</span></div><div class="metric-value">3</div><div class="metric-note"><span class="delta bad">警報 · +1</span> 較昨日增加</div></article>
+    <article class="card metric"><div class="metric-label"><span>累積超額用電</span><span>WASTE</span></div><div class="metric-value">18.6 MWh</div><div class="metric-note">估計成本 NT$ 63,240</div></article>
+    <article class="card metric"><div class="metric-label"><span>AI 訊號品質</span><span>SIGNAL</span></div><div class="metric-value">96.4%</div><div class="metric-note">正常 · 無缺值警報</div></article>
+  </div>
+
+  <div class="grid-2">
+    <article class="card">
+      <div class="card-head"><div><h2>設備漂移雷達</h2><p>依偏離幅度與持續天數自動分級</p></div><div class="toolbar"><span class="badge red">3 高風險</span><span class="badge amber">2 觀察</span></div></div>
+      <div class="card-body">
+        <div class="equipment-map">
+          <div class="machine alert"><div class="machine-head"><div><span class="machine-code">AC-07</span><strong>空壓機</strong></div><span class="badge red">高風險</span></div><div class="drift-num delta bad">+14.8%</div><div class="metric-note">高風險 · 連續偏離 19 日 · 起始 08/03</div><div class="spark-bars"><i style="height:22%"></i><i style="height:31%"></i><i style="height:43%"></i><i style="height:57%"></i><i style="height:72%"></i><i style="height:88%"></i></div></div>
+          <div class="machine alert"><div class="machine-head"><div><span class="machine-code">CH-03</span><strong>冷凍機</strong></div><span class="badge red">高風險</span></div><div class="drift-num delta bad">+11.2%</div><div class="metric-note">高風險 · 連續偏離 12 日 · 起始 08/10</div><div class="spark-bars"><i style="height:27%"></i><i style="height:35%"></i><i style="height:48%"></i><i style="height:62%"></i><i style="height:76%"></i><i style="height:82%"></i></div></div>
+          <div class="machine alert"><div class="machine-head"><div><span class="machine-code">IM-12</span><strong>射出機</strong></div><span class="badge red">高風險</span></div><div class="drift-num delta bad">+9.7%</div><div class="metric-note">高風險 · 連續偏離 9 日 · 起始 08/13</div><div class="spark-bars"><i style="height:32%"></i><i style="height:36%"></i><i style="height:48%"></i><i style="height:51%"></i><i style="height:68%"></i><i style="height:77%"></i></div></div>
+          <div class="machine watch"><div class="machine-head"><div><span class="machine-code">RF-02</span><strong>回焊爐</strong></div><span class="badge amber">觀察</span></div><div class="drift-num delta warn">+5.4%</div><div class="metric-note">觀察 · 連續偏離 4 日 · 起始 08/18</div><div class="spark-bars"><i style="height:28%"></i><i style="height:34%"></i><i style="height:30%"></i><i style="height:42%"></i><i style="height:48%"></i><i style="height:55%"></i></div></div>
+          <div class="machine"><div class="machine-head"><div><span class="machine-code">P-18</span><strong>循環泵</strong></div><span class="badge green">正常</span></div><div class="drift-num delta good">+1.1%</div><div class="metric-note">正常 · 基線範圍內 · 穩定</div><div class="spark-bars"><i style="height:38%"></i><i style="height:35%"></i><i style="height:42%"></i><i style="height:37%"></i><i style="height:40%"></i><i style="height:39%"></i></div></div>
+          <div class="machine"><div class="machine-head"><div><span class="machine-code">OV-05</span><strong>乾燥烘箱</strong></div><span class="badge green">正常</span></div><div class="drift-num delta good">−0.8%</div><div class="metric-note">正常 · 優於基線 · 穩定</div><div class="spark-bars"><i style="height:42%"></i><i style="height:40%"></i><i style="height:36%"></i><i style="height:38%"></i><i style="height:34%"></i><i style="height:32%"></i></div></div>
+        </div>
       </div>
-      <div class="card-body"><div class="chart-wrap"><canvas id="driftChart"></canvas></div></div>
     </article>
-  </section>
-
-  <section class="view" data-view="2" aria-labelledby="v2-title">
-    <div class="page-heading">
-      <div>
-        <div class="eyebrow">Stage 03 · 工業工程師校正台</div>
-        <h1 id="v2-title">校正工況干擾</h1>
-        <p>排除產品、班次、環境溫度、換線與待機因素，確認觀察到的偏移確實源自設備劣化。</p>
-      </div>
-      <div class="heading-actions">
-        <button class="btn" type="button" data-action="reset"><span class="material-symbols-outlined">restart_alt</span>重設條件</button>
-        <button class="btn primary" type="button" data-next="3"><span class="material-symbols-outlined">fact_check</span>確認校正結果</button>
-      </div>
-    </div>
 
     <article class="card">
-      <div class="card-head">
-        <div><h2>校正條件組合</h2><p>AC-07 · 8/03–8/22 · 1,824 個有效區間</p></div>
-        <span class="badge purple">模型 v3.2</span>
+      <div class="card-head"><div><h2>處置優先序</h2><p>依浪費成本、漂移速度與生產影響排序</p></div><span class="badge blue">SORT / DESC</span></div>
+      <div class="card-body rank-list">
+        <div class="rank-row"><span class="rank-no">1</span><div><strong>AC-07 空壓機</strong><small>每日超耗 682 kWh</small></div><span class="badge red">立即</span></div>
+        <div class="rank-row"><span class="rank-no">2</span><div><strong>CH-03 冷凍機</strong><small>每日超耗 491 kWh</small></div><span class="badge red">立即</span></div>
+        <div class="rank-row"><span class="rank-no">3</span><div><strong>IM-12 射出機</strong><small>每日超耗 227 kWh</small></div><span class="badge amber">48 小時</span></div>
+        <div class="rank-row"><span class="rank-no">4</span><div><strong>RF-02 回焊爐</strong><small>每日超耗 96 kWh</small></div><span class="badge blue">觀察</span></div>
+        <div class="callout"><strong>AI 偵測摘要</strong><p>AC-07 在相同產量下的單位能耗已連續 19 日上升，變化點落於 8 月 3 日 14:00，非單次尖峰。</p></div>
       </div>
+    </article>
+  </div>
+
+  <article class="card section-gap">
+    <div class="card-head"><div><h2>AC-07 漂移曲線</h2><p>實際能耗、預測基線與 95% 信賴帶比較</p></div><span class="badge red">已超過 10% 警戒線</span></div>
+    <div class="card-body"><div class="chart-wrap"><canvas id="driftChart"></canvas></div></div>
+  </article>
+</section>
+
+<section class="view" data-view="2" aria-labelledby="v2-title">
+  <div class="page-heading" data-stage="03">
+    <div><div class="eyebrow">Stage 03 · 工業工程師校正台</div><h1 id="v2-title">校正工況干擾</h1><p>排除產品、班次、環境溫度、換線與待機因素，確認觀察到的偏移確實源自設備劣化。</p></div>
+    <div class="heading-actions"><button class="btn" type="button" data-action="reset"><svg class="icon"><use href="#i-reset"/></svg>重設條件</button><button class="btn accent" type="button" data-next="3"><svg class="icon"><use href="#i-check"/></svg>確認校正結果</button></div>
+  </div>
+
+  <article class="card">
+    <div class="card-head"><div><h2>校正條件組合</h2><p>AC-07 · 8/03–8/22 · 1,824 個有效區間</p></div><span class="badge blue">模型 v3.2</span></div>
+    <div class="card-body">
+      <div class="toolbar">
+        <button class="filter-chip on" type="button">環境溫度 28–33°C</button>
+        <button class="filter-chip on" type="button">負載率 70–90%</button>
+        <button class="filter-chip on" type="button">產品 A17</button>
+        <button class="filter-chip on" type="button">日班＋夜班</button>
+        <button class="filter-chip" type="button">排除換線</button>
+        <button class="filter-chip" type="button">排除待機</button>
+      </div>
+      <div class="factor-grid section-gap">
+        <div class="factor"><div class="factor-head"><strong>環境溫度</strong><span class="switch on"></span></div><p class="subtle section-gap">解釋 2.1% 波動</p><div class="progress"><span style="width:21%"></span></div></div>
+        <div class="factor"><div class="factor-head"><strong>負載率</strong><span class="switch on"></span></div><p class="subtle section-gap">解釋 3.4% 波動</p><div class="progress"><span style="width:34%"></span></div></div>
+        <div class="factor"><div class="factor-head"><strong>產品組合</strong><span class="switch on"></span></div><p class="subtle section-gap">解釋 1.6% 波動</p><div class="progress"><span style="width:16%"></span></div></div>
+        <div class="factor"><div class="factor-head"><strong>班次差異</strong><span class="switch on"></span></div><p class="subtle section-gap">解釋 0.9% 波動</p><div class="progress"><span style="width:9%"></span></div></div>
+      </div>
+    </div>
+  </article>
+
+  <div class="grid-2 section-gap">
+    <article class="card">
+      <div class="card-head"><div><h2>校正前後比較</h2><p>工況因素僅能解釋部分偏移，殘餘漂移仍顯著</p></div><span class="badge red">劣化訊號成立</span></div>
       <div class="card-body">
-        <div class="toolbar">
-          <button class="filter-chip on" type="button">環境溫度 28–33°C</button>
-          <button class="filter-chip on" type="button">負載率 70–90%</button>
-          <button class="filter-chip on" type="button">產品 A17</button>
-          <button class="filter-chip on" type="button">日班＋夜班</button>
-          <button class="filter-chip" type="button">排除換線</button>
-          <button class="filter-chip" type="button">排除待機</button>
+        <div class="compare-band">
+          <div class="compare-value"><span>原始偏離</span><b class="delta bad">+14.8%</b><small class="subtle">含所有工況影響</small></div>
+          <div class="arrow-box"><svg class="icon"><use href="#i-arrow"/></svg></div>
+          <div class="compare-value"><span>校正後殘餘漂移</span><b class="delta bad">+10.6%</b><small class="subtle">95% CI：9.2–12.0%</small></div>
         </div>
-        <div class="factor-grid section-gap">
-          <div class="factor"><div class="factor-head"><strong>環境溫度</strong><span class="switch on"></span></div><p class="subtle section-gap">解釋 2.1% 波動</p><div class="progress"><span style="width:21%"></span></div></div>
-          <div class="factor"><div class="factor-head"><strong>負載率</strong><span class="switch on"></span></div><p class="subtle section-gap">解釋 3.4% 波動</p><div class="progress"><span style="width:34%"></span></div></div>
-          <div class="factor"><div class="factor-head"><strong>產品組合</strong><span class="switch on"></span></div><p class="subtle section-gap">解釋 1.6% 波動</p><div class="progress"><span style="width:16%"></span></div></div>
-          <div class="factor"><div class="factor-head"><strong>班次差異</strong><span class="switch on"></span></div><p class="subtle section-gap">解釋 0.9% 波動</p><div class="progress"><span style="width:9%"></span></div></div>
-        </div>
+        <div class="chart-wrap section-gap"><canvas id="correctionChart"></canvas></div>
       </div>
     </article>
 
-    <div class="grid-2 section-gap">
+    <div>
       <article class="card">
-        <div class="card-head">
-          <div><h2>校正前後比較</h2><p>工況因素僅能解釋部分偏移，殘餘漂移仍顯著</p></div>
-          <span class="badge red">劣化訊號成立</span>
-        </div>
+        <div class="card-head"><div><h2>干擾解釋明細</h2><p>由原始偏離逐項扣除</p></div><span class="badge blue">FILTERED</span></div>
         <div class="card-body">
-          <div class="compare-band">
-            <div class="compare-value"><span>原始偏離</span><b class="delta bad">+14.8%</b><small class="subtle">含所有工況影響</small></div>
-            <div class="arrow-circle"><span class="material-symbols-outlined">arrow_forward</span></div>
-            <div class="compare-value"><span>校正後殘餘漂移</span><b class="delta bad">+10.6%</b><small class="subtle">95% CI：9.2–12.0%</small></div>
-          </div>
-          <div class="chart-wrap section-gap"><canvas id="correctionChart"></canvas></div>
+          <table style="min-width:0">
+            <thead><tr><th>因子</th><th>影響</th><th>判定</th></tr></thead>
+            <tbody>
+              <tr><td class="row-title">環境溫度</td><td>−2.1%</td><td><span class="badge green">已校正</span></td></tr>
+              <tr><td class="row-title">負載差異</td><td>−1.4%</td><td><span class="badge green">已校正</span></td></tr>
+              <tr><td class="row-title">產品組合</td><td>−0.5%</td><td><span class="badge green">已校正</span></td></tr>
+              <tr><td class="row-title">班次差異</td><td>−0.2%</td><td><span class="badge green">已校正</span></td></tr>
+              <tr><td class="row-title">設備殘餘</td><td class="delta bad">+10.6%</td><td><span class="badge red">需追查</span></td></tr>
+            </tbody>
+          </table>
         </div>
       </article>
-
-      <div>
-        <article class="card">
-          <div class="card-head"><div><h2>干擾解釋明細</h2><p>由原始偏離逐項扣除</p></div><span class="material-symbols-outlined">filter_alt</span></div>
-          <div class="card-body">
-            <table style="min-width:0">
-              <thead><tr><th>因子</th><th>影響</th><th>判定</th></tr></thead>
-              <tbody>
-                <tr><td class="row-title">環境溫度</td><td>−2.1%</td><td><span class="badge green">已校正</span></td></tr>
-                <tr><td class="row-title">負載差異</td><td>−1.4%</td><td><span class="badge green">已校正</span></td></tr>
-                <tr><td class="row-title">產品組合</td><td>−0.5%</td><td><span class="badge green">已校正</span></td></tr>
-                <tr><td class="row-title">班次差異</td><td>−0.2%</td><td><span class="badge green">已校正</span></td></tr>
-                <tr><td class="row-title">設備殘餘</td><td class="delta bad">+10.6%</td><td><span class="badge red">需追查</span></td></tr>
-              </tbody>
-            </table>
-          </div>
-        </article>
-        <div class="callout section-gap">
-          <strong>校正結論</strong>
-          <p>RULE-03：排除產品、班次及環境條件造成的差異後，AC-07 仍有連續 10.6% 的能耗漂移，建議交由設備工程師檢查劣化因子。</p>
-        </div>
-      </div>
+      <div class="callout section-gap"><strong>校正結論</strong><p>RULE-03：排除產品、班次及環境條件造成的差異後，AC-07 仍有連續 10.6% 的能耗漂移，建議交由設備工程師檢查劣化因子。</p></div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section class="view" data-view="3" aria-labelledby="v3-title">
-    <div class="page-heading">
-      <div>
-        <div class="eyebrow">Stage 04 · 設備工程診斷室</div>
-        <h1 id="v3-title">推理設備劣化因子</h1>
-        <p>關聯震動、溫度、壓力與維修史，形成可驗證的故障假設並排序可能劣化部件。</p>
-      </div>
-      <div class="heading-actions">
-        <button class="btn" type="button" data-action="toast"><span class="material-symbols-outlined">description</span>匯出診斷摘要</button>
-        <button class="btn primary" type="button" data-next="4"><span class="material-symbols-outlined">savings</span>評估維護效益</button>
-      </div>
-    </div>
+<section class="view" data-view="3" aria-labelledby="v3-title">
+  <div class="page-heading" data-stage="04">
+    <div><div class="eyebrow">Stage 04 · 設備工程診斷室</div><h1 id="v3-title">推理設備劣化因子</h1><p>關聯震動、溫度、壓力與維修史，形成可驗證的故障假設並排序可能劣化部件。</p></div>
+    <div class="heading-actions"><button class="btn" type="button" data-action="toast"><svg class="icon"><use href="#i-print"/></svg>匯出診斷摘要</button><button class="btn accent" type="button" data-next="4"><svg class="icon"><use href="#i-chart"/></svg>評估維護效益</button></div>
+  </div>
 
-    <div class="grid-2">
-      <div>
-        <article class="card">
-          <div class="card-head">
-            <div><h2>AI 劣化因子排序</h2><p>AC-07 · 根據 12 個感測訊號與 26 筆維修紀錄</p></div>
-            <span class="badge purple">推理完成</span>
-          </div>
-          <div class="card-body cause-list">
-            <div class="cause">
-              <div class="icon-box"><span class="material-symbols-outlined">air</span></div>
-              <div><h3>進氣濾網阻塞</h3><p class="subtle">壓差上升與比功率惡化同步，符合歷史故障模式。</p><div class="progress section-gap"><span style="width:86%"></span></div></div>
-              <div class="confidence">86%</div>
-            </div>
-            <div class="cause">
-              <div class="icon-box"><span class="material-symbols-outlined">settings</span></div>
-              <div><h3>軸承潤滑劣化</h3><p class="subtle">高頻震動 RMS 上升，但溫升尚未超過警戒值。</p><div class="progress section-gap"><span style="width:68%"></span></div></div>
-              <div class="confidence">68%</div>
-            </div>
-            <div class="cause">
-              <div class="icon-box"><span class="material-symbols-outlined">compress</span></div>
-              <div><h3>排氣閥洩漏</h3><p class="subtle">卸載週期縮短，壓力恢復時間較基準增加 11%。</p><div class="progress section-gap"><span style="width:51%"></span></div></div>
-              <div class="confidence">51%</div>
-            </div>
-            <div class="cause">
-              <div class="icon-box"><span class="material-symbols-outlined">thermostat</span></div>
-              <div><h3>冷卻器結垢</h3><p class="subtle">出口溫度僅輕微偏高，目前證據不足。</p><div class="progress section-gap"><span style="width:29%"></span></div></div>
-              <div class="confidence">29%</div>
-            </div>
-          </div>
-        </article>
-
-        <article class="card section-gap">
-          <div class="card-head"><div><h2>感測證據</h2><p>與健康期中位數比較</p></div><span class="badge green">11 / 12 訊號有效</span></div>
-          <div class="card-body signal-grid">
-            <div class="signal"><span>濾網壓差</span><b>18.4 kPa</b><small class="delta bad">+42% 高於健康期</small></div>
-            <div class="signal"><span>震動 RMS</span><b>5.8 mm/s</b><small class="delta warn">+21% 上升</small></div>
-            <div class="signal"><span>排氣溫度</span><b>91.2°C</b><small class="delta warn">接近 95°C 門檻</small></div>
-          </div>
-        </article>
-      </div>
-
-      <div>
-        <article class="card">
-          <div class="card-head"><div><h2>關聯訊號趨勢</h2><p>能耗漂移與壓差、震動同步變化</p></div><select class="select"><option>最近 21 日</option></select></div>
-          <div class="card-body"><div class="chart-wrap"><canvas id="factorChart"></canvas></div></div>
-        </article>
-
-        <article class="card section-gap">
-          <div class="card-head"><div><h2>維修線索時間軸</h2><p>CMMS 工單與感測事件交叉比對</p></div><span class="material-symbols-outlined">account_tree</span></div>
-          <div class="card-body timeline">
-            <div class="event"><time>2026/08/03 14:00</time><strong>AI 偵測能耗變化點</strong><p>單位產出能耗開始持續超過預測上緣。</p></div>
-            <div class="event"><time>2026/08/07 09:20</time><strong>濾網壓差突破 16 kPa</strong><p>與上次濾網阻塞工單的前兆高度相似。</p></div>
-            <div class="event"><time>2026/08/14 16:40</time><strong>震動訊號進入觀察區</strong><p>馬達驅動端 RMS 達 5.2 mm/s。</p></div>
-            <div class="event"><time>2026/08/22 08:42</time><strong>建立診斷建議</strong><p>優先檢查濾網與進氣管路，並同步補充潤滑。</p></div>
-          </div>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <section class="view" data-view="4" aria-labelledby="v4-title">
-    <div class="page-heading">
-      <div>
-        <div class="eyebrow">Stage 05 · 能源主管決策台</div>
-        <h1 id="v4-title">評估維護效益</h1>
-        <p>比較立即維護、延後維護與持續觀察的電耗、成本、產能風險及回收時間。</p>
-      </div>
-      <div class="heading-actions">
-        <select class="select" aria-label="電價情境"><option>尖離峰混合電價 NT$3.40/kWh</option></select>
-        <button class="btn primary" type="button" data-next="5"><span class="material-symbols-outlined">approval</span>送廠長核准</button>
-      </div>
-    </div>
-
-    <div class="scenario-grid">
-      <article class="card scenario recommended">
-        <div class="ribbon">建議</div>
-        <div class="scenario-title"><div class="icon-box"><span class="material-symbols-outlined">build_circle</span></div><div><h2>本週立即維護</h2><p class="subtle">8/24 週一保養窗</p></div></div>
-        <div class="scenario-price">NT$ 38,600 <small>總投入</small></div>
-        <ul><li>停機 2.5 小時</li><li>更換進氣濾網與潤滑作業</li><li>預計回收 14.8 MWh / 年</li><li>產能影響可併入例行保養</li></ul>
-        <div class="roi-row"><span>回收期</span><b class="delta good">0.8 個月</b></div>
-        <div class="roi-row"><span>一年淨效益</span><b>NT$ 565,000</b></div>
-        <div class="roi-row"><span>故障風險</span><span class="badge green">低</span></div>
-      </article>
-      <article class="card scenario">
-        <div class="scenario-title"><div class="icon-box"><span class="material-symbols-outlined">event_upcoming</span></div><div><h2>延後兩週維護</h2><p class="subtle">9/07 月保養窗</p></div></div>
-        <div class="scenario-price">NT$ 61,900 <small>含超耗</small></div>
-        <ul><li>停機 3 小時</li><li>預估增加 6.9 MWh 超額用電</li><li>軸承同步劣化機率上升</li><li>需每日人工巡檢兩次</li></ul>
-        <div class="roi-row"><span>回收期</span><b class="delta warn">1.3 個月</b></div>
-        <div class="roi-row"><span>一年淨效益</span><b>NT$ 514,000</b></div>
-        <div class="roi-row"><span>故障風險</span><span class="badge amber">中</span></div>
-      </article>
-      <article class="card scenario">
-        <div class="scenario-title"><div class="icon-box"><span class="material-symbols-outlined">visibility</span></div><div><h2>持續觀察</h2><p class="subtle">暫不安排停機</p></div></div>
-        <div class="scenario-price">NT$ 184,000 <small>90 日風險成本</small></div>
-        <ul><li>每月超耗約 20.5 MWh</li><li>非計畫停機機率 34%</li><li>可能損失 1.2 個班次產能</li><li>不符合年度節能改善目標</li></ul>
-        <div class="roi-row"><span>回收期</span><b class="delta bad">無</b></div>
-        <div class="roi-row"><span>一年淨效益</span><b class="delta bad">−NT$ 792,000</b></div>
-        <div class="roi-row"><span>故障風險</span><span class="badge red">高</span></div>
-      </article>
-    </div>
-
-    <div class="grid-2 section-gap">
+  <div class="grid-2">
+    <div>
       <article class="card">
-        <div class="card-head"><div><h2>12 個月累積現金流</h2><p>以立即維護方案估算節電收益與維護成本</p></div><span class="badge green">第 1 個月轉正</span></div>
-        <div class="card-body"><div class="chart-wrap"><canvas id="roiChart"></canvas></div></div>
+        <div class="card-head"><div><h2>AI 劣化因子排序</h2><p>AC-07 · 根據 12 個感測訊號與 26 筆維修紀錄</p></div><span class="badge blue">推理完成</span></div>
+        <div class="card-body cause-list">
+          <div class="cause"><div class="icon-box"><svg class="icon"><use href="#i-warning"/></svg></div><div><h3>進氣濾網阻塞</h3><p class="subtle">壓差上升與比功率惡化同步，符合歷史故障模式。</p><div class="progress section-gap"><span style="width:86%"></span></div></div><div class="confidence">86%</div></div>
+          <div class="cause"><div class="icon-box"><svg class="icon"><use href="#i-tool"/></svg></div><div><h3>軸承潤滑劣化</h3><p class="subtle">高頻震動 RMS 上升，但溫升尚未超過警戒值。</p><div class="progress section-gap"><span style="width:68%"></span></div></div><div class="confidence">68%</div></div>
+          <div class="cause"><div class="icon-box"><svg class="icon"><use href="#i-warning"/></svg></div><div><h3>排氣閥洩漏</h3><p class="subtle">卸載週期縮短，壓力恢復時間較基準增加 11%。</p><div class="progress section-gap"><span style="width:51%"></span></div></div><div class="confidence">51%</div></div>
+          <div class="cause"><div class="icon-box"><svg class="icon"><use href="#i-chart"/></svg></div><div><h3>冷卻器結垢</h3><p class="subtle">出口溫度僅輕微偏高，目前證據不足。</p><div class="progress section-gap"><span style="width:29%"></span></div></div><div class="confidence">29%</div></div>
+        </div>
       </article>
+
+      <article class="card section-gap">
+        <div class="card-head"><div><h2>感測證據</h2><p>與健康期中位數比較</p></div><span class="badge green">11 / 12 訊號有效</span></div>
+        <div class="card-body signal-grid">
+          <div class="signal"><span>濾網壓差</span><b>18.4 kPa</b><small class="delta bad">高風險 · +42% 高於健康期</small></div>
+          <div class="signal"><span>震動 RMS</span><b>5.8 mm/s</b><small class="delta warn">觀察 · +21% 上升</small></div>
+          <div class="signal"><span>排氣溫度</span><b>91.2°C</b><small class="delta warn">觀察 · 接近 95°C 門檻</small></div>
+        </div>
+      </article>
+    </div>
+
+    <div>
       <article class="card">
-        <div class="card-head"><div><h2>預期營運改善</h2><p>維護後能源與生產效益</p></div><span class="material-symbols-outlined">insights</span></div>
-        <div class="card-body">
-          <div class="recovery-grid">
-            <div class="recovery"><span>單位能耗恢復</span><b class="delta good">−10.2%</b><small class="subtle">目標 1.5 kWh/千件</small></div>
-            <div class="recovery"><span>年度減碳</span><b>7.4 tCO₂e</b><small class="subtle">依電力係數估算</small></div>
-            <div class="recovery"><span>避免停機</span><b>9.6 小時</b><small class="subtle">90 日風險期</small></div>
-          </div>
-          <div class="callout section-gap">
-            <strong>決策建議：本週立即維護</strong>
-            <p>把作業併入 8/24 例行保養窗，預計 2.5 小時完成。維護後以連續三日單位能耗回到基線 ±3% 作為驗收條件。</p>
-          </div>
-          <div class="section-gap">
-            <div class="roi-row"><span>維護材料與人工</span><b>NT$ 38,600</b></div>
-            <div class="roi-row"><span>年節電收益</span><b>NT$ 603,600</b></div>
-            <div class="roi-row"><span>效益信心水準</span><b class="delta good">89%</b></div>
-          </div>
+        <div class="card-head"><div><h2>關聯訊號趨勢</h2><p>能耗漂移與壓差、震動同步變化</p></div><select class="select"><option>最近 21 日</option></select></div>
+        <div class="card-body"><div class="chart-wrap"><canvas id="factorChart"></canvas></div></div>
+      </article>
+      <article class="card section-gap">
+        <div class="card-head"><div><h2>維修線索時間軸</h2><p>CMMS 工單與感測事件交叉比對</p></div><span class="badge blue">4 EVENTS</span></div>
+        <div class="card-body timeline">
+          <div class="event"><time>2026/08/03 14:00</time><strong>AI 偵測能耗變化點</strong><p>單位產出能耗開始持續超過預測上緣。</p></div>
+          <div class="event"><time>2026/08/07 09:20</time><strong>濾網壓差突破 16 kPa</strong><p>與上次濾網阻塞工單的前兆高度相似。</p></div>
+          <div class="event"><time>2026/08/14 16:40</time><strong>震動訊號進入觀察區</strong><p>馬達驅動端 RMS 達 5.2 mm/s。</p></div>
+          <div class="event"><time>2026/08/22 08:42</time><strong>建立診斷建議</strong><p>優先檢查濾網與進氣管路，並同步補充潤滑。</p></div>
         </div>
       </article>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section class="view" data-view="5" aria-labelledby="v5-title">
-    <div class="page-heading">
-      <div>
-        <div class="eyebrow">Stage 06 · 廠長核准中心</div>
-        <h1 id="v5-title">核准預防維護排程</h1>
-        <p>確認停機窗口、資源、效益與恢復驗證，留下完整可追溯的決策紀錄。</p>
-      </div>
-      <div class="heading-actions">
-        <button class="btn" type="button" data-action="toast"><span class="material-symbols-outlined">print</span>列印簽核單</button>
-      </div>
-    </div>
+<section class="view" data-view="4" aria-labelledby="v4-title">
+  <div class="page-heading" data-stage="05">
+    <div><div class="eyebrow">Stage 05 · 能源主管決策台</div><h1 id="v4-title">評估維護效益</h1><p>比較立即維護、延後維護與持續觀察的電耗、成本、產能風險及回收時間。</p></div>
+    <div class="heading-actions"><select class="select" aria-label="電價情境"><option>尖離峰混合電價 NT$3.40/kWh</option></select><button class="btn accent" type="button" data-next="5"><svg class="icon"><use href="#i-check"/></svg>送廠長核准</button></div>
+  </div>
 
-    <article class="card approval-hero">
-      <div>
-        <div class="approval-title">
-          <div class="approval-icon"><span class="material-symbols-outlined">home_repair_service</span></div>
-          <div><span class="badge amber">等待廠長核准</span><h2 style="margin-top:7px">PM-20260824-017 · AC-07 節能維護</h2><p class="subtle">更換進氣濾網、清潔進氣管路並補充驅動端潤滑</p></div>
-        </div>
-        <div class="approval-meta">
-          <span>建議窗口<b>08/24 13:30–16:00</b></span>
-          <span>停機時間<b>2.5 小時</b></span>
-          <span>工單負責人<b>設備工程師 林志揚</b></span>
-          <span>預估成本<b>NT$ 38,600</b></span>
-        </div>
-      </div>
-      <span class="badge purple">EQU-006 · D+6</span>
+  <div class="scenario-grid">
+    <article class="card scenario recommended">
+      <div class="ribbon">建議</div>
+      <div class="scenario-title"><div class="icon-box"><svg class="icon"><use href="#i-tool"/></svg></div><div><h2>本週立即維護</h2><p class="subtle">8/24 週一保養窗</p></div></div>
+      <div class="scenario-price">NT$ 38,600 <small>總投入</small></div>
+      <ul><li>停機 2.5 小時</li><li>更換進氣濾網與潤滑作業</li><li>預計回收 14.8 MWh / 年</li><li>產能影響可併入例行保養</li></ul>
+      <div class="roi-row"><span>回收期</span><b class="delta good">0.8 個月</b></div><div class="roi-row"><span>一年淨效益</span><b>NT$ 565,000</b></div><div class="roi-row"><span>故障風險</span><span class="badge green">低</span></div>
     </article>
+    <article class="card scenario">
+      <div class="scenario-title"><div class="icon-box"><svg class="icon"><use href="#i-history"/></svg></div><div><h2>延後兩週維護</h2><p class="subtle">9/07 月保養窗</p></div></div>
+      <div class="scenario-price">NT$ 61,900 <small>含超耗</small></div>
+      <ul><li>停機 3 小時</li><li>預估增加 6.9 MWh 超額用電</li><li>軸承同步劣化機率上升</li><li>需每日人工巡檢兩次</li></ul>
+      <div class="roi-row"><span>回收期</span><b class="delta warn">1.3 個月</b></div><div class="roi-row"><span>一年淨效益</span><b>NT$ 514,000</b></div><div class="roi-row"><span>故障風險</span><span class="badge amber">中</span></div>
+    </article>
+    <article class="card scenario">
+      <div class="scenario-title"><div class="icon-box"><svg class="icon"><use href="#i-warning"/></svg></div><div><h2>持續觀察</h2><p class="subtle">暫不安排停機</p></div></div>
+      <div class="scenario-price">NT$ 184,000 <small>90 日風險成本</small></div>
+      <ul><li>每月超耗約 20.5 MWh</li><li>非計畫停機機率 34%</li><li>可能損失 1.2 個班次產能</li><li>不符合年度節能改善目標</li></ul>
+      <div class="roi-row"><span>回收期</span><b class="delta bad">無</b></div><div class="roi-row"><span>一年淨效益</span><b class="delta bad">−NT$ 792,000</b></div><div class="roi-row"><span>故障風險</span><span class="badge red">高</span></div>
+    </article>
+  </div>
 
-    <div class="grid-2 section-gap">
-      <div>
-        <article class="card">
-          <div class="card-head"><div><h2>核准前檢核</h2><p>維護資源與生產影響均已確認</p></div><span class="badge green">5 / 5 就緒</span></div>
-          <div class="card-body checklist">
-            <div class="check"><span class="check-mark"><span class="material-symbols-outlined">check</span></span><div><strong>生產窗口已確認</strong><small>組裝一線 13:00 完成批次 A17，下一批 16:30 開機。</small></div></div>
-            <div class="check"><span class="check-mark"><span class="material-symbols-outlined">check</span></span><div><strong>備品庫存已保留</strong><small>濾網 AF-450 × 2、潤滑脂 LG-2 × 1 已鎖定。</small></div></div>
-            <div class="check"><span class="check-mark"><span class="material-symbols-outlined">check</span></span><div><strong>施工人員已排定</strong><small>設備工程 2 人、能源工程 1 人，承攬證照有效。</small></div></div>
-            <div class="check"><span class="check-mark"><span class="material-symbols-outlined">check</span></span><div><strong>安全隔離程序完整</strong><small>LOTO 清單與復歸點檢表已附於工單。</small></div></div>
-            <div class="check"><span class="check-mark"><span class="material-symbols-outlined">check</span></span><div><strong>恢復驗證條件已設定</strong><small>連續三日能耗回到基線 ±3%，否則自動重啟診斷。</small></div></div>
-          </div>
-        </article>
-
-        <article class="card section-gap">
-          <div class="card-head"><div><h2>維護後恢復驗證</h2><p>核准後自動建立追蹤任務</p></div><span class="badge purple">D+1 ～ D+7</span></div>
-          <div class="card-body recovery-grid">
-            <div class="recovery"><span>D+1 初次確認</span><b>≤ 3%</b><small class="subtle">偏離基線門檻</small></div>
-            <div class="recovery"><span>D+3 穩定確認</span><b>3 日</b><small class="subtle">連續合格區間</small></div>
-            <div class="recovery"><span>D+7 效益結案</span><b>≥ 10%</b><small class="subtle">節能改善目標</small></div>
-          </div>
-        </article>
-      </div>
-
-      <div>
-        <article class="decision-box">
-          <div class="eyebrow">Decision Gate</div>
-          <h2>核准維護排程是否通過？</h2>
-          <p>核准後將建立 CMMS 維護工單、通知生產與設備團隊，並啟動維護後能耗恢復驗證。退回時須填寫補件原因。</p>
-          <label for="approvalNote" style="display:block;font-size:10px;color:#c8bdcf;margin:14px 0 6px">核准備註</label>
-          <textarea id="approvalNote" class="input" rows="4" style="width:100%;resize:vertical;background:#251d2c;border-color:#44394c;color:#fff" placeholder="例：請於開工前再次確認安全隔離。"></textarea>
-          <div class="decision-actions">
-            <button class="btn" type="button" data-action="reject"><span class="material-symbols-outlined">undo</span>退回補件</button>
-            <button class="btn primary" type="button" data-action="approve"><span class="material-symbols-outlined">task_alt</span>核准並建立工單</button>
-          </div>
-        </article>
-
-        <article class="card section-gap">
-          <div class="card-head"><div><h2>流程操作紀錄</h2><p>所有模型、校正與核准動作可追溯</p></div><span class="material-symbols-outlined">receipt_long</span></div>
-          <div class="card-body timeline">
-            <div class="event"><time>08/22 08:42</time><strong>能源工程師 · 陳怡文</strong><p>確認 AC-07 基線模型 v3.2，MAPE 3.8%。</p></div>
-            <div class="event"><time>08/22 09:05</time><strong>漂移偵測 AI</strong><p>建立高風險事件，校正前偏離 +14.8%。</p></div>
-            <div class="event"><time>08/22 09:31</time><strong>工業工程師 · 王俊凱</strong><p>完成工況校正，殘餘漂移 +10.6%。</p></div>
-            <div class="event"><time>08/22 10:12</time><strong>能源主管 · 李明哲</strong><p>建議立即維護，預估一年淨效益 NT$565,000。</p></div>
-          </div>
-        </article>
-      </div>
-    </div>
-
-    <article class="card section-gap">
-      <div class="card-head">
-        <div><h2>設備能源基線漂移偵測器資料列表</h2><p>從基線建立到維護核准的任務狀態</p></div>
-        <span class="badge green">6 筆紀錄</span>
-      </div>
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th><th>優先度</th></tr></thead>
-          <tbody>
-            <tr><td class="row-title">EQU-001</td><td>建立設備基線</td><td><span class="avatar">能</span>能源工程師</td><td>D+1</td><td><span class="badge purple">處理中</span></td><td><span class="badge red">高</span></td></tr>
-            <tr><td class="row-title">EQU-002</td><td>辨識惡化趨勢</td><td><span class="avatar">AI</span>漂移偵測 AI</td><td>D+2</td><td><span class="badge amber">待確認</span></td><td><span class="badge red">高</span></td></tr>
-            <tr><td class="row-title">EQU-003</td><td>校正工況干擾</td><td><span class="avatar">工</span>工業工程師</td><td>D+3</td><td><span class="badge amber">待確認</span></td><td><span class="badge amber">中</span></td></tr>
-            <tr><td class="row-title">EQU-004</td><td>推理劣化因子</td><td><span class="avatar">設</span>設備工程師</td><td>D+4</td><td><span class="badge green">已完成</span></td><td><span class="badge amber">中</span></td></tr>
-            <tr><td class="row-title">EQU-005</td><td>評估維護效益</td><td><span class="avatar">管</span>能源主管</td><td>D+5</td><td><span class="badge green">已完成</span></td><td><span class="badge amber">中</span></td></tr>
-            <tr><td class="row-title">EQU-006</td><td>核准維護排程</td><td><span class="avatar">廠</span>廠長</td><td>D+6</td><td><span class="badge green">已完成</span></td><td><span class="badge amber">中</span></td></tr>
-          </tbody>
-        </table>
+  <div class="grid-2 section-gap">
+    <article class="card"><div class="card-head"><div><h2>12 個月累積現金流</h2><p>以立即維護方案估算節電收益與維護成本</p></div><span class="badge green">第 1 個月轉正</span></div><div class="card-body"><div class="chart-wrap"><canvas id="roiChart"></canvas></div></div></article>
+    <article class="card">
+      <div class="card-head"><div><h2>預期營運改善</h2><p>維護後能源與生產效益</p></div><span class="badge blue">FORECAST</span></div>
+      <div class="card-body">
+        <div class="recovery-grid"><div class="recovery"><span>單位能耗恢復</span><b class="delta good">−10.2%</b><small class="subtle">目標 1.5 kWh/千件</small></div><div class="recovery"><span>年度減碳</span><b>7.4 tCO₂e</b><small class="subtle">依電力係數估算</small></div><div class="recovery"><span>避免停機</span><b>9.6 小時</b><small class="subtle">90 日風險期</small></div></div>
+        <div class="callout section-gap"><strong>決策建議：本週立即維護</strong><p>把作業併入 8/24 例行保養窗，預計 2.5 小時完成。維護後以連續三日單位能耗回到基線 ±3% 作為驗收條件。</p></div>
+        <div class="section-gap"><div class="roi-row"><span>維護材料與人工</span><b>NT$ 38,600</b></div><div class="roi-row"><span>年節電收益</span><b>NT$ 603,600</b></div><div class="roi-row"><span>效益信心水準</span><b class="delta good">89%</b></div></div>
       </div>
     </article>
-  </section>
+  </div>
+</section>
 
-  <div class="footer-note">Jvision ESG Energy · 感測 × 參數 × 配方 · Demo data updated 2026/08/22</div>
+<section class="view" data-view="5" aria-labelledby="v5-title">
+  <div class="page-heading" data-stage="06">
+    <div><div class="eyebrow">Stage 06 · 廠長核准中心</div><h1 id="v5-title">核准預防維護排程</h1><p>確認停機窗口、資源、效益與恢復驗證，留下完整可追溯的決策紀錄。</p></div>
+    <div class="heading-actions"><button class="btn" type="button" data-action="toast"><svg class="icon"><use href="#i-print"/></svg>列印簽核單</button></div>
+  </div>
+
+  <article class="card approval-hero">
+    <div>
+      <div class="approval-title"><div class="approval-icon"><svg class="icon"><use href="#i-tool"/></svg></div><div><span class="badge amber">等待廠長核准</span><h2 style="margin-top:7px">PM-20260824-017 · AC-07 節能維護</h2><p class="subtle">更換進氣濾網、清潔進氣管路並補充驅動端潤滑</p></div></div>
+      <div class="approval-meta"><span>建議窗口<b>08/24 13:30–16:00</b></span><span>停機時間<b>2.5 小時</b></span><span>工單負責人<b>設備工程師 林志揚</b></span><span>預估成本<b>NT$ 38,600</b></span></div>
+    </div>
+    <span class="badge blue">EQU-006 · D+6</span>
+  </article>
+
+  <div class="grid-2 section-gap">
+    <div>
+      <article class="card">
+        <div class="card-head"><div><h2>核准前檢核</h2><p>維護資源與生產影響均已確認</p></div><span class="badge green">5 / 5 就緒</span></div>
+        <div class="card-body checklist">
+          <div class="check"><span class="check-mark">✓</span><div><strong>生產窗口已確認</strong><small>組裝一線 13:00 完成批次 A17，下一批 16:30 開機。</small></div></div>
+          <div class="check"><span class="check-mark">✓</span><div><strong>備品庫存已保留</strong><small>濾網 AF-450 × 2、潤滑脂 LG-2 × 1 已鎖定。</small></div></div>
+          <div class="check"><span class="check-mark">✓</span><div><strong>施工人員已排定</strong><small>設備工程 2 人、能源工程 1 人，承攬證照有效。</small></div></div>
+          <div class="check"><span class="check-mark">✓</span><div><strong>安全隔離程序完整</strong><small>LOTO 清單與復歸點檢表已附於工單。</small></div></div>
+          <div class="check"><span class="check-mark">✓</span><div><strong>恢復驗證條件已設定</strong><small>連續三日能耗回到基線 ±3%，否則自動重啟診斷。</small></div></div>
+        </div>
+      </article>
+      <article class="card section-gap">
+        <div class="card-head"><div><h2>維護後恢復驗證</h2><p>核准後自動建立追蹤任務</p></div><span class="badge blue">D+1 ～ D+7</span></div>
+        <div class="card-body recovery-grid"><div class="recovery"><span>D+1 初次確認</span><b>≤ 3%</b><small class="subtle">偏離基線門檻</small></div><div class="recovery"><span>D+3 穩定確認</span><b>3 日</b><small class="subtle">連續合格區間</small></div><div class="recovery"><span>D+7 效益結案</span><b>≥ 10%</b><small class="subtle">節能改善目標</small></div></div>
+      </article>
+    </div>
+
+    <div>
+      <article class="decision-box">
+        <div class="eyebrow">Decision Gate</div>
+        <h2>核准維護排程是否通過？</h2>
+        <p>核准後將建立 CMMS 維護工單、通知生產與設備團隊，並啟動維護後能耗恢復驗證。退回時須填寫補件原因。</p>
+        <label for="approvalNote" style="display:block;font-size:10px;color:#CBD5E1;margin:14px 0 6px">核准備註</label>
+        <textarea id="approvalNote" class="input" rows="4" style="width:100%;resize:vertical;background:#1E293B;border-color:#94A3B8;color:#fff" placeholder="例：請於開工前再次確認安全隔離。"></textarea>
+        <div class="decision-actions"><button class="btn" type="button" data-action="reject">退回補件</button><button class="btn primary" type="button" data-action="approve"><svg class="icon"><use href="#i-check"/></svg>核准並建立工單</button></div>
+      </article>
+
+      <article class="card section-gap">
+        <div class="card-head"><div><h2>流程操作紀錄</h2><p>所有模型、校正與核准動作可追溯</p></div><span class="badge blue">AUDIT LOG</span></div>
+        <div class="card-body timeline">
+          <div class="event"><time>08/22 08:42</time><strong>能源工程師 · 陳怡文</strong><p>確認 AC-07 基線模型 v3.2，MAPE 3.8%。</p></div>
+          <div class="event"><time>08/22 09:05</time><strong>漂移偵測 AI</strong><p>建立高風險事件，校正前偏離 +14.8%。</p></div>
+          <div class="event"><time>08/22 09:31</time><strong>工業工程師 · 王俊凱</strong><p>完成工況校正，殘餘漂移 +10.6%。</p></div>
+          <div class="event"><time>08/22 10:12</time><strong>能源主管 · 李明哲</strong><p>建議立即維護，預估一年淨效益 NT$565,000。</p></div>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <article class="card section-gap">
+    <div class="card-head"><div><h2>設備能源基線漂移偵測器資料列表</h2><p>從基線建立到維護核准的任務狀態</p></div><span class="badge green">6 筆紀錄</span></div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th><th>優先度</th></tr></thead>
+        <tbody>
+          <tr><td class="row-title">EQU-001</td><td>建立設備基線</td><td><span class="avatar">能</span>能源工程師</td><td>D+1</td><td><span class="badge blue">處理中</span></td><td><span class="badge red">高</span></td></tr>
+          <tr><td class="row-title">EQU-002</td><td>辨識惡化趨勢</td><td><span class="avatar">AI</span>漂移偵測 AI</td><td>D+2</td><td><span class="badge amber">待確認</span></td><td><span class="badge red">高</span></td></tr>
+          <tr><td class="row-title">EQU-003</td><td>校正工況干擾</td><td><span class="avatar">工</span>工業工程師</td><td>D+3</td><td><span class="badge amber">待確認</span></td><td><span class="badge amber">中</span></td></tr>
+          <tr><td class="row-title">EQU-004</td><td>推理劣化因子</td><td><span class="avatar">設</span>設備工程師</td><td>D+4</td><td><span class="badge green">已完成</span></td><td><span class="badge amber">中</span></td></tr>
+          <tr><td class="row-title">EQU-005</td><td>評估維護效益</td><td><span class="avatar">管</span>能源主管</td><td>D+5</td><td><span class="badge green">已完成</span></td><td><span class="badge amber">中</span></td></tr>
+          <tr><td class="row-title">EQU-006</td><td>核准維護排程</td><td><span class="avatar">廠</span>廠長</td><td>D+6</td><td><span class="badge green">已完成</span></td><td><span class="badge amber">中</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </article>
+</section>
+
+<div class="footer-note">JVISION ESG ENERGY / 感測 × 參數 × 配方 / DEMO DATA UPDATED 2026-08-22</div>
 </main>
 </div>
+
 <div class="toast" role="status" aria-live="polite" id="toast">操作已完成</div>
 
 <script>
 (function(){
   "use strict";
 
-  const views = Array.from(document.querySelectorAll("[data-view]"));
-  const navButtons = Array.from(document.querySelectorAll("[data-i]"));
-  const charts = {};
-  const purple = "#9333ea";
-  const green = "#16845b";
-  const amber = "#c87508";
-  const red = "#d04458";
-  const grid = "rgba(115,107,126,.13)";
-  const text = "#736b7e";
+  const views=Array.from(document.querySelectorAll("[data-view]"));
+  const navButtons=Array.from(document.querySelectorAll("[data-i]"));
+  const charts={};
+  const blue="#2563EB";
+  const green="#047857";
+  const amber="#B45309";
+  const red="#DC2626";
+  const ink="#0F172A";
+  const grid="rgba(71,85,105,.20)";
+  const text="#475569";
+  const reduceMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  Chart.defaults.font.family = 'Inter, "Noto Sans TC", sans-serif';
-  Chart.defaults.color = text;
-  Chart.defaults.responsive = true;
-  Chart.defaults.maintainAspectRatio = false;
+  if(window.Chart){
+    Chart.defaults.font.family='"Fira Code","Fira Sans",sans-serif';
+    Chart.defaults.color=text;
+    Chart.defaults.responsive=true;
+    Chart.defaults.maintainAspectRatio=false;
+    Chart.defaults.animation=reduceMotion?false:{duration:350};
+  }
 
   function lineOptions(extra){
     return Object.assign({
-      animation:{duration:650},
       interaction:{mode:"index",intersect:false},
       plugins:{
-        legend:{position:"bottom",labels:{usePointStyle:true,boxWidth:8,padding:18,font:{size:10}}},
-        tooltip:{backgroundColor:"#181222",padding:10,titleFont:{size:11},bodyFont:{size:11}}
+        legend:{position:"bottom",labels:{usePointStyle:true,boxWidth:8,padding:16,font:{size:10}}},
+        tooltip:{backgroundColor:ink,padding:10,titleFont:{size:11},bodyFont:{size:11}}
       },
       scales:{
-        x:{grid:{display:false},ticks:{font:{size:10}}},
-        y:{grid:{color:grid},border:{display:false},ticks:{font:{size:10}}}
+        x:{grid:{display:false},ticks:{font:{size:9}}},
+        y:{grid:{color:grid},border:{display:false},ticks:{font:{size:9}}}
       }
-    },extra || {});
+    },extra||{});
   }
 
   function initChart(index){
-    if(!window.Chart) return;
-    if(index === 0 && !charts.baseline){
-      const canvas = document.getElementById("baselineChart");
-      if(canvas && canvas.clientWidth){
-        charts.baseline = new Chart(canvas,{
+    if(!window.Chart)return;
+
+    if(index===0&&!charts.baseline){
+      const canvas=document.getElementById("baselineChart");
+      if(canvas&&canvas.clientWidth){
+        charts.baseline=new Chart(canvas,{
           type:"scatter",
-          data:{
-            datasets:[
-              {label:"正常工況樣本",data:[
-                {x:42,y:91},{x:48,y:98},{x:55,y:106},{x:61,y:113},{x:69,y:122},
-                {x:74,y:127},{x:82,y:137},{x:89,y:145},{x:96,y:153},{x:103,y:161}
-              ],backgroundColor:"rgba(147,51,234,.34)",pointRadius:4},
-              {type:"line",label:"合理能耗基線",data:[
-                {x:40,y:89},{x:55,y:105},{x:70,y:121},{x:85,y:139},{x:105,y:162}
-              ],borderColor:purple,backgroundColor:purple,borderWidth:2,pointRadius:0,tension:.25}
-            ]
-          },
-          options:lineOptions({
-            parsing:false,
-            scales:{
-              x:{title:{display:true,text:"產量（千件）",font:{size:10}},grid:{display:false}},
-              y:{title:{display:true,text:"用電量（kWh）",font:{size:10}},grid:{color:grid},border:{display:false}}
-            }
-          })
+          data:{datasets:[
+            {label:"正常工況樣本",data:[{x:42,y:91},{x:48,y:98},{x:55,y:106},{x:61,y:113},{x:69,y:122},{x:74,y:127},{x:82,y:137},{x:89,y:145},{x:96,y:153},{x:103,y:161}],backgroundColor:"rgba(37,99,235,.38)",borderColor:ink,pointRadius:4,pointBorderWidth:1},
+            {type:"line",label:"合理能耗基線",data:[{x:40,y:89},{x:55,y:105},{x:70,y:121},{x:85,y:139},{x:105,y:162}],borderColor:blue,backgroundColor:blue,borderWidth:3,pointRadius:0,tension:0}
+          ]},
+          options:lineOptions({parsing:false,scales:{x:{title:{display:true,text:"產量（千件）",font:{size:10}},grid:{display:false}},y:{title:{display:true,text:"用電量（kWh）",font:{size:10}},grid:{color:grid},border:{display:false}}}})
         });
       }
     }
 
-    if(index === 1 && !charts.drift){
-      const canvas = document.getElementById("driftChart");
-      if(canvas && canvas.clientWidth){
-        const labels = ["8/03","8/05","8/07","8/09","8/11","8/13","8/15","8/17","8/19","8/21"];
-        charts.drift = new Chart(canvas,{
+    if(index===1&&!charts.drift){
+      const canvas=document.getElementById("driftChart");
+      if(canvas&&canvas.clientWidth){
+        charts.drift=new Chart(canvas,{
           type:"line",
-          data:{labels:labels,datasets:[
-            {label:"實際單位能耗",data:[1.54,1.57,1.61,1.63,1.66,1.69,1.72,1.74,1.77,1.79],borderColor:red,backgroundColor:"rgba(208,68,88,.09)",fill:true,borderWidth:2.5,tension:.35,pointRadius:3},
-            {label:"正規化基線",data:[1.52,1.52,1.53,1.52,1.53,1.54,1.53,1.54,1.55,1.54],borderColor:purple,borderDash:[6,5],borderWidth:2,tension:.25,pointRadius:0},
-            {label:"95% 上緣",data:[1.59,1.59,1.60,1.59,1.60,1.61,1.60,1.61,1.62,1.61],borderColor:"rgba(147,51,234,.25)",borderWidth:1,pointRadius:0}
+          data:{labels:["8/03","8/05","8/07","8/09","8/11","8/13","8/15","8/17","8/19","8/21"],datasets:[
+            {label:"實際單位能耗",data:[1.54,1.57,1.61,1.63,1.66,1.69,1.72,1.74,1.77,1.79],borderColor:red,backgroundColor:"rgba(220,38,38,.10)",fill:true,borderWidth:3,tension:0,pointRadius:3},
+            {label:"正規化基線",data:[1.52,1.52,1.53,1.52,1.53,1.54,1.53,1.54,1.55,1.54],borderColor:blue,borderDash:[6,4],borderWidth:2,pointRadius:0,tension:0},
+            {label:"95% 上緣",data:[1.59,1.59,1.60,1.59,1.60,1.61,1.60,1.61,1.62,1.61],borderColor:"#64748B",borderWidth:1,pointRadius:0}
           ]},
           options:lineOptions()
         });
       }
     }
 
-    if(index === 2 && !charts.correction){
-      const canvas = document.getElementById("correctionChart");
-      if(canvas && canvas.clientWidth){
-        charts.correction = new Chart(canvas,{
+    if(index===2&&!charts.correction){
+      const canvas=document.getElementById("correctionChart");
+      if(canvas&&canvas.clientWidth){
+        charts.correction=new Chart(canvas,{
           type:"bar",
-          data:{
-            labels:["原始偏離","環境溫度","負載率","產品組合","班次","殘餘漂移"],
-            datasets:[{label:"偏離基線 %",data:[14.8,-2.1,-1.4,-.5,-.2,10.6],backgroundColor:[red,amber,amber,amber,amber,purple],borderRadius:7}]
-          },
-          options:{
-            animation:{duration:650},
-            plugins:{legend:{display:false},tooltip:{backgroundColor:"#181222",padding:10}},
-            scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{grid:{color:grid},border:{display:false},ticks:{callback:function(v){return v+"%";}}}}
-          }
+          data:{labels:["原始偏離","環境溫度","負載率","產品組合","班次","殘餘漂移"],datasets:[{label:"偏離基線 %",data:[14.8,-2.1,-1.4,-.5,-.2,10.6],backgroundColor:[red,amber,amber,amber,amber,blue],borderColor:ink,borderWidth:1}]},
+          options:{plugins:{legend:{display:false},tooltip:{backgroundColor:ink,padding:10}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{grid:{color:grid},border:{display:false},ticks:{callback:function(v){return v+"%";}}}}}
         });
       }
     }
 
-    if(index === 3 && !charts.factor){
-      const canvas = document.getElementById("factorChart");
-      if(canvas && canvas.clientWidth){
-        charts.factor = new Chart(canvas,{
+    if(index===3&&!charts.factor){
+      const canvas=document.getElementById("factorChart");
+      if(canvas&&canvas.clientWidth){
+        charts.factor=new Chart(canvas,{
           type:"line",
-          data:{
-            labels:["8/03","8/06","8/09","8/12","8/15","8/18","8/21"],
-            datasets:[
-              {label:"能耗漂移 %",data:[2.2,3.8,5.6,7.2,8.9,10.1,10.6],borderColor:purple,backgroundColor:"rgba(147,51,234,.08)",fill:true,tension:.35,yAxisID:"y"},
-              {label:"濾網壓差 kPa",data:[12.8,13.7,14.9,15.8,16.7,17.6,18.4],borderColor:red,tension:.35,yAxisID:"y1"},
-              {label:"震動 RMS",data:[4.6,4.7,4.9,5.1,5.3,5.6,5.8],borderColor:amber,tension:.35,yAxisID:"y1"}
-            ]
-          },
-          options:lineOptions({
-            scales:{
-              x:{grid:{display:false}},
-              y:{position:"left",grid:{color:grid},border:{display:false},title:{display:true,text:"漂移 %",font:{size:10}}},
-              y1:{position:"right",grid:{display:false},border:{display:false},title:{display:true,text:"感測值",font:{size:10}}}
-            }
-          })
+          data:{labels:["8/03","8/06","8/09","8/12","8/15","8/18","8/21"],datasets:[
+            {label:"能耗漂移 %",data:[2.2,3.8,5.6,7.2,8.9,10.1,10.6],borderColor:blue,backgroundColor:"rgba(37,99,235,.10)",fill:true,tension:0,yAxisID:"y"},
+            {label:"濾網壓差 kPa",data:[12.8,13.7,14.9,15.8,16.7,17.6,18.4],borderColor:red,tension:0,yAxisID:"y1"},
+            {label:"震動 RMS",data:[4.6,4.7,4.9,5.1,5.3,5.6,5.8],borderColor:amber,tension:0,yAxisID:"y1"}
+          ]},
+          options:lineOptions({scales:{x:{grid:{display:false}},y:{position:"left",grid:{color:grid},border:{display:false},title:{display:true,text:"漂移 %",font:{size:10}}},y1:{position:"right",grid:{display:false},border:{display:false},title:{display:true,text:"感測值",font:{size:10}}}}})
         });
       }
     }
 
-    if(index === 4 && !charts.roi){
-      const canvas = document.getElementById("roiChart");
-      if(canvas && canvas.clientWidth){
-        charts.roi = new Chart(canvas,{
+    if(index===4&&!charts.roi){
+      const canvas=document.getElementById("roiChart");
+      if(canvas&&canvas.clientWidth){
+        charts.roi=new Chart(canvas,{
           type:"line",
-          data:{
-            labels:["M0","M1","M2","M3","M4","M5","M6","M7","M8","M9","M10","M11","M12"],
-            datasets:[
-              {label:"立即維護",data:[-38.6,11.7,62,112.3,162.6,212.9,263.2,313.5,363.8,414.1,464.4,514.7,565],borderColor:green,backgroundColor:"rgba(22,132,91,.09)",fill:true,tension:.25},
-              {label:"延後兩週",data:[-61.9,-11,39.9,90.8,141.7,192.6,243.5,294.4,345.3,396.2,447.1,498,514],borderColor:amber,borderDash:[6,4],tension:.25}
-            ]
-          },
-          options:lineOptions({
-            scales:{
-              x:{grid:{display:false}},
-              y:{grid:{color:grid},border:{display:false},ticks:{callback:function(v){return v+"K";}},title:{display:true,text:"累積效益（NT$ 千元）",font:{size:10}}}
-            }
-          })
+          data:{labels:["M0","M1","M2","M3","M4","M5","M6","M7","M8","M9","M10","M11","M12"],datasets:[
+            {label:"立即維護",data:[-38.6,11.7,62,112.3,162.6,212.9,263.2,313.5,363.8,414.1,464.4,514.7,565],borderColor:green,backgroundColor:"rgba(4,120,87,.10)",fill:true,tension:0},
+            {label:"延後兩週",data:[-61.9,-11,39.9,90.8,141.7,192.6,243.5,294.4,345.3,396.2,447.1,498,514],borderColor:amber,borderDash:[6,4],tension:0}
+          ]},
+          options:lineOptions({scales:{x:{grid:{display:false}},y:{grid:{color:grid},border:{display:false},ticks:{callback:function(v){return v+"K";}},title:{display:true,text:"累積效益（NT$ 千元）",font:{size:10}}}}})
         });
       }
     }
   }
 
   function normalizedIndex(value){
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? Math.max(0,Math.min(5,Math.floor(parsed))) : 0;
+    const parsed=Number(value);
+    return Number.isFinite(parsed)?Math.max(0,Math.min(5,Math.floor(parsed))):0;
   }
 
   function indexFromHash(){
-    const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
-    return match ? normalizedIndex(match[1]) : 0;
+    const match=window.location.hash.match(/(?:go=|v)([0-9]+)/);
+    return match?normalizedIndex(match[1]):0;
   }
 
   function show(index){
-    const activeIndex = normalizedIndex(index);
+    const activeIndex=normalizedIndex(index);
     views.forEach(function(view){
-      const visible = Number(view.dataset.view) === activeIndex;
+      const visible=Number(view.dataset.view)===activeIndex;
       view.classList.toggle("active",visible);
-      view.setAttribute("aria-hidden",visible ? "false" : "true");
+      view.setAttribute("aria-hidden",visible?"false":"true");
     });
     navButtons.forEach(function(button){
-      const selected = Number(button.dataset.i) === activeIndex;
+      const selected=Number(button.dataset.i)===activeIndex;
       button.classList.toggle("active",selected);
-      button.setAttribute("aria-current",selected ? "step" : "false");
+      if(selected)button.setAttribute("aria-current","step");
+      else button.removeAttribute("aria-current");
     });
-    window.requestAnimationFrame(function(){initChart(activeIndex);});
+    window.requestAnimationFrame(function(){initChart(activeIndex)});
   }
 
   function navigate(index){
-    const activeIndex = normalizedIndex(index);
-    const nextHash = "#go=" + activeIndex;
-    if(window.location.hash === nextHash) show(activeIndex);
-    else window.location.hash = nextHash;
+    const activeIndex=normalizedIndex(index);
+    const nextHash="#go="+activeIndex;
+    if(window.location.hash===nextHash)show(activeIndex);
+    else window.location.hash=nextHash;
   }
 
   function notify(message){
-    const toast = document.getElementById("toast");
-    toast.textContent = message;
+    const toast=document.getElementById("toast");
+    toast.textContent=message;
     toast.classList.add("show");
     window.clearTimeout(notify.timerId);
-    notify.timerId = window.setTimeout(function(){toast.classList.remove("show");},2400);
+    notify.timerId=window.setTimeout(function(){toast.classList.remove("show")},2400);
   }
 
   navButtons.forEach(function(button){
-    button.addEventListener("click",function(){navigate(button.dataset.i);});
+    button.addEventListener("click",function(){navigate(button.dataset.i)});
   });
 
   document.querySelectorAll("[data-next]").forEach(function(button){
-    button.addEventListener("click",function(){navigate(button.dataset.next);});
+    button.addEventListener("click",function(){navigate(button.dataset.next)});
   });
 
   document.querySelectorAll(".filter-chip").forEach(function(button){
-    button.addEventListener("click",function(){button.classList.toggle("on");});
+    button.addEventListener("click",function(){
+      button.classList.toggle("on");
+      button.setAttribute("aria-pressed",button.classList.contains("on")?"true":"false");
+    });
+    button.setAttribute("aria-pressed",button.classList.contains("on")?"true":"false");
   });
 
   document.querySelectorAll(".asset-item").forEach(function(button){
     button.addEventListener("click",function(){
-      document.querySelectorAll(".asset-item").forEach(function(item){item.classList.remove("selected");});
+      document.querySelectorAll(".asset-item").forEach(function(item){
+        item.classList.remove("selected");
+        item.setAttribute("aria-pressed","false");
+      });
       button.classList.add("selected");
+      button.setAttribute("aria-pressed","true");
       notify("已切換設備基線資料");
     });
+    button.setAttribute("aria-pressed",button.classList.contains("selected")?"true":"false");
   });
 
   document.querySelectorAll("[data-action]").forEach(function(button){
     button.addEventListener("click",function(){
-      const action = button.dataset.action;
-      if(action === "approve"){
+      const action=button.dataset.action;
+      if(action==="approve"){
         notify("已核准 PM-20260824-017，維護工單建立完成");
-        button.innerHTML = '<span class="material-symbols-outlined">verified</span>已核准';
-        button.disabled = true;
-      }else if(action === "reject"){
+        button.innerHTML='<svg class="icon" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></svg>已核准';
+        button.disabled=true;
+      }else if(action==="reject"){
         notify("已建立退回補件草稿，尚未送出");
-      }else if(action === "reset"){
-        document.querySelectorAll(".filter-chip").forEach(function(chip,index){chip.classList.toggle("on",index < 4);});
+      }else if(action==="reset"){
+        document.querySelectorAll(".filter-chip").forEach(function(chip,index){
+          chip.classList.toggle("on",index<4);
+          chip.setAttribute("aria-pressed",index<4?"true":"false");
+        });
         notify("校正條件已回復建議值");
       }else{
         notify("操作紀錄已更新");
@@ -1137,10 +1459,9 @@ tr:last-child td{border-bottom:0}
     });
   });
 
-  window.addEventListener("hashchange",function(){show(indexFromHash());});
+  window.addEventListener("hashchange",function(){show(indexFromHash())});
   show(indexFromHash());
 })();
 </script>
-<script src="/shared/jv-agent-bridge.js?v=2" defer></script>
 </body>
 </html>

@@ -1,1073 +1,243 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-<link rel="icon" href="../../favicon.svg">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="彙整 CNC 主軸負載、溫度、振動與保養紀錄，預估軸承剩餘使用壽命並模擬維修排程。">
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&amp;family=JetBrains+Mono:wght@400&amp;family=Playfair+Display:ital@1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
 <title>電腦數控主軸壽命預測 · maintenance-cmms｜Jvision 系統 Demo</title>
 <style>
 :root{
-  --blue:#1e40af;
-  --ink:#14213d;
-  --body:#334155;
-  --muted:#718096;
-  --line:#dbe4f0;
-  --bg:#f4f7fb;
-  --green:#14866d;
-  --amber:#d97706;
-  --red:#dc3f4f;
-  --white:#fff;
-  --rail:78px;
-  --shadow:0 14px 36px rgba(30,64,175,.09);
+--color-primary:#16a34a;--color-on-primary:#000;--color-secondary:#22c55e;--color-on-secondary:#0f172a;
+--color-accent:#dc2626;--color-on-accent:#fff;--color-background:#f0fdf4;--color-foreground:#14532d;
+--color-card:#fff;--color-card-foreground:#14532d;--color-muted:#e8f0f1;--color-muted-foreground:#475569;
+--color-border:#bbf7d0;--color-destructive:#dc2626;--color-on-destructive:#fff;--color-ring:#16a34a;
+--blue:#16a34a;--ink:#102f1d;--muted:#52645b;--line:#bbf7d0;
+--amber:#a16207;--red:#b91c1c;--rail:244px;--mono:"JetBrains Mono",monospace;
+--shadow:0 10px 30px rgba(20,83,45,.07);--radius:4px
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{
-  margin:0;
-  color:var(--body);
-  background:var(--bg);
-  font-family:Inter,"Noto Sans TC",sans-serif;
-  overflow-x:hidden;
-}
-button,input,select{font:inherit}
-button{color:inherit}
-button:focus-visible,.select-box:focus-visible{
-  outline:3px solid rgba(30,64,175,.25);
-  outline-offset:3px;
-}
-.material-symbols-outlined{
-  font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24;
-  line-height:1;
-}
+body{margin:0;background:var(--color-background);color:#334e3d;font-family:Inter,sans-serif;overflow-x:hidden}
+button,input,select{font:inherit}button,select,[tabindex]{cursor:pointer}
+button:focus-visible,select:focus-visible,[tabindex]:focus-visible,a:focus-visible{outline:3px solid var(--color-ring);outline-offset:3px}
+svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .shell{min-height:100vh;padding-left:var(--rail)}
-.rail{
-  position:fixed;
-  inset:0 auto 0 0;
-  z-index:30;
-  width:var(--rail);
-  padding:18px 10px;
-  background:#10266d;
-  color:#fff;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  box-shadow:6px 0 26px rgba(15,35,95,.16);
-}
-.brand{
-  width:48px;height:48px;border-radius:15px;
-  display:grid;place-items:center;
-  background:#fff;color:var(--blue);
-  font-size:20px;font-weight:800;
-  letter-spacing:-1px;margin-bottom:24px;
-}
-.rail-nav{display:grid;gap:9px;width:100%}
-.nav-btn{
-  position:relative;
-  border:0;border-radius:14px;
-  min-height:50px;padding:0;
-  display:grid;place-items:center;
-  background:transparent;color:#b8c7f7;
-  cursor:pointer;transition:.2s ease;
-}
-.nav-btn:hover{background:rgba(255,255,255,.1);color:#fff}
-.nav-btn.active{background:#fff;color:var(--blue)}
-.nav-btn::after{
-  content:attr(aria-label);
-  position:absolute;left:62px;
-  padding:7px 9px;border-radius:7px;
-  color:#fff;background:#14213d;
-  font-size:12px;white-space:nowrap;
-  opacity:0;pointer-events:none;transform:translateX(-5px);
-  transition:.18s;box-shadow:0 8px 20px rgba(0,0,0,.18);
-}
-.nav-btn:hover::after{opacity:1;transform:none}
-.nav-btn .material-symbols-outlined{font-size:23px}
-.rail-bottom{margin-top:auto;color:#93a8e7;font-size:11px;text-align:center}
-.content{min-width:0}
-.topbar{
-  height:70px;padding:0 30px;
-  display:flex;align-items:center;justify-content:space-between;gap:18px;
-  background:rgba(255,255,255,.92);
-  border-bottom:1px solid var(--line);
-  position:sticky;top:0;z-index:20;
-  backdrop-filter:blur(14px);
-}
-.product{display:flex;align-items:center;gap:13px;min-width:0}
-.product-icon{
-  width:38px;height:38px;border-radius:11px;
-  display:grid;place-items:center;
-  color:#fff;background:var(--blue);
-}
-.product-copy{min-width:0}
-.product-copy strong{display:block;color:var(--ink);font-size:15px}
-.product-copy span{display:block;color:var(--muted);font-size:11px;margin-top:2px}
-.header-actions{display:flex;align-items:center;gap:10px}
-.live{
-  display:flex;align-items:center;gap:7px;
-  color:var(--green);background:#e8f7f2;
-  border:1px solid #c6eadf;border-radius:999px;
-  padding:7px 11px;font-size:12px;font-weight:700;
-}
-.live-dot{
-  width:7px;height:7px;border-radius:50%;background:var(--green);
-  box-shadow:0 0 0 5px rgba(20,134,109,.1);
-  animation:pulse 2s ease-in-out infinite;
-}
-@keyframes pulse{50%{box-shadow:0 0 0 9px rgba(20,134,109,0)}}
-.avatar{
-  width:36px;height:36px;border:0;border-radius:50%;
-  color:#fff;background:#334155;font-size:12px;font-weight:800;
-}
-.page{display:none;padding:26px 30px 42px}
-.page.active{display:block;animation:fadeIn .24s ease}
-@keyframes fadeIn{from{opacity:.25;transform:translateY(5px)}}
-.page-head{
-  display:flex;justify-content:space-between;align-items:flex-start;
-  gap:18px;margin-bottom:22px;
-}
-.eyebrow{
-  color:var(--blue);font-size:11px;font-weight:800;
-  letter-spacing:.11em;text-transform:uppercase;margin-bottom:7px;
-}
-h1,h2,h3,p{margin-top:0}
-h1{margin-bottom:7px;color:var(--ink);font-size:27px;line-height:1.25;letter-spacing:-.02em}
-.page-head p{margin:0;color:var(--muted);font-size:13px;line-height:1.7}
-.page-tools{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
-.btn{
-  min-height:40px;border:1px solid var(--line);border-radius:10px;
-  padding:0 14px;background:#fff;font-size:13px;font-weight:700;
-  display:inline-flex;align-items:center;gap:7px;cursor:pointer;
-}
-.btn:hover{border-color:#9eb0d5;color:var(--blue)}
-.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
-.btn .material-symbols-outlined{font-size:18px}
-.card{
-  min-width:0;background:#fff;border:1px solid var(--line);
-  border-radius:17px;box-shadow:0 5px 18px rgba(36,55,92,.04);
-}
-.card-pad{padding:20px}
-.card-title{
-  display:flex;align-items:center;justify-content:space-between;
-  gap:12px;margin-bottom:16px;
-}
-.card-title h2,.card-title h3{
-  margin:0;color:var(--ink);font-size:15px;
-}
-.card-title small{color:var(--muted)}
-.grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-.kpi{
-  padding:17px;background:#fff;border:1px solid var(--line);
-  border-radius:15px;min-width:0;
-}
-.kpi-row{display:flex;justify-content:space-between;gap:10px;align-items:start}
-.kpi-icon{
-  width:35px;height:35px;border-radius:10px;
-  display:grid;place-items:center;color:var(--blue);background:#edf2ff;
-}
-.kpi-icon.warn{color:var(--amber);background:#fff5df}
-.kpi-icon.danger{color:var(--red);background:#fff0f2}
-.kpi-icon.good{color:var(--green);background:#eaf8f4}
-.kpi-icon .material-symbols-outlined{font-size:20px}
-.kpi-label{font-size:12px;color:var(--muted)}
-.kpi-value{margin-top:10px;color:var(--ink);font-size:25px;font-weight:800}
-.kpi-value small{font-size:12px;color:var(--muted);font-weight:600}
-.delta{font-size:11px;font-weight:700;margin-top:6px;color:var(--green)}
-.delta.warn{color:var(--amber)}
-.chart{width:100%;height:300px}
-.chart.tall{height:355px}
-.pill{
-  display:inline-flex;align-items:center;gap:5px;
-  padding:5px 8px;border-radius:999px;
-  font-size:11px;font-weight:700;white-space:nowrap;
-}
-.pill.high{color:#b42336;background:#fff0f2}
-.pill.medium{color:#a45b00;background:#fff5df}
-.pill.good{color:#08775f;background:#e8f7f2}
-.pill.info{color:var(--blue);background:#edf2ff}
-.dot{width:7px;height:7px;border-radius:50%;background:currentColor}
-.machine-list{display:grid;gap:10px}
-.machine-item{
-  border:1px solid var(--line);border-radius:13px;padding:13px;
-  display:grid;grid-template-columns:minmax(120px,1.1fr) minmax(150px,2fr) auto;
-  gap:14px;align-items:center;
-}
-.machine-name{display:flex;gap:10px;align-items:center;color:var(--ink);font-weight:700;font-size:13px}
-.machine-name span:first-child{
-  width:33px;height:33px;border-radius:9px;
-  display:grid;place-items:center;background:#edf2ff;color:var(--blue);
-}
-.machine-meta{display:block;font-size:11px;color:var(--muted);font-weight:500;margin-top:3px}
-.progress{height:7px;border-radius:999px;background:#edf1f6;overflow:hidden}
-.progress i{display:block;height:100%;border-radius:inherit;background:var(--blue)}
-.progress i.red{background:var(--red)}
-.progress i.amber{background:var(--amber)}
-.progress-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:6px}
-.notice{
-  display:flex;gap:12px;padding:14px;border-radius:13px;
-  background:#fff7e8;border:1px solid #f4d89b;color:#84500c;
-  font-size:12px;line-height:1.6;
-}
-.notice .material-symbols-outlined{font-size:20px}
-.signal-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(240px,.8fr);gap:16px}
-.machine-hero{
-  padding:18px;color:#fff;border-radius:16px;
-  background:linear-gradient(135deg,#10266d,var(--blue));
-  box-shadow:var(--shadow);
-}
-.machine-hero-head{display:flex;justify-content:space-between;align-items:start;gap:12px}
-.machine-hero h2{font-size:19px;margin-bottom:5px}
-.machine-hero p{font-size:12px;color:#c9d5fa;margin:0}
-.ring-wrap{display:grid;place-items:center;padding:22px 0 15px}
-.life-ring{
-  width:160px;height:160px;border-radius:50%;
-  display:grid;place-items:center;
-  background:conic-gradient(#52d4b2 0 62%,rgba(255,255,255,.16) 62%);
-  position:relative;
-}
-.life-ring::before{
-  content:"";position:absolute;inset:12px;border-radius:50%;
-  background:#16358e;
-}
-.life-ring div{position:relative;text-align:center}
-.life-ring strong{display:block;font-size:34px}
-.life-ring span{font-size:11px;color:#c9d5fa}
-.sensor-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
-.sensor{
-  padding:11px;border-radius:11px;background:rgba(255,255,255,.1);
-}
-.sensor span{font-size:10px;color:#c9d5fa}
-.sensor strong{display:block;font-size:16px;margin-top:4px}
-.wave-box{position:relative;overflow:hidden}
-.wave-status{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
-.wave-status b{color:var(--body)}
-.alert-list{display:grid;gap:10px}
-.alert{
-  padding:13px;border:1px solid var(--line);border-radius:12px;
-  display:flex;gap:11px;align-items:flex-start;
-}
-.alert-icon{
-  flex:0 0 auto;width:31px;height:31px;border-radius:9px;
-  display:grid;place-items:center;background:#fff0f2;color:var(--red);
-}
-.alert-icon.amber{background:#fff5df;color:var(--amber)}
-.alert h3{font-size:12px;margin:0 0 3px;color:var(--ink)}
-.alert p{font-size:11px;line-height:1.5;color:var(--muted);margin:0}
-.timeline-layout{display:grid;grid-template-columns:minmax(0,2.15fr) minmax(250px,.85fr);gap:16px}
-.cause-list{display:grid;gap:10px}
-.cause{
-  display:grid;grid-template-columns:37px 1fr auto;gap:10px;
-  align-items:center;border-bottom:1px solid var(--line);padding:0 0 11px;
-}
-.cause:last-child{border:0;padding-bottom:0}
-.cause-num{
-  width:35px;height:35px;border-radius:10px;display:grid;place-items:center;
-  background:#edf2ff;color:var(--blue);font-size:12px;font-weight:800;
-}
-.cause h3{font-size:12px;margin:0 0 3px;color:var(--ink)}
-.cause p{font-size:10px;margin:0;color:var(--muted)}
-.score{font-size:12px;font-weight:800;color:var(--red)}
-.event-line{border-left:2px solid var(--line);margin-left:8px;padding-left:16px;display:grid;gap:15px}
-.event{position:relative}
-.event::before{
-  content:"";position:absolute;left:-22px;top:3px;
-  width:10px;height:10px;border-radius:50%;
-  background:var(--blue);border:3px solid #dce6ff;
-}
-.event time{font-size:10px;color:var(--muted)}
-.event strong{display:block;font-size:12px;color:var(--ink);margin:3px 0}
-.event span{font-size:11px;color:var(--muted);line-height:1.5}
-.compare-head{
-  display:flex;gap:12px;align-items:center;flex-wrap:wrap;
-  padding:14px 16px;border-bottom:1px solid var(--line);
-}
-.select-box{
-  min-height:39px;padding:0 34px 0 11px;border:1px solid var(--line);
-  border-radius:9px;background:#fff;color:var(--body);
-}
-.compare-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-.tool-card{overflow:hidden;position:relative}
-.tool-card.best{border-color:#8dc7b7;box-shadow:0 10px 28px rgba(20,134,109,.1)}
-.best-ribbon{
-  position:absolute;right:12px;top:12px;
-  color:#fff;background:var(--green);padding:5px 8px;border-radius:7px;
-  font-size:10px;font-weight:800;
-}
-.tool-top{padding:18px;border-bottom:1px solid var(--line)}
-.tool-code{font-size:11px;color:var(--muted)}
-.tool-top h2{font-size:18px;margin:5px 0;color:var(--ink)}
-.tool-top p{font-size:11px;color:var(--muted);margin:0}
-.tool-stats{padding:15px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-.tool-stat span{display:block;font-size:10px;color:var(--muted)}
-.tool-stat strong{display:block;font-size:15px;color:var(--ink);margin-top:3px}
-.rank-table{width:100%;border-collapse:collapse}
-.rank-table th,.rank-table td{
-  padding:12px 14px;border-bottom:1px solid var(--line);
-  text-align:left;font-size:12px;white-space:nowrap;
-}
-.rank-table th{font-size:10px;color:var(--muted);background:#f8fafc}
-.rank-table tr:last-child td{border-bottom:0}
-.rank-bar{width:90px;height:6px;border-radius:6px;background:#edf1f6;overflow:hidden}
-.rank-bar i{display:block;height:100%;background:var(--blue)}
-.schedule-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(290px,.75fr);gap:16px}
-.week-strip{display:grid;grid-template-columns:78px repeat(5,minmax(80px,1fr));min-width:650px}
-.week-scroll{overflow-x:auto}
-.week-cell{
-  min-height:64px;border-right:1px solid var(--line);
-  border-bottom:1px solid var(--line);padding:8px;font-size:11px;
-}
-.week-cell.head{min-height:42px;background:#f8fafc;color:var(--muted);font-weight:700;text-align:center}
-.week-cell.axis{color:var(--muted);font-weight:700;background:#fbfcfe}
-.job{
-  border-left:3px solid var(--blue);background:#edf2ff;
-  color:#173987;border-radius:7px;padding:7px;font-weight:700;line-height:1.35;
-}
-.job.maint{border-color:var(--amber);background:#fff4dd;color:#965707}
-.job.safe{border-color:var(--green);background:#e8f7f2;color:#08775f}
-.slot{
-  padding:14px;border:1px solid var(--line);border-radius:12px;
-  margin-bottom:10px;cursor:pointer;transition:.18s;
-}
-.slot:hover,.slot.chosen{border-color:var(--blue);background:#f3f6ff}
-.slot.chosen{box-shadow:inset 0 0 0 1px var(--blue)}
-.slot-head{display:flex;justify-content:space-between;gap:10px}
-.slot h3{font-size:13px;color:var(--ink);margin:0}
-.slot p{font-size:11px;color:var(--muted);line-height:1.55;margin:7px 0 0}
-.order-box{
-  margin-top:14px;padding:15px;border-radius:13px;background:#10266d;color:#fff;
-}
-.order-box span{font-size:11px;color:#bdcaf1}
-.order-box strong{font-size:20px;display:block;margin:5px 0}
-.order-box p{font-size:11px;color:#bdcaf1;line-height:1.5;margin:0}
-.history-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.75fr);gap:16px}
-.table-wrap{overflow-x:auto}
-.data-table{width:100%;border-collapse:collapse;min-width:680px}
-.data-table th,.data-table td{
-  padding:13px 15px;border-bottom:1px solid var(--line);
-  text-align:left;font-size:12px;white-space:nowrap;
-}
-.data-table th{font-size:10px;color:var(--muted);background:#f8fafc;letter-spacing:.04em}
-.data-table tbody tr{cursor:pointer}
-.data-table tbody tr:hover,.data-table tbody tr.selected{background:#f4f7ff}
-.record-id{color:var(--blue);font-weight:800}
-.detail-panel{padding:19px}
-.detail-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.detail-head h2{font-size:17px;color:var(--ink);margin:0}
-.detail-meta{
-  margin:16px 0;display:grid;grid-template-columns:repeat(2,1fr);
-  gap:10px;
-}
-.detail-meta div{padding:11px;border-radius:10px;background:#f7f9fc}
-.detail-meta span{font-size:10px;color:var(--muted);display:block}
-.detail-meta strong{font-size:12px;color:var(--ink);display:block;margin-top:4px}
-.audit{display:grid;gap:0}
-.audit-item{display:grid;grid-template-columns:27px 1fr;gap:10px;padding-bottom:14px}
-.audit-mark{
-  width:27px;height:27px;border-radius:50%;display:grid;place-items:center;
-  background:#e8f7f2;color:var(--green);font-size:16px;position:relative;
-}
-.audit-item:not(:last-child) .audit-mark::after{
-  content:"";position:absolute;top:27px;left:13px;width:1px;height:38px;background:var(--line);
-}
-.audit-item strong{font-size:11px;color:var(--ink);display:block}
-.audit-item span{font-size:10px;color:var(--muted);line-height:1.5}
-.rule-box{
-  margin-top:14px;padding:13px;border:1px dashed #a9b9df;
-  border-radius:11px;background:#f6f8ff;font-size:11px;line-height:1.6;
-}
-.mobile-tabs{display:none}
-@media(max-width:1050px){
-  .grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .signal-layout,.timeline-layout,.schedule-layout,.history-layout{grid-template-columns:1fr}
-  .compare-grid{grid-template-columns:1fr 1fr}
-}
-@media(max-width:760px){
-  :root{--rail:0px}
-  .shell{padding:0 0 70px}
-  .rail{
-    inset:auto 0 0 0;width:100%;height:66px;padding:7px 9px;
-    flex-direction:row;background:#10266d;
-  }
-  .brand,.rail-bottom{display:none}
-  .rail-nav{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
-  .nav-btn{min-height:51px;border-radius:11px}
-  .nav-btn::after{display:none}
-  .topbar{height:62px;padding:0 16px}
-  .product-copy span,.header-actions .live{display:none}
-  .page{padding:19px 15px 30px}
-  .page-head{display:block}
-  h1{font-size:22px}
-  .page-tools{margin-top:14px;justify-content:flex-start}
-  .grid-3,.compare-grid{grid-template-columns:1fr}
-  .machine-item{grid-template-columns:1fr}
-  .chart{height:275px}
-}
-@media(max-width:480px){
-  .grid-4,.grid-2{grid-template-columns:1fr}
-  .topbar{gap:8px}
-  .product-copy strong{font-size:13px}
-  .page-tools .btn{flex:1;justify-content:center}
-  .sensor-grid{grid-template-columns:1fr 1fr}
-  .card-pad{padding:16px}
-  .detail-meta{grid-template-columns:1fr 1fr}
-}
-
-
-/* ── 量測式水平溢出修正 ─────────────────────────────
-   由 tools/fix-demo-overflow.mjs 量測產生，只針對實際溢出的元素。 */
-@media (max-width:900px){
-  body main.content > section.page.active > div.grid-2 > article.card.card-pad:nth-child(2) > div.machine-list > div.machine-item:nth-child(1){grid-template-columns:minmax(0,1fr);}
-  body div.shell > main.content > section.page.active > div.grid-2 > article.card.card-pad:nth-child(2) > div.machine-list{overflow-x:auto;min-width:0;max-width:100%;}
-  body section.page.active > div.grid-2 > article.card.card-pad:nth-child(2) > div.machine-list > div.machine-item:nth-child(1) > span.pill.high{min-width:0;flex-wrap:wrap;}
-  body div.grid-2 > article.card.card-pad:nth-child(2) > div.machine-list > div.machine-item:nth-child(1) > span.pill.high > i.dot{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body main.content > section.page.active > div.grid-2 > article.card.card-pad:nth-child(2) > div.machine-list > div.machine-item:nth-child(2){grid-template-columns:minmax(0,1fr);}
-  body section.page.active > div.grid-2 > article.card.card-pad:nth-child(2) > div.machine-list > div.machine-item:nth-child(2) > span.pill.high{min-width:0;flex-wrap:wrap;}
-  body div.grid-2 > article.card.card-pad:nth-child(2) > div.machine-list > div.machine-item:nth-child(2) > span.pill.high > i.dot{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body main.content > section.page.active > div.grid-2 > article.card.card-pad:nth-child(2) > div.machine-list > div.machine-item:nth-child(3){grid-template-columns:minmax(0,1fr);}
-  body section.page.active > div.grid-2 > article.card.card-pad:nth-child(2) > div.machine-list > div.machine-item:nth-child(3) > span.pill.medium{min-width:0;flex-wrap:wrap;}
-  body div.grid-2 > article.card.card-pad:nth-child(2) > div.machine-list > div.machine-item:nth-child(3) > span.pill.medium > i.dot{max-width:100%;min-width:0;overflow-x:auto;overflow-wrap:anywhere;}
-  body main.content > section.page.active > div.grid-2 > article.card.card-pad:nth-child(2) > div.machine-list > div.machine-item:nth-child(4){grid-template-columns:minmax(0,1fr);}
-}
+.rail{position:fixed;inset:0 auto 0 0;z-index:30;width:var(--rail);padding:28px 18px;background:#0d2f1b;color:#fff;border-right:1px solid #22623a;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:11px;padding:0 8px 27px;border-bottom:1px solid rgba(255,255,255,.13)}
+.brand-mark{width:34px;height:34px;display:grid;place-items:center;background:var(--color-secondary);color:#071b0d;font-weight:800}
+.brand strong{display:block;font-size:14px;letter-spacing:.08em}.brand span{display:block;margin-top:3px;color:#a8cbb4;font-size:10px}
+.rail-label{margin:24px 10px 9px;color:#8eb69b;font-size:10px;font-weight:700;letter-spacing:.14em}
+.rail-nav{display:grid;gap:4px}
+.nav-btn{border:0;border-left:3px solid transparent;min-height:47px;padding:0 12px;background:transparent;color:#b9d5c2;display:flex;align-items:center;gap:12px;text-align:left;font-size:12px;font-weight:600;transition:background .2s,color .2s,border-color .2s}
+.nav-btn:hover{background:rgba(255,255,255,.07);color:#fff}.nav-btn.active{background:#f0fdf4;color:#123c24;border-color:#22c55e}
+.nav-num{margin-left:auto;font:10px var(--mono);opacity:.65}.rail-bottom{margin-top:auto;padding:18px 9px 0;border-top:1px solid rgba(255,255,255,.13);color:#9fc5ab;font:10px/1.7 var(--mono)}
+.content{min-width:0}.topbar{height:70px;padding:0 34px;position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:20px;background:rgba(240,253,244,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.product{display:flex;align-items:center;gap:12px}.product-icon{width:36px;height:36px;display:grid;place-items:center;background:var(--blue);color:#071b0d}
+.product-copy strong{display:block;color:var(--ink);font-size:14px}.product-copy span{display:block;margin-top:3px;color:var(--muted);font-size:10px}
+.header-actions,.live{display:flex;align-items:center}.header-actions{gap:11px}.live{gap:7px;padding:7px 10px;border:1px solid #86efac;background:#dcfce7;color:#14532d;font-size:11px;font-weight:700}
+.live-dot{width:8px;height:8px;background:var(--green,#15803d);border:2px solid #fff;box-shadow:0 0 0 2px #15803d}
+.avatar{width:37px;height:37px;border:1px solid #5b7e67;background:#fff;color:var(--ink);font-size:11px;font-weight:800;transition:.2s}.avatar:hover{border-color:var(--blue);background:#dcfce7}
+.page{display:none;max-width:1500px;margin:auto;padding:35px 36px 52px}.page.active{display:block;animation:enter .35s ease-out both}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:25px;margin-bottom:25px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.eyebrow{margin-bottom:8px;color:#166534;font:700 10px var(--mono);letter-spacing:.13em;text-transform:uppercase}
+h1,h2,h3,p{margin-top:0}h1{margin-bottom:7px;color:var(--ink);font-size:clamp(24px,2.4vw,35px);line-height:1.1;letter-spacing:-.045em}
+.page-head p{max-width:700px;margin:0;color:var(--muted);font-size:12px;line-height:1.7}.page-tools{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.btn{min-height:42px;border:1px solid #86b899;border-radius:var(--radius);padding:0 14px;background:#fff;color:#244b32;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:8px;transition:.2s}
+.btn:hover{border-color:var(--blue);background:#ecfdf5;transform:translateY(-1px)}.btn.primary{border-color:var(--color-accent);background:var(--color-accent);color:#fff}.btn.primary:hover{background:#b91c1c}
+.card,.kpi{min-width:0;background:var(--color-card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card{overflow:hidden}.card-pad{padding:20px}.card-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}
+.card-title h2,.card-title h3{margin:0;color:var(--ink);font-size:14px}.card-title small{color:var(--muted);font-size:10px}
+.grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.kpi{position:relative;padding:18px;border-top:3px solid var(--blue);transition:transform .22s,box-shadow .22s}.kpi:hover{transform:translateY(-2px);box-shadow:0 14px 35px rgba(20,83,45,.1)}
+.kpi-row{display:flex;justify-content:space-between;gap:10px}.kpi-icon{width:32px;height:32px;display:grid;place-items:center;background:#dcfce7;color:#166534}.kpi-icon.warn{background:#fef3c7;color:#854d0e}.kpi-icon.danger{background:#fee2e2;color:#991b1b}.kpi-icon.good{background:#dcfce7;color:#166534}
+.kpi-label{color:var(--muted);font-size:11px;font-weight:600}.kpi-value{margin-top:13px;color:var(--ink);font-size:27px;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.kpi-value small{font-size:10px;color:var(--muted);font-weight:600}.delta{margin-top:7px;color:#166534;font-size:10px;font-weight:700}.delta.warn{color:#854d0e}.chart{width:100%;height:300px}.chart.tall{height:355px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid currentColor;border-radius:999px;font-size:10px;font-weight:700;white-space:nowrap}.pill.high{color:#991b1b;background:#fef2f2}.pill.medium{color:#854d0e;background:#fffbeb}.pill.good{color:#166534;background:#f0fdf4}.pill.info{color:#166534;background:#ecfdf5}
+.dot{width:7px;height:7px;border:2px solid currentColor;background:transparent}.machine-list,.alert-list,.cause-list{display:grid;gap:9px}
+.machine-item{padding:12px;border:1px solid #d5eadc;display:grid;grid-template-columns:minmax(120px,1.1fr) minmax(150px,2fr) auto;gap:13px;align-items:center}
+.machine-name{display:flex;gap:9px;align-items:center;color:var(--ink);font-size:12px;font-weight:700}.machine-name>span:first-child{width:31px;height:31px;display:grid;place-items:center;background:#dcfce7;color:#166534;font:11px var(--mono)}
+.machine-meta{display:block;margin-top:3px;color:var(--muted);font-size:10px;font-weight:500}.progress{height:6px;background:#e4ece7;overflow:hidden}.progress i{display:block;height:100%;background:var(--blue)}.progress i.red{background:var(--red)}.progress i.amber{background:var(--amber)}
+.progress-label{display:flex;justify-content:space-between;margin-bottom:5px;color:var(--muted);font-size:10px}.progress-label b{font-family:var(--mono);color:var(--ink)}
+.notice{display:flex;gap:11px;padding:14px;border:1px solid #e8c66c;background:#fffbeb;color:#70470b;font-size:11px;line-height:1.65}.notice svg{flex:none}
+.signal-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(250px,.75fr);gap:14px}.machine-hero{padding:19px;background:#123c24;color:#fff;border-top:4px solid var(--color-secondary);box-shadow:var(--shadow)}
+.machine-hero-head{display:flex;justify-content:space-between;gap:12px}.machine-hero h2{margin-bottom:5px;font-size:20px}.machine-hero p{margin:0;color:#b9d5c2;font-size:11px}
+.ring-wrap{display:grid;place-items:center;padding:24px 0 17px}.life-ring{position:relative;width:158px;height:158px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#4ade80 0 62%,rgba(255,255,255,.13) 62%)}
+.life-ring:before{content:"";position:absolute;inset:11px;border-radius:50%;background:#123c24}.life-ring div{position:relative;text-align:center}.life-ring strong{display:block;font:34px var(--mono)}.life-ring span{color:#b9d5c2;font-size:10px}
+.sensor-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.sensor{padding:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05)}.sensor span{color:#b9d5c2;font-size:9px}.sensor strong{display:block;margin-top:4px;font:14px var(--mono)}
+.wave-status{display:flex;gap:13px;flex-wrap:wrap;color:var(--muted);font-size:10px}.alert{padding:12px;border:1px solid #d5eadc;display:flex;gap:10px}.alert-icon{flex:none;width:30px;height:30px;display:grid;place-items:center;background:#fee2e2;color:#991b1b}.alert-icon.amber{background:#fef3c7;color:#854d0e}
+.alert h3{margin:0 0 3px;color:var(--ink);font-size:11px}.alert p{margin:0;color:var(--muted);font-size:10px;line-height:1.55}
+.timeline-layout{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(250px,.8fr);gap:14px}.cause{display:grid;grid-template-columns:34px 1fr auto;gap:9px;align-items:center;padding:0 0 11px;border-bottom:1px solid #d5eadc}.cause:last-child{border:0}
+.cause-num{width:32px;height:32px;display:grid;place-items:center;background:#dcfce7;color:#166534;font:10px var(--mono)}.cause h3{margin:0 0 3px;color:var(--ink);font-size:11px}.cause p{margin:0;color:var(--muted);font-size:9px}.score{color:#991b1b;font:700 11px var(--mono)}
+.event-line{margin-left:7px;padding-left:17px;border-left:1px solid #86efac;display:grid;gap:15px}.event{position:relative}.event:before{content:"";position:absolute;left:-22px;top:3px;width:9px;height:9px;background:#fff;border:2px solid var(--blue)}
+.event time,.tool-code,.record-id,.detail-meta strong,.order-box strong{font-family:var(--mono)}.event time{color:var(--muted);font-size:9px}.event strong{display:block;margin:3px 0;color:var(--ink);font-size:11px}.event span{color:var(--muted);font-size:10px;line-height:1.5}
+.compare-head{display:flex;gap:11px;align-items:center;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--line)}.select-box{min-height:39px;padding:0 32px 0 10px;border:1px solid #86b899;border-radius:var(--radius);background:#fff;color:#264d34;font-size:11px}
+.compare-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.tool-card{position:relative}.tool-card.best{border:2px solid var(--blue)}.best-ribbon{position:absolute;right:11px;top:11px;padding:5px 7px;background:#166534;color:#fff;font-size:9px;font-weight:800}
+.tool-top{padding:18px;border-bottom:1px solid var(--line)}.tool-code{color:var(--muted);font-size:9px}.tool-top h2{margin:5px 0;color:var(--ink);font-size:17px}.tool-top p{margin:0;color:var(--muted);font-size:10px}.tool-stats{padding:15px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.tool-stat span{display:block;color:var(--muted);font-size:9px}.tool-stat strong{display:block;margin-top:4px;color:var(--ink);font:14px var(--mono)}
+.table-wrap{overflow-x:auto}.rank-table,.data-table{width:100%;border-collapse:collapse}.data-table{min-width:680px}.rank-table th,.rank-table td,.data-table th,.data-table td{padding:12px 14px;border-bottom:1px solid #d5eadc;text-align:left;font-size:11px;white-space:nowrap}
+.rank-table th,.data-table th{background:#f0fdf4;color:#3f5f49;font-size:9px;letter-spacing:.04em;text-transform:uppercase}.rank-table td:nth-child(n+3),.data-table td:nth-child(4){text-align:right;font-variant-numeric:tabular-nums}
+.rank-bar{width:85px;height:6px;background:#e4ece7}.rank-bar i{display:block;height:100%;background:var(--blue)}
+.schedule-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(290px,.75fr);gap:14px}.week-scroll{overflow-x:auto}.week-strip{display:grid;grid-template-columns:78px repeat(5,minmax(80px,1fr));min-width:650px}
+.week-cell{min-height:64px;padding:8px;border-right:1px solid #d5eadc;border-bottom:1px solid #d5eadc;font-size:10px}.week-cell.head{min-height:42px;background:#f0fdf4;color:#3f5f49;text-align:center;font-weight:700}.week-cell.axis{background:#f8fcf9;color:var(--muted);font:9px var(--mono)}
+.job{padding:7px;border-left:3px solid #15803d;background:#dcfce7;color:#14532d;font-weight:700;line-height:1.4}.job.maint{border-color:#a16207;background:#fef3c7;color:#713f12}.job.safe{border-color:#166534;background:#f0fdf4;color:#14532d}
+.slot{margin-bottom:9px;padding:13px;border:1px solid #bdd8c5;transition:.2s}.slot:hover,.slot.chosen{border-color:var(--blue);background:#f0fdf4}.slot.chosen{box-shadow:inset 4px 0 var(--blue)}.slot-head{display:flex;justify-content:space-between;gap:9px}.slot h3{margin:0;color:var(--ink);font-size:11px}.slot p{margin:7px 0 0;color:var(--muted);font-size:10px;line-height:1.55}
+.order-box{margin-top:14px;padding:15px;background:#123c24;color:#fff}.order-box span,.order-box p{color:#b9d5c2;font-size:10px}.order-box strong{display:block;margin:5px 0;font-size:17px}.order-box p{margin:0;line-height:1.5}
+.history-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.75fr);gap:14px}.data-table tbody tr{cursor:pointer}.data-table tbody tr:hover,.data-table tbody tr.selected{background:#ecfdf5}.record-id{color:#166534;font-weight:700}
+.detail-panel{padding:19px}.detail-head{display:flex;justify-content:space-between;gap:10px}.detail-head h2{margin:0;color:var(--ink);font-size:17px}.detail-meta{margin:15px 0;display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.detail-meta div{padding:10px;background:#f0fdf4;border-left:2px solid #86efac}.detail-meta span{display:block;color:var(--muted);font-size:9px}.detail-meta strong{display:block;margin-top:4px;color:var(--ink);font-size:10px}
+.audit-item{display:grid;grid-template-columns:25px 1fr;gap:9px;padding-bottom:13px}.audit-mark{position:relative;width:25px;height:25px;display:grid;place-items:center;background:#dcfce7;color:#166534;font-weight:800}.audit-item:not(:last-child) .audit-mark:after{content:"";position:absolute;top:25px;left:12px;width:1px;height:35px;background:#86efac}.audit-item strong{display:block;color:var(--ink);font-size:10px}.audit-item span{color:var(--muted);font-size:9px;line-height:1.5}
+.rule-box{margin-top:13px;padding:12px;border:1px dashed #65a97a;background:#f0fdf4;font-size:10px;line-height:1.6}
+@keyframes enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media(max-width:1100px){.grid-4{grid-template-columns:repeat(2,1fr)}.signal-layout,.timeline-layout,.schedule-layout,.history-layout{grid-template-columns:1fr}.compare-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:780px){:root{--rail:0}.shell{padding:0 0 68px}.rail{inset:auto 0 0;width:100%;height:66px;padding:7px 8px}.brand,.rail-label,.rail-bottom{display:none}.rail-nav{grid-template-columns:repeat(6,1fr);gap:3px}.nav-btn{min-height:51px;padding:0;justify-content:center;border:0;border-bottom:3px solid transparent;font-size:0}.nav-btn svg{width:19px}.nav-btn.active{border-color:#22c55e}.nav-num{display:none}.topbar{height:61px;padding:0 15px}.product-copy span,.live{display:none}.page{padding:23px 15px 35px}.page-head{display:block}.page-tools{margin-top:15px;justify-content:flex-start}.grid-3,.compare-grid{grid-template-columns:1fr}.machine-item{grid-template-columns:1fr}.chart{height:270px}}
+@media(max-width:480px){.grid-4,.grid-2{grid-template-columns:1fr}.page-tools .btn{flex:1;justify-content:center}.product-copy strong{font-size:12px}.card-pad{padding:15px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}.page.active{opacity:1;transform:none}.kpi:hover,.btn:hover{transform:none}}
 </style>
 </head>
 <body>
+<svg aria-hidden="true" width="0" height="0" style="position:absolute"><defs>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></symbol>
+<symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2-6 4 12 2-6h6"/></symbol>
+<symbol id="i-trend" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-9"/><path d="M16 6h5v5"/></symbol>
+<symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 7h14l-3-3m3 3-3 3M17 17H3l3 3m-3-3 3-3"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16"/><path d="M8 3v4m8-4v4M3 10h18m-13 5 2 2 5-5"/></symbol>
+<symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5m4-2v6l4 2"/></symbol>
+<symbol id="i-machine" viewBox="0 0 24 24"><path d="M4 20V8h4V4h8v4h4v12M8 12h8m-8 4h8"/><circle cx="12" cy="14" r="2"/></symbol>
+<symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 21h20zM12 9v5m0 3v.01"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path d="m3 7 9-4 9 4-9 4zM3 7v10l9 4 9-4V7M12 11v10"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></symbol>
+<symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M7 8a7 7 0 0 1 12 4M17 16a7 7 0 0 1-12-4"/></symbol>
+<symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4m0 1h12l-2 4 2 4H5"/></symbol>
+</defs></svg>
+
 <div class="shell">
-  <aside class="rail" aria-label="流程導覽">
-    <div class="brand" aria-label="JVision">JV</div>
-    <nav class="rail-nav">
-      <button class="nav-btn" data-i="0" aria-label="風險總覽"><span class="material-symbols-outlined">dashboard</span></button>
-      <button class="nav-btn" data-i="1" aria-label="即時監看"><span class="material-symbols-outlined">monitor_heart</span></button>
-      <button class="nav-btn" data-i="2" aria-label="趨勢分析"><span class="material-symbols-outlined">timeline</span></button>
-      <button class="nav-btn" data-i="3" aria-label="軸承比較"><span class="material-symbols-outlined">swap_horiz</span></button>
-      <button class="nav-btn" data-i="4" aria-label="維修排程"><span class="material-symbols-outlined">event_available</span></button>
-      <button class="nav-btn" data-i="5" aria-label="設備履歷"><span class="material-symbols-outlined">history</span></button>
-    </nav>
-    <div class="rail-bottom">CMMS<br>RUL AI</div>
-  </aside>
+<aside class="rail" aria-label="流程導覽">
+<div class="brand"><div class="brand-mark">JV</div><div><strong>RUL CONTROL</strong><span>主軸可靠度系統</span></div></div>
+<div class="rail-label">WORKFLOW / 01—06</div>
+<nav class="rail-nav">
+<button class="nav-btn" data-i="0" aria-label="風險總覽"><svg><use href="#i-grid"/></svg>風險總覽<span class="nav-num">01</span></button>
+<button class="nav-btn" data-i="1" aria-label="即時監看"><svg><use href="#i-pulse"/></svg>即時監看<span class="nav-num">02</span></button>
+<button class="nav-btn" data-i="2" aria-label="趨勢分析"><svg><use href="#i-trend"/></svg>趨勢分析<span class="nav-num">03</span></button>
+<button class="nav-btn" data-i="3" aria-label="軸承比較"><svg><use href="#i-swap"/></svg>軸承比較<span class="nav-num">04</span></button>
+<button class="nav-btn" data-i="4" aria-label="維修排程"><svg><use href="#i-calendar"/></svg>維修排程<span class="nav-num">05</span></button>
+<button class="nav-btn" data-i="5" aria-label="設備履歷"><svg><use href="#i-history"/></svg>設備履歷<span class="nav-num">06</span></button>
+</nav>
+<div class="rail-bottom">CMMS / RUL AI<br>ZHONGLI PLANT 01</div>
+</aside>
 
-  <main class="content">
-    <header class="topbar">
-      <div class="product">
-        <div class="product-icon"><span class="material-symbols-outlined">precision_manufacturing</span></div>
-        <div class="product-copy">
-          <strong>電腦數控主軸壽命預測</strong>
-          <span>CMMS 設備維護 · 中壢一廠</span>
-        </div>
-      </div>
-      <div class="header-actions">
-        <div class="live"><i class="live-dot"></i>感測器連線正常</div>
-        <button class="avatar" aria-label="使用者選單">陳工</button>
-      </div>
-    </header>
+<main class="content">
+<header class="topbar">
+<div class="product"><div class="product-icon"><svg><use href="#i-machine"/></svg></div><div class="product-copy"><strong>電腦數控主軸壽命預測</strong><span>CMMS 設備維護 · 中壢一廠</span></div></div>
+<div class="header-actions"><div class="live"><i class="live-dot"></i>感測器連線正常</div><button class="avatar" aria-label="使用者選單">陳工</button></div>
+</header>
 
-    <section class="page" data-page="0">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">Stage 01 · 線長</div>
-          <h1>主軸軸承風險總覽</h1>
-          <p>確認即將達劣化門檻的機台，優先處理壽命短、信心度高的預警。</p>
-        </div>
-        <div class="page-tools">
-          <button class="btn"><span class="material-symbols-outlined">filter_alt</span>A 區 · 全部機台</button>
-          <button class="btn primary"><span class="material-symbols-outlined">add_task</span>建立維護任務</button>
-        </div>
-      </div>
+<section class="page" data-page="0">
+<div class="page-head"><div><div class="eyebrow">Stage 01 · 線長</div><h1>主軸軸承風險總覽</h1><p>確認即將達劣化門檻的機台，優先處理壽命短、信心度高的預警。</p></div><div class="page-tools"><button class="btn"><svg><use href="#i-filter"/></svg>A 區 · 全部機台</button><button class="btn primary"><svg><use href="#i-plus"/></svg>建立維護任務</button></div></div>
+<div class="grid-4">
+<article class="kpi"><div class="kpi-row"><span class="kpi-label">監測主軸</span><span class="kpi-icon"><svg><use href="#i-machine"/></svg></span></div><div class="kpi-value">24 <small>支</small></div><div class="delta">正常 · 23 支連線中</div></article>
+<article class="kpi"><div class="kpi-row"><span class="kpi-label">高風險主軸數</span><span class="kpi-icon danger"><svg><use href="#i-alert"/></svg></span></div><div class="kpi-value">3 <small>支</small></div><div class="delta warn">警示 · 較昨日 +1</div></article>
+<article class="kpi"><div class="kpi-row"><span class="kpi-label">最低剩餘壽命</span><span class="kpi-icon warn"><svg><use href="#i-history"/></svg></span></div><div class="kpi-value">186 <small>小時</small></div><div class="delta warn">注意 · CNC-07 主軸</div></article>
+<article class="kpi"><div class="kpi-row"><span class="kpi-label">預測信心度</span><span class="kpi-icon good"><svg><use href="#i-trend"/></svg></span></div><div class="kpi-value">93.6 <small>%</small></div><div class="delta">正常 · 模型穩定</div></article>
+</div>
+<div class="grid-2" style="margin-top:14px">
+<article class="card card-pad"><div class="card-title"><h2>未來 30 日壽命風險分布</h2><span class="pill info"><i class="dot"></i>24 支主軸</span></div><div id="riskChart" class="chart"></div></article>
+<article class="card card-pad"><div class="card-title"><h2>需要關注的機台</h2><small>依剩餘壽命排序</small></div><div class="machine-list">
+<div class="machine-item"><div class="machine-name"><span>07</span><span>CNC-07<span class="machine-meta">線體 A · HSK-A63</span></span></div><div><div class="progress-label"><span>健康度</span><b>18%</b></div><div class="progress"><i class="red" style="width:18%"></i></div></div><span class="pill high"><i class="dot"></i>高風險 · 186 h</span></div>
+<div class="machine-item"><div class="machine-name"><span>12</span><span>CNC-12<span class="machine-meta">線體 B · BT40</span></span></div><div><div class="progress-label"><span>健康度</span><b>27%</b></div><div class="progress"><i class="red" style="width:27%"></i></div></div><span class="pill high"><i class="dot"></i>高風險 · 244 h</span></div>
+<div class="machine-item"><div class="machine-name"><span>03</span><span>CNC-03<span class="machine-meta">線體 A · HSK-A63</span></span></div><div><div class="progress-label"><span>健康度</span><b>42%</b></div><div class="progress"><i class="amber" style="width:42%"></i></div></div><span class="pill medium"><i class="dot"></i>注意 · 396 h</span></div>
+<div class="machine-item"><div class="machine-name"><span>18</span><span>CNC-18<span class="machine-meta">線體 C · BT50</span></span></div><div><div class="progress-label"><span>健康度</span><b>61%</b></div><div class="progress"><i style="width:61%"></i></div></div><span class="pill info"><i class="dot"></i>監測 · 728 h</span></div>
+</div></article></div>
+<div class="notice" style="margin-top:14px"><svg><use href="#i-box"/></svg><div><strong>CNC-07 對應軸承庫存僅 1 組。</strong> 依目前負載推估，建議於 9/02 前完成備料並預留 2.5 小時維修窗口。</div></div>
+</section>
 
-      <div class="grid-4">
-        <article class="kpi">
-          <div class="kpi-row"><span class="kpi-label">監測主軸</span><span class="kpi-icon"><span class="material-symbols-outlined">manufacturing</span></span></div>
-          <div class="kpi-value">24 <small>支</small></div><div class="delta">23 支連線中</div>
-        </article>
-        <article class="kpi">
-          <div class="kpi-row"><span class="kpi-label">高風險主軸數</span><span class="kpi-icon danger"><span class="material-symbols-outlined">warning</span></span></div>
-          <div class="kpi-value">3 <small>支</small></div><div class="delta warn">較昨日 +1</div>
-        </article>
-        <article class="kpi">
-          <div class="kpi-row"><span class="kpi-label">最低剩餘壽命</span><span class="kpi-icon warn"><span class="material-symbols-outlined">hourglass_bottom</span></span></div>
-          <div class="kpi-value">186 <small>小時</small></div><div class="delta warn">CNC-07 主軸</div>
-        </article>
-        <article class="kpi">
-          <div class="kpi-row"><span class="kpi-label">預測信心度</span><span class="kpi-icon good"><span class="material-symbols-outlined">verified</span></span></div>
-          <div class="kpi-value">93.6 <small>%</small></div><div class="delta">模型穩定</div>
-        </article>
-      </div>
+<section class="page" data-page="1">
+<div class="page-head"><div><div class="eyebrow">Stage 02 · 機台操作員</div><h1>CNC-07 即時狀態監看</h1><p>查看當前加工批次的主軸負載、振動與溫度變化，辨識軸承劣化訊號。</p></div><div class="page-tools"><button class="btn">工單 MO-250828-17</button><button class="btn primary"><svg><use href="#i-flag"/></svg>標記異常片段</button></div></div>
+<div class="signal-layout"><div>
+<article class="card card-pad"><div class="card-title"><h2>多訊號即時波形</h2><div class="wave-status"><span>■ 振動 RMS</span><span>▲ 溫度</span><span>● 主軸負載</span></div></div><div id="signalChart" class="chart tall"></div></article>
+<div class="grid-3" style="margin-top:12px"><article class="kpi"><span class="kpi-label">徑向振動 RMS</span><div class="kpi-value">4.82 <small>mm/s</small></div><div class="delta warn">警示 · 警戒值 4.50</div></article><article class="kpi"><span class="kpi-label">前軸承溫度</span><div class="kpi-value">68.4 <small>°C</small></div><div class="delta warn">升溫 · 15 分鐘 +3.1°C</div></article><article class="kpi"><span class="kpi-label">目前主軸負載</span><div class="kpi-value">76.2 <small>%</small></div><div class="delta">運轉中 · 11,800 rpm</div></article></div>
+</div><aside>
+<article class="machine-hero"><div class="machine-hero-head"><div><h2>CNC-07</h2><p>加工鋁合金殼體 · OP30</p></div><span class="pill high"><i class="dot"></i>高風險</span></div><div class="ring-wrap"><div class="life-ring"><div><strong>186</strong><span>預估剩餘運轉小時</span></div></div></div><div class="sensor-grid"><div class="sensor"><span>預測信心度</span><strong>95.2%</strong></div><div class="sensor"><span>健康指數</span><strong>0.18</strong></div><div class="sensor"><span>累積運轉</span><strong>8,426 h</strong></div><div class="sensor"><span>資料延遲</span><strong>1.3 sec</strong></div></div></article>
+<article class="card card-pad" style="margin-top:12px"><div class="card-title"><h2>訊號事件</h2><small>最近 30 分鐘</small></div><div class="alert-list"><div class="alert"><span class="alert-icon"><svg><use href="#i-pulse"/></svg></span><div><h3>警示 · 包絡頻譜 BPFO 升高</h3><p>外環故障特徵頻率達基準值 2.4 倍。</p></div></div><div class="alert"><span class="alert-icon amber"><svg><use href="#i-trend"/></svg></span><div><h3>注意 · 升溫速率偏高</h3><p>連續 15 分鐘高於同型機台第 90 百分位。</p></div></div><div class="alert"><span class="alert-icon amber"><svg><use href="#i-alert"/></svg></span><div><h3>注意 · 高負載加工區間</h3><p>工序 30-4 已持續高於 75% 負載 8 分鐘。</p></div></div></div></article>
+</aside></div>
+</section>
 
-      <div class="grid-2" style="margin-top:16px">
-        <article class="card card-pad">
-          <div class="card-title"><h2>未來 30 日壽命風險分布</h2><span class="pill info"><i class="dot"></i>24 支主軸</span></div>
-          <div id="riskChart" class="chart"></div>
-        </article>
-        <article class="card card-pad">
-          <div class="card-title"><h2>需要關注的機台</h2><small>依剩餘壽命排序</small></div>
-          <div class="machine-list">
-            <div class="machine-item">
-              <div class="machine-name"><span>07</span><span>CNC-07<span class="machine-meta">線體 A · HSK-A63</span></span></div>
-              <div><div class="progress-label"><span>健康度</span><b>18%</b></div><div class="progress"><i class="red" style="width:18%"></i></div></div>
-              <span class="pill high"><i class="dot"></i>186 h</span>
-            </div>
-            <div class="machine-item">
-              <div class="machine-name"><span>12</span><span>CNC-12<span class="machine-meta">線體 B · BT40</span></span></div>
-              <div><div class="progress-label"><span>健康度</span><b>27%</b></div><div class="progress"><i class="red" style="width:27%"></i></div></div>
-              <span class="pill high"><i class="dot"></i>244 h</span>
-            </div>
-            <div class="machine-item">
-              <div class="machine-name"><span>03</span><span>CNC-03<span class="machine-meta">線體 A · HSK-A63</span></span></div>
-              <div><div class="progress-label"><span>健康度</span><b>42%</b></div><div class="progress"><i class="amber" style="width:42%"></i></div></div>
-              <span class="pill medium"><i class="dot"></i>396 h</span>
-            </div>
-            <div class="machine-item">
-              <div class="machine-name"><span>18</span><span>CNC-18<span class="machine-meta">線體 C · BT50</span></span></div>
-              <div><div class="progress-label"><span>健康度</span><b>61%</b></div><div class="progress"><i style="width:61%"></i></div></div>
-              <span class="pill info"><i class="dot"></i>728 h</span>
-            </div>
-          </div>
-        </article>
-      </div>
-      <div class="notice" style="margin-top:16px">
-        <span class="material-symbols-outlined">inventory_2</span>
-        <div><strong>CNC-07 對應軸承庫存僅 1 組。</strong> 依目前負載推估，建議於 9/02 前完成備料並預留 2.5 小時維修窗口。</div>
-      </div>
-    </section>
+<section class="page" data-page="2">
+<div class="page-head"><div><div class="eyebrow">Stage 03 · 製程工程師</div><h1>軸承劣化趨勢與加速原因</h1><p>對照實際健康指數與 AI 預測曲線，定位劣化突然加快的加工條件。</p></div><div class="page-tools"><button class="btn"><svg><use href="#i-calendar"/></svg>近 60 日</button><button class="btn primary"><svg><use href="#i-export"/></svg>輸出診斷摘要</button></div></div>
+<div class="timeline-layout"><article class="card card-pad"><div class="card-title"><h2>CNC-07 健康指數與剩餘壽命</h2><span class="pill high"><i class="dot"></i>劣化加速</span></div><div id="degradeChart" class="chart tall"></div></article><aside class="card card-pad"><div class="card-title"><h2>可能加速因子</h2><small>AI 關聯分數</small></div><div class="cause-list">
+<div class="cause"><span class="cause-num">01</span><div><h3>高轉速長時間加工</h3><p>11,500 rpm 以上累積 38.6 小時</p></div><b class="score">86%</b></div>
+<div class="cause"><span class="cause-num">02</span><div><h3>冷卻液溫差偏高</h3><p>入口與環境溫差最高 11.2°C</p></div><b class="score">73%</b></div>
+<div class="cause"><span class="cause-num">03</span><div><h3>刀具動平衡異常</h3><p>T18 刀組振幅高於基準 31%</p></div><b class="score">68%</b></div>
+<div class="cause"><span class="cause-num">04</span><div><h3>潤滑間隔延後</h3><p>第 6 次潤滑較計畫延後 9 小時</p></div><b class="score">42%</b></div>
+</div></aside></div>
+<div class="grid-2" style="margin-top:14px"><article class="card card-pad"><div class="card-title"><h2>關鍵事件時間軸</h2><small>模型變點前後</small></div><div class="event-line"><div class="event"><time>08/03 14:20</time><strong>更換 T18 刀柄</strong><span>新刀柄動平衡等級 G6.3，未執行機上複驗。</span></div><div class="event"><time>08/11 09:42</time><strong>徑向振動首次超過 4.0 mm/s</strong><span>發生於工序 OP30，高轉速切削區段。</span></div><div class="event"><time>08/17 16:10</time><strong>AI 偵測劣化斜率改變</strong><span>預估剩餘壽命由 522 小時下修至 318 小時。</span></div><div class="event"><time>08/28 10:35</time><strong>外環故障特徵確認</strong><span>BPFO 頻帶能量連續三批超出基準。</span></div></div></article><article class="card card-pad"><div class="card-title"><h2>同型機基準比較</h2><small>HSK-A63 · 8 支</small></div><div id="baselineChart" class="chart"></div></article></div>
+</section>
 
-    <section class="page" data-page="1">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">Stage 02 · 機台操作員</div>
-          <h1>CNC-07 即時狀態監看</h1>
-          <p>查看當前加工批次的主軸負載、振動與溫度變化，辨識軸承劣化訊號。</p>
-        </div>
-        <div class="page-tools">
-          <button class="btn"><span class="material-symbols-outlined">qr_code_scanner</span>工單 MO-250828-17</button>
-          <button class="btn primary"><span class="material-symbols-outlined">flag</span>標記異常片段</button>
-        </div>
-      </div>
+<section class="page" data-page="3">
+<div class="page-head"><div><div class="eyebrow">Stage 04 · 刀具管理員</div><h1>主軸軸承規格與批次表現比較</h1><p>比較品牌、潤滑配置與供應批次的壽命、穩定度及每運轉小時成本。</p></div><div class="page-tools"><button class="btn"><svg><use href="#i-export"/></svg>匯出比較</button><button class="btn primary"><svg><use href="#i-box"/></svg>查看備品庫存</button></div></div>
+<article class="card"><div class="compare-head"><strong>比較條件</strong><select class="select-box" aria-label="主軸規格"><option>HSK-A63 主軸</option></select><select class="select-box" aria-label="工況"><option>鋁合金高速加工</option></select><select class="select-box" aria-label="期間"><option>近 24 個月</option></select><span class="pill info">樣本 37 組軸承</span></div></article>
+<div class="compare-grid" style="margin-top:14px">
+<article class="card tool-card"><div class="tool-top"><span class="tool-code">BRG-A · 批次 24Q2</span><h2>NSK 70BNR10</h2><p>陶瓷滾珠 · 油氣潤滑 · 日本</p></div><div class="tool-stats"><div class="tool-stat"><span>平均壽命</span><strong>9,240 h</strong></div><div class="tool-stat"><span>壽命變異</span><strong>± 8.6%</strong></div><div class="tool-stat"><span>每小時成本</span><strong>NT$ 3.8</strong></div><div class="tool-stat"><span>樣本數</span><strong>14 組</strong></div></div></article>
+<article class="card tool-card best"><span class="best-ribbon">建議選用</span><div class="tool-top"><span class="tool-code">BRG-B · 批次 24Q1</span><h2>FAG HCS7010</h2><p>陶瓷滾珠 · 油氣潤滑 · 德國</p></div><div class="tool-stats"><div class="tool-stat"><span>平均壽命</span><strong>10,180 h</strong></div><div class="tool-stat"><span>壽命變異</span><strong>± 6.2%</strong></div><div class="tool-stat"><span>每小時成本</span><strong>NT$ 3.6</strong></div><div class="tool-stat"><span>樣本數</span><strong>11 組</strong></div></div></article>
+<article class="card tool-card"><div class="tool-top"><span class="tool-code">BRG-C · 批次 23Q4</span><h2>SKF 7010 CE</h2><p>陶瓷滾珠 · 油氣潤滑 · 法國</p></div><div class="tool-stats"><div class="tool-stat"><span>平均壽命</span><strong>8,760 h</strong></div><div class="tool-stat"><span>壽命變異</span><strong>± 12.4%</strong></div><div class="tool-stat"><span>每小時成本</span><strong>NT$ 4.1</strong></div><div class="tool-stat"><span>樣本數</span><strong>12 組</strong></div></div></article>
+</div>
+<div class="grid-2" style="margin-top:14px"><article class="card card-pad"><div class="card-title"><h2>批次壽命與穩定度</h2><small>越右上越佳</small></div><div id="compareChart" class="chart"></div></article><article class="card"><div class="compare-head"><strong>綜合排名</strong><span class="pill good">依成本效益排序</span></div><div class="table-wrap"><table class="rank-table"><thead><tr><th>排名</th><th>規格</th><th>壽命</th><th>穩定度</th><th>綜合分數</th></tr></thead><tbody><tr><td>1</td><td><b>FAG HCS7010</b></td><td>10,180 h</td><td>93.8%</td><td><div class="rank-bar"><i style="width:94%"></i></div></td></tr><tr><td>2</td><td><b>NSK 70BNR10</b></td><td>9,240 h</td><td>91.4%</td><td><div class="rank-bar"><i style="width:88%"></i></div></td></tr><tr><td>3</td><td><b>SKF 7010 CE</b></td><td>8,760 h</td><td>87.6%</td><td><div class="rank-bar"><i style="width:79%"></i></div></td></tr></tbody></table></div><div class="notice" style="margin:14px"><svg><use href="#i-trend"/></svg><div>若下一批改採 FAG，依年運轉 6,800 小時計算，預估可降低軸承成本 8.9%，並減少一次非計畫換修。</div></div></article></div>
+</section>
 
-      <div class="signal-layout">
-        <div>
-          <article class="card card-pad wave-box">
-            <div class="card-title">
-              <h2>多訊號即時波形</h2>
-              <div class="wave-status"><span><i class="dot" style="color:#1e40af"></i> 振動 RMS</span><span><i class="dot" style="color:#d97706"></i> 溫度</span><span><i class="dot" style="color:#14866d"></i> 主軸負載</span></div>
-            </div>
-            <div id="signalChart" class="chart tall"></div>
-          </article>
-          <div class="grid-3" style="margin-top:14px">
-            <article class="kpi"><span class="kpi-label">徑向振動 RMS</span><div class="kpi-value">4.82 <small>mm/s</small></div><div class="delta warn">警戒值 4.50</div></article>
-            <article class="kpi"><span class="kpi-label">前軸承溫度</span><div class="kpi-value">68.4 <small>°C</small></div><div class="delta warn">15 分鐘 +3.1°C</div></article>
-            <article class="kpi"><span class="kpi-label">目前主軸負載</span><div class="kpi-value">76.2 <small>%</small></div><div class="delta">轉速 11,800 rpm</div></article>
-          </div>
-        </div>
+<section class="page" data-page="4">
+<div class="page-head"><div><div class="eyebrow">Stage 05 · 生產排程員</div><h1>預防維修窗口模擬</h1><p>依剩餘運轉時數、生產工單與備品到料日，選擇停機影響最低的軸承更換時段。</p></div><div class="page-tools"><button class="btn"><svg><use href="#i-refresh"/></svg>重新計算</button><button class="btn primary"><svg><use href="#i-plus"/></svg>建立模擬工單</button></div></div>
+<div class="grid-4"><article class="kpi"><span class="kpi-label">CNC-07 剩餘壽命</span><div class="kpi-value">186 <small>小時</small></div><div class="delta warn">注意 · 最晚 9/06 前處理</div></article><article class="kpi"><span class="kpi-label">軸承備品</span><div class="kpi-value">1 <small>組</small></div><div class="delta">可用 · 庫位 B-03-17</div></article><article class="kpi"><span class="kpi-label">預估維修工時</span><div class="kpi-value">2.5 <small>小時</small></div><div class="delta">需求 · 2 位機修人員</div></article><article class="kpi"><span class="kpi-label">最低產能影響</span><div class="kpi-value">42 <small>件</small></div><div class="delta">建議 · 時段 9/02</div></article></div>
+<div class="schedule-layout" style="margin-top:14px"><article class="card"><div class="compare-head"><strong>產線負荷與可維修窗口</strong><span class="pill info">09/01 — 09/05</span></div><div class="week-scroll"><div class="week-strip">
+<div class="week-cell head"></div><div class="week-cell head">週一 09/01</div><div class="week-cell head">週二 09/02</div><div class="week-cell head">週三 09/03</div><div class="week-cell head">週四 09/04</div><div class="week-cell head">週五 09/05</div>
+<div class="week-cell axis">08:00–12:00</div><div class="week-cell"><div class="job">MO-25101<br>泵浦殼 × 180</div></div><div class="week-cell"><div class="job safe">換線準備<br>低負荷</div></div><div class="week-cell"><div class="job">MO-25108<br>馬達座 × 220</div></div><div class="week-cell"><div class="job">MO-25113<br>泵體 × 160</div></div><div class="week-cell"><div class="job">MO-25116<br>端蓋 × 240</div></div>
+<div class="week-cell axis">13:00–17:00</div><div class="week-cell"><div class="job">MO-25101<br>持續加工</div></div><div class="week-cell"><div class="job maint">建議維修<br>13:30–16:00</div></div><div class="week-cell"><div class="job">MO-25108<br>持續加工</div></div><div class="week-cell"><div class="job safe">品質抽驗<br>可用 2 h</div></div><div class="week-cell"><div class="job">MO-25116<br>持續加工</div></div>
+<div class="week-cell axis">18:00–22:00</div><div class="week-cell"><div class="job safe">無排程</div></div><div class="week-cell"><div class="job safe">試車驗證<br>16:00–17:00</div></div><div class="week-cell"><div class="job">急單預留</div></div><div class="week-cell"><div class="job">MO-25115<br>插單</div></div><div class="week-cell"><div class="job safe">無排程</div></div>
+</div></div><div class="card-pad"><div class="card-title"><h2>停機影響模擬</h2><small>三種方案</small></div><div id="scheduleChart" class="chart"></div></div></article>
+<aside class="card card-pad"><div class="card-title"><h2>候選維修時段</h2><small>AI 建議排序</small></div><div class="slot chosen" tabindex="0" role="button"><div class="slot-head"><h3>方案 A · 09/02 13:30</h3><span class="pill good">最佳</span></div><p>產能影響 42 件 · 風險餘裕 84 小時<br>備品與人員皆已確認。</p></div><div class="slot" tabindex="0" role="button"><div class="slot-head"><h3>方案 B · 09/04 14:00</h3><span class="pill medium">可行</span></div><p>產能影響 68 件 · 風險餘裕 36 小時<br>需調整 MO-25115 插單。</p></div><div class="slot" tabindex="0" role="button"><div class="slot-head"><h3>方案 C · 09/05 18:00</h3><span class="pill high">高風險</span></div><p>產能影響 18 件 · 風險餘裕僅 8 小時<br>預測誤差可能造成停機。</p></div><div class="order-box"><span>模擬工單</span><strong>PM-CNC07-0902</strong><p>更換前軸承組、檢查油氣潤滑、執行主軸暖機與振動基準重建。</p></div></aside></div>
+</section>
 
-        <aside>
-          <article class="machine-hero">
-            <div class="machine-hero-head">
-              <div><h2>CNC-07</h2><p>加工鋁合金殼體 · OP30</p></div>
-              <span class="pill high"><i class="dot"></i>高風險</span>
-            </div>
-            <div class="ring-wrap">
-              <div class="life-ring"><div><strong>186</strong><span>預估剩餘運轉小時</span></div></div>
-            </div>
-            <div class="sensor-grid">
-              <div class="sensor"><span>預測信心度</span><strong>95.2%</strong></div>
-              <div class="sensor"><span>健康指數</span><strong>0.18</strong></div>
-              <div class="sensor"><span>累積運轉</span><strong>8,426 h</strong></div>
-              <div class="sensor"><span>資料延遲</span><strong>1.3 sec</strong></div>
-            </div>
-          </article>
-
-          <article class="card card-pad" style="margin-top:14px">
-            <div class="card-title"><h2>訊號事件</h2><small>最近 30 分鐘</small></div>
-            <div class="alert-list">
-              <div class="alert"><span class="alert-icon"><span class="material-symbols-outlined">vibration</span></span><div><h3>包絡頻譜 BPFO 升高</h3><p>外環故障特徵頻率達基準值 2.4 倍。</p></div></div>
-              <div class="alert"><span class="alert-icon amber"><span class="material-symbols-outlined">device_thermostat</span></span><div><h3>升溫速率偏高</h3><p>連續 15 分鐘高於同型機台第 90 百分位。</p></div></div>
-              <div class="alert"><span class="alert-icon amber"><span class="material-symbols-outlined">speed</span></span><div><h3>高負載加工區間</h3><p>工序 30-4 已持續高於 75% 負載 8 分鐘。</p></div></div>
-            </div>
-          </article>
-        </aside>
-      </div>
-    </section>
-
-    <section class="page" data-page="2">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">Stage 03 · 製程工程師</div>
-          <h1>軸承劣化趨勢與加速原因</h1>
-          <p>對照實際健康指數與 AI 預測曲線，定位劣化突然加快的加工條件。</p>
-        </div>
-        <div class="page-tools">
-          <button class="btn"><span class="material-symbols-outlined">date_range</span>近 60 日</button>
-          <button class="btn primary"><span class="material-symbols-outlined">description</span>輸出診斷摘要</button>
-        </div>
-      </div>
-
-      <div class="timeline-layout">
-        <article class="card card-pad">
-          <div class="card-title"><h2>CNC-07 健康指數與剩餘壽命</h2><span class="pill high"><i class="dot"></i>劣化加速</span></div>
-          <div id="degradeChart" class="chart tall"></div>
-        </article>
-        <aside class="card card-pad">
-          <div class="card-title"><h2>可能加速因子</h2><small>AI 關聯分數</small></div>
-          <div class="cause-list">
-            <div class="cause"><span class="cause-num">01</span><div><h3>高轉速長時間加工</h3><p>11,500 rpm 以上累積 38.6 小時</p></div><b class="score">86%</b></div>
-            <div class="cause"><span class="cause-num">02</span><div><h3>冷卻液溫差偏高</h3><p>入口與環境溫差最高 11.2°C</p></div><b class="score">73%</b></div>
-            <div class="cause"><span class="cause-num">03</span><div><h3>刀具動平衡異常</h3><p>T18 刀組振幅高於基準 31%</p></div><b class="score">68%</b></div>
-            <div class="cause"><span class="cause-num">04</span><div><h3>潤滑間隔延後</h3><p>第 6 次潤滑較計畫延後 9 小時</p></div><b class="score">42%</b></div>
-          </div>
-        </aside>
-      </div>
-
-      <div class="grid-2" style="margin-top:16px">
-        <article class="card card-pad">
-          <div class="card-title"><h2>關鍵事件時間軸</h2><small>模型變點前後</small></div>
-          <div class="event-line">
-            <div class="event"><time>08/03 14:20</time><strong>更換 T18 刀柄</strong><span>新刀柄動平衡等級 G6.3，未執行機上複驗。</span></div>
-            <div class="event"><time>08/11 09:42</time><strong>徑向振動首次超過 4.0 mm/s</strong><span>發生於工序 OP30，高轉速切削區段。</span></div>
-            <div class="event"><time>08/17 16:10</time><strong>AI 偵測劣化斜率改變</strong><span>預估剩餘壽命由 522 小時下修至 318 小時。</span></div>
-            <div class="event"><time>08/28 10:35</time><strong>外環故障特徵確認</strong><span>BPFO 頻帶能量連續三批超出基準。</span></div>
-          </div>
-        </article>
-        <article class="card card-pad">
-          <div class="card-title"><h2>同型機基準比較</h2><small>HSK-A63 · 8 支</small></div>
-          <div id="baselineChart" class="chart"></div>
-        </article>
-      </div>
-    </section>
-
-    <section class="page" data-page="3">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">Stage 04 · 刀具管理員</div>
-          <h1>主軸軸承規格與批次表現比較</h1>
-          <p>比較品牌、潤滑配置與供應批次的壽命、穩定度及每運轉小時成本。</p>
-        </div>
-        <div class="page-tools">
-          <button class="btn"><span class="material-symbols-outlined">download</span>匯出比較</button>
-          <button class="btn primary"><span class="material-symbols-outlined">inventory</span>查看備品庫存</button>
-        </div>
-      </div>
-
-      <article class="card">
-        <div class="compare-head">
-          <strong style="color:var(--ink);font-size:13px">比較條件</strong>
-          <select class="select-box" aria-label="主軸規格"><option>HSK-A63 主軸</option></select>
-          <select class="select-box" aria-label="工況"><option>鋁合金高速加工</option></select>
-          <select class="select-box" aria-label="期間"><option>近 24 個月</option></select>
-          <span class="pill info">樣本 37 組軸承</span>
-        </div>
-      </article>
-
-      <div class="compare-grid" style="margin-top:16px">
-        <article class="card tool-card">
-          <div class="tool-top"><span class="tool-code">BRG-A · 批次 24Q2</span><h2>NSK 70BNR10</h2><p>陶瓷滾珠 · 油氣潤滑 · 日本</p></div>
-          <div class="tool-stats">
-            <div class="tool-stat"><span>平均壽命</span><strong>9,240 h</strong></div>
-            <div class="tool-stat"><span>壽命變異</span><strong>± 8.6%</strong></div>
-            <div class="tool-stat"><span>每小時成本</span><strong>NT$ 3.8</strong></div>
-            <div class="tool-stat"><span>樣本數</span><strong>14 組</strong></div>
-          </div>
-        </article>
-        <article class="card tool-card best">
-          <span class="best-ribbon">建議選用</span>
-          <div class="tool-top"><span class="tool-code">BRG-B · 批次 24Q1</span><h2>FAG HCS7010</h2><p>陶瓷滾珠 · 油氣潤滑 · 德國</p></div>
-          <div class="tool-stats">
-            <div class="tool-stat"><span>平均壽命</span><strong>10,180 h</strong></div>
-            <div class="tool-stat"><span>壽命變異</span><strong>± 6.2%</strong></div>
-            <div class="tool-stat"><span>每小時成本</span><strong>NT$ 3.6</strong></div>
-            <div class="tool-stat"><span>樣本數</span><strong>11 組</strong></div>
-          </div>
-        </article>
-        <article class="card tool-card">
-          <div class="tool-top"><span class="tool-code">BRG-C · 批次 23Q4</span><h2>SKF 7010 CE</h2><p>陶瓷滾珠 · 油氣潤滑 · 法國</p></div>
-          <div class="tool-stats">
-            <div class="tool-stat"><span>平均壽命</span><strong>8,760 h</strong></div>
-            <div class="tool-stat"><span>壽命變異</span><strong>± 12.4%</strong></div>
-            <div class="tool-stat"><span>每小時成本</span><strong>NT$ 4.1</strong></div>
-            <div class="tool-stat"><span>樣本數</span><strong>12 組</strong></div>
-          </div>
-        </article>
-      </div>
-
-      <div class="grid-2" style="margin-top:16px">
-        <article class="card card-pad">
-          <div class="card-title"><h2>批次壽命與穩定度</h2><small>越右上越佳</small></div>
-          <div id="compareChart" class="chart"></div>
-        </article>
-        <article class="card">
-          <div class="compare-head"><strong style="color:var(--ink);font-size:13px">綜合排名</strong><span class="pill good">依成本效益排序</span></div>
-          <div class="table-wrap">
-            <table class="rank-table">
-              <thead><tr><th>排名</th><th>規格</th><th>壽命</th><th>穩定度</th><th>綜合分數</th></tr></thead>
-              <tbody>
-                <tr><td>1</td><td><b>FAG HCS7010</b></td><td>10,180 h</td><td>93.8%</td><td><div class="rank-bar"><i style="width:94%"></i></div></td></tr>
-                <tr><td>2</td><td><b>NSK 70BNR10</b></td><td>9,240 h</td><td>91.4%</td><td><div class="rank-bar"><i style="width:88%"></i></div></td></tr>
-                <tr><td>3</td><td><b>SKF 7010 CE</b></td><td>8,760 h</td><td>87.6%</td><td><div class="rank-bar"><i style="width:79%"></i></div></td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="notice" style="margin:14px"><span class="material-symbols-outlined">lightbulb</span><div>若下一批改採 FAG，依年運轉 6,800 小時計算，預估可降低軸承成本 8.9%，並減少一次非計畫換修。</div></div>
-        </article>
-      </div>
-    </section>
-
-    <section class="page" data-page="4">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">Stage 05 · 生產排程員</div>
-          <h1>預防維修窗口模擬</h1>
-          <p>依剩餘運轉時數、生產工單與備品到料日，選擇停機影響最低的軸承更換時段。</p>
-        </div>
-        <div class="page-tools">
-          <button class="btn"><span class="material-symbols-outlined">refresh</span>重新計算</button>
-          <button class="btn primary"><span class="material-symbols-outlined">assignment_add</span>建立模擬工單</button>
-        </div>
-      </div>
-
-      <div class="grid-4">
-        <article class="kpi"><span class="kpi-label">CNC-07 剩餘壽命</span><div class="kpi-value">186 <small>小時</small></div><div class="delta warn">最晚 9/06 前處理</div></article>
-        <article class="kpi"><span class="kpi-label">軸承備品</span><div class="kpi-value">1 <small>組</small></div><div class="delta">庫位 B-03-17</div></article>
-        <article class="kpi"><span class="kpi-label">預估維修工時</span><div class="kpi-value">2.5 <small>小時</small></div><div class="delta">2 位機修人員</div></article>
-        <article class="kpi"><span class="kpi-label">最低產能影響</span><div class="kpi-value">42 <small>件</small></div><div class="delta">建議時段 9/02</div></article>
-      </div>
-
-      <div class="schedule-layout" style="margin-top:16px">
-        <article class="card">
-          <div class="compare-head"><strong style="color:var(--ink);font-size:13px">產線負荷與可維修窗口</strong><span class="pill info">09/01 — 09/05</span></div>
-          <div class="week-scroll">
-            <div class="week-strip">
-              <div class="week-cell head"></div><div class="week-cell head">週一 09/01</div><div class="week-cell head">週二 09/02</div><div class="week-cell head">週三 09/03</div><div class="week-cell head">週四 09/04</div><div class="week-cell head">週五 09/05</div>
-              <div class="week-cell axis">08:00–12:00</div><div class="week-cell"><div class="job">MO-25101<br>泵浦殼 × 180</div></div><div class="week-cell"><div class="job safe">換線準備<br>低負荷</div></div><div class="week-cell"><div class="job">MO-25108<br>馬達座 × 220</div></div><div class="week-cell"><div class="job">MO-25113<br>泵體 × 160</div></div><div class="week-cell"><div class="job">MO-25116<br>端蓋 × 240</div></div>
-              <div class="week-cell axis">13:00–17:00</div><div class="week-cell"><div class="job">MO-25101<br>持續加工</div></div><div class="week-cell"><div class="job maint">建議維修<br>13:30–16:00</div></div><div class="week-cell"><div class="job">MO-25108<br>持續加工</div></div><div class="week-cell"><div class="job safe">品質抽驗<br>可用 2 h</div></div><div class="week-cell"><div class="job">MO-25116<br>持續加工</div></div>
-              <div class="week-cell axis">18:00–22:00</div><div class="week-cell"><div class="job safe">無排程</div></div><div class="week-cell"><div class="job safe">試車驗證<br>16:00–17:00</div></div><div class="week-cell"><div class="job">急單預留</div></div><div class="week-cell"><div class="job">MO-25115<br>插單</div></div><div class="week-cell"><div class="job safe">無排程</div></div>
-            </div>
-          </div>
-          <div class="card-pad">
-            <div class="card-title"><h2>停機影響模擬</h2><small>三種方案</small></div>
-            <div id="scheduleChart" class="chart"></div>
-          </div>
-        </article>
-
-        <aside class="card card-pad">
-          <div class="card-title"><h2>候選維修時段</h2><small>AI 建議排序</small></div>
-          <div class="slot chosen" tabindex="0">
-            <div class="slot-head"><h3>方案 A · 09/02 13:30</h3><span class="pill good">最佳</span></div>
-            <p>產能影響 42 件 · 風險餘裕 84 小時<br>備品與人員皆已確認。</p>
-          </div>
-          <div class="slot" tabindex="0">
-            <div class="slot-head"><h3>方案 B · 09/04 14:00</h3><span class="pill medium">可行</span></div>
-            <p>產能影響 68 件 · 風險餘裕 36 小時<br>需調整 MO-25115 插單。</p>
-          </div>
-          <div class="slot" tabindex="0">
-            <div class="slot-head"><h3>方案 C · 09/05 18:00</h3><span class="pill high">高風險</span></div>
-            <p>產能影響 18 件 · 風險餘裕僅 8 小時<br>預測誤差可能造成停機。</p>
-          </div>
-          <div class="order-box">
-            <span>模擬工單</span><strong>PM-CNC07-0902</strong>
-            <p>更換前軸承組、檢查油氣潤滑、執行主軸暖機與振動基準重建。</p>
-          </div>
-        </aside>
-      </div>
-    </section>
-
-    <section class="page" data-page="5">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">Stage 06 · 製造主管</div>
-          <h1>主軸維護履歷與操作稽核</h1>
-          <p>回顧換修結果、實際使用壽命與模型判斷依據，作為後續備料及採購參考。</p>
-        </div>
-        <div class="page-tools">
-          <button class="btn"><span class="material-symbols-outlined">search</span>搜尋紀錄</button>
-          <button class="btn primary"><span class="material-symbols-outlined">ios_share</span>匯出履歷</button>
-        </div>
-      </div>
-
-      <div class="history-layout">
-        <article class="card">
-          <div class="compare-head">
-            <strong style="color:var(--ink);font-size:13px">電腦數控主軸壽命預測資料列表</strong>
-            <span class="pill info">6 筆流程紀錄</span>
-          </div>
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th><th>優先級</th></tr></thead>
-              <tbody>
-                <tr class="selected" data-record="CNC-001"><td class="record-id">CNC-001</td><td>檢視主軸風險</td><td>線長</td><td>D+1</td><td><span class="pill info">處理中</span></td><td><span class="pill high">高</span></td></tr>
-                <tr data-record="CNC-002"><td class="record-id">CNC-002</td><td>監看劣化變化</td><td>機台操作員</td><td>D+2</td><td><span class="pill medium">待確認</span></td><td><span class="pill high">高</span></td></tr>
-                <tr data-record="CNC-003"><td class="record-id">CNC-003</td><td>分析加速原因</td><td>製程工程師</td><td>D+3</td><td><span class="pill medium">待確認</span></td><td><span class="pill medium">中</span></td></tr>
-                <tr data-record="CNC-004"><td class="record-id">CNC-004</td><td>比較軸承表現</td><td>刀具管理員</td><td>D+4</td><td><span class="pill good">已完成</span></td><td><span class="pill medium">中</span></td></tr>
-                <tr data-record="CNC-005"><td class="record-id">CNC-005</td><td>安排預防換修</td><td>生產排程員</td><td>D+5</td><td><span class="pill good">已完成</span></td><td><span class="pill medium">中</span></td></tr>
-                <tr data-record="CNC-006"><td class="record-id">CNC-006</td><td>回顧使用履歷</td><td>製造主管</td><td>D+6</td><td><span class="pill good">已完成</span></td><td><span class="pill medium">中</span></td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="card-pad">
-            <div class="card-title"><h2>維護成效趨勢</h2><small>導入後 6 週</small></div>
-            <div id="historyChart" class="chart"></div>
-          </div>
-        </article>
-
-        <aside class="card detail-panel">
-          <div class="detail-head"><div><small style="color:var(--muted)">選取紀錄</small><h2 id="detailId">CNC-001</h2></div><span class="pill info">處理中</span></div>
-          <div class="detail-meta">
-            <div><span>設備</span><strong>CNC-07 主軸</strong></div>
-            <div><span>負責人</span><strong>線長 · 王俊凱</strong></div>
-            <div><span>建立時間</span><strong>08/28 10:42</strong></div>
-            <div><span>預測信心度</span><strong>95.2%</strong></div>
-          </div>
-          <div class="card-title"><h2>可追溯操作紀錄</h2></div>
-          <div class="audit">
-            <div class="audit-item"><span class="audit-mark material-symbols-outlined">check</span><div><strong>感測資料完成校驗</strong><span>振動、溫度、負載資料完整率 99.7% · 系統</span></div></div>
-            <div class="audit-item"><span class="audit-mark material-symbols-outlined">check</span><div><strong>RUL 模型完成推論</strong><span>預估剩餘 186 小時 · 模型 RUL-v3.8</span></div></div>
-            <div class="audit-item"><span class="audit-mark material-symbols-outlined">check</span><div><strong>線長確認高風險主軸</strong><span>標記 CNC-07 優先檢查 · 王俊凱</span></div></div>
-            <div class="audit-item"><span class="audit-mark material-symbols-outlined">schedule</span><div><strong>等待製程工程師複核</strong><span>需確認 T18 刀柄動平衡與 BPFO 訊號</span></div></div>
-          </div>
-          <div class="rule-box">
-            <strong style="color:var(--blue)">RULE-01 · 判斷依據</strong><br>
-            檢視主軸風險階段由線長負責：從總覽確認即將達劣化門檻的機台與主軸。證據：預估剩餘運轉時數。
-          </div>
-        </aside>
-      </div>
-    </section>
-  </main>
+<section class="page" data-page="5">
+<div class="page-head"><div><div class="eyebrow">Stage 06 · 製造主管</div><h1>主軸維護履歷與操作稽核</h1><p>回顧換修結果、實際使用壽命與模型判斷依據，作為後續備料及採購參考。</p></div><div class="page-tools"><button class="btn"><svg><use href="#i-search"/></svg>搜尋紀錄</button><button class="btn primary"><svg><use href="#i-export"/></svg>匯出履歷</button></div></div>
+<div class="history-layout"><article class="card"><div class="compare-head"><strong>電腦數控主軸壽命預測資料列表</strong><span class="pill info">6 筆流程紀錄</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>編號</th><th>項目</th><th>負責人</th><th>期限</th><th>階段</th><th>優先級</th></tr></thead><tbody>
+<tr class="selected" data-record="CNC-001" tabindex="0"><td class="record-id">CNC-001</td><td>檢視主軸風險</td><td>線長</td><td>D+1</td><td><span class="pill info">處理中</span></td><td><span class="pill high">高</span></td></tr>
+<tr data-record="CNC-002" tabindex="0"><td class="record-id">CNC-002</td><td>監看劣化變化</td><td>機台操作員</td><td>D+2</td><td><span class="pill medium">待確認</span></td><td><span class="pill high">高</span></td></tr>
+<tr data-record="CNC-003" tabindex="0"><td class="record-id">CNC-003</td><td>分析加速原因</td><td>製程工程師</td><td>D+3</td><td><span class="pill medium">待確認</span></td><td><span class="pill medium">中</span></td></tr>
+<tr data-record="CNC-004" tabindex="0"><td class="record-id">CNC-004</td><td>比較軸承表現</td><td>刀具管理員</td><td>D+4</td><td><span class="pill good">已完成</span></td><td><span class="pill medium">中</span></td></tr>
+<tr data-record="CNC-005" tabindex="0"><td class="record-id">CNC-005</td><td>安排預防換修</td><td>生產排程員</td><td>D+5</td><td><span class="pill good">已完成</span></td><td><span class="pill medium">中</span></td></tr>
+<tr data-record="CNC-006" tabindex="0"><td class="record-id">CNC-006</td><td>回顧使用履歷</td><td>製造主管</td><td>D+6</td><td><span class="pill good">已完成</span></td><td><span class="pill medium">中</span></td></tr>
+</tbody></table></div><div class="card-pad"><div class="card-title"><h2>維護成效趨勢</h2><small>導入後 6 週</small></div><div id="historyChart" class="chart"></div></div></article>
+<aside class="card detail-panel"><div class="detail-head"><div><small style="color:var(--muted)">選取紀錄</small><h2 id="detailId">CNC-001</h2></div><span class="pill info">處理中</span></div><div class="detail-meta"><div><span>設備</span><strong>CNC-07 主軸</strong></div><div><span>負責人</span><strong>線長 · 王俊凱</strong></div><div><span>建立時間</span><strong>08/28 10:42</strong></div><div><span>預測信心度</span><strong>95.2%</strong></div></div><div class="card-title"><h2>可追溯操作紀錄</h2></div><div class="audit"><div class="audit-item"><span class="audit-mark">✓</span><div><strong>感測資料完成校驗</strong><span>振動、溫度、負載資料完整率 99.7% · 系統</span></div></div><div class="audit-item"><span class="audit-mark">✓</span><div><strong>RUL 模型完成推論</strong><span>預估剩餘 186 小時 · 模型 RUL-v3.8</span></div></div><div class="audit-item"><span class="audit-mark">✓</span><div><strong>線長確認高風險主軸</strong><span>標記 CNC-07 優先檢查 · 王俊凱</span></div></div><div class="audit-item"><span class="audit-mark">…</span><div><strong>等待製程工程師複核</strong><span>需確認 T18 刀柄動平衡與 BPFO 訊號</span></div></div></div><div class="rule-box"><strong style="color:#166534">RULE-01 · 判斷依據</strong><br>檢視主軸風險階段由線長負責：從總覽確認即將達劣化門檻的機台與主軸。證據：預估剩餘運轉時數。</div></aside></div>
+</section>
+</main>
 </div>
 
 <script>
 (function(){
-  "use strict";
-
-  var chartInstances = {};
-  var pages = document.querySelectorAll("[data-page]");
-  var navButtons = document.querySelectorAll("[data-i]");
-
-  var commonText = {
-    fontFamily:'Inter, "Noto Sans TC", sans-serif',
-    color:"#718096"
-  };
-
-  function axisStyle(){
-    return {
-      axisLine:{lineStyle:{color:"#dbe4f0"}},
-      axisTick:{show:false},
-      axisLabel:{color:"#718096",fontSize:10},
-      splitLine:{lineStyle:{color:"#edf1f6"}}
-    };
-  }
-
-  function makeChart(key, elementId, option){
-    if(chartInstances[key]) return;
-    var element = document.getElementById(elementId);
-    if(!element || element.clientWidth === 0) return;
-    chartInstances[key] = echarts.init(element);
-    chartInstances[key].setOption(option);
-  }
-
-  function initChartForPage(pageIndex){
-    if(pageIndex === 0){
-      makeChart("risk","riskChart",{
-        textStyle:commonText,
-        tooltip:{trigger:"axis"},
-        grid:{left:42,right:16,top:20,bottom:35},
-        xAxis:Object.assign({type:"category",data:["0–7 日","8–14 日","15–21 日","22–30 日","> 30 日"]},axisStyle()),
-        yAxis:Object.assign({type:"value",minInterval:1},axisStyle()),
-        series:[{
-          type:"bar",
-          data:[
-            {value:3,itemStyle:{color:"#dc3f4f"}},
-            {value:2,itemStyle:{color:"#d97706"}},
-            {value:4,itemStyle:{color:"#e2a93b"}},
-            {value:5,itemStyle:{color:"#5273cf"}},
-            {value:10,itemStyle:{color:"#1e40af"}}
-          ],
-          barWidth:"48%",
-          itemStyle:{borderRadius:[6,6,0,0]},
-          label:{show:true,position:"top",color:"#334155",fontWeight:700}
-        }]
-      });
-    }
-
-    if(pageIndex === 1){
-      makeChart("signal","signalChart",{
-        textStyle:commonText,
-        tooltip:{trigger:"axis"},
-        legend:{bottom:0,data:["振動 RMS","前軸承溫度","主軸負載"],textStyle:{fontSize:10,color:"#718096"}},
-        grid:{left:44,right:46,top:20,bottom:48},
-        xAxis:Object.assign({type:"category",boundaryGap:false,data:["10:05","10:10","10:15","10:20","10:25","10:30","10:35","10:40","10:45","10:50","10:55"]},axisStyle()),
-        yAxis:[
-          Object.assign({type:"value",name:"振動 mm/s",min:0,max:8},axisStyle()),
-          Object.assign({type:"value",name:"溫度 / 負載",min:40,max:100},axisStyle())
-        ],
-        series:[
-          {name:"振動 RMS",type:"line",smooth:true,symbol:"none",data:[2.7,2.9,3.1,3.3,3.6,4.0,4.5,4.3,4.7,5.1,4.82],lineStyle:{width:3,color:"#1e40af"},areaStyle:{color:"rgba(30,64,175,.10)"}},
-          {name:"前軸承溫度",type:"line",yAxisIndex:1,smooth:true,symbol:"none",data:[56,57,58,59,60,61,63,64,65,67,68.4],lineStyle:{width:2,color:"#d97706"}},
-          {name:"主軸負載",type:"line",yAxisIndex:1,smooth:true,symbol:"none",data:[62,68,74,71,79,83,77,88,81,73,76.2],lineStyle:{width:2,color:"#14866d"}}
-        ]
-      });
-    }
-
-    if(pageIndex === 2){
-      makeChart("degrade","degradeChart",{
-        textStyle:commonText,
-        tooltip:{trigger:"axis"},
-        legend:{top:0,data:["實際健康指數","AI 預測","預警門檻"],textStyle:{fontSize:10}},
-        grid:{left:48,right:25,top:42,bottom:38},
-        xAxis:Object.assign({type:"category",boundaryGap:false,data:["07/01","07/08","07/15","07/22","07/29","08/05","08/12","08/19","08/26","09/02","09/09"]},axisStyle()),
-        yAxis:Object.assign({type:"value",name:"健康指數",min:0,max:1},axisStyle()),
-        series:[
-          {name:"實際健康指數",type:"line",data:[.84,.81,.78,.74,.70,.65,.57,.43,.22,null,null],smooth:true,symbolSize:6,lineStyle:{width:3,color:"#1e40af"},areaStyle:{color:"rgba(30,64,175,.08)"}},
-          {name:"AI 預測",type:"line",data:[null,null,null,null,.71,.65,.56,.44,.26,.12,.04],smooth:true,symbol:"none",lineStyle:{width:2,type:"dashed",color:"#dc3f4f"}},
-          {name:"預警門檻",type:"line",data:[.25,.25,.25,.25,.25,.25,.25,.25,.25,.25,.25],symbol:"none",lineStyle:{width:1,type:"dashed",color:"#d97706"}}
-        ]
-      });
-
-      makeChart("baseline","baselineChart",{
-        textStyle:commonText,
-        tooltip:{trigger:"item"},
-        radar:{
-          radius:"66%",
-          indicator:[
-            {name:"振動",max:100},{name:"溫度",max:100},{name:"負載",max:100},
-            {name:"潤滑",max:100},{name:"壽命餘裕",max:100}
-          ],
-          axisName:{fontSize:10,color:"#718096"},
-          splitArea:{areaStyle:{color:["#fff","#f7f9fc"]}},
-          splitLine:{lineStyle:{color:"#dbe4f0"}},
-          axisLine:{lineStyle:{color:"#dbe4f0"}}
-        },
-        series:[{type:"radar",data:[
-          {value:[88,81,76,55,18],name:"CNC-07",lineStyle:{color:"#dc3f4f"},areaStyle:{color:"rgba(220,63,79,.14)"}},
-          {value:[42,48,62,86,77],name:"同型機平均",lineStyle:{color:"#1e40af"},areaStyle:{color:"rgba(30,64,175,.08)"}}
-        ]}]
-      });
-    }
-
-    if(pageIndex === 3){
-      makeChart("compare","compareChart",{
-        textStyle:commonText,
-        tooltip:{trigger:"item",formatter:function(p){return p.data[2]+"<br>平均壽命："+p.data[0]+" h<br>穩定度："+p.data[1]+"%";}},
-        grid:{left:52,right:22,top:18,bottom:42},
-        xAxis:Object.assign({type:"value",name:"平均壽命 h",min:8000,max:10600},axisStyle()),
-        yAxis:Object.assign({type:"value",name:"穩定度 %",min:84,max:97},axisStyle()),
-        series:[{
-          type:"scatter",symbolSize:function(v){return v[3];},
-          data:[
-            {value:[9240,91.4,"NSK 70BNR10",42],itemStyle:{color:"#1e40af"}},
-            {value:[10180,93.8,"FAG HCS7010",48],itemStyle:{color:"#14866d"}},
-            {value:[8760,87.6,"SKF 7010 CE",45],itemStyle:{color:"#d97706"}}
-          ],
-          label:{show:true,formatter:function(p){return p.data.value[2];},position:"top",fontSize:10,color:"#334155"}
-        }]
-      });
-    }
-
-    if(pageIndex === 4){
-      makeChart("schedule","scheduleChart",{
-        textStyle:commonText,
-        tooltip:{trigger:"axis"},
-        legend:{top:0,data:["產能影響（件）","故障風險（%）"],textStyle:{fontSize:10}},
-        grid:{left:45,right:45,top:42,bottom:34},
-        xAxis:Object.assign({type:"category",data:["方案 A\n09/02","方案 B\n09/04","方案 C\n09/05"]},axisStyle()),
-        yAxis:[
-          Object.assign({type:"value",name:"影響件數",max:80},axisStyle()),
-          Object.assign({type:"value",name:"風險 %",max:100},axisStyle())
-        ],
-        series:[
-          {name:"產能影響（件）",type:"bar",barWidth:"34%",data:[42,68,18],itemStyle:{color:"#1e40af",borderRadius:[6,6,0,0]}},
-          {name:"故障風險（%）",type:"line",yAxisIndex:1,data:[8,28,74],symbolSize:9,lineStyle:{width:3,color:"#dc3f4f"},itemStyle:{color:"#dc3f4f"}}
-        ]
-      });
-    }
-
-    if(pageIndex === 5){
-      makeChart("history","historyChart",{
-        textStyle:commonText,
-        tooltip:{trigger:"axis"},
-        grid:{left:44,right:20,top:20,bottom:35},
-        xAxis:Object.assign({type:"category",boundaryGap:false,data:["W1","W2","W3","W4","W5","W6"]},axisStyle()),
-        yAxis:Object.assign({type:"value",min:70,max:100,axisLabel:{formatter:"{value}%"}},axisStyle()),
-        series:[{
-          name:"保養準時率",
-          type:"line",smooth:true,
-          data:[75,79.2,83.4,87.6,91.8,96],
-          symbolSize:7,
-          lineStyle:{width:3,color:"#1e40af"},
-          itemStyle:{color:"#1e40af"},
-          areaStyle:{color:"rgba(30,64,175,.12)"},
-          markLine:{symbol:"none",label:{formatter:"目標 98.9%",fontSize:10},lineStyle:{color:"#14866d",type:"dashed"},data:[{yAxis:98.9}]}
-        }]
-      });
-    }
-  }
-
-  function show(index){
-    var pageIndex = Number(index);
-    if(!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex > 5) pageIndex = 0;
-
-    pages.forEach(function(page){
-      page.classList.toggle("active", Number(page.getAttribute("data-page")) === pageIndex);
-    });
-
-    navButtons.forEach(function(button){
-      var active = Number(button.getAttribute("data-i")) === pageIndex;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-current", active ? "page" : "false");
-    });
-
-    initChartForPage(pageIndex);
-    window.scrollTo(0,0);
-  }
-
-  function indexFromHash(){
-    var match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
-    return match ? Number(match[1]) : 0;
-  }
-
-  navButtons.forEach(function(button){
-    button.addEventListener("click",function(){
-      var targetIndex = Number(button.getAttribute("data-i"));
-      var nextHash = "#go=" + targetIndex;
-      if(window.location.hash === nextHash) show(targetIndex);
-      else window.location.hash = nextHash;
-    });
-  });
-
-  document.querySelectorAll(".slot").forEach(function(slot){
-    slot.addEventListener("click",function(){
-      document.querySelectorAll(".slot").forEach(function(item){item.classList.remove("chosen");});
-      slot.classList.add("chosen");
-    });
-    slot.addEventListener("keydown",function(event){
-      if(event.key === "Enter" || event.key === " "){
-        event.preventDefault();
-        slot.click();
-      }
-    });
-  });
-
-  document.querySelectorAll("[data-record]").forEach(function(row){
-    row.addEventListener("click",function(){
-      document.querySelectorAll("[data-record]").forEach(function(item){item.classList.remove("selected");});
-      row.classList.add("selected");
-      document.getElementById("detailId").textContent = row.getAttribute("data-record");
-    });
-  });
-
-  window.addEventListener("hashchange",function(){
-    show(indexFromHash());
-  });
-
-  window.addEventListener("resize",function(){
-    Object.keys(chartInstances).forEach(function(key){
-      chartInstances[key].resize();
-    });
-  });
-
-  show(0);
-  if(window.location.hash) show(indexFromHash());
+"use strict";
+var charts={},pages=document.querySelectorAll("[data-page]"),navs=document.querySelectorAll("[data-i]");
+var text={fontFamily:"Inter, sans-serif",color:"#52645b"};
+function axis(){return{axisLine:{lineStyle:{color:"#bbf7d0"}},axisTick:{show:false},axisLabel:{color:"#52645b",fontSize:10},splitLine:{lineStyle:{color:"#e3f4e8"}}}}
+function make(k,id,o){if(charts[k])return;var el=document.getElementById(id);if(!el||!el.clientWidth)return;charts[k]=echarts.init(el);charts[k].setOption(o)}
+function init(i){
+if(i===0)make("risk","riskChart",{textStyle:text,tooltip:{trigger:"axis"},grid:{left:42,right:16,top:20,bottom:35},xAxis:Object.assign({type:"category",data:["0–7 日","8–14 日","15–21 日","22–30 日","> 30 日"]},axis()),yAxis:Object.assign({type:"value",minInterval:1},axis()),series:[{type:"bar",barWidth:"48%",data:[{value:3,itemStyle:{color:"#b91c1c"}},{value:2,itemStyle:{color:"#a16207"}},{value:4,itemStyle:{color:"#ca8a04"}},{value:5,itemStyle:{color:"#22c55e"}},{value:10,itemStyle:{color:"#15803d"}}],label:{show:true,position:"top",color:"#102f1d",fontWeight:700}}]});
+if(i===1)make("signal","signalChart",{textStyle:text,tooltip:{trigger:"axis"},legend:{bottom:0,data:["振動 RMS","前軸承溫度","主軸負載"],textStyle:{fontSize:10,color:"#52645b"}},grid:{left:44,right:46,top:20,bottom:48},xAxis:Object.assign({type:"category",boundaryGap:false,data:["10:05","10:10","10:15","10:20","10:25","10:30","10:35","10:40","10:45","10:50","10:55"]},axis()),yAxis:[Object.assign({type:"value",name:"振動 mm/s",min:0,max:8},axis()),Object.assign({type:"value",name:"溫度 / 負載",min:40,max:100},axis())],series:[{name:"振動 RMS",type:"line",smooth:true,symbol:"rect",symbolSize:5,data:[2.7,2.9,3.1,3.3,3.6,4,4.5,4.3,4.7,5.1,4.82],lineStyle:{width:3,color:"#15803d"},areaStyle:{color:"rgba(22,163,74,.1)"}},{name:"前軸承溫度",type:"line",yAxisIndex:1,smooth:true,symbol:"triangle",symbolSize:6,data:[56,57,58,59,60,61,63,64,65,67,68.4],lineStyle:{width:2,color:"#a16207"}},{name:"主軸負載",type:"line",yAxisIndex:1,smooth:true,symbol:"circle",symbolSize:5,data:[62,68,74,71,79,83,77,88,81,73,76.2],lineStyle:{width:2,color:"#166534"}}]});
+if(i===2){make("degrade","degradeChart",{textStyle:text,tooltip:{trigger:"axis"},legend:{top:0,data:["實際健康指數","AI 預測","預警門檻"],textStyle:{fontSize:10}},grid:{left:48,right:25,top:42,bottom:38},xAxis:Object.assign({type:"category",boundaryGap:false,data:["07/01","07/08","07/15","07/22","07/29","08/05","08/12","08/19","08/26","09/02","09/09"]},axis()),yAxis:Object.assign({type:"value",name:"健康指數",min:0,max:1},axis()),series:[{name:"實際健康指數",type:"line",data:[.84,.81,.78,.74,.7,.65,.57,.43,.22,null,null],smooth:true,symbolSize:6,lineStyle:{width:3,color:"#15803d"},areaStyle:{color:"rgba(22,163,74,.09)"}},{name:"AI 預測",type:"line",data:[null,null,null,null,.71,.65,.56,.44,.26,.12,.04],smooth:true,symbol:"none",lineStyle:{width:2,type:"dashed",color:"#b91c1c"}},{name:"預警門檻",type:"line",data:Array(11).fill(.25),symbol:"none",lineStyle:{width:1,type:"dashed",color:"#a16207"}}]});
+make("baseline","baselineChart",{textStyle:text,tooltip:{trigger:"item"},radar:{radius:"66%",indicator:[{name:"振動",max:100},{name:"溫度",max:100},{name:"負載",max:100},{name:"潤滑",max:100},{name:"壽命餘裕",max:100}],axisName:{fontSize:10,color:"#52645b"},splitArea:{areaStyle:{color:["#fff","#f0fdf4"]}},splitLine:{lineStyle:{color:"#bbf7d0"}},axisLine:{lineStyle:{color:"#bbf7d0"}}},series:[{type:"radar",data:[{value:[88,81,76,55,18],name:"CNC-07",lineStyle:{color:"#b91c1c"},areaStyle:{color:"rgba(185,28,28,.13)"}},{value:[42,48,62,86,77],name:"同型機平均",lineStyle:{color:"#15803d"},areaStyle:{color:"rgba(22,163,74,.1)"}}]}]})}
+if(i===3)make("compare","compareChart",{textStyle:text,tooltip:{trigger:"item",formatter:function(p){return p.data.value[2]+"<br>平均壽命："+p.data.value[0]+" h<br>穩定度："+p.data.value[1]+"%"}},grid:{left:52,right:22,top:18,bottom:42},xAxis:Object.assign({type:"value",name:"平均壽命 h",min:8000,max:10600},axis()),yAxis:Object.assign({type:"value",name:"穩定度 %",min:84,max:97},axis()),series:[{type:"scatter",symbolSize:function(v){return v[3]},data:[{value:[9240,91.4,"NSK 70BNR10",42],itemStyle:{color:"#16a34a"}},{value:[10180,93.8,"FAG HCS7010",48],itemStyle:{color:"#166534"}},{value:[8760,87.6,"SKF 7010 CE",45],itemStyle:{color:"#a16207"}}],label:{show:true,formatter:function(p){return p.data.value[2]},position:"top",fontSize:10,color:"#102f1d"}}]});
+if(i===4)make("schedule","scheduleChart",{textStyle:text,tooltip:{trigger:"axis"},legend:{top:0,data:["產能影響（件）","故障風險（%）"],textStyle:{fontSize:10}},grid:{left:45,right:45,top:42,bottom:34},xAxis:Object.assign({type:"category",data:["方案 A\n09/02","方案 B\n09/04","方案 C\n09/05"]},axis()),yAxis:[Object.assign({type:"value",name:"影響件數",max:80},axis()),Object.assign({type:"value",name:"風險 %",max:100},axis())],series:[{name:"產能影響（件）",type:"bar",barWidth:"34%",data:[42,68,18],itemStyle:{color:"#15803d"}},{name:"故障風險（%）",type:"line",yAxisIndex:1,data:[8,28,74],symbol:"triangle",symbolSize:9,lineStyle:{width:3,color:"#b91c1c"},itemStyle:{color:"#b91c1c"}}]});
+if(i===5)make("history","historyChart",{textStyle:text,tooltip:{trigger:"axis"},grid:{left:44,right:20,top:20,bottom:35},xAxis:Object.assign({type:"category",boundaryGap:false,data:["W1","W2","W3","W4","W5","W6"]},axis()),yAxis:Object.assign({type:"value",min:70,max:100,axisLabel:{formatter:"{value}%"}},axis()),series:[{name:"保養準時率",type:"line",smooth:true,data:[75,79.2,83.4,87.6,91.8,96],symbolSize:7,lineStyle:{width:3,color:"#15803d"},itemStyle:{color:"#15803d"},areaStyle:{color:"rgba(22,163,74,.12)"},markLine:{symbol:"none",label:{formatter:"目標 98.9%",fontSize:10},lineStyle:{color:"#166534",type:"dashed"},data:[{yAxis:98.9}]}}]})
+}
+function show(n){n=Number(n);if(!Number.isInteger(n)||n<0||n>5)n=0;pages.forEach(function(p){p.classList.toggle("active",Number(p.dataset.page)===n)});navs.forEach(function(b){var a=Number(b.dataset.i)===n;b.classList.toggle("active",a);b.setAttribute("aria-current",a?"page":"false")});init(n);window.scrollTo(0,0)}
+function hash(){var m=location.hash.match(/(?:go=|v)([0-9]+)/);return m?Number(m[1]):0}
+navs.forEach(function(b){b.addEventListener("click",function(){var n=Number(b.dataset.i),h="#go="+n;if(location.hash===h)show(n);else location.hash=h})});
+document.querySelectorAll(".slot").forEach(function(s){function choose(){document.querySelectorAll(".slot").forEach(function(x){x.classList.remove("chosen")});s.classList.add("chosen")}s.addEventListener("click",choose);s.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();choose()}})});
+document.querySelectorAll("[data-record]").forEach(function(r){function choose(){document.querySelectorAll("[data-record]").forEach(function(x){x.classList.remove("selected")});r.classList.add("selected");document.getElementById("detailId").textContent=r.dataset.record}r.addEventListener("click",choose);r.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();choose()}})});
+window.addEventListener("hashchange",function(){show(hash())});window.addEventListener("resize",function(){Object.keys(charts).forEach(function(k){charts[k].resize()})});show(location.hash?hash():0)
 })();
 </script>
 </body>

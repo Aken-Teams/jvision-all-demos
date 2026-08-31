@@ -1,805 +1,587 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>產線復原優先序 Agent · manufacturing-mes｜Jvision 系統 Demo</title>
-  <link rel="icon" href="../../favicon.svg">
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <style>
-    :root{
-      --blue:#1e40af;
-      --ink:#172033;
-      --body:#334155;
-      --muted:#64748b;
-      --line:#dbe3ef;
-      --bg:#f3f6fb;
-      --green:#15803d;
-      --amber:#b45309;
-      --red:#c2413b;
-      --white:#fff;
-      --soft:#eef3ff;
-      --shadow:0 12px 32px rgba(30,64,175,.08);
-    }
-    *{box-sizing:border-box}
-    html{scroll-behavior:smooth}
-    body{
-      margin:0;background:var(--bg);color:var(--body);
-      font-family:Inter,"Noto Sans TC",sans-serif;overflow-x:hidden
-    }
-    button,input,select,textarea{font:inherit}
-    button{cursor:pointer}
-    button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
-      outline:3px solid rgba(30,64,175,.28);outline-offset:2px
-    }
-    .material-symbols-outlined{font-size:21px;line-height:1}
-    .shell{min-height:100vh;display:grid;grid-template-columns:78px minmax(0,1fr)}
-    .rail{
-      position:fixed;inset:0 auto 0 0;width:78px;background:#10276e;color:#fff;
-      display:flex;flex-direction:column;align-items:center;padding:18px 10px;z-index:20
-    }
-    .brand{
-      width:46px;height:46px;border-radius:15px;background:#fff;color:var(--blue);
-      display:grid;place-items:center;font-weight:800;letter-spacing:-1px;
-      box-shadow:0 8px 18px rgba(0,0,0,.18)
-    }
-    .rail-nav{display:flex;flex-direction:column;gap:9px;margin-top:38px;width:100%}
-    .nav-btn{
-      border:0;background:transparent;color:#b8c7f7;width:58px;min-height:52px;
-      border-radius:14px;display:grid;place-items:center;position:relative
-    }
-    .nav-btn:hover{background:rgba(255,255,255,.1);color:#fff}
-    .nav-btn.active{background:#fff;color:var(--blue)}
-    .nav-btn::after{
-      content:attr(aria-label);position:absolute;left:66px;white-space:nowrap;
-      padding:7px 10px;border-radius:8px;background:var(--ink);color:#fff;
-      font-size:12px;opacity:0;pointer-events:none;transform:translateX(-4px);
-      transition:.16s;box-shadow:var(--shadow)
-    }
-    .nav-btn:hover::after{opacity:1;transform:none}
-    .rail-foot{margin-top:auto;color:#a9b9ef;font-size:10px;text-align:center;line-height:1.5}
-    main{grid-column:2;min-width:0;padding:0 28px 32px}
-    .topbar{
-      min-height:76px;display:flex;align-items:center;justify-content:space-between;
-      gap:20px;border-bottom:1px solid var(--line)
-    }
-    .eyebrow{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--blue);font-weight:800}
-    .top-title{margin:4px 0 0;font-size:20px;color:var(--ink);letter-spacing:-.02em}
-    .top-actions{display:flex;align-items:center;gap:10px}
-    .incident-pill{
-      display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);
-      border-radius:999px;padding:9px 13px;font-size:12px;font-weight:700;color:var(--ink)
-    }
-    .pulse{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 0 5px rgba(194,65,59,.12)}
-    .icon-btn{
-      width:42px;height:42px;border-radius:12px;border:1px solid var(--line);
-      background:#fff;color:var(--body);display:grid;place-items:center
-    }
-    .view{display:none;animation:rise .25s ease}
-    .view.active{display:block}
-    @keyframes rise{from{opacity:.25;transform:translateY(6px)}to{opacity:1;transform:none}}
-    .page-head{
-      display:flex;align-items:flex-end;justify-content:space-between;gap:20px;
-      padding:27px 0 20px
-    }
-    .page-head h2{margin:5px 0 6px;color:var(--ink);font-size:clamp(24px,3vw,35px);letter-spacing:-.035em}
-    .page-head p{margin:0;color:var(--muted);max-width:740px;line-height:1.65;font-size:14px}
-    .step-chip{
-      flex:0 0 auto;background:var(--soft);color:var(--blue);border:1px solid #cdd9ff;
-      padding:9px 13px;border-radius:10px;font-size:12px;font-weight:800
-    }
-    .grid{display:grid;gap:16px}
-    .card{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);min-width:0}
-    .card-pad{padding:20px}
-    .card-title{
-      display:flex;align-items:center;justify-content:space-between;gap:12px;
-      margin-bottom:16px;color:var(--ink);font-weight:800
-    }
-    .card-title small{color:var(--muted);font-weight:500}
-    .badge{
-      display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;
-      font-size:11px;font-weight:800;white-space:nowrap
-    }
-    .badge.red{color:var(--red);background:#fff0ef}
-    .badge.green{color:var(--green);background:#ecf9f0}
-    .badge.amber{color:var(--amber);background:#fff7e6}
-    .badge.blue{color:var(--blue);background:var(--soft)}
-    .btn{
-      min-height:42px;border-radius:11px;padding:0 15px;border:1px solid var(--line);
-      background:#fff;color:var(--body);font-weight:700;font-size:13px;
-      display:inline-flex;align-items:center;justify-content:center;gap:7px
-    }
-    .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
-    .btn.danger{color:var(--red);border-color:#f3c8c5;background:#fff8f7}
-    .metric{padding:17px}
-    .metric .label{font-size:12px;color:var(--muted)}
-    .metric .value{color:var(--ink);font-size:27px;font-weight:800;margin:8px 0 5px}
-    .metric .delta{font-size:11px;color:var(--green);font-weight:700}
-    .bar{height:7px;border-radius:99px;background:#e8edf5;overflow:hidden}
-    .bar span{display:block;height:100%;border-radius:inherit;background:var(--blue)}
-    .subtle{color:var(--muted);font-size:12px}
-    .section-label{font-size:12px;color:var(--muted);font-weight:700;margin-bottom:8px}
-    .empty-none{display:none}
-
-    /* v0 command map */
-    .incident-layout{grid-template-columns:minmax(0,1.45fr) minmax(280px,.7fr)}
-    .plant-map{padding:18px;min-height:402px;position:relative;overflow:hidden}
-    .map-toolbar{display:flex;justify-content:space-between;gap:10px;margin-bottom:16px}
-    .map-key{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
-    .map-key i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
-    .line-map{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:center;margin-top:34px}
-    .station{
-      min-height:120px;border:1px solid var(--line);border-radius:14px;padding:14px;
-      background:#f8fafc;position:relative
-    }
-    .station::after{
-      content:"";position:absolute;right:-13px;top:50%;width:13px;height:2px;background:#b8c3d4
-    }
-    .station:last-child::after{display:none}
-    .station.danger{border-color:#efaaa6;background:#fff5f4}
-    .station.warn{border-color:#efcf94;background:#fffaf0}
-    .station strong{display:block;color:var(--ink);font-size:13px;margin:9px 0}
-    .station .material-symbols-outlined{color:var(--blue);font-size:25px}
-    .station.danger .material-symbols-outlined{color:var(--red)}
-    .station-stat{font-size:11px;color:var(--muted);line-height:1.65}
-    .risk-strip{
-      margin-top:24px;padding:14px;border-radius:13px;background:#10276e;color:#fff;
-      display:flex;align-items:center;justify-content:space-between;gap:16px
-    }
-    .risk-strip b{font-size:13px}.risk-strip span{font-size:11px;color:#c9d5fb}
-    .event-list{display:grid;gap:2px}
-    .event{
-      display:grid;grid-template-columns:42px 1fr auto;gap:11px;padding:13px 0;
-      border-bottom:1px solid var(--line);align-items:start
-    }
-    .event:last-child{border:0}
-    .event-time{font-size:11px;color:var(--muted);font-weight:700}
-    .event b{display:block;color:var(--ink);font-size:12px;margin-bottom:4px}
-    .event p{margin:0;font-size:11px;line-height:1.5;color:var(--muted)}
-
-    /* v1 inventory */
-    .inventory-layout{grid-template-columns:minmax(0,1fr) 330px}
-    .lot-board{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
-    .lot{
-      border:1px solid var(--line);border-radius:15px;padding:15px;background:#fff;
-      transition:.18s
-    }
-    .lot:hover{transform:translateY(-2px);border-color:#9eb2ef}
-    .lot-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
-    .lot h3{font-size:14px;color:var(--ink);margin:12px 0 5px}
-    .lot-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
-    .lot-meta span{font-size:10px;color:var(--muted)}
-    .lot-meta b{display:block;color:var(--ink);font-size:12px;margin-top:3px}
-    .value-stack{display:grid;gap:11px}
-    .value-row{padding:13px;border-radius:13px;background:#f7f9fc}
-    .value-row div{display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px}
-    .clock{border-radius:16px;background:#10276e;color:white;padding:19px;text-align:center}
-    .clock .big{font-size:35px;font-weight:800;margin:7px 0}
-    .clock small{color:#bdcaf3}
-    .donut-wrap{height:210px;position:relative}
-
-    /* v2 commitment */
-    .commit-layout{grid-template-columns:360px minmax(0,1fr)}
-    .weight-panel{padding:20px}
-    .weight-row{margin:17px 0}
-    .weight-line{display:flex;justify-content:space-between;gap:15px;font-size:12px;margin-bottom:9px}
-    input[type=range]{width:100%;accent-color:var(--blue)}
-    .formula{
-      background:#f6f8fc;border:1px dashed #b8c6dd;border-radius:13px;padding:13px;
-      font-size:11px;color:var(--muted);line-height:1.6
-    }
-    .rank-table{width:100%;border-collapse:collapse;min-width:650px}
-    .rank-table th,.rank-table td{padding:13px 11px;border-bottom:1px solid var(--line);font-size:12px;text-align:left}
-    .rank-table th{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
-    .rank-table td{color:var(--body)}
-    .rank-table tr:last-child td{border-bottom:0}
-    .rank-num{
-      width:30px;height:30px;display:grid;place-items:center;border-radius:9px;
-      background:var(--soft);color:var(--blue);font-weight:800
-    }
-    .score{font-weight:800;color:var(--ink)}
-    .table-scroll{overflow-x:auto}
-    .scenario-note{
-      margin-top:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px
-    }
-    .scenario-note > div{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px}
-    .scenario-note b{display:block;color:var(--ink);font-size:18px;margin:7px 0}
-
-    /* v3 resources */
-    .resource-layout{grid-template-columns:minmax(0,1.2fr) minmax(270px,.6fr)}
-    .matrix{display:grid;grid-template-columns:140px repeat(4,1fr);gap:8px;align-items:center}
-    .matrix > div{padding:12px 8px;border-radius:10px;font-size:11px;text-align:center}
-    .matrix .head{color:var(--muted);font-weight:700}
-    .matrix .row-label{text-align:left;color:var(--ink);font-weight:700;background:#f7f9fc}
-    .matrix .ok{background:#edf9f0;color:var(--green);font-weight:800}
-    .matrix .wait{background:#fff7e7;color:var(--amber);font-weight:800}
-    .matrix .fail{background:#fff0ef;color:var(--red);font-weight:800}
-    .checklist{display:grid;gap:10px}
-    .check{
-      display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;
-      padding:13px;border:1px solid var(--line);border-radius:13px
-    }
-    .check-icon{width:36px;height:36px;border-radius:11px;background:var(--soft);color:var(--blue);display:grid;place-items:center}
-    .check b{display:block;color:var(--ink);font-size:12px}.check small{color:var(--muted)}
-    .gate{padding:18px;background:#10276e;color:#fff;border-radius:16px;margin-top:14px}
-    .gate h3{font-size:15px;margin:0 0 8px}.gate p{font-size:11px;color:#c4cff2;line-height:1.6}
-    .gate-actions{display:flex;gap:8px;margin-top:14px}.gate-actions .btn{flex:1}
-
-    /* v4 sequence */
-    .sequence-layout{grid-template-columns:minmax(0,1.25fr) 350px}
-    .sequence-list{display:grid;gap:10px}
-    .seq{
-      display:grid;grid-template-columns:46px 1fr 110px 100px;gap:12px;
-      align-items:center;border:1px solid var(--line);border-radius:14px;padding:12px
-    }
-    .seq-no{width:38px;height:38px;border-radius:12px;background:var(--blue);color:#fff;display:grid;place-items:center;font-weight:800}
-    .seq b{color:var(--ink);font-size:13px}.seq small{display:block;color:var(--muted);margin-top:4px}
-    .cost{text-align:right}.cost b{font-size:12px}.cost small{font-size:10px}
-    .chart-wrap{height:245px;position:relative}
-    .compare{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-    .compare button{
-      border:1px solid var(--line);background:#fff;border-radius:13px;padding:13px;
-      text-align:left;color:var(--body)
-    }
-    .compare button.selected{border:2px solid var(--blue);background:var(--soft)}
-    .compare b{display:block;color:var(--ink);margin:7px 0}
-    .approval{border-top:1px solid var(--line);padding-top:15px;margin-top:16px}
-    .approval-row{display:flex;justify-content:space-between;gap:15px;align-items:center}
-
-    /* v5 execution */
-    .exec-layout{grid-template-columns:minmax(0,1fr) 320px}
-    .timeline{position:relative;padding-left:26px}
-    .timeline::before{content:"";position:absolute;left:9px;top:9px;bottom:18px;width:2px;background:#d7deea}
-    .timeline-item{position:relative;padding:0 0 19px 16px}
-    .timeline-item::before{
-      content:"";position:absolute;left:-22px;top:5px;width:12px;height:12px;border-radius:50%;
-      background:#fff;border:3px solid var(--blue);z-index:1
-    }
-    .timeline-item.done::before{background:var(--green);border-color:var(--green)}
-    .timeline-item.active::before{box-shadow:0 0 0 6px rgba(30,64,175,.12)}
-    .timeline-card{
-      border:1px solid var(--line);border-radius:14px;padding:14px;
-      display:flex;justify-content:space-between;align-items:center;gap:14px
-    }
-    .timeline-card b{display:block;color:var(--ink);font-size:13px}
-    .timeline-card small{color:var(--muted);line-height:1.5}
-    .live-panel{background:#10276e;color:#fff;border:0}
-    .live-panel .card-title{color:#fff}
-    .live-metric{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .live-metric div{padding:13px;border-radius:12px;background:rgba(255,255,255,.09)}
-    .live-metric span{font-size:10px;color:#bdcaf3}.live-metric b{display:block;font-size:20px;margin-top:5px}
-    .log{margin-top:16px;display:grid;gap:9px}
-    .log div{font-size:11px;color:#d4dcf8;display:grid;grid-template-columns:42px 1fr;gap:8px}
-    .rollback{margin-top:14px;background:#fff7e7;border:1px solid #efd29e;border-radius:14px;padding:14px}
-    .rollback b{font-size:12px;color:var(--amber)}.rollback p{font-size:11px;color:var(--muted);line-height:1.6}
-
-    @media(max-width:1050px){
-      .incident-layout,.inventory-layout,.commit-layout,.resource-layout,.sequence-layout,.exec-layout{grid-template-columns:1fr}
-      .lot-board{grid-template-columns:repeat(2,1fr)}
-      .commit-layout .weight-panel{order:2}
-    }
-    @media(max-width:760px){
-      .shell{display:block;padding-bottom:76px}
-      .rail{
-        inset:auto 0 0 0;width:auto;height:68px;flex-direction:row;padding:8px 10px;
-        border-radius:18px 18px 0 0
-      }
-      .brand,.rail-foot{display:none}
-      .rail-nav{margin:0;flex-direction:row;justify-content:space-around;gap:4px}
-      .nav-btn{width:auto;flex:1;min-height:50px}
-      .nav-btn::after{display:none}
-      main{padding:0 16px 24px}
-      .topbar{min-height:66px}.top-actions .icon-btn{display:none}
-      .incident-pill{padding:8px 10px}
-      .page-head{align-items:flex-start;padding-top:22px}
-      .step-chip{display:none}
-      .line-map{grid-template-columns:1fr 1fr}
-      .station::after{display:none}
-      .lot-board{grid-template-columns:1fr}
-      .scenario-note,.compare{grid-template-columns:1fr}
-      .matrix{grid-template-columns:110px repeat(4,90px);overflow-x:auto}
-      .seq{grid-template-columns:42px 1fr}
-      .seq .badge,.cost{text-align:left;margin-left:54px}
-      .live-metric{grid-template-columns:1fr 1fr}
-    }
-    @media(max-width:430px){
-      main{padding-inline:12px}
-      .top-title{font-size:16px}.eyebrow{font-size:9px}
-      .incident-pill span:last-child{display:none}
-      .page-head h2{font-size:25px}
-      .card-pad,.weight-panel{padding:16px}
-      .line-map{grid-template-columns:1fr}
-      .risk-strip{align-items:flex-start;flex-direction:column}
-      .lot-meta{grid-template-columns:1fr 1fr}
-      .timeline-card{align-items:flex-start;flex-direction:column}
-      .approval-row{align-items:stretch;flex-direction:column}
-    }
-  
-
-/* ── 量測式水平溢出修正 ─────────────────────────────
-   由 tools/fix-demo-overflow.mjs 量測產生，只針對實際溢出的元素。 */
-@media (max-width:900px){
-  html,body{overflow-x:hidden;}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>事故後產線復機排序助手 · manufacturing-mes｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&amp;family=Fira+Sans:wght@300;400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --color-primary:#2563eb;--color-on-primary:#fff;--color-secondary:#3b82f6;
+  --color-on-secondary:#000;--color-accent:#ea580c;--color-on-accent:#000;
+  --color-background:#f8fafc;--color-foreground:#1e293b;--color-card:#fff;
+  --color-card-foreground:#1e293b;--color-muted:#e9eff8;
+  --color-muted-foreground:#475569;--color-border:#e2e8f0;
+  --color-destructive:#dc2626;--color-on-destructive:#fff;--color-ring:#2563eb;
+  --blue:#2563eb;--ink:#1e293b;--muted:#475569;--line:#e2e8f0;
+  --green:#15803d;--amber:#9a5300;--red:#dc2626;--navy:#0f172a;
+  --shadow:0 5px 0 rgba(15,23,42,.035),0 12px 28px rgba(15,23,42,.055)
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--color-background);color:var(--color-foreground);
+  font-family:"Fira Sans",sans-serif;overflow-x:hidden
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;opacity:.32;
+  background-image:linear-gradient(rgba(37,99,235,.035) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(37,99,235,.035) 1px,transparent 1px);
+  background-size:32px 32px
+}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,
+[tabindex]:focus-visible{outline:3px solid var(--color-ring);outline-offset:3px}
+.material-symbols-outlined{font-size:20px;line-height:1;font-variation-settings:"FILL" 0}
+.shell{min-height:100vh;display:grid;grid-template-columns:224px minmax(0,1fr)}
+.rail{
+  position:fixed;inset:0 auto 0 0;width:224px;background:var(--navy);color:#fff;
+  display:flex;flex-direction:column;padding:22px 16px;z-index:20;border-right:4px solid var(--blue)
+}
+.brand{
+  width:100%;height:58px;border:1px solid #334155;background:#172033;
+  display:flex;align-items:center;padding:0 15px;color:#fff;font:700 17px "Fira Code";
+  letter-spacing:.04em
+}
+.brand::after{content:" / RECOVERY";color:#93c5fd;font-size:11px;margin-left:6px}
+.rail-nav{display:flex;flex-direction:column;gap:6px;margin-top:31px}
+.nav-btn{
+  width:100%;min-height:48px;border:1px solid transparent;background:transparent;
+  color:#cbd5e1;display:flex;align-items:center;gap:12px;padding:0 12px;text-align:left;
+  transition:background .2s ease,border-color .2s ease,color .2s ease,transform .2s ease
+}
+.nav-btn::after{
+  content:attr(aria-label);font-size:13px;font-weight:600;letter-spacing:.02em
+}
+.nav-btn:hover{background:#1e293b;border-color:#475569;color:#fff;transform:translateX(2px)}
+.nav-btn.active{background:var(--blue);border-color:#60a5fa;color:#fff}
+.rail-foot{
+  margin-top:auto;padding-top:16px;border-top:1px solid #334155;color:#94a3b8;
+  font:500 10px/1.7 "Fira Code";letter-spacing:.15em
+}
+main{grid-column:2;min-width:0;padding:0 30px 36px;position:relative}
+.topbar{
+  min-height:78px;display:flex;align-items:center;justify-content:space-between;
+  gap:20px;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:12;
+  background:rgba(248,250,252,.94);backdrop-filter:blur(14px)
+}
+.eyebrow{
+  color:var(--blue);font:700 10px "Fira Code";letter-spacing:.14em;text-transform:uppercase
+}
+.top-title{margin:5px 0 0;color:var(--ink);font-size:19px;letter-spacing:-.02em}
+.top-actions{display:flex;align-items:center;gap:8px}
+.incident-pill{
+  display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);
+  padding:9px 12px;color:var(--ink);font:600 11px "Fira Code";box-shadow:2px 2px 0 var(--line)
+}
+.pulse{
+  width:9px;height:9px;background:var(--red);border:2px solid #fee2e2;
+  box-shadow:0 0 0 3px rgba(220,38,38,.12)
+}
+.icon-btn{
+  width:40px;height:40px;border:1px solid var(--line);background:#fff;color:var(--ink);
+  display:grid;place-items:center;transition:.2s ease
+}
+.icon-btn:hover{border-color:var(--blue);color:var(--blue);transform:translateY(-1px)}
+.view{display:none}
+.view.active{display:block;animation:reveal .35s ease-out both}
+@keyframes reveal{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.page-head{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:22px;
+  padding:30px 0 21px;border-bottom:1px solid var(--line);margin-bottom:18px
+}
+.page-head h2{
+  margin:6px 0 7px;color:var(--ink);font-size:clamp(25px,3vw,38px);
+  line-height:1.08;letter-spacing:-.045em
+}
+.page-head p{margin:0;max-width:760px;color:var(--muted);font-size:13px;line-height:1.65}
+.step-chip{
+  flex:0 0 auto;border-left:4px solid var(--color-accent);background:#fff7ed;
+  color:#7c2d12;padding:10px 13px;font:700 11px "Fira Code"
+}
+.grid{display:grid;gap:14px}
+.card{
+  min-width:0;background:var(--color-card);border:1px solid var(--line);
+  border-radius:4px;box-shadow:var(--shadow)
+}
+.card-pad{padding:18px}
+.card-title{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-bottom:14px;color:var(--ink);font-size:14px;font-weight:700
+}
+.card-title::before{content:"";width:3px;height:16px;background:var(--blue);flex:0 0 auto}
+.card-title small{margin-left:auto;color:var(--muted);font-weight:400;font-family:"Fira Code"}
+.badge{
+  display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid currentColor;
+  border-radius:2px;font-size:10px;font-weight:700;white-space:nowrap
+}
+.badge::before{content:"";width:5px;height:5px;background:currentColor}
+.badge.red{color:#b91c1c;background:#fff1f2}.badge.green{color:#166534;background:#f0fdf4}
+.badge.amber{color:#854d0e;background:#fffbeb}.badge.blue{color:#1d4ed8;background:#eff6ff}
+.btn{
+  min-height:42px;border:1px solid var(--line);border-radius:2px;padding:0 14px;
+  background:#fff;color:var(--ink);font-weight:700;font-size:12px;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  box-shadow:2px 2px 0 var(--line);
+  transition:transform .2s ease,box-shadow .2s ease,background .2s ease,border-color .2s ease
+}
+.btn:hover{border-color:#94a3b8;transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--line)}
+.btn.primary{background:var(--color-accent);border-color:#c2410c;color:#111827;box-shadow:3px 3px 0 #7c2d12}
+.btn.primary:hover{background:#f97316;box-shadow:5px 5px 0 #7c2d12}
+.btn.danger{color:#991b1b;border-color:#fca5a5;background:#fff1f2}
+.metric{padding:14px;border-left:1px solid var(--line)}
+.metric .label{font-size:11px;color:var(--muted)}
+.metric .value{margin:6px 0 4px;color:var(--ink);font:700 25px "Fira Code";font-variant-numeric:tabular-nums}
+.metric .delta{font-size:10px;color:var(--green);font-weight:700}
+.bar{height:6px;background:#e2e8f0;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--blue)}
+.subtle{color:var(--muted);font-size:11px}
+.incident-layout{grid-template-columns:minmax(0,1.45fr) minmax(290px,.7fr)}
+.plant-map{padding:18px;min-height:402px;overflow:hidden}
+.map-toolbar{display:flex;justify-content:space-between;gap:10px;margin-bottom:15px}
+.map-toolbar .card-title{margin:0}
+.map-key{display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--muted)}
+.map-key i{display:inline-block;width:8px;height:8px;margin-right:5px;border:1px solid currentColor}
+.line-map{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:center;margin-top:34px}
+.station{
+  min-height:124px;border:1px solid var(--line);border-top:3px solid var(--blue);
+  padding:13px;background:#fff;position:relative
+}
+.station::after{content:"→";position:absolute;right:-17px;top:46%;color:#64748b;font:700 17px "Fira Code"}
+.station:last-child::after{display:none}.station.danger{border-color:#ef4444;background:#fff7f7}
+.station.warn{border-color:#d97706;background:#fffaf0}
+.station strong{display:block;color:var(--ink);font-size:12px;margin:9px 0}
+.station .material-symbols-outlined{color:var(--blue);font-size:24px}
+.station.danger .material-symbols-outlined{color:var(--red)}
+.station-stat{font:400 10px/1.65 "Fira Code";color:var(--muted)}
+.risk-strip{
+  margin-top:24px;padding:14px 15px;background:var(--navy);color:#fff;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;border-left:5px solid var(--color-accent)
+}
+.risk-strip b{font-size:12px}.risk-strip span{font-size:10px;color:#cbd5e1}
+.event-list{display:grid}
+.event{
+  display:grid;grid-template-columns:45px 1fr auto;gap:10px;padding:12px 0;
+  border-bottom:1px solid var(--line);align-items:start
+}
+.event:last-child{border:0}.event-time{font:600 10px "Fira Code";color:var(--muted)}
+.event b{display:block;color:var(--ink);font-size:11px;margin-bottom:4px}
+.event p{margin:0;font-size:10px;line-height:1.5;color:var(--muted)}
+.inventory-layout{grid-template-columns:minmax(0,1fr) 320px}
+.lot-board{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+.lot{
+  border:1px solid var(--line);border-top:3px solid var(--blue);padding:14px;background:#fff;
+  transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease
+}
+.lot:hover{transform:translateY(-3px);border-color:#93c5fd;box-shadow:var(--shadow)}
+.lot-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.lot-head>b,.lot h3,.lot-meta b{font-family:"Fira Code";font-variant-numeric:tabular-nums}
+.lot h3{font-size:13px;color:var(--ink);margin:11px 0 5px}
+.lot-meta{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:13px 0}
+.lot-meta span{font-size:9px;color:var(--muted)}
+.lot-meta b{display:block;color:var(--ink);font-size:10px;margin-top:3px}
+.value-stack{display:grid;gap:9px}.value-row{padding:12px;background:#f8fafc;border-left:3px solid #cbd5e1}
+.value-row div{display:flex;justify-content:space-between;gap:8px;font-size:11px;margin-bottom:7px}
+.value-row b{font-family:"Fira Code";font-variant-numeric:tabular-nums;text-align:right}
+.clock{background:var(--navy);color:#fff;padding:19px;text-align:center;border-left:5px solid var(--color-accent)}
+.clock .big{font:700 34px "Fira Code";margin:6px 0;font-variant-numeric:tabular-nums}
+.clock small{color:#cbd5e1}.donut-wrap{height:210px;position:relative}
+.commit-layout{grid-template-columns:350px minmax(0,1fr)}
+.weight-panel{padding:18px}.weight-row{margin:16px 0}
+.weight-line{display:flex;justify-content:space-between;gap:15px;font-size:11px;margin-bottom:8px}
+.weight-line span{font-family:"Fira Code"}input[type=range]{width:100%;accent-color:var(--blue)}
+.formula{background:#f8fafc;border:1px dashed #94a3b8;padding:12px;font:400 10px/1.65 "Fira Code";color:var(--muted)}
+.rank-table{width:100%;border-collapse:collapse;min-width:650px}
+.rank-table th,.rank-table td{padding:12px 10px;border-bottom:1px solid var(--line);font-size:11px;text-align:left}
+.rank-table th{background:var(--navy);color:#fff;font:600 9px "Fira Code";letter-spacing:.06em;white-space:nowrap}
+.rank-table td:nth-child(3),.rank-table td:nth-child(4),.rank-table td:nth-child(5),
+.rank-table td:nth-child(6){font-family:"Fira Code";font-variant-numeric:tabular-nums}
+.rank-table td:nth-child(4),.rank-table td:nth-child(5),.rank-table td:nth-child(6){text-align:right}
+.rank-table tr:last-child td{border-bottom:0}.rank-table tbody tr:hover{background:#f8fafc}
+.rank-num{width:28px;height:28px;display:grid;place-items:center;background:#eff6ff;color:var(--blue);font:700 11px "Fira Code"}
+.score{font:700 13px "Fira Code";color:var(--ink)}.table-scroll{overflow-x:auto}
+.scenario-note{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.scenario-note>div{background:#fff;border:1px solid var(--line);border-top:3px solid var(--blue);padding:14px}
+.scenario-note b{display:block;color:var(--ink);font:700 17px "Fira Code";margin:6px 0}
+.resource-layout{grid-template-columns:minmax(0,1.2fr) minmax(280px,.6fr)}
+.matrix{display:grid;grid-template-columns:140px repeat(4,1fr);gap:6px;align-items:center}
+.matrix>div{padding:11px 7px;font-size:10px;text-align:center;border:1px solid transparent}
+.matrix .head{color:#fff;font-weight:700;background:var(--navy)}
+.matrix .row-label{text-align:left;color:var(--ink);font-weight:700;background:#f1f5f9}
+.matrix .ok{background:#f0fdf4;color:#166534;border-color:#bbf7d0;font-weight:700}
+.matrix .ok::before{content:"✓ ";font-family:"Fira Code"}
+.matrix .wait{background:#fffbeb;color:#854d0e;border-color:#fde68a;font-weight:700}
+.matrix .wait::before{content:"! ";font-family:"Fira Code"}
+.matrix .fail{background:#fff1f2;color:#b91c1c;border-color:#fecaca;font-weight:700}
+.matrix .fail::before{content:"× ";font-family:"Fira Code"}
+.checklist{display:grid;gap:8px}
+.check{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:11px;border:1px solid var(--line)}
+.check-icon{width:34px;height:34px;background:#eff6ff;color:var(--blue);display:grid;place-items:center}
+.check b{display:block;color:var(--ink);font-size:11px}.check small{color:var(--muted);font-size:9px}
+.gate{padding:17px;background:var(--navy);color:#fff;margin-top:13px;border-left:5px solid var(--color-accent)}
+.gate h3{font-size:14px;margin:0 0 7px}.gate p{font-size:10px;color:#cbd5e1;line-height:1.6}
+.gate-actions{display:flex;gap:8px;margin-top:13px}.gate-actions .btn{flex:1}
+.sequence-layout{grid-template-columns:minmax(0,1.25fr) 340px}
+.sequence-list{display:grid;gap:8px}
+.seq{display:grid;grid-template-columns:43px 1fr 105px 92px;gap:11px;align-items:center;border:1px solid var(--line);padding:11px}
+.seq-no{width:36px;height:36px;background:var(--blue);color:#fff;display:grid;place-items:center;font:700 13px "Fira Code"}
+.seq b{color:var(--ink);font-size:12px}.seq small{display:block;color:var(--muted);font-size:9px;margin-top:4px}
+.cost{text-align:right}.cost b{font:700 11px "Fira Code"}.cost small{font-size:9px}
+.chart-wrap{height:245px;position:relative}.compare{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.compare button{border:1px solid var(--line);background:#fff;padding:12px;text-align:left;color:var(--ink);transition:.2s ease}
+.compare button:hover{border-color:var(--blue);transform:translateY(-2px)}
+.compare button.selected{border:2px solid var(--blue);background:#eff6ff}
+.compare button.selected::before{content:"SELECTED / ";color:var(--blue);font:700 9px "Fira Code"}
+.compare b{display:block;color:var(--ink);margin:6px 0}.approval{border-top:1px solid var(--line);padding-top:14px;margin-top:15px}
+.approval-row{display:flex;justify-content:space-between;gap:15px;align-items:center}
+.exec-layout{grid-template-columns:minmax(0,1fr) 310px}
+.timeline{position:relative;padding-left:25px}
+.timeline::before{content:"";position:absolute;left:9px;top:9px;bottom:18px;width:2px;background:#cbd5e1}
+.timeline-item{position:relative;padding:0 0 16px 15px}
+.timeline-item::before{content:"";position:absolute;left:-22px;top:5px;width:12px;height:12px;background:#fff;border:3px solid var(--blue);z-index:1}
+.timeline-item.done::before{background:var(--green);border-color:var(--green)}
+.timeline-item.done::after{content:"✓";position:absolute;left:-20px;top:3px;color:#fff;font:700 9px "Fira Code";z-index:2}
+.timeline-item.active::before{box-shadow:0 0 0 5px rgba(37,99,235,.16)}
+.timeline-card{border:1px solid var(--line);padding:12px;display:flex;justify-content:space-between;align-items:center;gap:13px}
+.timeline-card b{display:block;color:var(--ink);font-size:11px}.timeline-card small{color:var(--muted);font-size:9px;line-height:1.5}
+.live-panel{background:var(--navy);color:#fff;border:0;border-left:5px solid var(--blue)}
+.live-panel .card-title{color:#fff}.live-metric{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.live-metric div{padding:11px;border:1px solid #334155;background:#172033}
+.live-metric span{font-size:9px;color:#cbd5e1}.live-metric b{display:block;font:700 18px "Fira Code";margin-top:4px}
+.log{margin-top:14px;display:grid;gap:8px}.log div{font-size:9px;color:#dbeafe;display:grid;grid-template-columns:40px 1fr;gap:8px}
+.log div span:first-child{font-family:"Fira Code";color:#93c5fd}
+.rollback{margin-top:13px;background:#fffbeb;border:1px solid #f59e0b;border-left:4px solid #d97706;padding:13px}
+.rollback b{font-size:11px;color:#78350f}.rollback p{font-size:10px;color:#57534e;line-height:1.6}
+@media(max-width:1120px){
+  .shell{grid-template-columns:76px minmax(0,1fr)}.rail{width:76px;padding:18px 9px}.brand{justify-content:center;padding:0}
+  .brand::after{display:none}.rail-nav{margin-top:27px}.nav-btn{justify-content:center;padding:0}.nav-btn::after{display:none}
+  main{padding-inline:22px}.incident-layout,.inventory-layout,.commit-layout,.resource-layout,.sequence-layout,.exec-layout{grid-template-columns:1fr}
+  .lot-board{grid-template-columns:repeat(2,1fr)}.commit-layout .weight-panel{order:2}
+}
+@media(max-width:760px){
+  .shell{display:block;padding-bottom:74px}.rail{inset:auto 0 0;width:auto;height:66px;flex-direction:row;padding:7px 9px;border:0;border-top:3px solid var(--blue)}
+  .brand,.rail-foot{display:none}.rail-nav{margin:0;width:100%;flex-direction:row;justify-content:space-around;gap:4px}
+  .nav-btn{width:auto;flex:1;min-height:47px}.nav-btn::after{display:none}main{padding:0 14px 24px}
+  .topbar{min-height:66px}.top-actions .icon-btn{display:none}.incident-pill{padding:8px 9px}
+  .page-head{align-items:flex-start;padding-top:22px}.step-chip{display:none}.line-map{grid-template-columns:1fr 1fr}
+  .station::after{display:none}.lot-board{grid-template-columns:1fr}.scenario-note,.compare{grid-template-columns:1fr}
+  .matrix{grid-template-columns:110px repeat(4,90px);overflow-x:auto}.seq{grid-template-columns:40px 1fr}
+  .seq .badge,.cost{grid-column:2;text-align:left}.map-toolbar{align-items:flex-start;flex-direction:column}
+}
+@media(max-width:430px){
+  main{padding-inline:10px}.top-title{font-size:15px}.eyebrow{font-size:8px}.incident-pill span:last-child{display:none}
+  .page-head h2{font-size:25px}.card-pad,.weight-panel,.plant-map{padding:14px}.line-map{grid-template-columns:1fr}
+  .risk-strip,.approval-row{align-items:stretch;flex-direction:column}.timeline-card{align-items:flex-start;flex-direction:column}
+  .live-metric{grid-template-columns:1fr 1fr}.event{grid-template-columns:42px 1fr}.event>.badge{grid-column:2;justify-self:start}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  .view.active,.lot:hover,.nav-btn:hover,.btn:hover,.compare button:hover,.icon-btn:hover{transform:none}
 }
 </style>
 </head>
 <body>
-  <div class="shell">
-    <aside class="rail" aria-label="流程導覽">
-      <div class="brand" aria-label="Jvision">JV</div>
-      <nav class="rail-nav">
-        <button class="nav-btn" data-i="0" aria-label="界定事故"><span class="material-symbols-outlined">crisis_alert</span></button>
-        <button class="nav-btn" data-i="1" aria-label="盤點在製品"><span class="material-symbols-outlined">inventory_2</span></button>
-        <button class="nav-btn" data-i="2" aria-label="衡量承諾"><span class="material-symbols-outlined">handshake</span></button>
-        <button class="nav-btn" data-i="3" aria-label="核實資源"><span class="material-symbols-outlined">precision_manufacturing</span></button>
-        <button class="nav-btn" data-i="4" aria-label="核准序列"><span class="material-symbols-outlined">format_list_numbered</span></button>
-        <button class="nav-btn" data-i="5" aria-label="執行復原"><span class="material-symbols-outlined">play_circle</span></button>
-      </nav>
-      <div class="rail-foot">MES<br>RECOVERY</div>
-    </aside>
+<div class="shell">
+<aside class="rail" aria-label="流程導覽">
+<div class="brand" aria-label="Jvision">JV</div>
+<nav class="rail-nav">
+<button class="nav-btn" data-i="0" aria-label="界定事故"><span class="material-symbols-outlined">crisis_alert</span></button>
+<button class="nav-btn" data-i="1" aria-label="盤點在製品"><span class="material-symbols-outlined">inventory_2</span></button>
+<button class="nav-btn" data-i="2" aria-label="衡量承諾"><span class="material-symbols-outlined">handshake</span></button>
+<button class="nav-btn" data-i="3" aria-label="核實資源"><span class="material-symbols-outlined">precision_manufacturing</span></button>
+<button class="nav-btn" data-i="4" aria-label="核准序列"><span class="material-symbols-outlined">format_list_numbered</span></button>
+<button class="nav-btn" data-i="5" aria-label="執行復原"><span class="material-symbols-outlined">play_circle</span></button>
+</nav>
+<div class="rail-foot">MES<br>RECOVERY</div>
+</aside>
+<main>
+<header class="topbar">
+<div><div class="eyebrow">Jvision Manufacturing Intelligence</div><h1 class="top-title">產線復原優先序 Agent</h1></div>
+<div class="top-actions">
+<div class="incident-pill"><i class="pulse"></i><span>INC-0822</span><span>復原進行中</span></div>
+<button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+<button class="icon-btn" aria-label="使用者"><span class="material-symbols-outlined">account_circle</span></button>
+</div>
+</header>
 
-    <main>
-      <header class="topbar">
-        <div>
-          <div class="eyebrow">Jvision Manufacturing Intelligence</div>
-          <h1 class="top-title">產線復原優先序 Agent</h1>
-        </div>
-        <div class="top-actions">
-          <div class="incident-pill"><i class="pulse"></i><span>INC-0822</span><span>復原進行中</span></div>
-          <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
-          <button class="icon-btn" aria-label="使用者"><span class="material-symbols-outlined">account_circle</span></button>
-        </div>
-      </header>
+<section class="view" data-view="0">
+<div class="page-head"><div><div class="eyebrow">製程工程師 · Stage 01</div><h2>界定事故範圍</h2><p>從感測事件辨識停線設備、受影響製程與工單，先阻斷可能擴散的連鎖風險。</p></div><div class="step-chip">事故發生後 18 分鐘</div></div>
+<div class="grid incident-layout">
+<div class="card plant-map">
+<div class="map-toolbar"><div class="card-title">A3 組裝線即時拓撲 <span class="badge red">重大異常</span></div><div class="map-key"><span><i style="background:var(--green)"></i>正常</span><span><i style="background:var(--amber)"></i>隔離</span><span><i style="background:var(--red)"></i>停機</span></div></div>
+<div class="line-map">
+<article class="station"><span class="material-symbols-outlined">input</span><strong>上料站 A3-01</strong><div class="station-stat">溫度 38.2°C<br>WIP 1,240 pcs<br>狀態：已安全停料</div></article>
+<article class="station danger"><span class="material-symbols-outlined">warning</span><strong>壓合站 A3-02</strong><div class="station-stat">壓力偏差 +18%<br>警報 E-472<br>狀態：緊急停機</div></article>
+<article class="station warn"><span class="material-symbols-outlined">shield</span><strong>固化站 A3-03</strong><div class="station-stat">爐溫 162°C<br>WIP 680 pcs<br>狀態：保持隔離</div></article>
+<article class="station"><span class="material-symbols-outlined">fact_check</span><strong>AOI 站 A3-04</strong><div class="station-stat">待檢 430 pcs<br>良率 98.4%<br>狀態：可用</div></article>
+</div>
+<div class="risk-strip"><div><b>Agent 判讀：事故邊界鎖定 A3-02 → A3-03</b><br><span>建議保留固化站批次，禁止上料站重新供料</span></div><button class="btn primary" data-next="1"><span class="material-symbols-outlined">inventory_2</span>盤點受影響批次</button></div>
+</div>
+<div class="grid">
+<div class="card card-pad"><div class="card-title">關鍵感測摘要 <small>08:42:17</small></div><div class="grid" style="grid-template-columns:1fr 1fr">
+<div class="metric"><div class="label">壓力峰值</div><div class="value">7.8</div><div class="subtle">bar · 上限 6.6</div></div>
+<div class="metric"><div class="label">受影響工單</div><div class="value">4</div><div class="subtle">共 3,260 pcs</div></div>
+<div class="metric"><div class="label">風險設備</div><div class="value">2</div><div class="subtle">A3-02、A3-03</div></div>
+<div class="metric"><div class="label">信心分數</div><div class="value">94%</div><div class="bar"><span style="width:94%"></span></div></div>
+</div></div>
+<div class="card card-pad"><div class="card-title">事故事件鏈 <span class="badge blue">感測證據</span></div><div class="event-list">
+<div class="event"><div class="event-time">08:39</div><div><b>壓合壓力開始漂移</b><p>P-302 連續 12 筆超出管制線。</p></div><span class="badge amber">預警</span></div>
+<div class="event"><div class="event-time">08:42</div><div><b>安全連鎖觸發</b><p>PLC 停止 A3-02 並關閉供料閥。</p></div><span class="badge red">停機</span></div>
+<div class="event"><div class="event-time">08:47</div><div><b>事故邊界確認</b><p>Agent 排除 AOI 與前段倉儲。</p></div><span class="badge green">完成</span></div>
+</div></div>
+</div>
+</div>
+</section>
 
-      <section class="view" data-view="0">
-        <div class="page-head">
-          <div><div class="eyebrow">製程工程師 · Stage 01</div><h2>界定事故範圍</h2><p>從感測事件辨識停線設備、受影響製程與工單，先阻斷可能擴散的連鎖風險。</p></div>
-          <div class="step-chip">事故發生後 18 分鐘</div>
-        </div>
-        <div class="grid incident-layout">
-          <div class="card plant-map">
-            <div class="map-toolbar">
-              <div class="card-title" style="margin:0">A3 組裝線即時拓撲 <span class="badge red">重大異常</span></div>
-              <div class="map-key"><span><i style="background:var(--green)"></i>正常</span><span><i style="background:var(--amber)"></i>隔離</span><span><i style="background:var(--red)"></i>停機</span></div>
-            </div>
-            <div class="line-map">
-              <article class="station">
-                <span class="material-symbols-outlined">input</span><strong>上料站 A3-01</strong>
-                <div class="station-stat">溫度 38.2°C<br>WIP 1,240 pcs<br>狀態：已安全停料</div>
-              </article>
-              <article class="station danger">
-                <span class="material-symbols-outlined">warning</span><strong>壓合站 A3-02</strong>
-                <div class="station-stat">壓力偏差 +18%<br>警報 E-472<br>狀態：緊急停機</div>
-              </article>
-              <article class="station warn">
-                <span class="material-symbols-outlined">shield</span><strong>固化站 A3-03</strong>
-                <div class="station-stat">爐溫 162°C<br>WIP 680 pcs<br>狀態：保持隔離</div>
-              </article>
-              <article class="station">
-                <span class="material-symbols-outlined">fact_check</span><strong>AOI 站 A3-04</strong>
-                <div class="station-stat">待檢 430 pcs<br>良率 98.4%<br>狀態：可用</div>
-              </article>
-            </div>
-            <div class="risk-strip">
-              <div><b>Agent 判讀：事故邊界鎖定 A3-02 → A3-03</b><br><span>建議保留固化站批次，禁止上料站重新供料</span></div>
-              <button class="btn primary" data-next="1"><span class="material-symbols-outlined">inventory_2</span>盤點受影響批次</button>
-            </div>
-          </div>
-          <div class="grid">
-            <div class="card card-pad">
-              <div class="card-title">關鍵感測摘要 <small>08:42:17</small></div>
-              <div class="grid" style="grid-template-columns:1fr 1fr">
-                <div class="metric"><div class="label">壓力峰值</div><div class="value">7.8</div><div class="subtle">bar · 上限 6.6</div></div>
-                <div class="metric"><div class="label">受影響工單</div><div class="value">4</div><div class="subtle">共 3,260 pcs</div></div>
-                <div class="metric"><div class="label">風險設備</div><div class="value">2</div><div class="subtle">A3-02、A3-03</div></div>
-                <div class="metric"><div class="label">信心分數</div><div class="value">94%</div><div class="bar"><span style="width:94%"></span></div></div>
-              </div>
-            </div>
-            <div class="card card-pad">
-              <div class="card-title">事故事件鏈 <span class="badge blue">感測證據</span></div>
-              <div class="event-list">
-                <div class="event"><div class="event-time">08:39</div><div><b>壓合壓力開始漂移</b><p>P-302 連續 12 筆超出管制線。</p></div><span class="badge amber">預警</span></div>
-                <div class="event"><div class="event-time">08:42</div><div><b>安全連鎖觸發</b><p>PLC 停止 A3-02 並關閉供料閥。</p></div><span class="badge red">停機</span></div>
-                <div class="event"><div class="event-time">08:47</div><div><b>事故邊界確認</b><p>Agent 排除 AOI 與前段倉儲。</p></div><span class="badge green">完成</span></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+<section class="view" data-view="1">
+<div class="page-head"><div><div class="eyebrow">工業工程師 · Stage 02</div><h2>在製品損失盤點</h2><p>依批次狀態、產品價值與可挽救時限，辨識必須優先處理的高風險在製品。</p></div><div class="step-chip">受影響 WIP 3,260 pcs</div></div>
+<div class="grid inventory-layout">
+<div class="card card-pad"><div class="card-title">受影響批次卡 <span class="badge amber">2 批即將逾時</span></div><div class="lot-board">
+<article class="lot"><div class="lot-head"><span class="badge red">極高風險</span><b>12:18</b></div><h3>LOT-A38-2217</h3><div class="subtle">醫療感測模組 · WO-88341</div><div class="lot-meta"><span>數量<b>680 pcs</b></span><span>批次價值<b>NT$ 1.82M</b></span><span>所在站點<b>固化 A3-03</b></span><span>可挽救率<b>92%</b></span></div><div class="bar"><span style="width:88%;background:var(--red)"></span></div></article>
+<article class="lot"><div class="lot-head"><span class="badge amber">高風險</span><b>46:05</b></div><h3>LOT-A38-2219</h3><div class="subtle">車規控制板 · WO-88352</div><div class="lot-meta"><span>數量<b>920 pcs</b></span><span>批次價值<b>NT$ 1.31M</b></span><span>所在站點<b>壓合 A3-02</b></span><span>可挽救率<b>78%</b></span></div><div class="bar"><span style="width:66%;background:var(--amber)"></span></div></article>
+<article class="lot"><div class="lot-head"><span class="badge blue">可緩衝</span><b>02:14</b></div><h3>LOT-A38-2220</h3><div class="subtle">工控通訊板 · WO-88357</div><div class="lot-meta"><span>數量<b>1,240 pcs</b></span><span>批次價值<b>NT$ 0.94M</b></span><span>所在站點<b>上料 A3-01</b></span><span>可挽救率<b>99%</b></span></div><div class="bar"><span style="width:33%"></span></div></article>
+<article class="lot"><div class="lot-head"><span class="badge green">已保全</span><b>—</b></div><h3>LOT-A38-2214</h3><div class="subtle">能源監控模組 · WO-88326</div><div class="lot-meta"><span>數量<b>420 pcs</b></span><span>批次價值<b>NT$ 0.61M</b></span><span>所在站點<b>AOI A3-04</b></span><span>可挽救率<b>100%</b></span></div><div class="bar"><span style="width:100%;background:var(--green)"></span></div></article>
+<article class="lot"><div class="lot-head"><span class="badge amber">待抽檢</span><b>01:34</b></div><h3>LOT-A38-2216</h3><div class="subtle">電源管理板 · WO-88338</div><div class="lot-meta"><span>數量<b>430 pcs</b></span><span>批次價值<b>NT$ 0.77M</b></span><span>所在站點<b>AOI 待檢</b></span><span>可挽救率<b>95%</b></span></div><div class="bar"><span style="width:52%;background:var(--amber)"></span></div></article>
+<article class="lot"><div class="lot-head"><span class="badge red">疑似報廢</span><b>已逾時</b></div><h3>LOT-A38-2218</h3><div class="subtle">校正測試片 · WO-88346</div><div class="lot-meta"><span>數量<b>110 pcs</b></span><span>批次價值<b>NT$ 0.08M</b></span><span>所在站點<b>壓合 A3-02</b></span><span>可挽救率<b>12%</b></span></div><div class="bar"><span style="width:96%;background:var(--red)"></span></div></article>
+</div></div>
+<div class="grid">
+<div class="clock"><small>下一批品質臨界點</small><div class="big">12:18</div><b>LOT-A38-2217</b><br><small>需於 09:08 前進入降溫程序</small></div>
+<div class="card card-pad"><div class="card-title">可挽救價值分布</div><div class="donut-wrap"><canvas id="wipChart" aria-label="在製品價值圓餅圖"></canvas></div></div>
+<div class="card card-pad"><div class="card-title">損失估算</div><div class="value-stack">
+<div class="value-row"><div><span>可保全價值</span><b>NT$ 4.92M</b></div><div class="bar"><span style="width:86%;background:var(--green)"></span></div></div>
+<div class="value-row"><div><span>延遲風險</span><b>NT$ 0.56M</b></div><div class="bar"><span style="width:41%;background:var(--amber)"></span></div></div>
+<div class="value-row"><div><span>預估報廢</span><b>NT$ 0.19M</b></div><div class="bar"><span style="width:14%;background:var(--red)"></span></div></div>
+</div><button class="btn primary" data-next="2" style="width:100%;margin-top:15px">送交承諾排序</button></div>
+</div>
+</div>
+</section>
 
-      <section class="view" data-view="1">
-        <div class="page-head">
-          <div><div class="eyebrow">工業工程師 · Stage 02</div><h2>在製品損失盤點</h2><p>依批次狀態、產品價值與可挽救時限，辨識必須優先處理的高風險在製品。</p></div>
-          <div class="step-chip">受影響 WIP 3,260 pcs</div>
-        </div>
-        <div class="grid inventory-layout">
-          <div class="card card-pad">
-            <div class="card-title">受影響批次卡 <span class="badge amber">2 批即將逾時</span></div>
-            <div class="lot-board">
-              <article class="lot">
-                <div class="lot-head"><span class="badge red">極高風險</span><b>12:18</b></div>
-                <h3>LOT-A38-2217</h3><div class="subtle">醫療感測模組 · WO-88341</div>
-                <div class="lot-meta"><span>數量<b>680 pcs</b></span><span>批次價值<b>NT$ 1.82M</b></span><span>所在站點<b>固化 A3-03</b></span><span>可挽救率<b>92%</b></span></div>
-                <div class="bar"><span style="width:88%;background:var(--red)"></span></div>
-              </article>
-              <article class="lot">
-                <div class="lot-head"><span class="badge amber">高風險</span><b>46:05</b></div>
-                <h3>LOT-A38-2219</h3><div class="subtle">車規控制板 · WO-88352</div>
-                <div class="lot-meta"><span>數量<b>920 pcs</b></span><span>批次價值<b>NT$ 1.31M</b></span><span>所在站點<b>壓合 A3-02</b></span><span>可挽救率<b>78%</b></span></div>
-                <div class="bar"><span style="width:66%;background:var(--amber)"></span></div>
-              </article>
-              <article class="lot">
-                <div class="lot-head"><span class="badge blue">可緩衝</span><b>02:14</b></div>
-                <h3>LOT-A38-2220</h3><div class="subtle">工控通訊板 · WO-88357</div>
-                <div class="lot-meta"><span>數量<b>1,240 pcs</b></span><span>批次價值<b>NT$ 0.94M</b></span><span>所在站點<b>上料 A3-01</b></span><span>可挽救率<b>99%</b></span></div>
-                <div class="bar"><span style="width:33%"></span></div>
-              </article>
-              <article class="lot">
-                <div class="lot-head"><span class="badge green">已保全</span><b>—</b></div>
-                <h3>LOT-A38-2214</h3><div class="subtle">能源監控模組 · WO-88326</div>
-                <div class="lot-meta"><span>數量<b>420 pcs</b></span><span>批次價值<b>NT$ 0.61M</b></span><span>所在站點<b>AOI A3-04</b></span><span>可挽救率<b>100%</b></span></div>
-                <div class="bar"><span style="width:100%;background:var(--green)"></span></div>
-              </article>
-              <article class="lot">
-                <div class="lot-head"><span class="badge amber">待抽檢</span><b>01:34</b></div>
-                <h3>LOT-A38-2216</h3><div class="subtle">電源管理板 · WO-88338</div>
-                <div class="lot-meta"><span>數量<b>430 pcs</b></span><span>批次價值<b>NT$ 0.77M</b></span><span>所在站點<b>AOI 待檢</b></span><span>可挽救率<b>95%</b></span></div>
-                <div class="bar"><span style="width:52%;background:var(--amber)"></span></div>
-              </article>
-              <article class="lot">
-                <div class="lot-head"><span class="badge red">疑似報廢</span><b>已逾時</b></div>
-                <h3>LOT-A38-2218</h3><div class="subtle">校正測試片 · WO-88346</div>
-                <div class="lot-meta"><span>數量<b>110 pcs</b></span><span>批次價值<b>NT$ 0.08M</b></span><span>所在站點<b>壓合 A3-02</b></span><span>可挽救率<b>12%</b></span></div>
-                <div class="bar"><span style="width:96%;background:var(--red)"></span></div>
-              </article>
-            </div>
-          </div>
-          <div class="grid">
-            <div class="clock">
-              <small>下一批品質臨界點</small><div class="big">12:18</div>
-              <b>LOT-A38-2217</b><br><small>需於 09:08 前進入降溫程序</small>
-            </div>
-            <div class="card card-pad">
-              <div class="card-title">可挽救價值分布</div>
-              <div class="donut-wrap"><canvas id="wipChart" aria-label="在製品價值圓餅圖"></canvas></div>
-            </div>
-            <div class="card card-pad">
-              <div class="card-title">損失估算</div>
-              <div class="value-stack">
-                <div class="value-row"><div><span>可保全價值</span><b>NT$ 4.92M</b></div><div class="bar"><span style="width:86%;background:var(--green)"></span></div></div>
-                <div class="value-row"><div><span>延遲風險</span><b>NT$ 0.56M</b></div><div class="bar"><span style="width:41%;background:var(--amber)"></span></div></div>
-                <div class="value-row"><div><span>預估報廢</span><b>NT$ 0.19M</b></div><div class="bar"><span style="width:14%;background:var(--red)"></span></div></div>
-              </div>
-              <button class="btn primary" data-next="2" style="width:100%;margin-top:15px">送交承諾排序</button>
-            </div>
-          </div>
-        </div>
-      </section>
+<section class="view" data-view="2">
+<div class="page-head"><div><div class="eyebrow">廠長 · Stage 03</div><h2>客戶承諾排序</h2><p>將交期、合約罰則、客戶等級與在製品損失轉換為可檢視的訂單急迫度。</p></div><div class="step-chip">策略情境：承諾優先</div></div>
+<div class="grid commit-layout">
+<aside class="card weight-panel">
+<div class="card-title">優先權權重 <span class="badge blue">總和 100%</span></div>
+<div class="weight-row"><div class="weight-line"><b>交期緊迫度</b><span id="dueWeight">35%</span></div><input id="dueRange" type="range" min="10" max="60" value="35" aria-label="交期緊迫度"></div>
+<div class="weight-row"><div class="weight-line"><b>合約罰則</b><span>25%</span></div><input type="range" min="0" max="50" value="25" aria-label="合約罰則"></div>
+<div class="weight-row"><div class="weight-line"><b>客戶策略等級</b><span>20%</span></div><input type="range" min="0" max="50" value="20" aria-label="客戶策略等級"></div>
+<div class="weight-row"><div class="weight-line"><b>在製品可挽救價值</b><span>20%</span></div><input type="range" min="0" max="50" value="20" aria-label="在製品可挽救價值"></div>
+<div class="formula">急迫度 = 交期風險 × 35% + 罰則衝擊 × 25% + 客戶等級 × 20% + 可挽救價值 × 20%</div>
+<div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1">恢復預設</button><button class="btn primary" style="flex:1">重新計算</button></div>
+</aside>
+<div>
+<div class="card card-pad"><div class="card-title">訂單急迫度排行榜 <small>依事故情境即時計算</small></div><div class="table-scroll">
+<table class="rank-table">
+<thead><tr><th>順位</th><th>客戶／訂單</th><th>承諾交期</th><th>合約罰則</th><th>批次價值</th><th>急迫度</th><th>建議</th></tr></thead>
+<tbody>
+<tr><td><span class="rank-num">1</span></td><td><b>昕曜醫材</b><br><small>SO-59218</small></td><td>今日 14:00</td><td>NT$ 420K/日</td><td>NT$ 1.82M</td><td><span class="score">96.4</span></td><td><span class="badge red">立即復原</span></td></tr>
+<tr><td><span class="rank-num">2</span></td><td><b>東馳汽車</b><br><small>SO-59231</small></td><td>明日 08:00</td><td>NT$ 260K/日</td><td>NT$ 1.31M</td><td><span class="score">88.7</span></td><td><span class="badge amber">第二序列</span></td></tr>
+<tr><td><span class="rank-num">3</span></td><td><b>拓域工控</b><br><small>SO-59242</small></td><td>明日 17:00</td><td>NT$ 90K/日</td><td>NT$ 0.94M</td><td><span class="score">72.1</span></td><td><span class="badge blue">可緩衝</span></td></tr>
+<tr><td><span class="rank-num">4</span></td><td><b>格能科技</b><br><small>SO-59196</small></td><td>D+3 12:00</td><td>NT$ 60K/日</td><td>NT$ 0.61M</td><td><span class="score">61.8</span></td><td><span class="badge green">維持排程</span></td></tr>
+</tbody>
+</table>
+</div></div>
+<div class="scenario-note">
+<div><span class="subtle">準時交付預估</span><b>93.8%</b><span class="badge green">+13.8 pt</span></div>
+<div><span class="subtle">合約風險曝險</span><b>NT$ 0.21M</b><span class="badge green">降低 71%</span></div>
+<div><span class="subtle">策略客戶保全</span><b>4 / 4</b><span class="badge blue">全部涵蓋</span></div>
+</div>
+<div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="btn primary" data-next="3">鎖定權重並核實資源 <span class="material-symbols-outlined">arrow_forward</span></button></div>
+</div>
+</div>
+</section>
 
-      <section class="view" data-view="2">
-        <div class="page-head">
-          <div><div class="eyebrow">廠長 · Stage 03</div><h2>客戶承諾排序</h2><p>將交期、合約罰則、客戶等級與在製品損失轉換為可檢視的訂單急迫度。</p></div>
-          <div class="step-chip">策略情境：承諾優先</div>
-        </div>
-        <div class="grid commit-layout">
-          <aside class="card weight-panel">
-            <div class="card-title">優先權權重 <span class="badge blue">總和 100%</span></div>
-            <div class="weight-row"><div class="weight-line"><b>交期緊迫度</b><span id="dueWeight">35%</span></div><input id="dueRange" type="range" min="10" max="60" value="35"></div>
-            <div class="weight-row"><div class="weight-line"><b>合約罰則</b><span>25%</span></div><input type="range" min="0" max="50" value="25"></div>
-            <div class="weight-row"><div class="weight-line"><b>客戶策略等級</b><span>20%</span></div><input type="range" min="0" max="50" value="20"></div>
-            <div class="weight-row"><div class="weight-line"><b>在製品可挽救價值</b><span>20%</span></div><input type="range" min="0" max="50" value="20"></div>
-            <div class="formula">急迫度 = 交期風險 × 35% + 罰則衝擊 × 25% + 客戶等級 × 20% + 可挽救價值 × 20%</div>
-            <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1">恢復預設</button><button class="btn primary" style="flex:1">重新計算</button></div>
-          </aside>
-          <div>
-            <div class="card card-pad">
-              <div class="card-title">訂單急迫度排行榜 <small>依事故情境即時計算</small></div>
-              <div class="table-scroll">
-                <table class="rank-table">
-                  <thead><tr><th>順位</th><th>客戶／訂單</th><th>承諾交期</th><th>合約罰則</th><th>批次價值</th><th>急迫度</th><th>建議</th></tr></thead>
-                  <tbody>
-                    <tr><td><span class="rank-num">1</span></td><td><b>昕曜醫材</b><br><small>SO-59218</small></td><td>今日 14:00</td><td>NT$ 420K/日</td><td>NT$ 1.82M</td><td><span class="score">96.4</span></td><td><span class="badge red">立即復原</span></td></tr>
-                    <tr><td><span class="rank-num">2</span></td><td><b>東馳汽車</b><br><small>SO-59231</small></td><td>明日 08:00</td><td>NT$ 260K/日</td><td>NT$ 1.31M</td><td><span class="score">88.7</span></td><td><span class="badge amber">第二序列</span></td></tr>
-                    <tr><td><span class="rank-num">3</span></td><td><b>拓域工控</b><br><small>SO-59242</small></td><td>明日 17:00</td><td>NT$ 90K/日</td><td>NT$ 0.94M</td><td><span class="score">72.1</span></td><td><span class="badge blue">可緩衝</span></td></tr>
-                    <tr><td><span class="rank-num">4</span></td><td><b>格能科技</b><br><small>SO-59196</small></td><td>D+3 12:00</td><td>NT$ 60K/日</td><td>NT$ 0.61M</td><td><span class="score">61.8</span></td><td><span class="badge green">維持排程</span></td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <div class="scenario-note">
-              <div><span class="subtle">準時交付預估</span><b>93.8%</b><span class="badge green">+13.8 pt</span></div>
-              <div><span class="subtle">合約風險曝險</span><b>NT$ 0.21M</b><span class="badge green">降低 71%</span></div>
-              <div><span class="subtle">策略客戶保全</span><b>4 / 4</b><span class="badge blue">全部涵蓋</span></div>
-            </div>
-            <div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="btn primary" data-next="3">鎖定權重並核實資源 <span class="material-symbols-outlined">arrow_forward</span></button></div>
-          </div>
-        </div>
-      </section>
+<section class="view" data-view="3">
+<div class="page-head"><div><div class="eyebrow">製程工程師 · Stage 04</div><h2>復機資源核實</h2><p>逐一驗證人員、設備、模具、物料與維修條件，未通過的條件不得進入復機序列。</p></div><div class="step-chip">Gate R4 · 83% 就緒</div></div>
+<div class="grid resource-layout">
+<div class="card card-pad">
+<div class="card-title">候選序列資源矩陣 <span class="badge amber">1 項待補件</span></div>
+<div class="matrix">
+<div class="head"></div><div class="head">人員</div><div class="head">設備</div><div class="head">模具</div><div class="head">物料</div>
+<div class="row-label">醫療模組<br><small>LOT-2217</small></div><div class="ok">已到位</div><div class="ok">可復機</div><div class="ok">M-18</div><div class="ok">齊套</div>
+<div class="row-label">車規控制板<br><small>LOT-2219</small></div><div class="ok">已到位</div><div class="wait">校正中</div><div class="ok">M-07</div><div class="ok">齊套</div>
+<div class="row-label">工控通訊板<br><small>LOT-2220</small></div><div class="ok">已排班</div><div class="ok">可復機</div><div class="ok">M-12</div><div class="wait">差 80 pcs</div>
+<div class="row-label">能源監控<br><small>LOT-2214</small></div><div class="ok">已排班</div><div class="ok">可用</div><div class="ok">M-21</div><div class="ok">齊套</div>
+</div>
+<div class="card-title" style="margin-top:24px">設備復機檢核</div>
+<div class="checklist">
+<div class="check"><div class="check-icon"><span class="material-symbols-outlined">engineering</span></div><div><b>A3-02 壓合機安全點檢</b><small>維修工程師 陳冠宇 · 09:03 簽核</small></div><span class="badge green">通過</span></div>
+<div class="check"><div class="check-icon"><span class="material-symbols-outlined">speed</span></div><div><b>壓力感測器 P-302 校正</b><small>標準值 6.20 bar · 實測 6.22 bar</small></div><span class="badge green">通過</span></div>
+<div class="check"><div class="check-icon"><span class="material-symbols-outlined">science</span></div><div><b>車規配方首件驗證</b><small>待品質工程師上傳 5 pcs 量測報告</small></div><span class="badge amber">補件</span></div>
+<div class="check"><div class="check-icon"><span class="material-symbols-outlined">electric_bolt</span></div><div><b>能源與氣壓負載測試</b><small>尖峰負載 82% · 安全餘裕 18%</small></div><span class="badge green">通過</span></div>
+</div>
+</div>
+<aside>
+<div class="card card-pad"><div class="card-title">資源到位摘要</div><div class="grid" style="grid-template-columns:1fr 1fr">
+<div class="metric"><div class="label">合格人員</div><div class="value">8/8</div><div class="delta">全數到位</div></div>
+<div class="metric"><div class="label">可用設備</div><div class="value">3/4</div><div class="subtle">1 台校正中</div></div>
+<div class="metric"><div class="label">模具</div><div class="value">4/4</div><div class="delta">已完成預熱</div></div>
+<div class="metric"><div class="label">物料齊套</div><div class="value">92%</div><div class="bar"><span style="width:92%"></span></div></div>
+</div></div>
+<div class="gate"><h3>核實資源是否通過？</h3><p>Agent 建議「條件式通過」：醫療模組可立即復機；車規控制板需等待首件報告。若退回，將通知製程工程師補件。</p><div class="gate-actions"><button class="btn danger">退回補件</button><button class="btn primary" data-next="4">條件式通過</button></div></div>
+<div class="rollback"><b>安全約束已鎖定</b><p>壓力偏差超過 ±3%、爐溫偏差超過 ±4°C 或首件不良率大於 2%，立即停止序列並回滾至安全待機。</p></div>
+</aside>
+</div>
+</section>
 
-      <section class="view" data-view="3">
-        <div class="page-head">
-          <div><div class="eyebrow">製程工程師 · Stage 04</div><h2>復機資源核實</h2><p>逐一驗證人員、設備、模具、物料與維修條件，未通過的條件不得進入復機序列。</p></div>
-          <div class="step-chip">Gate R4 · 83% 就緒</div>
-        </div>
-        <div class="grid resource-layout">
-          <div class="card card-pad">
-            <div class="card-title">候選序列資源矩陣 <span class="badge amber">1 項待補件</span></div>
-            <div class="matrix">
-              <div class="head"></div><div class="head">人員</div><div class="head">設備</div><div class="head">模具</div><div class="head">物料</div>
-              <div class="row-label">醫療模組<br><small>LOT-2217</small></div><div class="ok">已到位</div><div class="ok">可復機</div><div class="ok">M-18</div><div class="ok">齊套</div>
-              <div class="row-label">車規控制板<br><small>LOT-2219</small></div><div class="ok">已到位</div><div class="wait">校正中</div><div class="ok">M-07</div><div class="ok">齊套</div>
-              <div class="row-label">工控通訊板<br><small>LOT-2220</small></div><div class="ok">已排班</div><div class="ok">可復機</div><div class="ok">M-12</div><div class="wait">差 80 pcs</div>
-              <div class="row-label">能源監控<br><small>LOT-2214</small></div><div class="ok">已排班</div><div class="ok">可用</div><div class="ok">M-21</div><div class="ok">齊套</div>
-            </div>
-            <div class="card-title" style="margin-top:24px">設備復機檢核</div>
-            <div class="checklist">
-              <div class="check"><div class="check-icon"><span class="material-symbols-outlined">engineering</span></div><div><b>A3-02 壓合機安全點檢</b><small>維修工程師 陳冠宇 · 09:03 簽核</small></div><span class="badge green">通過</span></div>
-              <div class="check"><div class="check-icon"><span class="material-symbols-outlined">speed</span></div><div><b>壓力感測器 P-302 校正</b><small>標準值 6.20 bar · 實測 6.22 bar</small></div><span class="badge green">通過</span></div>
-              <div class="check"><div class="check-icon"><span class="material-symbols-outlined">science</span></div><div><b>車規配方首件驗證</b><small>待品質工程師上傳 5 pcs 量測報告</small></div><span class="badge amber">補件</span></div>
-              <div class="check"><div class="check-icon"><span class="material-symbols-outlined">electric_bolt</span></div><div><b>能源與氣壓負載測試</b><small>尖峰負載 82% · 安全餘裕 18%</small></div><span class="badge green">通過</span></div>
-            </div>
-          </div>
-          <aside>
-            <div class="card card-pad">
-              <div class="card-title">資源到位摘要</div>
-              <div class="grid" style="grid-template-columns:1fr 1fr">
-                <div class="metric"><div class="label">合格人員</div><div class="value">8/8</div><div class="delta">全數到位</div></div>
-                <div class="metric"><div class="label">可用設備</div><div class="value">3/4</div><div class="subtle">1 台校正中</div></div>
-                <div class="metric"><div class="label">模具</div><div class="value">4/4</div><div class="delta">已完成預熱</div></div>
-                <div class="metric"><div class="label">物料齊套</div><div class="value">92%</div><div class="bar"><span style="width:92%"></span></div></div>
-              </div>
-            </div>
-            <div class="gate">
-              <h3>核實資源是否通過？</h3>
-              <p>Agent 建議「條件式通過」：醫療模組可立即復機；車規控制板需等待首件報告。若退回，將通知製程工程師補件。</p>
-              <div class="gate-actions"><button class="btn danger">退回補件</button><button class="btn primary" data-next="4">條件式通過</button></div>
-            </div>
-            <div class="rollback">
-              <b>安全約束已鎖定</b>
-              <p>壓力偏差超過 ±3%、爐溫偏差超過 ±4°C 或首件不良率大於 2%，立即停止序列並回滾至安全待機。</p>
-            </div>
-          </aside>
-        </div>
-      </section>
+<section class="view" data-view="4">
+<div class="page-head"><div><div class="eyebrow">廠長 · Stage 05</div><h2>復機序列推演與核准</h2><p>比較候選順序對交付、產能與損失的影響，核准整體損失最低且符合安全約束的方案。</p></div><div class="step-chip">推薦方案 B · 信心 91%</div></div>
+<div class="grid sequence-layout">
+<div class="grid">
+<div class="card card-pad"><div class="card-title">推薦復機序列 <span class="badge green">預估挽回 NT$ 4.73M</span></div><div class="sequence-list">
+<div class="seq"><div class="seq-no">1</div><div><b>醫療感測模組 · LOT-2217</b><small>A3-03 降溫 → A3-02 壓合 · 預計 09:16 啟動</small></div><span class="badge red">承諾優先</span><div class="cost"><b>35 分鐘</b><small>復機工時</small></div></div>
+<div class="seq"><div class="seq-no">2</div><div><b>車規控制板 · LOT-2219</b><small>首件驗證後切換配方 · 預計 10:05 啟動</small></div><span class="badge amber">待首件</span><div class="cost"><b>48 分鐘</b><small>復機工時</small></div></div>
+<div class="seq"><div class="seq-no">3</div><div><b>工控通訊板 · LOT-2220</b><small>補料併行、不阻塞主序列 · 預計 11:12 啟動</small></div><span class="badge blue">可緩衝</span><div class="cost"><b>26 分鐘</b><small>復機工時</small></div></div>
+<div class="seq"><div class="seq-no">4</div><div><b>能源監控模組 · LOT-2214</b><small>維持 AOI 排程 · 預計 11:48 接續</small></div><span class="badge green">已保全</span><div class="cost"><b>18 分鐘</b><small>復機工時</small></div></div>
+</div></div>
+<div class="card card-pad"><div class="card-title">方案比較</div><div class="compare">
+<button><span class="subtle">方案 A</span><b>最短換線</b><small>交付率 88% · 損失 NT$ 1.21M</small></button>
+<button class="selected"><span class="subtle">方案 B · Agent 推薦</span><b>承諾 × 損失平衡</b><small>交付率 95% · 損失 NT$ 0.42M</small></button>
+<button><span class="subtle">方案 C</span><b>最高產能</b><small>交付率 91% · 損失 NT$ 0.78M</small></button>
+</div></div>
+</div>
+<aside class="grid">
+<div class="card card-pad"><div class="card-title">六週交付率改善</div><div class="chart-wrap"><canvas id="trendChart" aria-label="準時交付率折線圖"></canvas></div></div>
+<div class="card card-pad"><div class="card-title">方案 B 效益</div><div class="value-stack">
+<div class="value-row"><div><span>排程作業工時</span><b>8 → 1.5 小時/日</b></div><div class="bar"><span style="width:81%;background:var(--green)"></span></div></div>
+<div class="value-row"><div><span>缺料停線次數</span><b>12 → 3 次/月</b></div><div class="bar"><span style="width:75%;background:var(--green)"></span></div></div>
+<div class="value-row"><div><span>設備稼動率</span><b>74 → 88%</b></div><div class="bar"><span style="width:88%"></span></div></div>
+</div><div class="approval"><div class="approval-row"><div><b style="color:var(--ink)">核准序列是否通過？</b><div class="subtle">退回將通知廠長重新設定條件</div></div><button class="btn primary" data-next="5">核准並發布</button></div></div></div>
+</aside>
+</div>
+</section>
 
-      <section class="view" data-view="4">
-        <div class="page-head">
-          <div><div class="eyebrow">廠長 · Stage 05</div><h2>復機序列推演與核准</h2><p>比較候選順序對交付、產能與損失的影響，核准整體損失最低且符合安全約束的方案。</p></div>
-          <div class="step-chip">推薦方案 B · 信心 91%</div>
-        </div>
-        <div class="grid sequence-layout">
-          <div class="grid">
-            <div class="card card-pad">
-              <div class="card-title">推薦復機序列 <span class="badge green">預估挽回 NT$ 4.73M</span></div>
-              <div class="sequence-list">
-                <div class="seq"><div class="seq-no">1</div><div><b>醫療感測模組 · LOT-2217</b><small>A3-03 降溫 → A3-02 壓合 · 預計 09:16 啟動</small></div><span class="badge red">承諾優先</span><div class="cost"><b>35 分鐘</b><small>復機工時</small></div></div>
-                <div class="seq"><div class="seq-no">2</div><div><b>車規控制板 · LOT-2219</b><small>首件驗證後切換配方 · 預計 10:05 啟動</small></div><span class="badge amber">待首件</span><div class="cost"><b>48 分鐘</b><small>復機工時</small></div></div>
-                <div class="seq"><div class="seq-no">3</div><div><b>工控通訊板 · LOT-2220</b><small>補料併行、不阻塞主序列 · 預計 11:12 啟動</small></div><span class="badge blue">可緩衝</span><div class="cost"><b>26 分鐘</b><small>復機工時</small></div></div>
-                <div class="seq"><div class="seq-no">4</div><div><b>能源監控模組 · LOT-2214</b><small>維持 AOI 排程 · 預計 11:48 接續</small></div><span class="badge green">已保全</span><div class="cost"><b>18 分鐘</b><small>復機工時</small></div></div>
-              </div>
-            </div>
-            <div class="card card-pad">
-              <div class="card-title">方案比較</div>
-              <div class="compare">
-                <button><span class="subtle">方案 A</span><b>最短換線</b><small>交付率 88% · 損失 NT$ 1.21M</small></button>
-                <button class="selected"><span class="subtle">方案 B · Agent 推薦</span><b>承諾 × 損失平衡</b><small>交付率 95% · 損失 NT$ 0.42M</small></button>
-                <button><span class="subtle">方案 C</span><b>最高產能</b><small>交付率 91% · 損失 NT$ 0.78M</small></button>
-              </div>
-            </div>
-          </div>
-          <aside class="grid">
-            <div class="card card-pad">
-              <div class="card-title">六週交付率改善</div>
-              <div class="chart-wrap"><canvas id="trendChart" aria-label="準時交付率折線圖"></canvas></div>
-            </div>
-            <div class="card card-pad">
-              <div class="card-title">方案 B 效益</div>
-              <div class="value-stack">
-                <div class="value-row"><div><span>排程作業工時</span><b>8 → 1.5 小時/日</b></div><div class="bar"><span style="width:81%;background:var(--green)"></span></div></div>
-                <div class="value-row"><div><span>缺料停線次數</span><b>12 → 3 次/月</b></div><div class="bar"><span style="width:75%;background:var(--green)"></span></div></div>
-                <div class="value-row"><div><span>設備稼動率</span><b>74 → 88%</b></div><div class="bar"><span style="width:88%"></span></div></div>
-              </div>
-              <div class="approval">
-                <div class="approval-row"><div><b style="color:var(--ink)">核准序列是否通過？</b><div class="subtle">退回將通知廠長重新設定條件</div></div><button class="btn primary" data-next="5">核准並發布</button></div>
-              </div>
-            </div>
-          </aside>
-        </div>
-      </section>
+<section class="view" data-view="5">
+<div class="page-head"><div><div class="eyebrow">工業工程師 · Stage 06</div><h2>復原指令協同</h2><p>發布核准序列、追蹤跨站交接；若即時條件越界，立即升級或依安全規則回滾。</p></div><div class="step-chip">序列執行 42% · ETA 12:06</div></div>
+<div class="grid exec-layout">
+<div class="card card-pad"><div class="card-title">復機執行時間軸 <span class="badge blue">方案 B</span></div><div class="timeline">
+<div class="timeline-item done"><div class="timeline-card"><div><b>發布復機序列與安全條件</b><small>廠長完成電子核准；通知製程、IE、維修與品質群組。</small></div><span class="badge green">09:08 完成</span></div></div>
+<div class="timeline-item done"><div class="timeline-card"><div><b>A3-02 空載測試</b><small>壓力 6.21 bar、循環 30 次，未偵測異常漂移。</small></div><span class="badge green">09:14 完成</span></div></div>
+<div class="timeline-item active"><div class="timeline-card"><div><b>LOT-2217 醫療模組復機</b><small>已投入 420 / 680 pcs；首件良率 99.2%，爐溫穩定。</small></div><span class="badge blue">執行中 62%</span></div></div>
+<div class="timeline-item"><div class="timeline-card"><div><b>LOT-2219 車規首件確認</b><small>品質工程師預計 09:52 完成量測與電子簽核。</small></div><span class="badge amber">等待中</span></div></div>
+<div class="timeline-item"><div class="timeline-card"><div><b>LOT-2220 補料與換線</b><small>缺料 80 pcs 已由 WH-02 出庫，預計 10:31 到站。</small></div><span class="badge blue">已排定</span></div></div>
+<div class="timeline-item"><div class="timeline-card"><div><b>全線恢復與事故結案</b><small>完成良率驗證、在製品對帳與操作履歷封存。</small></div><span class="badge blue">預計 12:06</span></div></div>
+</div></div>
+<aside class="grid">
+<div class="card card-pad live-panel"><div class="card-title">產線即時狀態 <span class="badge green">穩定</span></div><div class="live-metric">
+<div><span>目前產速</span><b>76%</b></div><div><span>首件良率</span><b>99.2%</b></div><div><span>設備稼動</span><b>88%</b></div><div><span>安全事件</span><b>0</b></div>
+</div><div class="log">
+<div><span>09:31</span><span>A3-03 爐溫穩定於 161.8°C</span></div>
+<div><span>09:28</span><span>LOT-2217 完成第二階段抽檢</span></div>
+<div><span>09:22</span><span>壓力偏差維持在 +0.3%</span></div>
+<div><span>09:16</span><span>核准序列第一批正式投入</span></div>
+</div></div>
+<div class="card card-pad"><div class="card-title">操作與追溯紀錄</div><div class="event-list">
+<div class="event"><div class="event-time">PRO-001</div><div><b>界定事故</b><p>製程工程師 · 處理中 · D+1</p></div><span class="badge red">高</span></div>
+<div class="event"><div class="event-time">PRO-002</div><div><b>盤點在製品</b><p>工業工程師 · 待確認 · D+2</p></div><span class="badge red">高</span></div>
+<div class="event"><div class="event-time">PRO-004</div><div><b>核實資源</b><p>製程工程師 · 已完成 · D+4</p></div><span class="badge green">完成</span></div>
+<div class="event"><div class="event-time">PRO-005</div><div><b>核准序列</b><p>廠長 · 已完成 · D+5</p></div><span class="badge green">完成</span></div>
+</div></div>
+<div class="rollback"><b>安全回滾已待命</b><p>監控壓力、爐溫與首件良率。任一條件越界時，Agent 將暫停下一批、保留現場參數並升級通知廠長。</p><button class="btn danger" style="width:100%;margin-top:8px"><span class="material-symbols-outlined">undo</span>啟動安全回滾</button></div>
+</aside>
+</div>
+</section>
+</main>
+</div>
+<script>
+(()=>{
+"use strict";
+const views=Array.from(document.querySelectorAll("[data-view]"));
+const navButtons=Array.from(document.querySelectorAll("[data-i]"));
+const chartStore={};
+const reduceMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-      <section class="view" data-view="5">
-        <div class="page-head">
-          <div><div class="eyebrow">工業工程師 · Stage 06</div><h2>復原指令協同</h2><p>發布核准序列、追蹤跨站交接；若即時條件越界，立即升級或依安全規則回滾。</p></div>
-          <div class="step-chip">序列執行 42% · ETA 12:06</div>
-        </div>
-        <div class="grid exec-layout">
-          <div class="card card-pad">
-            <div class="card-title">復機執行時間軸 <span class="badge blue">方案 B</span></div>
-            <div class="timeline">
-              <div class="timeline-item done"><div class="timeline-card"><div><b>發布復機序列與安全條件</b><small>廠長完成電子核准；通知製程、IE、維修與品質群組。</small></div><span class="badge green">09:08 完成</span></div></div>
-              <div class="timeline-item done"><div class="timeline-card"><div><b>A3-02 空載測試</b><small>壓力 6.21 bar、循環 30 次，未偵測異常漂移。</small></div><span class="badge green">09:14 完成</span></div></div>
-              <div class="timeline-item active"><div class="timeline-card"><div><b>LOT-2217 醫療模組復機</b><small>已投入 420 / 680 pcs；首件良率 99.2%，爐溫穩定。</small></div><span class="badge blue">執行中 62%</span></div></div>
-              <div class="timeline-item"><div class="timeline-card"><div><b>LOT-2219 車規首件確認</b><small>品質工程師預計 09:52 完成量測與電子簽核。</small></div><span class="badge amber">等待中</span></div></div>
-              <div class="timeline-item"><div class="timeline-card"><div><b>LOT-2220 補料與換線</b><small>缺料 80 pcs 已由 WH-02 出庫，預計 10:31 到站。</small></div><span class="badge blue">已排定</span></div></div>
-              <div class="timeline-item"><div class="timeline-card"><div><b>全線恢復與事故結案</b><small>完成良率驗證、在製品對帳與操作履歷封存。</small></div><span class="badge blue">預計 12:06</span></div></div>
-            </div>
-          </div>
-          <aside class="grid">
-            <div class="card card-pad live-panel">
-              <div class="card-title">產線即時狀態 <span class="badge green">穩定</span></div>
-              <div class="live-metric">
-                <div><span>目前產速</span><b>76%</b></div>
-                <div><span>首件良率</span><b>99.2%</b></div>
-                <div><span>設備稼動</span><b>88%</b></div>
-                <div><span>安全事件</span><b>0</b></div>
-              </div>
-              <div class="log">
-                <div><span>09:31</span><span>A3-03 爐溫穩定於 161.8°C</span></div>
-                <div><span>09:28</span><span>LOT-2217 完成第二階段抽檢</span></div>
-                <div><span>09:22</span><span>壓力偏差維持在 +0.3%</span></div>
-                <div><span>09:16</span><span>核准序列第一批正式投入</span></div>
-              </div>
-            </div>
-            <div class="card card-pad">
-              <div class="card-title">操作與追溯紀錄</div>
-              <div class="event-list">
-                <div class="event"><div class="event-time">PRO-001</div><div><b>界定事故</b><p>製程工程師 · 處理中 · D+1</p></div><span class="badge red">高</span></div>
-                <div class="event"><div class="event-time">PRO-002</div><div><b>盤點在製品</b><p>工業工程師 · 待確認 · D+2</p></div><span class="badge red">高</span></div>
-                <div class="event"><div class="event-time">PRO-004</div><div><b>核實資源</b><p>製程工程師 · 已完成 · D+4</p></div><span class="badge green">完成</span></div>
-                <div class="event"><div class="event-time">PRO-005</div><div><b>核准序列</b><p>廠長 · 已完成 · D+5</p></div><span class="badge green">完成</span></div>
-              </div>
-            </div>
-            <div class="rollback">
-              <b>安全回滾已待命</b>
-              <p>監控壓力、爐溫與首件良率。任一條件越界時，Agent 將暫停下一批、保留現場參數並升級通知廠長。</p>
-              <button class="btn danger" style="width:100%;margin-top:8px"><span class="material-symbols-outlined">undo</span>啟動安全回滾</button>
-            </div>
-          </aside>
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <script>
-    (() => {
-      "use strict";
-
-      const views = Array.from(document.querySelectorAll("[data-view]"));
-      const navButtons = Array.from(document.querySelectorAll("[data-i]"));
-      const chartStore = {};
-
-      function chartReady(canvas) {
-        return canvas && canvas.parentElement && canvas.parentElement.clientWidth > 0;
-      }
-
-      function initChart(index) {
-        if (typeof Chart === "undefined") return;
-
-        if (index === 1 && !chartStore.wip) {
-          const canvas = document.getElementById("wipChart");
-          if (!chartReady(canvas)) return;
-          chartStore.wip = new Chart(canvas, {
-            type: "doughnut",
-            data: {
-              labels: ["可保全", "延遲風險", "預估報廢"],
-              datasets: [{
-                data: [4.92, 0.56, 0.19],
-                backgroundColor: ["#15803d", "#d68a14", "#c2413b"],
-                borderColor: "#ffffff",
-                borderWidth: 4,
-                hoverOffset: 5
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              cutout: "68%",
-              plugins: {
-                legend: {
-                  position: "bottom",
-                  labels: { usePointStyle: true, boxWidth: 8, color: "#64748b", font: { family: "Inter" } }
-                },
-                tooltip: {
-                  callbacks: { label: context => ` ${context.label}：NT$ ${context.raw}M` }
-                }
-              }
-            }
-          });
-        }
-
-        if (index === 4 && !chartStore.trend) {
-          const canvas = document.getElementById("trendChart");
-          if (!chartReady(canvas)) return;
-          chartStore.trend = new Chart(canvas, {
-            type: "line",
-            data: {
-              labels: ["W1", "W2", "W3", "W4", "W5", "W6"],
-              datasets: [{
-                label: "準時交付率 %",
-                data: [80, 83, 86, 89, 92, 95],
-                borderColor: "#1e40af",
-                backgroundColor: "rgba(30,64,175,.11)",
-                fill: true,
-                tension: .38,
-                pointRadius: 4,
-                pointBackgroundColor: "#ffffff",
-                pointBorderColor: "#1e40af",
-                pointBorderWidth: 2
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              interaction: { intersect: false, mode: "index" },
-              scales: {
-                y: {
-                  min: 75,
-                  max: 100,
-                  ticks: { callback: value => `${value}%`, color: "#64748b" },
-                  grid: { color: "#edf1f6" },
-                  border: { display: false }
-                },
-                x: {
-                  ticks: { color: "#64748b" },
-                  grid: { display: false },
-                  border: { display: false }
-                }
-              },
-              plugins: {
-                legend: { display: false },
-                tooltip: { callbacks: { label: context => ` 準時交付率：${context.raw}%` } }
-              }
-            }
-          });
+function chartReady(canvas){
+  return canvas&&canvas.parentElement&&canvas.parentElement.clientWidth>0;
+}
+function initChart(index){
+  if(typeof Chart==="undefined")return;
+  Chart.defaults.font.family='"Fira Sans", sans-serif';
+  Chart.defaults.color="#475569";
+  if(index===1&&!chartStore.wip){
+    const canvas=document.getElementById("wipChart");
+    if(!chartReady(canvas))return;
+    chartStore.wip=new Chart(canvas,{
+      type:"doughnut",
+      data:{
+        labels:["可保全","延遲風險","預估報廢"],
+        datasets:[{
+          data:[4.92,.56,.19],
+          backgroundColor:["#15803d","#9a5300","#dc2626"],
+          borderColor:"#ffffff",borderWidth:4,hoverOffset:reduceMotion?0:5
+        }]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,cutout:"68%",
+        animation:reduceMotion?false:{duration:350},
+        plugins:{
+          legend:{position:"bottom",labels:{usePointStyle:true,boxWidth:8,color:"#475569",font:{family:"Fira Sans"}}},
+          tooltip:{callbacks:{label:context=>` ${context.label}：NT$ ${context.raw}M`}}
         }
       }
-
-      function show(index, syncHash = false) {
-        const safeIndex = Math.max(0, Math.min(5, Number(index) || 0));
-        views.forEach((view, viewIndex) => {
-          view.classList.toggle("active", viewIndex === safeIndex);
-          view.setAttribute("aria-hidden", viewIndex === safeIndex ? "false" : "true");
-        });
-        navButtons.forEach((button, buttonIndex) => {
-          button.classList.toggle("active", buttonIndex === safeIndex);
-          button.setAttribute("aria-current", buttonIndex === safeIndex ? "step" : "false");
-        });
-        if (syncHash && window.location.hash !== `#go=${safeIndex}`) {
-          window.location.hash = `go=${safeIndex}`;
-        }
-        requestAnimationFrame(() => initChart(safeIndex));
+    });
+  }
+  if(index===4&&!chartStore.trend){
+    const canvas=document.getElementById("trendChart");
+    if(!chartReady(canvas))return;
+    chartStore.trend=new Chart(canvas,{
+      type:"line",
+      data:{
+        labels:["W1","W2","W3","W4","W5","W6"],
+        datasets:[{
+          label:"準時交付率 %",
+          data:[80,83,86,89,92,95],
+          borderColor:"#2563eb",backgroundColor:"rgba(37,99,235,.10)",
+          fill:true,tension:.32,pointRadius:4,pointBackgroundColor:"#fff",
+          pointBorderColor:"#2563eb",pointBorderWidth:2
+        }]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        animation:reduceMotion?false:{duration:350},
+        interaction:{intersect:false,mode:"index"},
+        scales:{
+          y:{min:75,max:100,ticks:{callback:value=>`${value}%`,color:"#475569"},grid:{color:"#e2e8f0"},border:{display:false}},
+          x:{ticks:{color:"#475569"},grid:{display:false},border:{display:false}}
+        },
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:context=>` 準時交付率：${context.raw}%`}}}
       }
-
-      function indexFromHash() {
-        const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
-        return match ? Math.max(0, Math.min(5, Number(match[1]))) : 0;
-      }
-
-      navButtons.forEach(button => {
-        button.addEventListener("click", () => show(Number(button.dataset.i), true));
-      });
-
-      document.querySelectorAll("[data-next]").forEach(button => {
-        button.addEventListener("click", () => show(Number(button.dataset.next), true));
-      });
-
-      const dueRange = document.getElementById("dueRange");
-      const dueWeight = document.getElementById("dueWeight");
-      dueRange.addEventListener("input", () => {
-        dueWeight.textContent = `${dueRange.value}%`;
-      });
-
-      window.addEventListener("hashchange", () => show(indexFromHash()));
-      window.addEventListener("resize", () => {
-        Object.values(chartStore).forEach(chart => chart.resize());
-      });
-
-      show(0);
-      if (window.location.hash) show(indexFromHash());
-    })();
-  </script>
-<script src="/shared/jv-agent-bridge.js?v=2" defer></script>
+    });
+  }
+}
+function show(index,syncHash=false){
+  const safeIndex=Math.max(0,Math.min(5,Number(index)||0));
+  views.forEach((view,viewIndex)=>{
+    const active=viewIndex===safeIndex;
+    view.classList.toggle("active",active);
+    view.setAttribute("aria-hidden",active?"false":"true");
+  });
+  navButtons.forEach((button,buttonIndex)=>{
+    const active=buttonIndex===safeIndex;
+    button.classList.toggle("active",active);
+    button.setAttribute("aria-current",active?"step":"false");
+  });
+  if(syncHash&&window.location.hash!==`#go=${safeIndex}`)window.location.hash=`go=${safeIndex}`;
+  requestAnimationFrame(()=>initChart(safeIndex));
+}
+function indexFromHash(){
+  const match=window.location.hash.match(/(?:go=|v)([0-9]+)/);
+  return match?Math.max(0,Math.min(5,Number(match[1]))):0;
+}
+navButtons.forEach(button=>button.addEventListener("click",()=>show(Number(button.dataset.i),true)));
+document.querySelectorAll("[data-next]").forEach(button=>button.addEventListener("click",()=>show(Number(button.dataset.next),true)));
+const dueRange=document.getElementById("dueRange");
+const dueWeight=document.getElementById("dueWeight");
+dueRange.addEventListener("input",()=>{dueWeight.textContent=`${dueRange.value}%`});
+window.addEventListener("hashchange",()=>show(indexFromHash()));
+window.addEventListener("resize",()=>Object.values(chartStore).forEach(chart=>chart.resize()));
+show(window.location.hash?indexFromHash():0);
+})();
+</script>
 </body>
 </html>

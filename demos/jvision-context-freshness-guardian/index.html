@@ -1,871 +1,410 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-<link rel="icon" href="../../favicon.svg">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;600;700;800&amp;display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0">
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="檢查 Context 引用資料的時間與版本，避免模型依舊制度作答。">
-<title>Context 新鮮度守門員 · quality-qms｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,500,0,0">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<title>AI參考資料版本檢查器 · quality-qms｜Jvision 系統 Demo</title>
 <style>
 :root{
-  --blue:#9333ea;
-  --ink:#17131f;
-  --body:#352f3d;
-  --muted:#746d7d;
-  --line:#e8e2ed;
-  --bg:#f7f5f9;
-  --green:#15803d;
-  --amber:#d97706;
-  --red:#dc2626;
-  --violet-soft:#f4eafd;
-  --shadow:0 12px 34px rgba(51,31,68,.08);
+  --color-primary:#7C3AED;
+  --color-on-primary:#FFFFFF;
+  --color-secondary:#A78BFA;
+  --color-on-secondary:#0F172A;
+  --color-accent:#0891B2;
+  --color-on-accent:#000000;
+  --color-background:#FAF5FF;
+  --color-foreground:#1E1B4B;
+  --color-card:#FFFFFF;
+  --color-card-foreground:#1E1B4B;
+  --color-muted:#ECEEF9;
+  --color-muted-foreground:#475569;
+  --color-border:#DDD6FE;
+  --color-destructive:#DC2626;
+  --color-on-destructive:#FFFFFF;
+  --color-ring:#7C3AED;
+  --blue:#7C3AED;
+  --ink:#1E1B4B;
+  --muted:#475569;
+  --line:#DDD6FE;
+  --green:#047857;
+  --amber:#B45309;
+  --red:#B91C1C;
+  --cyan:#0891B2;
+  --soft:#F3E8FF;
+  --shadow:0 18px 48px rgba(76,29,149,.09);
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{
-  margin:0;background:var(--bg);color:var(--body);
-  font-family:Inter,"Noto Sans TC",system-ui,sans-serif;
-  line-height:1.5;overflow-x:hidden;
+  margin:0;background:
+    radial-gradient(circle at 8% 0,rgba(167,139,250,.17),transparent 31rem),
+    radial-gradient(circle at 100% 20%,rgba(8,145,178,.08),transparent 28rem),
+    var(--color-background);
+  color:var(--color-foreground);
+  font:400 15px/1.55 "DM Sans","Noto Sans TC",system-ui,sans-serif;
+  overflow-x:hidden
 }
-button,input,select,textarea{font:inherit}
-button{cursor:pointer}
-button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
-  outline:3px solid rgba(147,51,234,.24);outline-offset:2px
+button,input,textarea{font:inherit}
+button,.citation,.query-item,input[type=checkbox]{cursor:pointer}
+button,input,textarea{transition:border-color .2s,background-color .2s,color .2s,box-shadow .2s,transform .2s}
+button:focus-visible,input:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(124,58,237,.35);outline-offset:3px
 }
+.material-symbols-outlined{font-size:20px;line-height:1;vertical-align:middle}
 .shell{min-height:100vh}
 .header{
-  position:sticky;inset-block-start:0;z-index:20;
-  display:flex;align-items:center;gap:22px;
-  min-height:72px;padding:10px clamp(16px,3vw,42px);
-  background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);
-  backdrop-filter:blur(14px)
+  position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:22px;
+  min-height:74px;padding:10px clamp(16px,3vw,44px);
+  background:rgba(255,255,255,.9);border-bottom:1px solid rgba(221,214,254,.85);
+  backdrop-filter:blur(18px)
 }
-.brand{display:flex;align-items:center;gap:11px;min-width:max-content}
+.brand{display:flex;align-items:center;gap:12px;min-width:max-content}
 .brand-mark{
-  display:grid;place-items:center;width:42px;height:42px;border-radius:13px;
-  background:linear-gradient(145deg,var(--blue),#6d28d9);color:#fff;
-  box-shadow:0 8px 22px rgba(147,51,234,.25)
+  position:relative;display:grid;place-items:center;width:44px;height:44px;border-radius:14px;
+  color:#fff;background:linear-gradient(145deg,var(--color-primary),#5B21B6);
+  box-shadow:0 10px 25px rgba(124,58,237,.28)
 }
-.brand-mark .material-symbols-outlined{font-size:24px}
-.brand-copy strong{display:block;color:var(--ink);font-size:15px;letter-spacing:.01em}
-.brand-copy span{display:block;color:var(--muted);font-size:11px}
-.nav{
-  display:flex;gap:6px;min-width:0;overflow-x:auto;padding:3px;
-  scrollbar-width:none
+.brand-mark::after{
+  content:"";position:absolute;right:-2px;bottom:-2px;width:11px;height:11px;
+  border:3px solid #fff;border-radius:50%;background:#22C55E
 }
+.brand-copy strong{display:block;font:700 15px/1.2 "Space Grotesk","Noto Sans TC",sans-serif}
+.brand-copy span{color:var(--muted);font-size:11px}
+.nav{display:flex;gap:5px;min-width:0;overflow:auto;padding:4px;scrollbar-width:none}
 .nav::-webkit-scrollbar{display:none}
 .nav button{
-  min-height:44px;white-space:nowrap;border:0;border-radius:11px;
-  padding:9px 13px;background:transparent;color:var(--muted);font-weight:700;font-size:13px
+  min-height:44px;padding:9px 12px;border:1px solid transparent;border-radius:12px;
+  background:transparent;color:var(--muted);font-size:12px;font-weight:700;white-space:nowrap
 }
-.nav button:hover{background:#f5effa;color:var(--blue)}
-.nav button.active{background:var(--violet-soft);color:var(--blue)}
-.header-side{margin-inline-start:auto;display:flex;align-items:center;gap:10px;white-space:nowrap}
-.sync{
-  display:flex;align-items:center;gap:6px;color:var(--green);font-size:12px;font-weight:700
-}
-.sync::before{content:"";width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 5px #dcfce7}
-.user{
-  display:grid;place-items:center;width:38px;height:38px;border:1px solid #dfd7e7;
-  border-radius:50%;background:#fff;color:var(--blue);font-weight:800
-}
-main{width:min(1500px,100%);margin:auto;padding:26px clamp(14px,3vw,42px) 44px}
-.view{display:none;animation:rise .3s ease both}
-.view.active{display:block}
-@keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
-.page-head{
-  display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:21px
-}
-.eyebrow{
-  display:flex;align-items:center;gap:7px;color:var(--blue);
-  font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase
-}
-.page-head h1{margin:5px 0 5px;color:var(--ink);font-size:clamp(23px,3vw,34px);line-height:1.25}
-.page-head p{margin:0;color:var(--muted);font-size:14px}
-.actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+.nav button:hover{color:var(--blue);background:#F5F3FF}
+.nav button.active{color:var(--blue);background:var(--soft);border-color:var(--line)}
+.header-side{display:flex;align-items:center;gap:13px;margin-left:auto;white-space:nowrap}
+.sync{display:flex;align-items:center;gap:9px;color:var(--green);font-size:12px;font-weight:700}
+.sync::before{content:"";width:8px;height:8px;border-radius:50%;background:#10B981;box-shadow:0 0 0 5px #D1FAE5}
+.user{display:grid;place-items:center;width:39px;height:39px;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--blue);font-weight:700}
+main{width:min(1480px,100%);margin:auto;padding:30px clamp(15px,3vw,44px) 52px}
+.view{display:none}
+.view.active{display:block;animation:reveal .4s cubic-bezier(.2,.8,.2,1) both}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:22px;margin-bottom:22px}
+.eyebrow{display:flex;align-items:center;gap:7px;color:var(--blue);font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+h1,h2,h3,.kpi-value{font-family:"Space Grotesk","Noto Sans TC",sans-serif}
+.page-head h1{margin:6px 0 5px;color:var(--ink);font-size:clamp(26px,3vw,38px);line-height:1.18;letter-spacing:-.025em}
+.page-head p,.card-title p{margin:0;color:var(--muted)}
+.page-head p{font-size:14px}
+.actions{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap}
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;
-  border:1px solid var(--line);border-radius:11px;padding:9px 14px;
-  background:#fff;color:var(--body);font-weight:700;font-size:13px
+  padding:9px 15px;border:1px solid var(--line);border-radius:12px;background:#fff;
+  color:var(--ink);font-size:13px;font-weight:700;box-shadow:0 2px 4px rgba(30,27,75,.03)
 }
-.btn:hover{border-color:#c9b0dc;color:var(--blue)}
-.btn.primary{border-color:var(--blue);background:var(--blue);color:#fff}
-.btn .material-symbols-outlined{font-size:19px}
+.btn:hover{border-color:var(--secondary);color:var(--blue);transform:translateY(-1px)}
+.btn.primary{border-color:var(--blue);background:linear-gradient(135deg,var(--blue),#6D28D9);color:#fff;box-shadow:0 8px 20px rgba(124,58,237,.22)}
 .card{
-  background:#fff;border:1px solid var(--line);border-radius:18px;
-  box-shadow:var(--shadow)
+  position:relative;background:rgba(255,255,255,.94);border:1px solid var(--line);
+  border-radius:20px;box-shadow:var(--shadow)
 }
-.card-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
+.card-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:17px}
 .card-title h2,.card-title h3{margin:0;color:var(--ink)}
-.card-title h2{font-size:17px}.card-title h3{font-size:15px}
-.card-title p{margin:3px 0 0;color:var(--muted);font-size:12px}
-.iconbox{
-  display:grid;place-items:center;width:38px;height:38px;flex:0 0 auto;
-  border-radius:11px;background:var(--violet-soft);color:var(--blue)
-}
-.iconbox .material-symbols-outlined{font-size:21px}
+.card-title h2{font-size:17px}.card-title h3{font-size:14px}
+.card-title p{margin-top:3px;font-size:12px}
+.iconbox{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--soft);color:var(--blue)}
 .badge{
-  display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:5px 9px;
-  font-size:11px;font-weight:800;white-space:nowrap
+  display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border:1px solid transparent;
+  border-radius:999px;font-size:11px;font-weight:700;line-height:1.2;white-space:nowrap
 }
-.badge.red{background:#fef2f2;color:var(--red)}
-.badge.amber{background:#fff7ed;color:var(--amber)}
-.badge.green{background:#ecfdf3;color:var(--green)}
-.badge.purple{background:var(--violet-soft);color:var(--blue)}
+.badge.red{color:#991B1B;background:#FEF2F2;border-color:#FECACA}
+.badge.amber{color:#92400E;background:#FFFBEB;border-color:#FDE68A}
+.badge.green{color:#065F46;background:#ECFDF5;border-color:#A7F3D0}
+.badge.purple{color:#6D28D9;background:#F5F3FF;border-color:#DDD6FE}
 .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
 .muted{color:var(--muted)}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
 .sep{height:1px;background:var(--line)}
-.kpi-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
-.kpi{padding:17px}
+.kpi-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.kpi{padding:18px;overflow:hidden}
+.kpi::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(var(--blue),var(--cyan))}
 .kpi-label{color:var(--muted);font-size:12px;font-weight:700}
-.kpi-value{margin-top:6px;color:var(--ink);font-size:25px;font-weight:800}
-.kpi-note{margin-top:4px;font-size:11px}
-.up{color:var(--green)}.down{color:var(--red)}
-.progress{height:7px;border-radius:99px;background:#eee9f1;overflow:hidden}
+.kpi-value{margin-top:7px;color:var(--ink);font-size:27px;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi-note{margin-top:4px;font-size:11px}.up{color:var(--green)}.down{color:var(--red)}
+.progress{height:7px;border-radius:99px;background:var(--color-muted);overflow:hidden}
 .progress span{display:block;height:100%;border-radius:inherit;background:var(--blue)}
-.material-symbols-outlined{vertical-align:middle}
-
-/* v0 dashboard */
-.overview-grid{
-  display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,.75fr);gap:16px;margin-top:16px
-}
-.chart-card{padding:20px;min-width:0}
-#freshnessChart{height:310px;width:100%}
-.risk-list{padding:20px}
+.overview-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(290px,.75fr);gap:16px;margin-top:16px}
+.chart-card,.risk-list,.query-panel,.answer-card,.fragment-card,.timeline-card,.diff-card,.candidate-card,.impact-card,.batch-card,.release-card,.test-card,.audit-card{padding:21px}
+#freshnessChart{width:100%;height:310px}
 .risk-item{padding:13px 0;border-bottom:1px solid var(--line)}
-.risk-item:last-child{border-bottom:0}
-.risk-row{display:flex;justify-content:space-between;gap:12px;align-items:center}
-.risk-row strong{color:var(--ink);font-size:13px}
-.risk-meta{margin-top:5px;color:var(--muted);font-size:11px}
-.alert-card{
-  margin-top:16px;padding:18px;display:grid;grid-template-columns:auto 1fr auto;
-  align-items:center;gap:14px;border-left:4px solid var(--amber)
-}
-.alert-card h3{margin:0;color:var(--ink);font-size:14px}
-.alert-card p{margin:3px 0 0;color:var(--muted);font-size:12px}
-
-/* v1 trace */
+.risk-item:last-child{border:0}.risk-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.risk-row strong{color:var(--ink);font-size:13px}.risk-meta{margin-top:5px;color:var(--muted);font-size:11px}
+.alert-card{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:15px;margin-top:16px;padding:18px;border-left:4px solid var(--amber)}
+.alert-card h3{margin:0;color:var(--ink);font-size:14px}.alert-card p{margin:3px 0 0;color:var(--muted);font-size:12px}
 .trace-layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px}
-.query-panel{padding:18px}
-.searchbox{position:relative;margin-bottom:13px}
-.searchbox .material-symbols-outlined{
-  position:absolute;left:12px;top:11px;color:var(--muted);font-size:20px
-}
-.searchbox input{
-  width:100%;min-height:44px;border:1px solid var(--line);border-radius:11px;
-  padding:9px 12px 9px 39px;background:#faf9fb;color:var(--ink)
-}
-.query-item{
-  width:100%;text-align:left;border:1px solid transparent;border-radius:13px;
-  padding:13px;background:transparent;color:var(--body);margin-top:6px
-}
-.query-item:hover,.query-item.selected{background:var(--violet-soft);border-color:#e0c6f5}
-.query-item strong{display:block;color:var(--ink);font-size:13px}
-.query-item span{display:block;margin-top:4px;color:var(--muted);font-size:11px}
-.trace-main{display:grid;gap:16px}
-.answer-card{padding:22px}
-.prompt-chip{
-  display:inline-flex;gap:7px;align-items:center;padding:7px 10px;
-  background:#f5f2f7;border-radius:9px;color:var(--muted);font-size:11px
-}
-.answer{margin:16px 0;padding:17px;border-radius:13px;background:#faf8fc;color:#403848;font-size:14px}
-.citation{
-  display:inline-flex;vertical-align:baseline;border:0;border-radius:6px;
-  margin:0 2px;padding:1px 6px;background:#e9d5ff;color:#6b21a8;font-size:11px;font-weight:800
-}
+.searchbox{position:relative;margin-bottom:12px}.searchbox span{position:absolute;top:12px;left:12px;color:var(--muted)}
+.searchbox input,.review-note{width:100%;border:1px solid var(--line);border-radius:12px;background:#FCFAFF;color:var(--ink)}
+.searchbox input{min-height:44px;padding:9px 12px 9px 40px}
+.query-item{width:100%;margin-top:6px;padding:13px;border:1px solid transparent;border-radius:13px;background:transparent;color:var(--ink);text-align:left}
+.query-item:hover,.query-item.selected{border-color:var(--line);background:var(--soft)}
+.query-item strong{display:block;font-size:13px}.query-item span{display:block;margin-top:4px;color:var(--muted);font-size:11px}
+.trace-main,.impact-panel,.approval-side{display:grid;gap:16px}
+.prompt-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:9px;background:var(--color-muted);color:var(--muted);font-size:11px}
+.answer{margin:16px 0;padding:17px;border:1px solid #E9D5FF;border-radius:14px;background:#FCFAFF;font-size:14px}
+.citation{margin:0 2px;padding:2px 6px;border:0;border-radius:6px;background:#EDE9FE;color:#5B21B6;font-size:11px;font-weight:700}
 .source-chain{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.source-node{position:relative;padding:15px;border:1px solid var(--line);border-radius:13px}
-.source-node:not(:last-child)::after{
-  content:"→";position:absolute;right:-17px;top:39%;z-index:2;color:#a89eaf;font-weight:800
-}
-.source-node small{display:block;color:var(--muted);font-size:10px}
-.source-node strong{display:block;margin:4px 0;color:var(--ink);font-size:12px}
-.source-node span{font-size:11px}
-.fragment-card{padding:18px}
-.fragment{
-  display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:start;
-  padding:13px 0;border-bottom:1px solid var(--line)
-}
-.fragment:last-child{border-bottom:0}
-.fragment-num{display:grid;place-items:center;height:32px;border-radius:9px;background:var(--violet-soft);color:var(--blue);font-weight:800;font-size:11px}
-.fragment p{margin:2px 0;color:var(--body);font-size:12px}
-
-/* v2 timeline */
+.source-node{position:relative;padding:15px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.source-node:not(:last-child)::after{content:"→";position:absolute;right:-17px;top:39%;z-index:2;color:var(--blue);font-weight:700}
+.source-node small,.source-node strong{display:block}.source-node small{color:var(--muted);font-size:10px}.source-node strong{margin:4px 0;font-size:12px}
+.fragment{display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:start;padding:13px 0;border-bottom:1px solid var(--line)}
+.fragment:last-child{border:0}.fragment-num{display:grid;place-items:center;height:32px;border-radius:9px;background:var(--soft);color:var(--blue);font-weight:700;font-size:11px}
+.fragment p{margin:2px 0;font-size:12px}
 .version-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);gap:16px}
-.timeline-card{padding:22px}
-.version-line{position:relative;margin-left:18px;padding-left:31px}
-.version-line::before{content:"";position:absolute;left:6px;top:10px;bottom:12px;width:2px;background:#ddd1e6}
-.version-event{position:relative;padding:0 0 25px}
-.version-event::before{
-  content:"";position:absolute;left:-31px;top:4px;width:14px;height:14px;border-radius:50%;
-  background:#fff;border:4px solid #b8adbf
-}
-.version-event.current::before{border-color:var(--green)}
-.version-event.expired::before{border-color:var(--red)}
-.version-event h3{margin:0;color:var(--ink);font-size:14px}
-.version-event p{margin:4px 0;color:var(--muted);font-size:11px}
-.version-event .event-body{
-  margin-top:9px;padding:12px;border:1px solid var(--line);border-radius:11px;background:#fcfbfd;font-size:12px
-}
-.diff-card{padding:21px}
-.diff-head{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:9px}
-.diff-head div{padding:9px 11px;border-radius:9px;font-size:11px;font-weight:800}
-.diff-old{background:#fff1f2;color:#9f1239}.diff-new{background:#ecfdf5;color:#166534}
-.diff-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.diff-row div{padding:12px;border:1px solid var(--line);border-radius:10px;font-size:11px;min-height:67px}
-.relation-list{margin-top:15px}
-.relation{
-  display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);font-size:12px
-}
-.relation:last-child{border-bottom:0}
-.relation .material-symbols-outlined{color:var(--blue);font-size:20px}
-
-/* v3 review */
+.version-line{position:relative;margin-left:18px;padding-left:31px}.version-line::before{content:"";position:absolute;left:6px;top:10px;bottom:12px;width:2px;background:var(--line)}
+.version-event{position:relative;padding-bottom:25px}.version-event::before{content:"";position:absolute;left:-31px;top:4px;width:14px;height:14px;border:4px solid #94A3B8;border-radius:50%;background:#fff}
+.version-event.current::before{border-color:var(--green)}.version-event.expired::before{border-color:var(--red)}
+.version-event h3{margin:0;font-size:14px}.version-event p{margin:4px 0;color:var(--muted);font-size:11px}
+.event-body{margin-top:9px;padding:12px;border:1px solid var(--line);border-radius:11px;background:#FCFAFF;font-size:12px}
+.diff-head,.diff-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.diff-head{margin-bottom:9px}
+.diff-head div,.diff-row div{padding:10px;border-radius:10px;font-size:11px}.diff-head div{font-weight:700}
+.diff-old{color:#9F1239;background:#FFF1F2}.diff-new{color:#065F46;background:#ECFDF5}.diff-row div{min-height:67px;border:1px solid var(--line)}
+.relation-list{margin-top:15px}.relation{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);font-size:12px}.relation:last-child{border:0}.relation>.material-symbols-outlined{color:var(--blue)}
 .review-layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:16px}
-.candidate-card{padding:20px}
-.candidate{
-  display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:13px;align-items:start;
-  padding:15px;border:1px solid var(--line);border-radius:14px;margin-top:10px
-}
-.candidate.recommended{border-color:#c99aee;background:#fdfaff}
-.radio-mark{
-  display:grid;place-items:center;width:22px;height:22px;border:2px solid #bcb1c4;border-radius:50%;margin-top:2px
-}
-.recommended .radio-mark{border-color:var(--blue)}
-.recommended .radio-mark::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--blue)}
-.candidate h3{margin:0;color:var(--ink);font-size:13px}
-.candidate p{margin:5px 0;color:var(--muted);font-size:11px}
-.score{color:var(--blue);font-weight:800;font-size:13px}
-.impact-panel{display:grid;gap:16px}
-.impact-card{padding:19px}
-.ring{
-  width:116px;height:116px;margin:8px auto 15px;border-radius:50%;
-  background:conic-gradient(var(--blue) 0 82%,#eee7f3 82%);
-  display:grid;place-items:center
-}
-.ring::after{
-  content:"82%";display:grid;place-items:center;width:84px;height:84px;border-radius:50%;
-  background:#fff;color:var(--ink);font-size:23px;font-weight:800
-}
-.checklist{list-style:none;padding:0;margin:0}
-.checklist li{display:flex;gap:9px;padding:8px 0;color:var(--body);font-size:12px}
-.checklist .material-symbols-outlined{color:var(--green);font-size:18px}
-.review-note{
-  width:100%;min-height:96px;resize:vertical;border:1px solid var(--line);
-  border-radius:11px;padding:11px;background:#faf9fb;color:var(--body)
-}
-
-/* v4 approval */
+.candidate{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:13px;align-items:start;margin-top:10px;padding:15px;border:1px solid var(--line);border-radius:14px}
+.candidate.recommended{border-color:var(--secondary);background:#FCFAFF}
+.radio-mark{display:grid;place-items:center;width:22px;height:22px;margin-top:2px;border:2px solid #94A3B8;border-radius:50%}.recommended .radio-mark{border-color:var(--blue)}.recommended .radio-mark::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--blue)}
+.candidate h3{margin:0;font-size:13px}.candidate p{margin:5px 0;color:var(--muted);font-size:11px}.score{color:var(--blue);font-weight:700;font-variant-numeric:tabular-nums}
+.ring{display:grid;place-items:center;width:116px;height:116px;margin:8px auto 15px;border-radius:50%;background:conic-gradient(var(--blue) 0 82%,var(--color-muted) 82%)}
+.ring::after{content:"82%";display:grid;place-items:center;width:84px;height:84px;border-radius:50%;background:#fff;color:var(--ink);font:700 23px "Space Grotesk"}
+.checklist{margin:0;padding:0;list-style:none}.checklist li{display:flex;gap:9px;padding:8px 0;font-size:12px}.checklist span{color:var(--green)}
+.review-note{min-height:96px;padding:11px;resize:vertical}
 .approval-board{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(310px,.65fr);gap:16px}
-.batch-card{padding:20px}
 .batch-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
-.table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;min-width:670px}
-th{text-align:left;padding:11px;color:var(--muted);font-size:10px;letter-spacing:.05em;border-bottom:1px solid var(--line)}
-td{padding:13px 11px;border-bottom:1px solid var(--line);font-size:12px}
-td strong{color:var(--ink)}
-input[type="checkbox"]{accent-color:var(--blue);width:17px;height:17px}
-.approval-side{display:grid;gap:16px}
-.release-card{padding:20px}
-.release-step{display:flex;gap:11px;padding:10px 0}
-.step-icon{
-  display:grid;place-items:center;width:30px;height:30px;flex:0 0 auto;
-  border-radius:9px;background:#f1ebf5;color:var(--blue)
-}
-.release-step strong{display:block;color:var(--ink);font-size:12px}
-.release-step span{display:block;color:var(--muted);font-size:10px}
-.approver{
-  display:flex;align-items:center;gap:10px;padding:12px;border-radius:12px;background:#faf8fc;margin:11px 0
-}
-.approver-avatar{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#e9d5ff;color:#6b21a8;font-weight:800}
-.approver strong{display:block;color:var(--ink);font-size:12px}
-.approver span{font-size:10px;color:var(--muted)}
-.approve-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-
-/* v5 validation */
-.validation-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
-.validation-kpi{padding:18px;position:relative;overflow:hidden}
-.validation-kpi::after{
-  content:"";position:absolute;width:80px;height:80px;border-radius:50%;
-  right:-22px;top:-24px;background:var(--violet-soft)
-}
-.validation-kpi strong{display:block;color:var(--ink);font-size:25px}
-.validation-kpi span{font-size:11px;color:var(--muted)}
+.table-wrap{overflow-x:auto}table{width:100%;min-width:670px;border-collapse:collapse}
+th{padding:11px;border-bottom:1px solid var(--line);color:var(--muted);font-size:10px;letter-spacing:.05em;text-align:left}
+td{padding:13px 11px;border-bottom:1px solid var(--line);font-size:12px}td:nth-child(3),td:nth-child(4){text-align:right;font-variant-numeric:tabular-nums}td strong{color:var(--ink)}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--blue)}
+.release-step{display:flex;gap:11px;padding:10px 0}.step-icon{display:grid;place-items:center;width:31px;height:31px;flex:0 0 auto;border-radius:9px;background:var(--soft);color:var(--blue);font-weight:700}
+.release-step strong,.release-step span{display:block}.release-step strong{font-size:12px}.release-step span{color:var(--muted);font-size:10px}
+.approver{display:flex;align-items:center;gap:10px;margin:11px 0;padding:12px;border-radius:12px;background:#FCFAFF}
+.approver-avatar{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:var(--soft);color:var(--blue);font-weight:700}
+.approver strong,.approver span{display:block}.approver strong{font-size:12px}.approver span{color:var(--muted);font-size:10px}.approve-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.validation-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.validation-kpi{padding:18px;overflow:hidden}.validation-kpi::after{content:"";position:absolute;right:-24px;top:-28px;width:84px;height:84px;border-radius:50%;background:linear-gradient(135deg,var(--soft),#CFFAFE)}.validation-kpi strong{display:block;font:700 26px "Space Grotesk";font-variant-numeric:tabular-nums}.validation-kpi>span{color:var(--muted);font-size:11px}
 .validation-main{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(310px,.75fr);gap:16px;margin-top:16px}
-.test-card{padding:20px}
-.test-case{
-  display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:12px;align-items:center;
-  padding:13px 0;border-bottom:1px solid var(--line)
-}
-.test-case:last-child{border-bottom:0}
-.test-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#ecfdf3;color:var(--green)}
-.test-case h3{margin:0;color:var(--ink);font-size:12px}
-.test-case p{margin:3px 0;color:var(--muted);font-size:10px}
-#validationChart{width:100%;height:260px}
-.audit-card{padding:20px;margin-top:16px}
-.audit-track{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
-.audit-node{position:relative;text-align:center;flex:1}
-.audit-node:not(:last-child)::after{
-  content:"";position:absolute;left:58%;right:-42%;top:17px;height:2px;background:#d8cce1
-}
-.audit-circle{
-  position:relative;z-index:1;display:grid;place-items:center;width:34px;height:34px;margin:auto;
-  border-radius:50%;background:var(--green);color:#fff
-}
-.audit-node strong{display:block;margin-top:7px;color:var(--ink);font-size:10px}
-.audit-node span{display:block;color:var(--muted);font-size:9px}
-
-.toast{
-  position:fixed;right:20px;bottom:20px;z-index:50;max-width:320px;
-  padding:13px 16px;border-radius:12px;background:#211b27;color:#fff;
-  box-shadow:0 14px 38px rgba(0,0,0,.2);font-size:12px;
-  opacity:0;transform:translateY(12px);pointer-events:none;transition:.25s
-}
+.test-case{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:12px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line)}.test-case:last-child{border:0}
+.test-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#ECFDF5;color:var(--green)}.test-case h3{margin:0;font-size:12px}.test-case p{margin:3px 0;color:var(--muted);font-size:10px}
+#validationChart{width:100%;height:260px}.audit-card{margin-top:16px}
+.audit-track{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}.audit-node{position:relative;flex:1;text-align:center}.audit-node:not(:last-child)::after{content:"";position:absolute;top:17px;left:58%;right:-42%;height:2px;background:var(--line)}
+.audit-circle{position:relative;z-index:1;display:grid;place-items:center;width:34px;height:34px;margin:auto;border-radius:50%;background:var(--green);color:#fff}.audit-node strong,.audit-node span{display:block}.audit-node strong{margin-top:7px;font-size:10px}.audit-node span{color:var(--muted);font-size:9px}
+.toast{position:fixed;right:20px;bottom:20px;z-index:50;max-width:330px;padding:13px 16px;border:1px solid #C4B5FD;border-radius:13px;background:#1E1B4B;color:#fff;box-shadow:0 16px 40px rgba(30,27,75,.3);font-size:12px;opacity:0;transform:translateY(12px);pointer-events:none;transition:.25s}
 .toast.on{opacity:1;transform:none}
+.typing{display:inline-flex;align-items:center;gap:4px;margin-left:5px}.typing i{width:4px;height:4px;border-radius:50%;background:currentColor;animation:pulse 1.2s infinite}.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes pulse{0%,70%,100%{opacity:.25;transform:translateY(0)}35%{opacity:1;transform:translateY(-3px)}}
+@keyframes reveal{from{opacity:0;transform:translateY(12px) scale(.992)}to{opacity:1;transform:none}}
 @media(max-width:1050px){
-  .header{align-items:flex-start;flex-wrap:wrap;gap:8px}
-  .nav{order:3;width:100%}
-  .header-side{margin-left:auto}
-  .overview-grid,.version-layout,.review-layout,.approval-board,.validation-main{grid-template-columns:1fr}
-  .impact-panel{grid-template-columns:1fr 1fr}
+  .header{align-items:flex-start;flex-wrap:wrap;gap:8px}.nav{order:3;width:100%}
+  .overview-grid,.version-layout,.review-layout,.approval-board,.validation-main{grid-template-columns:1fr}.impact-panel{grid-template-columns:1fr 1fr}
 }
 @media(max-width:760px){
-  main{padding-top:18px}
-  .brand-copy span,.sync{display:none}
-  .header{padding:9px 14px}
-  .page-head{display:block}
-  .actions{justify-content:flex-start;margin-top:14px}
-  .kpi-strip,.validation-grid{grid-template-columns:1fr 1fr}
-  .trace-layout{grid-template-columns:1fr}
-  .query-panel{max-height:310px;overflow:auto}
-  .source-chain{grid-template-columns:1fr}
-  .source-node:not(:last-child)::after{content:"↓";right:50%;top:auto;bottom:-18px}
-  .impact-panel{grid-template-columns:1fr}
-  .alert-card{grid-template-columns:auto 1fr}
-  .alert-card .btn{grid-column:1/-1}
-  .audit-track{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-  .audit-node:not(:last-child)::after{display:none}
+  main{padding-top:19px}.brand-copy span,.sync{display:none}.header{padding:9px 14px}.page-head{display:block}.actions{justify-content:flex-start;margin-top:14px}
+  .kpi-strip,.validation-grid{grid-template-columns:1fr 1fr}.trace-layout{grid-template-columns:1fr}.query-panel{max-height:310px;overflow:auto}.source-chain{grid-template-columns:1fr}.source-node:not(:last-child)::after{content:"↓";right:50%;top:auto;bottom:-18px}
+  .impact-panel{grid-template-columns:1fr}.alert-card{grid-template-columns:auto 1fr}.alert-card .btn{grid-column:1/-1}.audit-track{display:grid;grid-template-columns:1fr 1fr;gap:18px}.audit-node:not(:last-child)::after{display:none}
 }
 @media(max-width:440px){
-  .brand-copy strong{font-size:13px}
-  .user{display:none}
-  .kpi-strip,.validation-grid{grid-template-columns:1fr}
-  .kpi-value{font-size:22px}
-  .page-head h1{font-size:23px}
-  .candidate{grid-template-columns:auto minmax(0,1fr)}
-  .candidate .score{grid-column:2}
-  .diff-row,.diff-head{grid-template-columns:1fr}
-  .approve-actions{grid-template-columns:1fr}
-  .audit-track{grid-template-columns:1fr}
+  .user{display:none}.brand-copy strong{font-size:13px}.kpi-strip,.validation-grid{grid-template-columns:1fr}.candidate{grid-template-columns:auto minmax(0,1fr)}.candidate .score{grid-column:2}.diff-row,.diff-head,.approve-actions{grid-template-columns:1fr}.audit-track{grid-template-columns:1fr}
 }
-
-
-/* ── 量測式水平溢出修正 ─────────────────────────────
-   由 tools/fix-demo-overflow.mjs 量測產生，只針對實際溢出的元素。 */
-@media (max-width:900px){
-  html,body{overflow-x:hidden;}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
 </style>
 </head>
 <body>
 <div class="shell">
-  <header class="header">
-    <div class="brand">
-      <div class="brand-mark"><span class="material-symbols-outlined">verified_user</span></div>
-      <div class="brand-copy">
-        <strong>Context 新鮮度守門員</strong>
-        <span>QMS 品質管理系統</span>
-      </div>
-    </div>
-    <nav class="nav" aria-label="作業流程">
-      <button type="button" data-i="0"><span class="material-symbols-outlined">dashboard</span> 新鮮度總覽</button>
-      <button type="button" data-i="1"><span class="material-symbols-outlined">link</span> 回答引用</button>
-      <button type="button" data-i="2"><span class="material-symbols-outlined">history</span> 版本沿革</button>
-      <button type="button" data-i="3"><span class="material-symbols-outlined">difference</span> 替換草案</button>
-      <button type="button" data-i="4"><span class="material-symbols-outlined">published_with_changes</span> 更新核准</button>
-      <button type="button" data-i="5"><span class="material-symbols-outlined">fact_check</span> 生效驗證</button>
-    </nav>
-    <div class="header-side">
-      <span class="sync">索引同步正常</span>
-      <div class="user" aria-label="使用者：林">林</div>
-    </div>
-  </header>
+<header class="header">
+  <div class="brand">
+    <div class="brand-mark"><span class="material-symbols-outlined">data_check</span></div>
+    <div class="brand-copy"><strong>AI參考資料版本檢查器</strong><span>AI Context Quality Console</span></div>
+  </div>
+  <nav class="nav" aria-label="作業流程">
+    <button type="button" data-i="0"><span class="material-symbols-outlined">dashboard</span> 新鮮度總覽</button>
+    <button type="button" data-i="1"><span class="material-symbols-outlined">link</span> 回答引用</button>
+    <button type="button" data-i="2"><span class="material-symbols-outlined">history</span> 版本沿革</button>
+    <button type="button" data-i="3"><span class="material-symbols-outlined">difference</span> 替換草案</button>
+    <button type="button" data-i="4"><span class="material-symbols-outlined">published_with_changes</span> 更新核准</button>
+    <button type="button" data-i="5"><span class="material-symbols-outlined">fact_check</span> 生效驗證</button>
+  </nav>
+  <div class="header-side"><span class="sync">索引同步正常</span><div class="user" aria-label="使用者：林">林</div></div>
+</header>
 
-  <main>
-    <section class="view" data-v="0" aria-labelledby="v0-title">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow"><span class="material-symbols-outlined">schedule</span> AI 架構師工作台</div>
-          <h1 id="v0-title">Context 新鮮度總覽</h1>
-          <p>掌握過期知識、受影響應用與即將失效的重要制度。</p>
-        </div>
-        <div class="actions">
-          <button class="btn" type="button" data-action="export"><span class="material-symbols-outlined">download</span> 匯出盤點</button>
-          <button class="btn primary" type="button" data-action="scan"><span class="material-symbols-outlined">radar</span> 執行掃描</button>
-        </div>
-      </div>
+<main>
+<section class="view" data-v="0" aria-labelledby="v0-title">
+  <div class="page-head">
+    <div><div class="eyebrow"><span class="material-symbols-outlined">schedule</span> AI 架構師工作台</div><h1 id="v0-title">Context 新鮮度總覽</h1><p>掌握過期知識、受影響應用與即將失效的重要制度。</p></div>
+    <div class="actions"><button class="btn" type="button" data-action="export"><span class="material-symbols-outlined">download</span> 匯出盤點</button><button class="btn primary" type="button" data-action="scan"><span class="material-symbols-outlined">radar</span> 執行掃描</button></div>
+  </div>
+  <div class="kpi-strip">
+    <article class="card kpi"><div class="kpi-label">受監控知識片段</div><div class="kpi-value">18,426</div><div class="kpi-note up">↑ 482 本週新納管</div></article>
+    <article class="card kpi"><div class="kpi-label">已過期引用</div><div class="kpi-value">126</div><div class="kpi-note down">影響 9 個 AI 應用</div></article>
+    <article class="card kpi"><div class="kpi-label">30 日內到期</div><div class="kpi-value">284</div><div class="kpi-note" style="color:var(--amber)">其中 31 筆為重要制度</div></article>
+    <article class="card kpi"><div class="kpi-label">Context 健康分數</div><div class="kpi-value">92.6</div><div class="kpi-note up">較上週 +2.1</div></article>
+  </div>
+  <div class="overview-grid">
+    <article class="card chart-card"><div class="card-title"><div><h2>知識新鮮度分布</h2><p>依最後有效版本與更新週期計算，資料更新於 09:42</p></div><span class="badge purple">18,426 片段</span></div><div id="freshnessChart" role="img" aria-label="六週新鮮、即將到期與過期知識片段趨勢圖"></div></article>
+    <article class="card risk-list">
+      <div class="card-title"><div><h2>高風險知識來源</h2><p>依引用次數與過期嚴重度排序</p></div><span class="material-symbols-outlined muted">filter_list</span></div>
+      <div class="risk-item"><div class="risk-row"><strong>差旅費管理辦法 v3.2</strong><span class="badge red"><span class="material-symbols-outlined">block</span>已廢止</span></div><div class="risk-meta">引用 1,286 次 · 影響「員工服務助理」</div><div class="progress" style="margin-top:9px"><span style="width:92%;background:var(--red)"></span></div></div>
+      <div class="risk-item"><div class="risk-row"><strong>供應商驗收規範 v5.0</strong><span class="badge amber"><span class="material-symbols-outlined">schedule</span>12 日到期</span></div><div class="risk-meta">引用 842 次 · 影響 3 個應用</div><div class="progress" style="margin-top:9px"><span style="width:73%;background:var(--amber)"></span></div></div>
+      <div class="risk-item"><div class="risk-row"><strong>資訊分級政策 v2.7</strong><span class="badge amber"><span class="material-symbols-outlined">schedule</span>18 日到期</span></div><div class="risk-meta">引用 611 次 · 影響「資安問答助手」</div><div class="progress" style="margin-top:9px"><span style="width:58%;background:var(--amber)"></span></div></div>
+      <div class="risk-item"><div class="risk-row"><strong>客服退換貨程序 v4.1</strong><span class="badge red"><span class="material-symbols-outlined">warning</span>版本衝突</span></div><div class="risk-meta">新版 v4.3 已生效 21 日，舊片段仍可檢索</div></div>
+    </article>
+  </div>
+  <article class="card alert-card"><div class="iconbox"><span class="material-symbols-outlined">warning</span></div><div><h3>重要提醒：差旅費新制已於 8 月 15 日生效</h3><p>目前仍有 47 個舊版片段出現在正式環境，預估影響 326 筆近期回答。</p></div><button class="btn primary" type="button" data-jump="1">追溯受影響回答</button></article>
+</section>
 
+<section class="view" data-v="1" aria-labelledby="v1-title">
+  <div class="page-head"><div><div class="eyebrow"><span class="material-symbols-outlined">link</span> 資料科學家工作台</div><h1 id="v1-title">回答引用追蹤</h1><p>從實際模型回應反查知識片段、原始文件與索引版本。</p></div><div class="actions"><button class="btn" type="button" data-action="copy"><span class="material-symbols-outlined">content_copy</span> 複製追溯 ID</button><button class="btn primary" type="button" data-jump="2">比對版本沿革</button></div></div>
+  <div class="trace-layout">
+    <aside class="card query-panel">
+      <div class="card-title"><div><h2>近期高風險回答</h2><p>依過期引用信心度排序</p></div><span class="badge red">12 筆</span></div>
+      <div class="searchbox"><span class="material-symbols-outlined">search</span><input aria-label="搜尋問題或追溯 ID" placeholder="搜尋問題或追溯 ID"></div>
+      <button class="query-item selected" type="button"><strong>海外出差的住宿上限是多少？</strong><span class="mono">TRC-8F31A · 09:18 · 員工服務助理</span></button>
+      <button class="query-item" type="button"><strong>主管是否能核准商務艙？</strong><span class="mono">TRC-8F2D9 · 08:46 · 員工服務助理</span></button>
+      <button class="query-item" type="button"><strong>供應商驗收需要哪些文件？</strong><span class="mono">TRC-8EFD2 · 昨日 17:32 · 採購 Copilot</span></button>
+      <button class="query-item" type="button"><strong>機密資料可以輸入外部模型嗎？</strong><span class="mono">TRC-8EC21 · 昨日 15:08 · 資安問答助手</span></button>
+    </aside>
+    <div class="trace-main">
+      <article class="card answer-card">
+        <div class="card-title"><div><h2>TRC-8F31A · 回答重建</h2><p class="mono">模型請求 llama-3.3-70b-private · 2026/08/22 09:18:32</p></div><span class="badge red"><span class="material-symbols-outlined">warning</span>含過期引用</span></div>
+        <div class="prompt-chip"><span class="material-symbols-outlined">person</span> 使用者提問：海外出差的住宿上限是多少？<span class="typing" aria-label="AI 分析完成"><i></i><i></i><i></i></span></div>
+        <div class="answer">依差旅費管理辦法，亞洲主要城市每晚住宿上限為 <button class="citation" type="button">NT$ 6,000 [1]</button>，歐美主要城市為 <button class="citation" type="button">NT$ 8,500 [2]</button>。若遇大型會議期間，可由部門主管事前核准提高 <button class="citation" type="button">20% [3]</button>。</div>
+        <div class="source-chain">
+          <div class="source-node"><small>模型回應</small><strong class="mono">response_8f31a.json</strong><span class="badge green">完整記錄</span></div>
+          <div class="source-node"><small>向量索引</small><strong class="mono">hr-policy-prod-2026.08.01</strong><span class="badge amber">索引落後</span></div>
+          <div class="source-node"><small>原始文件</small><strong>差旅費管理辦法 v3.2</strong><span class="badge red">已廢止</span></div>
+        </div>
+      </article>
+      <article class="card fragment-card">
+        <div class="card-title"><div><h2>命中片段與引用證據</h2><p>重排序後實際送入 Context 的前三個片段</p></div><span class="badge purple">Context 3,184 tokens</span></div>
+        <div class="fragment"><div class="fragment-num">[1]</div><div><strong>第 12 條／亞洲地區住宿費</strong><p>亞洲一級城市每日住宿費上限為新臺幣六千元，憑單據核銷……</p><span class="mono muted">chunk_hr_032_114 · similarity 0.94</span></div><span class="badge red">過期 7 日</span></div>
+        <div class="fragment"><div class="fragment-num">[2]</div><div><strong>第 13 條／歐美地區住宿費</strong><p>歐美一級城市每日住宿費上限為新臺幣八千五百元……</p><span class="mono muted">chunk_hr_032_119 · similarity 0.91</span></div><span class="badge red">過期 7 日</span></div>
+        <div class="fragment"><div class="fragment-num">[3]</div><div><strong>第 16 條／特殊期間例外</strong><p>大型展會或會議期間，得於標準上限百分之二十內事前申請……</p><span class="mono muted">chunk_hr_032_128 · similarity 0.87</span></div><span class="badge amber">內容已修訂</span></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="view" data-v="2" aria-labelledby="v2-title">
+  <div class="page-head"><div><div class="eyebrow"><span class="material-symbols-outlined">history</span> 資料科學家工作台</div><h1 id="v2-title">版本沿革比對</h1><p>確認文件的生效、修訂、替代與廢止關係，定位索引版本缺口。</p></div><div class="actions"><button class="btn" type="button" data-action="evidence"><span class="material-symbols-outlined">inventory_2</span> 證據封存</button><button class="btn primary" type="button" data-jump="3">建立替換草案</button></div></div>
+  <div class="version-layout">
+    <article class="card timeline-card">
+      <div class="card-title"><div><h2>差旅費管理辦法 · 版本生命週期</h2><p class="mono">文件 ID HR-TRAVEL-001 · 來源 HR Policy Center</p></div><span class="badge red">索引缺口 21 日</span></div>
+      <div class="version-line">
+        <div class="version-event current"><h3>v4.0 · 現行有效版本 <span class="badge green">生效</span></h3><p class="mono">2026/08/15 起生效 · 核准單 HR-CHG-260714</p><div class="event-body">住宿額度改採城市分級；例外加成由 20% 調整為 15%，並新增 ESG 優先旅館條款。</div></div>
+        <div class="version-event"><h3>v3.3 · 過渡發布版本 <span class="badge amber">未進正式索引</span></h3><p class="mono">2026/07/18 發布 · 僅供使用者驗收</p><div class="event-body">已包含新版額度草案，但因法務覆核退回，未曾取得正式生效資格。</div></div>
+        <div class="version-event expired"><h3>v3.2 · 舊版 <span class="badge red">已廢止</span></h3><p class="mono">2025/03/01–2026/08/14 · 目前正式索引仍引用</p><div class="event-body">固定區域額度；大型活動期間可由主管核准提高 20%。共 47 個片段尚未停用。</div></div>
+        <div class="version-event"><h3>v3.1 · 歷史版本</h3><p class="mono">2024/01/01–2025/02/28 · 已封存</p></div>
+      </div>
+    </article>
+    <aside class="card diff-card">
+      <div class="card-title"><div><h2>關鍵條文差異</h2><p>v3.2 → v4.0 語意差異摘要</p></div><span class="badge purple">7 處變更</span></div>
+      <div class="diff-head"><div class="diff-old">舊版 v3.2</div><div class="diff-new">新版 v4.0</div></div>
+      <div class="diff-row"><div><strong>亞洲一級城市</strong><br>每晚 NT$ 6,000</div><div><strong>A 級城市</strong><br>每晚 NT$ 7,200</div></div>
+      <div class="diff-row" style="margin-top:8px"><div><strong>歐美一級城市</strong><br>每晚 NT$ 8,500</div><div><strong>S 級城市</strong><br>每晚 NT$ 10,000</div></div>
+      <div class="diff-row" style="margin-top:8px"><div><strong>特殊期間</strong><br>得提高 20%</div><div><strong>特殊期間</strong><br>得提高 15%，須附市場證明</div></div>
+      <div class="relation-list">
+        <div class="relation"><span class="material-symbols-outlined">swap_horiz</span><div><strong>替代關係完整</strong><br><span class="muted">v4.0 明確替代 v3.2</span></div></div>
+        <div class="relation"><span class="material-symbols-outlined">event_available</span><div><strong>生效日已確認</strong><br><span class="muted">董事會決議與發布日一致</span></div></div>
+        <div class="relation"><span class="material-symbols-outlined">error</span><div><strong>索引指標不一致</strong><br><span class="muted">prod alias 仍指向 2026.08.01</span></div></div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<section class="view" data-v="3" aria-labelledby="v3-title">
+  <div class="page-head"><div><div class="eyebrow"><span class="material-symbols-outlined">upgrade</span> AI 架構師工作台</div><h1 id="v3-title">替換草案審閱</h1><p>檢查新版候選、內容差異及可能改變的回答範圍。</p></div><div class="actions"><button class="btn" type="button" data-action="return"><span class="material-symbols-outlined">undo</span> 退回補件</button><button class="btn primary" type="button" data-jump="4"><span class="material-symbols-outlined">check</span> 通過並送核准</button></div></div>
+  <div class="review-layout">
+    <article class="card candidate-card">
+      <div class="card-title"><div><h2>CON-004 · 新版候選清單</h2><p>舊來源：差旅費管理辦法 v3.2／47 個待替換片段</p></div><span class="badge amber">待審閱</span></div>
+      <div class="candidate recommended"><div class="radio-mark" aria-hidden="true"></div><div><h3>差旅費管理辦法 v4.0 <span class="badge green">建議採用</span></h3><p>正式生效、替代關係完整，條文範圍涵蓋全部 47 個舊片段。預計產生 53 個新版片段。</p><span class="mono muted">SHA-256 91bd…4a20 · HR-TRAVEL-001</span></div><div class="score">96.8</div></div>
+      <div class="candidate"><div class="radio-mark" aria-hidden="true"></div><div><h3>差旅費管理辦法 v3.3</h3><p>內容相似度高，但僅為使用者驗收版本，未取得正式核准與生效資格。</p><span class="mono muted">SHA-256 7ce1…f08a · UAT ONLY</span></div><div class="score">72.4</div></div>
+      <div class="candidate"><div class="radio-mark" aria-hidden="true"></div><div><h3>海外差旅 FAQ 2026-Q3</h3><p>可補充常見問答，但不是制度原文，不適合作為主要替代來源。</p><span class="mono muted">SHA-256 a402…11df · HR-FAQ-082</span></div><div class="score">64.1</div></div>
+      <div class="sep" style="margin:19px 0"></div>
+      <div class="card-title"><div><h3>預測回答變更</h3><p>以近 30 日 8,421 筆問題回放估算</p></div></div>
       <div class="kpi-strip">
-        <article class="card kpi">
-          <div class="kpi-label">受監控知識片段</div>
-          <div class="kpi-value">18,426</div>
-          <div class="kpi-note up">↑ 482 本週新納管</div>
-        </article>
-        <article class="card kpi">
-          <div class="kpi-label">已過期引用</div>
-          <div class="kpi-value">126</div>
-          <div class="kpi-note down">影響 9 個 AI 應用</div>
-        </article>
-        <article class="card kpi">
-          <div class="kpi-label">30 日內到期</div>
-          <div class="kpi-value">284</div>
-          <div class="kpi-note" style="color:var(--amber)">其中 31 筆為重要制度</div>
-        </article>
-        <article class="card kpi">
-          <div class="kpi-label">Context 健康分數</div>
-          <div class="kpi-value">92.6</div>
-          <div class="kpi-note up">較上週 +2.1</div>
-        </article>
+        <div class="kpi" style="padding:12px;background:#FCFAFF;border-radius:12px"><div class="kpi-label">回答會改變</div><div class="kpi-value">326</div></div>
+        <div class="kpi" style="padding:12px;background:#FCFAFF;border-radius:12px"><div class="kpi-label">僅引用更新</div><div class="kpi-value">714</div></div>
+        <div class="kpi" style="padding:12px;background:#FCFAFF;border-radius:12px"><div class="kpi-label">需人工覆核</div><div class="kpi-value">18</div></div>
+        <div class="kpi" style="padding:12px;background:#FCFAFF;border-radius:12px"><div class="kpi-label">無影響</div><div class="kpi-value">7,363</div></div>
       </div>
+    </article>
+    <aside class="impact-panel">
+      <article class="card impact-card"><div class="card-title"><div><h2>替換可信度</h2><p>來源、時效、語意與覆蓋綜合評分</p></div></div><div class="ring"></div><ul class="checklist"><li><span class="material-symbols-outlined">check_circle</span>正式生效狀態已驗證</li><li><span class="material-symbols-outlined">check_circle</span>文件簽章與雜湊一致</li><li><span class="material-symbols-outlined">check_circle</span>替代範圍覆蓋完整</li><li><span class="material-symbols-outlined">check_circle</span>關鍵問題回放已完成</li></ul></article>
+      <article class="card impact-card"><div class="card-title"><div><h2>審閱意見</h2><p>意見將寫入可追溯操作紀錄</p></div></div><textarea class="review-note" aria-label="審閱意見">確認採用 v4.0。請在重新索引後優先驗證住宿額度、特殊期間加成與 ESG 旅館三組問題。</textarea><div style="display:flex;justify-content:space-between;margin-top:11px"><span class="badge purple">AI 架構師 · 林書妍</span><span class="muted" style="font-size:10px">草稿已儲存</span></div></article>
+    </aside>
+  </div>
+</section>
 
-      <div class="overview-grid">
-        <article class="card chart-card">
-          <div class="card-title">
-            <div>
-              <h2>知識新鮮度分布</h2>
-              <p>依最後有效版本與更新週期計算，資料更新於 09:42</p>
-            </div>
-            <span class="badge purple">18,426 片段</span>
-          </div>
-          <div id="freshnessChart" role="img" aria-label="六週新鮮、即將到期與過期知識片段趨勢圖"></div>
-        </article>
-
-        <article class="card risk-list">
-          <div class="card-title">
-            <div><h2>高風險知識來源</h2><p>依引用次數與過期嚴重度排序</p></div>
-            <span class="material-symbols-outlined muted">filter_list</span>
-          </div>
-          <div class="risk-item">
-            <div class="risk-row"><strong>差旅費管理辦法 v3.2</strong><span class="badge red"><span class="dot"></span>已廢止</span></div>
-            <div class="risk-meta">引用 1,286 次 · 影響「員工服務助理」</div>
-            <div class="progress" style="margin-top:9px"><span style="width:92%;background:var(--red)"></span></div>
-          </div>
-          <div class="risk-item">
-            <div class="risk-row"><strong>供應商驗收規範 v5.0</strong><span class="badge amber">12 日到期</span></div>
-            <div class="risk-meta">引用 842 次 · 影響 3 個應用</div>
-            <div class="progress" style="margin-top:9px"><span style="width:73%;background:var(--amber)"></span></div>
-          </div>
-          <div class="risk-item">
-            <div class="risk-row"><strong>資訊分級政策 v2.7</strong><span class="badge amber">18 日到期</span></div>
-            <div class="risk-meta">引用 611 次 · 影響「資安問答助手」</div>
-            <div class="progress" style="margin-top:9px"><span style="width:58%;background:var(--amber)"></span></div>
-          </div>
-          <div class="risk-item">
-            <div class="risk-row"><strong>客服退換貨程序 v4.1</strong><span class="badge red">版本衝突</span></div>
-            <div class="risk-meta">新版 v4.3 已生效 21 日，舊片段仍可檢索</div>
-          </div>
-        </article>
-      </div>
-
-      <article class="card alert-card">
-        <div class="iconbox"><span class="material-symbols-outlined">warning</span></div>
-        <div><h3>重要提醒：差旅費新制已於 8 月 15 日生效</h3><p>目前仍有 47 個舊版片段出現在正式環境，預估影響 326 筆近期回答。</p></div>
-        <button class="btn primary" type="button" data-jump="1">追溯受影響回答</button>
+<section class="view" data-v="4" aria-labelledby="v4-title">
+  <div class="page-head"><div><div class="eyebrow"><span class="material-symbols-outlined">published_with_changes</span> 應用負責人工作台</div><h1 id="v4-title">知識更新核准</h1><p>修改替換清單後，核准重新索引、快取失效與舊版停用。</p></div><div class="actions"><button class="btn" type="button" data-action="save"><span class="material-symbols-outlined">save</span> 儲存清單</button><button class="btn primary" type="button" data-action="approve"><span class="material-symbols-outlined">approval</span> 核准並執行</button></div></div>
+  <div class="approval-board">
+    <article class="card batch-card">
+      <div class="batch-toolbar"><div><strong>更新批次 BATCH-260822-07</strong><div class="muted" style="font-size:11px">正式環境 · 低流量發布策略</div></div><span class="badge amber">待應用負責人核准</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th><input type="checkbox" checked aria-label="全選"></th><th>更新項目</th><th>目前</th><th>更新後</th><th>影響範圍</th><th>階段</th></tr></thead>
+        <tbody>
+          <tr><td><input type="checkbox" checked aria-label="選擇重新切片"></td><td><strong>重新切片</strong><br><span class="muted">差旅費管理辦法</span></td><td>47 chunks</td><td>53 chunks</td><td>HR 知識域</td><td><span class="badge green">已備妥</span></td></tr>
+          <tr><td><input type="checkbox" checked aria-label="選擇向量索引"></td><td><strong>建立新版索引</strong><br><span class="mono muted">hr-policy-prod</span></td><td>2026.08.01</td><td>2026.08.22</td><td>3 replicas</td><td><span class="badge green">已備妥</span></td></tr>
+          <tr><td><input type="checkbox" checked aria-label="選擇索引別名"></td><td><strong>切換索引別名</strong><br><span class="muted">零停機原子切換</span></td><td>idx_0801</td><td>idx_0822</td><td>9 個應用</td><td><span class="badge purple">待執行</span></td></tr>
+          <tr><td><input type="checkbox" checked aria-label="選擇快取失效"></td><td><strong>快取失效</strong><br><span class="muted">引用 v3.2 的回答</span></td><td>1,842 keys</td><td>0 stale</td><td>Redis 4 shards</td><td><span class="badge purple">待執行</span></td></tr>
+          <tr><td><input type="checkbox" checked aria-label="選擇舊版停用"></td><td><strong>停用舊版片段</strong><br><span class="muted">保留稽核唯讀副本</span></td><td>可檢索</td><td>已封存</td><td>47 chunks</td><td><span class="badge purple">待執行</span></td></tr>
+        </tbody>
+      </table></div>
+    </article>
+    <aside class="approval-side">
+      <article class="card release-card">
+        <div class="card-title"><div><h2>執行計畫</h2><p>預估 7 分 40 秒，服務不中斷</p></div><span class="badge green">風險低</span></div>
+        <div class="release-step"><div class="step-icon">1</div><div><strong>建立與驗證新版索引</strong><span>結構、筆數與抽樣檢索驗證</span></div></div>
+        <div class="release-step"><div class="step-icon">2</div><div><strong>5% 影子流量回放</strong><span>比對引用正確率與回答差異</span></div></div>
+        <div class="release-step"><div class="step-icon">3</div><div><strong>切換 alias 與清除快取</strong><span>異常時 30 秒內回復舊 alias</span></div></div>
+        <div class="release-step"><div class="step-icon">4</div><div><strong>停用舊版並啟動驗證</strong><span>保留不可變稽核快照</span></div></div>
       </article>
-    </section>
+      <article class="card release-card"><div class="card-title"><div><h2>核准人</h2><p>應用負責人確認發布範圍</p></div></div><div class="approver"><div class="approver-avatar">陳</div><div><strong>陳柏宇</strong><span>員工服務助理 · 應用負責人</span></div></div><label style="display:flex;gap:9px;font-size:11px;margin:12px 0"><input type="checkbox" checked> 我已確認回復方案、驗證案例與影響範圍</label><div class="approve-actions"><button class="btn" type="button" data-action="reject">退回補件</button><button class="btn primary" type="button" data-action="approve">核准更新</button></div></article>
+    </aside>
+  </div>
+</section>
 
-    <section class="view" data-v="1" aria-labelledby="v1-title">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow"><span class="material-symbols-outlined">link</span> 資料科學家工作台</div>
-          <h1 id="v1-title">回答引用追蹤</h1>
-          <p>從實際模型回應反查知識片段、原始文件與索引版本。</p>
-        </div>
-        <div class="actions">
-          <button class="btn" type="button" data-action="copy"><span class="material-symbols-outlined">content_copy</span> 複製追溯 ID</button>
-          <button class="btn primary" type="button" data-jump="2">比對版本沿革</button>
-        </div>
-      </div>
-
-      <div class="trace-layout">
-        <aside class="card query-panel">
-          <div class="card-title">
-            <div><h2>近期高風險回答</h2><p>依過期引用信心度排序</p></div>
-            <span class="badge red">12 筆</span>
-          </div>
-          <div class="searchbox">
-            <span class="material-symbols-outlined">search</span>
-            <input aria-label="搜尋問題或追溯 ID" placeholder="搜尋問題或追溯 ID">
-          </div>
-          <button class="query-item selected" type="button">
-            <strong>海外出差的住宿上限是多少？</strong>
-            <span>TRC-8F31A · 09:18 · 員工服務助理</span>
-          </button>
-          <button class="query-item" type="button">
-            <strong>主管是否能核准商務艙？</strong>
-            <span>TRC-8F2D9 · 08:46 · 員工服務助理</span>
-          </button>
-          <button class="query-item" type="button">
-            <strong>供應商驗收需要哪些文件？</strong>
-            <span>TRC-8EFD2 · 昨日 17:32 · 採購 Copilot</span>
-          </button>
-          <button class="query-item" type="button">
-            <strong>機密資料可以輸入外部模型嗎？</strong>
-            <span>TRC-8EC21 · 昨日 15:08 · 資安問答助手</span>
-          </button>
-        </aside>
-
-        <div class="trace-main">
-          <article class="card answer-card">
-            <div class="card-title">
-              <div>
-                <h2>TRC-8F31A · 回答重建</h2>
-                <p>模型請求 llama-3.3-70b-private · 2026/08/22 09:18:32</p>
-              </div>
-              <span class="badge red"><span class="dot"></span>含過期引用</span>
-            </div>
-            <div class="prompt-chip"><span class="material-symbols-outlined">person</span> 使用者提問：海外出差的住宿上限是多少？</div>
-            <div class="answer">
-              依差旅費管理辦法，亞洲主要城市每晚住宿上限為
-              <button class="citation" type="button">NT$ 6,000 [1]</button>，
-              歐美主要城市為 <button class="citation" type="button">NT$ 8,500 [2]</button>。
-              若遇大型會議期間，可由部門主管事前核准提高
-              <button class="citation" type="button">20% [3]</button>。
-            </div>
-            <div class="source-chain">
-              <div class="source-node">
-                <small>模型回應</small>
-                <strong>response_8f31a.json</strong>
-                <span class="badge green">完整記錄</span>
-              </div>
-              <div class="source-node">
-                <small>向量索引</small>
-                <strong>hr-policy-prod-2026.08.01</strong>
-                <span class="badge amber">索引落後</span>
-              </div>
-              <div class="source-node">
-                <small>原始文件</small>
-                <strong>差旅費管理辦法 v3.2</strong>
-                <span class="badge red">已廢止</span>
-              </div>
-            </div>
-          </article>
-
-          <article class="card fragment-card">
-            <div class="card-title">
-              <div><h2>命中片段與引用證據</h2><p>重排序後實際送入 Context 的前三個片段</p></div>
-              <span class="badge purple">Context 3,184 tokens</span>
-            </div>
-            <div class="fragment">
-              <div class="fragment-num">[1]</div>
-              <div><strong>第 12 條／亞洲地區住宿費</strong><p>亞洲一級城市每日住宿費上限為新臺幣六千元，憑單據核銷……</p><span class="mono muted">chunk_hr_032_114 · similarity 0.94</span></div>
-              <span class="badge red">過期 7 日</span>
-            </div>
-            <div class="fragment">
-              <div class="fragment-num">[2]</div>
-              <div><strong>第 13 條／歐美地區住宿費</strong><p>歐美一級城市每日住宿費上限為新臺幣八千五百元……</p><span class="mono muted">chunk_hr_032_119 · similarity 0.91</span></div>
-              <span class="badge red">過期 7 日</span>
-            </div>
-            <div class="fragment">
-              <div class="fragment-num">[3]</div>
-              <div><strong>第 16 條／特殊期間例外</strong><p>大型展會或會議期間，得於標準上限百分之二十內事前申請……</p><span class="mono muted">chunk_hr_032_128 · similarity 0.87</span></div>
-              <span class="badge amber">內容已修訂</span>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="view" data-v="2" aria-labelledby="v2-title">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow"><span class="material-symbols-outlined">history</span> 資料科學家工作台</div>
-          <h1 id="v2-title">版本沿革比對</h1>
-          <p>確認文件的生效、修訂、替代與廢止關係，定位索引版本缺口。</p>
-        </div>
-        <div class="actions">
-          <button class="btn" type="button" data-action="evidence"><span class="material-symbols-outlined">inventory_2</span> 證據封存</button>
-          <button class="btn primary" type="button" data-jump="3">建立替換草案</button>
-        </div>
-      </div>
-
-      <div class="version-layout">
-        <article class="card timeline-card">
-          <div class="card-title">
-            <div><h2>差旅費管理辦法 · 版本生命週期</h2><p>文件 ID HR-TRAVEL-001 · 來源 HR Policy Center</p></div>
-            <span class="badge red">索引缺口 21 日</span>
-          </div>
-          <div class="version-line">
-            <div class="version-event current">
-              <h3>v4.0 · 現行有效版本 <span class="badge green">生效</span></h3>
-              <p>2026/08/15 起生效 · 核准單 HR-CHG-260714</p>
-              <div class="event-body">住宿額度改採城市分級；例外加成由 20% 調整為 15%，並新增 ESG 優先旅館條款。</div>
-            </div>
-            <div class="version-event">
-              <h3>v3.3 · 過渡發布版本 <span class="badge amber">未進正式索引</span></h3>
-              <p>2026/07/18 發布 · 僅供使用者驗收</p>
-              <div class="event-body">已包含新版額度草案，但因法務覆核退回，未曾取得正式生效資格。</div>
-            </div>
-            <div class="version-event expired">
-              <h3>v3.2 · 舊版 <span class="badge red">已廢止</span></h3>
-              <p>2025/03/01–2026/08/14 · 目前正式索引仍引用</p>
-              <div class="event-body">固定區域額度；大型活動期間可由主管核准提高 20%。共 47 個片段尚未停用。</div>
-            </div>
-            <div class="version-event">
-              <h3>v3.1 · 歷史版本</h3>
-              <p>2024/01/01–2025/02/28 · 已封存</p>
-            </div>
-          </div>
-        </article>
-
-        <aside class="card diff-card">
-          <div class="card-title">
-            <div><h2>關鍵條文差異</h2><p>v3.2 → v4.0 語意差異摘要</p></div>
-            <span class="badge purple">7 處變更</span>
-          </div>
-          <div class="diff-head"><div class="diff-old">舊版 v3.2</div><div class="diff-new">新版 v4.0</div></div>
-          <div class="diff-row">
-            <div><strong>亞洲一級城市</strong><br>每晚 NT$ 6,000</div>
-            <div><strong>A 級城市</strong><br>每晚 NT$ 7,200</div>
-          </div>
-          <div class="diff-row" style="margin-top:8px">
-            <div><strong>歐美一級城市</strong><br>每晚 NT$ 8,500</div>
-            <div><strong>S 級城市</strong><br>每晚 NT$ 10,000</div>
-          </div>
-          <div class="diff-row" style="margin-top:8px">
-            <div><strong>特殊期間</strong><br>得提高 20%</div>
-            <div><strong>特殊期間</strong><br>得提高 15%，須附市場證明</div>
-          </div>
-          <div class="relation-list">
-            <div class="relation"><span class="material-symbols-outlined">swap_horiz</span><div><strong>替代關係完整</strong><br><span class="muted">v4.0 明確替代 v3.2</span></div></div>
-            <div class="relation"><span class="material-symbols-outlined">event_available</span><div><strong>生效日已確認</strong><br><span class="muted">董事會決議與發布日一致</span></div></div>
-            <div class="relation"><span class="material-symbols-outlined">error</span><div><strong>索引指標不一致</strong><br><span class="muted">prod alias 仍指向 2026.08.01</span></div></div>
-          </div>
-        </aside>
-      </div>
-    </section>
-
-    <section class="view" data-v="3" aria-labelledby="v3-title">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow"><span class="material-symbols-outlined">upgrade</span> AI 架構師工作台</div>
-          <h1 id="v3-title">替換草案審閱</h1>
-          <p>檢查新版候選、內容差異及可能改變的回答範圍。</p>
-        </div>
-        <div class="actions">
-          <button class="btn" type="button" data-action="return"><span class="material-symbols-outlined">undo</span> 退回補件</button>
-          <button class="btn primary" type="button" data-jump="4"><span class="material-symbols-outlined">check</span> 通過並送核准</button>
-        </div>
-      </div>
-
-      <div class="review-layout">
-        <article class="card candidate-card">
-          <div class="card-title">
-            <div><h2>CON-004 · 新版候選清單</h2><p>舊來源：差旅費管理辦法 v3.2／47 個待替換片段</p></div>
-            <span class="badge amber">待審閱</span>
-          </div>
-
-          <div class="candidate recommended">
-            <div class="radio-mark" aria-hidden="true"></div>
-            <div>
-              <h3>差旅費管理辦法 v4.0 <span class="badge green">建議採用</span></h3>
-              <p>正式生效、替代關係完整，條文範圍涵蓋全部 47 個舊片段。預計產生 53 個新版片段。</p>
-              <span class="mono muted">SHA-256 91bd…4a20 · HR-TRAVEL-001</span>
-            </div>
-            <div class="score">96.8</div>
-          </div>
-          <div class="candidate">
-            <div class="radio-mark" aria-hidden="true"></div>
-            <div>
-              <h3>差旅費管理辦法 v3.3</h3>
-              <p>內容相似度高，但僅為使用者驗收版本，未取得正式核准與生效資格。</p>
-              <span class="mono muted">SHA-256 7ce1…f08a · UAT ONLY</span>
-            </div>
-            <div class="score">72.4</div>
-          </div>
-          <div class="candidate">
-            <div class="radio-mark" aria-hidden="true"></div>
-            <div>
-              <h3>海外差旅 FAQ 2026-Q3</h3>
-              <p>可補充常見問答，但不是制度原文，不適合作為主要替代來源。</p>
-              <span class="mono muted">SHA-256 a402…11df · HR-FAQ-082</span>
-            </div>
-            <div class="score">64.1</div>
-          </div>
-
-          <div class="sep" style="margin:19px 0"></div>
-          <div class="card-title">
-            <div><h3>預測回答變更</h3><p>以近 30 日 8,421 筆問題回放估算</p></div>
-          </div>
-          <div class="kpi-strip">
-            <div class="kpi" style="padding:12px;background:#faf8fc;border-radius:12px">
-              <div class="kpi-label">回答會改變</div><div class="kpi-value">326</div>
-            </div>
-            <div class="kpi" style="padding:12px;background:#faf8fc;border-radius:12px">
-              <div class="kpi-label">僅引用更新</div><div class="kpi-value">714</div>
-            </div>
-            <div class="kpi" style="padding:12px;background:#faf8fc;border-radius:12px">
-              <div class="kpi-label">需人工覆核</div><div class="kpi-value">18</div>
-            </div>
-            <div class="kpi" style="padding:12px;background:#faf8fc;border-radius:12px">
-              <div class="kpi-label">無影響</div><div class="kpi-value">7,363</div>
-            </div>
-          </div>
-        </article>
-
-        <aside class="impact-panel">
-          <article class="card impact-card">
-            <div class="card-title"><div><h2>替換可信度</h2><p>來源、時效、語意與覆蓋綜合評分</p></div></div>
-            <div class="ring"></div>
-            <ul class="checklist">
-              <li><span class="material-symbols-outlined">check_circle</span>正式生效狀態已驗證</li>
-              <li><span class="material-symbols-outlined">check_circle</span>文件簽章與雜湊一致</li>
-              <li><span class="material-symbols-outlined">check_circle</span>替代範圍覆蓋完整</li>
-              <li><span class="material-symbols-outlined">check_circle</span>關鍵問題回放已完成</li>
-            </ul>
-          </article>
-          <article class="card impact-card">
-            <div class="card-title"><div><h2>審閱意見</h2><p>意見將寫入可追溯操作紀錄</p></div></div>
-            <textarea class="review-note" aria-label="審閱意見">確認採用 v4.0。請在重新索引後優先驗證住宿額度、特殊期間加成與 ESG 旅館三組問題。</textarea>
-            <div style="display:flex;justify-content:space-between;margin-top:11px">
-              <span class="badge purple">AI 架構師 · 林書妍</span>
-              <span class="muted" style="font-size:10px">草稿已儲存</span>
-            </div>
-          </article>
-        </aside>
-      </div>
-    </section>
-
-    <section class="view" data-v="4" aria-labelledby="v4-title">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow"><span class="material-symbols-outlined">published_with_changes</span> 應用負責人工作台</div>
-          <h1 id="v4-title">知識更新核准</h1>
-          <p>修改替換清單後，核准重新索引、快取失效與舊版停用。</p>
-        </div>
-        <div class="actions">
-          <button class="btn" type="button" data-action="save"><span class="material-symbols-outlined">save</span> 儲存清單</button>
-          <button class="btn primary" type="button" data-action="approve"><span class="material-symbols-outlined">approval</span> 核准並執行</button>
-        </div>
-      </div>
-
-      <div class="approval-board">
-        <article class="card batch-card">
-          <div class="batch-toolbar">
-            <div><strong style="color:var(--ink)">更新批次 BATCH-260822-07</strong><div class="muted" style="font-size:11px">正式環境 · 低流量發布策略</div></div>
-            <span class="badge amber">待應用負責人核准</span>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th><input type="checkbox" checked aria-label="全選"></th><th>更新項目</th><th>目前</th><th>更新後</th><th>影響範圍</th><th>階段</th></tr></thead>
-              <tbody>
-                <tr><td><input type="checkbox" checked aria-label="選擇重新切片"></td><td><strong>重新切片</strong><br><span class="muted">差旅費管理辦法</span></td><td>47 chunks</td><td>53 chunks</td><td>HR 知識域</td><td><span class="badge green">已備妥</span></td></tr>
-                <tr><td><input type="checkbox" checked aria-label="選擇向量索引"></td><td><strong>建立新版索引</strong><br><span class="mono muted">hr-policy-prod</span></td><td>2026.08.01</td><td>2026.08.22</td><td>3 replicas</td><td><span class="badge green">已備妥</span></td></tr>
-                <tr><td><input type="checkbox" checked aria-label="選擇索引別名"></td><td><strong>切換索引別名</strong><br><span class="muted">零停機原子切換</span></td><td>idx_0801</td><td>idx_0822</td><td>9 個應用</td><td><span class="badge purple">待執行</span></td></tr>
-                <tr><td><input type="checkbox" checked aria-label="選擇快取失效"></td><td><strong>快取失效</strong><br><span class="muted">引用 v3.2 的回答</span></td><td>1,842 keys</td><td>0 stale</td><td>Redis 4 shards</td><td><span class="badge purple">待執行</span></td></tr>
-                <tr><td><input type="checkbox" checked aria-label="選擇舊版停用"></td><td><strong>停用舊版片段</strong><br><span class="muted">保留稽核唯讀副本</span></td><td>可檢索</td><td>已封存</td><td>47 chunks</td><td><span class="badge purple">待執行</span></td></tr>
-              </tbody>
-            </table>
-          </div>
-        </article>
-
-        <aside class="approval-side">
-          <article class="card release-card">
-            <div class="card-title"><div><h2>執行計畫</h2><p>預估 7 分 40 秒，服務不中斷</p></div><span class="badge green">風險低</span></div>
-            <div class="release-step"><div class="step-icon">1</div><div><strong>建立與驗證新版索引</strong><span>結構、筆數與抽樣檢索驗證</span></div></div>
-            <div class="release-step"><div class="step-icon">2</div><div><strong>5% 影子流量回放</strong><span>比對引用正確率與回答差異</span></div></div>
-            <div class="release-step"><div class="step-icon">3</div><div><strong>切換 alias 與清除快取</strong><span>異常時 30 秒內回復舊 alias</span></div></div>
-            <div class="release-step"><div class="step-icon">4</div><div><strong>停用舊版並啟動驗證</strong><span>保留不可變稽核快照</span></div></div>
-          </article>
-          <article class="card release-card">
-            <div class="card-title"><div><h2>核准人</h2><p>應用負責人確認發布範圍</p></div></div>
-            <div class="approver"><div class="approver-avatar">陳</div><div><strong>陳柏宇</strong><span>員工服務助理 · 應用負責人</span></div></div>
-            <label style="display:flex;gap:9px;font-size:11px;margin:12px 0"><input type="checkbox" checked> 我已確認回復方案、驗證案例與影響範圍</label>
-            <div class="approve-actions">
-              <button class="btn" type="button" data-action="reject">退回補件</button>
-              <button class="btn primary" type="button" data-action="approve">核准更新</button>
-            </div>
-          </article>
-        </aside>
-      </div>
-    </section>
-
-    <section class="view" data-v="5" aria-labelledby="v5-title">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow"><span class="material-symbols-outlined">fact_check</span> 應用負責人工作台</div>
-          <h1 id="v5-title">新版生效驗證</h1>
-          <p>重跑關鍵問題，確認模型引用有效版本並正確反映新制度。</p>
-        </div>
-        <div class="actions">
-          <button class="btn" type="button" data-action="report"><span class="material-symbols-outlined">description</span> 驗證報告</button>
-          <button class="btn primary" type="button" data-action="close"><span class="material-symbols-outlined">task_alt</span> 結案封存</button>
-        </div>
-      </div>
-
-      <div class="validation-grid">
-        <article class="card validation-kpi"><span>關鍵問題通過</span><strong>24 / 24</strong><div class="kpi-note up">100% 符合新版制度</div></article>
-        <article class="card validation-kpi"><span>新版引用率</span><strong>99.7%</strong><div class="kpi-note up">目標 ≥ 99.0%</div></article>
-        <article class="card validation-kpi"><span>舊版命中</span><strong>0</strong><div class="kpi-note up">連續 2,000 次檢索無命中</div></article>
-      </div>
-
-      <div class="validation-main">
-        <article class="card test-card">
-          <div class="card-title">
-            <div><h2>關鍵問題回放</h2><p>模型、提示與取樣參數固定，僅替換知識索引</p></div>
-            <span class="badge green"><span class="dot"></span>全部通過</span>
-          </div>
-          <div class="test-case">
-            <div class="test-icon"><span class="material-symbols-outlined">check</span></div>
-            <div><h3>亞洲 A 級城市住宿上限</h3><p>回答 NT$ 7,200 · 引用 v4.0 第 12 條 · 信心度 0.97</p></div>
-            <span class="badge green">通過</span>
-          </div>
-          <div class="test-case">
-            <div class="test-icon"><span class="material-symbols-outlined">check</span></div>
-            <div><h3>歐美 S 級城市住宿上限</h3><p>回答 NT$ 10,000 · 引用 v4.0 附表一 · 信心度 0.96</p></div>
-            <span class="badge green">通過</span>
-          </div>
-          <div class="test-case">
-            <div class="test-icon"><span class="material-symbols-outlined">check</span></div>
-            <div><h3>大型會議期間例外加成</h3><p>回答 15% 並須附市場證明 · 引用 v4.0 第 16 條</p></div>
-            <span class="badge green">通過</span>
-          </div>
-          <div class="test-case">
-            <div class="test-icon"><span class="material-symbols-outlined">check</span></div>
-            <div><h3>ESG 優先旅館原則</h3><p>正確說明適用條件 · 引用 v4.0 第 18 條 · 無幻覺內容</p></div>
-            <span class="badge green">通過</span>
-          </div>
-        </article>
-
-        <article class="card chart-card">
-          <div class="card-title">
-            <div><h2>系統可用率趨勢</h2><p>更新前後六週服務品質</p></div>
-            <span class="badge green">目前 99%</span>
-          </div>
-          <div id="validationChart" role="img" aria-label="六週系統可用率趨勢圖"></div>
-        </article>
-      </div>
-
-      <article class="card audit-card">
-        <div class="card-title">
-          <div><h2>可追溯操作紀錄</h2><p>Context 新鮮度守門員處理結果 · CON-001～CON-006</p></div>
-          <span class="badge green">稽核鏈完整</span>
-        </div>
-        <div class="audit-track">
-          <div class="audit-node"><div class="audit-circle"><span class="material-symbols-outlined">check</span></div><strong>新鮮度盤點</strong><span>AI 架構師 · 08:32</span></div>
-          <div class="audit-node"><div class="audit-circle"><span class="material-symbols-outlined">check</span></div><strong>引用追溯</strong><span>資料科學家 · 09:18</span></div>
-          <div class="audit-node"><div class="audit-circle"><span class="material-symbols-outlined">check</span></div><strong>版本比對</strong><span>資料科學家 · 09:46</span></div>
-          <div class="audit-node"><div class="audit-circle"><span class="material-symbols-outlined">check</span></div><strong>草案審閱</strong><span>AI 架構師 · 10:12</span></div>
-          <div class="audit-node"><div class="audit-circle"><span class="material-symbols-outlined">check</span></div><strong>更新核准</strong><span>應用負責人 · 10:38</span></div>
-          <div class="audit-node"><div class="audit-circle"><span class="material-symbols-outlined">check</span></div><strong>生效驗證</strong><span>應用負責人 · 10:52</span></div>
-        </div>
-      </article>
-    </section>
-  </main>
+<section class="view" data-v="5" aria-labelledby="v5-title">
+  <div class="page-head"><div><div class="eyebrow"><span class="material-symbols-outlined">fact_check</span> 應用負責人工作台</div><h1 id="v5-title">新版生效驗證</h1><p>重跑關鍵問題，確認模型引用有效版本並正確反映新制度。</p></div><div class="actions"><button class="btn" type="button" data-action="report"><span class="material-symbols-outlined">description</span> 驗證報告</button><button class="btn primary" type="button" data-action="close"><span class="material-symbols-outlined">task_alt</span> 結案封存</button></div></div>
+  <div class="validation-grid">
+    <article class="card validation-kpi"><span>關鍵問題通過</span><strong>24 / 24</strong><div class="kpi-note up">100% 符合新版制度</div></article>
+    <article class="card validation-kpi"><span>新版引用率</span><strong>99.7%</strong><div class="kpi-note up">目標 ≥ 99.0%</div></article>
+    <article class="card validation-kpi"><span>舊版命中</span><strong>0</strong><div class="kpi-note up">連續 2,000 次檢索無命中</div></article>
+  </div>
+  <div class="validation-main">
+    <article class="card test-card">
+      <div class="card-title"><div><h2>關鍵問題回放</h2><p>模型、提示與取樣參數固定，僅替換知識索引</p></div><span class="badge green"><span class="material-symbols-outlined">check_circle</span>全部通過</span></div>
+      <div class="test-case"><div class="test-icon"><span class="material-symbols-outlined">check</span></div><div><h3>亞洲 A 級城市住宿上限</h3><p>回答 NT$ 7,200 · 引用 v4.0 第 12 條 · 信心度 0.97</p></div><span class="badge green">通過</span></div>
+      <div class="test-case"><div class="test-icon"><span class="material-symbols-outlined">check</span></div><div><h3>歐美 S 級城市住宿上限</h3><p>回答 NT$ 10,000 · 引用 v4.0 附表一 · 信心度 0.96</p></div><span class="badge green">通過</span></div>
+      <div class="test-case"><div class="test-icon"><span class="material-symbols-outlined">check</span></div><div><h3>大型會議期間例外加成</h3><p>回答 15% 並須附市場證明 · 引用 v4.0 第 16 條</p></div><span class="badge green">通過</span></div>
+      <div class="test-case"><div class="test-icon"><span class="material-symbols-outlined">check</span></div><div><h3>ESG 優先旅館原則</h3><p>正確說明適用條件 · 引用 v4.0 第 18 條 · 無幻覺內容</p></div><span class="badge green">通過</span></div>
+    </article>
+    <article class="card chart-card"><div class="card-title"><div><h2>系統可用率趨勢</h2><p>更新前後六週服務品質</p></div><span class="badge green">目前 99%</span></div><div id="validationChart" role="img" aria-label="六週系統可用率趨勢圖"></div></article>
+  </div>
+  <article class="card audit-card">
+    <div class="card-title"><div><h2>可追溯操作紀錄</h2><p>Context 新鮮度守門員處理結果 · CON-001～CON-006</p></div><span class="badge green">稽核鏈完整</span></div>
+    <div class="audit-track">
+      <div class="audit-node"><div class="audit-circle"><span class="material-symbols-outlined">check</span></div><strong>新鮮度盤點</strong><span>AI 架構師 · 08:32</span></div>
+      <div class="audit-node"><div class="audit-circle"><span class="material-symbols-outlined">check</span></div><strong>引用追溯</strong><span>資料科學家 · 09:18</span></div>
+      <div class="audit-node"><div class="audit-circle"><span class="material-symbols-outlined">check</span></div><strong>版本比對</strong><span>資料科學家 · 09:46</span></div>
+      <div class="audit-node"><div class="audit-circle"><span class="material-symbols-outlined">check</span></div><strong>草案審閱</strong><span>AI 架構師 · 10:12</span></div>
+      <div class="audit-node"><div class="audit-circle"><span class="material-symbols-outlined">check</span></div><strong>更新核准</strong><span>應用負責人 · 10:38</span></div>
+      <div class="audit-node"><div class="audit-circle"><span class="material-symbols-outlined">check</span></div><strong>生效驗證</strong><span>應用負責人 · 10:52</span></div>
+    </div>
+  </article>
+</section>
+</main>
 </div>
 
 <div class="toast" role="status" aria-live="polite"></div>
@@ -873,175 +412,107 @@ input[type="checkbox"]{accent-color:var(--blue);width:17px;height:17px}
 <script>
 (() => {
   "use strict";
-
-  const panels = Array.from(document.querySelectorAll("[data-v]"));
-  const navButtons = Array.from(document.querySelectorAll("[data-i]"));
-  const chartCache = {};
+  const panels=[...document.querySelectorAll("[data-v]")];
+  const navButtons=[...document.querySelectorAll("[data-i]")];
+  const chartCache={};
+  const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let toastHandle;
 
-  function notify(messageText) {
-    const toastEl = document.querySelector(".toast");
-    toastEl.textContent = messageText;
+  function notify(messageText){
+    const toastEl=document.querySelector(".toast");
+    toastEl.textContent=messageText;
     toastEl.classList.add("on");
     window.clearTimeout(toastHandle);
-    toastHandle = window.setTimeout(() => toastEl.classList.remove("on"), 2200);
+    toastHandle=window.setTimeout(()=>toastEl.classList.remove("on"),2200);
   }
 
-  function initFreshnessChart() {
-    const chartEl = document.getElementById("freshnessChart");
-    if (!chartEl || chartEl.clientWidth === 0) return;
-    if (!chartCache.freshness) chartCache.freshness = echarts.init(chartEl);
+  function initFreshnessChart(){
+    const chartEl=document.getElementById("freshnessChart");
+    if(!chartEl||chartEl.clientWidth===0)return;
+    if(!chartCache.freshness)chartCache.freshness=echarts.init(chartEl);
     chartCache.freshness.setOption({
-      animationDuration: 650,
-      color: ["#9333ea", "#d97706", "#dc2626"],
-      tooltip: { trigger: "axis", backgroundColor: "#211b27", borderWidth: 0, textStyle: { color: "#fff" } },
-      legend: { data: ["有效", "30 日內到期", "已過期"], bottom: 0, textStyle: { color: "#746d7d" } },
-      grid: { left: 42, right: 18, top: 18, bottom: 48 },
-      xAxis: {
-        type: "category",
-        boundaryGap: false,
-        data: ["W1", "W2", "W3", "W4", "W5", "W6"],
-        axisLine: { lineStyle: { color: "#ddd6e2" } },
-        axisLabel: { color: "#746d7d" }
-      },
-      yAxis: {
-        type: "value",
-        axisLabel: { color: "#746d7d" },
-        splitLine: { lineStyle: { color: "#eee9f1" } }
-      },
-      series: [
-        {
-          name: "有效", type: "line", smooth: true, symbolSize: 7,
-          areaStyle: { color: "rgba(147,51,234,.11)" },
-          data: [17440, 17620, 17832, 18040, 18112, 18016]
-        },
-        {
-          name: "30 日內到期", type: "line", smooth: true, symbolSize: 7,
-          data: [438, 412, 376, 341, 306, 284]
-        },
-        {
-          name: "已過期", type: "line", smooth: true, symbolSize: 7,
-          data: [246, 221, 194, 168, 143, 126]
-        }
+      animationDuration:reducedMotion?0:450,
+      color:["#7C3AED","#B45309","#B91C1C"],
+      tooltip:{trigger:"axis",backgroundColor:"#1E1B4B",borderWidth:0,textStyle:{color:"#fff"}},
+      legend:{data:["有效","30 日內到期","已過期"],bottom:0,textStyle:{color:"#475569"}},
+      grid:{left:52,right:18,top:18,bottom:48},
+      xAxis:{type:"category",boundaryGap:false,data:["W1","W2","W3","W4","W5","W6"],axisLine:{lineStyle:{color:"#DDD6FE"}},axisLabel:{color:"#475569"}},
+      yAxis:{type:"value",axisLabel:{color:"#475569",formatter:value=>value.toLocaleString()},splitLine:{lineStyle:{color:"#ECEEF9"}}},
+      series:[
+        {name:"有效",type:"line",smooth:true,symbolSize:7,lineStyle:{width:3},areaStyle:{color:"rgba(124,58,237,.12)"},data:[17440,17620,17832,18040,18112,18016]},
+        {name:"30 日內到期",type:"line",smooth:true,symbolSize:7,data:[438,412,376,341,306,284]},
+        {name:"已過期",type:"line",smooth:true,symbolSize:7,data:[246,221,194,168,143,126]}
       ]
     });
   }
 
-  function initValidationChart() {
-    const chartEl = document.getElementById("validationChart");
-    if (!chartEl || chartEl.clientWidth === 0) return;
-    if (!chartCache.validation) chartCache.validation = echarts.init(chartEl);
+  function initValidationChart(){
+    const chartEl=document.getElementById("validationChart");
+    if(!chartEl||chartEl.clientWidth===0)return;
+    if(!chartCache.validation)chartCache.validation=echarts.init(chartEl);
     chartCache.validation.setOption({
-      animationDuration: 650,
-      color: ["#9333ea"],
-      tooltip: {
-        trigger: "axis",
-        formatter: params => params[0].axisValue + "<br>系統可用率 " + params[0].value + "%",
-        backgroundColor: "#211b27", borderWidth: 0, textStyle: { color: "#fff" }
-      },
-      grid: { left: 44, right: 20, top: 24, bottom: 33 },
-      xAxis: {
-        type: "category", boundaryGap: false,
-        data: ["W1", "W2", "W3", "W4", "W5", "W6"],
-        axisLine: { lineStyle: { color: "#ddd6e2" } },
-        axisLabel: { color: "#746d7d" }
-      },
-      yAxis: {
-        type: "value", min: 96.5, max: 99.5,
-        axisLabel: { color: "#746d7d", formatter: "{value}%" },
-        splitLine: { lineStyle: { color: "#eee9f1" } }
-      },
-      series: [{
-        type: "line", smooth: true, symbolSize: 8,
-        data: [97, 97.4, 97.8, 98.2, 98.6, 99],
-        lineStyle: { width: 4 },
-        areaStyle: {
-          color: {
-            type: "linear", x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: "rgba(147,51,234,.30)" },
-              { offset: 1, color: "rgba(147,51,234,.02)" }
-            ]
-          }
-        },
-        markLine: {
-          symbol: "none",
-          label: { formatter: "目標 99%", color: "#15803d" },
-          lineStyle: { color: "#15803d", type: "dashed" },
-          data: [{ yAxis: 99 }]
-        }
-      }]
+      animationDuration:reducedMotion?0:450,
+      color:["#7C3AED"],
+      tooltip:{trigger:"axis",formatter:p=>p[0].axisValue+"<br>系統可用率 "+p[0].value+"%",backgroundColor:"#1E1B4B",borderWidth:0,textStyle:{color:"#fff"}},
+      grid:{left:48,right:20,top:24,bottom:33},
+      xAxis:{type:"category",boundaryGap:false,data:["W1","W2","W3","W4","W5","W6"],axisLine:{lineStyle:{color:"#DDD6FE"}},axisLabel:{color:"#475569"}},
+      yAxis:{type:"value",min:96.5,max:99.5,axisLabel:{color:"#475569",formatter:"{value}%"},splitLine:{lineStyle:{color:"#ECEEF9"}}},
+      series:[{type:"line",smooth:true,symbolSize:8,data:[97,97.4,97.8,98.2,98.6,99],lineStyle:{width:4},areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"rgba(124,58,237,.28)"},{offset:1,color:"rgba(8,145,178,.02)"}]}},markLine:{symbol:"none",label:{formatter:"目標 99%",color:"#047857"},lineStyle:{color:"#047857",type:"dashed"},data:[{yAxis:99}]}}]
     });
   }
 
-  function show(indexValue) {
-    const safeIndex = Math.max(0, Math.min(5, Number(indexValue) || 0));
-    panels.forEach((panelEl, panelIndex) => {
-      panelEl.classList.toggle("active", panelIndex === safeIndex);
-      panelEl.setAttribute("aria-hidden", panelIndex === safeIndex ? "false" : "true");
+  function show(indexValue){
+    const safeIndex=Math.max(0,Math.min(5,Number(indexValue)||0));
+    panels.forEach((panel,index)=>{
+      panel.classList.toggle("active",index===safeIndex);
+      panel.setAttribute("aria-hidden",index===safeIndex?"false":"true");
     });
-    navButtons.forEach((buttonEl, buttonIndex) => {
-      buttonEl.classList.toggle("active", buttonIndex === safeIndex);
-      buttonEl.setAttribute("aria-current", buttonIndex === safeIndex ? "step" : "false");
+    navButtons.forEach((button,index)=>{
+      button.classList.toggle("active",index===safeIndex);
+      if(index===safeIndex)button.setAttribute("aria-current","step");
+      else button.removeAttribute("aria-current");
     });
-    if (safeIndex === 0) initFreshnessChart();
-    if (safeIndex === 5) initValidationChart();
+    if(safeIndex===0)initFreshnessChart();
+    if(safeIndex===5)initValidationChart();
   }
 
-  function indexFromHash() {
-    const match = window.location.hash.match(/(?:go=|v)([0-9]+)/);
-    return match ? Number(match[1]) : 0;
+  function indexFromHash(){
+    const match=location.hash.match(/(?:go=|v)([0-9]+)/);
+    return match?Number(match[1]):0;
   }
 
-  function navigate(indexValue) {
-    const nextHash = "#go=" + indexValue;
-    if (window.location.hash === nextHash) show(indexValue);
-    else window.location.hash = nextHash;
+  function navigate(indexValue){
+    const nextHash="#go="+indexValue;
+    if(location.hash===nextHash)show(indexValue);
+    else location.hash=nextHash;
   }
 
-  navButtons.forEach(buttonEl => {
-    buttonEl.addEventListener("click", () => navigate(Number(buttonEl.dataset.i)));
-  });
-
-  document.querySelectorAll("[data-jump]").forEach(buttonEl => {
-    buttonEl.addEventListener("click", () => navigate(Number(buttonEl.dataset.jump)));
-  });
-
-  document.querySelectorAll("[data-action]").forEach(buttonEl => {
-    buttonEl.addEventListener("click", () => {
-      const actionKey = buttonEl.dataset.action;
-      const messages = {
-        export: "新鮮度盤點報表已建立",
-        scan: "掃描任務已加入佇列，共 18,426 個片段",
-        copy: "追溯 ID TRC-8F31A 已複製",
-        evidence: "版本比對證據已封存",
-        return: "草案已退回並通知 AI 架構師",
-        save: "替換清單已儲存",
-        reject: "更新批次已退回補件",
-        approve: "更新已核准，開始執行低流量發布",
-        report: "驗證報告已產生",
-        close: "案件已結案，完整稽核紀錄已封存"
-      };
-      notify(messages[actionKey] || "操作已完成");
-    });
-  });
-
-  document.querySelectorAll(".query-item").forEach(buttonEl => {
-    buttonEl.addEventListener("click", () => {
-      document.querySelectorAll(".query-item").forEach(itemEl => itemEl.classList.remove("selected"));
-      buttonEl.classList.add("selected");
-      notify("已載入所選回答的追溯資訊");
-    });
-  });
-
-  window.addEventListener("hashchange", () => show(indexFromHash()));
-  window.addEventListener("resize", () => {
-    Object.keys(chartCache).forEach(chartKey => chartCache[chartKey].resize());
-  });
-
+  navButtons.forEach(button=>button.addEventListener("click",()=>navigate(Number(button.dataset.i))));
+  document.querySelectorAll("[data-jump]").forEach(button=>button.addEventListener("click",()=>navigate(Number(button.dataset.jump))));
+  document.querySelectorAll("[data-action]").forEach(button=>button.addEventListener("click",()=>{
+    const messages={
+      export:"新鮮度盤點報表已建立",
+      scan:"掃描任務已加入佇列，共 18,426 個片段",
+      copy:"追溯 ID TRC-8F31A 已複製",
+      evidence:"版本比對證據已封存",
+      return:"草案已退回並通知 AI 架構師",
+      save:"替換清單已儲存",
+      reject:"更新批次已退回補件",
+      approve:"更新已核准，開始執行低流量發布",
+      report:"驗證報告已產生",
+      close:"案件已結案，完整稽核紀錄已封存"
+    };
+    notify(messages[button.dataset.action]||"操作已完成");
+  }));
+  document.querySelectorAll(".query-item").forEach(button=>button.addEventListener("click",()=>{
+    document.querySelectorAll(".query-item").forEach(item=>item.classList.remove("selected"));
+    button.classList.add("selected");
+    notify("已載入所選回答的追溯資訊");
+  }));
+  window.addEventListener("hashchange",()=>show(indexFromHash()));
+  window.addEventListener("resize",()=>Object.values(chartCache).forEach(chart=>chart.resize()));
   show(indexFromHash());
 })();
 </script>
-<script src="/shared/jv-agent-bridge.js?v=2" defer></script>
 </body>
 </html>
