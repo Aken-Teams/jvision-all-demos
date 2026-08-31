@@ -119,7 +119,9 @@ saveManifest(manifest);
 }
 
 log.step("已寫入 projects-index.json，執行既有稽核：");
-for (const [label, script] of [["結構稽核", "tools/audit-structure.js"], ["描述相似度", "tools/audit-project-description-similarity.mjs"]]) {
+/* 畫面上寫的「N 個系統」跟著一起更新。手動維護的話它永遠是過期的
+   ——那個數字散在四個檔案的十一個地方，包含首頁 <title>（搜尋引擎看的第一行字）。 */
+for (const [label, script] of [["系統數同步", "tools/sync-system-count.mjs"], ["結構稽核", "tools/audit-structure.js"], ["描述相似度", "tools/audit-project-description-similarity.mjs"]]) {
   const r = spawnSync(process.execPath, [path.join(ROOT, script)], { cwd: ROOT, encoding: "utf8" });
   log.info(`  ${label}：${r.status === 0 ? "通過" : "有發現（exit " + r.status + "）"}`);
   if (r.status !== 0) log.info((r.stdout || "").trim().split("\n").slice(-8).map((l) => "    " + l).join("\n"));

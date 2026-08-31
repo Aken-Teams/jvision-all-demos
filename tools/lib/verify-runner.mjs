@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
 import * as staticServer from "./static-server.mjs";
+import { loadManifest, saveManifest, upsertEntry } from "./forge-common.mjs";
 
 const [, , portArg, ...repos] = process.argv;
 const PORT = Number(portArg) || 4599;
@@ -24,6 +25,12 @@ const server = await staticServer.start({ root: ROOT, port: PORT });
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1360, height: 900 } });
 let allOk = true;
+/* 驗收結果要回寫 manifest。原本這支只印 OK/XX 就結束，而另外兩條驗收路徑
+   （--static-only 與正典工具）都會 upsertEntry。結果是：沒有系統 Chrome 的
+   機器只走得到這一條，跑完什麼都沒被記下來，demo 永遠停在 built/failed、
+   到不了 verified，demo-publish 也就永遠說「沒有可上架的項目」。
+   驗收跑了、畫面也對，只是沒有人把結果寫下來——這條退路整個是死的。 */
+const manifest = loadManifest();
 
 for (const repo of repos) {
  let page = null;
@@ -130,11 +137,18 @@ for (const repo of repos) {
 
   console.log(`${ok ? "OK " : "XX "}${repo.padEnd(44)} stages=${stages.length} distinct=${signatures.size} firstPaint=${firstPaint ? "y" : "n"} charts=${chartPixels} overflow=${overflow.join(",") || "none"} err=${errors.length}`);
   if (errors.length) errors.slice(0, 2).forEach((e) => console.log(`      ${e}`));
+  upsertEntry(manifest, { repoName: repo, state: ok ? "verified" : "failed",
+    checks: { ...(manifest.entries.find((e) => e.repoName === repo)?.checks || {}),
+      browser: { pass: ok, stages: stages.length, distinct: signatures.size, firstPaint,
+        chartPixels, overflow, errors: errors.slice(0, 3) } } });
  } catch (error) {
   /* 單一 demo 讓驗收器出錯時不要把整批拖垮：記成該套未過，其餘照跑。
      原本一個例外會終止整個行程，後面幾百套完全沒被驗到。 */
   allOk = false;
   console.log(`XX ${repo.padEnd(44)} 驗收器錯誤：${String(error.message).split("\n")[0].slice(0, 90)}`);
+  upsertEntry(manifest, { repoName: repo, state: "failed",
+    checks: { ...(manifest.entries.find((e) => e.repoName === repo)?.checks || {}),
+      browser: { pass: false, error: String(error.message).slice(0, 200) } } });
  } finally {
   if (page) await page.close().catch(() => {});
  }
@@ -142,4 +156,5 @@ for (const repo of repos) {
 
 await browser.close();
 await server.close();
+saveManifest(manifest);
 process.exit(allOk ? 0 : 1);

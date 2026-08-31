@@ -68,8 +68,14 @@ for (const tool of ["verify-demos.mjs", "chartscan.mjs", "loadscan.mjs"]) {
 if (usedFallback) {
   log.warn("系統沒有可用的 Chrome，改用內建驗收器（Playwright bundled chromium）。");
   log.warn("要使用正典工具請執行一次：npx playwright install chrome");
-  const r = spawnSync(process.execPath, [path.join(ROOT, "tools", "lib", "verify-runner.mjs"), String(PORT), ...repos], { cwd: ROOT, encoding: "utf8", stdio: "inherit" });
+  /* 交棒前先把站收掉。spawnSync 會把父行程的事件迴圈整個擋住，父行程的
+     HTTP server 因此答不了子行程的 probe；probe 逾時（1.5 秒）後子行程就去
+     listen 同一個 port，撞成 EADDRINUSE——而錯誤訊息寫的是「被其他服務占用
+     （非本專案靜態站）」，那個「其他服務」其實是它自己的父行程。
+     缺系統 Chrome 的機器上這條路是唯一的驗收路徑，所以它整個是壞的。
+     verify-runner 本來就會自己起站，這裡不需要留著。 */
   await server.close();
+  const r = spawnSync(process.execPath, [path.join(ROOT, "tools", "lib", "verify-runner.mjs"), String(PORT), ...repos], { cwd: ROOT, encoding: "utf8", stdio: "inherit" });
   process.exit(r.status === 0 ? EXIT.OK : EXIT.PARTIAL);
 }
 
