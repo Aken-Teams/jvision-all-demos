@@ -12,6 +12,10 @@
 (function () {
   "use strict";
   if (window.__jvAssist) return;
+  /* 嵌在工作台的預覽框裡時不要長出來——那一頁中間整欄就是對話，
+     再冒一顆右下角的機器人等於同一件事有兩個入口，而且兩邊的對話對不起來。
+     判斷放在瀏覽器端：這個查詢字串是工作台加在 iframe 網址上的。 */
+  if (/[?&]jv=embed\b/.test(location.search)) return;
   window.__jvAssist = true;
 
   var schema = null;
@@ -217,7 +221,9 @@
     var wait = say("bot", "想一下…", "thinking");
 
     fetch("./_jv/chat", { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ message: msg, history: history.slice(-6), shot: shot }) })
+      /* from 告訴後端這是右下角的小視窗。要動到程式的修改它不接，
+         會回一個帶著這句話的工作台連結。 */
+      body: JSON.stringify({ message: msg, history: history.slice(-6), shot: shot, from: "assist" }) })
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (x) {
         if (wait) wait.remove();
@@ -230,6 +236,16 @@
         if (x.d && x.d.changed) {
           say("bot", "重新整理畫面…", "thinking");
           setTimeout(function () { location.reload(); }, 1200);
+          return;
+        }
+        /* 要動到程式的修改在工作台做。給一顆按鈕而不是自動跳走——
+           把人從他正在看的畫面上直接彈到別頁，是很討厭的事。 */
+        if (x.d && x.d.action === "handoff" && x.d.url) {
+          var go = el("a", { href: x.d.url, target: "_blank", rel: "noreferrer", text: "到工作台繼續 ↗" });
+          go.style.cssText = "align-self:flex-start;background:#1e40af;color:#fff;font-size:.8rem;font-weight:800;border-radius:.5rem;padding:.4rem .8rem;text-decoration:none";
+          var box = document.getElementById("jvChat");
+          box.appendChild(go);
+          box.scrollTop = box.scrollHeight;
           return;
         }
         /* 改程式碼是背景工作。這裡不能只回一句「我來改」就沒下文——

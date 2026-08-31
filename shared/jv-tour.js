@@ -13,6 +13,10 @@
 (function () {
   "use strict";
   if (window.__jvTour) return;
+  /* 嵌在工作台的預覽框裡時不要跑。導覽會把畫面遮起來並自己點導覽列換畫面，
+     在一個 800px 寬的預覽框裡那是干擾而不是幫助；而且它會把「第一次看過了」
+     記進 localStorage，客戶之後真的進自己的系統時就再也不會看到。 */
+  if (/[?&]jv=embed\b/.test(location.search)) return;
   window.__jvTour = true;
 
   var CDN_JS = "https://cdn.jsdelivr.net/npm/shepherd.js@11.2.0/dist/js/shepherd.min.js";

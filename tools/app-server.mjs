@@ -25,6 +25,9 @@ const args = parseArgs();
 const log = makeLogger({ quiet: false });
 const PORT = num(args.port, 4700);
 const INSTANCES = path.join(ROOT, "var", "instances");
+/* 型錄站的網址。客戶的系統在自己的子網域上，要連回工作台就需要知道它。
+   做成環境變數是為了本機開發，正式環境用預設值即可。 */
+const SITE = process.env.JV_SITE_ORIGIN || "https://jvdemo.jvision-ai.com";
 
 const json = (res, code, body) => {
   res.writeHead(code, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -100,7 +103,9 @@ const server = http.createServer(async (req, res) => {
 
     /* ── 資料 API ──────────────────────────────────────── */
     if (p === "/_jv/schema") {
-      return json(res, 200, await data.describe(dbName));
+      /* 順便帶上實例編號與型錄站網址。客戶在自己的子網域上時，右下角的助理
+         要能把他送到工作台，而子網域的網址裡沒有實例編號可以推。 */
+      return json(res, 200, { ...await data.describe(dbName), instanceId: inst.id, site: SITE });
     }
 
     const m = /^\/api\/t\/([a-z][a-z0-9_]*)(?:\/(\d+))?$/.exec(p);
@@ -202,6 +207,16 @@ const server = http.createServer(async (req, res) => {
             action: "undo", changed: ok });
         }
         if (d.action === "edit_page") {
+          /* 右下角那個小視窗不做程式修改，改請他去工作台。
+             不是做不到（下面那段就是），而是在一個 400px 的浮動視窗裡等三分鐘、
+             改完只能靠重新整理去猜哪裡變了，體驗是壞的；工作台左邊講話、
+             右邊當場重載，同一件事在那裡才成立。把他要說的話一起帶過去，
+             到了那邊按送出就好，不必再打一次。 */
+          if (b.from === "assist") {
+            return json(res, 200, { action: "handoff", changed: false,
+              reply: "這種修改要動到程式與畫面，在工作台做比較好——那裡左邊講話、右邊當場看到結果。我把你剛才說的帶過去。",
+              url: `${SITE}/workspace.html?i=${encodeURIComponent(inst.id)}&q=${encodeURIComponent(message)}` });
+          }
           /* 改程式碼要好幾分鐘，不能讓請求掛在那裡等——瀏覽器會先逾時。
              開成背景工作，前端用 /_jv/job 問進度。 */
           const running = editJobs.get(inst.id);

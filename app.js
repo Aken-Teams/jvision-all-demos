@@ -521,8 +521,11 @@ function bindCopyOnce() {
       const d = await r.json();
       if (r.status === 401) { location.href = "/api/visitor/google/start?next=" + encodeURIComponent(location.pathname + location.search); return; }
       if (!r.ok) throw new Error(d.error || "建立失敗");
-      /* 直接進去改。他要的是「開始改」，不是再看一頁說明。 */
-      location.href = "/-/i/" + d.id + "/";
+      /* 直接進工作台。他要的是「開始改」，不是再看一頁說明。
+         送去工作台而不是系統本身：那裡左邊有對話、右邊有預覽，
+         「說一句話、當場看到結果」在同一個畫面上完成；
+         直接丟進系統裡的話，他看到的是一套陌生的畫面和一顆小小的機器人。 */
+      location.href = "/workspace.html?i=" + encodeURIComponent(d.id);
     } catch (err) {
       /* 開不起來就退回「寫下想改什麼」那條路——那條不需要當場開通，
          比丟一個錯誤訊息讓他卡在原地有用。 */

@@ -365,6 +365,22 @@ export async function recordEvent({ kind, customerId = null, instanceId = null, 
     [now(), kind, customerId, instanceId, actor, detail ? JSON.stringify(detail) : null]);
 }
 
+/**
+ * 一套系統發生過什麼事。工作台的「紀錄」分頁用。
+ *
+ * detail_json 原樣送出去：裡面是客戶自己講過的話與失敗原因，本來就是要給他看的。
+ * 但只挑這幾個 kind——events 表也收站台自己的動作，那些不該出現在客戶眼前。
+ */
+export async function listEventsFor(instanceId, limit = 60) {
+  await ensureSchema();
+  const n = Math.max(1, Math.min(200, Number(limit) || 60));
+  return q(`SELECT at, kind, actor, detail_json FROM events
+     WHERE instance_id = ?
+       AND kind IN ('instance.edited','instance.edit_failed','change.request',
+                    'instance.shared','instance.delivered','instance.reverted')
+     ORDER BY id DESC LIMIT ${n}`, [instanceId]);
+}
+
 /** 客戶的哪些信箱進得去、是什麼角色。gateway 每次請求都會問。 */
 export async function memberRole({ customerId, email }) {
   await ensureSchema();

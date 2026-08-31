@@ -318,7 +318,16 @@ function startGateway() {
        實例身分在這裡解析後用標頭傳給 app-server，前端傳什麼都跨不過去。 */
     {
       const m = /^\/-\/i\/([a-z0-9_]+)(\/.*)?$/.exec(p);
-      if (m) return serveInstance(req, res, m[1], m[2] && m[2] !== "/" ? m[2] : "/", { who, ip });
+      if (m) {
+        /* p 是切掉 query 的路徑，直接拿去當上游目標會把 ?limit=&offset=&q= 一起丟掉。
+           子網域那條走的是 req.url（本來就含 query），所以只有這條會漏。
+           漏掉不會報錯——資料 API 會安靜地回預設的前 50 筆並忽略搜尋，
+           看起來完全正常，是最難查的那種壞法。 */
+        const i = req.url.indexOf("?");
+        const qs = i >= 0 ? req.url.slice(i) : "";
+        const base = m[2] && m[2] !== "/" ? m[2] : "/";
+        return serveInstance(req, res, m[1], base + qs, { who, ip });
+      }
     }
 
     /* AI 引擎狀態：claude 或 codex 任一無法使用時 ready=false，
@@ -579,6 +588,25 @@ function startGateway() {
        token 那半仍然讀得到（它在本機檔案裡），沒理由一起變成錯誤。 */
     /* 自己的系統：分享、交付到 GitHub、開 PR。
        每一路都先確認「這套真的是他的」——擁有者才能做這些，一般成員只能用。 */
+    /* 一套系統的修改紀錄。讀取只要是成員就好——下面那三個動作會改變東西，
+       所以限 owner；看紀錄不會，限成 owner 只會讓被分享進來的同事看不到
+       「這套系統為什麼變成現在這樣」。 */
+    {
+      const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/events$/.exec(p);
+      if (m && req.method === "GET") {
+        const id = visitor.read(req);
+        if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
+        try {
+          const inst = await control.getInstance(m[1]);
+          if (!inst) return json(res, 404, { error: "找不到這個系統" });
+          const role = await control.memberRole({ customerId: inst.customer_id, email: id.email });
+          if (!role) return json(res, 403, { error: "你的帳號不在這個系統的使用名單內" });
+          const rows = await control.listEventsFor(inst.id, 60);
+          return json(res, 200, { events: rows });
+        } catch { return json(res, 200, { events: [], degraded: true }); }
+      }
+    }
+
     {
       const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/(share|deliver|pr)$/.exec(p);
       if (m && req.method === "POST") {

@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>系統工作台 ｜ JVision DEMO</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+  <script>
+    tailwind.config = { theme: { extend: {
+      colors: { ink:"#0f1e46", body:"#334155", muted:"#64748b", line:"#e2e8f0", soft:"#f5f8fc", brand:"#1e40af", brand2:"#3b82f6" },
+      fontFamily: { sans:['Inter','Noto Sans TC','Microsoft JhengHei','sans-serif'] },
+    } } };
+  </script>
+  <style>
+    /* Tailwind 的 display 工具類是作者樣式，會壓過瀏覽器內建的 [hidden]{display:none}。
+       少了這一行，整頁每一個 hidden 區塊都會同時顯示出來。 */
+    [hidden] { display: none !important; }
+    body { font-family: Inter, 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; background:#f5f8fc; }
+
+    /* 三欄：我的系統 ／ 對話 ／ 工作區。整頁不捲動，捲動發生在各欄自己裡面
+       ——三欄各自的內容長度差很多，讓整頁一起捲會變成「聊天打到一半，
+       左邊的清單跟著跑掉」。 */
+    .shell { height: calc(100vh - 56px); display: grid; grid-template-columns: 252px 372px 1fr; }
+    .col { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+    @media (max-width: 1180px) {
+      .shell { grid-template-columns: 1fr; }
+      .col { display: none; }
+      .col.on { display: flex; }
+      #mobileTabs { display: flex; }
+    }
+    #mobileTabs { display: none; }
+
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:.35rem; height:34px; padding:0 .85rem; border-radius:.55rem; font-size:.82rem; font-weight:800; cursor:pointer; border:1px solid transparent; }
+    .btn-primary { background:#1e40af; color:#fff; }
+    .btn-primary:hover { background:#3b82f6; }
+    .btn-ghost { border-color:#e2e8f0; background:#fff; color:#0f1e46; }
+    .btn-ghost:hover { border-color:#1e40af; color:#1e40af; }
+    .btn:disabled { opacity:.5; cursor:default; }
+
+    /* 分頁列 */
+    .tab { display:inline-flex; align-items:center; gap:.3rem; padding:.4rem .7rem; border-radius:.5rem; font-size:.8rem; font-weight:800; color:#64748b; cursor:pointer; border:0; background:none; white-space:nowrap; }
+    .tab:hover { color:#1e40af; background:#eff6ff; }
+    .tab[aria-selected="true"] { color:#1e40af; background:#e0ecff; }
+
+    /* 系統清單 */
+    .sys { display:block; width:100%; text-align:left; padding:.5rem .6rem; border-radius:.55rem; border:1px solid transparent; cursor:pointer; background:none; font:inherit; }
+    .sys:hover { background:#eef2f7; }
+    .sys[aria-current="true"] { background:#e0ecff; border-color:#bfdbfe; }
+    .sys b { display:block; font-size:.82rem; font-weight:800; color:#0f1e46; line-height:1.35; }
+    .sys i { display:block; font-style:normal; font-size:.68rem; color:#64748b; margin-top:.15rem; }
+
+    /* 對話泡泡 */
+    .m { max-width:88%; padding:.5rem .7rem; border-radius:.75rem; font-size:.82rem; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+    .m.me { align-self:flex-end; background:#1e40af; color:#fff; border-bottom-right-radius:.2rem; }
+    .m.bot { align-self:flex-start; background:#fff; color:#0f1e46; border:1px solid #e2e8f0; border-bottom-left-radius:.2rem; }
+    .m.done { align-self:flex-start; background:#ecfdf5; color:#15803d; font-weight:700; border:1px solid #bbf7d0; }
+    .m.err { align-self:flex-start; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; }
+    .m.thinking { align-self:flex-start; color:#94a3b8; font-size:.78rem; }
+    .m img { max-width:100%; border-radius:.45rem; display:block; }
+
+    .chip { font-size:.72rem; border:1px solid #e2e8f0; background:#fff; color:#64748b; border-radius:9999px; padding:.22rem .6rem; cursor:pointer; font-family:inherit; }
+    .chip:hover { border-color:#1e40af; color:#1e40af; }
+
+    #codeBox { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:.72rem; line-height:1.6; white-space:pre; }
+    table.dt { border-collapse: collapse; width:100%; font-size:.78rem; }
+    table.dt th { text-align:left; font-weight:800; color:#475569; background:#f8fafc; padding:.45rem .6rem; border-bottom:1px solid #e2e8f0; white-space:nowrap; position:sticky; top:0; }
+    table.dt td { padding:.45rem .6rem; border-bottom:1px solid #f1f5f9; color:#0f1e46; vertical-align:top; }
+    table.dt tr:hover td { background:#f8fafc; }
+  </style>
+</head>
+<body class="text-body">
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-line">
+    <nav class="h-14 px-4 sm:px-6 flex items-center justify-between gap-4">
+      <a href="./index.html" class="flex items-center shrink-0" aria-label="JVision DEMO 首頁"><img src="./assets/logo.png" alt="JVision DEMO" class="h-8 w-auto" /></a>
+      <div class="flex items-center gap-5">
+        <a href="./catalog.html" class="text-sm font-bold text-ink hover:text-brand transition-colors">專案目錄</a>
+        <a href="./wish.html" class="hidden sm:inline text-sm font-bold text-ink hover:text-brand transition-colors">AI 許願池</a>
+      </div>
+    </nav>
+  </header>
+
+  <!-- 沒登入 -->
+  <section id="guest" hidden class="max-w-md mx-auto mt-24 bg-white border border-line rounded-2xl p-10 text-center">
+    <span class="material-symbols-outlined text-[44px] text-muted">workspaces</span>
+    <p class="mt-3 text-ink font-black">請先登入</p>
+    <p class="text-sm text-muted mt-1 mb-5">工作台要知道你是誰，才知道要打開哪一套系統。</p>
+    <a id="loginLink" href="#" class="btn btn-primary">用 Google 登入</a>
+  </section>
+
+  <!-- 窄畫面用的三欄切換 -->
+  <div id="mobileTabs" hidden class="gap-1 px-3 py-2 border-b border-line bg-white">
+    <button type="button" class="tab" data-col="sysPane" aria-selected="true">我的系統</button>
+    <button type="button" class="tab" data-col="chatPane" aria-selected="false">對話</button>
+    <button type="button" class="tab" data-col="wsPane" aria-selected="false">工作區</button>
+  </div>
+
+  <main id="shell" hidden class="shell">
+    <!-- ① 我的系統 -->
+    <aside id="sysPane" class="col on bg-white border-r border-line">
+      <div class="px-4 pt-4 pb-2">
+        <h1 class="text-sm font-black text-ink">我的系統</h1>
+        <p class="text-xs text-muted mt-0.5">選一套，右邊就是它。</p>
+      </div>
+      <div id="sysList" class="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
+        <p class="px-2 py-3 text-xs text-muted">載入中…</p>
+      </div>
+      <div class="p-3 border-t border-line">
+        <a href="./catalog.html" class="btn btn-ghost w-full"><span class="material-symbols-outlined text-[18px]">add</span>採用新模板</a>
+      </div>
+    </aside>
+
+    <!-- ② 對話 -->
+    <section id="chatPane" class="col bg-soft border-r border-line">
+      <div class="px-4 py-3 border-b border-line bg-white">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-[20px] text-brand">smart_toy</span>
+          <div class="min-w-0">
+            <b class="block text-sm font-black text-ink leading-tight">修改助理</b>
+            <small id="chatSub" class="block text-xs text-muted truncate">用講的就好</small>
+          </div>
+        </div>
+      </div>
+      <div id="chatBox" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2"></div>
+      <div id="chips" class="flex flex-wrap gap-1 px-3 pb-2"></div>
+      <div id="shotBox" class="px-3 pb-2 relative"></div>
+      <div class="flex gap-2 p-3 border-t border-line bg-white">
+        <textarea id="ask" rows="1" placeholder="想改什麼？直接說，也可以貼截圖。"
+          class="flex-1 min-h-[38px] max-h-[120px] resize-none border border-line rounded-lg px-3 py-2 text-sm text-ink"></textarea>
+        <button id="send" type="button" class="btn btn-primary w-[38px] px-0" title="送出">↑</button>
+      </div>
+    </section>
+
+    <!-- ③ 工作區 -->
+    <section id="wsPane" class="col bg-white">
+      <div class="flex items-center gap-1 px-3 py-2 border-b border-line overflow-x-auto">
+        <button type="button" class="tab" data-tab="preview" aria-selected="true"><span class="material-symbols-outlined text-[16px]">visibility</span>預覽</button>
+        <button type="button" class="tab" data-tab="data" aria-selected="false"><span class="material-symbols-outlined text-[16px]">table</span>資料</button>
+        <button type="button" class="tab" data-tab="code" aria-selected="false"><span class="material-symbols-outlined text-[16px]">code</span>程式碼</button>
+        <button type="button" class="tab" data-tab="log" aria-selected="false"><span class="material-symbols-outlined text-[16px]">history</span>紀錄</button>
+        <button type="button" class="tab" data-tab="deploy" aria-selected="false"><span class="material-symbols-outlined text-[16px]">rocket_launch</span>交付</button>
+      </div>
+
+      <!-- 預覽 -->
+      <div id="tab-preview" class="col flex-1">
+        <div class="flex items-center gap-2 px-3 py-1.5 border-b border-line bg-soft">
+          <button id="reload" type="button" class="btn btn-ghost h-7 px-2" title="重新載入"><span class="material-symbols-outlined text-[16px]">refresh</span></button>
+          <div class="flex gap-1">
+            <button type="button" class="tab" data-w="full" aria-selected="true">桌機</button>
+            <button type="button" class="tab" data-w="390" aria-selected="false">手機</button>
+          </div>
+          <a id="openNew" href="#" target="_blank" rel="noreferrer" class="btn btn-ghost h-7 px-2 ml-auto"><span class="material-symbols-outlined text-[16px]">open_in_new</span>另開分頁</a>
+        </div>
+        <div id="frameWrap" class="flex-1 bg-slate-100 overflow-auto grid place-items-stretch p-0">
+          <iframe id="frame" title="你的系統預覽" class="w-full h-full border-0 bg-white"></iframe>
+        </div>
+      </div>
+
+      <!-- 資料 -->
+      <div id="tab-data" hidden class="col flex-1">
+        <div class="flex items-center gap-2 px-3 py-1.5 border-b border-line bg-soft">
+          <select id="dtTable" class="border border-line rounded-lg text-xs py-1 pl-2 pr-7 font-bold text-ink"></select>
+          <input id="dtQ" placeholder="搜尋…" class="border border-line rounded-lg text-xs py-1 px-2 w-36" />
+          <span id="dtCount" class="text-xs text-muted ml-auto"></span>
+          <button id="dtPrev" type="button" class="btn btn-ghost h-7 px-2">‹</button>
+          <button id="dtNext" type="button" class="btn btn-ghost h-7 px-2">›</button>
+        </div>
+        <div id="dtBody" class="flex-1 overflow-auto"></div>
+      </div>
+
+      <!-- 程式碼 -->
+      <div id="tab-code" hidden class="col flex-1">
+        <div class="flex items-center gap-2 px-3 py-1.5 border-b border-line bg-soft">
+          <span class="text-xs text-muted">index.html<span id="codeSize"></span>　·　唯讀，要改請在左邊用講的</span>
+          <button id="dlCode" type="button" class="btn btn-ghost h-7 px-2 ml-auto"><span class="material-symbols-outlined text-[16px]">download</span>下載</button>
+        </div>
+        <div class="flex-1 overflow-auto bg-slate-50"><pre id="codeBox" class="p-3 text-ink"></pre></div>
+      </div>
+
+      <!-- 紀錄 -->
+      <div id="tab-log" hidden class="col flex-1 overflow-y-auto">
+        <div id="logBody" class="p-4 space-y-2"></div>
+      </div>
+
+      <!-- 交付 -->
+      <div id="tab-deploy" hidden class="col flex-1 overflow-y-auto">
+        <div class="p-5 max-w-xl space-y-5">
+          <div class="border border-line rounded-xl p-4">
+            <h3 class="text-sm font-black text-ink">分享給同事</h3>
+            <p class="text-xs text-muted mt-1 mb-3">把他的信箱加進使用名單，他用 Google 登入就進得去。名單是公司層級的，他會看到你們公司底下所有的系統。</p>
+            <div class="flex gap-2">
+              <input id="shareEmail" type="email" placeholder="同事的信箱" class="flex-1 border border-line rounded-lg px-3 py-2 text-sm" />
+              <button type="button" class="btn btn-primary" data-act="share">加入</button>
+            </div>
+          </div>
+          <div class="border border-line rounded-xl p-4">
+            <h3 class="text-sm font-black text-ink">交付到 GitHub</h3>
+            <p class="text-xs text-muted mt-1 mb-3">把這套系統推成一個你自己的 repo，附部署說明。要跑 git 與 GitHub API，通常幾十秒到一兩分鐘。</p>
+            <div class="flex gap-2">
+              <button type="button" class="btn btn-ghost" data-act="deliver"><span class="material-symbols-outlined text-[18px]">cloud_upload</span>交付</button>
+              <button type="button" class="btn btn-ghost" data-act="pr"><span class="material-symbols-outlined text-[18px]">merge</span>開 PR</button>
+            </div>
+          </div>
+          <p id="depMsg" class="text-sm font-bold"></p>
+          <p class="text-xs text-muted">只有這套系統的擁有者可以做這三件事。</p>
+        </div>
+      </div>
+
+      <!-- 還沒選系統 -->
+      <div id="wsEmpty" class="flex-1 grid place-content-center text-center px-6">
+        <span class="material-symbols-outlined text-[48px] text-slate-300">left_click</span>
+        <p class="mt-2 text-sm font-bold text-ink">左邊選一套系統</p>
+        <p class="text-xs text-muted mt-1">沒有的話，先去目錄按「模板複製」。</p>
+      </div>
+    </section>
+  </main>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  /* 目前選中的系統。網址上帶 ?i=<實例編號>，重新整理與分享連結都不會掉。 */
+  var cur = null;
+  var systems = [];
+
+  /* 從子網域的小視窗轉過來時帶著他剛才說的那句話。**進站就先收起來**：
+     選系統的時候會用 replaceState 把網址改成只剩 ?i=，那一刻 q 就不見了。
+     （原本是在選完系統之後才讀，永遠讀到空字串。） */
+  var handoffQ = new URLSearchParams(location.search).get("q") || "";
+
+  /* ── 身分 ─────────────────────────────────────────── */
+  function boot() {
+    fetch("/api/visitor/me", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.email) {
+          $("loginLink").href = "/api/visitor/google/start?next=" + encodeURIComponent(location.pathname + location.search);
+          $("guest").hidden = false;
+          return;
+        }
+        $("shell").hidden = false;
+        $("mobileTabs").hidden = false;
+        loadSystems();
+      })
+      .catch(function () { $("guest").hidden = false; });
+  }
+
+  /* ── ① 我的系統 ───────────────────────────────────── */
+  var STATE_TEXT = { live: "運作中", building: "建置中", suspended: "已暫停", failed: "建置失敗" };
+
+  function loadSystems() {
+    fetch("/api/me/systems", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        systems = (d && d.systems) || [];
+        var box = $("sysList");
+        box.innerHTML = "";
+        if (!systems.length) {
+          box.innerHTML = '<p class="px-2 py-3 text-xs text-muted leading-relaxed">你還沒有自己的系統。到<a href="./catalog.html" class="text-brand font-bold">專案目錄</a>挑一套，按「模板複製」就會出現在這裡。</p>';
+          return;
+        }
+        systems.forEach(function (s) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "sys";
+          b.dataset.id = s.id;
+          b.innerHTML = "<b>" + esc(s.title || s.repo_name) + "</b><i>" +
+            esc(STATE_TEXT[s.state] || s.state) + (s.role === "owner" ? " · 擁有者" : " · 成員") + "</i>";
+          b.addEventListener("click", function () { select(s.id); });
+          box.appendChild(b);
+        });
+        /* 網址指定的優先，沒有就開第一套——進來就看到東西，比看到空畫面好。 */
+        var want = new URLSearchParams(location.search).get("i");
+        select(systems.some(function (s) { return s.id === want; }) ? want : systems[0].id);
+      })
+      .catch(function () {
+        $("sysList").innerHTML = '<p class="px-2 py-3 text-xs text-red-600">清單載入失敗，重新整理試試。</p>';
+      });
+  }
+
+  function select(id) {
+    cur = systems.filter(function (s) { return s.id === id; })[0] || null;
+    if (!cur) return;
+    document.querySelectorAll("#sysList .sys").forEach(function (b) {
+      b.setAttribute("aria-current", b.dataset.id === id ? "true" : "false");
+    });
+    /* 用 replaceState：切換系統不該在瀏覽器的上一頁堆一堆紀錄。 */
+    history.replaceState(null, "", "?i=" + encodeURIComponent(id));
+
+    $("wsEmpty").hidden = true;
+    $("chatSub").textContent = cur.title || cur.repo_name;
+
+    /* 換系統＝換一段對話。留著上一套的內容會讓人以為助理記得那些事。 */
+    hist = [];
+    $("chatBox").innerHTML = "";
+    setShot(null);
+    say("bot", "這是「" + (cur.title || cur.repo_name) + "」。欄位、名稱、畫面、流程都能改——說一句話就好，我做得到的當場就改，改程式邏輯的要等一兩分鐘。");
+    loadChips();
+
+    loaded = { data: false, code: false, log: false };
+    showTab("preview");
+    refreshFrame();
+
+    /* 填進去但不自動送出——那是要花幾分鐘、會改動他系統的事，
+       該由他自己按下去。只用一次，換系統時不該又冒出來。 */
+    if (handoffQ) {
+      $("ask").value = handoffQ.slice(0, 500);
+      $("ask").focus();
+      handoffQ = "";
+    }
+  }
+
+  /* ── ② 對話 ───────────────────────────────────────── */
+  var hist = [];
+  var pendingShot = null;
+
+  var api = function (path) { return "/-/i/" + encodeURIComponent(cur.id) + path; };
+
+  function say(role, text, cls) {
+    var box = $("chatBox");
+    var d = document.createElement("div");
+    d.className = "m " + (cls || (role === "user" ? "me" : "bot"));
+    d.textContent = text;                 // 一律 textContent：這裡放的是人與模型寫的字
+    box.appendChild(d);
+    box.scrollTop = box.scrollHeight;
+    return d;
+  }
+
+  /* 建議句。從這套系統自己的欄位長出來——寫死「把負責人改叫業務窗口」的話，
+     碰到沒有「負責人」這個欄位的系統就變成一句錯的示範。 */
+  function loadChips() {
+    var box = $("chips");
+    box.innerHTML = "";
+    var picks = ["加一個備註欄位", "改一下配色，我想要更沉穩一點"];
+    fetch(api("/_jv/schema"), { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (s) {
+        var c = s && s.tables && s.tables[0] && s.tables[0].columns && s.tables[0].columns[0];
+        if (c) picks.splice(1, 0, "把「" + c.label + "」改叫「承辦人」");
+      })
+      .catch(function () { /* 問不到就用通用的兩句 */ })
+      .then(function () {
+        picks.forEach(function (t) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "chip";
+          b.textContent = t;
+          b.addEventListener("click", function () { submit(t); });
+          box.appendChild(b);
+        });
+      });
+  }
+
+  /* 截圖縮到最寬 1400px 再送。原圖動輒好幾 MB，而我們要的是「他指哪裡」。 */
+  function shrinkImage(blob, done) {
+    if (!blob || !/^image\//.test(blob.type)) return;
+    var url = URL.createObjectURL(blob);
+    var img = new Image();
+    img.onload = function () {
+      var w = img.width, h = img.height, max = 1400;
+      if (w > max) { h = Math.round(h * max / w); w = max; }
+      var cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      cv.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      try { done(cv.toDataURL("image/jpeg", 0.82)); } catch (e) { /* 讀不進來就當作沒貼 */ }
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); };
+    img.src = url;
+  }
+
+  function setShot(dataUrl) {
+    pendingShot = dataUrl;
+    var box = $("shotBox");
+    box.innerHTML = "";
+    if (!dataUrl) return;
+    var img = document.createElement("img");
+    img.src = dataUrl;
+    img.alt = "截圖預覽";
+    img.className = "w-full border border-line rounded-lg";
+    var x = document.createElement("button");
+    x.type = "button";
+    x.textContent = "×";
+    x.setAttribute("aria-label", "移除截圖");
+    x.className = "absolute top-1 right-4 w-5 h-5 rounded-full bg-slate-800/75 text-white text-xs leading-none";
+    x.addEventListener("click", function () { setShot(null); });
+    box.appendChild(img);
+    box.appendChild(x);
+  }
+
+  document.addEventListener("paste", function (e) {
+    if (!cur) return;
+    var items = (e.clipboardData && e.clipboardData.items) || [];
+    for (var i = 0; i < items.length; i += 1) {
+      if (items[i].type && items[i].type.indexOf("image/") === 0) {
+        e.preventDefault();
+        shrinkImage(items[i].getAsFile(), setShot);
+        return;
+      }
+    }
+  });
+
+  function submit(text) {
+    if (!cur) return;
+    var msg = String(text || "").trim();
+    if (!msg && pendingShot) msg = "照這張截圖改";   // 只貼圖不打字也要能送
+    if (!msg) return;
+    var ta = $("ask"), send = $("send");
+    ta.value = "";
+    send.disabled = true;
+    var shot = pendingShot;
+    setShot(null);
+    say("user", msg);
+    /* 自己貼的圖也要顯示在對話裡——不然送出後圖就消失了，
+       他會不確定到底有沒有帶上去。 */
+    if (shot) {
+      var box = $("chatBox");
+      var w = document.createElement("div");
+      w.className = "m me";
+      var im = document.createElement("img");
+      im.src = shot;
+      im.alt = "我貼的截圖";
+      w.appendChild(im);
+      box.appendChild(w);
+      box.scrollTop = box.scrollHeight;
+    }
+    hist.push({ role: "user", text: msg });
+    var wait = say("bot", "想一下…", "thinking");
+
+    fetch(api("/_jv/chat"), { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message: msg, history: hist.slice(-6), shot: shot }) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (x) {
+        wait.remove();
+        send.disabled = false;
+        var d = x.d || {};
+        var reply = d.reply || d.error || "我沒聽懂，換個說法再說一次？";
+        say("bot", reply, d.changed ? "done" : (x.ok ? "bot" : "err"));
+        hist.push({ role: "assistant", text: reply });
+        if (d.changed) { afterChange(); return; }
+        if (d.job) pollJob();
+      })
+      .catch(function () {
+        wait.remove();
+        send.disabled = false;
+        say("bot", "連不上伺服器，稍後再試一次。", "err");
+      });
+  }
+
+  /* 真的改了東西就把右邊重新載入。三欄的好處就在這裡：他說完話，
+     結果在同一個畫面上當場出現，不必自己去按重新整理。 */
+  function afterChange() {
+    refreshFrame();
+    loaded.data = false;
+    loaded.code = false;
+    loaded.log = false;
+    if (curTab !== "preview") showTab(curTab);
+  }
+
+  /* 等背景的程式修改做完。每三秒問一次並顯示已經等了多久——
+     沉默的等待會讓人以為當掉了。 */
+  function pollJob() {
+    var send = $("send"), ta = $("ask");
+    send.disabled = true;
+    ta.disabled = true;
+    var line = say("bot", "改寫中…（通常一到三分鐘）", "thinking");
+    var timer = setInterval(function () {
+      fetch(api("/_jv/job"), { cache: "no-store" })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (j.state === "running") {
+            line.textContent = "改寫中…已經 " + (j.seconds || 0) + " 秒（通常一到三分鐘）";
+            return;
+          }
+          clearInterval(timer);
+          line.remove();
+          send.disabled = false;
+          ta.disabled = false;
+          if (j.state === "done") { say("bot", j.reply || "改好了。", "done"); afterChange(); }
+          else if (j.state === "failed") {
+            /* 失敗要說出原因並提醒他原本的畫面沒被動到——他才敢再試下一個講法。 */
+            say("bot", (j.reply || "這次沒改成。") + "（原本的畫面沒有被動到）", "err");
+          }
+        })
+        .catch(function () { /* 一次問不到不要緊，下一輪再問 */ });
+    }, 3000);
+  }
+
+  $("send").addEventListener("click", function () { submit($("ask").value); });
+  $("ask").addEventListener("keydown", function (e) {
+    /* Enter 送出、Shift+Enter 換行。聊天框裡這是大家的肌肉記憶。 */
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit($("ask").value); }
+  });
+
+  /* ── ③ 工作區分頁 ─────────────────────────────────── */
+  var curTab = "preview";
+  var loaded = { data: false, code: false, log: false };
+  var TABS = ["preview", "data", "code", "log", "deploy"];
+
+  function showTab(name) {
+    curTab = name;
+    TABS.forEach(function (t) { $("tab-" + t).hidden = t !== name; });
+    document.querySelectorAll("[data-tab]").forEach(function (b) {
+      b.setAttribute("aria-selected", b.dataset.tab === name ? "true" : "false");
+    });
+    if (name === "data" && !loaded.data) loadData();
+    if (name === "code" && !loaded.code) loadCode();
+    if (name === "log" && !loaded.log) loadLog();
+  }
+  document.querySelectorAll("[data-tab]").forEach(function (b) {
+    b.addEventListener("click", function () { if (cur) showTab(b.dataset.tab); });
+  });
+
+  /* 預覽。iframe 走同源的 /-/i/<id>/ 而不是客戶的子網域：jv_visitor 是
+     host-only + SameSite=Lax 的 cookie，跨站 iframe 不會帶過去，
+     那樣框裡就只會一直要求登入。 */
+  var bust = 0;
+  function frameUrl() { return "/-/i/" + encodeURIComponent(cur.id) + "/?jv=embed&r=" + (bust += 1); }
+  function refreshFrame() {
+    if (!cur) return;
+    $("frame").src = frameUrl();          // 重設 src，不用 contentWindow.location.reload()
+    $("openNew").href = "/-/i/" + encodeURIComponent(cur.id) + "/";
+  }
+  $("reload").addEventListener("click", refreshFrame);
+  document.querySelectorAll("[data-w]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("[data-w]").forEach(function (o) { o.setAttribute("aria-selected", o === b ? "true" : "false"); });
+      var f = $("frame");
+      if (b.dataset.w === "full") { f.style.maxWidth = ""; f.style.margin = ""; }
+      else { f.style.maxWidth = b.dataset.w + "px"; f.style.margin = "0 auto"; }
+    });
+  });
+
+  /* 資料。這裡帶 ?limit=&offset=&q=，所以 gateway 的 /-/i/ 那條必須把 query
+     轉給上游——否則會安靜地永遠回前 50 筆並忽略搜尋。 */
+  var dt = { table: null, offset: 0, limit: 50, total: 0, labels: {} };
+
+  function loadData() {
+    loaded.data = true;
+    $("dtBody").innerHTML = '<p class="p-4 text-xs text-muted">載入中…</p>';
+    fetch(api("/_jv/schema"), { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (s) {
+        var tables = (s && s.tables) || [];
+        var sel = $("dtTable");
+        sel.innerHTML = "";
+        if (!tables.length) { $("dtBody").innerHTML = '<p class="p-4 text-xs text-muted">這套系統還沒有資料表。</p>'; return; }
+        /* key → 顯示名稱。表頭直接印資料庫的 key 會變成 customer_subscription
+           這種東西，而客戶認得的是「客戶 / 訂閱」——他當初就是照那個名字挑的。 */
+        dt.labels = {};
+        tables.forEach(function (t) {
+          dt.labels[t.name] = {};
+          t.columns.forEach(function (c) { dt.labels[t.name][c.key] = c.label; });
+          var o = document.createElement("option");
+          o.value = t.name;
+          o.textContent = t.columns.map(function (c) { return c.label; }).slice(0, 3).join("·") + "（" + t.count + "）";
+          sel.appendChild(o);
+        });
+        dt.table = tables[0].name;
+        dt.offset = 0;
+        loadRows();
+      })
+      .catch(function () { $("dtBody").innerHTML = '<p class="p-4 text-xs text-red-600">讀不到資料表定義。</p>'; });
+  }
+
+  function loadRows() {
+    var qs = "?limit=" + dt.limit + "&offset=" + dt.offset + "&q=" + encodeURIComponent($("dtQ").value.trim());
+    fetch(api("/api/t/" + dt.table + qs), { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var rows = d.rows || [];
+        dt.total = d.total || 0;
+        $("dtCount").textContent = dt.total
+          ? (dt.offset + 1) + "–" + Math.min(dt.offset + rows.length, dt.total) + " / " + dt.total
+          : "沒有資料";
+        $("dtPrev").disabled = dt.offset <= 0;
+        $("dtNext").disabled = dt.offset + dt.limit >= dt.total;
+        if (!rows.length) { $("dtBody").innerHTML = '<p class="p-4 text-xs text-muted">沒有符合的資料。</p>'; return; }
+        /* 欄位順序以第一列的鍵為準，並把系統欄位藏起來——_deleted_at、rev
+           這些是機制，不是客戶的資料。 */
+        var keys = Object.keys(rows[0]).filter(function (k) { return k.charAt(0) !== "_" && k !== "rev"; });
+        var lab = dt.labels[dt.table] || {};
+        var html = "<table class='dt'><thead><tr>" +
+          keys.map(function (k) { return "<th>" + esc(lab[k] || k) + "</th>"; }).join("") + "</tr></thead><tbody>" +
+          rows.map(function (r) {
+            return "<tr>" + keys.map(function (k) {
+              return "<td>" + esc(r[k] == null ? "" : r[k]) + "</td>";
+            }).join("") + "</tr>";
+          }).join("") + "</tbody></table>";
+        $("dtBody").innerHTML = html;
+      })
+      .catch(function () { $("dtBody").innerHTML = '<p class="p-4 text-xs text-red-600">讀不到資料。</p>'; });
+  }
+
+  $("dtTable").addEventListener("change", function () { dt.table = this.value; dt.offset = 0; loadRows(); });
+  $("dtPrev").addEventListener("click", function () { dt.offset = Math.max(0, dt.offset - dt.limit); loadRows(); });
+  $("dtNext").addEventListener("click", function () { dt.offset += dt.limit; loadRows(); });
+  var qTimer = null;
+  $("dtQ").addEventListener("input", function () {
+    clearTimeout(qTimer);
+    qTimer = setTimeout(function () { dt.offset = 0; loadRows(); }, 300);
+  });
+
+  /* 程式碼。唯讀——直接讓人存檔等於開一個繞過 instance-edit 五道護欄的後門。 */
+  var codeText = "";
+  function loadCode() {
+    loaded.code = true;
+    $("codeBox").textContent = "載入中…";
+    fetch(api("/index.html"), { cache: "no-store" })
+      .then(function (r) { return r.text(); })
+      .then(function (t) {
+        codeText = t;
+        $("codeBox").textContent = t;
+        $("codeSize").textContent = "（" + Math.round(t.length / 1024) + " KB）";
+      })
+      .catch(function () { $("codeBox").textContent = "讀不到程式碼。"; });
+  }
+  $("dlCode").addEventListener("click", function () {
+    if (!codeText) return;
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([codeText], { type: "text/html" }));
+    a.download = (cur.repo_name || "system") + ".html";
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+
+  /* 紀錄。這一套系統被改過什麼——v0 最好的地方就是這個：
+     不用懂 git diff，看得懂「我剛才叫它做了什麼」。 */
+  var KIND = {
+    "instance.edited": ["改了畫面與程式", "#15803d"],
+    "instance.edit_failed": ["修改被退回", "#b91c1c"],
+    "change.request": ["提出需求", "#1e40af"],
+    "instance.shared": ["分享給人", "#7c3aed"],
+    "instance.delivered": ["交付到 GitHub", "#7c3aed"],
+    "instance.reverted": ["還原版本", "#a16207"],
+  };
+
+  function loadLog() {
+    loaded.log = true;
+    $("logBody").innerHTML = '<p class="text-xs text-muted">載入中…</p>';
+    fetch("/api/me/instances/" + encodeURIComponent(cur.id) + "/events", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var evs = (d && d.events) || [];
+        if (!evs.length) {
+          $("logBody").innerHTML = '<p class="text-xs text-muted">還沒有修改紀錄。在左邊說一句話改點東西，就會出現在這裡。</p>';
+          return;
+        }
+        $("logBody").innerHTML = evs.map(function (e) {
+          /* detail_json 依驅動設定可能已是物件、也可能還是字串，兩種都要接。 */
+          var det = e.detail_json;
+          if (typeof det === "string") { try { det = JSON.parse(det); } catch (x) { det = null; } }
+          var meta = KIND[e.kind] || [e.kind, "#64748b"];
+          var body = (det && (det.instruction || det.text)) || "";
+          var why = (det && det.why) || "";
+          return '<div class="border border-line rounded-lg p-3">' +
+            '<div class="flex items-center gap-2 mb-1">' +
+              '<span class="text-xs font-black" style="color:' + meta[1] + '">' + esc(meta[0]) + "</span>" +
+              '<span class="text-xs text-muted ml-auto">' + esc(String(e.at).replace("T", " ").slice(0, 16)) + "</span>" +
+            "</div>" +
+            (body ? '<p class="text-sm text-ink leading-relaxed">' + esc(body) + "</p>" : "") +
+            (why ? '<p class="text-xs text-muted mt-1">' + esc(why) + "</p>" : "") +
+            (e.actor ? '<p class="text-xs text-muted mt-1">' + esc(e.actor) + "</p>" : "") +
+            "</div>";
+        }).join("");
+      })
+      .catch(function () { $("logBody").innerHTML = '<p class="text-xs text-red-600">讀不到紀錄。</p>'; });
+  }
+
+  /* 交付。三顆都是既有的端點，只有擁有者做得到。 */
+  document.querySelectorAll("[data-act]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      if (!cur) return;
+      var act = b.dataset.act;
+      var note = $("depMsg");
+      var body = act === "share" ? { email: $("shareEmail").value.trim() } : {};
+      if (act === "share" && !body.email) { note.style.color = "#b91c1c"; note.textContent = "請先填同事的信箱"; return; }
+      document.querySelectorAll("[data-act]").forEach(function (o) { o.disabled = true; });
+      note.style.color = "#64748b";
+      note.textContent = act === "share" ? "加入中…" : "處理中，這要跑 git，請稍等…";
+      fetch("/api/me/instances/" + encodeURIComponent(cur.id) + "/" + act,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (x) {
+          document.querySelectorAll("[data-act]").forEach(function (o) { o.disabled = false; });
+          if (!x.ok) { note.style.color = "#b91c1c"; note.textContent = x.d.error || "沒有成功"; return; }
+          note.style.color = "#15803d";
+          if (act === "share") { note.textContent = "已加入，他用 Google 登入後就進得去。"; $("shareEmail").value = ""; }
+          else if (x.d.url) note.innerHTML = (act === "pr" ? "PR 已開：" : "已交付：") +
+            '<a href="' + esc(x.d.url) + '" target="_blank" rel="noreferrer" class="text-brand font-bold hover:underline">' + esc(x.d.url) + "</a>";
+          else note.textContent = "完成了。";
+          loaded.log = false;
+        })
+        .catch(function () {
+          document.querySelectorAll("[data-act]").forEach(function (o) { o.disabled = false; });
+          note.style.color = "#b91c1c";
+          note.textContent = "連不上伺服器";
+        });
+    });
+  });
+
+  /* 窄畫面：三欄改成切換。桌機不會用到這一段（那三顆按鈕在 CSS 裡是 none）。 */
+  document.querySelectorAll("[data-col]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("[data-col]").forEach(function (o) { o.setAttribute("aria-selected", o === b ? "true" : "false"); });
+      ["sysPane", "chatPane", "wsPane"].forEach(function (idn) { $(idn).classList.toggle("on", idn === b.dataset.col); });
+    });
+  });
+
+  boot();
+})();
+</script>
+  <script src="./shared/jv-account.js" defer></script>
+</body>
+</html>
