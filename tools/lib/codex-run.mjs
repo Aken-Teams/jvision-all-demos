@@ -35,6 +35,27 @@ export function safeJson(text) {
 }
 
 /**
+ * 從 stderr 裡挑出「真正的錯誤」。
+ *
+ * codex 會把啟動橫幅與**整份 prompt** 原樣印到 stderr，所以直接拿
+ * stderr.slice(-500) 當錯誤訊息，取到的永遠是 prompt 的最後 500 字元。
+ * 換裝產線的失敗紀錄裡因此出現一堆「codex 失敗：);return;}var n=document.」
+ * ——那是被換裝的那份 HTML 的結尾，不是任何錯誤，而真正的原因從來沒被記下來。
+ *
+ * 把 prompt 與橫幅剔掉，剩下的才是 codex 自己說的話。
+ */
+function cleanStderr(stderr, prompt) {
+  let s = String(stderr || "");
+  if (prompt) s = s.split(String(prompt)).join("");
+  return s
+    .split("\n")
+    .filter((line) => !/^(Reading additional input|OpenAI Codex v|-{4,}|workdir:|model:|provider:|approval:|sandbox:|reasoning (effort|summaries):|session id:|user$)/.test(line.trim()))
+    .join("\n")
+    .trim()
+    .slice(-500);
+}
+
+/**
  * 執行一次 codex exec。
  * @param {object} options
  * @param {string} options.prompt          給 codex 的指令
@@ -100,7 +121,7 @@ export function runCodex({
     child.on("error", (error) => finish({ ok: false, code: null, error: `無法啟動 codex：${error.message}` }));
     child.on("close", (code) => {
       if (code === 0) finish({ ok: true, code });
-      else finish({ ok: false, code, error: stderr.trim().slice(-500) || `codex 結束碼 ${code}` });
+      else finish({ ok: false, code, error: cleanStderr(stderr, prompt) || `codex 結束碼 ${code}` });
     });
   });
 }
