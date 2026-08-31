@@ -46,10 +46,13 @@ const args = parseArgs();
 
 /* 共用一顆瀏覽器。每套各開一次的話，啟動成本比渲染本身還貴。 */
 let _browser = null;
-async function browser() {
-  if (_browser) return _browser;
-  const { chromium } = await import("playwright");
-  _browser = await chromium.launch();
+function browser() {
+  /* 記住的是 promise 而不是結果。存結果的寫法在多線下是競態：8 條線同時進來
+     時每一條都看到 null，於是各自 launch 一顆，最後只有一顆被記進 _browser，
+     其餘七顆沒有人關得掉——收尾的 _browser.close() 收不到它們，node 因此
+     永遠不會退出。實測跑完之後留下 35 個 chrome 行程、3.3GB，而服務狀態
+     一直顯示 running，看起來像還在做事。 */
+  if (!_browser) _browser = import("playwright").then((m) => m.chromium.launch());
   return _browser;
 }
 
@@ -464,7 +467,7 @@ async function main() {
   state.finishedAt = new Date().toISOString();
   state.inFlight = [];
   saveState();
-  if (_browser) await _browser.close().catch(() => {});
+  if (_browser) await _browser.then((b) => b.close()).catch(() => {});
   log.step(`完成：成功 ${state.done.length}、失敗 ${state.failed.length}`);
   if (state.failed.length) log.info(`  失敗的原檔都已還原，可用 --resume 重跑`);
 }
