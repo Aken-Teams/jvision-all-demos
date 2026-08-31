@@ -28,14 +28,17 @@
  * 一次改動上千套沒辦法逐批看成果，出了系統性的問題也要到最後才發現。
  *
  *   node tools/restyle-demos.mjs --workers=4 [--daily=100] [--limit=N] [--repos=a,b] [--dry-run]
+ *   node tools/restyle-demos.mjs --mode=rewrite      只走整份重寫（取代區塊出問題時的退路）
  *   node tools/restyle-demos.mjs --resume            接續上次沒做完的
  *   node tools/restyle-demos.mjs --status            只看進度
  */
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { ROOT, EXIT, parseArgs, num, list, makeLogger } from "./lib/forge-common.mjs";
 import { staticGate } from "./lib/static-gate.mjs";
 import { runCodexWithRetry } from "./lib/codex-run.mjs";
+import { applyEdits, replaceStyleBlock } from "./lib/instance-patch.mjs";
 import { styleBrief, styleFor } from "./lib/restyle-styles.mjs";
 import * as uiux from "./lib/uiux-skill.mjs";
 
@@ -85,6 +88,11 @@ const DRY = Boolean(args["dry-run"]);
    實測被這件事咬過兩次：測完一套之後，整批 1,958 套的完成紀錄變成 2/2，
    得靠比對備份與現檔才救得回來。 */
 const ONE_OFF = Boolean(args.repos);
+const PATCH_SCHEMA = path.join(ROOT, "tools", "schemas", "restyle-patch.schema.json");
+/* auto＝先試取代區塊、套不進去才整份重寫。rewrite＝只走舊路徑（緊急切換用）。
+   取代區塊存在的理由是正確性：整份重寫時模型會順手動到不該動的地方，
+   而失敗原因裡最大的一類正是「表頭文字被改動」。 */
+const MODE = ["auto", "patch", "rewrite"].includes(args.mode) ? args.mode : "auto";
 /* 每日配額只定義在 docs/_state/restyle-quota 一個地方，後台改的也是那個檔。
    參數與檔案各存一份，改一邊就會不一致。 */
 function dailyQuota() {
@@ -147,7 +155,7 @@ function extractHtml(text) {
 
 const screenCount = (html) => new Set([...html.matchAll(/data-i=["']?(\d+)/g)].map((m) => m[1])).size;
 
-function prompt(repo, title, current, ds) {
+export function prompt(repo, title, current, ds) {
   /* 有技能就用技能給的設計系統（含真實的色票、字體搭配、風格名與檢核表）；
      沒有才退回內建矩陣。兩者都保證同一套 repo 永遠拿到同一種風格。 */
   const styleSection = ds
@@ -203,6 +211,35 @@ ${styleSection}
 ${current}`;
 }
 
+/* 取代區塊版。前面那一大段規則與風格說明完全共用，只換掉「輸出方式」。
+   換裝的主要工作是整塊 <style>，所以通常一處 find/replace 就換掉大半。 */
+export function patchPrompt(repo, title, current, ds) {
+  const full = prompt(repo, title, current, ds);
+  const head = full.slice(0, full.indexOf("## 輸出方式"));
+  return `${head}## 輸出方式
+不要重寫整份檔案。分兩個部分回答：
+
+### styleBlock —— 這次換裝的主要工作
+把**整個 <style> 區塊的新內容**放這裡（不要含 <style> 標籤本身）。
+你不需要把原本的 CSS 抄回來給我看，只要給新的；舊的我會自己換掉。
+整份檔案只有一個 <style>，位置我自己找得到。
+
+### edits —— 標記與 <head> 的零星改動
+只有真的要動 HTML 標記時才用（例如 <head> 加 Google Fonts 的 <link>、
+某個區塊要換 class）。每一處給一組 find / replace：
+- find 必須是檔案裡**逐字元完全相同**的一段原文，包含空白與縮排，
+  要整段複製而不是憑印象重打，而且在整份檔案中**只出現一次**。
+- 太短可能重複的話，往前後多帶幾行讓它唯一。
+- CSS 不要放這裡，放 styleBlock。沒有要改標記就給空陣列。
+
+**不要把含有 <th> 的那幾段放進 edits**——表頭一個字都不能動，
+不碰它就不可能改到它。這是這件事最常見的失敗原因。
+
+以下是目前的 index.html：
+
+${current}`;
+}
+
 async function restyleOne(repo, title, category) {
   const file = path.join(DEMOS, repo, "index.html");
   if (!fs.existsSync(file)) return { repo, ok: false, why: "找不到 index.html" };
@@ -232,23 +269,57 @@ async function restyleOne(repo, title, category) {
      不讓一個加分項擋住整條產線。 */
   const ds = uiux.available() ? await uiux.designSystem(repo, category, title).catch(() => null) : null;
 
-  const r = await runCodexWithRetry({
-    prompt: prompt(repo, title, before, ds),
+  const ask = (kind) => runCodexWithRetry({
+    prompt: kind === "patch" ? patchPrompt(repo, title, before, ds) : prompt(repo, title, before, ds),
     cwd: ROOT,
     sandbox: "read-only",
     timeoutMs: TIMEOUT_MS,
     model: args.model,
+    ...(kind === "patch" ? { schemaPath: PATCH_SCHEMA } : {}),
   }, { retries: 1 });
 
   const revert = (why) => {
     fs.writeFileSync(file, before);
-    return { repo, ok: false, why };
+    return { repo, ok: false, why, how };
   };
 
-  if (!r.ok) return revert(`codex 失敗：${String(r.error || "").slice(0, 60)}`);
+  let how = MODE === "rewrite" ? "rewrite" : "patch";
+  let after = null;
+  let edits = null;
 
-  const after = extractHtml(r.text);
-  if (!after) return revert("codex 回傳的不是完整 HTML");
+  if (how === "patch") {
+    const r = await ask("patch");
+    if (r.ok && r.json) {
+      /* 先換 <style>，再套標記上的零星改動。順序不能反——edits 的 find
+         有可能落在 style 區塊裡，先套的話換 style 時就被蓋掉了。 */
+      let work = before;
+      let okSoFar = true;
+      const css = String(r.json.styleBlock || "").trim();
+      if (css) {
+        const sb = replaceStyleBlock(work, css);
+        if (sb.ok) work = sb.text; else okSoFar = false;
+      }
+      const list = Array.isArray(r.json.edits) ? r.json.edits : [];
+      if (okSoFar && list.length) {
+        const ap = applyEdits(work, list);
+        if (ap.ok) { work = ap.text; edits = ap.applied; } else okSoFar = false;
+      }
+      if (okSoFar && work !== before) after = work;
+    }
+    /* 套不進去就整份重寫。失敗多半只是它把原文記錯一兩個字，
+       那時整份重寫仍然做得出正確結果——不該因為內部策略就少換一套。 */
+    if (after === null) {
+      if (MODE === "patch") return revert("取代區塊套不進去（--mode=patch 不退回重寫）");
+      how = "rewrite";
+    }
+  }
+
+  if (after === null) {
+    const r = await ask("rewrite");
+    if (!r.ok) return revert(`codex 失敗：${String(r.error || "").replace(/\s+/g, " ").slice(0, 60)}`);
+    after = extractHtml(r.text);
+    if (!after) return revert("codex 回傳的不是完整 HTML");
+  }
   if (after === before) return revert("內容沒有變動");
   fs.writeFileSync(file, after);
   /* 表頭指紋是最重要的一關。放在 static-gate 之前檢查，因為 gate 不看這個，
@@ -268,7 +339,8 @@ async function restyleOne(repo, title, category) {
   const styleName = ds
     ? (ds.text.match(/Name:\s*([^\n]+)/g) || [])[1]?.replace(/Name:\s*/, "").trim().slice(0, 40)
     : styleFor(repo).palette.name;
-  return { repo, ok: true, style: styleName || styleFor(repo).palette.name, bytes: Buffer.byteLength(after) };
+  return { repo, ok: true, style: styleName || styleFor(repo).palette.name,
+    bytes: Buffer.byteLength(after), how, edits };
 }
 
 /* ── 主流程 ─────────────────────────────────────────── */
@@ -397,4 +469,11 @@ async function main() {
   if (state.failed.length) log.info(`  失敗的原檔都已還原，可用 --resume 重跑`);
 }
 
-main().catch((e) => { log.error(e.stack || e.message); process.exitCode = EXIT.BAD_INPUT; });
+/* 只有被直接執行時才跑。少了這道判斷，任何 import 這支來借用 prompt 的程式
+   （例如 A/B 量測）都會連帶啟動整條產線並覆寫共用的 restyle.json。
+   A/B 需要拿「真正的」prompt 來比——自己抄一份的話，抄漏一句就會把其中
+   一邊打殘：第一次就是漏了「不要輸出解釋」，害重寫那一邊 0/3 全滅。 */
+/* argv[1] 在 node -e 底下是 undefined，要先擋掉再轉 URL。 */
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((e) => { log.error(e.stack || e.message); process.exitCode = EXIT.BAD_INPUT; });
+}

@@ -60,3 +60,21 @@ export function applyEdits(source, edits) {
   if (!applied) return { ok: false, why: "這些取代跟原本的內容一模一樣" };
   return { ok: true, text, applied };
 }
+
+/**
+ * 換掉整份檔案裡唯一那個 <style> 區塊的內容。
+ *
+ * 換裝的主要工作就是這一塊（實測 10 套：每套都只有一個 <style>，
+ * 9–18KB、佔全檔 24–35%）。要模型把它整段逐字元複製回來當 find，
+ * 是在要求它抄寫一萬多個字元不出錯——第一次 A/B 就是敗在
+ * 「第 1 處在檔案裡找不到（模型記錯了原文）」。
+ *
+ * 所以這一塊不走 find/replace：模型只給新的 CSS，邊界由這裡自己找。
+ * 抄寫的風險整個消失，而且它連 <th> 的文字都不會經手。
+ */
+export function replaceStyleBlock(html, css) {
+  const m = /<style\b[^>]*>[\s\S]*?<\/style>/i.exec(html);
+  if (!m) return { ok: false, why: "這份檔案裡沒有 <style> 區塊" };
+  const open = m[0].slice(0, m[0].indexOf(">") + 1);
+  return { ok: true, text: html.slice(0, m.index) + open + "\n" + css + "\n</style>" + html.slice(m.index + m[0].length) };
+}
