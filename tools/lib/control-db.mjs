@@ -465,6 +465,30 @@ export async function listEventsFor(instanceId, limit = 60) {
      ORDER BY id DESC LIMIT ${n}`, [instanceId]);
 }
 
+/**
+ * 所有客戶與他們的成員。後台的權限管理用。
+ *
+ * 一次撈完再在記憶體裡分組，不是每個客戶各查一次——客戶數會長，
+ * N+1 查詢在共用主機上的往返延遲很快就看得出來。
+ */
+export async function listAllMembers() {
+  await ensureSchema();
+  const rows = await q(`SELECT c.id, c.name, c.slug, c.owner_email, c.status,
+       m.email, m.role, m.created_at,
+       (SELECT COUNT(*) FROM instances i WHERE i.customer_id = c.id AND i.state <> 'archived') AS instances
+     FROM customers c LEFT JOIN members m ON m.customer_id = c.id
+     ORDER BY c.name, m.role = 'owner' DESC, m.email`);
+  const by = new Map();
+  for (const r of rows) {
+    if (!by.has(r.id)) {
+      by.set(r.id, { id: r.id, name: r.name, slug: r.slug, ownerEmail: r.owner_email,
+        status: r.status, instances: r.instances, members: [] });
+    }
+    if (r.email) by.get(r.id).members.push({ email: r.email, role: r.role, createdAt: r.created_at });
+  }
+  return [...by.values()];
+}
+
 /** 客戶的哪些信箱進得去、是什麼角色。gateway 每次請求都會問。 */
 export async function memberRole({ customerId, email }) {
   await ensureSchema();

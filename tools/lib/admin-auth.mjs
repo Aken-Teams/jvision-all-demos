@@ -25,6 +25,7 @@ export function load(root) {
   }
   try {
     conf = JSON.parse(fs.readFileSync(file, "utf8"));
+    CONF_FILE = file;
     return { source: path.relative(root, file), ready: Boolean(conf.password && conf.secret) };
   } catch {
     conf = null;
@@ -33,6 +34,64 @@ export function load(root) {
 }
 
 export const ready = () => Boolean(conf?.password && conf?.secret);
+
+/* ── 管理者白名單 ──────────────────────────────────────
+   進得了後台的信箱清單。放在 var/admin.json 的 google.allowedEmails，
+   跟 clientSecret 與 session secret 同一個檔，所以那個檔是 0600 且不進版控。
+
+   從網頁改這份名單有一個必須擋住的失敗模式：把自己或最後一個人移除掉，
+   之後就再也沒有人進得來，而修復方式是登入主機手改檔案。所以下面兩條規則
+   不是「防呆」而是硬性限制。 */
+let CONF_FILE = null;
+
+export function listAdmins() {
+  return (conf?.google?.allowedEmails || []).map((e) => String(e).trim().toLowerCase()).filter(Boolean);
+}
+
+function writeConf(next) {
+  if (!CONF_FILE) throw Object.assign(new Error("設定來自環境變數，不能從網頁改"), { status: 400 });
+  /* 先寫暫存再改名，而且暫存檔一出生就是 0600——先建立再 chmod 的話，
+     中間那一瞬間是 0644，而這個檔裡有 clientSecret 與 session secret。 */
+  const tmp = `${CONF_FILE}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(next, null, 2) + "\n", { mode: 0o600 });
+  fs.renameSync(tmp, CONF_FILE);
+  conf = next;
+}
+
+export function addAdmin(email) {
+  const clean = String(email || "").trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean) || clean.length > 190) {
+    throw Object.assign(new Error("這不是有效的信箱"), { status: 400 });
+  }
+  const cur = listAdmins();
+  if (cur.includes(clean)) return cur;
+  const next = { ...conf, google: { ...(conf.google || {}), allowedEmails: [...cur, clean] } };
+  writeConf(next);
+  return listAdmins();
+}
+
+export function removeAdmin(email, actor) {
+  const clean = String(email || "").trim().toLowerCase();
+  const cur = listAdmins();
+  if (!cur.includes(clean)) return cur;
+  /* 移除自己＝把自己鎖在門外。這件事沒有「你確定嗎」可以救，
+     因為按下去之後連回來取消的權限都沒了。 */
+  if (!actor) {
+    /* 認不出操作者就不准移除。舊的 cookie 沒有 email 欄位，這時無法判斷
+       他是不是正在移除自己——寧可要求重新登入，也不要冒鎖死後台的風險。 */
+    throw Object.assign(new Error("認不出你是哪一個管理者，請重新登入後再操作"), { status: 400 });
+  }
+  if (clean === String(actor).trim().toLowerCase()) {
+    throw Object.assign(new Error("不能移除自己"), { status: 400 });
+  }
+  /* 名單空了就是誰都進不來，只能登入主機手改檔案。 */
+  if (cur.length <= 1) {
+    throw Object.assign(new Error("這是最後一個管理者，移除之後就沒有人進得來了"), { status: 400 });
+  }
+  const next = { ...conf, google: { ...(conf.google || {}), allowedEmails: cur.filter((e) => e !== clean) } };
+  writeConf(next);
+  return listAdmins();
+}
 
 /** 交出設定給其他登入方式用（例如 Google）。回傳的是同一個物件，不要改它。 */
 export const conf_ = () => conf;
@@ -71,9 +130,22 @@ export function verify(req) {
 const secureFlag = (req) =>
   String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim() === "https" ? "; Secure" : "";
 
-export function setCookie(req, res) {
-  const payload = Buffer.from(JSON.stringify({ exp: Date.now() + TTL_MS })).toString("base64url");
+/* email 要記進去。原本只存 exp，所以後端完全不知道是哪一個管理者在操作——
+   動作紀錄只能寫「管理者」，而「不能移除自己」這道防線更是無從判斷。
+   密碼登入認不出人（passwordLogin 目前是關的），那時 email 就是 null。 */
+export function setCookie(req, res, email) {
+  const payload = Buffer.from(JSON.stringify({ exp: Date.now() + TTL_MS,
+    email: email ? String(email).trim().toLowerCase().slice(0, 190) : null })).toString("base64url");
   appendCookie(res, `${COOKIE}=${payload}.${sign(payload)}; Path=/; HttpOnly${secureFlag(req)}; SameSite=Lax; Max-Age=${TTL_MS / 1000}`);
+}
+
+/** 目前登入的是哪一個管理者。舊的 cookie 沒有這個欄位，回 null。 */
+export function currentEmail(req) {
+  if (!verify(req)) return null;
+  try {
+    const token = cookies(req)[COOKIE] || "";
+    return JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString()).email || null;
+  } catch { return null; }
 }
 
 export function clearCookie(req, res) {

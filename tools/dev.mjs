@@ -791,7 +791,7 @@ function startGateway() {
            走後台登入也會過，讓他多按一次沒有多換到任何安全性。 */
         if (rec.purpose === "visitor") {
           visitor.issue(req, res, { kind: "google", email: user.email, name: user.name });
-          if (google.allowed(auth.conf(), user.email)) auth.setCookie(req, res);
+          if (google.allowed(auth.conf(), user.email)) auth.setCookie(req, res, user.email);
           actions.record({ actor: "訪客", action: "Google 具名進站", status: 200, visitor: who, note: user.email });
           res.writeHead(302, { location: rec.next || "/" });
           return res.end();
@@ -801,7 +801,7 @@ function startGateway() {
         if (!google.allowed(auth.conf(), user.email)) {
           return fail(`${user.email} 不在允許清單內`);
         }
-        auth.setCookie(req, res);
+        auth.setCookie(req, res, user.email);
         actions.record({ actor: "後台", action: "Google 登入成功", status: 200, visitor: who, note: user.email });
         res.writeHead(302, { location: rec.next });
         return res.end();
@@ -1159,6 +1159,59 @@ function startGateway() {
     }
 
     // ── 動作紀錄 API ─────────────────────────────────────
+    /* ── 權限管理 ────────────────────────────────────
+       兩層互相獨立：後台管理者（var/admin.json 的 allowedEmails，管誰進得了
+       /admin*）與客戶系統成員（MySQL members，管誰進得去哪家客戶的系統）。
+       兩層都只有後台管理者改得動，而這一整段本來就在 needsAdmin 的保護下。 */
+    /* 目前登入的是哪一個管理者。密碼登入認不出人，回 null。 */
+    const adminEmail = (r) => auth.currentEmail(r);
+
+    if (p === "/api/admin/permissions" && req.method === "GET") {
+      let customers = [];
+      try { customers = await control.listAllMembers(); }
+      catch { /* 資料庫不通時管理者名單仍然要看得到，那半在本機檔案裡 */ }
+      return json(res, 200, { admins: auth.listAdmins(), me: adminEmail(req), customers });
+    }
+
+    if (p === "/api/admin/permissions/admin" && req.method === "POST") {
+      const b = await readBody(req);
+      const act = String(b.action || "");
+      try {
+        const before = auth.listAdmins();
+        const admins = act === "remove"
+          ? auth.removeAdmin(b.email, adminEmail(req))
+          : auth.addAdmin(b.email);
+        if (admins.length !== before.length) {
+          actions.record({ actor: adminEmail(req) || "管理者",
+            action: act === "remove" ? "移除後台管理者" : "新增後台管理者",
+            target: String(b.email || "").slice(0, 190), status: 200, visitor: who, ip });
+        }
+        return json(res, 200, { admins });
+      } catch (error) {
+        return json(res, error.status || 500, { error: error.message });
+      }
+    }
+
+    if (p === "/api/admin/permissions/member" && req.method === "POST") {
+      const b = await readBody(req);
+      const act = String(b.action || "");
+      try {
+        const members = act === "remove"
+          ? await control.removeMember(String(b.customerId || ""), String(b.email || "").trim().toLowerCase())
+          : await control.addMember(String(b.customerId || ""), b.email);
+        actions.record({ actor: adminEmail(req) || "管理者",
+          action: act === "remove" ? "移除客戶系統成員" : "新增客戶系統成員",
+          target: `${String(b.customerId || "")} / ${String(b.email || "").slice(0, 120)}`,
+          status: 200, visitor: who, ip });
+        await control.recordEvent({ kind: act === "remove" ? "member.removed" : "member.added",
+          customerId: String(b.customerId || ""), actor: adminEmail(req),
+          detail: { email: String(b.email || "").slice(0, 190), by: "admin" } });
+        return json(res, 200, { members });
+      } catch (error) {
+        return json(res, error.status || 500, { error: error.message });
+      }
+    }
+
     if (p === "/api/admin/actions") {
       const q = new URL(req.url, "http://x").searchParams;
       return json(res, 200, actions.read({
