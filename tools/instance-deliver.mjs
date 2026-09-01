@@ -56,6 +56,18 @@ function copyTree(src, dst) {
 }
 
 /** README 要寫給「拿到 repo 的人」看，不是寫給我們自己看。 */
+/* 產生三份規格文件要的來源資料。
+   內容取自這套系統原本的專案規格（content/details），但標題用客戶自己取的名字——
+   他看到的封面應該是他的系統，不是我們的展示品編號。
+   讀不到就回 null，交付照樣進行，只是少那三份檔。 */
+function specSource(inst, schema) {
+  try {
+    const dp = path.join(ROOT, "content", "details", `${inst.repo_name}.json`);
+    const d = JSON.parse(fs.readFileSync(dp, "utf8"));
+    return { d: { ...d, repoName: inst.repo_name, title: inst.display_name || d.title || inst.repo_name }, schema };
+  } catch { return null; }
+}
+
 function readme(inst, schema) {
   const tables = schema.tables.map((t) => `| ${t.name} | ${t.columns.length} | ${t.columns.map((c) => c.label).slice(0, 6).join("、")}${t.columns.length > 6 ? "…" : ""} |`).join("\n");
   return `# ${schema.title || inst.repo_name.replace(/^jvision-/, "")}
@@ -150,6 +162,7 @@ async function main() {
     nextBundle.build(pub, tmp, {
       target: "docker",
       schema,
+      spec: specSource(inst, schema),
       sharedDir: path.join(ROOT, "shared"),
       libFiles: [
         /* 資料層直接沿用站台那一份，不另外維護一份交付專用的——

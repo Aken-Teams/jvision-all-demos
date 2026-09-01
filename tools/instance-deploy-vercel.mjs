@@ -122,7 +122,16 @@ log.step(`資料庫已複製（${copied} 張表）`);
    uploads/ 與 versions/ 那些東西也會跟著上傳。 */
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "jv-vercel-"));
 try {
+  /* 公開版也附上三份規格文件。它跑的是資料副本，但文件描述的是同一套系統。 */
+  let spec = null;
+  try {
+    const d = JSON.parse(fs.readFileSync(path.join(ROOT, "content", "details", `${inst.repo_name}.json`), "utf8"));
+    const sc = JSON.parse(fs.readFileSync(path.join(ROOT, "content", "schema", `${inst.repo_name}.json`), "utf8"));
+    spec = { d: { ...d, repoName: inst.repo_name, title: inst.display_name || d.title || inst.repo_name }, schema: sc };
+  } catch { /* 少三份檔不該擋住部署 */ }
+
   const built = nextBundle.build(path.join(inst.dir, "public"), tmp, {
+    spec,
     sharedDir: path.join(ROOT, "shared"),
     libFiles: [
       /* instance-db 匯入的是 ./mysql.mjs，交付樣板的 db.mjs 就是那一份的對應物。 */

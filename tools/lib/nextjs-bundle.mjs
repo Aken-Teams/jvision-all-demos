@@ -27,6 +27,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { DOCS } from "../../shared/jv-spec-docs.mjs";
 
 /* ── 從單檔 HTML 拆出各個部分 ──────────────────────── */
 export function dissect(html) {
@@ -297,7 +298,7 @@ export const PKG = {
  * libFiles 是要放進 lib/ 的檔案 [{ name, from }]。
  * 回 { scripts, tables } 之類的摘要，讓呼叫端印出來對得起來。
  */
-export function build(srcPublic, out, { libFiles = [], sharedDir = null, target = "vercel", schema = null } = {}) {
+export function build(srcPublic, out, { libFiles = [], sharedDir = null, target = "vercel", schema = null, spec = null } = {}) {
   const html = fs.readFileSync(path.join(srcPublic, "index.html"), "utf8");
   const d = dissect(html);
 
@@ -335,6 +336,17 @@ export function build(srcPublic, out, { libFiles = [], sharedDir = null, target 
   }
   w("package.json", JSON.stringify(PKG, null, 2) + "\n");
   w(".gitignore", "node_modules\n.next\n.vercel\n");
+
+  /* 三份規格文件跟著交付出去。客戶手上有的是一套跑得起來的系統，
+     但沒有任何文字說明它在做什麼、資料怎麼設計、要驗哪些東西——
+     那份說明本來就能從規格推導出來，沒有理由不附上。
+     內容是產生的不是抄的，所以規格改了重新交付就會跟著更新。 */
+  if (spec?.d) {
+    for (const doc of DOCS) {
+      try { w(`docs/${doc.name}.md`, doc.build(spec.d, spec.schema || null)); }
+      catch { /* 少一份文件不該讓整次交付失敗 */ }
+    }
+  }
 
   for (const { name, from } of libFiles) {
     fs.mkdirSync(path.join(out, "lib"), { recursive: true });
