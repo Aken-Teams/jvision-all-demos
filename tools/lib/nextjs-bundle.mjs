@@ -152,18 +152,26 @@ export default function Boot({ markup, scripts }) {
 }
 `;
 
-const NEXT_CONFIG = `/**
- * live.js 打的是 ./_jv/schema，那條路徑不能改——改了等於改動所有實例的
- * runtime。而 App Router 會把底線開頭的資料夾當成私有資料夾排除在路由外，
- * 所以 app/_jv/schema/route.js 不會變成路由。用 rewrite 導到真正的路由。
- */
-const nextConfig = {
-  async rewrites() {
-    return [{ source: "/_jv/schema", destination: "/api/schema" }];
+function nextConfig(target) {
+  /* live.js 打的是 ./_jv/schema，那條路徑不能改——改了等於改動所有實例的
+     runtime。而 App Router 會把底線開頭的資料夾當成私有資料夾排除在路由外，
+     所以 app/_jv/schema/route.js 不會變成路由。用 rewrite 導到真正的路由。
+     /_health 同理：交付版的 CI 靠它判斷系統起來了沒。 */
+  const rules = ['{ source: "/_jv/schema", destination: "/api/schema" }'];
+  if (target === "docker") rules.push('{ source: "/_health", destination: "/api/health" }');
+  return `const nextConfig = {
+${target === "docker" ? `  /* 交付版跑在客戶自己的 Docker 裡，用 standalone 之外的最單純做法：
+     直接 next start。映像檔大一點，但少一層「哪些檔案有被追蹤到」的問題——
+     那種問題只會在客戶的機器上第一次啟動時才炸開。 */
+` : ""}  async rewrites() {
+    return [
+${rules.map((r) => "      " + r).join(",\n")}
+    ];
   },
 };
 export default nextConfig;
 `;
+}
 
 const ROUTE_SCHEMA = `import { describe } from "../../../lib/instance-db.mjs";
 
@@ -243,6 +251,35 @@ export async function DELETE(req, { params }) {
 }
 `;
 
+const ROUTE_HEALTH = `/* 交付版的 CI 與 docker compose 都靠這一支判斷系統起來了沒。 */
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  return Response.json({ ok: true });
+}
+`;
+
+const INIT_DB = `/**
+ * 第一次啟動時依 schema.json 建表並灌範例資料。
+ *
+ * 站台版是在 HTTP 伺服器啟動時做這件事，但 Next.js 沒有一個對應的「啟動鉤子」，
+ * 而放進 route handler 的話，第一個打進來的請求會等在那裡建表——
+ * 客戶第一次打開會看到轉圈圈很久，然後不知道發生了什麼事。
+ * 所以獨立成一步，在 next start 之前跑完。
+ *
+ * createFromSchema 是 CREATE TABLE IF NOT EXISTS，表已經存在就不動它，
+ * 所以重啟不會洗掉你輸入的東西。
+ */
+import fs from "node:fs";
+import { createFromSchema } from "../lib/instance-db.mjs";
+import { close } from "../lib/mysql.mjs";
+
+const schema = JSON.parse(fs.readFileSync(new URL("../schema.json", import.meta.url), "utf8"));
+await createFromSchema(process.env.MYSQL_DB || "app", schema, { seed: process.env.SEED !== "0" });
+await close();
+console.log("資料表已就緒");
+`;
+
 export const PKG = {
   name: "jv-instance",
   private: true,
@@ -260,7 +297,7 @@ export const PKG = {
  * libFiles 是要放進 lib/ 的檔案 [{ name, from }]。
  * 回 { scripts, tables } 之類的摘要，讓呼叫端印出來對得起來。
  */
-export function build(srcPublic, out, { libFiles = [], sharedDir = null } = {}) {
+export function build(srcPublic, out, { libFiles = [], sharedDir = null, target = "vercel", schema = null } = {}) {
   const html = fs.readFileSync(path.join(srcPublic, "index.html"), "utf8");
   const d = dissect(html);
 
@@ -290,7 +327,12 @@ export function build(srcPublic, out, { libFiles = [], sharedDir = null } = {}) 
   w("app/api/schema/route.js", ROUTE_SCHEMA);
   w("app/api/t/[table]/route.js", ROUTE_TABLE);
   w("app/api/t/[table]/[id]/route.js", ROUTE_ROW);
-  w("next.config.mjs", NEXT_CONFIG);
+  w("next.config.mjs", nextConfig(target));
+  if (target === "docker") {
+    w("app/api/health/route.js", ROUTE_HEALTH);
+    w("scripts/init-db.mjs", INIT_DB);
+    if (schema) w("schema.json", JSON.stringify(schema, null, 2) + "\n");
+  }
   w("package.json", JSON.stringify(PKG, null, 2) + "\n");
   w(".gitignore", "node_modules\n.next\n.vercel\n");
 

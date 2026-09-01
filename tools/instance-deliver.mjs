@@ -25,6 +25,7 @@ import { execFileSync } from "node:child_process";
 import { ROOT, EXIT, parseArgs, makeLogger } from "./lib/forge-common.mjs";
 import * as control from "./lib/control-db.mjs";
 import { close } from "./lib/mysql.mjs";
+import * as nextBundle from "./lib/nextjs-bundle.mjs";
 
 const args = parseArgs();
 const log = makeLogger({ quiet: Boolean(args.quiet) });
@@ -143,16 +144,26 @@ async function main() {
   /* ── 組出交付內容 ─────────────────────────────────── */
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "jv-deliver-"));
   try {
+    /* 交付的內容跟 Vercel 部署共用同一支產生器。兩邊各寫一份的話，
+       改了畫面的處理方式只會記得改一邊，而另一邊要等客戶回報才會發現。
+       差別只在外殼：Vercel 那邊是雲端函式，這邊是他自己的 Docker。 */
+    nextBundle.build(pub, tmp, {
+      target: "docker",
+      schema,
+      sharedDir: path.join(ROOT, "shared"),
+      libFiles: [
+        /* 資料層直接沿用站台那一份，不另外維護一份交付專用的——
+           兩份遲早會分岔，而分岔的那天沒有人會發現。
+           它 import 的是 ./mysql.mjs，交付樣板的 db.mjs 就是那一份的對應物
+           （從環境變數讀連線，程式碼裡沒有密碼）。 */
+        { name: "mysql.mjs", from: path.join(TEMPLATE, "db.mjs") },
+        { name: "instance-db.mjs", from: path.join(ROOT, "tools", "lib", "instance-db.mjs") },
+      ],
+    });
+    /* Docker、compose、CI 這些外殼在 build 之後才蓋上去——反過來的話
+       樣板裡的檔會把 Next 產生的同名檔覆蓋掉。 */
     copyTree(TEMPLATE, tmp);
-    copyTree(pub, path.join(tmp, "public"));
-    /* 資料層直接沿用站台那一份，不另外維護一份交付專用的——
-       兩份遲早會分岔，而分岔的那天沒有人會發現。 */
-    fs.copyFileSync(path.join(ROOT, "tools", "lib", "instance-db.mjs"), path.join(tmp, "instance-db.mjs"));
-    /* 它 import 的是 ./mysql.mjs，交付版對應到 db.mjs（從環境變數讀連線）。 */
-    const dbLayer = fs.readFileSync(path.join(tmp, "instance-db.mjs"), "utf8")
-      .replace('from "./mysql.mjs"', 'from "./db.mjs"');
-    fs.writeFileSync(path.join(tmp, "instance-db.mjs"), dbLayer);
-    fs.writeFileSync(path.join(tmp, "schema.json"), JSON.stringify(schema, null, 2) + "\n");
+    fs.rmSync(path.join(tmp, "db.mjs"), { force: true });   // 已經以 lib/mysql.mjs 的身分放好了
     fs.writeFileSync(path.join(tmp, "README.md"), readme(inst, schema));
 
     const files = [];
