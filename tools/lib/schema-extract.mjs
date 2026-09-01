@@ -75,7 +75,11 @@ export function extractTables(html) {
     for (const r of block.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
       const cells = [...r[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((x) => strip(x[1]));
       if (cells.length !== labels.length) continue;
-      if (cells.some((c) => /\$\{|<%|\{\{/.test(c))) continue; // 樣板字串不是資料
+      /* 樣板列不是資料。原本只擋 ${}、<%、{{ 三種，漏了用字串串接寫的
+         （'<td>'+r[0]+'</td>'）——那種 <tr> 長得跟真的資料列一模一樣，
+         於是整列 "'+r[0]+'" 被當成種子資料灌進資料庫，客戶開啟系統看到的
+         第一筆就是一串程式碼片段。 */
+      if (cells.some((c) => /\$\{|<%|\{\{|['"]\s*\+|\+\s*['"]/.test(c))) continue;
       sample.push(cells);
       if (sample.length >= 6) break;
     }

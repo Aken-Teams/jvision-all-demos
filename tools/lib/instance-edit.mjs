@@ -32,14 +32,28 @@ const MODE = ["auto", "patch", "rewrite"].includes(process.env.JV_EDIT_MODE)
 const MARK_OPEN = "<!-- jv-live:start -->";
 const MARK_CLOSE = "<!-- jv-live:end -->";
 
-/** 表頭是資料綁定的身分證，改了那張表就再也接不上。 */
-function headerFingerprint(html) {
-  const out = [];
+/**
+ * 每一張表的表頭簽章。表頭是資料綁定的身分證——runtime 是靠 <th> 的文字
+ * 認出哪張表對應哪個資料表的，改了那張表就再也接不上。
+ *
+ * 回傳集合而不是排序後串起來的單一字串：原本是把整串拿去比「完全相等」，
+ * 於是「新增一張表」跟「把既有表頭改壞」被判成同一件事。使用者說
+ * 「增加一個後臺管理」必然帶新表格，就必然被退回——那是他撞到的那個失敗。
+ */
+function headerSignatures(html) {
+  const out = new Set();
   for (const t of html.match(/<table[\s\S]*?<\/table>/gi) || []) {
     const ths = t.match(/<th\b[^>]*>([\s\S]*?)<\/th>/gi) || [];
-    out.push(ths.map((x) => x.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim()).join("|"));
+    if (!ths.length) continue;
+    out.add(ths.map((x) => x.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim()).join("|"));
   }
-  return out.sort().join("¶");
+  return out;
+}
+
+/** 舊的每一張表都必須還在。新增是可以的，消失（改名或刪掉）不行。 */
+function missingTables(before, after) {
+  const has = headerSignatures(after);
+  return [...headerSignatures(before)].filter((sig) => !has.has(sig));
 }
 
 const screens = (html) => new Set([...html.matchAll(/data-i=["']?(\d+)/g)].map((m) => m[1])).size;
@@ -61,9 +75,15 @@ ${instruction}
 ${hasImage ? "\n使用者另外附了一張截圖，那是他指的位置或想要的樣子。以截圖為準——\n文字描述位置常常會失真，圖上圈的地方才是他真正要改的。\n" : ""}
 
 ## 不可以動的東西（動了這次修改就會被退回）
-1. 所有 <table> 的 <th> 文字一個字都不能改，也不能增減 <th> 的數量或順序。
-   那些欄位名稱是這套系統與它的資料庫對應的依據，改了資料就接不上。
-   如果使用者要的就是改欄位名稱，請不要動——那件事系統有另外的方式處理。
+1. **既有**表格的 <th> 文字一個字都不能改，也不能增減那張表的 <th> 數量或順序，
+   更不可以把整張表拿掉。那些欄位名稱是這套系統與它的資料庫對應的依據，
+   動了資料就接不上。使用者要的就是改欄位名稱時請不要動——那件事系統有
+   另外的方式處理。
+
+   **新增表格是可以的，而且鼓勵。** 需要新的清單、明細、後台管理頁的時候，
+   直接加一張新的 <table>，表頭自己取這個領域看得懂的名字（不要用
+   「編號／項目／負責人／期限／階段」這種通用字）。我會依你新加的表頭
+   自動建好對應的資料表，那張表一樣存得住資料。
 2. \`${MARK_OPEN}\` 與 \`${MARK_CLOSE}\` 之間的兩行 script 標籤必須原封不動保留。
    那是系統的執行時與修改助理；拿掉的話使用者就再也沒有辦法修改這套系統了。
 3. 畫面（data-i）的數量不可以變少。
@@ -105,9 +125,15 @@ ${hasImage ? "\n使用者另外附了一張截圖，那是他指的位置或想�
 - 沒有要改的地方就不要放進來。只回真正需要動的那幾處。
 
 ## 不可以動的東西（動了這次修改就會被退回）
-1. 所有 <table> 的 <th> 文字一個字都不能改，也不能增減 <th> 的數量或順序。
-   那些欄位名稱是這套系統與它的資料庫對應的依據，改了資料就接不上。
-   如果使用者要的就是改欄位名稱，請不要動——那件事系統有另外的方式處理。
+1. **既有**表格的 <th> 文字一個字都不能改，也不能增減那張表的 <th> 數量或順序，
+   更不可以把整張表拿掉。那些欄位名稱是這套系統與它的資料庫對應的依據，
+   動了資料就接不上。使用者要的就是改欄位名稱時請不要動——那件事系統有
+   另外的方式處理。
+
+   **新增表格是可以的，而且鼓勵。** 需要新的清單、明細、後台管理頁的時候，
+   直接加一張新的 <table>，表頭自己取這個領域看得懂的名字（不要用
+   「編號／項目／負責人／期限／階段」這種通用字）。我會依你新加的表頭
+   自動建好對應的資料表，那張表一樣存得住資料。
 2. \`${MARK_OPEN}\` 與 \`${MARK_CLOSE}\` 之間的那幾行 script 標籤必須原封不動。
    那是系統的執行時與修改助理；拿掉的話使用者就再也沒有辦法修改這套系統了。
 3. 畫面（data-i）的數量不可以變少。
@@ -208,7 +234,10 @@ export async function editPage(dir, instruction, { timeoutMs = 900000, model, im
   const revert = (why) => { fs.writeFileSync(file, before); return { ok: false, why, how }; };
   fs.writeFileSync(file, after);
 
-  if (headerFingerprint(after) !== headerFingerprint(before)) return revert("這個改法會動到資料表的欄位名稱，那樣資料會接不上");
+  const gone = missingTables(before, after);
+  if (gone.length) {
+    return revert(`這個改法會讓「${gone[0].split("|").slice(0, 3).join("、")}…」那張表接不上（欄位名稱被改掉或整張表被拿掉）`);
+  }
   if (!after.includes(MARK_OPEN) || !after.includes(MARK_CLOSE)) return revert("這個改法會把修改助理拿掉，那樣你就沒辦法再改它了");
   if (screens(after) < screens(before)) return revert("這個改法會讓畫面變少");
   /* 本地腳本只允許 ./_jv/ 底下那幾支——那正是實例的執行時與修改助理，
@@ -222,7 +251,11 @@ export async function editPage(dir, instruction, { timeoutMs = 900000, model, im
   /* 過了所有護欄才記成版本。中途被退回的東西不該出現在他的版本清單上，
      那些頁面從來沒有真的存在過。 */
   const versionId = versions.record(dir, { note: note || String(instruction).slice(0, 200), action: "edit" });
-  return { ok: true, bytes: Buffer.byteLength(after), versionId, how, applied: result.applied || null };
+  /* before／after 交出去給呼叫端比對新增了哪些表格，好把資料層補上。
+     這一支刻意只碰檔案不碰資料庫——建表要連資料庫，混進來的話這裡就再也
+     不能單獨測試了。 */
+  return { ok: true, bytes: Buffer.byteLength(after), versionId, how,
+    applied: result.applied || null, before, after };
 }
 
 /**

@@ -102,6 +102,21 @@
     .m.err { align-self:flex-start; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; }
     .m.thinking { align-self:flex-start; color:#94a3b8; font-size:.78rem; }
     .m img { max-width:100%; border-radius:.45rem; display:block; }
+    /* 助理回覆裡的 Markdown。泡泡本身窄，所以表格要能自己橫捲，
+       不可以把整欄撐開。 */
+    .m p { margin:0 0 .5rem; }
+    .m p:last-child { margin-bottom:0; }
+    .m .mdul { margin:.3rem 0 .5rem; padding-left:1.1rem; list-style:disc; }
+    .m .mdul li { margin:.15rem 0; }
+    .m .mdc { background:rgba(15,23,42,.07); padding:.05rem .3rem; border-radius:.25rem;
+              font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.92em; }
+    .m .mdscroll { overflow-x:auto; margin:.4rem 0 .2rem; }
+    .m .mdt { border-collapse:collapse; font-size:.76rem; }
+    .m .mdt th { background:#f1f5f9; color:#475569; font-weight:800; text-align:left;
+                 padding:.3rem .5rem; border:1px solid #e2e8f0; white-space:nowrap; }
+    .m .mdt td { padding:.3rem .5rem; border:1px solid #e2e8f0; vertical-align:top; }
+    /* 回覆有表格時泡泡放寬——88% 塞不下三欄，字會擠成一直條。 */
+    .m.bot:has(.mdt), .m.done:has(.mdt) { max-width:100%; }
 
     /* 系統底下的那幾次對話。縮排＋左邊一條線，看得出是隸屬關係而不是同一層。 */
     /* width:100% 再加 margin-left 會比容器寬出那個 margin，側欄因此橫向溢出、
@@ -474,11 +489,70 @@
 
   var api = function (path) { return "/-/i/" + encodeURIComponent(cur.id) + path; };
 
+  /* 助理的回覆用 Markdown 排版。它在列東西的時候（有哪些資料表、每張表有哪些
+     欄位）原本會擠成一整段，使用者得自己用眼睛把逗號當分隔符去斷句——那是我們
+     該替他做的事。
+
+     只認我們自己請它輸出的那幾種語法。不引外部的 markdown 套件：為了這點語法
+     多一個 CDN 相依不划算，而且那是一個會壞的外部東西。
+
+     **先跳脫再套語法**。順序反了就是 XSS：模型的輸出會原樣進 innerHTML，
+     而那段文字有一部分來自使用者自己打的字。 */
+  function mdToHtml(md) {
+    var esc = function (t) {
+      return String(t).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; });
+    };
+    var inline = function (t) {
+      return esc(t)
+        .replace(/`([^`]+)`/g, '<code class="mdc">$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    };
+    var out = [];
+    var lines = String(md == null ? "" : md).split("\n");
+    for (var i = 0; i < lines.length; i += 1) {
+      var ln = lines[i];
+      /* 分隔列長這樣：|---|---|---|　字元類必須含 | ，否則三欄以上的表格
+         全部認不出來，而且不會報錯，只是安靜地渲染成純文字。 */
+      if (/^\s*\|/.test(ln) && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1] || "")) {
+        var cells = function (r) {
+          return r.trim().replace(/^\||\|$/g, "").split("|").map(function (c) { return c.trim(); });
+        };
+        var th = cells(ln);
+        i += 2;
+        var rows = [];
+        while (i < lines.length && /^\s*\|/.test(lines[i])) { rows.push(cells(lines[i])); i += 1; }
+        i -= 1;
+        out.push('<div class="mdscroll"><table class="mdt"><thead><tr>'
+          + th.map(function (c) { return "<th>" + inline(c) + "</th>"; }).join("")
+          + "</tr></thead><tbody>"
+          + rows.map(function (r) {
+            return "<tr>" + r.map(function (c) { return "<td>" + inline(c) + "</td>"; }).join("") + "</tr>";
+          }).join("")
+          + "</tbody></table></div>");
+        continue;
+      }
+      if (/^\s*[-*]\s+/.test(ln)) {
+        var buf = [];
+        while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+          buf.push(lines[i].replace(/^\s*[-*]\s+/, "")); i += 1;
+        }
+        i -= 1;
+        out.push("<ul class=\"mdul\">" + buf.map(function (b) { return "<li>" + inline(b) + "</li>"; }).join("") + "</ul>");
+        continue;
+      }
+      if (ln.trim()) out.push("<p>" + inline(ln) + "</p>");
+    }
+    return out.join("");
+  }
+
   function say(role, text, cls) {
     var box = $("chatBox");
     var d = document.createElement("div");
     d.className = "m " + (cls || (role === "user" ? "me" : "bot"));
-    d.textContent = text;                 // 一律 textContent：這裡放的是人與模型寫的字
+    /* 使用者自己打的字一律 textContent——他打的不是 Markdown，
+       而且那是唯一完全不需要信任判斷的做法。助理的回覆才走 Markdown。 */
+    if (role === "user") d.textContent = text;
+    else d.innerHTML = mdToHtml(text);
     box.appendChild(d);
     box.scrollTop = box.scrollHeight;
     return d;

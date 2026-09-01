@@ -21,6 +21,7 @@ import * as chat from "./lib/instance-chat.mjs";
 import * as edit from "./lib/instance-edit.mjs";
 import * as shots from "./lib/shots.mjs";
 import * as versions from "./lib/instance-versions.mjs";
+import * as grow from "./lib/instance-grow.mjs";
 
 const args = parseArgs();
 const log = makeLogger({ quiet: false });
@@ -269,7 +270,10 @@ const server = http.createServer(async (req, res) => {
       };
 
       const schema = await data.describe(dbName);
-      const d = await chat.decide(schema, message, Array.isArray(b.history) ? b.history : []);
+      /* 有沒有附圖要傳給分類器。它看不到圖，但知道「有圖」就足以把
+         「照這樣改」這種含糊的話路由到 edit_page——真正看圖做事的是
+         下一步的 codex，那一段本來就收得到圖。 */
+      const d = await chat.decide(schema, message, Array.isArray(b.history) ? b.history : [], Boolean(shotPath));
 
       try {
         if (d.action === "add_column") {
@@ -348,15 +352,36 @@ function startEdit(inst, instruction, imagePath, sessionId) {
   const startedAt = Date.now();
   editJobs.set(inst.id, { state: "running", startedAt, instruction });
   edit.editPage(inst.dir, instruction, { imagePath, displayName: inst.display_name || null })
-    .then((r) => {
+    .then(async (r) => {
+      /* 畫面加了新表格的話，資料層要跟上。沒有這一步的話，新表格在 schema 裡
+         不存在，jv-live 不會綁它——畫面上看起來多了一張表、輸入的東西卻存不住，
+         那比直接失敗更糟：使用者要用一陣子才發現，而且不會知道是哪一步的問題。
+
+         建表失敗不可以讓整次修改失敗：畫面已經改好也記了版本，
+         這一項沒做成就照實說。 */
+      let grown = "";
+      if (r.ok) {
+        try {
+          const g = await grow.growTables(inst.db_name, r.before, r.after);
+          if (g.added.length) {
+            grown = `　另外替新的${g.added.map((t) => `「${t.columns.slice(0, 3).join("、")}…」`).join("")}建好了資料表，那張表存得住東西。`;
+          }
+        } catch (e) {
+          grown = "　不過新加的那張表目前還存不住資料，我們會處理。";
+          control.recordEvent({ kind: "instance.grow_failed", customerId: inst.customer_id,
+            instanceId: inst.id, actor: null,
+            detail: { why: String(e.message).slice(0, 200) } }).catch(() => {});
+        }
+      }
+      const okMsg = `改好了，畫面重新整理就會看到。${grown}`;
       editJobs.set(inst.id, r.ok
-        ? { state: "done", at: Date.now(), reply: "改好了，畫面重新整理就會看到。" }
+        ? { state: "done", at: Date.now(), reply: okMsg }
         : { state: "failed", at: Date.now(), reply: r.why });
       /* 結果也要進對話。這件事要跑好幾分鐘，回覆是在請求早就結束之後才出現的
          ——不在這裡補記的話，對話裡就只剩「我來改」而永遠沒有下文。 */
       if (sessionId) {
         control.addMessage({ sessionId, role: "assistant",
-          text: r.ok ? "改好了，畫面重新整理就會看到。" : r.why,
+          text: r.ok ? okMsg : r.why,
           action: r.ok ? "edit_page" : "edit_failed", versionId: r.versionId || null }).catch(() => {});
       }
       /* how／applied 記下來才量得出「退回整份重寫」的比例。那個數字一直高的話，
