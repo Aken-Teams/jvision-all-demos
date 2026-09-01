@@ -42,8 +42,32 @@
     .sec-title { font-size:clamp(1.6rem,2.6vw,2.15rem); font-weight:800; color:#0f1e46; letter-spacing:-.02em; }
     .sec-lead { color:#64748b; max-width:52rem; line-height:1.8; }
 
+    /* 規格文件 */
+    .doc-tab { padding:.45rem .9rem; border-radius:.5rem; font-size:.85rem; font-weight:800;
+               color:#64748b; cursor:pointer; border:1px solid transparent; background:none; }
+    .doc-tab:hover { color:var(--accent); background:#f1f5f9; }
+    .doc-tab[aria-selected="true"] { color:#fff; background:var(--accent); }
+    .doc-body { font-size:.92rem; line-height:1.75; color:#334155; }
+    .doc-body h1 { font-size:1.4rem; font-weight:900; color:var(--ink); margin:0 0 1rem; }
+    .doc-body h2 { font-size:1.1rem; font-weight:900; color:var(--ink); margin:2rem 0 .75rem;
+                   padding-top:1rem; border-top:1px solid #e2e8f0; }
+    .doc-body h3 { font-size:.98rem; font-weight:800; color:var(--ink); margin:1.4rem 0 .5rem; }
+    .doc-body p { margin:.6rem 0; }
+    .doc-body ul { margin:.6rem 0; padding-left:1.3rem; list-style:disc; }
+    .doc-body li { margin:.25rem 0; }
+    .doc-body blockquote { margin:.8rem 0; padding:.6rem .9rem; border-left:3px solid var(--accent);
+                           background:#f8fafc; color:#475569; font-size:.88rem; }
+    .doc-body code { background:#f1f5f9; padding:.1rem .35rem; border-radius:.25rem;
+                     font-size:.85em; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+    .doc-body table { border-collapse:collapse; width:100%; margin:.8rem 0; font-size:.85rem; }
+    .doc-body th { background:#f8fafc; font-weight:800; color:#475569; text-align:left;
+                   padding:.5rem .7rem; border:1px solid #e2e8f0; white-space:nowrap; }
+    .doc-body td { padding:.5rem .7rem; border:1px solid #e2e8f0; vertical-align:top; }
+    /* 表格在窄畫面要自己捲，不可以讓整頁橫向捲動 */
+    .doc-scroll { overflow-x:auto; }
+
     /* tabs: centered, equal width, no scrollbar */
-    #tabBar { display:grid; grid-template-columns:repeat(6, 1fr); }
+    #tabBar { display:grid; grid-template-columns:repeat(7, 1fr); }
     .tab-ico, .tab-short { display:none; }  /* 桌機用完整文字；手機才切成 icon + 短標 */
     .tab-btn { position:relative; padding:15px 6px; font-weight:700; font-size:14px; color:#64748b; text-align:center; transition:color .18s; }
     .tab-btn:hover { color:var(--accent); }
@@ -743,6 +767,7 @@
               <button class="tab-btn" data-tab="flow"><span class="material-symbols-outlined tab-ico">account_tree</span><span class="tab-full">運作流程</span><span class="tab-short">流程</span></button>
               <button class="tab-btn" data-tab="benefits"><span class="material-symbols-outlined tab-ico">trending_up</span><span class="tab-full">帶來效益</span><span class="tab-short">效益</span></button>
               <button class="tab-btn" data-tab="demo"><span class="material-symbols-outlined tab-ico">play_circle</span><span class="tab-full">Demo</span><span class="tab-short">Demo</span></button>
+              <button class="tab-btn" data-tab="docs"><span class="material-symbols-outlined tab-ico">menu_book</span><span class="tab-full">規格文件</span><span class="tab-short">文件</span></button>
             </div>
           </div>
         </div>
@@ -854,6 +879,25 @@
             <div class="rounded-2xl border border-line overflow-hidden bg-white shadow-sm">
               <div class="h-9 bg-soft border-b border-line flex items-center gap-1.5 px-4"><span class="w-2.5 h-2.5 rounded-full bg-[#ff5f57]"></span><span class="w-2.5 h-2.5 rounded-full bg-[#febc2e]"></span><span class="w-2.5 h-2.5 rounded-full bg-[#28c840]"></span></div>
               <iframe id="demoFrame" title="${esc(title)} Demo" class="w-full" style="height:72vh;border:0;" loading="lazy" data-src="${esc(D.demoUrl || "")}"></iframe>
+            </div>
+          </section>
+
+          <!-- ===== 規格文件 PRD / SDD / TDD ===== -->
+          <section class="tab-panel" data-panel="docs">
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-5">
+              <div>
+                <h2 class="sec-title mb-1">規格文件</h2>
+                <p class="text-muted text-sm">依這套系統的規格即時產生，內容永遠跟著規格走。可線上閱覽，也可以下載 Markdown。</p>
+              </div>
+              <button id="docDl" type="button" class="inline-flex items-center gap-2 h-11 px-5 rounded-xl text-white font-bold shrink-0" style="background:var(--accent);">
+                下載 .md <span class="material-symbols-outlined text-[18px]">download</span>
+              </button>
+            </div>
+            <div id="docTabs" class="flex flex-wrap gap-2 mb-5"></div>
+            <div class="rounded-2xl border border-line bg-white shadow-sm p-5 md:p-8">
+              <div id="docBody" class="doc-body">
+                <p class="text-muted text-sm">載入中…</p>
+              </div>
             </div>
           </section>
         </div>
@@ -1020,7 +1064,112 @@
         if (name === "benefits") { renderBenefitCharts(); requestAnimationFrame(() => charts.forEach((c) => c.resize())); }
         if (name === "demo") { const f = document.getElementById("demoFrame"); if (f && !f.src && f.dataset.src) f.src = f.dataset.src; }
         if (name === "flow") { requestAnimationFrame(scaleFlowEmbed); }
+        if (name === "docs") initDocs();
         requestAnimationFrame(scaleHeroEmbed);
+      }
+
+      /* ---- 規格文件 PRD / SDD / TDD ----
+         文件不預先存成檔案：1,978 套 × 3 份約 90MB，而內容 100% 從 details 與
+         schema 推導得出來。存成檔案只會多一份會跟規格脫節的副本——改了欄位名
+         之後那份就開始說謊，而且沒有人會發現。 */
+      let docsReady = null;
+      function initDocs() {
+        if (docsReady) return;
+        docsReady = (async () => {
+          const body = document.getElementById("docBody");
+          const tabsEl = document.getElementById("docTabs");
+          try {
+            const [mod, schema] = await Promise.all([
+              import("./shared/jv-spec-docs.mjs"),
+              fetch(`./content/schema/${project.repoName}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+            ]);
+            /* schema 讀不到就少一節資料模型，其餘照常產出——一份少一節的文件
+               遠比一句「載入失敗」有用。 */
+            /* D 是正規化過的顯示模型，repoName／category／title 在 project 上，
+               不在 D 裡。直接餵 D 的話文件表頭會有兩格是空的——而且不會報錯，
+               只是安靜地少了兩個值。 */
+            const src = { ...D, repoName: project.repoName, category: project.category,
+              title: D.title || project.title };
+            const built = mod.DOCS.map((d) => ({ ...d, md: d.build(src, schema) }));
+            let cur = built[0];
+
+            tabsEl.innerHTML = "";
+            built.forEach((d) => {
+              const b = document.createElement("button");
+              b.type = "button";
+              b.className = "doc-tab";
+              b.setAttribute("aria-selected", d === cur ? "true" : "false");
+              b.innerHTML = `<span class="material-symbols-outlined text-[16px] align-[-3px] mr-1">${d.icon}</span>${d.name}　<span class="font-medium opacity-70">${d.full}</span>`;
+              b.addEventListener("click", () => { cur = d; show(); });
+              tabsEl.appendChild(b);
+            });
+
+            function show() {
+              [...tabsEl.children].forEach((b, i) => b.setAttribute("aria-selected", built[i] === cur ? "true" : "false"));
+              body.innerHTML = mdToHtml(cur.md);
+            }
+            document.getElementById("docDl").addEventListener("click", () => {
+              const blob = new Blob([cur.md], { type: "text/markdown;charset=utf-8" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `${project.repoName}-${cur.name}.md`;
+              a.click();
+              setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            });
+            show();
+          } catch (e) {
+            body.innerHTML = '<p class="text-sm" style="color:#b91c1c">文件產生失敗，請重新整理再試。</p>';
+          }
+        })();
+      }
+
+      /* 只認我們自己輸出的那幾種語法（標題、表格、清單、引言、行內程式碼、粗體）。
+         不引外部的 markdown 函式庫：輸出格式是我們自己控制的，為了這點語法
+         再載一個 CDN 套件不划算，而且那會多一個會壞的外部相依。 */
+      function mdToHtml(md) {
+        const esc2 = (t) => t.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+        const inline = (t) => esc2(t)
+          .replace(/`([^`]+)`/g, "<code>$1</code>")
+          .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+        const out = [];
+        const lines = md.split("\n");
+        for (let i = 0; i < lines.length; i += 1) {
+          const ln = lines[i];
+          /* 分隔列長這樣：|---|---|---|　字元類必須含 | ，否則三欄以上的表格
+             全部認不出來（實測整份文件一張表都沒渲染出來，而且不會報錯）。 */
+          if (/^\|/.test(ln) && /^\|[\s:|-]+\|$/.test(lines[i + 1] || "")) {
+            const cells = (r) => r.replace(/^\||\|$/g, "").split("|").map((c) => c.trim().replace(/\\\|/g, "|"));
+            const th = cells(ln);
+            i += 2;
+            const rows = [];
+            while (i < lines.length && /^\|/.test(lines[i])) { rows.push(cells(lines[i])); i += 1; }
+            i -= 1;
+            out.push('<div class="doc-scroll"><table><thead><tr>'
+              + th.map((c) => `<th>${inline(c)}</th>`).join("")
+              + "</tr></thead><tbody>"
+              + rows.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`).join("")
+              + "</tbody></table></div>");
+            continue;
+          }
+          const h = ln.match(/^(#{1,3})\s+(.*)$/);
+          if (h) { out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`); continue; }
+          if (/^>\s?/.test(ln)) {
+            const buf = [];
+            while (i < lines.length && /^>\s?/.test(lines[i])) { buf.push(lines[i].replace(/^>\s?/, "")); i += 1; }
+            i -= 1;
+            out.push(`<blockquote>${inline(buf.join(" "))}</blockquote>`);
+            continue;
+          }
+          if (/^-\s+/.test(ln)) {
+            const buf = [];
+            while (i < lines.length && /^-\s+/.test(lines[i])) { buf.push(lines[i].replace(/^-\s+/, "")); i += 1; }
+            i -= 1;
+            out.push(`<ul>${buf.map((b) => `<li>${inline(b)}</li>`).join("")}</ul>`);
+            continue;
+          }
+          if (ln.trim()) out.push(`<p>${inline(ln)}</p>`);
+        }
+        return out.join("");
       }
       /* 手機：分頁列固定在底部，點了就把畫面捲到內容開頭（第一屏留給 hero）
          桌機：維持原本行為，只在已捲過分頁列時把它釘回頂端 */
