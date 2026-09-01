@@ -60,9 +60,13 @@ commit_demo() {
   if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
     echo "  ⚠ 目前在 $branch，依規定不直接提交"; return 0
   fi
-  local paths=("demos/$repo" "content/details/$repo.json" projects-index.json
+  # content/schema 與 agents.js / jv-mobile-nav.js 原本不在清單裡：
+  # schema 沒被提交的話，那一套在別台機器上就不能被「模板複製」；
+  # 那兩個前端檔是 sync-catalog-counts 會改的，漏掉會讓數字在版控裡永遠過期。
+  local paths=("demos/$repo" "content/details/$repo.json" "content/schema/$repo.json"
+               projects-index.json content/catalog-index.json
                docs/DEMO_FORGE_MANIFEST.json content/import-timeline.json
-               index.html catalog.html agents.html)
+               index.html catalog.html agents.html agents.js shared/jv-mobile-nav.js)
   local exist=()
   for p in "${paths[@]}"; do [ -e "$p" ] && exist+=("$p"); done
   [ ${#exist[@]} -eq 0 ] && return 0
@@ -278,6 +282,36 @@ fs.writeFileSync(p,JSON.stringify(m,null,2)+"\n");'
   node tools/demo-publish.mjs --repo="$REPO" >> "$LOG" 2>&1
   node tools/sync-catalog-counts.mjs > /dev/null 2>&1
   node tools/build-import-timeline.mjs > /dev/null 2>&1
+
+  # ── 讓新上架的那一套「完整」───────────────────────────
+  # 上架本身不會產生資料表定義，也不會換視覺風格，所以每生成一套，
+  # 站上的 schema 覆蓋率與換裝覆蓋率就各退一步。先前那兩個 100% 是人工補出來的，
+  # 不是產線自己維持的——實測生成 23 套之後 schema 就掉到 99%、未換裝 24 套。
+  #
+  # 兩支都不可以讓迴圈停下來：demo 已經上架了，補不補得成是另一回事，
+  # 失敗就留給之後的批次補，絕不能因此不做下一套。
+  # schema-scan 沒有單套過濾（它一律全掃），但昂貴的那半是增量的：
+  # 只有 keymap 裡還沒有的欄位名稱才會送 codex 命名，新的一套通常只有幾個。
+  # 實測 keymap 暖的時候全掃 1973 套要 30 秒，這個成本可以接受。
+  # schema-apply 吃的是 --repo（單數），只寫這一套。
+  say "補資料表定義《$TITLE》"
+  if node tools/schema-scan.mjs >> "$LOG" 2>&1 \
+     && node tools/schema-apply.mjs --repo="$REPO" >> "$LOG" 2>&1; then
+    [ -f "content/schema/$REPO.json" ] && echo "  ✓ 已可被模板複製" || echo "  ⚠ 沒產出 schema，之後批次補"
+  else
+    echo "  ⚠ schema 補不成，之後批次補（見 $LOG）"
+    act "schema 失敗" "$REPO" 500 "《$TITLE》"
+  fi
+
+  # 換裝一套約三到五分鐘，跟生成本身同量級。單線跑，不要和生成搶 codex——
+  # 併發下 codex 的 bubblewrap 會開不出 user namespace，兩邊一起失敗。
+  say "換裝《$TITLE》"
+  if node tools/restyle-demos.mjs --repos="$REPO" --workers=1 --timeout=600 >> "$LOG" 2>&1; then
+    echo "  ✓ 已換上專屬風格"
+  else
+    echo "  ⚠ 換裝沒過，原檔已還原，之後批次補（見 $LOG）"
+    act "換裝失敗" "$REPO" 500 "《$TITLE》"
+  fi
 
   dequeue
   bump_today

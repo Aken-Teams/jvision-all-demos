@@ -37,6 +37,23 @@ export function staticGate(repoName) {
   if (localScripts.length) issues.push(`引用本地腳本：${localScripts.join(", ")}`);
   if (GLOBAL_CLASH.test(html)) issues.push("宣告了會與瀏覽器全域衝突的識別字");
 
+  /* 表頭不可以是樣板佔位。detail-template 給的 records.columns 是
+     編號／項目／負責人／期限／階段，模型被要求「照規格做」時會忠實照抄，
+     結果是一套《開挖支撐巡查交班台》的表格長得跟通用待辦清單一模一樣。
+
+     這件事比看起來嚴重：客戶按「模板複製」買走的就是畫面上那張表，
+     而實例的 runtime 也是靠 <th> 的文字認表的——欄名沒有領域意義，
+     等於整套系統的資料層沒有意義。實測全站有 243 套（12%）中這個。 */
+  const GENERIC_HEADERS = ["編號", "項目", "負責人", "期限", "階段"];
+  for (const t of html.match(/<table[\s\S]*?<\/table>/gi) || []) {
+    const th = (t.match(/<th\b[^>]*>([\s\S]*?)<\/th>/gi) || [])
+      .map((x) => x.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim());
+    if (GENERIC_HEADERS.every((g) => th.includes(g))) {
+      issues.push(`表頭是樣板佔位（${GENERIC_HEADERS.join("、")}），要換成這個領域真正的欄位名`);
+      break;
+    }
+  }
+
   const lib = /echarts/.test(html) ? "echarts" : /new Chart\(/.test(html) ? "chartjs" : /ApexCharts/.test(html) ? "apexcharts" : null;
   if (!lib) issues.push("找不到任何圖表庫");
 
