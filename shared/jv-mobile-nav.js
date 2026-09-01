@@ -9,7 +9,7 @@
 
   var ROWS = [
     { href: "./catalog.html", match: "catalog", icon: "apps", color: "text-brand2",
-      title: "專案目錄", sub: "1978 個系統 · 29 個產業分類" },
+      title: "專案目錄", sub: "1979 個系統 · 29 個產業分類" },
     { href: "./agents.html", match: "agents", icon: "smart_toy", color: "text-emerald-600",
       title: "專案 Agents", sub: "AI 專案團隊成員" },
     { href: "./wish.html", match: "wish", icon: "auto_awesome", color: "", style: "color:#7c3aed",
