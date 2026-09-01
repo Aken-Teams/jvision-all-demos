@@ -99,12 +99,12 @@ ${desc ? `它做的事：${desc}\n` : ""}
 畫面上有一張表格，但欄位名稱是通用樣板，跟這套系統一點關係都沒有：
 
 ${t.headers.join(" | ")}
-${t.rows.map((r) => r.join(" | ")).join("\n")}
+${t.rows.length ? t.rows.map((r) => r.join(" | ")).join("\n") : "（這張表的資料是程式跑出來的，原始碼裡沒有列）"}
 
-請把它換成**這個領域的人真的會用的欄位**，並把每一列的資料換成對應的真實內容。
+請把它換成**這個領域的人真的會用的欄位**${t.rows.length ? "，並把每一列的資料換成對應的真實內容" : ""}。
 
 規則：
-- 欄位數量必須剛好 ${t.headers.length} 個，列數必須剛好 ${t.rows.length} 列。
+- 欄位數量必須剛好 ${t.headers.length} 個${t.rows.length ? `，列數必須剛好 ${t.rows.length} 列` : "。rows 請回空陣列 []——這張表的內容是程式產生的，不要自己編"}.
 - 欄位名稱要讓這一行的人一看就知道是什麼。不可以再出現
   「編號、項目、負責人、期限、階段」這一整組。
 - 最後一欄原本是狀態標籤（處理中／待確認／已完成），請維持「狀態類」的欄位，
@@ -142,7 +142,12 @@ async function fixOne(p) {
   const changes = [];
   for (const block of targets) {
     const t = readTable(block);
-    if (!t.headers.length || !t.rows.length) continue;
+    /* 只有「連表頭都讀不到」才跳過。原本連「沒有資料列」也一起跳過，
+       但那種表的列是 JS 畫出來的，靜態原始碼裡本來就只有 <thead>——
+       而那正是 jv-live 綁得最緊的一種表。實測 669 套判成功的裡面有 274 套
+       其實還留著樣板表頭，就是這樣來的：同一套只要有另一張表換成功，
+       after !== before 就算成功，沒換的那張靜靜地留在原地。 */
+    if (!t.headers.length) continue;
     const r = await runCodexWithRetry({
       prompt: prompt(p.title, p.description || p.summary, p.category, t),
       cwd: ROOT, sandbox: "read-only", schemaPath: SCHEMA,
@@ -153,8 +158,9 @@ async function fixOne(p) {
     if (!j || !Array.isArray(j.headers) || !Array.isArray(j.rows)) return { repo: p.repoName, ok: false, why: "回的格式不對" };
     if (j.headers.length !== t.headers.length) return { repo: p.repoName, ok: false, why: `欄位數不符（要 ${t.headers.length} 給 ${j.headers.length}）` };
     if (GENERIC.every((g) => j.headers.includes(g))) return { repo: p.repoName, ok: false, why: "換出來的還是那組樣板欄位" };
-    const rows = j.rows.filter((x) => Array.isArray(x) && x.length === t.headers.length).slice(0, t.rows.length);
-    if (rows.length !== t.rows.length) return { repo: p.repoName, ok: false, why: `列數不符（要 ${t.rows.length} 給 ${rows.length}）` };
+    const rows = (j.rows || []).filter((x) => Array.isArray(x) && x.length === t.headers.length).slice(0, t.rows.length);
+    /* 原本沒有列的表不檢查列數——它本來就只有表頭。 */
+    if (t.rows.length && rows.length !== t.rows.length) return { repo: p.repoName, ok: false, why: `列數不符（要 ${t.rows.length} 給 ${rows.length}）` };
     changes.push({ from: t.headers.join("、"), to: j.headers.join("、") });
     after = after.replace(block, writeTable(block, j.headers, rows));
   }
