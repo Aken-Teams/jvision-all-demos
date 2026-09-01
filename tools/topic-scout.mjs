@@ -344,6 +344,38 @@ if (args["dry-run"]) {
   process.exit(EXIT.OK);
 }
 
+/**
+ * 每一輪結束就把成果落檔，不要等六輪都跑完。
+ *
+ * 之前是最後才 writeJson 一次，所以第 5 輪掛掉的話，前面四輪辛苦問來的題目
+ * 全部一起蒸發——而 codex 逾時、回應解析不了都是真的會發生的事（上一次就是
+ * 這樣整批沒了）。落了檔至少下一次能接著用。
+ *
+ * 合併規則是「只追加，不覆蓋」：以磁碟上現有的 accepted 為底，只補上這支
+ * 還沒寫過的 slug。agent-loop 取題是 `accepted.shift()` 之後把檔案寫回去，
+ * 直接用整個 accepted 覆蓋的話，已經做掉的題目會被重新塞回佇列，
+ * 於是同一套 demo 被做第二次——而那不會報錯，只會多出一份重複的東西。
+ */
+const flushed = new Set();
+function flush() {
+  let disk = {};
+  try { disk = JSON.parse(fs.readFileSync(OUT, "utf8")); } catch { disk = {}; }
+  const kept = Array.isArray(disk.accepted) ? disk.accepted : [];
+  const fresh = accepted.filter((a) => !flushed.has(a.slug));
+  for (const a of fresh) flushed.add(a.slug);
+
+  writeJson(OUT, {
+    generatedAt: new Date().toISOString(),
+    config: { count: COUNT, pool: POOL, rounds: ROUNDS },
+    catalogSize: catalog.projects.length,
+    coverage: Object.fromEntries(rows.map((r) => [r.type, r.count])),
+    stats: { generated, accepted: accepted.length, rejected: rejected.length },
+    accepted: kept.concat(fresh),
+    rejected,
+  });
+  return fresh.length;
+}
+
 /** schema 之外自己再驗一次；單筆不合格丟該筆，不整批中止。 */
 function validate(topic) {
   const errors = [];
@@ -399,20 +431,13 @@ for (let round = 1; round <= ROUNDS && accepted.length < COUNT; round += 1) {
     existingIndex.push(buildExistingIndex([item], () => item.systemType)[0]);
   }
   rejected.push(...screened.rejected.map((r) => ({ ...r, round })));
+  const wrote = flush();
   log.info(`  本輪 ${topics.length} 題 → 通過 ${screened.accepted.length}、重複/不合格 ${topics.length - screened.accepted.length}`);
+  if (wrote) log.info(`  已落檔 ${wrote} 題，佇列可以先開始做`);
 }
 
 /* ── 4. 輸出 ─────────────────────────────────────────────── */
-const output = {
-  generatedAt: new Date().toISOString(),
-  config: { count: COUNT, pool: POOL, rounds: ROUNDS },
-  catalogSize: catalog.projects.length,
-  coverage: Object.fromEntries(rows.map((r) => [r.type, r.count])),
-  stats: { generated, accepted: accepted.length, rejected: rejected.length },
-  accepted,
-  rejected,
-};
-writeJson(OUT, output);
+flush();
 
 const md = [
   `# 題目候選（${new Date().toISOString().slice(0, 10)}）`, "",
