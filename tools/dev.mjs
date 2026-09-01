@@ -608,7 +608,7 @@ function startGateway() {
     }
 
     {
-      const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/(share|deliver|pr)$/.exec(p);
+      const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/(share|deliver|pr|vercel)$/.exec(p);
       if (m && req.method === "POST") {
         const [, instanceId, what] = m;
         const id = visitor.read(req);
@@ -627,6 +627,18 @@ function startGateway() {
             await control.recordEvent({ kind: "instance.shared", customerId: inst.customer_id,
               instanceId: inst.id, actor: id.email, detail: { to: String(email || "").slice(0, 190) } });
             return json(res, 200, { members, link: `/-/i/${inst.id}/` });
+          }
+
+          /* 部署到 Vercel：一個公開網址就能給人看，不必客戶自己架東西。
+             跑的是複製出來的資料庫，所以公開版碰不到他真正的資料。 */
+          if (what === "vercel") {
+            const out = execFileSync(process.execPath,
+              [path.join(root, "tools", "instance-deploy-vercel.mjs"), `--instance=${inst.id}`],
+              { cwd: root, encoding: "utf8", timeout: 900000 });
+            const url = (String(out).match(/https:\/\/[^\s]+\.vercel\.app/g) || []).pop() || null;
+            actions.record({ actor: id.email, action: "把自己的系統部署到 Vercel",
+              target: inst.repo_name, status: 200, visitor: who });
+            return json(res, 200, { ok: true, url });
           }
 
           /* 交付與 PR 都要跑 git 與 GitHub API，幾十秒到一兩分鐘。
