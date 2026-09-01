@@ -18,7 +18,7 @@
  * 實例的 runtime 是靠 <th> 的文字認表的。已經有客戶複製過的模板改了表頭，
  * 他手上那套就接不上——那是我們單方面把他的系統弄壞。
  *
- *   node tools/fix-generic-headers.mjs [--limit=N] [--workers=4] [--dry-run] [--resume]
+ *   node tools/fix-generic-headers.mjs [--limit=N] [--workers=4] [--dry-run] [--resume] [--retry-failed]
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -206,10 +206,21 @@ for (const p of catalog.projects) {
 
 const prev = loadState();
 if (args.resume && prev) {
-  const seen = new Set([...prev.done.map((d) => d.repo), ...prev.failed.map((f) => f.repo)]);
+  /* --retry-failed：只把失敗的那些再跑一次，成功的一律不碰。
+     失敗多半是模型少給了幾列（護欄擋下來，檔案沒被動過），重問一次通常就過。
+     不另外開一支腳本、也不手改 state 檔——手改的話很容易把 done 一起清掉，
+     那就會拿七百套已經改好的再跑一次。 */
+  const RETRY = Boolean(args["retry-failed"]);
+  const seen = new Set(RETRY
+    ? prev.done.map((d) => d.repo)
+    : [...prev.done.map((d) => d.repo), ...prev.failed.map((f) => f.repo)]);
   queue = queue.filter((p) => !seen.has(p.repoName));
-  state = { ...prev, resumedAt: new Date().toISOString() };
-  log.info(`  續跑：已處理 ${seen.size} 套，剩 ${queue.length} 套`);
+  /* 重試時把舊的失敗紀錄清掉，不然這一輪成功了，檔案裡還留著上一輪的失敗，
+     看起來像是同一套又成功又失敗。 */
+  state = { ...prev, failed: RETRY ? [] : prev.failed, resumedAt: new Date().toISOString() };
+  log.info(RETRY
+    ? `  重試：${prev.failed.length} 套失敗的重跑，已成功的 ${seen.size} 套不動`
+    : `  續跑：已處理 ${seen.size} 套，剩 ${queue.length} 套`);
 } else {
   state = { startedAt: new Date().toISOString(), total: queue.length, done: [], failed: [] };
 }
