@@ -80,27 +80,20 @@ const OPEN_PATHS = new Set(["/welcome", "/welcome.html", "/login-preview", "/log
   /* 入口頁登入前要顯示站上總數，只開這一個彙總檔——裡面沒有任何單一專案的完整內容 */
   "/content/recent-projects.json"]);
 
-/* 匿名訪客看得到的東西：目錄、專案詳細頁、demo 本身，以及畫面需要的那幾份資料。
-   用白名單而不是把預設改成放行——預設放行的話，日後新增一個頁面就會自動變公開，
-   而那種疏漏不會有人發現。
+/* 匿名瀏覽已關閉：進站一律要用 Google 帳號登入。
+   原本有一份 BROWSE 白名單（首頁、目錄、專案頁、demo、catalog-index.json…），
+   讓沒登入的人也看得到型錄；現在整份移除。
 
-   完整目錄索引（catalog-index.json）也開了。它 1.4MB，開放等於讓爬蟲抓得走，
-   但不開的話目錄頁在匿名狀態下根本畫不出來，「可以瀏覽」就沒有意義。
-   擋爬蟲交給既有的 rate-guard 與 Cloudflare，不靠登入閘門。
-   schema 與完整的 projects-index 仍然要登入——那是規格層，瀏覽用不到。 */
-const BROWSE = [
-  /^\/(index)?$/,                                   // 首頁
-  /^\/(index|catalog|project|agents)(\.html)?$/,     // 目錄、詳細頁、Agents
-  /^\/agents-[a-z-]+(\.html)?$/,                    // Agents 的子頁
-  /^\/demos\//,                                     // demo 本身
-  /^\/content\/catalog-index\.json$/,
-  /^\/content\/details\/[a-z0-9-]+\.json$/,
-  /^\/api\/catalog\/stats$/,                        // 排序用的統計，沒有專案內容
-];
+   還開著的只剩「登入本身需要的東西」，就是下面 needsGate 的四個例外：
+   入口頁與它要用的那幾個檔、身分 API、後台（走自己的 jv_admin）、靜態資源。
+   少了任何一項，入口頁自己就畫不出來或送不出去，結果是誰都進不來——
+   關閉匿名瀏覽最容易踩的就是這個。
+
+   代價：搜尋引擎爬不到型錄了。首頁 <title> 那句「N 個 AI 產業系統」
+   之後只有登入過的人看得到，爬蟲看到的是入口頁。 */
 
 export function needsGate(pathname) {
-  if (OPEN_PATHS.has(pathname)) return false;
-  if (BROWSE.some((re) => re.test(pathname))) return false;
+  if (OPEN_PATHS.has(pathname)) return false;              // 入口頁與它要用的那幾個檔
   if (pathname.startsWith("/api/")) return false;          // API 各自有自己的權限判斷
   if (pathname.startsWith("/admin")) return false;         // 後台走 jv_admin，不經進站閘門
   if (ASSET.test(pathname)) return false;
