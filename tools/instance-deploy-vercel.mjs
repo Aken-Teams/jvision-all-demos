@@ -26,6 +26,7 @@ import { ROOT, EXIT, parseArgs, makeLogger } from "./lib/forge-common.mjs";
 import * as control from "./lib/control-db.mjs";
 import { q, ident, createDatabase, close } from "./lib/mysql.mjs";
 import { describe } from "./lib/instance-db.mjs";
+import * as nextBundle from "./lib/nextjs-bundle.mjs";
 
 const args = parseArgs();
 const log = makeLogger({ quiet: Boolean(args.quiet) });
@@ -57,75 +58,14 @@ async function mirrorDatabase(from, to) {
 }
 
 /* ── 部署包 ────────────────────────────────────────────
-   public/ 由 Vercel 的 CDN 直接送；資料 API 走一支 serverless function。
-   路由用 vercel.json 的 rewrites 明確帶參數，不靠函式去猜原本的路徑——
-   rewrite 之後 req.url 已經是改寫後的樣子，猜的那條路很容易靜靜地錯。 */
-const VERCEL_JSON = {
-  rewrites: [
-    { source: "/_jv/schema", destination: "/api/data?schema=1" },
-    { source: "/api/t/:table", destination: "/api/data?table=:table" },
-    { source: "/api/t/:table/:id", destination: "/api/data?table=:table&id=:id" },
-  ],
-};
+   產出是一個真正的 Next.js 專案：版面走 App Router，資料 API 是
+   app/api/t/[table] 這種真的路由，不再用 vercel.json 的 rewrite 把三條路徑
+   擠進同一支函式再從 query 猜參數。Vercel 認得出 framework，客戶把 repo
+   clone 下來也能直接 npm run dev。
 
-const PKG = {
-  name: "jv-instance",
-  private: true,
-  type: "module",
-  dependencies: { mysql2: "^3.11.0" },
-};
-
-const API = `/**
- * 這套系統的資料 API。三個路徑都被 vercel.json 導到這裡，參數走 query，
- * 不從 req.url 猜——rewrite 之後那個值已經是改寫後的樣子。
- *
- * 連線資訊全部走環境變數，程式碼裡沒有任何密碼。
- */
-import * as data from "../lib/instance-db.mjs";
-
-const DB = process.env.MYSQL_DB;
-
-export default async function handler(req, res) {
-  const send = (code, body) => {
-    res.setHeader("content-type", "application/json; charset=utf-8");
-    res.setHeader("cache-control", "no-store");
-    res.status(code).send(JSON.stringify(body));
-  };
-  try {
-    const { schema, table, id } = req.query || {};
-    if (schema) return send(200, await data.describe(DB));
-    if (!table || !/^[a-z][a-z0-9_]*$/.test(String(table))) return send(400, { error: "表名不正確" });
-
-    /* 公開網址沒有登入，所以記不到是誰做的。寫成 public 而不是留空——
-       日後看稽核表時，「這筆是從公開版來的」本身就是有用的資訊。 */
-    const actor = "public";
-
-    if (req.method === "GET" && !id) {
-      return send(200, await data.list(DB, String(table), {
-        limit: req.query.limit || 50, offset: req.query.offset || 0, q: req.query.q || "",
-      }));
-    }
-    if (req.method === "POST" && !id) {
-      return send(201, { row: await data.create(DB, String(table), req.body || {}, actor) });
-    }
-    if (req.method === "PATCH" && id) {
-      const { rev, ...values } = req.body || {};
-      if (rev == null) return send(400, { error: "缺少 rev（用來偵測同時編輯）" });
-      const r = await data.update(DB, String(table), Number(id), values, rev, actor);
-      if (!r.ok && r.reason === "conflict") return send(409, { error: "這筆資料已被其他人修改，請重新載入", current: r.current });
-      if (!r.ok) return send(400, { error: r.reason });
-      return send(200, { row: r.row });
-    }
-    if (req.method === "DELETE" && id) {
-      const ok = await data.remove(DB, String(table), Number(id), actor);
-      return send(ok ? 200 : 404, { ok });
-    }
-    return send(405, { error: "不支援這個方法" });
-  } catch (error) {
-    return send(error.status || 500, { error: error.message || "伺服器錯誤" });
-  }
-}
-`;
+   來源仍然是那一份單檔 index.html——它是整條產線的共同語言（codex 改它、
+   版本存它、static-gate 驗它、jv-live 靠它的 <th> 綁資料）。Next.js 是
+   部署時的產出，不是新的來源，這樣要改的地方只有一個。 */
 
 function readme(inst, url) {
   return `# ${inst.display_name || inst.repo_name}
@@ -170,7 +110,7 @@ log.step(`部署 ${inst.repo_name}　專案 ${project}　公開資料庫 ${pubDb
 if (DRY) {
   const s = await describe(inst.db_name);
   log.info(`  將複製 ${s.tables.length} 張資料表到 ${pubDb}`);
-  log.info(`  將上傳 public/ 與一支資料 API`);
+  log.info("  將產生一個 Next.js 專案（App Router；資料 API 是 /api/t/[table] 真路由）並上傳");
   await close();
   process.exit(EXIT.OK);
 }
@@ -182,16 +122,17 @@ log.step(`資料庫已複製（${copied} 張表）`);
    uploads/ 與 versions/ 那些東西也會跟著上傳。 */
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "jv-vercel-"));
 try {
-  fs.cpSync(path.join(inst.dir, "public"), path.join(tmp, "public"), { recursive: true });
-  fs.mkdirSync(path.join(tmp, "api"), { recursive: true });
-  fs.mkdirSync(path.join(tmp, "lib"), { recursive: true });
-  fs.writeFileSync(path.join(tmp, "api", "data.mjs"), API);
-  fs.copyFileSync(path.join(ROOT, "tools", "templates", "deliver", "db.mjs"), path.join(tmp, "lib", "mysql.mjs"));
-  fs.copyFileSync(path.join(ROOT, "tools", "lib", "instance-db.mjs"), path.join(tmp, "lib", "instance-db.mjs"));
-  /* instance-db 匯入的是 ./mysql.mjs，交付樣板的 db.mjs 就是那一份的對應物。 */
-  fs.writeFileSync(path.join(tmp, "vercel.json"), JSON.stringify(VERCEL_JSON, null, 2));
-  fs.writeFileSync(path.join(tmp, "package.json"), JSON.stringify(PKG, null, 2));
+  const built = nextBundle.build(path.join(inst.dir, "public"), tmp, {
+    sharedDir: path.join(ROOT, "shared"),
+    libFiles: [
+      /* instance-db 匯入的是 ./mysql.mjs，交付樣板的 db.mjs 就是那一份的對應物。 */
+      { name: "mysql.mjs", from: path.join(ROOT, "tools", "templates", "deliver", "db.mjs") },
+      { name: "instance-db.mjs", from: path.join(ROOT, "tools", "lib", "instance-db.mjs") },
+    ],
+  });
   fs.writeFileSync(path.join(tmp, "README.md"), readme(inst, null));
+  log.info(`  Next.js 專案已組好：${built.scripts} 支 script、`
+    + `版面 JS ${(built.inlineBytes / 1024).toFixed(1)}KB、樣式 ${(built.styleBytes / 1024).toFixed(1)}KB`);
 
   /* 每個 execFileSync 都要 encoding:"utf8"。少了它，失敗時 error.stdout／stderr
      是 Buffer，印出來是一整片位元組陣列——實測第一次跑就撞到，真正的訊息
