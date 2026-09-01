@@ -3,172 +3,369 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>前導動畫預覽|JVision</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;700&display=swap">
+<title>登入頁預覽|JVision</title>
+<link rel="icon" href="./favicon.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 <style>
-  /* 紙雕書前導(預覽版):所有圖層排在固定 1600x900 的「紙雕板」上,
-     整塊板等比縮放置中——任何螢幕比例構圖都一致,零件不會散架。
-     地面線 y=745:神殿柱腳、雕像座、每個人物與機器的腳全部釘在這條線上。 */
-  :root { --ivory:#f6f1e7; --taupe:#8a7e6a; --ink:#3f3a30; }
-  * { box-sizing: border-box; margin: 0; }
-  html, body { height: 100%; }
-  body { background: linear-gradient(180deg, #faf7f0 0%, var(--ivory) 55%, #eee5d5 100%);
-    font-family: "Noto Serif TC", serif; color: var(--ink); overflow: hidden; }
+/* ─────────────────────────────────────────────────────────────
+   登入頁：人手 ↔ 機械手，中間一顆黑圓承載文案與登入。
 
-  .board-wrap { position: fixed; left: 50%; top: 50%; width: 1600px; height: 900px;
-    transform: translate(-50%, -50%) scale(var(--s, 1)); transform-origin: center; }
-  .board { position: absolute; inset: 0; }
+   對位的關鍵：left.png 與 right.png 是同一張 2884×1440 畫布切出來的兩層，
+   所以兩張只要用同一組座標鋪滿同一個容器，就會自動回到原構圖，不需要各自
+   微調位置。手動擺位反而會錯開——這也是為什麼下面兩隻手共用 .canvas。
 
-  .layer { position: absolute; opacity: 0; pointer-events: none;
-    transition: opacity 1.1s ease, transform 1.25s cubic-bezier(.25,.7,.25,1); will-change: transform, opacity; }
-  .layer img { display: block; width: 100%; height: auto; }
+   量出來的實際座標（PNG alpha 邊界，非目測）：
+     左手指尖  46.81% × 51.94%
+     右手指尖  55.69% × 60.97%
+     縫隙中點  51.25% × 56.46%   ← 黑圓對這個點，不是畫面正中
+   兩隻手的指尖不同高（差 9% 畫布高），所以「正中」放圓會偏，看起來像沒對齊。
+   ───────────────────────────────────────────────────────────── */
 
-  /* ---- 幾何(板上絕對座標;left/top 定位左上角) ---- */
-  .floor     { left: 225px; top: 700px; width: 1150px; }              /* 表面線 ≈ y745 */
-  .colonnade { left: 500px; top: 436px; width: 600px; opacity: 0; }   /* 高 ≈302,底 738 */
-  .temple    { left: 390px; top: 188px; width: 820px; }               /* 高 ≈557,柱腳 745 */
-  .laurel    { left: 560px; top: 775px; width: 480px; }
-  .statue-rough { left: 678px; top: 445px; width: 244px; }            /* 高 ≈300,底 745 */
-  .statue-fine  { left: 682px; top: 435px; width: 236px; }            /* 高 ≈310,底 745 */
-  .human-a   { left: 420px; top: 518px; width: 162px; }               /* 高 ≈230,腳 748 */
-  .human-b   { left: 905px; top: 578px; width: 211px; }               /* 跪姿 高 ≈170 */
-  .human-c   { left: 1075px; top: 532px; width: 173px; }              /* 高 ≈215 */
-  .robot-arm { left: 1060px; top: 512px; width: 187px; transform: translateX(70px); } /* 高 ≈235 */
-  .robot     { left: 928px; top: 585px; width: 136px; transform: translateX(50px); }  /* 高 ≈165 */
+:root{
+  --cyan:#6ED9DF;
+  --yellow:#F0C246;
+  --black:#0B0B0F;
+  --paper:#ffffff;
+  --line:#0B0B0F;
 
-  /* ---- 文案(也在板上,跟著等比縮放) ---- */
-  .caption { position: absolute; left: 50%; transform: translateX(-50%); text-align: center;
-    width: 900px; opacity: 0; transition: opacity .9s ease .35s; z-index: 5; }
-  .caption .eyebrow { font-family: "Noto Sans TC", sans-serif; font-size: 13px; letter-spacing: .55em;
-    color: var(--taupe); margin-bottom: 16px; }
-  .caption h1 { font-size: 42px; font-weight: 500; letter-spacing: .12em; text-wrap: balance; }
-  .caption p  { margin-top: 14px; font-size: 16px; color: #6f6552; letter-spacing: .12em; line-height: 2; }
-  .cap-1 { top: 400px; }
-  .cap-2, .cap-3 { top: 64px; }
+  /* 畫布長寬比 2884/1440。寫成常數而不是靠圖片自然尺寸——圖還沒載完時
+     版面就要是對的，否則黑圓會先跳一次位置。 */
+  --ar: 2.00278;
 
-  /* ---- 登入卡(板上,置於門框開口內) ---- */
-  .gate { position: absolute; left: 50%; top: 300px; transform: translateX(-50%); text-align: center; z-index: 6;
-    opacity: 0; pointer-events: none; transition: opacity 1s ease .5s; }
-  .gate .eyebrow { font-family: "Noto Sans TC", sans-serif; font-size: 13px; letter-spacing: .55em; color: var(--taupe); }
-  .gate h1 { font-size: 46px; font-weight: 500; letter-spacing: .18em; margin: 18px 0 8px; }
-  .gate .sub { color: #6f6552; letter-spacing: .3em; margin-bottom: 30px; font-size: 14px; }
-  .gate .google { display: inline-flex; align-items: center; gap: 12px; background: #2c2620; color: #f6f1e7;
-    font-family: "Noto Sans TC", sans-serif; font-weight: 700; font-size: 15px; letter-spacing: .08em;
-    padding: 14px 32px; border-radius: 6px; text-decoration: none; box-shadow: 0 10px 28px rgba(63, 58, 48, .28); }
-  .gate .google:hover { background: #3f3a30; }
-  .gate .google img { width: 20px; height: 20px; background: #fff; border-radius: 3px; padding: 2px; }
-  .gate .replay { display: block; margin: 24px auto 0; font-family: "Noto Sans TC", sans-serif; font-size: 11px;
-    letter-spacing: .45em; color: #a59880; cursor: pointer; background: none; border: 0; }
+  /* 縫隙中點在畫布上的位置 */
+  --gap-x: 51.25%;
+  --gap-y: 56.46%;
 
-  /* ---- 控制(留在視窗座標) ---- */
-  .skip { position: fixed; top: 26px; right: 34px; z-index: 9; font-family: "Noto Sans TC", sans-serif;
-    font-size: 11px; letter-spacing: .45em; color: #a59880; background: none; border: 0; cursor: pointer;
-    transition: opacity .6s; }
-  .dots { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 9;
-    transition: opacity .6s; }
-  .dots i { width: 26px; height: 3px; background: #d8cdb8; cursor: pointer; transition: background .4s; }
-  .dots i.on { background: #8a4b2f; }
+  /* 畫布寬度。以「視窗寬」為準而不是 cover——原圖是 2:1，用 cover 塞進 16:9／16:10
+     的視窗等於強制放大 25%，手會脹到蓋住圓裡的字。參考圖本來上下就有留白，
+     兩隻手臂只從左右出血。
+     不是剛好 100vw：對位時整塊畫布會往左推 1.25%（把縫隙中點拉到畫面正中），
+     只給 100vw 的話右邊必定露出一條白邊。102vw 補回那 1.25% 還有餘裕。 */
+  --cw: max(102vw, 900px);
 
-  /* ================= 場景 ================= */
-  [data-scene="1"] .temple { opacity: 1; }
-  [data-scene="1"] .colonnade { opacity: .5; }
-  [data-scene="1"] .floor { opacity: 1; }
-  [data-scene="1"] .cap-1 { opacity: 1; }
+  --disc: min(72vmin, 560px);
 
-  [data-scene="2"] .temple, [data-scene="3"] .temple { opacity: .15; }
-  [data-scene="2"] .colonnade, [data-scene="3"] .colonnade { opacity: .09; }
-  [data-scene="2"] .floor, [data-scene="3"] .floor { opacity: 1; }
-  [data-scene="2"] .statue-rough { opacity: 1; }
-  [data-scene="2"] .human-a, [data-scene="2"] .human-b, [data-scene="2"] .human-c { opacity: 1; }
-  [data-scene="2"] .cap-2 { opacity: 1; }
+  /* 把整組手往上抬。左手是一大片斜向色塊、指尖在它的最下緣，所以指尖擺在
+     圓正中時，整隻手就壓在圓的上半部，剛好蓋掉標題——參考圖能避開是因為它
+     的字是擠在兩指之間的窄直排，我們有橫排標題加按鈕，躲不掉。
+     抬高之後指尖落在圓的上三分之一，手的主體多半移到圓外，圓的下半整片淨空。
+     幅度刻意壓在 12%：抬太多手會浮在畫面上緣，原本的構圖平衡就沒了。 */
+  --lift: calc(var(--disc) * 0.12);
 
-  [data-scene="3"] .statue-fine { opacity: 1; }
-  [data-scene="3"] .human-a { opacity: 1; }
-  [data-scene="3"] .human-b, [data-scene="3"] .human-c { opacity: 0; transform: translateY(26px) scale(.92); }
-  [data-scene="3"] .robot-arm, [data-scene="3"] .robot { opacity: 1; transform: translateX(0); }
-  [data-scene="3"] .cap-3 { opacity: 1; }
+  /* 機械手的水平微調。兩隻手共用同一張畫布自動對位，但原圖的構圖偏左，
+     機械手往右挪一點畫面才平衡。抽成變數是因為這種值只能看著調，
+     散在三個狀態（進場／待機／接觸）裡各寫一次，改一次就會漏掉一處。 */
+  --rx: 1.4%;
+}
 
-  [data-scene="4"] .temple { opacity: 1; }
-  [data-scene="4"] .colonnade { opacity: .5; }
-  [data-scene="4"] .floor { opacity: 1; }
-  [data-scene="4"] .laurel { opacity: 1; }
-  [data-scene="4"] .gate { opacity: 1; pointer-events: auto; }
-  [data-scene="4"] .dots, [data-scene="4"] .skip { opacity: 0; pointer-events: none; }
+*{ box-sizing:border-box; margin:0; }
+/* [hidden] 是 UA 樣式的 display:none，任何作者端的 display 都會壓過它。
+   #login 是 inline-flex——Google 未開放時它不會消失，使用者會同時看到一顆
+   按了沒反應的按鈕和一行「尚未開放」。全站都踩過這個坑，每頁自己補。 */
+[hidden]{ display:none !important; }
+html,body{ height:100%; }
+body{
+  background:var(--paper);
+  color:var(--black);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
 
-  @media (prefers-reduced-motion: reduce) { .layer, .caption, .gate { transition: none; } }
+.stage{ position:fixed; inset:0; }
+
+/* ── 兩隻手 ─────────────────────────────────────────────
+   .canvas 依 --cw 撐開並保持原圖比例，再把畫布上的「縫隙中點」平移到視窗正中。
+   這樣黑圓可以用單純的置中定位，不必跟著視窗比例重算；兩隻手也因為共用同一個
+   容器而自動維持原構圖的相對位置。 */
+.canvas{
+  position:absolute;
+  left:50%; top:50%;
+  width: var(--cw);
+  height: calc(var(--cw) / var(--ar));
+  transform: translate(calc(-1 * var(--gap-x)), calc(-1 * var(--gap-y))) translateY(calc(-1 * var(--lift)));
+}
+
+.hand-wrap{ position:absolute; inset:0; opacity:0; will-change:transform,opacity; }
+.hand-wrap img{ display:block; width:100%; height:100%; }
+
+/* 進場：從畫面外滑入。位移用畫布寬度的百分比，所以任何螢幕上滑入的「距離感」一致。 */
+.wrap-l{ transform:translateX(-14%); transition:transform 1s cubic-bezier(.16,.84,.32,1), opacity .7s ease; }
+.wrap-r{ transform:translateX(calc(14% + var(--rx))); transition:transform 1s cubic-bezier(.16,.84,.32,1) .1s, opacity .7s ease .1s; }
+body.is-in .wrap-l,
+body.is-in .wrap-r{ opacity:1; }
+body.is-in .wrap-l{ transform:translateX(0); }
+body.is-in .wrap-r{ transform:translateX(var(--rx)); }
+
+/* 待機呼吸：兩隻手極輕微地一直想靠近又退開。幅度刻意很小（畫布寬的 .3%），
+   大了會變成滑稽的招手；小到「說不出哪裡在動，但畫面是活的」才對。 */
+@keyframes breathe-l{ 0%,100%{ transform:translateX(0); } 50%{ transform:translateX(.3%); } }
+@keyframes breathe-r{ 0%,100%{ transform:translateX(0); } 50%{ transform:translateX(-.3%); } }
+body.is-in .hand-wrap > img{ animation:breathe-l 5s ease-in-out infinite; }
+body.is-in .wrap-r > img{ animation-name:breathe-r; }
+
+/* 滑鼠視差。掛在 .canvas 的父層以免蓋掉上面那個對位用的 transform。
+   z-index 必須掛在這一層而不是 .canvas：滑鼠一動，這層就被加上 transform，
+   transform 會產生新的堆疊脈絡，.canvas 的 z-index 從此只在這層內部有效，
+   而這層自己是 auto(0)，於是整組手在滑鼠第一次移動時「掉到」黑圓後面。
+   靜止時看起來正常，一動就壞——這種只在互動後才出現的層級錯亂特別難查。 */
+.parallax{
+  position:absolute; inset:0; z-index:3;
+  pointer-events:none;             /* 手在圓上面，但不能擋住登入鍵 */
+  transition:transform .5s cubic-bezier(.2,.7,.3,1);
+}
+
+/* ── 黑圓 ─────────────────────────────────────────────── */
+.disc{
+  position:absolute; left:50%; top:50%;
+  width:var(--disc); height:var(--disc);
+  margin:calc(var(--disc) / -2) 0 0 calc(var(--disc) / -2);
+  border-radius:50%;
+  background:var(--black);
+  z-index:2;
+  opacity:0; transform:scale(.86);
+  transition:opacity .5s ease, transform .75s cubic-bezier(.18,1.1,.28,1);
+}
+body.is-in .disc{ opacity:1; transform:scale(1); transition-delay:.34s; }
+
+/* 圓內的文字分成上下兩塊，指尖交會的那條帶子以上完全留白。
+   文字全部退到指尖交會之下。手放回接近原本的高度後，左手色塊會吃到圓的中線，
+   右手食指還會再往下斜——量下來要退到 55% 才完全淨空；圓內多了 logo 這一列，
+   整塊往上讓 9%，讓 eyebrow 以下維持在原來的位置。
+   eyebrow 是最寬的一行，字距也一併收窄，否則它的尾端會頂到機械手指。 */
+.disc-top{ position:absolute; left:8%; right:8%; top:44%; text-align:center; }
+.disc-bottom{ position:absolute; left:8%; right:8%; bottom:10%; text-align:center; }
+
+.eyebrow{
+  font-size:clamp(9px,.95vmin,10px); font-weight:500; letter-spacing:.3em;
+  color:rgba(255,255,255,.5); margin-bottom:.9em; white-space:nowrap;
+}
+.disc h1{
+  font-size:clamp(21px,3.9vmin,38px); font-weight:900; letter-spacing:.1em;
+  color:#fff; line-height:1.35; white-space:nowrap;
+}
+.tagline{
+  margin-top:.7em; font-size:clamp(10px,1.25vmin,13px); letter-spacing:.34em;
+  color:rgba(255,255,255,.38); white-space:nowrap;
+}
+
+.google{
+  display:inline-flex; align-items:center; justify-content:center; gap:10px;
+  background:#fff; color:var(--black); text-decoration:none;
+  font-weight:700; font-size:clamp(12px,1.5vmin,15px); letter-spacing:.06em;
+  padding:clamp(10px,1.3vmin,14px) clamp(18px,2.6vmin,30px);
+  border-radius:999px; white-space:nowrap;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);
+  transition:transform .3s cubic-bezier(.2,.8,.3,1), box-shadow .3s ease;
+}
+.google img{ width:1.25em; height:1.25em; }
+.google:hover{ transform:translateY(-2px) scale(1.04); box-shadow:0 16px 40px rgba(0,0,0,.38); }
+.hint{
+  margin-top:1.1em; font-size:clamp(9px,1.05vmin,11px); letter-spacing:.28em;
+  color:rgba(255,255,255,.3); white-space:nowrap;
+}
+
+/* 圓內文字逐項浮現 */
+.disc .rise{ opacity:0; transform:translateY(10px); transition:opacity .6s ease, transform .7s cubic-bezier(.2,.8,.3,1); }
+body.is-in .disc .rise{ opacity:1; transform:none; }
+body.is-in .disc-top .disc-brand{ transition-delay:.68s; }
+body.is-in .disc-top .eyebrow{ transition-delay:.76s; }
+body.is-in .disc-top h1{ transition-delay:.84s; }
+body.is-in .disc-top .tagline{ transition-delay:.92s; }
+body.is-in .disc-bottom .google-wrap{ transition-delay:.96s; }
+body.is-in .disc-bottom .hint{ transition-delay:1.04s; }
+
+/* ── 背景符號 ─────────────────────────────────────────
+   兩類各半：向量／選取這種「工具」記號，加上 AI 火花與神經網路。
+   接觸的瞬間會被光波掃散。 */
+.symbols{ position:absolute; inset:0; z-index:1; color:var(--line); }
+.sym{
+  position:absolute; opacity:0;
+  transition:opacity .8s ease, transform .8s cubic-bezier(.2,.8,.3,1);
+  animation:drift 9s ease-in-out infinite;
+}
+@keyframes drift{ 0%,100%{ translate:0 0; } 50%{ translate:0 -8px; } }
+body.is-in .sym{ opacity:.9; }
+body.is-in .sym:nth-child(1){ transition-delay:1.05s; }
+body.is-in .sym:nth-child(2){ transition-delay:1.15s; animation-delay:-2s; }
+body.is-in .sym:nth-child(3){ transition-delay:1.25s; animation-delay:-4s; }
+body.is-in .sym:nth-child(4){ transition-delay:1.35s; animation-delay:-6s; }
+body.is-in .sym:nth-child(5){ transition-delay:1.45s; animation-delay:-1s; }
+
+/* 擺位避開兩個東西：左上角的 logo（原本貝茲線正好穿過它）與兩隻手的實體。 */
+.s-bezier{ left:24vw;   top:87vh; width:min(11vw,190px); }
+.s-select{ left:3.2vw;  top:60vh; width:min(6.5vw,110px); }
+.s-marks { left:9.5vw;  top:79vh; width:min(4.5vw,78px); }
+.s-spark { right:15vw;  top:19vh; width:min(7.5vw,128px); }
+.s-neural{ right:4.5vw; top:5vh;  width:min(8vw,132px); }
+.sym svg{ display:block; width:100%; height:auto; }
+
+/* ── 品牌 ─────────────────────────────────────────────
+   logo 排在圓內、eyebrow 之上。站上只有這一份深色 logo，黑底上直接放會整個
+   消失，所以用 brightness(0) invert(1) 壓成純白剪影——不是 invert(1)，那會把
+   標記的藍轉成橘色。代價是失去品牌藍，換來的是黑圓上唯一讀得到的形。 */
+.disc-brand{ margin-bottom:1.15em; }
+.disc-brand img{
+  display:block; margin:0 auto; width:auto;
+  height:clamp(28px,4.6vmin,46px);
+  filter:brightness(0) invert(1); opacity:.92;
+}
+
+/* ── 接觸 ─────────────────────────────────────────────
+   按下登入的那一刻，兩隻手才真的碰到。位移量就是各自到縫隙中點的距離
+   （4.44% 畫布寬），所以是「剛好接上」而不是撞在一起。 */
+body.is-connect .wrap-l{ transform:translateX(4.1%);  transition:transform .3s cubic-bezier(.55,0,.75,.2); }
+body.is-connect .wrap-r{ transform:translateX(calc(-4.1% + var(--rx))); transition:transform .3s cubic-bezier(.55,0,.75,.2); }
+body.is-connect .hand-wrap > img{ animation:none; }
+body.is-connect .disc{ transform:scale(.97); transition:transform .3s ease; }
+body.is-connect .sym{ opacity:0; transform:scale(1.5); transition:opacity .45s ease, transform .55s ease; }
+
+/* 接觸點爆出的白光。用 fixed + 巨大的圓，scale 上去必定蓋滿任何螢幕。 */
+.flash{
+  position:fixed; left:50%; top:50%; width:120vmax; height:120vmax;
+  margin:-60vmax 0 0 -60vmax; border-radius:50%;
+  background:#fff; z-index:20; pointer-events:none;
+  opacity:0; transform:scale(0);
+}
+body.is-burst .flash{
+  opacity:1; transform:scale(1);
+  transition:transform .55s cubic-bezier(.4,0,.2,1), opacity .2s ease;
+}
+
+/* 重播時用來「瞬間歸零」。只移除 is-in 的話是啟動一段往回走的過渡，
+   不是回到起點；下一幀又加回來就只走了一格又折返，畫面等於沒動。 */
+body.no-anim,
+body.no-anim *{ transition:none !important; animation:none !important; }
+
+/* ── 控制 ─────────────────────────────────────────────── */
+.replay{
+  position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:7;
+  background:none; border:0; cursor:pointer;
+  font-family:inherit; font-size:10px; letter-spacing:.45em; color:#c9c9cf;
+  opacity:0; transition:opacity .6s ease 1.6s, color .25s ease;
+}
+body.is-in .replay{ opacity:1; }
+.replay:hover{ color:var(--black); }
+
+:focus-visible{ outline:2px solid var(--black); outline-offset:4px; }
+.disc :focus-visible{ outline-color:#fff; }
+
+/* 直式螢幕：以視窗寬為準的話，2:1 的原圖會縮成畫面中間一條細帶，手小到看不出是手。
+   放大到 150vw 讓手臂重新從左右出血，圓也跟著縮，維持「手框住圓」的關係。 */
+@media (max-width:860px), (orientation:portrait){
+  :root{ --cw:150vw; --disc:min(84vw,340px); --lift:calc(var(--disc) * .17); }
+  .s-bezier,.s-marks{ display:none; }   /* 窄畫面留兩個符號就夠，多了只是雜訊 */
+  .s-select{ left:6vw; top:74vh; }
+
+  /* 字級用 vmin 在直式螢幕會被高度撐大，配上 nowrap 就直接衝出圓外。
+     窄畫面改用 vw，並拿掉英文副標——它是裝飾，圓裡塞不下時第一個該讓位。 */
+  .eyebrow{ font-size:8px; letter-spacing:.2em; }
+  .tagline{ display:none; }
+  .disc h1{ font-size:clamp(19px,5.8vw,27px); letter-spacing:.06em; }
+  .google{ font-size:12px; padding:11px 18px; }
+  .hint{ font-size:8px; letter-spacing:.14em; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .hand-wrap,.disc,.disc .rise,.sym,.brand,.replay{ transition-duration:.01ms !important; }
+  .hand-wrap > img,.sym{ animation:none !important; }
+  .parallax{ transition:none; }
+}
 </style>
 </head>
-<body data-scene="1">
-  <button class="skip" type="button" id="skip">SKIP</button>
+<body>
 
-  <div class="board-wrap" id="wrap">
-    <div class="board" id="board">
-      <div class="layer colonnade"><img src="./assets/login/trim/L1.png" alt=""></div>
-      <div class="layer temple"><img src="./assets/login/trim/L2.png" alt=""></div>
-      <div class="layer floor"><img src="./assets/login/trim/L3.png" alt=""></div>
-      <div class="layer statue-rough"><img src="./assets/login/trim/L5.png" alt=""></div>
-      <div class="layer statue-fine"><img src="./assets/login/trim/L6.png" alt=""></div>
-      <div class="layer human-a"><img src="./assets/login/trim/L7.png" alt=""></div>
-      <div class="layer human-b"><img src="./assets/login/trim/L8.png" alt=""></div>
-      <div class="layer human-c"><img src="./assets/login/trim/L9.png" alt=""></div>
-      <div class="layer robot-arm"><img src="./assets/login/trim/L10.png" alt=""></div>
-      <div class="layer robot"><img src="./assets/login/trim/L11.png" alt=""></div>
-      <div class="layer laurel"><img src="./assets/login/trim/L4.png" alt=""></div>
+<div class="stage">
 
-      <div class="caption cap-1"><div class="eyebrow">Λ Ο Γ Ο Σ</div><h1>文明，始於一個想法。</h1></div>
-      <div class="caption cap-2"><div class="eyebrow">Τ Ε Χ Ν Η</div><h1>思想，需要被賦予形體。</h1>
-        <p>雕刻家不創造形體，他只是把多餘的石頭移開。</p></div>
-      <div class="caption cap-3"><div class="eyebrow">Ε Ρ Γ Ο Ν</div><h1>後來，AI 拿起了刻刀。</h1>
-        <p>你定義問題，剩下的由 AI 與你一起完成。</p></div>
+  <!-- 背景符號 -->
+  <div class="symbols">
+    <div class="sym s-bezier"><svg viewBox="0 0 190 40" fill="none" stroke="currentColor" stroke-width="2.4">
+      <path d="M14 20h162"/><rect x="4" y="10" width="20" height="20" transform="rotate(45 14 20)"/><rect x="166" y="10" width="20" height="20" transform="rotate(45 176 20)"/></svg></div>
+    <div class="sym s-select"><svg viewBox="0 0 110 110" fill="none" stroke="currentColor" stroke-width="2.4">
+      <path d="M12 12h86v86H12z"/><rect x="2" y="2" width="20" height="20" fill="#fff"/><rect x="88" y="2" width="20" height="20" fill="#fff"/><rect x="2" y="88" width="20" height="20" fill="#fff"/><rect x="88" y="88" width="20" height="20" fill="#fff"/></svg></div>
+    <div class="sym s-marks"><svg viewBox="0 0 78 78" fill="none" stroke="currentColor" stroke-width="2.4">
+      <rect x="3" y="3" width="24" height="24"/><path d="M46 5v22M35 16h22"/><rect x="6" y="49" width="20" height="20" transform="rotate(45 16 59)"/><rect x="45" y="48" width="24" height="24"/></svg></div>
+    <!-- AI 火花：現在通用的「AI」記號，取代原本的 </> -->
+    <div class="sym s-spark"><svg viewBox="0 0 130 110" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round">
+      <path d="M50 18C50 41 69 60 92 60 69 60 50 79 50 102 50 79 31 60 8 60 31 60 50 41 50 18Z"/>
+      <path d="M108 8c0 10 8 18 18 18-10 0-18 8-18 18 0-10-8-18-18-18 10 0 18-8 18-18Z"/></svg></div>
+    <!-- 神經網路：取代 React 原子。這個時代的符號不該還是前端框架 -->
+    <div class="sym s-neural"><svg viewBox="0 0 122 106" fill="none" stroke="currentColor" stroke-width="2.2">
+      <path d="M18 24 66 17M18 24 66 53M18 24 66 89M18 84 66 17M18 84 66 53M18 84 66 89M66 17 106 53M66 53 106 53M66 89 106 53"/>
+      <circle cx="18" cy="24" r="7.5" fill="#fff"/><circle cx="18" cy="84" r="7.5" fill="#fff"/>
+      <circle cx="66" cy="17" r="7.5" fill="#fff"/><circle cx="66" cy="53" r="7.5" fill="#fff"/><circle cx="66" cy="89" r="7.5" fill="#fff"/>
+      <circle cx="106" cy="53" r="7.5" fill="currentColor"/></svg></div>
+  </div>
 
-      <div class="gate">
-        <div class="eyebrow">AI SAAS CREATION PLATFORM</div>
-        <h1>從思想，到創造。</h1>
-        <div class="sub">From Thought to Creation</div>
-        <a class="google" href="/api/visitor/google/start?next=%2F">
+  <!-- 黑圓：文案 + 登入 -->
+  <div class="disc">
+    <div class="disc-top">
+      <div class="disc-brand rise"><img src="./assets/logo.png" alt="JVision"></div>
+      <div class="eyebrow rise">AI SAAS CREATION PLATFORM</div>
+      <h1 class="rise">從思考，到創造</h1>
+      <div class="tagline rise">FROM THOUGHT TO CREATION</div>
+    </div>
+    <div class="disc-bottom">
+      <div class="google-wrap rise">
+        <a class="google" id="login" href="/api/visitor/google/start?next=%2F">
           <img alt="" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23FFC107' d='M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34 5.9 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.7-.4-3.9z'/%3E%3Cpath fill='%23FF3D00' d='M6.3 14.7l6.6 4.8C14.7 15.1 18.9 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34 5.9 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z'/%3E%3Cpath fill='%234CAF50' d='M24 44c5.2 0 9.9-1.9 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z'/%3E%3Cpath fill='%231976D2' d='M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.6l6.2 5.2C36.9 40.4 44 35 44 24c0-1.3-.1-2.7-.4-3.9z'/%3E%3C/svg%3E">
           使用 Google 帳號登入
         </a>
-        <button class="replay" type="button" id="replay">R E P L A Y</button>
       </div>
+      <div class="hint rise">2,002 套系統，沒有一套是人寫的</div>
     </div>
   </div>
 
-  <div class="dots" id="dots"><i class="on"></i><i></i><i></i><i></i></div>
+  <!-- 兩隻手（在圓的上面，指尖壓進圓裡） -->
+  <div class="parallax" id="parallax">
+    <div class="canvas">
+      <div class="hand-wrap wrap-l"><img src="./assets/login/processed/left.png" alt=""></div>
+      <div class="hand-wrap wrap-r"><img src="./assets/login/processed/right.png" alt=""></div>
+    </div>
+  </div>
+
+  <div class="flash"></div>
+</div>
+
+<button class="replay" type="button" id="replay">R E P L A Y</button>
 
 <script>
 (function () {
-  var DUR = [0, 3400, 4600, 5200];
-  var scene = 1, timer = 0;
+  var body = document.body;
   var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var dots = document.querySelectorAll("#dots i");
 
-  /* 紙雕板等比縮放:留 3% 邊距,任何螢幕構圖一致 */
-  function fit() {
-    var s = Math.min(innerWidth / 1600, innerHeight / 900) * 0.97;
-    document.getElementById("wrap").style.setProperty("--s", s);
+  /* 先關過渡 → 歸零 → 開回過渡 → 再跑。兩次讀 offsetWidth 是刻意的：
+     第一次讓「歸零」在沒有過渡的情況下立刻套用，第二次讓「過渡已恢復」
+     的狀態被記錄下來，否則瀏覽器會把這幾行併成一次計算，等於什麼都沒發生。 */
+  function play() {
+    body.classList.add("no-anim");
+    body.classList.remove("is-in", "is-connect", "is-burst");
+    void body.offsetWidth;
+    body.classList.remove("no-anim");
+    void body.offsetWidth;
+    body.classList.add("is-in");
   }
-  fit();
-  addEventListener("resize", fit);
+  play();
+  document.getElementById("replay").addEventListener("click", play);
 
-  function go(n) {
-    scene = Math.max(1, Math.min(4, n));
-    document.body.dataset.scene = scene;
-    dots.forEach(function (d, i) { d.classList.toggle("on", i < scene); });
-    clearTimeout(timer);
-    if (scene < 4) timer = setTimeout(function () { go(scene + 1); }, DUR[scene]);
-  }
-  document.getElementById("skip").addEventListener("click", function () { go(4); });
-  document.getElementById("replay").addEventListener("click", function () { go(1); });
-  dots.forEach(function (d, i) { d.addEventListener("click", function () { go(i + 1); }); });
-  window.__go = go;
-  go(1);
+  /* 按下登入 → 兩指接上 → 白光擴散 → 才真的送出。
+     動畫跑完才導頁，不然 OAuth 的跳轉會在第一格就把畫面換掉，等於沒有動畫。 */
+  document.getElementById("login").addEventListener("click", function (e) {
+    if (reduced) return;                // 使用者選了減少動態就直接走，不要硬留他
+    e.preventDefault();
+    var href = this.href;
+    body.classList.add("is-connect");
+    setTimeout(function () { body.classList.add("is-burst"); }, 260);
+    setTimeout(function () { location.href = href; }, 820);
+  });
 
-  if (!reduced) {
-    var board = document.getElementById("board");
-    document.addEventListener("mousemove", function (e) {
-      var dx = e.clientX / innerWidth - 0.5, dy = e.clientY / innerHeight - 0.5;
-      board.style.transform = "translate(" + (-dx * 14) + "px," + (-dy * 8) + "px)";
+  /* 滑鼠視差。位移很小：這裡要的是「畫面有厚度」，不是 3D 效果。 */
+  if (!reduced && matchMedia("(pointer:fine)").matches) {
+    var px = document.getElementById("parallax");
+    addEventListener("mousemove", function (e) {
+      var dx = e.clientX / innerWidth - .5, dy = e.clientY / innerHeight - .5;
+      px.style.transform = "translate(" + (-dx * 18).toFixed(1) + "px," + (-dy * 10).toFixed(1) + "px)";
     });
   }
 })();
