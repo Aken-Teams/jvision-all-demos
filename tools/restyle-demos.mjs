@@ -110,7 +110,30 @@ function loadState() {
 }
 let state = null;
 function saveState() {
-  if (ONE_OFF) return;              // 臨時跑的不留痕跡
+  /* --repos 原本完全不寫狀態（「臨時跑的不留痕跡」）。那在它只是人工臨時跑時
+     是對的——整份寫回會把正在跑的那一批進度蓋掉，實測發生過一次，220 套變成 2 套。
+
+     但現在 --repos 是每一套新 demo 的正式換裝路徑（agent-loop 會呼叫它），
+     不留痕跡等於覆蓋率永遠算不對：實測今天上架 26 套、實際都換過裝，
+     restyle.json 裡卻一套都沒有，數字顯示「未換裝 29 套」。
+
+     所以改成：--repos 時「只把換好的那幾套追加進 done」，重新讀檔再追加，
+     完全不碰 queue／daily／inFlight 那些屬於批次的欄位——追加是安全的，
+     整份覆寫才是危險的。 */
+  if (ONE_OFF) {
+    const cur = loadState();
+    if (!cur) return;               // 還沒跑過整批，沒有東西可以追加
+    const have = new Set(cur.done.map((d) => d.repo));
+    const add = state.done.filter((d) => !have.has(d.repo));
+    if (!add.length) return;
+    cur.done.push(...add);
+    cur.failed = (cur.failed || []).filter((f) => !add.some((a) => a.repo === f.repo));
+    cur.updatedAt = new Date().toISOString();
+    const t = `${STATE}.tmp`;
+    fs.writeFileSync(t, JSON.stringify(cur, null, 2) + "\n");
+    fs.renameSync(t, STATE);
+    return;
+  }
   state.updatedAt = new Date().toISOString();
   fs.mkdirSync(path.dirname(STATE), { recursive: true });
   const tmp = `${STATE}.tmp`;
