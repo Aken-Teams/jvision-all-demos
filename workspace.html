@@ -289,7 +289,11 @@
               <b class="text-ink">公開版跑的是資料的副本</b>——上面做什麼都碰不到你這一套的真資料；
               你這邊改了東西，要再按一次才會同步過去。要跑幾分鐘。
             </p>
-            <button type="button" class="btn btn-ghost" data-act="vercel"><span class="material-symbols-outlined text-[18px]">rocket_launch</span>部署到 Vercel</button>
+            <div class="flex gap-2">
+              <button type="button" class="btn btn-ghost" id="btnCheck"><span class="material-symbols-outlined text-[18px]">fact_check</span>檢查完整度</button>
+              <button type="button" class="btn btn-ghost" data-act="vercel"><span class="material-symbols-outlined text-[18px]">rocket_launch</span>部署到 Vercel</button>
+            </div>
+            <div id="readyBox" hidden class="mt-3 border border-line rounded-lg overflow-hidden text-xs"></div>
           </div>
           <div class="border border-line rounded-xl p-4">
             <h3 class="text-sm font-black text-ink">交付到 GitHub</h3>
@@ -984,12 +988,92 @@
       .catch(function () { $("logBody").innerHTML = '<p class="text-xs text-red-600">讀不到紀錄。</p>'; });
   }
 
+  /* ── 佈署前的完整度檢查 ────────────────────────────────────
+     公開網址跟自己看是兩件事：自己看的時候「這張表還沒填」只是待辦，
+     給客戶看的時候就是一張空白表格擺在畫面上。所以按下部署會先跑一次檢查，
+     有問題就把問題攤開，讓他自己選「回去改」還是「還是要部署」。
+     檢查**不擋**部署——決定權在他手上，我們只負責讓他知道自己在送什麼出去。 */
+  var LEVEL = {
+    block: { dot: "#dc2626", tag: "拿出去會被看到" },
+    warn: { dot: "#d97706", tag: "值得先看一眼" },
+  };
+  /* 使用者已經看過報告、按了「還是要部署」——記住這一次，不要再問第二遍。
+     切換系統時要清掉：那是另一套系統，上一套的決定不算數。 */
+  var checked = null;
+
+  function renderReady(r, opts) {
+    var box = $("readyBox");
+    var head = r.verdict === "fix-first" ? "#dc2626" : r.verdict === "ok-with-notes" ? "#d97706" : "#15803d";
+    var h = '<div class="px-3 py-2 font-black" style="background:' + head + '14;color:' + head + '">'
+      + esc(r.headline) + "</div>";
+    if (r.checks.length) {
+      h += '<div class="divide-y divide-line">';
+      r.checks.forEach(function (c) {
+        var L = LEVEL[c.level] || LEVEL.warn;
+        h += '<div class="px-3 py-2">'
+          + '<div class="flex items-start gap-2">'
+          + '<span style="width:7px;height:7px;border-radius:99px;background:' + L.dot + ';margin-top:5px;flex:none"></span>'
+          + '<div class="flex-1"><div class="font-bold text-ink">' + esc(c.title)
+          + ' <span class="font-normal" style="color:' + L.dot + '">· ' + L.tag + "</span></div>"
+          + '<div class="text-muted mt-0.5">' + esc(c.detail) + "</div>"
+          + '<div class="mt-1" style="color:#334155">怎麼修：' + esc(c.fix) + "</div>"
+          + "</div></div></div>";
+      });
+      h += "</div>";
+    } else {
+      h += '<div class="px-3 py-2 text-muted">每一項都過了：欄位不是樣板、表格存得住資料、'
+        + "沒有留著假資料。</div>";
+    }
+    /* 有問題時才給第二條路。全過的話直接部署就好，不要多一顆按鈕讓人猶豫。 */
+    if (opts && opts.offerAnyway && r.verdict === "fix-first") {
+      h += '<div class="px-3 py-2 flex gap-2 items-center" style="background:#f8fafc">'
+        + '<button type="button" id="btnAnyway" class="btn btn-ghost" style="padding:4px 10px">還是要部署</button>'
+        + '<span class="text-muted">或是回對話框把上面幾件事講一講，我改完你再部署。</span></div>';
+    }
+    box.innerHTML = h;
+    box.hidden = false;
+    var anyway = $("btnAnyway");
+    if (anyway) anyway.addEventListener("click", function () {
+      checked = cur.id;
+      box.hidden = true;
+      document.querySelector('[data-act="vercel"]').click();
+    });
+  }
+
+  function runCheck(opts) {
+    var box = $("readyBox");
+    box.hidden = false;
+    box.innerHTML = '<div class="px-3 py-2 text-muted">檢查中…</div>';
+    return fetch("/api/me/instances/" + encodeURIComponent(cur.id) + "/readiness")
+      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        if (!r || !Array.isArray(r.checks)) throw new Error("bad");
+        renderReady(r, opts);
+        return r;
+      })
+      .catch(function () {
+        /* 檢查連不上不可以擋住部署——講清楚沒檢查成，讓他自己決定。 */
+        box.innerHTML = '<div class="px-3 py-2" style="color:#d97706">檢查沒跑成，你可以直接部署，或再按一次。</div>';
+        return null;
+      });
+  }
+
+  $("btnCheck").addEventListener("click", function () { if (cur) runCheck({ offerAnyway: false }); });
+
   /* 交付。三顆都是既有的端點，只有擁有者做得到。 */
   document.querySelectorAll("[data-act]").forEach(function (b) {
     b.addEventListener("click", function () {
       if (!cur) return;
       var act = b.dataset.act;
       var note = $("depMsg");
+      /* 部署前先檢查一次。已經看過報告按了「還是要部署」的就不再攔。 */
+      if (act === "vercel" && checked !== cur.id) {
+        note.textContent = "";
+        runCheck({ offerAnyway: true }).then(function (r) {
+          if (r && r.verdict !== "fix-first") { checked = cur.id; b.click(); }
+        });
+        return;
+      }
       var body = act === "share" ? { email: $("shareEmail").value.trim() } : {};
       if (act === "share" && !body.email) { note.style.color = "#b91c1c"; note.textContent = "請先填同事的信箱"; return; }
       document.querySelectorAll("[data-act]").forEach(function (o) { o.disabled = true; });

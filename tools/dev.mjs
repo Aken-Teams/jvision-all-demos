@@ -607,6 +607,35 @@ function startGateway() {
       }
     }
 
+    /* 佈署前的完整度檢查。公開網址跟自己看是兩件事——自己看的時候「這張表
+       還沒填」只是待辦，給客戶看的時候就是一張空白表格擺在畫面上。所以先跑
+       一遍，把「拿出去會被看到的問題」列出來，讓他自己決定先改還是就這樣送。
+       只回報告、不擋佈署：決定權在他手上，我們只負責讓他知道自己在送什麼。 */
+    {
+      const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/readiness$/.exec(p);
+      if (m && req.method === "GET") {
+        const id = visitor.read(req);
+        if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
+        try {
+          const inst = await control.getInstance(m[1]);
+          if (!inst) return json(res, 404, { error: "找不到這個系統" });
+          const role = await control.memberRole({ customerId: inst.customer_id, email: id.email });
+          if (!role) return json(res, 403, { error: "你沒有這套系統的權限" });
+          const readiness = await import("./lib/instance-readiness.mjs");
+          const report = await readiness.check({
+            dir: path.join(root, "var", "instances", inst.id),
+            dbName: inst.db_name, inst,
+          });
+          return json(res, 200, report);
+        } catch (error) {
+          console.error("[readiness]", String(error.message).slice(0, 200));
+          /* 檢查掛掉不可以擋住佈署——回一份「查不出來」的報告，讓他自己決定。 */
+          return json(res, 200, { verdict: "unknown", checks: [], blocks: 0, warns: 0,
+            headline: "這次檢查沒跑完，你可以直接部署，或再按一次檢查" });
+        }
+      }
+    }
+
     {
       const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/(share|deliver|pr|vercel)$/.exec(p);
       if (m && req.method === "POST") {
