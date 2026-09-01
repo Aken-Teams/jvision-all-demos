@@ -104,17 +104,44 @@ if (!deficitRows.length) {
   deficitBasis = "市場權重（所有產業皆已達標）";
 }
 const deficitSum = deficitRows.reduce((sum, r) => sum + r.deficit, 0) || 1;
-const exact = deficitRows.map((r) => ({ ...r, raw: (r.deficit / deficitSum) * POOL }));
-const catQuota = exact.map((r) => ({ ...r, quota: Math.max(1, Math.floor(r.raw)) }));
-let remainder = POOL - catQuota.reduce((sum, r) => sum + r.quota, 0);
-const byFraction = [...catQuota].sort((a, b) => (b.raw - Math.floor(b.raw)) - (a.raw - Math.floor(a.raw)));
-for (let i = 0; remainder > 0; i = (i + 1) % byFraction.length) { byFraction[i].quota += 1; remainder -= 1; }
+
+/* 把 n 題按缺口分配到各產業。用最大餘額法，讓配額「精確加總等於 n」。
+   逐項 Math.round 會湊不齊——實測配額合計 199、prompt 卻說要出 200 題，
+   模型把這個矛盾當成阻斷條件，整輪不出題只回一則「請先確認配額」。
+
+   原本只算一次、而且是照 POOL（＝COUNT×2）算的。站上 2,010 套、
+   agent-loop 用 --count=60 時，配額表等於叫模型一次產出 120 題，
+   每題還要 6 個模組與 6 個流程階段——那是十幾萬字元的結構化輸出，
+   900 秒的逾時根本不夠，出題整個停擺。改成每一輪只要一小批。 */
+function quotasFor(n) {
+  const exact = deficitRows.map((r) => ({ ...r, raw: (r.deficit / deficitSum) * n }));
+  const out = exact.map((r) => ({ ...r, quota: Math.max(1, Math.floor(r.raw)) }));
+  /* 產業數比 n 還多時，每個至少 1 會超過 n，這時只留缺口最大的前 n 個，
+     不然配額加總又跟 prompt 說的數字對不起來。 */
+  const trimmed = out.length > n
+    ? [...out].sort((a, b) => b.deficit - a.deficit).slice(0, n)
+    : out;
+  let remainder = n - trimmed.reduce((sum, r) => sum + r.quota, 0);
+  const byFraction = [...trimmed].sort((a, b) => (b.raw - Math.floor(b.raw)) - (a.raw - Math.floor(a.raw)));
+  for (let i = 0; remainder > 0 && byFraction.length; i = (i + 1) % byFraction.length) {
+    byFraction[i].quota += 1; remainder -= 1;
+  }
+  return trimmed;
+}
+
+/* 一次呼叫最多產這麼多題。超過這個量，結構化輸出的時間就會失控——
+   而且一次逾時就整批損失，批次小的話損失也小。 */
+const PER_CALL = Math.max(4, num(args["per-call"], 15));
+const catQuota = quotasFor(POOL);   // 只用來顯示整體缺口，實際出題用 quotasFor(每輪的量)
 
 log.step(`既有專案 ${catalog.projects.length} 筆，${rows.length} 種系統類型，中位數 ${median} 筆`);
 log.info(`  配額依據：${deficitBasis}`);
+log.info(`  這一批共要 ${COUNT} 題，每次呼叫產 ${PER_CALL} 題`);
 log.info("  產業缺口由大到小（前 10）：");
+/* 顯示的是整批的分配。實際送給模型的配額是每輪現算的（quotasFor(want)），
+   所以這裡標明「整批」，免得跟日誌後面那行「產 N 題」對不起來。 */
 for (const r of catQuota.slice(0, 10)) {
-  log.info(`   ${r.category.padEnd(12)} 現有 ${String(r.have).padStart(3)}　應有 ${String(r.target).padStart(3)}　缺 ${String(r.deficit).padStart(3)}  → 配額 ${r.quota}`);
+  log.info(`   ${r.category.padEnd(12)} 現有 ${String(r.have).padStart(3)}　應有 ${String(r.target).padStart(3)}　缺 ${String(r.deficit).padStart(3)}  → 整批配額 ${r.quota}`);
 }
 
 if (args["gap-only"]) {
@@ -131,7 +158,9 @@ if (args["gap-only"]) {
    從 1011 長到 1311 時 prompt 由 8.8KB 漲到 17.5KB，codex 的結構化輸出
    連續六輪逾時，出題整個停擺。去重本來就在腳本端做，這裡只需要讓模型
    知道「這個產業大致已經有哪些東西」。 */
-const TITLE_CAP = 20;
+/* 站上 2,010 套時 20 個標題 × 29 個產業約 21KB（中文一字 3 bytes）。
+   模型只需要知道「這個產業大致已經有哪些東西」，去重本來就在腳本端做。 */
+const TITLE_CAP = 10;
 const coverageBlock = catQuota.map((r) => {
   const have = catCoverage.find((c) => c.category === r.category)?.titles || [];
   const shown = have.slice(-TITLE_CAP);
@@ -139,10 +168,11 @@ const coverageBlock = catQuota.map((r) => {
   return `${r.category}（已有 ${r.have} 題，應有 ${r.target} 題・缺 ${r.deficit}）：${shown.join("、") || "（無）"}${more}`;
 }).join("\n");
 
-function buildPrompt(round, negatives, ideas) {
+function buildPrompt(round, negatives, ideas, want) {
   /* 只餵缺口產業的既有標題。全部標題會把 context 撐爆，而且模型看到滿滿的
      IT 題目就會繼續往那邊靠——這正是上一批全部灌進資訊科技的原因之一。 */
-  const quotaBlock = catQuota.map((r) => `- ${r.category}：${r.quota} 題`).join("\n");
+  const batch = quotasFor(want || PER_CALL);
+  const quotaBlock = batch.map((r) => `- ${r.category}：${r.quota} 題`).join("\n");
 
   const saturatedBlock = catRows
     .filter((r) => r.deficit === 0)
@@ -151,9 +181,15 @@ function buildPrompt(round, negatives, ideas) {
 
   /* 圓桌結論。主席看到的是五個角色各自的提案，任務從「無中生有」變成
      「收斂與去重」——後者是模型比較擅長、也比較不會往同一個方向偏的事。 */
-  const ideaBlock = ideas && ideas.length
-    ? `\n## 圓桌討論的提案（由五個角色各自提出，尚未收斂）\n${ideas
-        .map((i) => `- 〔${i.persona}〕${i.title}（${i.category}）：${i.pain}　→　${i.whyBuy}`)
+  /* 只給這一輪要出的那幾個產業的提案，而且丟掉 whyBuy、把 pain 截短。
+     主席的工作是「收斂」——判斷兩個提案是不是同一件事，看標題與痛點就夠了，
+     whyBuy 是給人看的說服語，對收斂沒有幫助卻佔掉三分之一的篇幅。
+     150 個完整提案大約 30KB（中文一字 3 bytes），這樣壓到五分之一以下。 */
+  const wantCats = new Set(batch.map((r) => r.category));
+  const shortlist = (ideas || []).filter((i) => wantCats.has(i.category));
+  const ideaBlock = shortlist.length
+    ? `\n## 圓桌討論的提案（由五個角色各自提出，尚未收斂）\n${shortlist
+        .map((i) => `- 〔${i.persona}〕${i.title}（${i.category}）：${String(i.pain || "").slice(0, 40)}`)
         .join("\n")}\n
 你的工作是**收斂這份提案**，不是重新發想：
 - 把講同一件事的提案合併成一題，用最貼近作業現場的那個講法。
@@ -320,15 +356,18 @@ function validate(topic) {
   return errors;
 }
 
-/* 圓桌只在第一輪開，之後幾輪是補題——那時已經有負面清單可以導向，再開一次
-   圓桌只是重複付五次呼叫的錢。 */
+/* 圓桌只開一次（五次呼叫很貴），但提案每一輪都用得到——buildPrompt 會依
+   當輪要出的產業過濾，所以每輪看到的是不同的一小把，不會重複收斂同一批。 */
 let tableIdeas = null;
 if (args.roundtable !== "off") tableIdeas = await roundtable();
 
 for (let round = 1; round <= ROUNDS && accepted.length < COUNT; round += 1) {
-  log.step(`── 第 ${round} 輪：呼叫 codex 產題（已收 ${accepted.length}/${COUNT}）──`);
+  /* 每一輪只要一小批。剩下不多時就只要剩下的量，不要為了湊滿 PER_CALL
+     而多產一堆等下要丟掉的題目。 */
+  const want = Math.max(4, Math.min(PER_CALL, COUNT - accepted.length));
+  log.step(`── 第 ${round} 輪：呼叫 codex 產 ${want} 題（已收 ${accepted.length}/${COUNT}）──`);
   const result = await runCodexWithRetry({
-    prompt: buildPrompt(round, rejected.slice(-12), round === 1 ? tableIdeas : null),
+    prompt: buildPrompt(round, rejected.slice(-12), tableIdeas, want),
     cwd: ROOT,
     sandbox: "read-only",
     schemaPath: SCHEMA,
