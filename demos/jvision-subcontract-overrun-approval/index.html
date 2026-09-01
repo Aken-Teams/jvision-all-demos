@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Playfair+Display:ital@1&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="整合分包合約、估驗、未估應付與待議價金額，預測超約並完成追加預算核准。">
+<title>分包超約預警核准台 · finance-case｜Jvision 系統 Demo</title>
+<style>
+:root{
+  --color-primary:#64748b;--color-on-primary:#fff;--color-secondary:#94a3b8;--color-on-secondary:#0f172a;
+  --color-accent:#ea580c;--color-on-accent:#000;--color-background:#f8fafc;--color-foreground:#334155;
+  --color-card:#fff;--color-card-foreground:#334155;--color-muted:#ebf0f5;--color-muted-foreground:#475569;
+  --color-border:#e2e8f0;--color-destructive:#dc2626;--color-on-destructive:#fff;--color-ring:#64748b;
+  --blue:#64748b;--ink:#0f172a;--muted:#475569;--line:#e2e8f0;
+  --body:#334155;--bg:#f8fafc;--green:#16734b;--amber:#a14b08;--red:#c81e1e;--white:#fff;
+  --shadow:0 1px 2px rgba(15,23,42,.04),0 12px 32px rgba(15,23,42,.06);--radius:6px
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--body);font-family:Inter,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;overflow-x:hidden;line-height:1.5}
+button,input,textarea,select{font:inherit}
+button,.nav-btn,.btn,.scenario,.case-item,.budget-source{cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--color-accent);outline-offset:3px}
+::selection{background:#fed7aa;color:#7c2d12}
+.material-symbols-outlined{font-size:20px;line-height:1;font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 20}
+.shell{min-height:100vh;display:grid;grid-template-columns:232px minmax(0,1fr)}
+.rail{position:sticky;top:0;height:100vh;background:#0f172a;color:#fff;padding:24px 18px;display:flex;flex-direction:column;z-index:20;border-right:1px solid #1e293b}
+.brand{width:48px;height:48px;border:1px solid #64748b;background:#fff;color:#0f172a;display:grid;place-items:center;font-weight:800;letter-spacing:-.06em;box-shadow:6px 6px 0 var(--color-accent)}
+.nav-list{display:grid;gap:5px;margin:54px 0 auto}
+.nav-btn{position:relative;width:100%;min-height:44px;border:0;border-left:3px solid transparent;border-radius:2px;background:transparent;color:#cbd5e1;display:flex;align-items:center;gap:12px;padding:0 12px;text-align:left;transition:background .2s,color .2s,border-color .2s,transform .2s}
+.nav-btn:hover{background:#1e293b;color:#fff;transform:translateX(2px)}
+.nav-btn.active{background:#fff;color:#0f172a;border-left-color:var(--color-accent);box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.nav-btn .tip{position:static;opacity:1;transform:none;white-space:nowrap;background:transparent;color:inherit;padding:0;font-size:12px;font-weight:700;letter-spacing:.04em;pointer-events:none}
+.rail-foot{font-family:"JetBrains Mono",monospace;font-size:10px;color:#94a3b8;letter-spacing:.18em;border-top:1px solid #334155;padding-top:18px}
+.workspace{min-width:0}
+.appbar{height:64px;background:rgba(248,250,252,.94);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 clamp(20px,3vw,44px);position:sticky;top:0;z-index:15;backdrop-filter:blur(14px)}
+.app-title{display:flex;align-items:center;gap:12px;min-width:0}
+.app-title h1{font-size:15px;color:var(--ink);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.01em}
+.project-chip{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:3px;padding:7px 10px;font-size:11px;color:var(--muted);background:#fff}
+.live-dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px #d9f4e5}
+.user{width:36px;height:36px;border-radius:3px;background:#1e293b;color:#fff;display:grid;place-items:center;font-weight:800;border-bottom:3px solid var(--color-accent)}
+.screen{display:none;padding:clamp(22px,3vw,44px);max-width:1600px;margin:auto;animation:reveal .36s ease both}
+.screen.active{display:block}
+@keyframes reveal{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.screen-head{min-height:176px;display:flex;justify-content:space-between;align-items:flex-end;gap:28px;margin:-1px 0 24px;padding:clamp(24px,4vw,48px);position:relative;overflow:hidden;background:#e8edf2;border:1px solid var(--line);border-top:5px solid #1e293b}
+.screen-head:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 49.8%,rgba(100,116,139,.09) 50%,transparent 50.2%),linear-gradient(rgba(100,116,139,.08) 1px,transparent 1px);background-size:48px 100%,100% 24px;mask-image:linear-gradient(90deg,transparent,black 60%);pointer-events:none}
+.screen-head>div{position:relative;z-index:1}
+.eyebrow{display:flex;align-items:center;gap:7px;color:#475569;font-family:"JetBrains Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.screen-head h2{margin:8px 0 8px;color:var(--ink);font-size:clamp(34px,5vw,64px);line-height:.98;letter-spacing:-.065em;font-weight:800}
+.screen-head h2:after{content:" /";font-family:"Playfair Display",serif;font-weight:400;font-style:italic;color:var(--color-accent)}
+.screen-head p{margin:0;color:#475569;font-size:13px;max-width:700px;line-height:1.7}
+.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.btn{min-height:42px;border-radius:3px;border:1px solid #cbd5e1;background:#fff;color:#1e293b;font-weight:700;padding:0 15px;display:inline-flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 1px 2px rgba(15,23,42,.05);transition:background .2s,border-color .2s,color .2s,transform .2s,box-shadow .2s}
+.btn:hover{background:#f1f5f9;border-color:#94a3b8;transform:translateY(-1px);box-shadow:0 5px 14px rgba(15,23,42,.1)}
+.btn.primary{background:var(--color-accent);border-color:var(--color-accent);color:#000;box-shadow:4px 4px 0 #7c2d12}
+.btn.primary:hover{background:#c2410c;border-color:#c2410c;color:#fff}
+.btn.danger{background:#fff;border-color:#f3a3a3;color:#b91c1c}
+.btn.danger:hover{background:#fff1f2;border-color:#dc2626}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.pad{padding:20px}.grid{display:grid;gap:16px}.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.span-2{grid-column:span 2}
+.metric{padding:18px 18px 16px;position:relative;overflow:hidden;border-top:3px solid #64748b}
+.metric:after{content:"";position:absolute;right:0;top:0;width:48px;height:48px;background:linear-gradient(135deg,transparent 49%,#e2e8f0 50%)}
+.metric-label{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;font-weight:700;letter-spacing:.04em}
+.metric-value,.limit-number{font-variant-numeric:tabular-nums lining-nums}
+.metric-value{font-size:27px;font-weight:800;color:var(--ink);margin:9px 0 4px;letter-spacing:-.045em}
+.metric-foot{font-size:11px;color:var(--muted)}
+.up{color:#b91c1c;font-weight:700}.good{color:#12633f;font-weight:700}.warn{color:#92400e;font-weight:700}
+.section-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:15px;padding-bottom:11px;border-bottom:1px solid var(--line)}
+.section-title h3{font-size:14px;color:var(--ink);margin:0;letter-spacing:.01em}.section-title small{color:var(--muted);font-family:"JetBrains Mono",monospace;font-size:10px}
+.badge{display:inline-flex;align-items:center;gap:5px;border-radius:2px;padding:4px 7px;font-size:10px;font-weight:800;white-space:nowrap;border:1px solid currentColor}
+.badge.red{background:#fff1f2;color:#b91c1c}.badge.red:before{content:"!"}.badge.amber{background:#fff7ed;color:#92400e}.badge.amber:before{content:"△"}.badge.green{background:#ecfdf5;color:#12633f}.badge.green:before{content:"✓"}.badge.blue{background:#f1f5f9;color:#334155}.badge.blue:before{content:"•"}
+.progress{height:7px;background:#e2e8f0;border-radius:1px;overflow:hidden}.progress i{display:block;height:100%;border-radius:0;background:var(--blue)}
+.chart{height:290px;width:100%}.chart.short{height:220px}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:3px}
+table{width:100%;border-collapse:collapse;min-width:820px;font-variant-numeric:tabular-nums}
+th{padding:10px 12px;text-align:left;font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.035em;color:#475569;background:#edf1f5;border-bottom:2px solid #94a3b8;white-space:nowrap}
+td{padding:12px;font-size:12px;border-bottom:1px solid #e7ebf0;vertical-align:middle}tbody tr:last-child td{border-bottom:0}tbody tr{transition:background .18s}tbody tr:hover{background:#f1f5f9}
+.amount{font-variant-numeric:tabular-nums;text-align:right;font-weight:700;font-family:"JetBrains Mono",monospace}.mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";font-family:"JetBrains Mono",monospace;font-size:.94em}
+.vendor{display:flex;align-items:center;gap:9px;font-weight:700;color:var(--ink)}.vendor-mark{width:31px;height:31px;border-radius:2px;background:#e2e8f0;color:#334155;display:grid;place-items:center;font-size:10px;border-left:3px solid var(--color-accent)}
+.notice{border-left:4px solid var(--color-accent);background:#fff7ed;padding:13px 15px;border-radius:2px;font-size:12px;line-height:1.65;color:#7c2d12}
+.split{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.75fr);gap:16px}
+.contract-hero{background:#1e293b;color:#fff;padding:28px;position:relative;overflow:hidden;perspective:900px;border-color:#1e293b;box-shadow:0 18px 40px rgba(15,23,42,.18)}
+.contract-hero:before{content:"";position:absolute;right:-45px;top:-80px;width:310px;height:260px;border:1px solid rgba(255,255,255,.18);background:repeating-linear-gradient(90deg,rgba(255,255,255,.07) 0 1px,transparent 1px 30px),repeating-linear-gradient(rgba(255,255,255,.07) 0 1px,transparent 1px 30px);transform:rotateY(-24deg) rotateX(58deg) rotateZ(-9deg);box-shadow:0 0 0 24px rgba(234,88,12,.08)}
+.contract-hero:after{content:"3D / COST MODEL";position:absolute;right:24px;top:18px;font:10px "JetBrains Mono",monospace;letter-spacing:.12em;color:#cbd5e1}
+.contract-hero small{font-family:"JetBrains Mono",monospace;color:#cbd5e1}.contract-hero h3{font-size:22px;margin:8px 0 22px;max-width:75%}
+.hero-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;position:relative;z-index:1}.hero-meta span{font-size:10px;color:#cbd5e1}.hero-meta strong{display:block;font-size:15px;margin-top:5px}
+.balance{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid #64748b;margin-top:22px;padding-top:19px;position:relative;z-index:1}.balance div{padding:0 12px;border-right:1px solid #475569}.balance div:first-child{padding-left:0}.balance div:last-child{border:0}.balance small{display:block;color:#cbd5e1;margin-bottom:6px}.balance b{font-size:15px;font-variant-numeric:tabular-nums}
+.timeline{position:relative;padding-left:25px}.timeline:before{content:"";position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:repeating-linear-gradient(var(--color-accent) 0 7px,#cbd5e1 7px 14px)}.event{position:relative;padding:0 0 20px 10px}.event:last-child{padding-bottom:0}.event:before{content:"";position:absolute;left:-22px;top:4px;width:11px;height:11px;border-radius:1px;background:#fff;border:3px solid var(--color-accent);transform:rotate(45deg)}.event h4{margin:0 0 4px;color:var(--ink);font-size:12px}.event p{margin:0;color:var(--muted);font-size:11px;line-height:1.55}
+.forecast-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:16px}.side-filter{padding:17px;height:max-content;border-top:4px solid #334155}.filter-group{margin-bottom:18px}.filter-group label{display:block;font-size:10px;color:var(--muted);font-weight:700;margin-bottom:7px;letter-spacing:.04em}.select,.field{width:100%;border:1px solid #cbd5e1;border-radius:3px;background:#fff;color:var(--body);min-height:42px;padding:9px 10px;transition:border-color .2s,box-shadow .2s}.select:hover,.field:hover{border-color:#64748b}.range-row{display:flex;justify-content:space-between;font-size:11px;margin:8px 0}.scenario{border:1px solid var(--line);border-radius:3px;padding:11px;margin-top:7px;transition:.2s}.scenario:hover{border-color:#94a3b8;background:#f8fafc}.scenario.selected{border-color:var(--color-accent);background:#fff7ed;box-shadow:inset 3px 0 var(--color-accent)}.scenario b{color:var(--ink);font-size:12px}.scenario p{font-size:10px;color:var(--muted);margin:3px 0 0}
+.waterfall{display:grid;grid-template-columns:repeat(5,1fr);align-items:end;gap:11px;height:180px;padding-top:20px}.wf{display:flex;flex-direction:column;align-items:center;gap:7px;height:100%;justify-content:flex-end}.wf-bar{width:65%;min-width:35px;border-radius:2px 2px 0 0;background:#94a3b8;border-top:3px solid #475569}.wf-bar.red{background:#ef4444;border-color:#991b1b}.wf-bar.green{background:#34a873;border-color:#12633f}.wf-bar.blue{background:#64748b;border-color:#334155}.wf b{font:600 11px "JetBrains Mono",monospace;color:var(--ink)}.wf span{font-size:10px;color:var(--muted);text-align:center}
+.risk-list{display:grid;gap:10px}.risk-row{display:grid;grid-template-columns:1fr 90px 100px;gap:12px;align-items:center;border-bottom:1px solid #e7ebf0;padding-bottom:10px}.risk-row:last-child{border:0;padding-bottom:0}
+.reason-layout{display:grid;grid-template-columns:minmax(0,.9fr) minmax(360px,1.1fr);gap:16px}.case-nav{padding:11px;border-top:4px solid #334155}.case-item{padding:12px;border-radius:3px;border:1px solid transparent;display:grid;grid-template-columns:1fr auto;gap:7px;margin-bottom:6px;transition:.2s}.case-item:hover{background:#f1f5f9}.case-item.active{background:#fff7ed;border-color:#fdba74;box-shadow:inset 3px 0 var(--color-accent)}.case-item h4{margin:0;color:var(--ink);font-size:12px}.case-item p{margin:4px 0 0;color:var(--muted);font-size:10px}.form-card{padding:21px}.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:15px}.form-group label{display:block;font-size:11px;font-weight:700;color:var(--ink);margin-bottom:6px}.form-group.full{grid-column:1/-1}textarea.field{min-height:90px;resize:vertical}.attachments{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.file{border:1px dashed #94a3b8;border-radius:3px;padding:11px;display:flex;align-items:center;gap:8px;font-size:10px;color:var(--muted);min-width:0}.file span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rule-box{background:#f1f5f9;border:1px solid var(--line);border-radius:3px;padding:13px}.rule-box h4{font-size:11px;margin:0 0 8px;color:var(--ink)}.rule-box ul{margin:0;padding-left:18px;font-size:11px;line-height:1.8;color:var(--muted)}
+.detect-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,.6fr);gap:16px}.alert-banner{padding:15px 17px;background:#fff1f2;border:1px solid #fca5a5;border-left:5px solid var(--red);border-radius:3px;display:flex;gap:12px;align-items:flex-start;margin-bottom:16px}.alert-banner .material-symbols-outlined{color:var(--red);font-size:24px}.alert-banner h3{margin:0 0 4px;color:#991b1b;font-size:14px}.alert-banner p{margin:0;color:#7f1d1d;font-size:11px;line-height:1.55}.invoice-chain{display:flex;align-items:stretch;gap:8px;overflow:auto;padding-bottom:4px}.invoice{min-width:145px;border:1px solid var(--line);border-radius:3px;padding:12px;background:#fff}.invoice.flagged{border-color:#f87171;background:#fff1f2;border-top:4px solid var(--red)}.invoice small{color:var(--muted);font-family:"JetBrains Mono",monospace}.invoice strong{display:block;color:var(--ink);font:700 15px "JetBrains Mono",monospace;margin:7px 0}.invoice p{margin:0;font-size:10px;color:var(--muted)}.chain-arrow{align-self:center;color:#64748b}.score-ring{width:150px;height:150px;border-radius:50%;margin:8px auto 18px;background:conic-gradient(var(--red) 0 78%,#e2e8f0 78%);display:grid;place-items:center;position:relative}.score-ring:after{content:"";position:absolute;width:110px;height:110px;border-radius:50%;background:#fff}.score-ring div{position:relative;z-index:1;text-align:center}.score-ring b{display:block;font:700 34px "JetBrains Mono",monospace;color:#b91c1c}.score-ring small{color:var(--muted)}.signal{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #e7ebf0}.signal:last-child{border:0}.signal .material-symbols-outlined{color:var(--red)}.signal b{font-size:11px;color:var(--ink)}.signal p{font-size:10px;margin:3px 0 0;color:var(--muted)}
+.approval-layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:16px}.approval-steps{display:flex;align-items:center;justify-content:space-between;position:relative;margin:10px 0 25px}.approval-steps:before{content:"";position:absolute;height:2px;background:#cbd5e1;left:7%;right:7%;top:20px}.approver{position:relative;z-index:1;text-align:center;width:22%}.avatar{width:42px;height:42px;margin:auto;border-radius:3px;display:grid;place-items:center;background:#e2e8f0;color:var(--muted);border:3px solid #fff;box-shadow:0 0 0 1px var(--line);font-weight:800}.approver.done .avatar{background:var(--green);color:#fff}.approver.current .avatar{background:var(--color-accent);color:#000;box-shadow:0 0 0 4px #fed7aa}.approver b{display:block;font-size:10px;color:var(--ink);margin-top:7px}.approver small{font:9px "JetBrains Mono",monospace;color:var(--muted)}.checklist{display:grid;gap:8px}.check{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:3px;padding:11px;font-size:11px}.check .material-symbols-outlined{color:var(--green)}.budget-source{border:1px solid var(--line);border-radius:3px;padding:14px;transition:.2s}.budget-source+.budget-source{margin-top:8px}.budget-source:hover{border-color:#94a3b8}.budget-source.selected{border-color:#fb923c;background:#fff7ed;box-shadow:inset 3px 0 var(--color-accent)}.budget-source header{display:flex;justify-content:space-between;gap:8px}.budget-source h4{margin:0;font-size:12px;color:var(--ink)}.budget-source p{font:10px "JetBrains Mono",monospace;color:var(--muted);margin:5px 0 9px}
+.release-hero{background:#ecfdf5;border-color:#86d3ad;border-left:6px solid var(--green);padding:24px;display:flex;align-items:center;justify-content:space-between;gap:20px}.release-icon{width:62px;height:62px;border-radius:3px;background:var(--green);color:#fff;display:grid;place-items:center;box-shadow:6px 6px 0 #a7e7c7}.release-icon .material-symbols-outlined{font-size:32px}.release-hero h3{margin:0 0 6px;color:#14532d;font-size:19px}.release-hero p{margin:0;color:#296449;font-size:12px}.limit-card{padding:19px;border-top:4px solid #64748b}.limit-number{font-size:36px;color:var(--ink);font-weight:800;letter-spacing:-.055em;margin:7px 0}.audit-row{display:grid;grid-template-columns:125px 34px 1fr auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #e7ebf0;font-size:11px}.audit-row:last-child{border:0}.audit-time{color:var(--muted);font-family:"JetBrains Mono",monospace}.audit-icon{width:31px;height:31px;border-radius:2px;background:#e2e8f0;color:#334155;display:grid;place-items:center;border-left:3px solid var(--color-accent)}.audit-row b{color:var(--ink)}.muted{color:var(--muted)}.mobile-tabs{display:none}
+@media(max-width:1050px){.shell{grid-template-columns:78px minmax(0,1fr)}.rail{padding:18px 12px;align-items:center}.nav-list{margin:auto 0}.nav-btn{width:48px;height:48px;padding:0;justify-content:center}.nav-btn .tip{position:absolute;left:60px;background:#0f172a;color:#fff;padding:7px 10px;border:1px solid #334155;opacity:0;transform:translateX(-4px);pointer-events:none;box-shadow:var(--shadow)}.nav-btn:hover .tip,.nav-btn:focus-visible .tip{opacity:1;transform:none}.rail-foot{text-align:center}.cols-4{grid-template-columns:repeat(2,1fr)}.cols-3{grid-template-columns:repeat(2,1fr)}.split,.reason-layout,.detect-grid,.approval-layout{grid-template-columns:1fr}.forecast-layout{grid-template-columns:220px minmax(0,1fr)}.hero-meta,.balance{grid-template-columns:repeat(2,1fr);gap:17px}.balance div{border-right:0;padding:0}}
+@media(max-width:720px){.shell{display:block;padding-bottom:74px}.rail{position:fixed;top:auto;bottom:0;left:0;right:0;width:100%;height:68px;display:block;padding:7px 8px;background:#0f172a}.brand,.rail-foot{display:none}.nav-list{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin:0}.nav-btn{width:100%;height:54px;min-height:54px;border-left:0;border-bottom:3px solid transparent;display:grid;place-items:center;gap:2px;border-radius:2px}.nav-btn.active{border-bottom-color:var(--color-accent)}.nav-btn .tip{display:block;position:static;opacity:1;transform:none;background:transparent;border:0;box-shadow:none;padding:2px 0 0;font-size:9px;line-height:1;color:inherit}.nav-btn .material-symbols-outlined{font-size:19px}.appbar{height:58px;padding:0 14px}.app-title h1{font-size:14px}.project-chip{display:none}.screen{padding:14px}.screen-head{display:block;min-height:auto;padding:24px 18px}.screen-head h2{font-size:38px}.actions{margin-top:18px;justify-content:flex-start}.btn{flex:1;min-width:132px}.cols-4,.cols-3,.cols-2{grid-template-columns:1fr}.span-2{grid-column:auto}.forecast-layout{grid-template-columns:1fr}.side-filter{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.filter-group{margin:0}.scenario{margin:0}.contract-hero{padding:20px}.contract-hero h3{max-width:100%;font-size:19px}.contract-hero:after{display:none}.hero-meta,.balance{grid-template-columns:1fr 1fr}.balance{gap:14px}.balance b{font-size:13px}.form-grid{grid-template-columns:1fr}.form-group.full{grid-column:auto}.attachments{grid-template-columns:1fr}.risk-row{grid-template-columns:1fr 70px}.risk-row .progress{grid-column:1/-1}.approval-steps{overflow:auto;gap:14px;justify-content:flex-start;padding:5px}.approval-steps:before{display:none}.approver{min-width:90px}.release-hero{align-items:flex-start}.release-icon{width:50px;height:50px;flex:0 0 auto}.audit-row{grid-template-columns:80px 32px 1fr}.audit-row .badge{grid-column:3}.split,.detect-grid,.approval-layout{overflow-x:clip;min-width:0;max-width:100%}.split>.grid,.split>aside,.detect-grid>.grid,.detect-grid>aside,.approval-layout>.grid,.approval-layout>aside{grid-template-columns:minmax(0,1fr);min-width:0}.card,.section-title,.invoice-chain,.table-wrap{max-width:100%;min-width:0}.section-title{flex-wrap:wrap}.invoice-chain{flex-wrap:wrap}.chain-arrow{transform:rotate(90deg)}}
+@media(max-width:430px){.metric-value{font-size:22px}.screen-head h2{font-size:34px}.side-filter{grid-template-columns:1fr}.hero-meta,.balance{grid-template-columns:1fr}.waterfall{gap:4px}.wf b{font-size:9px}.wf span{font-size:8px}.wf-bar{min-width:22px}.release-hero{display:block}.release-icon{margin-bottom:14px}.audit-row{grid-template-columns:1fr 32px 3fr}.audit-time{font-size:9px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}.screen{animation:none}.nav-btn:hover,.btn:hover{transform:none}}
+@media(forced-colors:active){.badge,.btn,.card,.field,.select{border:1px solid CanvasText}.nav-btn.active{outline:2px solid Highlight}.progress i{background:Highlight}.live-dot{outline:2px solid CanvasText}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail" aria-label="流程導覽">
+    <div class="brand" aria-label="JVision">JV</div>
+    <nav class="nav-list">
+      <button class="nav-btn" data-i="0" aria-label="彙整承諾"><span class="material-symbols-outlined">contract</span><span class="tip">彙整承諾</span></button>
+      <button class="nav-btn" data-i="1" aria-label="預測超約"><span class="material-symbols-outlined">query_stats</span><span class="tip">預測超約</span></button>
+      <button class="nav-btn" data-i="2" aria-label="說明原因"><span class="material-symbols-outlined">description</span><span class="tip">說明原因</span></button>
+      <button class="nav-btn" data-i="3" aria-label="查核拆單"><span class="material-symbols-outlined">call_split</span><span class="tip">查核拆單</span></button>
+      <button class="nav-btn" data-i="4" aria-label="主管核准"><span class="material-symbols-outlined">approval</span><span class="tip">主管核准</span></button>
+      <button class="nav-btn" data-i="5" aria-label="更新額度"><span class="material-symbols-outlined">monitoring</span><span class="tip">更新額度</span></button>
+    </nav>
+    <div class="rail-foot">FIN<br>CASE</div>
+  </aside>
+
+  <main class="workspace">
+    <header class="appbar">
+      <div class="app-title">
+        <span class="live-dot"></span>
+        <h1>分包超約預警核准台</h1>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="project-chip"><span class="material-symbols-outlined">apartment</span>南港複合商辦新建工程</div>
+        <div class="user" aria-label="專案經理林志偉">林</div>
+      </div>
+    </header>
+
+    <section class="screen" data-screen="0">
+      <div class="screen-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">contract</span>流程 01 · 成本工程師</div>
+          <h2>彙整承諾</h2>
+          <p>合併分包原約、核准變更、累計估驗、未估應付與待議價金額，先還原專案真正的承諾成本。</p>
+        </div>
+        <div class="actions">
+          <button class="btn"><span class="material-symbols-outlined">sync</span>同步 ERP</button>
+          <button class="btn primary"><span class="material-symbols-outlined">add</span>新增未估承諾</button>
+        </div>
+      </div>
+
+      <div class="grid cols-4">
+        <article class="card metric"><div class="metric-label">原約總額</div><div class="metric-value">NT$ 4.82 億</div><div class="metric-foot">38 份有效分包合約</div></article>
+        <article class="card metric"><div class="metric-label">核准變更</div><div class="metric-value">NT$ 3,640 萬</div><div class="metric-foot"><span class="up">+7.6%</span> 相較原約</div></article>
+        <article class="card metric"><div class="metric-label">未估應付</div><div class="metric-value">NT$ 1,285 萬</div><div class="metric-foot">12 筆待估驗認列</div></article>
+        <article class="card metric"><div class="metric-label">預測超約金額</div><div class="metric-value">NT$ 1,176 萬</div><div class="metric-foot"><span class="badge red">5 份高風險</span></div></article>
+      </div>
+
+      <div class="split" style="margin-top:18px">
+        <div class="grid">
+          <article class="card contract-hero">
+            <small>重點合約 · SC-MEP-017</small>
+            <h3>宏昇機電｜機電管線與設備安裝</h3>
+            <div class="hero-meta">
+              <div><span>工種</span><strong>機電工程</strong></div>
+              <div><span>合約管理員</span><strong>陳雅婷</strong></div>
+              <div><span>履約進度</span><strong>68.4%</strong></div>
+              <div><span>風險等級</span><strong>高度關注</strong></div>
+            </div>
+            <div class="balance">
+              <div><small>原約</small><b>8,600 萬</b></div>
+              <div><small>核准變更</small><b>620 萬</b></div>
+              <div><small>累計估驗</small><b>7,410 萬</b></div>
+              <div><small>未估／待議</small><b>2,278 萬</b></div>
+              <div><small>預測差額</small><b style="color:#ffd0d4">-468 萬</b></div>
+            </div>
+          </article>
+
+          <article class="card pad">
+            <div class="section-title"><h3>分包承諾明細</h3><small>資料更新 09:24</small></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>分包合約</th><th>廠商／工種</th><th class="amount">原約金額</th><th class="amount">核准變更</th><th class="amount">累計估驗</th><th class="amount">未估應付</th><th class="amount">待議價金額</th><th>超約預警</th></tr></thead>
+                <tbody>
+                  <tr><td class="mono">SC-MEP-017</td><td><div class="vendor"><span class="vendor-mark">宏</span>宏昇機電／機電</div></td><td class="amount">86,000,000</td><td class="amount">6,200,000</td><td class="amount">74,100,000</td><td class="amount">13,480,000</td><td class="amount">9,300,000</td><td><span class="badge red">超約 468 萬</span></td></tr>
+                  <tr><td class="mono">SC-STR-004</td><td><div class="vendor"><span class="vendor-mark">鼎</span>鼎固營造／結構</div></td><td class="amount">112,500,000</td><td class="amount">8,750,000</td><td class="amount">96,320,000</td><td class="amount">18,600,000</td><td class="amount">7,950,000</td><td><span class="badge red">超約 163 萬</span></td></tr>
+                  <tr><td class="mono">SC-FAC-011</td><td><div class="vendor"><span class="vendor-mark">景</span>景泰帷幕／外牆</div></td><td class="amount">64,800,000</td><td class="amount">3,180,000</td><td class="amount">51,260,000</td><td class="amount">9,800,000</td><td class="amount">5,400,000</td><td><span class="badge amber">餘額 152 萬</span></td></tr>
+                  <tr><td class="mono">SC-FIR-022</td><td><div class="vendor"><span class="vendor-mark">安</span>安鎧消防／消防</div></td><td class="amount">39,600,000</td><td class="amount">1,460,000</td><td class="amount">31,840,000</td><td class="amount">6,120,000</td><td class="amount">4,880,000</td><td><span class="badge red">超約 178 萬</span></td></tr>
+                  <tr><td class="mono">SC-INT-028</td><td><div class="vendor"><span class="vendor-mark">立</span>立方裝修／室內</div></td><td class="amount">52,400,000</td><td class="amount">4,900,000</td><td class="amount">38,700,000</td><td class="amount">8,260,000</td><td class="amount">6,100,000</td><td><span class="badge green">餘額 424 萬</span></td></tr>
+                  <tr><td class="mono">SC-ELV-031</td><td><div class="vendor"><span class="vendor-mark">迅</span>迅達電梯／升降</div></td><td class="amount">28,800,000</td><td class="amount">0</td><td class="amount">17,280,000</td><td class="amount">4,320,000</td><td class="amount">2,100,000</td><td><span class="badge green">餘額 510 萬</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+
+        <aside class="grid">
+          <article class="card pad">
+            <div class="section-title"><h3>承諾組成</h3><span class="badge blue">本月</span></div>
+            <div id="commitChart" class="chart short" role="img" aria-label="承諾成本組成圓餅圖"></div>
+          </article>
+          <article class="card pad">
+            <div class="section-title"><h3>資料完整度</h3><b class="good">94%</b></div>
+            <div class="progress"><i style="width:94%"></i></div>
+            <div class="timeline" style="margin-top:18px">
+              <div class="event"><h4>ERP 估驗同步完成</h4><p>今日 09:24 · 38 份合約、214 筆估驗</p></div>
+              <div class="event"><h4>3 筆待議價缺佐證</h4><p>需補齊報價單或工地指示單</p></div>
+              <div class="event"><h4>合約版本已鎖定</h4><p>成本基準版 R8 · 2026/08/31</p></div>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="1">
+      <div class="screen-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">query_stats</span>流程 02 · 成本工程師</div>
+          <h2>預測超約</h2>
+          <p>依剩餘工程量、待議價風險與完工成本情境，計算每份合約的最終成本與超約機率。</p>
+        </div>
+        <div class="actions"><button class="btn">匯出預測</button><button class="btn primary">鎖定本期預測</button></div>
+      </div>
+
+      <div class="forecast-layout">
+        <aside class="card side-filter">
+          <div class="filter-group"><label for="tradeFilter">工種範圍</label><select id="tradeFilter" class="select"><option>全部工種</option><option>機電工程</option><option>結構工程</option></select></div>
+          <div class="filter-group"><label for="periodFilter">預測基準日</label><select id="periodFilter" class="select"><option>2026/08/31</option><option>2026/07/31</option></select></div>
+          <div class="filter-group"><label>待議價認列比例</label><div class="range-row"><b>70%</b><span>保守估計</span></div><div class="progress"><i style="width:70%"></i></div></div>
+          <div class="filter-group"><label>完工情境</label>
+            <div class="scenario selected"><b>基準情境</b><p>依目前單價與剩餘工程量</p></div>
+            <div class="scenario"><b>壓力情境</b><p>材料與工率再增加 6%</p></div>
+            <div class="scenario"><b>改善情境</b><p>議價折減與變更回收</p></div>
+          </div>
+          <button class="btn primary" style="width:100%;justify-content:center">重新計算</button>
+        </aside>
+
+        <div class="grid">
+          <div class="grid cols-4">
+            <article class="card metric"><div class="metric-label">完工預測成本</div><div class="metric-value">5.30 億</div><div class="metric-foot">基準承諾 5.18 億</div></article>
+            <article class="card metric"><div class="metric-label">預測超約金額</div><div class="metric-value">1,176 萬</div><div class="metric-foot"><span class="up">較上期 +214 萬</span></div></article>
+            <article class="card metric"><div class="metric-label">風險合約</div><div class="metric-value">8 / 38</div><div class="metric-foot">其中 5 份為高風險</div></article>
+            <article class="card metric"><div class="metric-label">預測可信度</div><div class="metric-value">87.6%</div><div class="metric-foot"><span class="good">資料覆蓋良好</span></div></article>
+          </div>
+
+          <div class="grid cols-3">
+            <article class="card pad span-2">
+              <div class="section-title"><h3>完工成本推演</h3><small>單位：新台幣百萬元</small></div>
+              <div class="waterfall">
+                <div class="wf"><b>482.0</b><div class="wf-bar blue" style="height:76%"></div><span>原約總額</span></div>
+                <div class="wf"><b>+36.4</b><div class="wf-bar green" style="height:26%"></div><span>核准變更</span></div>
+                <div class="wf"><b>+8.2</b><div class="wf-bar red" style="height:16%"></div><span>待議價風險</span></div>
+                <div class="wf"><b>+3.6</b><div class="wf-bar red" style="height:11%"></div><span>施工損耗</span></div>
+                <div class="wf"><b>530.2</b><div class="wf-bar red" style="height:84%"></div><span>完工預測</span></div>
+              </div>
+              <div class="notice" style="margin-top:16px">機電與消防工程占本期新增超約風險的 71%，主因為 B3F 管線改道及設備規格升級尚未完成追加程序。</div>
+            </article>
+            <article class="card pad">
+              <div class="section-title"><h3>六週預警趨勢</h3><span class="badge blue">40% → 90%</span></div>
+              <div id="forecastChart" class="chart short" role="img" aria-label="六週進度落後預警趨勢"></div>
+            </article>
+          </div>
+
+          <article class="card pad">
+            <div class="section-title"><h3>合約風險排序</h3><small>模型更新：09:25</small></div>
+            <div class="risk-list">
+              <div class="risk-row"><div class="vendor"><span class="vendor-mark">宏</span>宏昇機電 <span class="badge red">高</span></div><b class="amount">468 萬</b><div class="progress"><i style="width:92%;background:var(--red)"></i></div></div>
+              <div class="risk-row"><div class="vendor"><span class="vendor-mark">安</span>安鎧消防 <span class="badge red">高</span></div><b class="amount">178 萬</b><div class="progress"><i style="width:84%;background:var(--red)"></i></div></div>
+              <div class="risk-row"><div class="vendor"><span class="vendor-mark">鼎</span>鼎固營造 <span class="badge red">高</span></div><b class="amount">163 萬</b><div class="progress"><i style="width:76%;background:var(--red)"></i></div></div>
+              <div class="risk-row"><div class="vendor"><span class="vendor-mark">永</span>永誠防水 <span class="badge amber">中</span></div><b class="amount">126 萬</b><div class="progress"><i style="width:61%;background:var(--amber)"></i></div></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="2">
+      <div class="screen-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">description</span>流程 03 · 合約管理員</div>
+          <h2>說明原因</h2>
+          <p>提出超約原因、責任歸屬、追加依據與預算來源，形成主管可直接判斷的完整案件。</p>
+        </div>
+        <div class="actions"><button class="btn">儲存草稿</button><button class="btn primary">送交內控查核</button></div>
+      </div>
+
+      <div class="reason-layout">
+        <aside class="card case-nav">
+          <div class="section-title" style="padding:8px 8px 4px"><h3>待說明案件</h3><span class="badge red">5</span></div>
+          <div class="case-item active"><div><h4>SC-MEP-017｜宏昇機電</h4><p>B3F 管線改道與設備升級</p></div><span class="badge red">468 萬</span></div>
+          <div class="case-item"><div><h4>SC-FIR-022｜安鎧消防</h4><p>消防排煙規格變更</p></div><span class="badge red">178 萬</span></div>
+          <div class="case-item"><div><h4>SC-STR-004｜鼎固營造</h4><p>鋼筋用量偏差</p></div><span class="badge amber">163 萬</span></div>
+          <div class="case-item"><div><h4>SC-WAT-035｜永誠防水</h4><p>地下層追加止水帶</p></div><span class="badge amber">126 萬</span></div>
+          <div class="case-item"><div><h4>SC-ELE-019｜全訊電氣</h4><p>臨電展延費用</p></div><span class="badge amber">92 萬</span></div>
+          <div class="notice" style="margin:12px 8px">RULE-03：說明原因由合約管理員負責，證據需能支撐超約核准週期與追加依據。</div>
+        </aside>
+
+        <div class="grid">
+          <article class="card form-card">
+            <div class="section-title"><h3>超約說明單 OV-2026-0831-07</h3><span class="badge amber">待補一項佐證</span></div>
+            <div class="form-grid">
+              <div class="form-group"><label for="contractField">分包合約</label><input id="contractField" class="field" value="SC-MEP-017｜宏昇機電" readonly></div>
+              <div class="form-group"><label for="overrunField">申請追加金額</label><input id="overrunField" class="field" value="NT$ 4,680,000"></div>
+              <div class="form-group"><label for="causeField">超約主因</label><select id="causeField" class="select"><option>業主需求變更</option><option>設計變更</option><option>施工損耗</option></select></div>
+              <div class="form-group"><label for="liabilityField">責任歸屬</label><select id="liabilityField" class="select"><option>業主變更 70%／設計協調 30%</option><option>承包商施工責任</option></select></div>
+              <div class="form-group full"><label for="reasonField">原因與處置說明</label><textarea id="reasonField" class="field">B3F 原設計冷卻水管與結構梁衝突，依 RFI-238 核定改採繞梁配置；另配合業主將泵浦控制盤升級為雙迴路。已完成工程量複核，預估追加 468 萬元，其中 330 萬可向業主變更回收。</textarea></div>
+              <div class="form-group"><label for="budgetField">預算來源</label><select id="budgetField" class="select"><option>業主變更準備金</option><option>專案風險準備金</option><option>工種間預算移撥</option></select></div>
+              <div class="form-group"><label for="recoverField">預計可回收金額</label><input id="recoverField" class="field" value="NT$ 3,300,000"></div>
+              <div class="form-group full"><label>佐證附件</label>
+                <div class="attachments">
+                  <div class="file"><span class="material-symbols-outlined">picture_as_pdf</span><span>RFI-238_核定單.pdf</span></div>
+                  <div class="file"><span class="material-symbols-outlined">table_view</span><span>機電追加數量複核.xlsx</span></div>
+                  <div class="file"><span class="material-symbols-outlined">add_photo_alternate</span><span>待補：現場改道照片</span></div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <div class="grid cols-2">
+            <article class="card pad">
+              <div class="section-title"><h3>追加金額拆解</h3><b>468 萬</b></div>
+              <div id="reasonChart" class="chart short" role="img" aria-label="追加金額拆解圖"></div>
+            </article>
+            <article class="card pad">
+              <div class="section-title"><h3>送審前規則檢查</h3><span class="badge amber">4 / 5 通過</span></div>
+              <div class="checklist">
+                <div class="check"><span class="material-symbols-outlined">check_circle</span>變更指示可追溯至 RFI-238</div>
+                <div class="check"><span class="material-symbols-outlined">check_circle</span>追加工程量已由成本工程師複核</div>
+                <div class="check"><span class="material-symbols-outlined">check_circle</span>預算來源餘額足以支應</div>
+                <div class="check"><span class="material-symbols-outlined">check_circle</span>責任比例與回收金額一致</div>
+                <div class="check" style="border-color:#f3b8bd;color:var(--red)"><span class="material-symbols-outlined" style="color:var(--red)">error</span>現場改道照片尚未上傳</div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="3">
+      <div class="screen-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">call_split</span>流程 04 · 內控人員</div>
+          <h2>查核拆單</h2>
+          <p>比對同廠商、相近日期、相同工程指示與授權門檻，辨識規避核准的請款或採購拆分。</p>
+        </div>
+        <div class="actions"><button class="btn danger">退回補件</button><button class="btn primary">查核通過</button></div>
+      </div>
+
+      <div class="alert-banner">
+        <span class="material-symbols-outlined">warning</span>
+        <div><h3>偵測到 1 組高風險拆單鏈</h3><p>宏昇機電在 7 日內提出 3 筆相同施工區域與指示來源的請款，合計 438 萬元，個別金額均低於 150 萬元授權門檻。</p></div>
+      </div>
+
+      <div class="detect-grid">
+        <div class="grid">
+          <article class="card pad">
+            <div class="section-title"><h3>可疑請款關聯鏈</h3><span class="badge red">規避門檻風險 78%</span></div>
+            <div class="invoice-chain">
+              <div class="invoice flagged"><small>2026/08/12</small><strong>148 萬</strong><p>INV-0812-34<br>B3F 冷卻水管改道</p></div>
+              <span class="material-symbols-outlined chain-arrow">arrow_forward</span>
+              <div class="invoice flagged"><small>2026/08/15</small><strong>145 萬</strong><p>INV-0815-19<br>B3F 管件與吊架追加</p></div>
+              <span class="material-symbols-outlined chain-arrow">arrow_forward</span>
+              <div class="invoice flagged"><small>2026/08/18</small><strong>145 萬</strong><p>INV-0818-08<br>B3F 改道路段工資</p></div>
+              <span class="material-symbols-outlined chain-arrow">trending_flat</span>
+              <div class="invoice"><small>關聯合計</small><strong style="color:var(--red)">438 萬</strong><p>超過處級授權門檻<br>288 萬</p></div>
+            </div>
+          </article>
+
+          <article class="card pad">
+            <div class="section-title"><h3>未授權支出查核表</h3><small>6 筆案件 · 2 筆需處置</small></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>請款單號</th><th>分包廠商</th><th>施工區域／工作內容</th><th class="amount">請款金額</th><th>關聯指示單</th><th>授權層級</th><th>拆單訊號</th></tr></thead>
+                <tbody>
+                  <tr><td class="mono">INV-0812-34</td><td>宏昇機電</td><td>B3F／冷卻水管改道</td><td class="amount">1,480,000</td><td>RFI-238</td><td>課級 150 萬內</td><td><span class="badge red">高度關聯</span></td></tr>
+                  <tr><td class="mono">INV-0815-19</td><td>宏昇機電</td><td>B3F／管件與吊架追加</td><td class="amount">1,450,000</td><td>RFI-238</td><td>課級 150 萬內</td><td><span class="badge red">高度關聯</span></td></tr>
+                  <tr><td class="mono">INV-0818-08</td><td>宏昇機電</td><td>B3F／改道路段工資</td><td class="amount">1,450,000</td><td>RFI-238</td><td>課級 150 萬內</td><td><span class="badge red">高度關聯</span></td></tr>
+                  <tr><td class="mono">INV-0821-16</td><td>安鎧消防</td><td>15F／排煙風管增設</td><td class="amount">920,000</td><td>SI-412</td><td>課級 150 萬內</td><td><span class="badge amber">日期相近</span></td></tr>
+                  <tr><td class="mono">INV-0826-07</td><td>景泰帷幕</td><td>東向／收邊料追加</td><td class="amount">680,000</td><td>VO-091</td><td>課級 150 萬內</td><td><span class="badge green">無異常</span></td></tr>
+                  <tr><td class="mono">INV-0828-22</td><td>鼎固營造</td><td>B2F／鋼筋續接器</td><td class="amount">2,180,000</td><td>RFI-225</td><td>處級已核准</td><td><span class="badge green">授權完整</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+
+        <aside class="grid">
+          <article class="card pad">
+            <div class="section-title"><h3>拆單風險評分</h3><span class="badge red">高風險</span></div>
+            <div class="score-ring"><div><b>78</b><small>/ 100</small></div></div>
+            <div class="signal"><span class="material-symbols-outlined">calendar_month</span><div><b>時間集中</b><p>三筆請款間隔均小於 4 日</p></div></div>
+            <div class="signal"><span class="material-symbols-outlined">account_tree</span><div><b>來源相同</b><p>共同引用 RFI-238</p></div></div>
+            <div class="signal"><span class="material-symbols-outlined">price_check</span><div><b>緊貼門檻</b><p>單筆皆介於 145–148 萬</p></div></div>
+          </article>
+          <article class="card pad">
+            <div class="rule-box">
+              <h4>查核決策</h4>
+              <ul>
+                <li>通過：合併送處級授權，進入主管核准。</li>
+                <li>不通過：退回補件並通知內控人員。</li>
+                <li>所有判斷寫入不可覆寫稽核軌跡。</li>
+              </ul>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="4">
+      <div class="screen-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">approval</span>流程 05 · 專案經理</div>
+          <h2>主管核准</h2>
+          <p>確認超約責任、預算來源、拆單查核與回收計畫，決定追加預算是否生效。</p>
+        </div>
+        <div class="actions"><button class="btn danger">退回合約管理員</button><button class="btn primary">核准追加預算</button></div>
+      </div>
+
+      <div class="approval-layout">
+        <div class="grid">
+          <article class="card pad">
+            <div class="section-title"><h3>OV-2026-0831-07｜宏昇機電超約案</h3><span class="badge blue">等待專案經理</span></div>
+            <div class="approval-steps">
+              <div class="approver done"><div class="avatar"><span class="material-symbols-outlined">check</span></div><b>成本複核</b><small>王建勛 08/29</small></div>
+              <div class="approver done"><div class="avatar"><span class="material-symbols-outlined">check</span></div><b>合約說明</b><small>陳雅婷 08/30</small></div>
+              <div class="approver done"><div class="avatar"><span class="material-symbols-outlined">check</span></div><b>內控查核</b><small>許文豪 09/01</small></div>
+              <div class="approver current"><div class="avatar">林</div><b>主管核准</b><small>目前關卡</small></div>
+            </div>
+            <div class="grid cols-4">
+              <div class="metric" style="box-shadow:none;border:1px solid var(--line);border-radius:14px"><div class="metric-label">追加申請</div><div class="metric-value">468 萬</div><div class="metric-foot">占原約 5.44%</div></div>
+              <div class="metric" style="box-shadow:none;border:1px solid var(--line);border-radius:14px"><div class="metric-label">預計回收</div><div class="metric-value">330 萬</div><div class="metric-foot"><span class="good">回收率 70.5%</span></div></div>
+              <div class="metric" style="box-shadow:none;border:1px solid var(--line);border-radius:14px"><div class="metric-label">專案淨影響</div><div class="metric-value">138 萬</div><div class="metric-foot">由風險準備金吸收</div></div>
+              <div class="metric" style="box-shadow:none;border:1px solid var(--line);border-radius:14px"><div class="metric-label">核准週期</div><div class="metric-value">3.2 天</div><div class="metric-foot"><span class="good">目標內 1.8 天</span></div></div>
+            </div>
+          </article>
+
+          <article class="card pad">
+            <div class="section-title"><h3>核准依據總覽</h3><small>5 項文件均已驗證</small></div>
+            <div class="checklist">
+              <div class="check"><span class="material-symbols-outlined">verified</span><div><b>工程必要性</b><br><small>結構衝突已由 RFI-238 核定，改道無替代方案</small></div></div>
+              <div class="check"><span class="material-symbols-outlined">verified</span><div><b>成本合理性</b><br><small>單價比對近期三份機電採購，中位差異 +2.4%</small></div></div>
+              <div class="check"><span class="material-symbols-outlined">verified</span><div><b>拆單查核</b><br><small>三筆請款已合併計算並提升至處級授權</small></div></div>
+              <div class="check"><span class="material-symbols-outlined">verified</span><div><b>業主回收計畫</b><br><small>330 萬納入 VO-114，預計 09/18 送審</small></div></div>
+            </div>
+          </article>
+        </div>
+
+        <aside class="grid">
+          <article class="card pad">
+            <div class="section-title"><h3>選擇預算來源</h3><span class="badge green">可支應</span></div>
+            <div class="budget-source selected">
+              <header><h4>業主變更準備金</h4><b>330 萬</b></header>
+              <p>PRJ-VO-2026 · 可用餘額 1,280 萬</p>
+              <div class="progress"><i style="width:26%;background:var(--green)"></i></div>
+            </div>
+            <div class="budget-source selected">
+              <header><h4>專案風險準備金</h4><b>138 萬</b></header>
+              <p>PRJ-RSV-01 · 可用餘額 860 萬</p>
+              <div class="progress"><i style="width:16%"></i></div>
+            </div>
+            <div class="budget-source">
+              <header><h4>機電工種預算移撥</h4><b>未選用</b></header>
+              <p>剩餘額度須保留後續設備測試</p>
+            </div>
+          </article>
+
+          <article class="card pad">
+            <div class="section-title"><h3>主管核准意見</h3></div>
+            <textarea class="field" aria-label="主管核准意見">同意追加。請合約管理員於 9/18 前完成業主變更送審；未回收部分每週列入成本會議追蹤。</textarea>
+            <div class="notice" style="margin-top:14px">主管核准若不通過，案件將退回補件並通知專案經理；核准後才可更新請款上限。</div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="5">
+      <div class="screen-head">
+        <div>
+          <div class="eyebrow"><span class="material-symbols-outlined">monitoring</span>流程 06 · 專案財務</div>
+          <h2>更新額度</h2>
+          <p>發布核准後的可請款合約上限，同步財務控管並保留完整操作紀錄。</p>
+        </div>
+        <div class="actions"><button class="btn">下載核准紀錄</button><button class="btn primary">發布新額度</button></div>
+      </div>
+
+      <article class="card release-hero">
+        <div style="display:flex;align-items:center;gap:18px">
+          <div class="release-icon"><span class="material-symbols-outlined">task_alt</span></div>
+          <div><h3>追加預算已核准，等待發布</h3><p>OV-2026-0831-07 已於 2026/09/01 10:42 完成主管核准，發布後將同步攔截規則與 ERP 合約上限。</p></div>
+        </div>
+        <span class="badge green">全程稽核完整</span>
+      </article>
+
+      <div class="grid cols-3" style="margin-top:18px">
+        <article class="card limit-card">
+          <div class="metric-label">原可請款上限</div><div class="limit-number">9,220 萬</div><div class="metric-foot">原約 8,600 萬＋已核准變更 620 萬</div>
+        </article>
+        <article class="card limit-card" style="border-color:#a9c0fb;background:#f8faff">
+          <div class="metric-label">本次核准增加</div><div class="limit-number" style="color:var(--blue)">+468 萬</div><div class="metric-foot">追加核准單 OV-2026-0831-07</div>
+        </article>
+        <article class="card limit-card" style="border-color:#a9dcc5;background:#f7fdf9">
+          <div class="metric-label">新可請款上限</div><div class="limit-number" style="color:var(--green)">9,688 萬</div><div class="metric-foot"><span class="good">發布後立即生效</span></div>
+        </article>
+      </div>
+
+      <div class="grid cols-3" style="margin-top:18px">
+        <article class="card pad span-2">
+          <div class="section-title"><h3>發布前後額度比較</h3><small>單位：新台幣百萬元</small></div>
+          <div id="limitChart" class="chart" role="img" aria-label="合約額度發布前後比較圖"></div>
+        </article>
+        <article class="card pad">
+          <div class="section-title"><h3>發布檢核</h3><span class="badge green">全部通過</span></div>
+          <div class="checklist">
+            <div class="check"><span class="material-symbols-outlined">check_circle</span>追加預算核准完成</div>
+            <div class="check"><span class="material-symbols-outlined">check_circle</span>拆單請款已合併授權</div>
+            <div class="check"><span class="material-symbols-outlined">check_circle</span>預算來源已保留額度</div>
+            <div class="check"><span class="material-symbols-outlined">check_circle</span>ERP 合約代碼已匹配</div>
+            <div class="check"><span class="material-symbols-outlined">check_circle</span>通知名單共 8 人</div>
+          </div>
+          <button class="btn primary" style="width:100%;justify-content:center;margin-top:16px"><span class="material-symbols-outlined">publish</span>確認發布 9,688 萬</button>
+        </article>
+      </div>
+
+      <article class="card pad" style="margin-top:18px">
+        <div class="section-title"><h3>全程稽核紀錄</h3><small>不可覆寫 · 案件報表已封存</small></div>
+        <div class="audit-row"><span class="audit-time">09/01 10:42</span><span class="audit-icon"><span class="material-symbols-outlined">approval</span></span><div><b>主管核准追加預算</b><br><span class="muted">林志偉 · 專案經理 · 核准 468 萬元</span></div><span class="badge green">已簽署</span></div>
+        <div class="audit-row"><span class="audit-time">09/01 09:18</span><span class="audit-icon"><span class="material-symbols-outlined">policy</span></span><div><b>拆單查核通過</b><br><span class="muted">許文豪 · 三筆請款合併提升授權</span></div><span class="badge green">已驗證</span></div>
+        <div class="audit-row"><span class="audit-time">08/30 16:06</span><span class="audit-icon"><span class="material-symbols-outlined">description</span></span><div><b>補齊超約原因與佐證</b><br><span class="muted">陳雅婷 · 上傳 RFI、工程量複核與現場照片</span></div><span class="badge blue">版本 R3</span></div>
+        <div class="audit-row"><span class="audit-time">08/29 14:35</span><span class="audit-icon"><span class="material-symbols-outlined">query_stats</span></span><div><b>鎖定完工成本預測</b><br><span class="muted">王建勛 · 預測超約 468 萬元、可信度 91%</span></div><span class="badge blue">模型 F-28</span></div>
+        <div class="audit-row"><span class="audit-time">08/29 11:12</span><span class="audit-icon"><span class="material-symbols-outlined">contract</span></span><div><b>彙整合約承諾</b><br><span class="muted">系統同步原約、變更、估驗與未估應付</span></div><span class="badge green">資料完整</span></div>
+      </article>
+    </section>
+  </main>
+</div>
+
+<script>
+const chartRegistry = {};
+const palette = {
+  blue:"#1e40af", ink:"#14213d", muted:"#64748b", line:"#dbe3ef",
+  green:"#16845b", amber:"#c2700b", red:"#c53c4a"
+};
+
+function optionFor(indexValue){
+  if(indexValue===0){
+    return {
+      tooltip:{trigger:"item",formatter:"{b}<br>{c} 百萬（{d}%）"},
+      legend:{bottom:0,textStyle:{color:palette.muted,fontFamily:"Inter, Noto Sans TC"}},
+      series:[{type:"pie",radius:["48%","72%"],center:["50%","43%"],avoidLabelOverlap:true,
+        itemStyle:{borderColor:"#fff",borderWidth:3,borderRadius:5},
+        label:{show:false},
+        data:[
+          {value:482,name:"原約",itemStyle:{color:palette.blue}},
+          {value:36.4,name:"核准變更",itemStyle:{color:"#6f91e2"}},
+          {value:12.85,name:"未估應付",itemStyle:{color:palette.amber}},
+          {value:8.7,name:"待議價",itemStyle:{color:palette.red}}
+        ]
+      }],
+      graphic:[{type:"text",left:"center",top:"34%",style:{text:"539.9\n百萬元",textAlign:"center",fill:palette.ink,font:"700 18px Inter",lineHeight:25}}]
+    };
+  }
+  if(indexValue===1){
+    return {
+      tooltip:{trigger:"axis"},
+      grid:{left:42,right:16,top:20,bottom:34},
+      xAxis:{type:"category",data:["W1","W2","W3","W4","W5","W6"],axisLine:{lineStyle:{color:palette.line}},axisLabel:{color:palette.muted}},
+      yAxis:{type:"value",min:30,max:100,axisLabel:{formatter:"{value}%",color:palette.muted},splitLine:{lineStyle:{color:"#edf1f6"}}},
+      series:[{type:"line",data:[40,50,60,70,80,90],smooth:true,symbolSize:8,lineStyle:{width:4,color:palette.blue},itemStyle:{color:palette.blue},areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"rgba(30,64,175,.28)"},{offset:1,color:"rgba(30,64,175,.02)"}]}}}]
+    };
+  }
+  if(indexValue===2){
+    return {
+      tooltip:{trigger:"item",formatter:"{b}：{c} 萬"},
+      series:[{type:"pie",radius:["42%","70%"],center:["50%","48%"],label:{formatter:"{b}\n{c} 萬",fontSize:11,color:palette.muted},
+        data:[
+          {value:226,name:"管線改道",itemStyle:{color:palette.blue}},
+          {value:112,name:"控制盤升級",itemStyle:{color:"#577bd1"}},
+          {value:78,name:"吊架與管件",itemStyle:{color:palette.amber}},
+          {value:52,name:"趕工費",itemStyle:{color:palette.red}}
+        ]
+      }]
+    };
+  }
+  if(indexValue===5){
+    return {
+      tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},
+      legend:{top:0,textStyle:{color:palette.muted}},
+      grid:{left:48,right:20,top:48,bottom:35},
+      xAxis:{type:"category",data:["機電工程","消防工程","結構工程","帷幕工程","室內裝修"],axisLabel:{color:palette.muted,interval:0},axisLine:{lineStyle:{color:palette.line}}},
+      yAxis:{type:"value",axisLabel:{formatter:"{value}M",color:palette.muted},splitLine:{lineStyle:{color:"#edf1f6"}}},
+      series:[
+        {name:"發布前",type:"bar",barWidth:18,data:[92.2,41.06,121.25,67.98,57.3],itemStyle:{color:"#b8c8e9",borderRadius:[5,5,0,0]}},
+        {name:"發布後",type:"bar",barWidth:18,data:[96.88,41.06,121.25,67.98,57.3],itemStyle:{color:palette.green,borderRadius:[5,5,0,0]}}
+      ]
+    };
+  }
+  return null;
+}
+
+function mountChart(indexValue){
+  const ids={0:"commitChart",1:"forecastChart",2:"reasonChart",5:"limitChart"};
+  const chartId=ids[indexValue];
+  if(!chartId || typeof echarts==="undefined") return;
+  const chartEl=document.getElementById(chartId);
+  if(!chartEl || chartEl.clientWidth===0) return;
+  if(!chartRegistry[chartId]){
+    chartRegistry[chartId]=echarts.init(chartEl);
+    chartRegistry[chartId].setOption(optionFor(indexValue));
+  }else{
+    chartRegistry[chartId].resize();
+  }
+}
+
+function show(indexValue){
+  let safeIndex=Number(indexValue);
+  if(!Number.isInteger(safeIndex) || safeIndex<0 || safeIndex>5) safeIndex=0;
+  document.querySelectorAll("[data-screen]").forEach(function(screenEl){
+    screenEl.classList.toggle("active",Number(screenEl.dataset.screen)===safeIndex);
+  });
+  document.querySelectorAll("[data-i]").forEach(function(buttonEl){
+    const selected=Number(buttonEl.dataset.i)===safeIndex;
+    buttonEl.classList.toggle("active",selected);
+    buttonEl.setAttribute("aria-current",selected?"step":"false");
+  });
+  mountChart(safeIndex);
+  window.scrollTo({left:0,top:0,behavior:"smooth"});
+}
+
+function indexFromHash(){
+  const matchValue=window.location.hash.match(/(?:go=|v)([0-9]+)/);
+  return matchValue?Number(matchValue[1]):0;
+}
+
+document.querySelectorAll("[data-i]").forEach(function(buttonEl){
+  buttonEl.addEventListener("click",function(){
+    const targetIndex=Number(buttonEl.dataset.i);
+    if(window.location.hash==="#go="+targetIndex) show(targetIndex);
+    else window.location.hash="go="+targetIndex;
+  });
+});
+
+window.addEventListener("hashchange",function(){show(indexFromHash())});
+window.addEventListener("resize",function(){
+  Object.keys(chartRegistry).forEach(function(chartKey){chartRegistry[chartKey].resize()});
+});
+show(indexFromHash());
+</script>
+</body>
+</html>
