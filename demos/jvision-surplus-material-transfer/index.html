@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<link rel="icon" href="../../favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&amp;family=JetBrains+Mono:wght@400;600&amp;family=Playfair+Display:ital@1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>現場餘料轉用調度台 · warehouse-wms｜Jvision 系統 Demo</title>
+<style>
+:root{
+  --color-primary:#64748b;
+  --color-on-primary:#fff;
+  --color-secondary:#94a3b8;
+  --color-on-secondary:#0f172a;
+  --color-accent:#ea580c;
+  --color-on-accent:#000;
+  --color-background:#f8fafc;
+  --color-foreground:#334155;
+  --color-card:#fff;
+  --color-card-foreground:#334155;
+  --color-muted:#ebf0f5;
+  --color-muted-foreground:#475569;
+  --color-border:#e2e8f0;
+  --color-destructive:#dc2626;
+  --color-on-destructive:#fff;
+  --color-ring:#64748b;
+  --blue:#64748b;
+  --ink:#0f172a;
+  --muted:#475569;
+  --line:#e2e8f0;
+  --body:#334155;
+  --bg:#f8fafc;
+  --green:#047857;
+  --amber:#b45309;
+  --red:#dc2626;
+  --white:#fff;
+  --soft-blue:#ebf0f5;
+  --shadow:0 1px 2px rgba(15,23,42,.04),0 12px 32px rgba(15,23,42,.06);
+  --mono:"JetBrains Mono",monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;color:var(--color-foreground);background:var(--color-background);
+  font-family:Inter,"Noto Sans TC",sans-serif;line-height:1.55;overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit}
+button,[role="button"],select{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(100,116,139,.32);outline-offset:3px;
+}
+.material-symbols-outlined{font-size:21px;line-height:1;font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24}
+.shell{min-height:100vh;display:grid;grid-template-columns:88px minmax(0,1fr)}
+.rail{
+  position:fixed;inset:0 auto 0 0;width:88px;z-index:30;display:flex;flex-direction:column;align-items:center;
+  color:#e2e8f0;background:#0f172a;border-right:1px solid #334155;
+}
+.brand{
+  width:52px;height:52px;margin:20px 0 28px;border:1px solid #475569;border-radius:12px;
+  display:grid;place-items:center;color:#fff;background:#1e293b;font-weight:800;letter-spacing:-.06em;
+  box-shadow:inset 0 0 0 4px #0f172a,0 10px 24px rgba(0,0,0,.24);
+}
+.nav-stack{display:flex;flex-direction:column;gap:8px}
+.nav-btn{
+  width:52px;height:52px;border:1px solid transparent;border-radius:10px;color:#94a3b8;background:transparent;
+  display:grid;place-items:center;position:relative;transition:color .2s ease,background .2s ease,border-color .2s ease,transform .2s ease;
+}
+.nav-btn:hover{color:#fff;background:#1e293b;border-color:#475569;transform:translateY(-2px)}
+.nav-btn:focus-visible{color:#fff;outline:3px solid #cbd5e1;outline-offset:3px}
+.nav-btn.active{color:#fff;background:var(--color-accent);border-color:#fb923c;box-shadow:0 8px 20px rgba(234,88,12,.28)}
+.nav-btn .tip{
+  visibility:hidden;opacity:0;position:absolute;left:64px;z-index:5;white-space:nowrap;padding:8px 11px;
+  border:1px solid #334155;border-radius:7px;background:#0f172a;color:#fff;font-size:12px;font-weight:600;
+  pointer-events:none;transform:translateX(-5px);transition:.18s ease;
+}
+.nav-btn:hover .tip,.nav-btn:focus-visible .tip{visibility:visible;opacity:1;transform:none}
+.rail-foot{margin-top:auto;margin-bottom:21px;color:#64748b}
+.main{grid-column:2;min-width:0}
+.topbar{
+  min-height:76px;padding:0 34px;display:flex;align-items:center;justify-content:space-between;gap:18px;
+  background:rgba(248,250,252,.94);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;
+  backdrop-filter:blur(14px) saturate(130%);
+}
+.product{display:flex;align-items:center;gap:13px;min-width:0}
+.product>span{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line);border-radius:9px;background:#fff}
+.product h1{margin:0;color:var(--ink);font-size:17px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.product small{display:block;color:var(--muted);font-size:11px;font-weight:500}
+.top-actions{display:flex;align-items:center;gap:10px}
+.live{
+  display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid #a7f3d0;border-radius:999px;
+  background:#ecfdf5;color:#065f46;font-weight:700;font-size:11px;
+}
+.live:before{content:"";width:7px;height:7px;border-radius:50%;background:#047857;box-shadow:0 0 0 3px #d1fae5}
+.avatar{width:38px;height:38px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:var(--ink);display:grid;place-items:center;font-weight:800}
+.view{display:none;padding:38px 34px 52px;max-width:1540px;margin:0 auto}
+.view.active{display:block;animation:view-enter .4s cubic-bezier(.2,.8,.2,1)}
+@keyframes view-enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.page-head{
+  min-height:206px;margin:-38px -34px 26px;padding:44px 40px 32px;display:flex;justify-content:space-between;
+  gap:28px;align-items:flex-end;position:relative;overflow:hidden;color:#fff;background:#0f172a;
+}
+.page-head:before{
+  content:"";position:absolute;inset:auto 5% -105px auto;width:380px;height:250px;border:1px solid rgba(255,255,255,.18);
+  transform:perspective(500px) rotateX(64deg) rotateZ(-15deg);background:repeating-linear-gradient(90deg,transparent 0 39px,rgba(255,255,255,.07) 40px),repeating-linear-gradient(0deg,transparent 0 39px,rgba(255,255,255,.07) 40px);
+}
+.page-head>div{position:relative;z-index:1}
+.eyebrow{color:#fdba74;font:600 11px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.page-head h2{margin:7px 0 7px;color:#fff;font-size:clamp(30px,3vw,48px);line-height:1.05;font-weight:800;letter-spacing:-.045em}
+.page-head h2:after{content:" /";font-family:"Playfair Display",serif;font-weight:400;font-style:italic;color:var(--color-accent)}
+.page-head p{margin:0;color:#cbd5e1;max-width:720px;font-size:14px}
+.actions{display:flex;gap:9px;flex-wrap:wrap}
+.btn{
+  min-height:44px;border-radius:8px;padding:0 16px;border:1px solid #cbd5e1;background:#fff;color:var(--ink);
+  font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  box-shadow:0 1px 2px rgba(15,23,42,.05);transition:border-color .2s ease,color .2s ease,background .2s ease,transform .2s ease,box-shadow .2s ease;
+}
+.btn:hover{border-color:#64748b;background:#f8fafc;transform:translateY(-1px);box-shadow:0 7px 18px rgba(15,23,42,.1)}
+.btn.primary{background:var(--color-accent);border-color:var(--color-accent);color:var(--color-on-accent);box-shadow:0 8px 20px rgba(234,88,12,.22)}
+.btn.primary:hover{background:#c2410c;border-color:#c2410c;color:#fff}
+.btn.danger{color:#b91c1c;background:#fff;border-color:#fecaca}
+.page-head .btn:not(.primary):not(.danger){background:transparent;color:#fff;border-color:#64748b}
+.page-head .btn:not(.primary):not(.danger):hover{background:#1e293b;border-color:#cbd5e1}
+.card{
+  background:var(--color-card);color:var(--color-card-foreground);border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow);min-width:0;transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease;
+}
+.card:hover{border-color:#cbd5e1;box-shadow:0 2px 3px rgba(15,23,42,.05),0 18px 40px rgba(15,23,42,.08)}
+.card-head{padding:19px 20px 15px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #f1f5f9}
+.card-head h3{margin:0;color:var(--ink);font-size:15px;font-weight:800;letter-spacing:-.015em}
+.card-head p{margin:3px 0 0;color:var(--muted);font-size:11px}
+.card-body{padding:20px}
+.grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px}
+.view.active .grid-4>.card,.view.active .grid-3>.card,.view.active .catalog>.card{animation:grid-rise .42s both cubic-bezier(.2,.9,.25,1.25)}
+.view.active .grid-4>.card:nth-child(2),.view.active .grid-3>.card:nth-child(2),.view.active .catalog>.card:nth-child(2){animation-delay:.06s}
+.view.active .grid-4>.card:nth-child(3),.view.active .grid-3>.card:nth-child(3),.view.active .catalog>.card:nth-child(3){animation-delay:.12s}
+.view.active .grid-4>.card:nth-child(4){animation-delay:.18s}
+@keyframes grid-rise{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+.metric{padding:20px;position:relative;overflow:hidden;border-top:3px solid #cbd5e1}
+.metric:before{content:"";position:absolute;right:17px;top:17px;width:8px;height:8px;border:2px solid #94a3b8;transform:rotate(45deg)}
+.metric-label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.03em}
+.metric-value{margin-top:8px;color:var(--ink);font-size:27px;font-weight:800;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.metric-value small{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:0}
+.delta{margin-top:7px;color:#047857;font-size:11px;font-weight:700}
+.chip,.badge{display:inline-flex;align-items:center;gap:5px;border:1px solid transparent;border-radius:999px;padding:5px 9px;font-size:10px;font-weight:800;white-space:nowrap}
+.chip{background:#f1f5f9;border-color:#cbd5e1;color:#334155}
+.badge:before{content:"";width:6px;height:6px;border:1px solid currentColor;border-radius:50%;background:currentColor}
+.badge.green{background:#ecfdf5;border-color:#a7f3d0;color:#047857}
+.badge.amber{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+.badge.red{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+.badge.gray{background:#f1f5f9;border-color:#cbd5e1;color:#475569}
+.table-wrap{overflow:auto;scrollbar-color:#94a3b8 #f1f5f9}
+table{width:100%;border-collapse:separate;border-spacing:0;min-width:820px}
+th{text-align:left;padding:12px 14px;background:#f1f5f9;color:#334155;font-size:10px;font-weight:800;letter-spacing:.06em;border-bottom:1px solid #cbd5e1}
+td{padding:14px;border-bottom:1px solid var(--line);font-size:12px;vertical-align:middle}
+td:nth-last-child(-n+3){font-variant-numeric:tabular-nums}
+th:nth-child(n+3),td:nth-child(n+3){text-align:right}
+th:last-child,td:last-child{text-align:left}
+tbody tr{transition:background .18s ease}
+tbody tr:hover{background:#fff7ed}
+.code{font-family:var(--mono);font-weight:600;color:#9a3412;font-size:11px}
+.material-cell{display:flex;align-items:center;gap:10px;color:var(--ink);font-weight:700;text-align:left}
+.material-dot{width:35px;height:35px;border:1px solid #cbd5e1;border-radius:8px;background:#f1f5f9;color:#475569;display:grid;place-items:center;flex:none}
+.progress{height:8px;border-radius:2px;background:#e2e8f0;overflow:hidden}
+.progress span{display:block;height:100%;border-radius:inherit;background:var(--color-accent)}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.field label{display:block;margin-bottom:6px;color:#334155;font-size:11px;font-weight:800}
+.field input,.field select,.field textarea{
+  width:100%;min-height:44px;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;background:#fff;color:var(--ink);outline:0;transition:.2s ease;
+}
+.field textarea{min-height:96px;resize:vertical}
+.field input:hover,.field select:hover,.field textarea:hover{border-color:#94a3b8}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--color-ring);box-shadow:0 0 0 3px rgba(100,116,139,.2)}
+.field.full{grid-column:1/-1}
+.upload{
+  min-height:150px;border:1px dashed #94a3b8;border-radius:10px;background:#f8fafc;display:grid;place-items:center;
+  text-align:center;padding:18px;color:var(--muted);cursor:pointer;transition:.2s ease;
+}
+.upload:hover{border-color:var(--color-accent);background:#fff7ed;color:#9a3412}
+.upload span{font-size:30px;color:var(--color-accent)}
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;perspective:800px}
+.photo{
+  min-height:116px;border-radius:9px;padding:12px;display:flex;align-items:flex-end;color:#fff;font-weight:800;font-size:11px;
+  border:1px solid #475569;background:linear-gradient(145deg,rgba(15,23,42,.08),rgba(15,23,42,.92)),repeating-linear-gradient(35deg,#737c67 0 14px,#b0a178 14px 29px);
+  box-shadow:0 12px 22px rgba(15,23,42,.16);transform:rotateX(2deg);transition:transform .25s ease,box-shadow .25s ease;
+}
+.photo:hover{transform:rotateX(0) translateY(-3px);box-shadow:0 18px 28px rgba(15,23,42,.2)}
+.check-list{display:grid;gap:9px}
+.check-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:1px solid var(--line);border-radius:9px;background:#fff}
+.check-item strong{display:block;color:var(--ink);font-size:12px}
+.check-item small{color:var(--muted);font-size:11px}
+.switch{width:42px;height:24px;border-radius:999px;background:#cbd5e1;padding:3px;flex:none;border:1px solid #94a3b8}
+.switch:after{content:"";display:block;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(15,23,42,.25)}
+.switch.on{background:#047857;border-color:#047857}
+.switch.on:after{margin-left:18px}
+.chart{width:100%;height:290px}
+.board{display:grid;grid-template-columns:repeat(3,minmax(250px,1fr));gap:14px;overflow:auto;padding-bottom:4px}
+.board-col{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:12px;min-height:430px}
+.col-head{display:flex;align-items:center;justify-content:space-between;padding:4px 4px 13px;color:var(--ink);font-size:12px;font-weight:800}
+.stock-card{background:#fff;border:1px solid var(--line);border-radius:9px;padding:14px;margin-bottom:10px;box-shadow:0 4px 12px rgba(15,23,42,.04);transition:.2s ease}
+.stock-card:hover{border-color:#94a3b8;transform:translateY(-2px)}
+.stock-card h4{margin:8px 0 4px;color:var(--ink);font-size:13px}
+.stock-card p{margin:0 0 11px;color:var(--muted);font-size:11px}
+.stock-meta{display:flex;justify-content:space-between;gap:8px;font:10px/1.4 var(--mono)}
+.searchbar{display:flex;align-items:center;gap:10px;padding:13px;background:#fff;border:1px solid #cbd5e1;border-radius:10px;margin-bottom:17px;box-shadow:var(--shadow)}
+.searchbar input{flex:1;min-width:0;border:0;outline:0;color:var(--ink)}
+.catalog{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+.catalog-card{overflow:hidden}
+.catalog-cover{height:118px;padding:14px;color:#fff;display:flex;justify-content:space-between;align-items:flex-start;background:linear-gradient(135deg,#0f172a,#64748b)}
+.catalog-cover.alt{background:linear-gradient(135deg,#1e293b,#64748b)}
+.catalog-cover.warm{background:linear-gradient(135deg,#7c2d12,#ea580c)}
+.catalog-cover span:first-child{font-size:35px}
+.catalog-info{padding:16px}
+.catalog-info h3{margin:0 0 5px;color:var(--ink);font-size:14px}
+.catalog-info p{margin:0 0 12px;color:var(--muted);font-size:11px;min-height:36px}
+.catalog-row{display:flex;justify-content:space-between;gap:10px;margin-top:8px;font-size:11px;font-variant-numeric:tabular-nums}
+.request-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(290px,.7fr);gap:17px}
+.cart-item{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.cart-item:last-child{border-bottom:0}
+.cart-icon{width:48px;height:48px;border:1px solid #cbd5e1;border-radius:9px;display:grid;place-items:center;background:#f1f5f9;color:#475569}
+.qty{display:flex;align-items:center;border:1px solid #cbd5e1;border-radius:7px;overflow:hidden}
+.qty button{width:34px;height:34px;border:0;background:#f1f5f9;color:var(--ink);font-weight:800}
+.qty button:hover{background:#e2e8f0}
+.qty span{width:38px;text-align:center;font:11px/1 var(--mono)}
+.summary-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.summary-row.total{border-top:1px solid var(--line);color:var(--ink);font-weight:800;font-size:15px}
+.timeline{position:relative;padding-left:31px}
+.timeline:before{content:"";position:absolute;left:8px;top:9px;bottom:9px;width:2px;background:#cbd5e1;transform-origin:top;animation:timeline-draw .8s ease both}
+@keyframes timeline-draw{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.event{position:relative;margin-bottom:22px;animation:event-in .35s both ease-out}
+.event:nth-child(2){animation-delay:.08s}.event:nth-child(3){animation-delay:.16s}.event:nth-child(4){animation-delay:.24s}.event:nth-child(5){animation-delay:.32s}
+@keyframes event-in{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+.event:before{content:"";position:absolute;left:-28px;top:5px;width:10px;height:10px;border-radius:2px;background:#64748b;box-shadow:0 0 0 4px #e2e8f0;transform:rotate(45deg)}
+.event.done:before{background:#047857;box-shadow:0 0 0 4px #d1fae5}
+.event h4{margin:0;color:var(--ink);font-size:13px}
+.event p{margin:3px 0;color:var(--muted);font-size:11px}
+.signature{border:1px solid var(--line);border-radius:10px;padding:15px;background:#fff}
+.signature-pad{height:100px;margin:10px 0;border:1px dashed #94a3b8;border-radius:8px;display:grid;place-items:center;color:#64748b;background:#f8fafc;font-family:"Playfair Display",serif;font-style:italic}
+.gauge-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.gauge{position:relative;height:220px}
+.saving-hero{
+  display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;position:relative;overflow:hidden;
+  background:#0f172a;color:#fff;padding:28px;border:1px solid #334155;border-radius:12px;margin-bottom:17px;
+  box-shadow:0 18px 40px rgba(15,23,42,.17);
+}
+.saving-hero:after{content:"";position:absolute;right:120px;width:170px;height:170px;border:1px solid #475569;transform:rotate(45deg);box-shadow:0 0 0 28px rgba(100,116,139,.08),0 0 0 56px rgba(100,116,139,.05)}
+.saving-hero>div{position:relative;z-index:1}
+.saving-hero h3{margin:4px 0;font-size:34px;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.saving-hero p{margin:0;color:#cbd5e1}
+.saving-icon{width:74px;height:74px;border:1px solid #64748b;border-radius:10px;display:grid;place-items:center;background:#1e293b;transform:perspective(300px) rotateY(-12deg) rotateX(7deg);box-shadow:14px 14px 0 rgba(234,88,12,.18)}
+.saving-icon span{font-size:38px;color:#fdba74}
+.insight-list{display:grid;gap:10px}
+.insight{padding:13px;border-left:3px solid var(--color-accent);background:#fff7ed;border-radius:0 8px 8px 0}
+.insight strong{display:block;color:var(--ink);font-size:12px}
+.insight span{font-size:11px;color:var(--muted)}
+.toast{position:fixed;right:22px;bottom:22px;z-index:50;padding:13px 17px;border:1px solid #475569;border-radius:8px;background:#0f172a;color:#fff;box-shadow:0 16px 34px rgba(0,0,0,.25);opacity:0;transform:translateY(12px);pointer-events:none;transition:.2s}
+.toast.showing{opacity:1;transform:none}
+.mobile-title{display:none}
+@media(max-width:1050px){
+  .grid-4{grid-template-columns:repeat(2,1fr)}
+  .grid-3,.catalog{grid-template-columns:repeat(2,1fr)}
+  .request-layout{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .shell{display:block;padding-bottom:80px}.main{grid-column:auto}
+  .rail{width:auto;height:70px;inset:auto 8px 8px;flex-direction:row;justify-content:center;border:1px solid #475569;border-radius:13px;box-shadow:0 14px 32px rgba(15,23,42,.3)}
+  .brand,.rail-foot{display:none}.nav-stack{flex-direction:row;gap:3px}.nav-btn{width:48px;height:48px}.nav-btn .tip{display:none}
+  .topbar{min-height:64px;padding:0 16px}.product>span{display:none}.product h1{font-size:14px;white-space:normal}.product small,.live{display:none}
+  .view{padding:24px 16px 34px}.page-head{min-height:240px;margin:-24px -16px 22px;padding:32px 20px 25px;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end}
+  .page-head h2{font-size:32px}.page-head p{font-size:13px}.page-head .actions{margin-top:8px}
+  .grid-3,.catalog{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}
+  .photo-grid{grid-template-columns:1fr 1fr}.board{grid-template-columns:repeat(3,270px)}.saving-hero{grid-template-columns:1fr}.saving-icon{display:none}
+}
+@media(max-width:430px){
+  .grid-4,.grid-2,.gauge-grid{grid-template-columns:1fr}.top-actions .btn{display:none}.page-head h2{font-size:29px}.metric-value{font-size:25px}
+  .photo-grid{grid-template-columns:1fr}.searchbar{flex-wrap:wrap}.searchbar .btn{width:100%}.searchbar select{min-height:42px}.cart-item{grid-template-columns:45px 1fr}.cart-item .qty{grid-column:2}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*:before,*:after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}
+  .view.active,.view.active .grid-4>.card,.view.active .grid-3>.card,.view.active .catalog>.card,.event,.timeline:before{opacity:1;transform:none}
+  .photo,.photo:hover,.saving-icon{transform:none}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail" aria-label="流程導覽">
+    <div class="brand" aria-label="Jvision">JV</div>
+    <nav class="nav-stack">
+      <button class="nav-btn" data-i="0" aria-label="回報施工餘料"><span class="material-symbols-outlined">inventory_2</span><span class="tip">回報施工餘料</span></button>
+      <button class="nav-btn" data-i="1" aria-label="確認可用狀態"><span class="material-symbols-outlined">fact_check</span><span class="tip">確認可用狀態</span></button>
+      <button class="nav-btn" data-i="2" aria-label="發布可調庫存"><span class="material-symbols-outlined">campaign</span><span class="tip">發布可調庫存</span></button>
+      <button class="nav-btn" data-i="3" aria-label="提出轉用申請"><span class="material-symbols-outlined">move_down</span><span class="tip">提出轉用申請</span></button>
+      <button class="nav-btn" data-i="4" aria-label="完成實物點交"><span class="material-symbols-outlined">handshake</span><span class="tip">完成實物點交</span></button>
+      <button class="nav-btn" data-i="5" aria-label="核算轉用效益"><span class="material-symbols-outlined">savings</span><span class="tip">核算轉用效益</span></button>
+    </nav>
+    <span class="rail-foot material-symbols-outlined">warehouse</span>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="product">
+        <span class="material-symbols-outlined" style="color:var(--blue)">conveyor_belt</span>
+        <div><h1>現場餘料轉用調度台</h1><small>北區聯合工程 · WMS 倉儲管理系統</small></div>
+      </div>
+      <div class="top-actions">
+        <span class="live">庫存同步正常</span>
+        <button class="btn" type="button" data-action="export"><span class="material-symbols-outlined">download</span>匯出</button>
+        <div class="avatar" title="材料管理員 林先生">林</div>
+      </div>
+    </header>
+
+    <section class="view" data-view="0">
+      <div class="page-head">
+        <div><div class="eyebrow">01 · 分包領班</div><h2>回報施工餘料</h2><p>登錄剩餘規格、數量與所在位置，建立可追溯的餘料盤點紀錄。</p></div>
+        <div class="actions"><button class="btn" type="button"><span class="material-symbols-outlined">draft</span>暫存草稿</button><button class="btn primary" type="button" data-action="submit-report"><span class="material-symbols-outlined">send</span>送交盤點</button></div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:17px">
+        <div class="card metric"><div class="metric-label">今日回報批次</div><div class="metric-value">18 <small>批</small></div><div class="delta">較昨日 +5 批</div></div>
+        <div class="card metric"><div class="metric-label">待確認數量</div><div class="metric-value">4,280 <small>件</small></div><div class="delta">涵蓋 7 個工區</div></div>
+        <div class="card metric"><div class="metric-label">估計可用金額</div><div class="metric-value">NT$ 86.4 <small>萬</small></div><div class="delta">初估回收價值</div></div>
+        <div class="card metric"><div class="metric-label">資料完整率</div><div class="metric-value">94 <small>%</small></div><div class="delta">照片缺件 2 批</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><div><h3>新增餘料回報</h3><p>欄位標示資訊將同步至材料管理員</p></div><span class="chip">SUR-026</span></div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="field"><label for="material-type">材料品名</label><select id="material-type"><option>SD420W 鋼筋</option><option>預拌砂漿</option><option>防火矽酸鈣板</option></select></div>
+              <div class="field"><label for="material-spec">規格尺寸</label><input id="material-spec" value="D16 × 5.2M"></div>
+              <div class="field"><label for="remain-qty">剩餘數量</label><input id="remain-qty" value="86 支"></div>
+              <div class="field"><label for="storage-zone">堆放位置</label><select id="storage-zone"><option>A棟 8F 北側材料區</option><option>B棟 3F 西側</option></select></div>
+              <div class="field"><label for="crew-unit">保管班組</label><input id="crew-unit" value="宏昇鋼筋班"></div>
+              <div class="field"><label for="package-state">包裝狀態</label><select id="package-state"><option>束裝完整</option><option>已拆封</option><option>需重新包裝</option></select></div>
+              <div class="field full"><label for="transfer-condition">可轉用條件</label><textarea id="transfer-condition">限結構補強與小樑使用；需由接收工區自行安排吊運，領用前再次核對長度。</textarea></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:17px">
+            <div class="card-head"><div><h3>現況佐證</h3><p>保存包裝、尺寸與堆放位置照片</p></div><span class="badge amber">尚缺 1 張</span></div>
+            <div class="card-body">
+              <div class="photo-grid">
+                <div class="photo">束裝全景 · 10:24</div>
+                <div class="photo">鋼筋標示 · 10:25</div>
+                <div class="upload"><div><span class="material-symbols-outlined">add_a_photo</span><br>新增位置照片</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h3>最近回報</h3><p>本班組今日提交紀錄</p></div></div>
+            <div class="card-body">
+              <div class="check-list">
+                <div class="check-item"><div><strong>D13 鋼筋 · 42 支</strong><small>A棟 7F · 09:10</small></div><span class="badge green">已受理</span></div>
+                <div class="check-item"><div><strong>模板角材 · 116 支</strong><small>A棟 6F · 08:42</small></div><span class="badge amber">待補照片</span></div>
+                <div class="check-item"><div><strong>PVC 管 2吋 · 28 支</strong><small>機房層 · 08:15</small></div><span class="badge gray">盤點中</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="1">
+      <div class="page-head">
+        <div><div class="eyebrow">02 · 材料管理員</div><h2>確認可用狀態</h2><p>依品質、包裝、尺寸及保存期限完成檢查；不合格資料退回原班組補件。</p></div>
+        <div class="actions"><button class="btn danger" type="button" data-action="reject"><span class="material-symbols-outlined">undo</span>退回補件</button><button class="btn primary" type="button" data-action="approve"><span class="material-symbols-outlined">verified</span>確認可用</button></div>
+      </div>
+
+      <div class="grid-3" style="margin-bottom:17px">
+        <div class="card metric"><div class="metric-label">待檢批次</div><div class="metric-value">12 <small>批</small></div><div class="delta">高優先 4 批</div></div>
+        <div class="card metric"><div class="metric-label">今日合格率</div><div class="metric-value">87.5 <small>%</small></div><div class="delta">較上週 +6.2%</div></div>
+        <div class="card metric"><div class="metric-label">平均確認時間</div><div class="metric-value">3.2 <small>小時</small></div><div class="delta">目標 4 小時內</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><div><h3>SUR-026 · D16 鋼筋</h3><p>A棟 8F 北側材料區 · 宏昇鋼筋班</p></div><span class="badge amber">待確認</span></div>
+          <div class="card-body">
+            <div class="photo-grid" style="margin-bottom:17px">
+              <div class="photo">束裝完整</div><div class="photo">D16 軋印清晰</div><div class="photo">離地墊高保存</div>
+            </div>
+            <div class="check-list">
+              <div class="check-item"><div><strong>材質與規格相符</strong><small>SD420W · D16 · 抽驗 5 支</small></div><div class="switch on" aria-label="已通過"></div></div>
+              <div class="check-item"><div><strong>外觀無鏽蝕變形</strong><small>表面乾燥，無片狀鏽蝕</small></div><div class="switch on" aria-label="已通過"></div></div>
+              <div class="check-item"><div><strong>實測長度符合回報</strong><small>5.18–5.22M，共 86 支</small></div><div class="switch on" aria-label="已通過"></div></div>
+              <div class="check-item"><div><strong>包裝與標示完整</strong><small>束帶需於搬運前補強 1 道</small></div><div class="switch on" aria-label="已通過"></div></div>
+              <div class="check-item"><div><strong>保存環境符合要求</strong><small>離地 15cm，上方有防雨覆蓋</small></div><div class="switch on" aria-label="已通過"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card" style="margin-bottom:17px">
+            <div class="card-head"><div><h3>盤點數量差異</h3><p>回報量與現場抽點結果</p></div><span class="badge green">差異 0%</span></div>
+            <div class="card-body"><div id="inspect-chart" class="chart" aria-label="盤點數量差異圖"></div></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h3>確認紀錄</h3><p>材料狀態與可轉用限制</p></div></div>
+            <div class="card-body">
+              <div class="form-grid">
+                <div class="field"><label for="usable-grade">可用等級</label><select id="usable-grade"><option>A級｜可直接轉用</option><option>B級｜限指定用途</option></select></div>
+                <div class="field"><label for="valid-date">保留至</label><input id="valid-date" value="2026-09-16"></div>
+                <div class="field full"><label for="inspect-note">盤點備註</label><textarea id="inspect-note">數量與規格符合。搬運前補強束帶；不可用於主筋續接區，接收方需自行安排塔吊時段。</textarea></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="2">
+      <div class="page-head">
+        <div><div class="eyebrow">03 · 材料管理員</div><h2>發布可調庫存</h2><p>將檢驗合格餘料分批發布，依工項、規格與搬運條件提供跨區搜尋。</p></div>
+        <div class="actions"><button class="btn" type="button"><span class="material-symbols-outlined">tune</span>發布規則</button><button class="btn primary" type="button" data-action="publish"><span class="material-symbols-outlined">campaign</span>發布 3 批</button></div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:17px">
+        <div class="card metric"><div class="metric-label">可調庫存</div><div class="metric-value">NT$ 286 <small>萬</small></div><div class="delta">共 64 批材料</div></div>
+        <div class="card metric"><div class="metric-label">今日新上架</div><div class="metric-value">11 <small>批</small></div><div class="delta">鋼筋類占 42%</div></div>
+        <div class="card metric"><div class="metric-label">跨區轉用率</div><div class="metric-value">68 <small>%</small></div><div class="delta">本月 +12%</div></div>
+        <div class="card metric"><div class="metric-label">即將到期</div><div class="metric-value">5 <small>批</small></div><div class="delta" style="color:var(--amber)">7 日內需媒合</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div><h3>發布作業看板</h3><p>依檢驗狀態與開放範圍管理可調庫存</p></div><div class="actions"><span class="chip">今日更新 14:32</span></div></div>
+        <div class="card-body">
+          <div class="board">
+            <div class="board-col">
+              <div class="col-head"><span>待發布</span><span class="badge gray">3</span></div>
+              <div class="stock-card"><span class="badge green">A級</span><h4>D16 鋼筋 · 86 支</h4><p>A棟 8F｜約 NT$ 38,700</p><div class="stock-meta"><span>保留至 09/16</span><strong>跨棟開放</strong></div></div>
+              <div class="stock-card"><span class="badge green">A級</span><h4>鍍鋅線槽 100×50 · 22M</h4><p>B棟 B2｜約 NT$ 19,800</p><div class="stock-meta"><span>保留至 09/20</span><strong>機電工項</strong></div></div>
+              <div class="stock-card"><span class="badge amber">B級</span><h4>12mm 模板 · 34 片</h4><p>A棟 5F｜約 NT$ 13,600</p><div class="stock-meta"><span>限臨時設施</span><strong>同工區</strong></div></div>
+            </div>
+            <div class="board-col">
+              <div class="col-head"><span>已發布媒合中</span><span class="badge amber">8</span></div>
+              <div class="stock-card"><span class="chip">瀏覽 14</span><h4>PVC 管 2吋 · 28 支</h4><p>機房層｜已有 2 個工區收藏</p><div class="stock-meta"><span>09/10 下架</span><strong>NT$ 16,240</strong></div></div>
+              <div class="stock-card"><span class="chip">瀏覽 9</span><h4>防火矽酸鈣板 · 48 片</h4><p>C棟 12F｜尚無申請</p><div class="stock-meta"><span>09/13 下架</span><strong>NT$ 28,800</strong></div></div>
+              <div class="stock-card"><span class="chip">瀏覽 21</span><h4>不鏽鋼吊架 · 31 組</h4><p>B棟 4F｜已有 1 筆草稿</p><div class="stock-meta"><span>09/18 下架</span><strong>NT$ 24,180</strong></div></div>
+            </div>
+            <div class="board-col">
+              <div class="col-head"><span>已保留待調撥</span><span class="badge green">5</span></div>
+              <div class="stock-card"><span class="badge green">核准</span><h4>預拌砂漿 · 36 包</h4><p>A棟 3F → C棟 6F</p><div class="stock-meta"><span>09/04 搬運</span><strong>申請 36 包</strong></div></div>
+              <div class="stock-card"><span class="badge amber">待核准</span><h4>D13 鋼筋 · 42 支</h4><p>A棟 7F → B棟 2F</p><div class="stock-meta"><span>09/05 搬運</span><strong>申請 30 支</strong></div></div>
+              <div class="stock-card"><span class="badge green">核准</span><h4>角鋼 L50 · 18 支</h4><p>倉儲區 → 機房層</p><div class="stock-meta"><span>09/06 搬運</span><strong>申請 12 支</strong></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="3">
+      <div class="page-head">
+        <div><div class="eyebrow">04 · 工務工程師</div><h2>提出轉用申請</h2><p>搜尋符合工項與規格的可用餘料，說明用途、需求數量及接收工區。</p></div>
+        <div class="actions"><button class="btn primary" type="button" data-action="submit-request"><span class="material-symbols-outlined">send</span>送出轉用申請</button></div>
+      </div>
+
+      <div class="searchbar">
+        <span class="material-symbols-outlined" style="color:var(--muted)">search</span>
+        <input id="stock-search" aria-label="搜尋可調餘料" placeholder="搜尋材料、規格或工區" value="鋼筋">
+        <select aria-label="材料分類" style="border:0;color:var(--body)"><option>全部分類</option><option>結構材料</option><option>機電材料</option></select>
+        <button class="btn primary" type="button" data-action="search">搜尋庫存</button>
+      </div>
+
+      <div class="catalog" style="margin-bottom:17px">
+        <article class="card catalog-card">
+          <div class="catalog-cover"><span class="material-symbols-outlined">construction</span><span class="badge green">A級可用</span></div>
+          <div class="catalog-info"><h3>SD420W D16 鋼筋</h3><p>5.2M｜A棟 8F｜宏昇鋼筋班保管</p><div class="catalog-row"><span>可調 86 支</span><strong>NT$ 450／支</strong></div><div class="catalog-row"><span>搬運：塔吊</span><span class="chip">適用小樑</span></div></div>
+        </article>
+        <article class="card catalog-card">
+          <div class="catalog-cover alt"><span class="material-symbols-outlined">architecture</span><span class="badge green">A級可用</span></div>
+          <div class="catalog-info"><h3>SD420W D13 鋼筋</h3><p>4.8M｜A棟 7F｜永進鋼筋班保管</p><div class="catalog-row"><span>可調 42 支</span><strong>NT$ 290／支</strong></div><div class="catalog-row"><span>搬運：施工梯</span><span class="chip">適用樓梯</span></div></div>
+        </article>
+        <article class="card catalog-card">
+          <div class="catalog-cover warm"><span class="material-symbols-outlined">format_color_fill</span><span class="badge amber">B級限用</span></div>
+          <div class="catalog-info"><h3>D10 點焊鋼絲網</h3><p>2.0×3.0M｜倉儲區 W2｜隆泰保管</p><div class="catalog-row"><span>可調 17 片</span><strong>NT$ 780／片</strong></div><div class="catalog-row"><span>邊角輕微變形</span><span class="chip">適用地坪</span></div></div>
+        </article>
+      </div>
+
+      <div class="request-layout">
+        <div class="card">
+          <div class="card-head"><div><h3>申請清單</h3><p>TRF-20260902-018 · B棟工務組</p></div><span class="badge amber">草稿</span></div>
+          <div class="card-body">
+            <div class="cart-item"><div class="cart-icon"><span class="material-symbols-outlined">construction</span></div><div><strong style="color:var(--ink)">SD420W D16 鋼筋</strong><div style="font-size:12px;color:var(--muted)">來源：A棟 8F · 可用 86 支</div></div><div class="qty"><button type="button">−</button><span>60</span><button type="button">＋</button></div></div>
+            <div class="cart-item"><div class="cart-icon"><span class="material-symbols-outlined">architecture</span></div><div><strong style="color:var(--ink)">SD420W D13 鋼筋</strong><div style="font-size:12px;color:var(--muted)">來源：A棟 7F · 可用 42 支</div></div><div class="qty"><button type="button">−</button><span>30</span><button type="button">＋</button></div></div>
+            <div class="form-grid" style="margin-top:17px">
+              <div class="field"><label for="receive-zone">接收工區</label><select id="receive-zone"><option>B棟 2F 結構區</option></select></div>
+              <div class="field"><label for="need-date">需求日期</label><input id="need-date" value="2026-09-05"></div>
+              <div class="field full"><label for="use-purpose">使用工項與用途</label><textarea id="use-purpose">B棟 2F 小樑補強及樓梯平台收邊，已由結構工程師確認可使用餘料長度。</textarea></div>
+            </div>
+          </div>
+        </div>
+        <aside class="card">
+          <div class="card-head"><div><h3>轉用效益預估</h3><p>以最新採購單價換算</p></div></div>
+          <div class="card-body">
+            <div class="summary-row"><span>D16 鋼筋 60 支</span><strong>NT$ 27,000</strong></div>
+            <div class="summary-row"><span>D13 鋼筋 30 支</span><strong>NT$ 8,700</strong></div>
+            <div class="summary-row"><span>內部搬運費</span><strong>− NT$ 3,200</strong></div>
+            <div class="summary-row total"><span>預估避免採購</span><span style="color:var(--green)">NT$ 32,500</span></div>
+            <div style="margin-top:16px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:7px"><span>需求滿足率</span><strong>100%</strong></div>
+              <div class="progress"><span style="width:100%"></span></div>
+            </div>
+            <div class="insight" style="margin-top:18px"><strong>規格相容性已確認</strong><span>D16 限小樑補強使用；不可配置於主筋續接區。</span></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" data-view="4">
+      <div class="page-head">
+        <div><div class="eyebrow">05 · 分包領班</div><h2>完成實物點交</h2><p>交出與接收雙方現場核對材料、實收數量及搬運情況，留下雙方確認紀錄。</p></div>
+        <div class="actions"><button class="btn primary" type="button" data-action="handover"><span class="material-symbols-outlined">draw</span>完成雙方點交</button></div>
+      </div>
+
+      <div class="grid-3" style="margin-bottom:17px">
+        <div class="card metric"><div class="metric-label">今日待點交</div><div class="metric-value">7 <small>單</small></div><div class="delta">已排搬運 5 單</div></div>
+        <div class="card metric"><div class="metric-label">準時移交率</div><div class="metric-value">96 <small>%</small></div><div class="delta">本月 48 次移交</div></div>
+        <div class="card metric"><div class="metric-label">數量吻合率</div><div class="metric-value">98.7 <small>%</small></div><div class="delta">差異均已留存</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><div><h3>TRF-20260902-018</h3><p>A棟 8F → B棟 2F · 2026/09/05 09:00</p></div><span class="badge amber">點交中</span></div>
+          <div class="card-body">
+            <div class="timeline">
+              <div class="event done"><h4>轉用申請核准</h4><p>09/03 15:42 · 工務主任 陳致遠</p></div>
+              <div class="event done"><h4>來源工區備料完成</h4><p>09/05 08:35 · 宏昇鋼筋班 王建國</p></div>
+              <div class="event done"><h4>塔吊搬運完成</h4><p>09/05 09:28 · 吊掛單 HO-0905-06</p></div>
+              <div class="event"><h4>接收工區實物點收</h4><p>等待接收方確認數量與外觀</p></div>
+              <div class="event"><h4>回寫可調庫存</h4><p>點交完成後自動扣除實收數量</p></div>
+            </div>
+            <div class="table-wrap" style="margin-top:12px">
+              <table style="min-width:620px">
+                <thead><tr><th>餘料批號</th><th>材料規格</th><th>申請數量</th><th>實收數量</th><th>點收結果</th></tr></thead>
+                <tbody>
+                  <tr><td class="code">SUR-026</td><td>D16 × 5.2M</td><td>60 支</td><td><strong>60 支</strong></td><td><span class="badge green">吻合</span></td></tr>
+                  <tr><td class="code">SUR-021</td><td>D13 × 4.8M</td><td>30 支</td><td><strong>29 支</strong></td><td><span class="badge amber">短少 1 支</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card" style="margin-bottom:17px">
+            <div class="card-head"><div><h3>點交佐證</h3><p>搬出、運送及接收位置</p></div><span class="chip">3 張照片</span></div>
+            <div class="card-body"><div class="photo-grid"><div class="photo">來源區裝載</div><div class="photo">塔吊搬運</div><div class="photo">接收區落料</div></div></div>
+          </div>
+          <div class="grid-2">
+            <div class="signature"><strong style="color:var(--ink)">交出方確認</strong><div class="signature-pad">王建國 · 已簽署</div><span class="badge green">09:34 完成</span></div>
+            <div class="signature"><strong style="color:var(--ink)">接收方確認</strong><div class="signature-pad">請於此處簽名</div><span class="badge amber">等待簽署</span></div>
+          </div>
+          <div class="card" style="margin-top:17px">
+            <div class="card-head"><div><h3>數量差異處理</h3><p>D13 鋼筋短少 1 支</p></div></div>
+            <div class="card-body"><div class="field"><label for="difference-note">差異說明</label><textarea id="difference-note">搬運前發現 1 支端部彎折，不符接收用途，雙方同意留置來源區並改列 B 級材料。</textarea></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="5">
+      <div class="page-head">
+        <div><div class="eyebrow">06 · 成本工程師</div><h2>核算轉用效益</h2><p>依完成點交數量核算避免採購、跨區轉用及減少報廢成果，保留可稽核成本依據。</p></div>
+        <div class="actions"><button class="btn" type="button"><span class="material-symbols-outlined">description</span>效益報表</button><button class="btn primary" type="button" data-action="close"><span class="material-symbols-outlined">task_alt</span>確認結案</button></div>
+      </div>
+
+      <div class="saving-hero">
+        <div><div style="font-size:12px;color:#b9c9f4;font-weight:800;letter-spacing:.1em">本月避免採購金額</div><h3>NT$ 1,284,600</h3><p>已完成 48 次跨區轉用，回收 31.8 公噸可用材料</p></div>
+        <div class="saving-icon"><span class="material-symbols-outlined">savings</span></div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:17px">
+        <div class="card metric"><div class="metric-label">可用餘料金額</div><div class="metric-value">NT$ 286 <small>萬</small></div><div class="delta">較上月 +18%</div></div>
+        <div class="card metric"><div class="metric-label">跨區轉用率</div><div class="metric-value">68 <small>%</small></div><div class="delta">目標 70%</div></div>
+        <div class="card metric"><div class="metric-label">減少報廢重量</div><div class="metric-value">31.8 <small>噸</small></div><div class="delta">減廢率 42%</div></div>
+        <div class="card metric"><div class="metric-label">內部搬運成本</div><div class="metric-value">9.6 <small>萬</small></div><div class="delta">效益成本比 13.4×</div></div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:17px">
+        <div class="card">
+          <div class="card-head"><div><h3>進度落後預警改善</h3><p>餘料調度資料完整後的六週趨勢</p></div><span class="badge green">40% → 90%</span></div>
+          <div class="card-body"><div id="trend-chart" class="chart" aria-label="六週進度落後預警趨勢"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><h3>營運指標達成度</h3><p>當期實績與管理目標</p></div></div>
+          <div class="card-body">
+            <div class="gauge-grid">
+              <div id="gauge-hours" class="gauge" aria-label="日報彙整工時儀表"></div>
+              <div id="gauge-alert" class="gauge" aria-label="進度落後預警儀表"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div><h3>現場餘料轉用調度台資料列表</h3><p>已發布與調撥中的真實材料台帳</p></div><span class="chip">ERP / 條碼已同步</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>餘料批號</th><th>材料規格</th><th>存放工區</th><th>可調數量</th><th>保管班組</th><th>轉用條件</th><th>庫存狀態</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="code">SUR-026</td><td><div class="material-cell"><span class="material-dot material-symbols-outlined">construction</span>SD420W D16 × 5.2M</div></td><td>A棟 8F 北側</td><td>26 支</td><td>宏昇鋼筋班</td><td>小樑補強；需塔吊</td><td><span class="badge green">可申請</span></td></tr>
+              <tr><td class="code">SUR-025</td><td><div class="material-cell"><span class="material-dot material-symbols-outlined">view_in_ar</span>防火矽酸鈣板 12mm</div></td><td>C棟 12F 東側</td><td>48 片</td><td>鼎盛輕隔間</td><td>限室內乾區</td><td><span class="badge green">可申請</span></td></tr>
+              <tr><td class="code">SUR-024</td><td><div class="material-cell"><span class="material-dot material-symbols-outlined">cable</span>鍍鋅線槽 100×50</div></td><td>B棟 B2 機電區</td><td>22 公尺</td><td>聯捷機電</td><td>接頭另行備料</td><td><span class="badge gray">待發布</span></td></tr>
+              <tr><td class="code">SUR-023</td><td><div class="material-cell"><span class="material-dot material-symbols-outlined">format_color_fill</span>預拌砂漿 25kg</div></td><td>A棟 3F 南側</td><td>36 包</td><td>金磊泥作</td><td>09/08 前領用</td><td><span class="badge amber">已保留</span></td></tr>
+              <tr><td class="code">SUR-022</td><td><div class="material-cell"><span class="material-dot material-symbols-outlined">hardware</span>角鋼 L50×50×5</div></td><td>中央倉 W2</td><td>6 支</td><td>承泰金屬</td><td>限非外露支架</td><td><span class="badge amber">部分調撥</span></td></tr>
+              <tr><td class="code">SUR-021</td><td><div class="material-cell"><span class="material-dot material-symbols-outlined">architecture</span>SD420W D13 × 4.8M</div></td><td>A棟 7F 西側</td><td>13 支</td><td>永進鋼筋班</td><td>樓梯與平台收邊</td><td><span class="badge green">可申請</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  const views = Array.from(document.querySelectorAll("[data-view]"));
+  const navButtons = Array.from(document.querySelectorAll("[data-i]"));
+  const chartInstances = {};
+  const toastBox = document.querySelector(".toast");
+
+  function notify(messageText){
+    toastBox.textContent = messageText;
+    toastBox.classList.add("showing");
+    toastBox.addEventListener("transitionend", function hideNotice(eventObj){
+      if(eventObj.propertyName === "transform"){
+        toastBox.classList.remove("showing");
+        toastBox.removeEventListener("transitionend", hideNotice);
+      }
+    });
+  }
+
+  function barChart(){
+    const chartElement = document.getElementById("inspect-chart");
+    if(!chartElement || chartElement.clientWidth === 0) return;
+    if(!chartInstances.inspect) chartInstances.inspect = echarts.init(chartElement);
+    chartInstances.inspect.setOption({
+      animationDuration:700,
+      grid:{left:36,right:18,top:32,bottom:32},
+      tooltip:{trigger:"axis"},
+      legend:{data:["班組回報","現場實點"],textStyle:{color:"#718096"}},
+      xAxis:{type:"category",data:["D16鋼筋","束帶","墊木"],axisLine:{lineStyle:{color:"#dce4ef"}},axisLabel:{color:"#718096"}},
+      yAxis:{type:"value",axisLabel:{color:"#718096"},splitLine:{lineStyle:{color:"#edf1f6"}}},
+      series:[
+        {type:"bar",name:"班組回報",data:[86,8,12],barWidth:18,itemStyle:{color:"#b8c7ef",borderRadius:[5,5,0,0]}},
+        {type:"bar",name:"現場實點",data:[86,8,12],barWidth:18,itemStyle:{color:"#1e40af",borderRadius:[5,5,0,0]}}
+      ]
+    });
+  }
+
+  function trendChart(){
+    const chartElement = document.getElementById("trend-chart");
+    if(!chartElement || chartElement.clientWidth === 0) return;
+    if(!chartInstances.trend) chartInstances.trend = echarts.init(chartElement);
+    chartInstances.trend.setOption({
+      animationDuration:800,
+      grid:{left:42,right:22,top:34,bottom:32},
+      tooltip:{trigger:"axis",valueFormatter:function(metricValue){return metricValue+"%";}},
+      xAxis:{type:"category",boundaryGap:false,data:["W1","W2","W3","W4","W5","W6"],axisLine:{lineStyle:{color:"#dce4ef"}},axisLabel:{color:"#718096"}},
+      yAxis:{type:"value",min:30,max:100,axisLabel:{formatter:"{value}%",color:"#718096"},splitLine:{lineStyle:{color:"#edf1f6"}}},
+      series:[{
+        name:"進度落後預警 %",
+        type:"line",
+        smooth:true,
+        symbolSize:8,
+        data:[40,50,60,70,80,90],
+        lineStyle:{width:4,color:"#1e40af"},
+        itemStyle:{color:"#1e40af",borderColor:"#fff",borderWidth:2},
+        areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:"rgba(30,64,175,.28)"},{offset:1,color:"rgba(30,64,175,.02)"}])},
+        markLine:{symbol:"none",label:{formatter:"目標 90%"},lineStyle:{color:"#16865b",type:"dashed"},data:[{yAxis:90}]}
+      }]
+    });
+  }
+
+  function gaugeChart(elementId, chartKey, metricValue, targetValue, labelText, suffixText){
+    const chartElement = document.getElementById(elementId);
+    if(!chartElement || chartElement.clientWidth === 0) return;
+    if(!chartInstances[chartKey]) chartInstances[chartKey] = echarts.init(chartElement);
+    const percentageValue = Math.min(100, metricValue / targetValue * 100);
+    chartInstances[chartKey].setOption({
+      series:[{
+        type:"gauge",
+        startAngle:210,
+        endAngle:-30,
+        radius:"88%",
+        min:0,
+        max:100,
+        splitNumber:5,
+        pointer:{show:false},
+        progress:{show:true,width:13,roundCap:true,itemStyle:{color:percentageValue >= 97 ? "#16865b" : "#1e40af"}},
+        axisLine:{lineStyle:{width:13,color:[[1,"#e9eef5"]]}},
+        axisTick:{show:false},
+        splitLine:{show:false},
+        axisLabel:{show:false},
+        detail:{valueAnimation:true,offsetCenter:[0,"2%"],fontSize:24,fontWeight:800,color:"#172033",formatter:function(){return metricValue+suffixText;}},
+        title:{offsetCenter:[0,"35%"],fontSize:12,color:"#718096"},
+        data:[{value:percentageValue,name:labelText}],
+        anchor:{show:false}
+      }]
+    });
+  }
+
+  function initCharts(viewIndex){
+    if(viewIndex === 1) barChart();
+    if(viewIndex === 5){
+      trendChart();
+      gaugeChart("gauge-hours","hours",0.5,0.5,"日報彙整工時"," 小時");
+      gaugeChart("gauge-alert","alert",90,92.7,"進度落後預警","%");
+    }
+  }
+
+  function show(viewIndex){
+    let safeIndex = Number(viewIndex);
+    if(!Number.isInteger(safeIndex) || safeIndex < 0 || safeIndex > 5) safeIndex = 0;
+    views.forEach(function(viewElement,indexValue){
+      viewElement.classList.toggle("active",indexValue === safeIndex);
+      viewElement.setAttribute("aria-hidden",indexValue === safeIndex ? "false" : "true");
+    });
+    navButtons.forEach(function(buttonElement,indexValue){
+      buttonElement.classList.toggle("active",indexValue === safeIndex);
+      buttonElement.setAttribute("aria-current",indexValue === safeIndex ? "page" : "false");
+    });
+    document.title = "現場餘料轉用調度台 · warehouse-wms｜Jvision 系統 Demo";
+    initCharts(safeIndex);
+  }
+
+  function readHash(){
+    const matchResult = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+    return matchResult ? Number(matchResult[1]) : 0;
+  }
+
+  navButtons.forEach(function(buttonElement){
+    buttonElement.addEventListener("click",function(){
+      const targetIndex = Number(buttonElement.dataset.i);
+      if(window.location.hash === "#go="+targetIndex){
+        show(targetIndex);
+      }else{
+        window.location.hash = "go="+targetIndex;
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-action]").forEach(function(actionButton){
+    actionButton.addEventListener("click",function(){
+      const actionKey = actionButton.dataset.action;
+      const messages = {
+        "export":"報表已依目前畫面準備匯出",
+        "submit-report":"餘料 SUR-026 已送交材料管理員盤點",
+        "reject":"已退回宏昇鋼筋班補齊位置照片",
+        "approve":"SUR-026 已確認為 A 級可用餘料",
+        "publish":"3 批合格餘料已發布至跨區庫存",
+        "search":"已找到 3 批符合「鋼筋」的可調庫存",
+        "submit-request":"TRF-20260902-018 已送交來源工區確認",
+        "handover":"點交紀錄已完成，實收數量已回寫庫存",
+        "close":"本次轉用效益已核算並完成結案"
+      };
+      notify(messages[actionKey] || "操作已完成");
+    });
+  });
+
+  window.addEventListener("hashchange",function(){show(readHash());});
+  window.addEventListener("resize",function(){
+    Object.keys(chartInstances).forEach(function(chartKey){
+      chartInstances[chartKey].resize();
+    });
+  });
+
+  show(0);
+  if(window.location.hash) show(readHash());
+})();
+</script>
+</body>
+</html>
