@@ -313,6 +313,26 @@ fs.writeFileSync(p,JSON.stringify(m,null,2)+"\n");'
     act "換裝失敗" "$REPO" 500 "《$TITLE》"
   fi
 
+  # 同步到 GitHub。放在換裝之後，推上去的才是最終樣子。
+  #
+  # 為什麼要放進迴圈：githubUrl 是用 repoName 拼出來的，只要上架就一定有這個
+  # 欄位，但 repo 要等這支跑過才真的存在——中間那段時間，詳細頁的 GitHub 按鈕
+  # 是 404。實測站上 2,063 套、GitHub 只有 1,951 個 repo，差的 120 套全是最近
+  # 幾天生成的：agent 每 15 分鐘上架一套，手動同步不可能追得上。
+  #
+  # 而且斷掉的不只是那顆按鈕。交付路徑之一就是「客戶自己 clone 下來
+  # docker compose up」（instance-deliver.mjs），repo 不存在那條路也是斷的。
+  #
+  # 走 HTTPS + GITHUB_TOKEN 的 extraheader，不需要 SSH 金鑰；--repo 只做這一套。
+  # 與上面兩支同理：失敗不可以讓迴圈停下來，補不上就留給之後的批次。
+  say "同步到 GitHub《$TITLE》"
+  if node tools/github-sync.mjs --repo="$REPO" >> "$LOG" 2>&1; then
+    echo "  ✓ 已同步到 JVision-pj/$REPO"
+  else
+    echo "  ⚠ 同步沒過，之後批次補（見 $LOG）"
+    act "GitHub 同步失敗" "$REPO" 500 "《$TITLE》"
+  fi
+
   dequeue
   bump_today
   AFTER=$(count_site)
