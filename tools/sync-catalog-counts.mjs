@@ -20,7 +20,7 @@ const catalog = loadCatalog();
 const SYSTEMS = catalog.projects.length;
 const CATEGORIES = new Set(catalog.projects.map((p) => p.category).filter(Boolean)).size;
 
-// 現役檔案；index.legacy.html 與 catalog.old.html 已無人引用，刻意不碰
+// 現役檔案。（index.legacy.html 與 catalog.old.html 已於盤點後刪除）
 const TARGETS = ["index.html", "catalog.html", "agents.html", "agents.js", "shared/jv-mobile-nav.js"];
 
 /**
