@@ -29,20 +29,63 @@
       "#jvAcct{position:relative;display:inline-flex}" +
       "#jvAcctBtn{display:inline-flex;align-items:center;gap:.5rem;height:36px;padding:0 .5rem 0 .35rem;border:1px solid #e2e8f0;background:#fff;border-radius:9999px;cursor:pointer;font:inherit;transition:border-color .15s}" +
       "#jvAcctBtn:hover{border-color:#1e40af}" +
-      "#jvAcctBtn .av{width:26px;height:26px;border-radius:9999px;display:grid;place-content:center;background:linear-gradient(135deg,#1e40af,#7c3aed);color:#fff;font-size:.72rem;font-weight:800;flex:none}" +
+      "#jvAcctBtn .av{width:26px;height:26px;border-radius:9999px;display:grid;place-content:center;background:linear-gradient(135deg,#1e40af,#7c3aed);color:#fff;font-size:.74rem;font-weight:800;flex:none;line-height:1;letter-spacing:.02em;font-family:Inter,\"Noto Sans TC\",system-ui,sans-serif;box-shadow:inset 0 0 0 1px rgba(255,255,255,.2),0 1px 2px rgba(15,23,42,.2)}" +
+      "#jvAcctBtn:focus-visible{outline:2px solid #1e40af;outline-offset:2px}" +
       "#jvAcctBtn .nm{font-size:.8rem;font-weight:700;color:#0f172a;max-width:8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
-      "@media (max-width:640px){#jvAcctBtn .nm{display:none}}" +
+      /* 手機只剩頭像。pill 的外框加上圓形頭像會變成兩層同心圓，很瑣碎；而且 pill
+         的左右 padding 不等（.35rem / .5rem），26px 的圓還會偏一邊。
+         直接讓頭像本身就是按鈕：單一實心圓，觸控區用 :before 補到 40px。 */
+      "@media (max-width:640px){"+
+        "#jvAcctBtn .nm{display:none}"+
+        "#jvAcctBtn{width:30px;height:30px;padding:0;border:0;background:none;justify-content:center;position:relative}"+
+        "#jvAcctBtn:hover{border:0}"+
+        "#jvAcctBtn .av{width:30px;height:30px;font-size:.8rem}"+
+        "#jvAcctBtn::before{content:\"\";position:absolute;inset:-7px;border-radius:9999px}"+
+      "}" +
       "#jvAcctPanel{position:absolute;top:calc(100% + .5rem);right:0;width:19rem;max-width:calc(100vw - 2rem);background:#fff;border:1px solid #e2e8f0;border-radius:.9rem;box-shadow:0 16px 44px rgba(15,23,42,.16);z-index:80;overflow:hidden}" +
       /* 手機上這顆按鈕在漢堡鈕左邊，離右緣還有一段距離；面板若照樣對齊按鈕右緣，
          左半邊會被推出畫面外（實測 390px 時 left:-48）。窄螢幕改成貼著視窗左右
          內縮，與手機抽屜選單的 top-14 對齊。 */
-      "@media (max-width:640px){#jvAcctPanel{position:fixed;top:56px;left:.75rem;right:.75rem;width:auto;max-width:none}}" +
+      /* 手機：面板底下的內容（我的系統／需求單）筆數是會長的，基底規則是 overflow:hidden
+         又沒有 max-height，超出畫面就會被無聲切掉而且捲不動。dvh 是為了行動瀏覽器
+         的網址列縮放；先寫 vh 當不支援時的退路。overflow-x 保持 hidden 讓圓角照樣裁切。 */
+      /* 手機：改成從頁首垂下來的面板。上緣貼齊頁首所以不留圓角，圓角只在下方——
+         這樣它讀起來是「從頁首拉出來的」，而不是浮在半空的一張卡。
+         內容筆數會長，基底是 overflow:hidden 又沒有 max-height，超出畫面就會被
+         無聲切掉而且捲不動；dvh 是為了行動瀏覽器的網址列縮放，先寫 vh 當退路。 */
+      "@media (max-width:640px){#jvAcctPanel{position:fixed;top:56px;left:0;right:0;width:auto;max-width:none;border-radius:0 0 1.15rem 1.15rem;border-left:0;border-right:0;border-top:0;max-height:calc(100vh - 56px);max-height:calc(100dvh - 56px);overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;animation:jvAcctDown .28s cubic-bezier(.22,.9,.3,1)}}" +
+      /* 由上往下展開。用 clip-path 而不是位移整塊：位移會讓面板短暫蓋到頁首上方，
+         clip-path 是「從上緣往下揭開」，看起來就是從頁首底下長出來的。 */
+      "@keyframes jvAcctDown{from{clip-path:inset(0 0 100% 0);transform:translateY(-6px);opacity:.5}"+"to{clip-path:inset(0 0 0 0);transform:none;opacity:1}}" +
+      "@media (prefers-reduced-motion:reduce){#jvAcctPanel{animation:none}}" +
+      /* 這顆是被 JS 插進 nav 的第三個 flex 子元素，而 nav 是 justify-between——
+         三個子元素就被平均分開，W 剛好卡在正中間，兩側各留一大塊空白。
+         margin-left:auto 把剩餘空間全部收到它左邊，W 就貼回漢堡鈕旁邊。 */
+      "@media (max-width:640px){#jvAcct{margin-left:auto;margin-right:-.625rem}}" +
       "#jvAcctPanel .hd{padding:.9rem 1rem;border-bottom:1px solid #f1f5f9;display:flex;gap:.7rem;align-items:center}" +
       "#jvAcctPanel .hd .av{width:38px;height:38px;border-radius:9999px;display:grid;place-content:center;background:linear-gradient(135deg,#1e40af,#7c3aed);color:#fff;font-size:.95rem;font-weight:800;flex:none}" +
       "#jvAcctPanel .nm2{font-size:.88rem;font-weight:800;color:#0f172a;line-height:1.25}" +
       "#jvAcctPanel .em{font-size:.74rem;color:#64748b;word-break:break-all;line-height:1.3;margin-top:.1rem}" +
-      "#jvAcctPanel .tag{display:inline-block;margin-top:.3rem;font-size:.66rem;font-weight:800;padding:.1rem .45rem;border-radius:9999px;background:#eef2ff;color:#3730a3}" +
+      /* 身分標籤移到姓名同一列的最右邊。原本掛在信箱下方另起一行，讓標頭多佔一行
+         高度，而且它是「這個人是誰」的屬性，跟姓名同列才讀得成一句。 */
+      "#jvAcctPanel .who{flex:1;min-width:0}" +
+      "#jvAcctPanel .line{display:flex;align-items:center;gap:.5rem}" +
+      "#jvAcctPanel .line .nm2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+      "#jvAcctPanel .tag{flex:none;display:inline-block;font-size:.66rem;font-weight:800;padding:.1rem .45rem;border-radius:9999px;background:#eef2ff;color:#3730a3;white-space:nowrap}" +
       "#jvAcctPanel .sec{padding:.6rem 1rem .7rem;border-bottom:1px solid #f1f5f9}" +
+      "#jvAcctPanel .sys{padding:.55rem .5rem .6rem}" +
+      "#jvAcctPanel .sys .lbl{padding:0 .5rem}" +
+      /* 整列可點：高度約 40px，遠大於原本那個只有「開啟」兩字的觸控目標 */
+      "#jvAcctPanel .sysrow{display:flex;align-items:center;gap:.5rem;padding:.5rem;border-radius:.5rem;text-decoration:none;color:#0f172a;font-size:.84rem;font-weight:700}" +
+      "#jvAcctPanel .sysrow:hover{background:#f1f5f9}" +
+      "#jvAcctPanel .sysrow .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+      "#jvAcctPanel .sysrow .go{color:#94a3b8;font-size:1.05rem;flex:none}" +
+      "#jvAcctPanel .sysrow.off{color:#94a3b8;font-weight:600}" +
+      "#jvAcctPanel .sysrow .st{font-size:.72rem;color:#94a3b8;flex:none}" +
+      "#jvAcctPanel .sum{display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;padding:.55rem 1rem .65rem;border-bottom:1px solid #f1f5f9;font-size:.74rem;color:#475569;text-decoration:none;font-weight:700}" +
+      "#jvAcctPanel .sum:hover{background:#f8fafc}" +
+      "#jvAcctPanel .sum .dot{width:3px;height:3px;border-radius:9999px;background:#cbd5e1;display:inline-block}" +
+      "#jvAcctPanel .sum .more{margin-left:auto;color:#1e40af}" +
       "#jvAcctPanel .lbl{font-size:.68rem;font-weight:800;color:#94a3b8;letter-spacing:.06em;margin-bottom:.4rem}" +
       "#jvAcctPanel .row{display:flex;align-items:center;justify-content:space-between;gap:.6rem;font-size:.8rem;padding:.22rem 0}" +
       "#jvAcctPanel .row a{color:#1e40af;font-weight:700;text-decoration:none}" +
@@ -142,14 +185,17 @@
     var panel = document.createElement("div");
     panel.id = "jvAcctPanel";
     panel.innerHTML =
-      '<div class="hd"><span class="av">' + esc(initial(me)) + "</span><div>" +
-        '<div class="nm2">' + esc(me.name || "（未提供姓名）") + "</div>" +
+      '<div class="hd"><span class="av">' + esc(initial(me)) + '</span><div class="who">' +
+        '<div class="line"><div class="nm2">' + esc(me.name || "（未提供姓名）") + "</div>" +
+        '<span class="tag">' + (me.admin ? "管理者" : me.kind === "google" ? "Google 帳號" : "訪客") + "</span></div>" +
         '<div class="em">' + esc(me.email) + "</div>" +
-        '<span class="tag">' + (me.admin ? "管理者" : me.kind === "google" ? "Google 帳號" : "訪客") + "</span>" +
       "</div></div>" +
-      '<div class="sec"><div class="lbl">我的系統</div><div data-systems><div class="muted">讀取中…</div></div></div>' +
-      '<div class="sec"><div class="lbl">我的需求單</div><div data-orders><div class="muted">讀取中…</div></div></div>' +
-      '<div class="sec"><div class="lbl">用量</div><div data-usage><div class="muted">讀取中…</div></div></div>' +
+      /* 只留「我的系統」當主體。原本身分／系統／需求單／用量／導覽五段平權堆疊，
+         每段同樣的細線與同樣的小灰標籤，眼睛沒有入口；而「我的系統」是客戶真正
+         買到的東西，卻和「這個月 token 0」長得一樣重。
+         需求單與用量壓成下面一行摘要，細節一鍵到個人設定；零值不顯示。 */
+      '<div class="sec sys"><div class="lbl">我的系統</div><div data-systems><div class="muted">讀取中…</div></div></div>' +
+      '<a class="sum" href="./account" data-summary><span class="muted">讀取中…</span></a>' +
       '<div class="acts">' +
         '<a href="./account"><span class="material-symbols-outlined ico">settings</span>個人設定</a>' +
         '<a href="./catalog"><span class="material-symbols-outlined ico">apps</span>瀏覽專案目錄</a>' +
@@ -180,13 +226,19 @@
           box.innerHTML = '<div class="muted">還沒有開通的系統。挑幾套送出需求後，這裡會列出可以直接進去用的網址。</div>';
           return;
         }
+        /* 整列可點，不是只有「開啟」兩個字——那個觸控目標在手機上只有約 30px 寬。 */
         box.innerHTML = list.slice(0, 5).map(function (s) {
           var live = s.state === "live";
           /* 有中文名稱就用中文；沒有才退回代號。 */
-          return '<div class="row"><span>' + esc(s.title || s.repo_name.replace(/^jvision-/, "")) + "</span>" +
-            (live ? '<a href="/-/i/' + esc(s.id) + '/">開啟</a>'
-                  : '<span class="muted">' + (s.state === "building" ? "建置中" : esc(s.state)) + "</span>") + "</div>";
+          var name = esc(s.title || s.repo_name.replace(/^jvision-/, ""));
+          if (!live) {
+            return '<div class="sysrow off"><span class="t">' + name + '</span><span class="st">' +
+              (s.state === "building" ? "建置中" : esc(s.state)) + "</span></div>";
+          }
+          return '<a class="sysrow" href="/-/i/' + esc(s.id) + '/"><span class="t">' + name +
+            '</span><span class="material-symbols-outlined go">chevron_right</span></a>';
         }).join("") + (list.length > 5 ? '<div class="muted">另有 ' + (list.length - 5) + " 套</div>" : "");
+        sum(panel, "sys", list.length ? list.length + " 套系統" : "");
       })
       .catch(function () {
         var box = panel.querySelector("[data-systems]");
@@ -196,42 +248,34 @@
     fetch("/api/me/usage", { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
-        var box = panel.querySelector("[data-usage]");
-        if (!box || !d) return;
-        var t = d.tokens || {}, sg = d.storage || {};
+        if (!d) return;
+        var sg = d.storage || {};
         var used = (sg.files || 0) + (sg.db || 0);
-        box.innerHTML =
-          '<div class="row"><span>這個月 token</span><span class="num">' + fmtNum(t.month) + "</span></div>" +
-          '<div class="row"><span>佔用空間</span><span class="num">' + fmtBytes(used) + "</span></div>" +
-          (t.ledger ? '<div class="muted">累計 ' + fmtNum(t.total) + " token・" + fmtNum(t.calls) + " 次分析</div>" : "");
+        sum(panel, "use", used ? fmtBytes(used) : "");
       })
-      .catch(function () {
-        var box = panel.querySelector("[data-usage]");
-        if (box) box.innerHTML = '<div class="muted">暫時讀不到</div>';
-      });
+      .catch(function () { /* 用量讀不到就不顯示那顆數字，不必佔一整段講「暫時讀不到」 */ });
 
     fetch("/api/orders", { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
-        var box = panel.querySelector("[data-orders]");
-        if (!box) return;
         var list = (d && d.orders) || [];
-        if (!list.length) {
-          box.innerHTML = '<div class="muted">還沒有送出過需求單。</div>';
-          return;
-        }
-        var ZH = { draft: "草稿", pending: "處理中", pending_payment: "待付款", paid: "已付款",
-                   building: "建置中", delivered: "已交付", failed: "未完成" };
-        box.innerHTML = list.slice(0, 4).map(function (o) {
-          var n = (o.items || []).length;
-          return '<div class="row"><span>' + esc(String(o.created_at || "").slice(0, 10)) +
-            "　" + n + " 套</span><span class=\"muted\">" + esc(ZH[o.status] || o.status) + "</span></div>";
-        }).join("") + (list.length > 4 ? '<div class="muted">另有 ' + (list.length - 4) + " 張</div>" : "");
+        sum(panel, "ord", list.length ? list.length + " 張需求單" : "");
       })
-      .catch(function () {
-        var box = panel.querySelector("[data-orders]");
-        if (box) box.innerHTML = '<div class="muted">暫時讀不到</div>';
-      });
+      .catch(function () { /* 同上：讀不到就不顯示 */ });
+  }
+
+  /* 摘要那一行由三支 API 各自填一顆數字。沿用原本「各自去拿、各自失敗」的作法：
+     任何一邊掛掉，另外兩顆照樣出得來，而不是整行變成「暫時讀不到」。 */
+  function sum(panel, key, text) {
+    var el = panel.querySelector("[data-summary]");
+    if (!el) return;
+    if (!el.dataset.ready) { el.dataset.ready = "1"; el.innerHTML = ""; }
+    el.dataset[key] = text || "";
+    var parts = ["sys", "ord", "use"].map(function (k) { return el.dataset[k]; }).filter(Boolean);
+    el.innerHTML = parts.length
+      ? parts.map(function (t) { return "<span>" + esc(t) + "</span>"; }).join('<i class="dot"></i>') +
+        '<span class="more">詳細 ›</span>'   /* 不寫「個人設定」：下面動作區已經有同名同去向的項目 */
+      : '<span class="muted">還沒有資料</span>';
   }
 
   /* 點空白處與 Esc 都要關得掉——選單蓋住內容卻關不掉是最惱人的那種 bug。 */

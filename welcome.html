@@ -11,15 +11,14 @@
 /* ─────────────────────────────────────────────────────────────
    登入頁：人手 ↔ 機械手，中間一顆黑圓承載文案與登入。
 
-   對位的關鍵：left.png 與 right.png 是同一張 2884×1440 畫布切出來的兩層，
-   所以兩張只要用同一組座標鋪滿同一個容器，就會自動回到原構圖，不需要各自
-   微調位置。手動擺位反而會錯開——這也是為什麼下面兩隻手共用 .canvas。
+   定位方式：各自以「自己的指尖」錨定。
+   兩張圖不再是同一張畫布切出來的（left_new 2902×1440、right 2884×1440），
+   疊在同一個容器上不會對位。改成每張圖記下指尖在自己畫布上的比例，再把指尖
+   搬到相對黑圓的目標點——以後換圖只要重量一次指尖座標，畫布多大都無所謂。
 
-   量出來的實際座標（PNG alpha 邊界，非目測）：
-     左手指尖  46.81% × 51.94%
-     右手指尖  55.69% × 60.97%
-     縫隙中點  51.25% × 56.46%   ← 黑圓對這個點，不是畫面正中
-   兩隻手的指尖不同高（差 9% 畫布高），所以「正中」放圓會偏，看起來像沒對齊。
+   量出來的座標（PNG alpha 通道，非目測）：
+     人手食指尖    53.89% × 35.07%
+     機械手食指尖  55.69% × 60.97%
    ───────────────────────────────────────────────────────────── */
 
 :root{
@@ -29,34 +28,32 @@
   --paper:#ffffff;
   --line:#0B0B0F;
 
-  /* 畫布長寬比 2884/1440。寫成常數而不是靠圖片自然尺寸——圖還沒載完時
-     版面就要是對的，否則黑圓會先跳一次位置。 */
-  --ar: 2.00278;
+  /* 兩張圖都是 1440 高，所以只要給相同的「高度」就等於相同的縮放比例，
+     寬度差異（2902 vs 2884）會自動被吸收——這是用高度而不是寬度當基準的理由。 */
+  --ar-l: 2.01528;                 /* 2902/1440 */
+  --ar-r: 2.00278;                 /* 2884/1440 */
+  --lfx: .5389;  --lfy: .3507;     /* 人手食指尖 */
+  --rfx: .5569;  --rfy: .6097;     /* 機械手食指尖 */
 
-  /* 縫隙中點在畫布上的位置 */
-  --gap-x: 51.25%;
-  --gap-y: 56.46%;
-
-  /* 畫布寬度。以「視窗寬」為準而不是 cover——原圖是 2:1，用 cover 塞進 16:9／16:10
-     的視窗等於強制放大 25%，手會脹到蓋住圓裡的字。參考圖本來上下就有留白，
-     兩隻手臂只從左右出血。
-     不是剛好 100vw：對位時整塊畫布會往左推 1.25%（把縫隙中點拉到畫面正中），
-     只給 100vw 的話右邊必定露出一條白邊。102vw 補回那 1.25% 還有餘裕。 */
-  --cw: max(102vw, 900px);
+  /* 手的顯示高度＝縮放基準。54vw 不是隨手挑的：機械手的右緣必須碰到視窗右邊，
+     否則會露出白邊。右緣 = 50vw + tip-gap/2 + hh·ar_r·(1−rfx)，要 ≥ 100vw，
+     解出來 hh ≥ (50vw − tip-gap/2) / (ar_r·(1−rfx))；代入後 53vw 在 2560 寬還差
+     3px，所以取 54vw。改 --tip-gap 或換圖（rfx 變了）時要重算這條。 */
+  --hh: max(54vw, 470px);
+  /* 人手單獨再縮一點。它在自己的畫布上畫得比機械手滿（佔 54% 寬 vs 44%），
+     同樣縮放比例下量體大一截；加上人手是實心色塊、機械手是線稿有留白，
+     視覺上的差距又被放大。追求的是「看起來一樣大」，不是像素比例一致。
+     下限由左邊界決定：hl ≥ (50vw − tip-gap/2) / (hh·ar_l·lfx)，2560 寬時算出
+     .804，再低左手就構不到左緣、會露出白邊。 */
+  --hl: .82;
 
   --disc: min(72vmin, 560px);
 
-  /* 把整組手往上抬。左手是一大片斜向色塊、指尖在它的最下緣，所以指尖擺在
-     圓正中時，整隻手就壓在圓的上半部，剛好蓋掉標題——參考圖能避開是因為它
-     的字是擠在兩指之間的窄直排，我們有橫排標題加按鈕，躲不掉。
-     抬高之後指尖落在圓的上三分之一，手的主體多半移到圓外，圓的下半整片淨空。
-     幅度刻意壓在 12%：抬太多手會浮在畫面上緣，原本的構圖平衡就沒了。 */
-  --lift: calc(var(--disc) * 0.12);
-
-  /* 機械手的水平微調。兩隻手共用同一張畫布自動對位，但原圖的構圖偏左，
-     機械手往右挪一點畫面才平衡。抽成變數是因為這種值只能看著調，
-     散在三個狀態（進場／待機／接觸）裡各寫一次，改一次就會漏掉一處。 */
-  --rx: 1.4%;
+  /* 兩指尖的水平間距與高度。指尖落在圓心略上方，圓的下半整片留給文字。
+     舊版需要 --lift 把整組手往上抬，是因為當時兩隻指尖差了 9% 畫布高、
+     左手色塊會壓到標題；現在指尖高度是直接指定的，那個 hack 不需要了。 */
+  --tip-gap: calc(var(--disc) * .26);
+  --tip-y:   calc(50% - var(--disc) * .24);
 }
 
 *{ box-sizing:border-box; margin:0; }
@@ -76,27 +73,30 @@ body{
 .stage{ position:fixed; inset:0; }
 
 /* ── 兩隻手 ─────────────────────────────────────────────
-   .canvas 依 --cw 撐開並保持原圖比例，再把畫布上的「縫隙中點」平移到視窗正中。
-   這樣黑圓可以用單純的置中定位，不必跟著視窗比例重算；兩隻手也因為共用同一個
-   容器而自動維持原構圖的相對位置。 */
-.canvas{
-  position:absolute;
-  left:50%; top:50%;
-  width: var(--cw);
-  height: calc(var(--cw) / var(--ar));
-  transform: translate(calc(-1 * var(--gap-x)), calc(-1 * var(--gap-y))) translateY(calc(-1 * var(--lift)));
-}
+   各自把自己的指尖搬到 (--tip-gap / --tip-y) 決定的目標點。
+   位置用 left/top 算死，transform 整個留給進場、待機呼吸與接觸三個狀態——
+   兩者混在同一個 transform 裡，任何一個狀態漏寫就會整隻手跳位。 */
+.canvas{ position:absolute; inset:0; }
 
-.hand-wrap{ position:absolute; inset:0; opacity:0; will-change:transform,opacity; }
+.hand-wrap{ position:absolute; opacity:0; will-change:transform,opacity; }
 .hand-wrap img{ display:block; width:100%; height:100%; }
 
-/* 進場：從畫面外滑入。位移用畫布寬度的百分比，所以任何螢幕上滑入的「距離感」一致。 */
+.wrap-l{
+  height:calc(var(--hh) * var(--hl)); width:calc(var(--hh) * var(--hl) * var(--ar-l));
+  left:calc(50% - var(--tip-gap) / 2 - var(--hh) * var(--hl) * var(--ar-l) * var(--lfx));
+  top: calc(var(--tip-y) - var(--hh) * var(--hl) * var(--lfy));
+}
+.wrap-r{
+  height:var(--hh); width:calc(var(--hh) * var(--ar-r));
+  left:calc(50% + var(--tip-gap) / 2 - var(--hh) * var(--ar-r) * var(--rfx));
+  top: calc(var(--tip-y) - var(--hh) * var(--rfy));
+}
+
+/* 進場：從畫面外滑入。位移用各自寬度的百分比，兩隻手的「距離感」才一致。 */
 .wrap-l{ transform:translateX(-14%); transition:transform 1s cubic-bezier(.16,.84,.32,1), opacity .7s ease; }
-.wrap-r{ transform:translateX(calc(14% + var(--rx))); transition:transform 1s cubic-bezier(.16,.84,.32,1) .1s, opacity .7s ease .1s; }
+.wrap-r{ transform:translateX(14%);  transition:transform 1s cubic-bezier(.16,.84,.32,1) .1s, opacity .7s ease .1s; }
 body.is-in .wrap-l,
-body.is-in .wrap-r{ opacity:1; }
-body.is-in .wrap-l{ transform:translateX(0); }
-body.is-in .wrap-r{ transform:translateX(var(--rx)); }
+body.is-in .wrap-r{ opacity:1; transform:translateX(0); }
 
 /* 待機呼吸：兩隻手極輕微地一直想靠近又退開。幅度刻意很小（畫布寬的 .3%），
    大了會變成滑稽的招手；小到「說不出哪裡在動，但畫面是活的」才對。 */
@@ -203,12 +203,15 @@ body.is-in .sym:nth-child(3){ transition-delay:1.25s; animation-delay:-4s; }
 body.is-in .sym:nth-child(4){ transition-delay:1.35s; animation-delay:-6s; }
 body.is-in .sym:nth-child(5){ transition-delay:1.45s; animation-delay:-1s; }
 
-/* 擺位避開兩個東西：左上角的 logo（原本貝茲線正好穿過它）與兩隻手的實體。 */
-.s-bezier{ left:24vw;   top:87vh; width:min(11vw,190px); }
-.s-select{ left:3.2vw;  top:60vh; width:min(6.5vw,110px); }
-.s-marks { left:9.5vw;  top:79vh; width:min(4.5vw,78px); }
-.s-spark { right:15vw;  top:19vh; width:min(7.5vw,128px); }
-.s-neural{ right:4.5vw; top:5vh;  width:min(8vw,132px); }
+/* 擺位避開兩隻手的實體。右側原本那兩個（火花 right:15vw/top:19vh、神經網路
+   right:4.5vw/top:5vh）整個被機械手臂蓋住——換上新左手、手的位置全部重算之後
+   就擋到了。新位置是把手單獨畫出來、用 40px 網格掃出全白區域挑的，1920 與
+   1440 兩個寬度都驗過；再換圖的話要重掃一次。 */
+.s-bezier{ left:24vw;  top:87vh; width:min(11vw,190px); }
+.s-select{ left:3.2vw; top:60vh; width:min(6.5vw,110px); }
+.s-marks { left:9.5vw; top:79vh; width:min(4.5vw,78px); }
+.s-neural{ left:58vw;  top:3vh;  width:min(8vw,132px); }
+.s-spark { right:8vw;  top:76vh; width:min(7.5vw,128px); }
 .sym svg{ display:block; width:100%; height:auto; }
 
 /* ── 品牌 ─────────────────────────────────────────────
@@ -223,10 +226,9 @@ body.is-in .sym:nth-child(5){ transition-delay:1.45s; animation-delay:-1s; }
 }
 
 /* ── 接觸 ─────────────────────────────────────────────
-   按下登入的那一刻，兩隻手才真的碰到。位移量就是各自到縫隙中點的距離
-   （4.44% 畫布寬），所以是「剛好接上」而不是撞在一起。 */
-body.is-connect .wrap-l{ transform:translateX(4.1%);  transition:transform .3s cubic-bezier(.55,0,.75,.2); }
-body.is-connect .wrap-r{ transform:translateX(calc(-4.1% + var(--rx))); transition:transform .3s cubic-bezier(.55,0,.75,.2); }
+   各自往中間移動半個間距，兩隻指尖剛好相碰。 */
+body.is-connect .wrap-l{ transform:translateX(calc(var(--tip-gap) / 2));  transition:transform .3s cubic-bezier(.55,0,.75,.2); }
+body.is-connect .wrap-r{ transform:translateX(calc(var(--tip-gap) / -2)); transition:transform .3s cubic-bezier(.55,0,.75,.2); }
 body.is-connect .hand-wrap > img{ animation:none; }
 body.is-connect .disc{ transform:scale(.97); transition:transform .3s ease; }
 body.is-connect .sym{ opacity:0; transform:scale(1.5); transition:opacity .45s ease, transform .55s ease; }
@@ -264,16 +266,97 @@ body.is-in .replay{ opacity:1; }
 /* 直式螢幕：以視窗寬為準的話，2:1 的原圖會縮成畫面中間一條細帶，手小到看不出是手。
    放大到 150vw 讓手臂重新從左右出血，圓也跟著縮，維持「手框住圓」的關係。 */
 @media (max-width:860px), (orientation:portrait){
-  :root{ --cw:150vw; --disc:min(84vw,340px); --lift:calc(var(--disc) * .17); }
-  .s-bezier,.s-marks{ display:none; }   /* 窄畫面留兩個符號就夠，多了只是雜訊 */
-  .s-select{ left:6vw; top:74vh; }
+  :root{
+    --disc:min(84vw,330px);
+    /* 手機的縮放基準，同樣用高度（兩張圖都是 1440 高，給同高就等於同比例）。
+       81vw ≈ 改版前 162vw 寬換算過來的高度，視覺量體不變。 */
+    --mh:86vw;
+  }
+
+  /* ── 手機：改成對角構圖 ─────────────────────────────
+     桌機是左右對進，套到直式螢幕上兩隻手必定壓到中間那行字——螢幕只有那麼寬，
+     水平方向沒有讓開的空間。改成人手從左上、機械手從右下斜進來，淨空的就變成
+     另一條對角線，文字所在的水平帶剛好落在上面。
+
+     每隻手用 transform-origin 釘在自己的指尖上，再用 translate 把指尖搬到目標點，
+     rotate 就會繞著指尖轉——這樣旋轉幾度都不會讓指尖跑掉，角度可以單獨調。
+     translate 的量 = 目標點 − 指尖在圖上的原始位置。
+
+     指尖停在圓的邊緣附近而不是伸到中央：
+     手機的圓佔了螢幕 85% 寬，任何伸到中心的手都會橫穿文字所在的水平帶，
+     怎麼排都會撞。停在邊緣則兩隻手的主體都留在圓外的角落，圓內整片乾淨。
+
+     角度轉得比直覺大（人手 54°、機械手 60°）：人手的手臂約 364px 長，但指尖
+     錨在圓的左上緣，離左邊界只剩 76px、離上邊界卻有 303px——手臂只能往「高」
+     的方向走才塞得下。轉不夠的話整隻手會被左邊界切掉，畫面上只剩幾根手指
+     加一條裁切邊。所以「想看到更多手」的解法是轉角度，不是把圖放大。
+
+     尺寸放大不是為了畫面比例，是為了藏「斷層」：原圖的手臂在畫布邊緣被裁掉，
+     留下一條直邊，轉了角度之後那條邊會斜著跑進畫面裡。指尖是旋轉原點，所以
+     放大會把裁切端沿著手臂方向往外推——推出畫面就看不到了。 */
+  .canvas{ position:absolute; inset:0; }
+  .hand-wrap{ left:0; top:0; right:auto; bottom:auto; height:var(--mh); }
+  .wrap-l{ height:calc(var(--mh) * var(--hl)); width:calc(var(--mh) * var(--hl) * var(--ar-l)); }
+  .wrap-r{ width:calc(var(--mh) * var(--ar-r)); }
+
+  /* 角度只定義一次。它出現在進場／待機／接觸三個狀態裡，各寫一份就一定會漏改。 */
+  .wrap-l{ --rot:54deg; }
+  .wrap-r{ --rot:60deg; }
+  .wrap-l{
+    transform-origin:53.89% 35.07%;          /* 人手指尖 */
+    /* 水平與垂直分開給，不共用同一個數值——共用的話調整永遠是沿對角線走，
+       想「只往右」就會連帶往下。
+       水平 .20（原本 .32）：指尖離圓心越遠，手的主體被推出左邊界就越多，
+       實測 .32 只露出 52%、.20 露到 65%，而左邊仍然沒有白邊。
+       垂直維持 .32，高度不動。 */
+    --tx:calc(50vw - var(--disc) * .20 - var(--mh) * var(--hl) * var(--ar-l) * var(--lfx));
+    --ty:calc(50vh - var(--disc) * .32 - var(--mh) * var(--hl) * var(--lfy));
+    transform:translate(calc(var(--tx) - 14vw), calc(var(--ty) - 14vw)) rotate(var(--rot));
+  }
+  .wrap-r{
+    transform-origin:55.69% 60.97%;          /* 機械手指尖 */
+    /* 同樣水平與垂直分開給。水平 .25（原本 .37）：指尖往圓心靠，整隻機械手
+       就跟著被拉進畫面，露出的部分從只剩指節變成整個手掌。垂直維持 .37。 */
+    --tx:calc(50vw + var(--disc) * .25 - var(--mh) * var(--ar-r) * var(--rfx));
+    --ty:calc(50vh + var(--disc) * .37 - var(--mh) * var(--rfy));
+    transform:translate(calc(var(--tx) + 14vw), calc(var(--ty) + 14vw)) rotate(var(--rot));
+  }
+  body.is-in .wrap-l,
+  body.is-in .wrap-r{ transform:translate(var(--tx), var(--ty)) rotate(var(--rot)); }
+  /* 接觸：各自沿著對角線往中間收 */
+  body.is-connect .wrap-l{ transform:translate(calc(var(--tx) + 3.4vw), calc(var(--ty) + 3.4vw)) rotate(var(--rot)); }
+  body.is-connect .wrap-r{ transform:translate(calc(var(--tx) - 3.4vw), calc(var(--ty) - 3.4vw)) rotate(var(--rot)); }
+
+  /* 圓內淨空後就不必再閃避手了，整組文字改成單純的垂直置中。
+     桌機用 absolute 上下錨定是為了讓開中間那條指尖交會帶；手機的指尖停在圓邊，
+     那條帶子不存在，繼續錨定只會讓內容看起來上下各黏一邊。 */
+  .disc{ display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 9%; }
+  .disc-top,.disc-bottom{ position:static; inset:auto; width:100%; }
+  .disc-bottom{ margin-top:1.5em; }
+
+  /* 按鈕在窄畫面會撐到接近圓的直徑，看起來像塞不下 */
+  .google{ font-size:11px; padding:9px 15px; gap:7px; }
+  .google img{ width:1.15em; height:1.15em; }
+
+  /* 符號在手機要自己的一套座標與尺寸。桌機的位置是照桌機構圖掃出來的，
+     直接沿用會落在手上；而 vw 寬度（min(7.5vw,128px)）在 390px 螢幕只剩 29px，
+     小到看不出是什麼，還會被右邊界切掉。位置同樣是掃 390/360/430 三個尺寸
+     的共同空白區挑的：右上角與左下角。 */
+  /* 填右上角、神經網路下方那塊。掃描顯示 844 與 667 兩種高度都乾淨。 */
+  .s-bezier{ left:66vw; top:21vh; width:76px; }
+  /* 填左上那塊空白。不能更靠角落：手的尺寸是照「寬度」算的，垂直錨點卻跟著
+     50vh 走，螢幕一矮手就往上吃掉左上角——實測 390×667 時 left:4vw 那個位置
+     100% 被手蓋住。掃過 844 與 667 兩種高度後，最左能放到 18vw；這裡取 25vw。 */
+  .s-marks { left:25vw; top:1.5vh; width:30px; }
+  .s-select{ left:6vw;  top:74vh;  width:44px; }
+  .s-neural{ left:auto; right:5vw; top:2vh;  width:38px; }
+  .s-spark { right:auto; left:28vw; top:79vh; width:34px; }
 
   /* 字級用 vmin 在直式螢幕會被高度撐大，配上 nowrap 就直接衝出圓外。
      窄畫面改用 vw，並拿掉英文副標——它是裝飾，圓裡塞不下時第一個該讓位。 */
   .eyebrow{ font-size:8px; letter-spacing:.2em; }
   .tagline{ display:none; }
   .disc h1{ font-size:clamp(19px,5.8vw,27px); letter-spacing:.06em; }
-  .google{ font-size:12px; padding:11px 18px; }
   .hint{ font-size:8px; letter-spacing:.14em; }
 }
 
@@ -340,7 +423,7 @@ body.no-intro .replay{ transition-duration:.01ms !important; transition-delay:0s
   <!-- 兩隻手（在圓的上面，指尖壓進圓裡） -->
   <div class="parallax" id="parallax">
     <div class="canvas">
-      <div class="hand-wrap wrap-l"><img src="./assets/login/processed/left.png" alt=""></div>
+      <div class="hand-wrap wrap-l"><img src="./assets/login/processed/left_new.png" alt=""></div>
       <div class="hand-wrap wrap-r"><img src="./assets/login/processed/right.png" alt=""></div>
     </div>
   </div>

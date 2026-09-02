@@ -14,7 +14,7 @@
   if (window.__jvAvatar) return;
   window.__jvAvatar = true;
 
-  var VER = "32"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
+  var VER = "36"; // 與 hub 頁 script 標籤的 ?v= 同步遞增(gateway 對 js/css 有 1 小時快取)
   var REDUCE = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var state = { open: false, running: false, runDone: true, me: null };
 
@@ -140,7 +140,13 @@
   function build() {
     root = h('<div class="jva-root"></div>');
     var btn = h('<button type="button" class="jva-fab" aria-label="呼叫 JVision AI 團隊" title="呼叫 AI 團隊">' +
-      '<img class="jva-fab-img" src="/assets/robot.png" alt=""></button>');
+      /* 手機換一張只有頭的版本。用 <picture> 而不是 JS 判斷寬度：
+         轉向或改視窗大小時瀏覽器會自己重挑，寫死在 JS 裡只會在首次渲染時正確。
+         source 的斷點必須與 CSS 的 640px 一致，否則會出現「圖換了位置沒換」。 */
+      '<picture>' +
+      '<source media="(max-width: 640px)" srcset="/assets/robot-mobile.png">' +
+      '<img class="jva-fab-img" src="/assets/robot.png" alt="">' +
+      '</picture></button>');
     panel = h(
       '<div class="jva-panel" role="dialog" aria-label="JVision AI 團隊" hidden>' +
       '  <div class="jva-head"><div class="jva-head-face">智</div>' +
