@@ -119,7 +119,9 @@ export function buildSDD(d, schema) {
   if (tables.length) {
     for (const t of tables) {
       s.push(`### ${nz(t.title, t.name)}（實體表 \`${nz(t.name)}\`）\n`);
-      s.push(`出現在第 ${nz(t.screen, "?")} 個畫面。\n`);
+      /* 不知道在第幾個畫面就不要寫那一句。印「第 ? 個畫面」等於在交出去的
+         文件上留一個問號，讀的人不會知道那是「還沒查」還是「沒有」。 */
+      if (t.screen != null && t.screen !== "") s.push(`出現在第 ${t.screen} 個畫面。\n`);
       s.push(table(["欄位鍵", "顯示名稱", "型別"],
         list(t.columns).map((c) => [`\`${c.key}\``, c.label, c.type || "text"])), "");
     }

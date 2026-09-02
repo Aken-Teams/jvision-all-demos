@@ -221,6 +221,7 @@
         <button type="button" class="tab" data-tab="data" aria-selected="false"><span class="material-symbols-outlined text-[16px]">table</span>資料</button>
         <button type="button" class="tab" data-tab="code" aria-selected="false"><span class="material-symbols-outlined text-[16px]">code</span>程式碼</button>
         <button type="button" class="tab" data-tab="log" aria-selected="false"><span class="material-symbols-outlined text-[16px]">history</span>紀錄</button>
+        <button type="button" class="tab" data-tab="spec" aria-selected="false"><span class="material-symbols-outlined text-[16px]">menu_book</span>文件</button>
         <button type="button" class="tab" data-tab="deploy" aria-selected="false"><span class="material-symbols-outlined text-[16px]">rocket_launch</span>交付</button>
       </div>
 
@@ -272,6 +273,17 @@
       </div>
 
       <!-- 交付 -->
+      <!-- 規格文件 -->
+      <div id="tab-spec" hidden class="col flex-1 overflow-hidden">
+        <div class="flex items-center gap-2 px-3 py-1.5 border-b border-line bg-soft">
+          <div id="specTabs" class="flex gap-1 flex-wrap"></div>
+          <button id="specDl" type="button" class="btn btn-ghost h-7 px-2 ml-auto" title="下載 Markdown">
+            <span class="material-symbols-outlined text-[16px]">download</span>下載 .md
+          </button>
+        </div>
+        <div id="specBody" class="flex-1 overflow-y-auto p-5 md text-sm"></div>
+      </div>
+
       <div id="tab-deploy" hidden class="col flex-1 overflow-y-auto">
         <div class="p-5 max-w-xl space-y-5">
           <div class="border border-line rounded-xl p-4">
@@ -544,6 +556,10 @@
           + "</tbody></table></div>");
         continue;
       }
+      /* 標題。對話裡用不到，所以一直沒補——但規格文件整份都是標題，
+         少了這一段會渲染成「# 系統概述」這種帶井字號的純文字。 */
+      var h = ln.match(/^\s*(#{1,4})\s+(.*)$/);
+      if (h) { out.push("<h" + h[1].length + ' class="mdh">' + inline(h[2]) + "</h" + h[1].length + ">"); continue; }
       if (/^\s*[-*]\s+/.test(ln)) {
         var buf = [];
         while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
@@ -702,6 +718,7 @@
     loaded.data = false;
     loaded.code = false;
     loaded.log = false;
+    loaded.spec = false;
     if (curTab !== "preview") showTab(curTab);
   }
 
@@ -743,7 +760,7 @@
   /* ── ③ 工作區分頁 ─────────────────────────────────── */
   var curTab = "preview";
   var loaded = { data: false, code: false, log: false };
-  var TABS = ["preview", "data", "code", "log", "deploy"];
+  var TABS = ["preview", "data", "code", "log", "spec", "deploy"];
 
   function showTab(name) {
     curTab = name;
@@ -754,9 +771,62 @@
     if (name === "data" && !loaded.data) loadData();
     if (name === "code" && !loaded.code) loadCode();
     if (name === "log" && !loaded.log) loadLog();
+    if (name === "spec" && !loaded.spec) loadSpec();
   }
   document.querySelectorAll("[data-tab]").forEach(function (b) {
     b.addEventListener("click", function () { if (cur) showTab(b.dataset.tab); });
+  });
+
+  /* ── 規格文件 ────────────────────────────────────────
+     PRD／SDD／TDD 由後端依「這套系統現在的樣子」即時產生，不預先存檔——
+     存了就會跟規格脫節，而且脫節時沒有人會發現。客戶改過欄位、改過名稱，
+     下次打開就是新的。 */
+  var specDocs = null, specCur = 0;
+
+  function paintSpec() {
+    if (!specDocs || !specDocs.length) return;
+    var tabs = $("specTabs");
+    tabs.innerHTML = "";
+    specDocs.forEach(function (d, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "tab";
+      b.setAttribute("aria-selected", i === specCur ? "true" : "false");
+      b.textContent = d.name;
+      b.title = d.full;
+      b.addEventListener("click", function () { specCur = i; paintSpec(); });
+      tabs.appendChild(b);
+    });
+    /* 文件是我們自己產生的，但仍然走 mdToHtml——它會先跳脫再套語法，
+       客戶取的系統名稱裡有 < 或 & 也不會把版面弄裂。 */
+    $("specBody").innerHTML = mdToHtml(specDocs[specCur].md);
+  }
+
+  function loadSpec() {
+    loaded.spec = true;
+    var body = $("specBody");
+    body.innerHTML = '<p class="text-muted">產生中…</p>';
+    fetch("/api/me/instances/" + encodeURIComponent(cur.id) + "/spec", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !Array.isArray(d.docs) || !d.docs.length) throw new Error("bad");
+        specDocs = d.docs; specCur = 0; paintSpec();
+      })
+      .catch(function () {
+        loaded.spec = false;          // 讓他再點一次就會重試
+        body.innerHTML = '<p style="color:#b91c1c">文件產生失敗，再點一次「文件」試試。</p>';
+      });
+  }
+
+  $("specDl").addEventListener("click", function () {
+    if (!specDocs || !cur) return;
+    var d = specDocs[specCur];
+    var blob = new Blob([d.md], { type: "text/markdown;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (cur.display_name || cur.repo_name || "system") + "-" + d.name + ".md";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   });
 
   /* 預覽。iframe 走同源的 /-/i/<id>/ 而不是客戶的子網域：jv_visitor 是

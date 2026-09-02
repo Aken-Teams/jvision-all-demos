@@ -607,6 +607,55 @@ function startGateway() {
       }
     }
 
+    /* 這套系統的規格文件（PRD / SDD / TDD）。
+       內容從規格推導，不預先存檔——存了就會跟規格脫節，而且脫節時
+       沒有人會發現。客戶改了欄位、改了系統名稱，下次打開就是新的。 */
+    {
+      const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/spec$/.exec(p);
+      if (m && req.method === "GET") {
+        const id = visitor.read(req);
+        if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
+        try {
+          const inst = await control.getInstance(m[1]);
+          if (!inst) return json(res, 404, { error: "找不到這個系統" });
+          const role = await control.memberRole({ customerId: inst.customer_id, email: id.email });
+          if (!role) return json(res, 403, { error: "你沒有這套系統的權限" });
+
+          const spec = await import("../shared/jv-spec-docs.mjs");
+          const dp = path.join(root, "content", "details", `${inst.repo_name}.json`);
+          const d = JSON.parse(fs.readFileSync(dp, "utf8"));
+          /* 資料模型那一節要用「這套系統現在真的長什麼樣」，不是原本樣板的樣子——
+             客戶加過欄位、改過名稱之後，拿樣板來寫等於交出一份不實的文件。 */
+          let schema = null;
+          try {
+            const idb = await import("./lib/instance-db.mjs");
+            schema = await idb.describe(inst.db_name);
+            /* describe 只回欄位，沒有表格標題與所在畫面，直接拿去產文件會寫出
+               「### table_1」和「出現在第 ? 個畫面」——看起來像沒做完。
+               標題與畫面沿用原本的專案規格（同名的表對得起來），
+               欄位仍然以實例現況為準：客戶加過欄位之後，那才是真的。 */
+            const sp = path.join(root, "content", "schema", `${inst.repo_name}.json`);
+            const base = JSON.parse(fs.readFileSync(sp, "utf8"));
+            const meta = new Map((base.tables || []).map((t) => [t.name, t]));
+            schema = { ...schema, tables: (schema.tables || []).map((t) => ({
+              ...t,
+              title: t.title || meta.get(t.name)?.title || `資料表 ${String(t.name).replace(/^table_/, "")}`,
+              screen: t.screen ?? meta.get(t.name)?.screen ?? null,
+            })) };
+          } catch { /* 讀不到就少一節，其餘照常產出 */ }
+          const src = { ...d, repoName: inst.repo_name,
+            title: inst.display_name || d.title || inst.repo_name };
+          return json(res, 200, {
+            title: src.title,
+            docs: spec.DOCS.map((x) => ({ key: x.key, name: x.name, full: x.full, md: x.build(src, schema) })),
+          });
+        } catch (error) {
+          console.error("[spec]", String(error.message).slice(0, 200));
+          return json(res, 500, { error: "產生文件時出了問題" });
+        }
+      }
+    }
+
     /* 佈署前的完整度檢查。公開網址跟自己看是兩件事——自己看的時候「這張表
        還沒填」只是待辦，給客戶看的時候就是一張空白表格擺在畫面上。所以先跑
        一遍，把「拿出去會被看到的問題」列出來，讓他自己決定先改還是就這樣送。
