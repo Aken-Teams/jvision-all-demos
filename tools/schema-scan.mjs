@@ -114,10 +114,24 @@ const slug = (s, fallback) => {
 };
 
 const proposals = {};
-let ready = 0, review = 0, unsupported = 0;
+let ready = 0, review = 0, unsupported = 0, kept = 0;
+
+/* 上一份提案裡由 schema-scan-dom 抽出來的那些。這一支讀的是靜態 HTML，
+   對「表格由 JS 在執行時畫出來」的 demo 一定是「找不到可綁定的表格」——
+   但那不代表它沒有表格，只代表這裡看不到。用一個看不到的結果去覆蓋
+   已經看到的結果，等於每次上架新 demo 就把 DOM 抽好的 85 套打回原形，
+   而且不會報錯（實測就這樣被蓋掉一次）。 */
+const prevDom = (() => {
+  try {
+    const old = JSON.parse(fs.readFileSync(OUT, "utf8")).proposals || {};
+    return new Map(Object.entries(old).filter(([, v]) => v?.source === "dom" && v.readyState === "ready"));
+  } catch { return new Map(); }
+})();
 
 for (const s of scanned) {
   if (!s.tables.length) {
+    const dom = prevDom.get(s.repoName);
+    if (dom) { proposals[s.repoName] = dom; ready += 1; kept += 1; continue; }
     proposals[s.repoName] = { readyState: "unsupported", reason: "找不到可綁定的表格", tables: [] };
     unsupported += 1;
     continue;
@@ -176,6 +190,7 @@ writeJson(OUT, {
 });
 
 log.step(`提案完成：ready ${ready}、needs-review ${review}、unsupported ${unsupported}`);
+if (kept) log.info(`  其中 ${kept} 套沿用 schema-scan-dom 從畫面抽到的結果（靜態掃描看不到它們的表格）`);
 log.info(`  欄位字典 ${Object.keys(keymap.map).length}/${allLabels.size} 已命名`);
 log.info(`  → ${path.relative(ROOT, OUT)}`);
 if (!ready && !review) process.exit(EXIT.BAD_INPUT);
