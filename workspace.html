@@ -262,6 +262,17 @@
     /* 做法紀錄。刻意不長得像對話氣泡——它是系統留的存根，不是助理對你說的話。
        分別靠三件事：底色淡一階、整列不縮排（對話氣泡是 88% 寬）、前面一顆時鐘。
        不用左邊那條色條——那是「引言」的語彙，而這不是引言。 */
+    /* 系統動作那一行。 */
+    .m.note { align-self:stretch; max-width:100%; display:flex; align-items:center; gap:.35rem;
+              background:#f8fafc; border:1px solid #e8eef5; border-radius:.6rem;
+              padding:.45rem .6rem; font-size:.76rem; color:#475569; }
+    .m.note .material-symbols-outlined { font-size:16px; flex:none; color:#94a3b8; }
+    .m.note .t { flex:none; font-weight:800; color:#0f1e46; }
+    /* 說明是次要的，而且單行截斷——那段字有時候很長，讓它換行等於用三行
+       講一件一句話的事。滑上去看得到全文。 */
+    .m.note .s { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+                 color:#94a3b8; font-size:.72rem; }
+
     .job.proc { background:#f8fafc; border-color:#e8eef5; }
     .job.proc > summary { display:flex; align-items:center; gap:.35rem;
                           font-weight:800; color:#475569; }
@@ -1280,6 +1291,12 @@
              二來使用者分不出哪些是助理跟他說的話、哪些是系統留的存根。
              用跟進行中那張卡同一套外觀，收起來只剩摘要那一行。 */
           if (m.action === "edit_process") { sayProcess(m.text || ""); return; }
+          /* 還原那一行。第一行是標題、第二行是說明，跟做法紀錄同一個約定。 */
+          if (m.action === "restore") {
+            var rl = String(m.text || "").split("\n");
+            sayNote("history", rl[0] || "已經回到先前那一版", rl.slice(1).join(" ").trim());
+            return;
+          }
           var cls = m.role === "user" ? "me"
             : m.action === "edit_failed" ? "err"
               : GREEN[m.action] ? "done"
@@ -1409,6 +1426,21 @@
     box.appendChild(w);
     box.scrollTop = box.scrollHeight;
     return w;
+  }
+
+  /* 對話裡的系統動作。不是助理說的話，所以不長成對話泡泡——一行、淡的、
+     前面一顆圖示，跟做法紀錄那張卡同一個語彙。 */
+  function sayNote(icon, text, sub) {
+    var box = $("chatBox");
+    var d = document.createElement("div");
+    d.className = "m note";
+    d.innerHTML = '<span class="material-symbols-outlined">' + esc(icon) + "</span>"
+      + '<span class="t">' + esc(text) + "</span>"
+      + (sub ? '<span class="s">' + esc(sub) + "</span>" : "");
+    if (sub) d.title = sub;
+    box.appendChild(d);
+    box.scrollTop = box.scrollHeight;
+    return d;
   }
 
   /* 建議句那一列的橫向捲動。 */
@@ -2856,11 +2888,17 @@
       askConfirm({ title: "沒有還原成功", body: msg, ok: "知道了", onlyOk: true });
     };
     fetch(api("/_jv/versions/restore"), { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: v.id }) })
+      /* 版次與說明一起送過去。後端只認得 id，而要留在對話裡的那一行需要
+         「v2」跟那一版的說明——完整的版本清單在前端這邊。 */
+      body: JSON.stringify({ id: v.id, label: verLabelOf(v), note: v.note || "",
+        sessionId: curSession }) })
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (x) {
         if (!x.ok) { fail(x.d.error || "還原失敗"); return; }
-        say("bot", "已經回到「" + (v.note || v.id) + "」那一版。", "done");
+        /* 還原是系統動作，不是助理在講話。畫成綠色的對話泡泡有兩個問題：
+           綠色在這裡代表「某件事做完了」，跟修改成功混在一起分不出來；
+           而且它把整段版本說明當成一句話唸出來，一大片字只為了說一件小事。 */
+        sayNote("history", "已經回到 " + (verLabelOf(v) || "那一版"), v.note || "");
         /* 還原之後那一版就是最新的了，不該再停在「正在看舊版」的狀態。 */
         verView = null;
         btn.disabled = false;

@@ -316,6 +316,20 @@ const server = http.createServer(async (req, res) => {
       }
       await control.recordEvent({ kind: "instance.reverted", customerId: inst.customer_id,
         instanceId: inst.id, actor, detail: { to: String(b.id).slice(0, 40) } });
+      /* 還原也要留在對話裡。以前只有畫面上閃一行，重新整理就沒了——而「這套
+         系統為什麼變成現在這樣」少了這一步就對不起來：中間明明退回去過一次，
+         紀錄上卻只看得到一路往前的修改。
+
+         版次與說明由前端給：它手上有完整的版本清單，後端這裡只認得 id。
+         第一行是標題、第二行是說明，跟做法紀錄同一個約定。 */
+      const label = String(b.label || "").slice(0, 20);
+      const note = String(b.note || "").slice(0, 200);
+      const sid = String(b.sessionId || "").slice(0, 40);
+      if (sid && await control.sessionInInstance(sid, inst.id)) {
+        control.addMessage({ sessionId: sid, role: "assistant",
+          text: "已經回到 " + (label || "先前那一版") + (note ? "\n" + note : ""),
+          action: "restore", actor }).catch(() => {});
+      }
       return json(res, 200, { ok: true });
     }
 
