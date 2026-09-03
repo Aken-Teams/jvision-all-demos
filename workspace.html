@@ -24,6 +24,25 @@
        ——三欄各自的內容長度差很多，讓整頁一起捲會變成「聊天打到一半，
        左邊的清單跟著跑掉」。 */
     .shell { height: calc(100vh - 56px); display: grid; grid-template-columns: 252px 372px 1fr; }
+    /* 專案總覽。「我做了哪些」與「我要改哪一套」是兩件事——以前只有後者，
+       複製完直接落進編輯器，退出之後就沒有一個地方看得到全部。 */
+    .ov { height: calc(100vh - 56px); overflow-y: auto; background: #f7fafc; }
+    .ov-in { max-width: 1100px; margin: 0 auto; padding: 32px 24px 56px; }
+    .ov-hd { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+    .ov-hd h1 { font-size: 22px; font-weight: 900; color: var(--ink); }
+    .ov-hd p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .ov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 14px; }
+    .ov-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px;
+      display: flex; flex-direction: column; gap: 10px; transition: border-color .15s, box-shadow .15s; }
+    .ov-card:hover { border-color: #93c5fd; box-shadow: 0 8px 24px rgba(15,23,42,.07); }
+    .ov-card h2 { font-size: 15px; font-weight: 900; color: var(--ink); line-height: 1.35; }
+    .ov-tag { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 9999px;
+      background: #eef2ff; color: #3730a3; flex: none; }
+    .ov-tag.off { background: #f1f5f9; color: #64748b; }
+    .ov-meta { font-size: 12px; color: var(--muted); }
+    .ov-acts { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; }
+    .ov-acts .btn { flex: 1; justify-content: center; }
+    @media (max-width: 640px) { .ov-in { padding: 20px 14px 40px; } .ov-grid { grid-template-columns: 1fr; } }
     .col { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
     /* 中間地帶先把欄位縮窄，不要一次塌成單欄。原本斷點直接設在 1180px，
        筆電 1280 寬、或 Windows 125% 縮放下的 1440p（實際 1152 邏輯像素）
@@ -168,12 +187,28 @@
     <button type="button" class="tab" data-col="wsPane" aria-selected="false">工作區</button>
   </div>
 
+  <!-- 專案總覽：沒有指定要改哪一套時看到的畫面 -->
+  <section id="overview" hidden class="ov">
+    <div class="ov-in">
+      <div class="ov-hd">
+        <div>
+          <h1>我的專案</h1>
+          <p id="ovSub">挑一套開始修改，或再從目錄複製一套。</p>
+        </div>
+        <a href="./catalog.html" class="btn btn-primary"><span class="material-symbols-outlined text-[18px]">add</span>採用新模板</a>
+      </div>
+      <div id="ovGrid" class="ov-grid"></div>
+    </div>
+  </section>
+
   <main id="shell" hidden class="shell">
     <!-- ① 我的系統 -->
     <aside id="sysPane" class="col on bg-white border-r border-line">
       <div class="px-4 pt-4 pb-2 flex items-start gap-2">
         <div class="flex-1 min-w-0">
-          <h1 class="text-sm font-black text-ink">我的系統</h1>
+          <button id="toOverview" type="button" class="text-sm font-black text-ink hover:text-brand inline-flex items-center gap-1">
+            <span class="material-symbols-outlined text-[16px]">grid_view</span>我的專案
+          </button>
           <p class="text-xs text-muted mt-0.5">選一套，右邊就是它。</p>
         </div>
         <button id="fold" type="button" class="btn btn-ghost h-7 w-7 px-0 shrink-0" title="收起清單（之後從左上角打開）" aria-label="收起我的系統">
@@ -359,8 +394,7 @@
           $("guest").hidden = false;
           return;
         }
-        $("shell").hidden = false;
-        $("mobileTabs").hidden = false;
+        /* shell 與總覽二選一，等 loadSystems 知道有沒有 ?i= 再決定要開哪個。 */
         loadSystems();
       })
       .catch(function () { $("guest").hidden = false; });
@@ -378,6 +412,8 @@
         box.innerHTML = "";
         if (!systems.length) {
           box.innerHTML = '<p class="px-2 py-3 text-xs text-muted leading-relaxed">你還沒有自己的系統。到<a href="./catalog.html" class="text-brand font-bold">專案目錄</a>挑一套，按「模板複製」就會出現在這裡。</p>';
+          /* 沒有系統時也要落在總覽，不然 shell 與 overview 都不顯示＝白畫面。 */
+          showOverview();
           return;
         }
         systems.forEach(function (s) {
@@ -396,13 +432,66 @@
           kids.dataset.kids = s.id;
           box.appendChild(kids);
         });
-        /* 網址指定的優先，沒有就開第一套——進來就看到東西，比看到空畫面好。 */
+        /* 帶了 ?i= 就直接進編輯器——「模板複製」成功後就是這樣跳過來的，
+           不該多一次點擊。沒帶就先看總覽。
+           以前沒帶參數會自動開第一套，理由是「進來就看到東西，比看到空畫面好」；
+           但那等於跳過了「我做了哪些」這一步，而總覽本來就看得到東西。 */
         var want = new URLSearchParams(location.search).get("i");
-        select(systems.some(function (s) { return s.id === want; }) ? want : systems[0].id);
+        if (systems.some(function (s) { return s.id === want; })) enterEditor(want);
+        else showOverview();
       })
       .catch(function () {
         $("sysList").innerHTML = '<p class="px-2 py-3 text-xs text-red-600">清單載入失敗，重新整理試試。</p>';
       });
+  }
+
+  /* ── 總覽與編輯器：同一頁的兩個狀態 ──────────────────
+     不另開一頁的理由是心智模型只要一個：工作台就是「我的專案的家」，
+     沒選就看全部、選了就進去改。網址也只有 workspace.html 與 ?i=<id> 兩種。 */
+  function showOverview() {
+    renderOverview();
+    $("overview").hidden = false;
+    $("shell").hidden = true;
+    $("mobileTabs").hidden = true;
+    /* 網址要跟著狀態走，否則重新整理會跳回編輯器。用 replaceState 不留歷史，
+       免得返回鍵在同一頁的兩個狀態之間彈來彈去。 */
+    if (location.search) history.replaceState(null, "", location.pathname);
+  }
+
+  function enterEditor(id) {
+    $("overview").hidden = true;
+    $("shell").hidden = false;
+    $("mobileTabs").hidden = false;
+    select(id);
+    history.replaceState(null, "", location.pathname + "?i=" + encodeURIComponent(id));
+  }
+
+  function renderOverview() {
+    var grid = $("ovGrid"), sub = $("ovSub");
+    if (!systems.length) {
+      sub.textContent = "還沒有任何系統。";
+      grid.innerHTML = '<article class="ov-card"><h2>先從目錄挑一套</h2>' +
+        '<p class="ov-meta">在專案目錄按「模板複製」，就會複製出一份你自己的、能存資料的系統。</p>' +
+        '<div class="ov-acts"><a class="btn btn-primary" href="./catalog.html">瀏覽專案目錄</a></div></article>';
+      return;
+    }
+    sub.textContent = systems.length + " 套系統 · 挑一套開始修改，或再從目錄複製一套。";
+    grid.innerHTML = systems.map(function (s) {
+      var live = s.state === "live";
+      var when = String(s.created_at || "").slice(0, 10);
+      return '<article class="ov-card">' +
+        '<div class="flex items-start justify-between gap-2">' +
+          "<h2>" + esc(s.title || s.repo_name) + "</h2>" +
+          '<span class="ov-tag' + (live ? "" : " off") + '">' + esc(STATE_TEXT[s.state] || s.state) + "</span>" +
+        "</div>" +
+        '<p class="ov-meta">' + (s.role === "owner" ? "擁有者" : "成員") + (when ? " · 建立於 " + esc(when) : "") + "</p>" +
+        '<div class="ov-acts">' +
+          (live
+            ? '<button type="button" class="btn btn-primary" data-edit="' + esc(s.id) + '">開始修改</button>' +
+              '<a class="btn btn-ghost" href="/-/i/' + esc(s.id) + '/" target="_blank" rel="noreferrer">開啟 ↗</a>'
+            : '<span class="ov-meta">' + esc(STATE_TEXT[s.state] || s.state) + "，好了會出現在這裡</span>") +
+        "</div></article>";
+    }).join("");
   }
 
   function select(id) {
@@ -509,6 +598,13 @@
       })
       .catch(function () { say("bot", "讀不到這次對話的內容。", "err"); });
   }
+
+  /* 卡片上的動作綁在 grid 上綁一次——卡片會整批重繪，逐張綁的話重繪後全失效。 */
+  $("ovGrid").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-edit]");
+    if (b) enterEditor(b.dataset.edit);
+  });
+  $("toOverview").addEventListener("click", function () { showOverview(); });
 
   $("newChat").addEventListener("click", function () { if (cur) openSession(null); });
 
