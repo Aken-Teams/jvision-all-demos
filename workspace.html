@@ -165,16 +165,33 @@
     .tab:hover { color:#1e40af; background:#eff6ff; }
     .tab[aria-selected="true"] { color:#1e40af; background:#e0ecff; }
 
-    /* 系統清單。一個系統＝一組（自己那張卡＋它底下的幾次對話），
-       所以間距下在「組」與「組」之間，卡片跟自己的對話要黏在一起。 */
-    .grp + .grp { margin-top:.25rem; }
-    .sys { display:block; width:100%; text-align:left; padding:.5rem .6rem; border-radius:.55rem; border:1px solid transparent; cursor:pointer; background:none; font:inherit; }
-    .sys:hover { background:#eef2f7; }
-    .sys[aria-current="true"] { background:#e0ecff; border-color:#bfdbfe; }
-    .sys b { display:block; font-size:.82rem; font-weight:800; color:#0f1e46; line-height:1.35; }
-    .sys i { display:block; font-style:normal; font-size:.68rem; color:#64748b; margin-top:.15rem; }
-    /* 展開時卡片與底下的對話是同一塊，所以把卡片下緣的圓角收掉。 */
-    .grp:has([data-kids] .ses) .sys[aria-current="true"] { border-bottom-left-radius:0; border-bottom-right-radius:0; }
+    /* 系統清單。一個系統＝一組，選中的那一組整個是「一張卡」。
+       先前是卡片一個藍框、底下的對話另一個藍框、兩者之間再一條軸線——
+       同一件事被畫成三種東西，在 200px 寬的欄位裡就是雜。
+       現在框只有一個，畫在群組上；裡面的東西都不再各自帶框。 */
+    .grp + .grp { margin-top:.15rem; }
+    .grp.on { background:#fff; border:1px solid #bfdbfe; border-radius:.6rem;
+              box-shadow:0 1px 3px rgba(30,64,175,.07); }
+
+    .sys { display:flex; align-items:flex-start; gap:.45rem; width:100%; text-align:left;
+           padding:.5rem .6rem; border-radius:.55rem; border:0; cursor:pointer;
+           background:none; font:inherit; }
+    .sys:hover { background:#f1f5f9; }
+    .grp.on .sys, .grp.on .sys:hover { background:none; }
+    /* 狀態用一顆點，不用一整行字。每一套底下都寫著同一句「運作中 · 擁有者」，
+       在每一列都一樣的字＝沒有資訊，卻讓每一列高一倍。點只佔標題左邊 6px，
+       而且「哪一套壞了」反而更掃得出來。 */
+    .sys .dot { flex:none; width:6px; height:6px; margin-top:.42rem; border-radius:50%; background:#22c55e; }
+    .sys .dot.building { background:#f59e0b; }
+    .sys .dot.off { background:#94a3b8; }
+    .sys .dot.bad { background:#ef4444; }
+    /* 標題照樣可以折行——名字被截掉比多一行更難用。 */
+    .sys .t { flex:1; min-width:0; font-size:.82rem; font-weight:800; color:#0f1e46;
+              line-height:1.35; word-break:break-word; }
+    .grp.on .sys .t { color:#1e40af; }
+    /* 「擁有者」是常態，不用標；只有「成員」值得講一句。 */
+    .sys .tag { flex:none; margin-top:.1rem; font-size:.62rem; font-weight:800; color:#64748b;
+                background:#f1f5f9; border-radius:.25rem; padding:.05rem .25rem; }
 
     /* 對話泡泡 */
     .m { max-width:88%; padding:.5rem .7rem; border-radius:.75rem; font-size:.82rem; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
@@ -200,16 +217,13 @@
     /* 回覆有表格時泡泡放寬——88% 塞不下三欄，字會擠成一直條。 */
     .m.bot:has(.mdt), .m.done:has(.mdt) { max-width:100%; }
 
-    /* 系統底下的那幾次對話。縮排＋左邊一條線，看得出是隸屬關係而不是同一層。 */
-    /* 線畫在容器上，不是畫在每一列。畫在列上的話，列與列之間的縫會把線切斷，
-       看起來像好幾條斷掉的短線而不是一條「這些都屬於上面那套」的軸。 */
-    [data-kids] { margin:0 0 0 1rem; padding:.15rem 0 .15rem .4rem;
-                  border-left:2px solid #e2e8f0; }
-    /* 沒有對話就不要留一條孤零零的線。 */
+    /* 系統底下的那幾次對話。隸屬關係已經由「同在一張卡裡」講清楚了，
+       所以這裡不再需要縮排軸線——只用一條細分隔線把它跟標題分開。 */
+    [data-kids] { padding:.2rem; }
     [data-kids]:not(:has(.ses)) { display:none; }
-    .sys[aria-current="true"] + [data-kids] { border-left-color:#bfdbfe; }
-    .ses { display:flex; align-items:center; gap:.3rem; width:100%; text-align:left;
-           padding:.3rem .45rem; border-radius:.4rem; cursor:pointer; background:none; font:inherit;
+    .grp.on [data-kids] { border-top:1px solid #e8f0fe; }
+    .ses { display:flex; align-items:center; gap:.35rem; width:100%; text-align:left;
+           padding:.3rem .4rem; border-radius:.4rem; cursor:pointer; background:none; font:inherit;
            font-size:.74rem; color:#64748b; line-height:1.4; }
     .ses .material-symbols-outlined { font-size:14px; flex:none; opacity:.75; }
     /* 標題自己截斷。截斷放在 flex 子元素上，圖示才不會跟著被壓扁。 */
@@ -476,6 +490,9 @@
 
   /* ── ① 我的系統 ───────────────────────────────────── */
   var STATE_TEXT = { live: "運作中", building: "建置中", suspended: "已暫停", failed: "建置失敗" };
+  /* 側欄那顆點的顏色。狀態名還在（滑上去有 title、總覽卡片上也照樣是文字），
+     這裡只是不用一整行字去講一件每列都一樣的事。 */
+  var DOT = { live: "", building: "building", suspended: "off", failed: "bad" };
 
   function loadSystems() {
     fetch("/api/me/systems", { cache: "no-store" })
@@ -495,8 +512,10 @@
           b.type = "button";
           b.className = "sys";
           b.dataset.id = s.id;
-          b.innerHTML = "<b>" + esc(s.title || s.repo_name) + "</b><i>" +
-            esc(STATE_TEXT[s.state] || s.state) + (s.role === "owner" ? " · 擁有者" : " · 成員") + "</i>";
+          b.title = (s.title || s.repo_name) + "（" + (STATE_TEXT[s.state] || s.state) + "）";
+          b.innerHTML = '<span class="dot ' + (DOT[s.state] === undefined ? "off" : DOT[s.state]) + '"></span><span class="t"></span>' +
+            (s.role === "owner" ? "" : '<span class="tag">成員</span>');
+          b.querySelector(".t").textContent = s.title || s.repo_name;
           b.addEventListener("click", function () { select(s.id); });
           var grp = document.createElement("div");
           grp.className = "grp";
@@ -628,7 +647,10 @@
     cur = systems.filter(function (s) { return s.id === id; })[0] || null;
     if (!cur) return;
     document.querySelectorAll("#sysList .sys").forEach(function (b) {
-      b.setAttribute("aria-current", b.dataset.id === id ? "true" : "false");
+      var on = b.dataset.id === id;
+      b.setAttribute("aria-current", on ? "true" : "false");
+      /* 框畫在群組上，所以選取狀態要往上掛一層。 */
+      b.parentNode.classList.toggle("on", on);
     });
     /* 用 replaceState：切換系統不該在瀏覽器的上一頁堆一堆紀錄。 */
     history.replaceState(null, "", "?i=" + encodeURIComponent(id));
