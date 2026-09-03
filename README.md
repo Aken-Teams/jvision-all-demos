@@ -58,7 +58,7 @@ npm run audit:formal-sites
 npm run list:demos
 ```
 
-`audit:formal-sites` opens all 464 Hub URLs in Chromium, records HTTP and browser errors, checks first-fold layout and brightness, captures screenshots, and writes the review result to `docs/FORMAL_SITE_AUDIT.md`.
+`audit:formal-sites` opens every Hub URL in Chromium, records HTTP and browser errors, checks first-fold layout and brightness, and captures screenshots.
 
 For self-hosted environments, `npm run clean:vercel-analytics` removes the Vercel Analytics runtime from the 59 legacy Next.js sources and keeps compatibility stubs for their preserved Hub snapshots.
 

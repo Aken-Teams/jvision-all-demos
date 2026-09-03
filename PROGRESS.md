@@ -49,7 +49,7 @@ Last updated: 2026-08-22
 - `node --check app.js` passed for the catalog implementation.
 - Browser checks verified suggestion rendering, source filtering (300 smart-manufacturing projects), URL state, a zero-result state and a 390px mobile viewport.
 - The catalog browser console had no errors during that check.
-- Earlier repository reports record the full Project Expert and mobile analytics checks; see `docs/PROJECT_EXPERT_ACCEPTANCE_REPORT.md` and `docs/MOBILE_ANALYTICS_AUDIT.md`.
+- Earlier repository reports recorded the full Project Expert and mobile analytics checks. Removed 2026-09-03 along with the pipelines that produced them; see git history if needed.
 - `npm run test:deepseek-ai-advice` verifies all 464 pages load the common runtime and uses a mocked provider response to validate the protected serverless endpoint.
 - Desktop and 390px mobile browser checks confirmed that an existing system AI action and a legacy-system fallback action both render an accessible, actionable advice card.
 - npm run test:dynamic-charts confirms the dynamic-chart layer is present on all 464 static routes and all 459 retained Next.js layouts.
@@ -80,7 +80,7 @@ Last updated: 2026-08-22
 - Added shared mobile containment and targeted responsive table fixes for Bakery, Event Wedding and HRIS pages.
 - Replaced external TMS and Fashion PLM logo references with local assets and added a root favicon.
 - Hardened the E2E audit to wait for stylesheets, report missing styles/resources and avoid submitting forms during safe interaction checks.
-- Final report: `docs/E2E_ALL_DEMOS_REPORT.md` (463 passed, 0 failed). The 52 known recoverable React #418 hydration warnings remain compatibility warnings.
+- Final report: 463 passed, 0 failed, with 52 known recoverable React #418 hydration warnings. The report file was removed 2026-09-03; see git history.
 
 Review the refreshed catalog and representative domain workflows in a normal browser session before opening a delivery PR.
 

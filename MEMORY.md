@@ -29,5 +29,5 @@ This file captures project facts that should persist across tasks. Keep it conci
 
 - Design baseline: `design-system/jvision-464-ai-saas-demos/MASTER.md`.
 - Project reviewer: `project-expert.html` and `tools/project-expert-agent.mjs`.
-- Audit reports: `docs/FORMAL_SITE_AUDIT.md`, `docs/MOBILE_ANALYTICS_AUDIT.md`, and `docs/PROJECT_EXPERT_ACCEPTANCE_REPORT.md`.
+- Audit reports: removed 2026-09-03. They described the 464-demo Next.js era, and the pipelines that produced them no longer exist. Git history keeps them.
 
