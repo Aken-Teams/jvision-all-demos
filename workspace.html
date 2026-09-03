@@ -619,7 +619,9 @@
     #chips { overflow-x:auto; overflow-y:hidden; scrollbar-width:none;
              -webkit-overflow-scrolling:touch; scroll-behavior:smooth;
              cursor:grab; }
-    #chips.dragging { cursor:grabbing; scroll-behavior:auto; }
+    /* 拖動中把 scroll-behavior 關掉（smooth 會跟指標打架），並擋掉選字——
+       不然拖過去會把幾顆建議的文字整片反白。 */
+    #chips.dragging { cursor:grabbing; scroll-behavior:auto; user-select:none; -webkit-user-select:none; }
     #chips::-webkit-scrollbar { display:none; }
     #chips > * { flex:none; }
     /* 右邊還有東西時才淡出。捲到底就把遮罩收掉，否則最後一顆會一直看起來
@@ -1632,22 +1634,46 @@
       box.scrollLeft += e.deltaY;
     }, { passive: false });
 
-    /* 用滑鼠直接拖也能捲。沒有捲軸可抓的時候，這是最直覺的操作。 */
-    var down = false, x0 = 0, l0 = 0, moved = 0;
+    /* 用滑鼠直接拖也能捲。沒有捲軸可抓的時候，這是最直覺的操作。
+       這一段有兩個坑，都會讓人「拖到一半突然跳回最左邊」：
+
+       一、pointerup 只綁在 box 上，而這一列只有二十幾像素高——放開滑鼠時
+           指標常常已經離開它了，那一下就收不到，`down` 一直是 true。
+           之後只要滑鼠再經過這一列（沒按著），pointermove 就會拿**上一次**
+           的 x0/l0 去算，算出一個跟現在完全無關的位置。起點停在 0 附近時
+           就是「跳回最左邊」。
+           修法是 setPointerCapture：抓住之後不管滑到哪裡（甚至滑出視窗）
+           都還收得到 move 與 up。
+
+       二、原本補了 pointerleave 當保險，但那反而砍斷正在進行的手勢：指標
+           一離開這條窄列（往上往下都很容易）拖動就停了。有了指標捕獲之後
+           它不再需要，也不該留著。
+
+       另外 pointerdown 一開頭先把 down 清掉：`e.button !== 0` 這種提早
+           return 的路徑原本會把殘留狀態留著，那是坑一的另一個入口。 */
+    var down = false, x0 = 0, l0 = 0, moved = 0, pid = null;
     box.addEventListener("pointerdown", function (e) {
+      down = false;
       if (e.button !== 0 || box.scrollWidth <= box.clientWidth) return;
-      down = true; moved = 0; x0 = e.clientX; l0 = box.scrollLeft;
+      down = true; moved = 0; x0 = e.clientX; l0 = box.scrollLeft; pid = e.pointerId;
+      try { box.setPointerCapture(e.pointerId); } catch (err) { /* 抓不到就退回原本的行為 */ }
       box.classList.add("dragging");
     });
     box.addEventListener("pointermove", function (e) {
-      if (!down) return;
+      if (!down || e.pointerId !== pid) return;
       var d = e.clientX - x0;
       moved = Math.max(moved, Math.abs(d));
       box.scrollLeft = l0 - d;
     });
-    var up = function () { down = false; box.classList.remove("dragging"); };
+    var up = function (e) {
+      if (!down) return;
+      down = false;
+      if (e && pid !== null) { try { box.releasePointerCapture(pid); } catch (err) { /* 已經放掉了 */ } }
+      pid = null;
+      box.classList.remove("dragging");
+    };
     box.addEventListener("pointerup", up);
-    box.addEventListener("pointerleave", up);
+    box.addEventListener("pointercancel", up);
     /* 拖完之後那一下放開不該被當成點擊——不然滑一下就送出一句話。 */
     box.addEventListener("click", function (e) {
       if (moved > 6) { e.stopPropagation(); e.preventDefault(); moved = 0; }
