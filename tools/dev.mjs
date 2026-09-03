@@ -216,12 +216,6 @@ const hostCache = new Map();
    後台加一筆。主站只有一個網址，註冊一次就結束。 */
 const MAIN_HOST = process.env.JV_MAIN_HOST || "jvdemo.jvision-ai.com";
 
-/* 開 PR 會推到這一條固定的審核分支（見 tools/instance-deliver.mjs 的
-   REVIEW_BRANCH，兩邊要一致）。畫面上要講出分支名字——使用者問過
-   「發了 PR 之後再按更新，到底是進 main 還是進 PR 那條分支」，
-   而那個問題不該靠猜。 */
-const REVIEW_BRANCH = "jvision-update";
-
 /**
  * 登入完要送他去哪。
  *
@@ -751,6 +745,30 @@ function startGateway() {
     }
 
     {
+      /* 這個 repo 上有哪些分支。交付要讓使用者自己選推到哪一條，那就得先
+         知道有哪些可選——不然只能盲打分支名字。 */
+      const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/branches$/.exec(p);
+      if (m && req.method === "GET") {
+        const id = visitor.read(req);
+        if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
+        try {
+          const inst = await control.getInstance(m[1]);
+          if (!inst) return json(res, 404, { error: "找不到這個系統" });
+          const role = await control.memberRole({ customerId: inst.customer_id, email: id.email });
+          if (role !== "owner") return json(res, 403, { error: "只有擁有者可以看" });
+          if (!inst.repo_url) return json(res, 200, { branches: [], base: null });
+          const mm = /github\.com\/([^/]+)\/([^/\s]+)/.exec(inst.repo_url);
+          if (!mm) return json(res, 200, { branches: [], base: null });
+          const gh = await import("./lib/github-api.mjs");
+          return json(res, 200, await gh.branches(mm[1], mm[2]));
+        } catch (error) {
+          console.error("[branches]", String(error.message).slice(0, 200));
+          return json(res, 200, { branches: [], base: null, error: "查不到分支清單" });
+        }
+      }
+    }
+
+    {
       const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/publish$/.exec(p);
       if (m && req.method === "GET") {
         const id = visitor.read(req);
@@ -774,7 +792,6 @@ function startGateway() {
             /* 有沒有上過 GitHub。開 PR 是「把改動提給既有的 repo」，repo 還不
                存在的時候那顆按鈕沒有意義——沒交付過就先不給按。 */
             repoUrl: inst.repo_url || null,
-            reviewBranch: REVIEW_BRANCH,
             members: members.length, path: `/-/i/${inst.id}/` });
         } catch (error) {
           /* Cloudflare 連不上時回「不知道」而不是「沒佈署」——後者會讓畫面
@@ -851,6 +868,12 @@ function startGateway() {
              而這件事一年做不到幾次。 */
           const argv = [path.join(root, "tools", "instance-deliver.mjs"), `--instance=${inst.id}`];
           if (what === "pr") argv.push("--pr");
+          /* 推到哪一條分支由使用者選。交付腳本自己會再驗一次名字——這裡不
+             過濾也不該過濾，驗證只該有一個地方負責，兩邊各寫一份遲早會分岔。 */
+          if (what === "deliver") {
+            const body = await readBody(req).catch(() => ({}));
+            if (body && body.branch) argv.push(`--branch=${String(body.branch)}`);
+          }
           const out = String(execFileSync(process.execPath, argv, { cwd: root, encoding: "utf8", timeout: 300000 }));
           const url = (out.match(/https:\/\/github\.com\/[^\s]+/g) || []).pop() || null;
           /* 交付腳本對「做不到」的處理是印一行警告然後照常結束——這樣 CLI 用起來

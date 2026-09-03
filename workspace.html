@@ -968,9 +968,19 @@
             <!-- 這張卡自己的訊息。原本所有動作共用頁尾一行，於是「交付失敗」
                  會顯示在離按鈕好幾百像素遠、而且跟分享卡的訊息搶同一個位置。 -->
             <div id="repoMsg" class="text-xs mb-3" hidden></div>
-            <div class="flex gap-2 acts">
+            <div class="flex gap-2 acts items-center flex-wrap">
+              <!-- 推到哪一條分支由使用者決定。原本是「交付」與「開 PR」兩顆，
+                   但「開 PR」把這個工具的能力講小了也講歪了：它實際做的是
+                   「把這一版推到一條分支」，開不開 PR 是 GitHub 那邊的事，
+                   而且要 token 有 pull requests 權限——沒有的時候那顆按鈕
+                   就變成謊話。選分支之後，要不要開 PR 由他在 GitHub 上決定。 -->
+              <label id="brWrap" class="text-xs text-muted flex items-center gap-1.5" hidden>推到
+                <select id="brPick" class="border border-line rounded-lg px-2 py-1 text-xs"
+                        style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;max-width:16rem"></select>
+              </label>
+              <input id="brNew" class="border border-line rounded-lg px-2 py-1 text-xs" hidden
+                     placeholder="新分支名稱，例如 feature/報表" style="font-family:ui-monospace,monospace;width:15rem" />
               <button type="button" class="btn btn-primary" data-act="deliver"><span class="material-symbols-outlined text-[18px]">cloud_upload</span><span class="lbl">交付</span></button>
-              <button type="button" class="btn btn-ghost" data-act="pr"><span class="material-symbols-outlined text-[18px]">merge</span>開 PR</button>
             </div>
           </div>
         </div>
@@ -1926,6 +1936,7 @@
     loaded.spec = false;
     checked = null;                 // 那是另一套系統，上一套按過「還是要部署」不算數
     if ($("repoMsg")) { $("repoMsg").hidden = true; $("repoMsg").textContent = ""; }
+    lastPushed = null;              // 那是另一套系統的分支
     if ($("pubState")) $("pubState").textContent = "讀取中…";
     if (curTab !== "preview") showTab(curTab);
   }
@@ -3194,7 +3205,7 @@
     box.hidden = false;
     if (r.busy) {
       box.style.color = "#64748b";
-      box.textContent = act === "pr" ? "推上新分支並開 PR 中，這要跑 git，請稍等…" : "推上 GitHub 中，這要跑 git，請稍等…";
+      box.textContent = "推上 " + (r.branch || "GitHub") + " 中，這要跑 git，請稍等…";
       return;
     }
     if (r.error) {
@@ -3207,29 +3218,20 @@
       return;
     }
     var parts = [];
+    var to = r.branch ? "<code>" + esc(r.branch) + "</code>" : "GitHub";
     if (r.unchanged) {
       box.style.color = "#64748b";
-      parts.push("跟 GitHub 上那一版一模一樣，這次沒有東西要送上去。");
-    } else if (act === "pr" && r.prFailed) {
-      /* 這裡以前會顯示「PR 已開：<repo 網址>」——PR 根本沒開成，連結還指去
-         repo 首頁。寧可說失敗，也不要給一個假的成功。 */
-      box.style.color = "#b45309";
-      /* 「推不成功」跟「PR 沒開成」是兩件事，講清楚哪一件成功了——改動確實
-         已經在 GitHub 上，只差最後那個 PR 物件沒建起來。 */
-      parts.push("<b>改動已經推上 GitHub 了</b>，只差最後開 PR 那一步沒做成——"
-        + "交付用的 token 沒有 pull requests 權限。"
-        + (r.compareUrl
-          ? '<div class="mt-1"><a href="' + esc(r.compareUrl) + '" target="_blank" rel="noreferrer" '
-            + 'class="text-brand font-bold hover:underline">到 GitHub 上開這個 PR ↗</a>'
-            + '<span style="color:#94a3b8">（表單已經填好，按 Create pull request 就好）</span></div>'
-          : ""));
-    } else if (act === "pr") {
-      box.style.color = "#15803d";
-      parts.push('PR 已開：<a href="' + esc(r.url) + '" target="_blank" rel="noreferrer" '
-        + 'class="text-brand font-bold hover:underline" style="word-break:break-all">' + esc(r.url) + "</a>");
+      parts.push("跟 " + to + " 上那一版一模一樣，這次沒有東西要送上去。");
     } else {
       box.style.color = "#15803d";
-      parts.push("已推上 GitHub。");
+      parts.push("已推上 " + to + "。");
+      /* 推到非預設分支時給 compare 連結：那一頁按下去就是開 PR 的表單，
+         base 與 head 都填好了。要不要開 PR 由他決定，我們不代他按。 */
+      if (r.compareUrl) {
+        parts.push('<a href="' + esc(r.compareUrl) + '" target="_blank" rel="noreferrer" '
+          + 'class="text-brand font-bold hover:underline">在 GitHub 上開 PR ↗</a>'
+          + '<span style="color:#94a3b8">（表單已經填好，按 Create pull request 就好）</span>');
+      }
     }
     if (r.ciSkipped) {
       parts.push('<span style="color:#94a3b8">（不含 CI 設定檔——token 沒有 workflow 權限，'
@@ -3238,38 +3240,81 @@
     box.innerHTML = parts.join('<div class="mt-1"></div>');
   }
 
+  var NEW_BRANCH = "__new__";
+  var lastPushed = null;        // 這次推去哪，重讀清單之後要停在那一條
+  var repoBase = null;          // 這個 repo 的預設分支，不寫死成 main
+
   function paintRepo(st) {
     var box = $("repoState");
-    var pr = document.querySelector('[data-act="pr"]');
     var dl = document.querySelector('[data-act="deliver"]');
-    if (!box || !pr || !dl) return;
+    var wrap = $("brWrap");
+    if (!box || !dl || !wrap) return;
     var has = Boolean(st && st.repoUrl);
 
-    pr.disabled = !has;
-    pr.title = has ? "推到新分支並開 PR，先看 diff 再決定要不要合" : "還沒交付過，GitHub 上還沒有這個 repo";
+    dl.querySelector(".lbl").textContent = has ? "推上去" : "交付";
+    dl.title = has ? "把目前這一版推到選定的分支" : "在 GitHub 上建立 repo 並推上第一版";
+    wrap.hidden = !has;
+    if (!has) { $("brNew").hidden = true; }
 
-    /* 第一次跟之後不是同一件事，按鈕就不該叫同一個名字。
-       第一次是「建立 repo 並把東西放上去」；之後是「把最新版推上去」——
-       交付現在會接在遠端既有的歷史上多一個 commit，所以再按一次是有意義的，
-       不是重複動作。叫它「更新」才說得出它會做什麼。 */
-    dl.querySelector(".lbl").textContent = has ? "更新" : "交付";
-    dl.title = has ? "把最新版直接推到 main（會多一個 commit，不會蓋掉歷史）" : "在 GitHub 上建立 repo 並推上第一版";
-
-    var br = (st && st.reviewBranch) || "jvision-update";
-    /* 兩顆按鈕都會把最新版送上去，差別在推到哪一條分支。使用者問過
-       「發了 PR 之後再按更新，到底是進 main 還是進 PR 那條分支」——
-       那不該靠猜，所以分支名字直接寫在畫面上。 */
     box.innerHTML = has
       ? '<div><span class="text-muted">已交付到</span> <a href="' + esc(st.repoUrl) + '" target="_blank" '
         + 'rel="noreferrer" class="text-brand font-bold hover:underline" style="word-break:break-all">'
         + esc(st.repoUrl) + "</a></div>"
-        + '<div class="mt-1"><span class="lane"><b class="text-ink">更新</b> → '
-        + '<code>main</code> <span class="text-muted">正式版，直接進</span></span>'
-        + '<span class="lane"><b class="text-ink">開 PR</b> → <code>' + esc(br) + "</code> "
-        + '<span class="text-muted">先看 diff 再決定要不要合</span></span></div>'
-        + '<div class="text-muted mt-1">兩條是分開的：開了 PR 之後再按「更新」，還是進 '
-        + "<code>main</code>，不會跑到 PR 那條分支去。同一條審核分支重複按會追加到原本那個 PR，不會開出一堆。</div>"
-      : '<span class="text-muted">還沒交付過。第一次按「交付」會建立 repo，之後才能用「開 PR」把改動提上去。</span>';
+        /* 推到預設分支＝直接改正式版；推到別的分支＝留一份給人看過再合。
+           這件事講一次就好，不要在每顆按鈕上重複。 */
+        + '<div class="text-muted mt-1">推到預設分支就是直接更新正式版；'
+        + "推到別的分支的話，改動會留在那條分支上，要不要合併由你在 GitHub 上決定。</div>"
+      : '<span class="text-muted">還沒交付過。第一次按「交付」會在 GitHub 上建立 repo 並推上第一版。</span>';
+
+    if (has) loadBranches(st.repoUrl);
+  }
+
+  /* 分支清單。查不到不是致命的——把選單退成只有預設分支與「新分支」，
+     他照樣推得上去，只是少了「有哪些現成的可以選」這個方便。 */
+  function loadBranches(repoUrl) {
+    if (!cur) return;
+    fetch("/api/me/instances/" + encodeURIComponent(cur.id) + "/branches")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { paintBranches(d || {}); })
+      .catch(function () { paintBranches({}); });
+  }
+
+  function paintBranches(d) {
+    var sel = $("brPick");
+    if (!sel) return;
+    repoBase = d.base || "main";
+    var list = (d.branches && d.branches.length) ? d.branches : [repoBase];
+    var prev = sel.value;
+    var h = "";
+    list.forEach(function (b) {
+      h += '<option value="' + esc(b) + '">' + esc(b) + (b === repoBase ? "（正式版）" : "") + "</option>";
+    });
+    h += '<option value="' + NEW_BRANCH + '">＋ 新分支…</option>';
+    sel.innerHTML = h;
+    /* 停在剛推上去的那一條——他多半還會再推一次。沒有的話沿用上一次的選擇；
+       兩個都不在清單裡（例如分支合併後被刪）才退回預設分支。
+       選單重畫時 prev 可能是「＋ 新分支…」那個哨兵值，那不能拿來當選擇。 */
+    var want = lastPushed || prev;
+    sel.value = list.indexOf(want) >= 0 ? want : repoBase;
+    $("brNew").hidden = sel.value !== NEW_BRANCH;
+  }
+
+  /* 選到「新分支」才顯示輸入框。一直放著一個空輸入框，會讓人以為每次都要填。 */
+  document.addEventListener("change", function (e) {
+    if (e.target && e.target.id === "brPick") {
+      var isNew = e.target.value === NEW_BRANCH;
+      $("brNew").hidden = !isNew;
+      if (isNew) $("brNew").focus();
+    }
+  });
+
+  /* 這次要推到哪一條。回 null 表示使用者選了新分支卻沒填名字。 */
+  function chosenBranch() {
+    var sel = $("brPick");
+    if (!sel || $("brWrap").hidden) return "";        // 還沒交付過，用預設
+    if (sel.value !== NEW_BRANCH) return sel.value;
+    var v = $("brNew").value.trim();
+    return v || null;
   }
 
   /* 網址加複製鈕。只在佈署卡出現一次——兩張卡各印一次同一條網址，
@@ -3451,13 +3496,19 @@
       }
       var body = act === "share" ? { email: $("shareEmail").value.trim() } : {};
       if (act === "share" && !body.email) { note.style.color = "#b91c1c"; note.textContent = "請先填同事的信箱"; return; }
+      var branch = "";
+      if (act === "deliver") {
+        branch = chosenBranch();
+        if (branch === null) { sayRepo({ error: "選了「新分支」但還沒填名字。" }, act); return; }
+        if (branch) body.branch = branch;
+      }
       document.querySelectorAll("[data-act]").forEach(function (o) { o.disabled = true; });
-      if (act === "deliver" || act === "pr") {
+      if (act === "deliver") {
         note.textContent = "";
-        sayRepo({ busy: true }, act);
+        sayRepo({ busy: true, branch: branch || repoBase }, act);
       }
       note.style.color = "#64748b";
-      note.textContent = act === "deliver" || act === "pr" ? "" : act === "share" ? "加入中…"
+      note.textContent = act === "deliver" ? "" : act === "share" ? "加入中…"
         : act === "vercel" ? "部署中，要複製資料庫再上傳，請稍等幾分鐘…"
         : act === "publish" ? "佈署中…"
         : act === "unpublish" ? "取消佈署中…"
@@ -3469,7 +3520,7 @@
         .then(function (x) {
           document.querySelectorAll("[data-act]").forEach(function (o) { o.disabled = false; });
           if (!x.ok) {
-            if (act === "deliver" || act === "pr") { sayRepo({ error: x.d.detail || x.d.error }, act); return; }
+            if (act === "deliver") { sayRepo({ error: x.d.detail || x.d.error }, act); return; }
             note.style.color = "#b91c1c"; note.textContent = x.d.error || "沒有成功"; return;
           }
           note.style.color = "#15803d";
@@ -3490,9 +3541,10 @@
                拼一半的狀態會讓畫面短暫顯示成「1 人進得去」之類的假資訊。 */
             loadPub();
           }
-          else if (act === "deliver" || act === "pr") {
+          else if (act === "deliver") {
             note.textContent = "";
-            sayRepo(x.d, act);
+            lastPushed = branch || repoBase;
+            sayRepo(Object.assign({ branch: lastPushed }, x.d), act);
             loadPub();
             return;
           }
