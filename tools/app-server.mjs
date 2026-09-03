@@ -670,7 +670,12 @@ function startEdit(inst, instruction, imagePath, sessionId) {
             detail: { why: String(e.message).slice(0, 200) } }).catch(() => {});
         }
       }
-      const okMsg = `改好了，畫面重新整理就會看到。${grown}`;
+      /* 成功時通常一句話都不用說。
+         「改好了」那張綠色泡泡在做的事，旁邊三樣東西已經各做過一次了：
+         做法紀錄那張卡收合成一行、預覽自己重載並把改動圈起來、階段全部打勾。
+         而「畫面重新整理就會看到」更是錯的——預覽本來就自己重載了。
+         只有真的多出一句話要講（新表格建好了，或是建不起來）才回內容。 */
+      const okMsg = String(grown || "").trim();
       /* 就地改狀態，不要換掉整個物件——計畫、檢查清單、階段都要留著，
          使用者做完之後還會回頭看「它到底做了哪幾件事」。 */
       job.state = r.ok ? "done" : "failed";
@@ -690,9 +695,14 @@ function startEdit(inst, instruction, imagePath, sessionId) {
           control.addMessage({ sessionId, role: "assistant", text: processNote(job),
             action: "edit_process" }).catch(() => {});
         }
-        control.addMessage({ sessionId, role: "assistant",
-          text: r.ok ? okMsg : r.why,
-          action: r.ok ? "edit_page" : "edit_failed", versionId: r.versionId || null }).catch(() => {});
+        /* 沒話可講就不要在對話裡留一則空的。失敗那則一定要留——那是唯一
+           說得出「為什麼沒改成」的地方。 */
+        const tail = r.ok ? okMsg : r.why;
+        if (tail) {
+          control.addMessage({ sessionId, role: "assistant", text: tail,
+            action: r.ok ? "edit_page" : "edit_failed",
+            versionId: r.versionId || null }).catch(() => {});
+        }
       }
       /* how／applied 記下來才量得出「退回整份重寫」的比例。那個數字一直高的話，
          代表取代區塊的說明還沒寫對，而不是這條路走不通。 */
