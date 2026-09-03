@@ -153,7 +153,33 @@
     place(box);
     render(box);
     var t = null;
-    window.addEventListener("resize", function () { clearTimeout(t); t = setTimeout(function () { place(box); }, 150); });
+    var again = function () { clearTimeout(t); t = setTimeout(function () { place(box); }, 150); };
+    window.addEventListener("resize", again);
+
+    /* 頁首有可能一開始就是隱藏的——工作台進編輯模式會把它整條收起來，而用
+       ?i=<編號> 直接開就是從那個狀態開始。那時候 slot() 找不到任何看得見的
+       容器，這顆只能退到右上角釘死（position:fixed）。
+
+       問題是頁首之後又會回來（按上一頁或返回總覽），而那件事**沒有任何事件
+       會通知我們**：視窗沒有 resize、DOMContentLoaded 早就過了。於是它就一直
+       釘在右上角，疊在導覽列上——實測 1920 下帳號膠囊落在 1752~1904，而導覽
+       自己的內容到 1616 就結束了，中間那段就是使用者看到的跑版。
+
+       用 ResizeObserver 盯著頁首：它從 0 寬變成有寬度，就是「頁首回來了」。
+       比用計時器輪詢便宜，也不必讓這支共用腳本知道工作台在做什麼。 */
+    var head = document.querySelector("header") || document.querySelector("nav");
+    if (head && window.ResizeObserver) {
+      var last = -1;
+      new ResizeObserver(function (es) {
+        var w = Math.round(es[0].contentRect.width);
+        /* 只在「有沒有寬度」翻轉時才重排。頁首寬度會隨視窗連續變化，
+           每一格都重排等於把 resize 那條路再跑一遍。 */
+        var now = w > 0 ? 1 : 0;
+        if (now === last) return;
+        last = now;
+        again();
+      }).observe(head);
+    }
   }
 
   function render(box) {

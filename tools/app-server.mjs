@@ -21,6 +21,7 @@ import * as chat from "./lib/instance-chat.mjs";
 import * as edit from "./lib/instance-edit.mjs";
 import * as head from "./lib/instance-head.mjs";
 import * as outline from "./lib/page-outline.mjs";
+import * as chips from "./lib/instance-chips.mjs";
 import * as refs from "./lib/instance-refs.mjs";
 import * as files from "./lib/instance-files.mjs";
 import * as shots from "./lib/shots.mjs";
@@ -119,6 +120,21 @@ const server = http.createServer(async (req, res) => {
         ...sc, tables: nameTables(inst, sc.tables),
         instanceId: inst.id, dbName, site: SITE,
       });
+    }
+
+    /* 對話框上方那幾顆建議句。從這套系統自己的畫面結構長出來——寫死的示範
+       每一套都一樣，而且會是錯的（「把『編號』改叫『承辦人』」放在飯店房價
+       系統上沒有意義，那套系統也可能根本沒有「編號」這個欄位）。
+       算的是純字串，所以每次都一樣快、也每次都一樣。 */
+    if (p === "/_jv/chips") {
+      let list = [];
+      try {
+        const html = fs.readFileSync(path.join(inst.dir, "public", "index.html"), "utf8");
+        list = chips.chips(outline.outline(html));
+      } catch (error) {
+        console.error("[chips]", String(error.message).slice(0, 120));
+      }
+      return json(res, 200, { chips: list });
     }
 
     const m = /^\/api\/t\/([a-z][a-z0-9_]*)(?:\/(\d+))?$/.exec(p);
