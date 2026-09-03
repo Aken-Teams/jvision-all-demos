@@ -918,6 +918,9 @@
               <input id="shareEmail" type="email" placeholder="同事的信箱" class="flex-1 border border-line rounded-lg px-3 py-2 text-sm" />
               <button type="button" class="btn btn-primary" data-act="share">加入</button>
             </div>
+            <!-- 名單本身。加完人卻看不到他在不在名單上，就沒辦法確認加成功了，
+                 更沒辦法把加錯的人拿掉——只能加、不能減的名單是個陷阱。 -->
+            <div id="memberList" class="mt-3 text-xs"></div>
             <!-- 加完人之後真正要做的動作是「把網址傳過去」，所以連結就放在這裡，
                  不用他自己回上面那張卡找。沒佈署時給的是路徑式入口——那條現在
                  就能用，不是等佈署才有。 -->
@@ -2160,7 +2163,7 @@
     if (name === "spec" && !loaded.spec) loadSpec();
     /* 佈署狀態每次進來都重讀，不做 loaded 快取——它可能在別的分頁、別台
        機器上被改掉，記住舊答案只會讓人看到已經不對的狀態。而且這一支很輕。 */
-    if (name === "deploy") loadPub();
+    if (name === "deploy") { loadPub(); loadMembers(); }
   }
   document.querySelectorAll("[data-tab]").forEach(function (b) {
     b.addEventListener("click", function () { if (cur) showTab(b.dataset.tab); });
@@ -3157,6 +3160,70 @@
     paintShare(link, st.published);
   }
 
+  /* 使用名單。
+     加完人卻看不到他在不在名單上，就沒辦法確認加成功了，更沒辦法把加錯的人
+     拿掉——只能加、不能減的名單是個陷阱，而且這裡加的是「進得去公司底下所有
+     系統」的權限，看不到誰在裡面比看不到更糟。
+
+     名單是公司層級的（不是這一套系統的），所以打的是 /api/me/members。 */
+  function paintMembers(list) {
+    var box = document.getElementById("memberList");
+    if (!box) return;
+    if (!list) { box.innerHTML = '<span class="text-muted">名單讀不到，重新整理再試一次。</span>'; return; }
+    var h = '<div class="text-muted mb-1">目前 ' + list.length + " 人進得去</div>"
+      + '<div class="border border-line rounded-lg divide-y divide-line">';
+    list.forEach(function (m) {
+      var owner = m.role === "owner";
+      h += '<div class="flex items-center gap-2 px-2 py-1.5">'
+        + '<span class="flex-1" style="word-break:break-all">' + esc(m.email) + "</span>"
+        + (owner
+          /* 擁有者不給移除鈕，而不是給一顆按了會失敗的：後端本來就擋
+             （會做出一個沒有人進得去的公司帳戶），畫面上就不該長出那個選項。 */
+          ? '<span class="text-muted" style="flex:none">擁有者</span>'
+          : '<button type="button" class="btn btn-ghost" style="padding:2px 8px;flex:none" '
+            + 'data-rm="' + esc(m.email) + '">移除</button>')
+        + "</div>";
+    });
+    box.innerHTML = h + "</div>";
+    box.querySelectorAll("[data-rm]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var who = btn.dataset.rm;
+        askConfirm({
+          title: "把 " + who + " 從名單移除？",
+          body: "他之後就進不去你們公司底下的系統——包含這一套，也包含其他套。要再加回來的話重新輸入信箱就好。",
+          ok: "移除", warn: true,
+        })
+          .then(function (yes) {
+            if (!yes) return;
+            btn.disabled = true;
+            fetch("/api/me/members?email=" + encodeURIComponent(who), { method: "DELETE" })
+              .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+              .then(function (x) {
+                if (!x.ok) { btn.disabled = false; sayDepMsg(x.d.error || "移除失敗", true); return; }
+                paintMembers(x.d.members);
+                loadPub();                 // 佈署卡上的人數要跟著改
+              })
+              .catch(function () { btn.disabled = false; sayDepMsg("連不上伺服器", true); });
+          });
+      });
+    });
+  }
+
+  function loadMembers() {
+    fetch("/api/me/members")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { paintMembers(d && d.members); })
+      .catch(function () { paintMembers(null); });
+  }
+
+  /* 交付頁那一行訊息。原本只有動作處理器裡在寫，名單這邊也要用。 */
+  function sayDepMsg(t, bad) {
+    var n = $("depMsg");
+    if (!n) return;
+    n.style.color = bad ? "#b91c1c" : "#15803d";
+    n.textContent = t;
+  }
+
   /* 要傳給同事的網址。加完人之後真正要做的動作就是這個，所以放在分享卡裡，
      不用他自己回上面那張卡找。 */
   function paintShare(link, published) {
@@ -3249,6 +3316,7 @@
             note.textContent = "已加入。把下面那個網址傳給他，他用 Google 登入後就進得去。";
             $("shareEmail").value = "";
             loadPub();                 // 人數變了，佈署卡上那句要跟著更新
+            if (x.d.members) paintMembers(x.d.members);
           }
           else if (act === "publish" || act === "unpublish") {
             /* 剛建好的 DNS 各地解析器不見得馬上看得到。講清楚「可能要等一下」，
