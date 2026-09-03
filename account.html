@@ -119,12 +119,13 @@
         <p id="memberMsg" class="text-sm font-bold mt-3"></p>
       </section>
 
-      <!-- 我的系統 -->
-      <section class="card p-6">
-        <h2 class="text-base font-black text-ink mb-1">我的系統</h2>
-        <p class="text-xs text-muted mb-5">已經開通、可以直接進去用的。</p>
-        <div id="sysList" class="text-sm text-muted">讀取中…</div>
-      </section>
+      <!-- 「我的系統」那一整塊拿掉了。
+           它跟工作台重複：同一份清單在 workspace.html 的總覽就有，而分享／交付
+           那幾顆按鈕在工作台的「交付」那一頁做得更完整（有分支選擇、有使用名單、
+           有狀態）。兩個入口做同一件事的代價是只會有一邊被維護——這裡的
+           「開一個 PR」就是活生生的例子：工作台早就把那顆換成「選分支推上去」，
+           這裡還留著一顆按下去不會開成 PR 的按鈕。
+           個人設定只留「我是誰」與「誰進得去」。 -->
     </div>
   </main>
 
@@ -262,87 +263,12 @@
     });
     $("newMember").addEventListener("keydown", function (e) { if (e.key === "Enter") $("addMember").click(); });
 
-    /* ── 我的系統 ── */
-    function loadSystems() {
-      fetch("/api/me/systems", { cache: "no-store" })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (d) {
-          var box = $("sysList"), list = (d && d.systems) || [];
-          if (!list.length) { box.innerHTML = "還沒有開通的系統。到目錄按「模板複製」就會出現在這裡。"; return; }
-          box.innerHTML = '<div class="space-y-3">' + list.map(function (s) {
-            var live = s.state === "live";
-            var owner = s.role === "owner";
-            return '<div class="border border-line rounded-xl p-3.5 bg-white" data-inst="' + esc(s.id) + '">' +
-              '<div class="flex items-center justify-between gap-3 flex-wrap">' +
-                '<span class="text-ink font-semibold">' + esc(s.title || s.repo_name.replace(/^jvision-/, "")) + "</span>" +
-                /* 「修改」進工作台（對話＋預覽在同一畫面），「開啟」進系統本身。
-                   兩個都要：要改東西跟要用它，是兩件不同的事。 */
-                (live ? '<span class="flex items-center gap-3">' +
-                          '<a class="text-brand font-bold hover:underline text-sm" href="./workspace.html?i=' + esc(s.id) + '">修改</a>' +
-                          '<a class="text-muted font-bold hover:underline hover:text-brand text-sm" href="/-/i/' + esc(s.id) + '/">開啟 ↗</a>' +
-                        "</span>"
-                      : '<span class="text-muted text-xs">' + (s.state === "building" ? "建置中" : esc(s.state)) + "</span>") +
-              "</div>" +
-              /* 只有擁有者能分享與交付。一般成員看得到系統，但不該能把它推出去。 */
-              (live && owner
-                ? '<div class="flex flex-wrap gap-2 mt-3">' +
-                    '<button type="button" class="btn btn-ghost" data-act="share">分享給同事</button>' +
-                    '<button type="button" class="btn btn-ghost" data-act="deliver">交付到 GitHub</button>' +
-                    '<button type="button" class="btn btn-ghost" data-act="pr">開一個 PR</button>' +
-                  "</div>" +
-                  '<p class="text-xs text-muted mt-2" data-msg></p>'
-                : live ? '<p class="text-xs text-muted mt-2">你是這套系統的使用者，分享與交付由擁有者處理。</p>' : "") +
-              "</div>";
-          }).join("") + "</div>";
-        })
-        .catch(function () { $("sysList").textContent = "暫時讀不到"; });
-    }
-
-    /* 三個動作共用一個委派監聽：清單會整批重畫，逐張卡片綁監聽必然失效。 */
-    $("sysList").addEventListener("click", function (e) {
-      var btn = e.target.closest("[data-act]");
-      if (!btn) return;
-      var card = btn.closest("[data-inst]");
-      var id = card.dataset.inst;
-      var act = btn.dataset.act;
-      var note = card.querySelector("[data-msg]");
-      var body = {};
-
-      if (act === "share") {
-        var email = prompt("要分享給誰？請填他的 Google 信箱。\n\n注意：他會看得到你名下所有的系統，不只這一套。");
-        if (!email) return;
-        body.email = email.trim();
-      }
-
-      card.querySelectorAll("[data-act]").forEach(function (b) { b.disabled = true; });
-      note.style.color = "#64748b";
-      note.textContent = act === "share" ? "加入中…" : "處理中…（交付要跑 git 與 GitHub，可能要一兩分鐘）";
-
-      fetch("/api/me/instances/" + encodeURIComponent(id) + "/" + act, {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
-      })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-        .then(function (x) {
-          card.querySelectorAll("[data-act]").forEach(function (b) { b.disabled = false; });
-          if (!x.ok) { note.style.color = "#b91c1c"; note.textContent = x.d.error || "沒有成功"; return; }
-          note.style.color = "#15803d";
-          if (act === "share") { note.textContent = "已加入，他用 Google 登入後就進得去。"; loadMembers(); }
-          else if (x.d.url) note.innerHTML = (act === "pr" ? "PR 已開：" : "已交付：") +
-            '<a href="' + esc(x.d.url) + '" target="_blank" rel="noreferrer" class="text-brand font-bold hover:underline">' + esc(x.d.url) + "</a>";
-          else note.textContent = "完成了。";
-        })
-        .catch(function () {
-          card.querySelectorAll("[data-act]").forEach(function (b) { b.disabled = false; });
-          note.style.color = "#b91c1c";
-          note.textContent = "連不上伺服器";
-        });
-    });
 
     loadProfile().then(function () {
-      if (!$("panes").hidden) { loadUsage(); loadSystems(); }
+      if (!$("panes").hidden) loadUsage();
     });
   })();
   </script>
-  <script src="./shared/jv-account.js?v=10" defer></script>
+  <script src="./shared/jv-account.js?v=11" defer></script>
 </body>
 </html>

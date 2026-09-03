@@ -216,7 +216,7 @@
         '<div class="em">' + esc(me.email) + "</div>" +
       "</div></div>" +
       /* 只留「我的系統」當主體。原本身分／系統／需求單／用量／導覽五段平權堆疊，
-         每段同樣的細線與同樣的小灰標籤，眼睛沒有入口；而「我的系統」是客戶真正
+         每段同樣的細線與同樣的小灰標籤，眼睛沒有入口；而「我的專案」是客戶真正
          買到的東西，卻和「這個月 token 0」長得一樣重。
          需求單與用量壓成下面一行摘要，細節一鍵到個人設定；零值不顯示。 */
       /* 不在這裡列系統。帳號選單的職責是「我是誰、去哪裡」，不是放我的東西——
@@ -224,7 +224,7 @@
          打架。workspace.html 左欄已經是為清單設計的側欄，這裡給一個入口就好。 */
       '<a class="sysentry" href="./workspace.html">' +
         '<span class="material-symbols-outlined ico">dashboard_customize</span>' +
-        '<span class="t">我的系統<b data-syscount></b></span>' +
+        '<span class="t">我的專案<b data-syscount></b></span>' +
         '<span class="material-symbols-outlined go">chevron_right</span></a>' +
       '<div class="sum" data-summary><span class="muted">讀取中…</span></div>' +
       '<div class="acts">' +
