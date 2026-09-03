@@ -294,8 +294,14 @@ const server = http.createServer(async (req, res) => {
       if (m && req.method === "GET") {
         const body = versions.read(inst.dir, m[1]);
         if (body == null) return json(res, 404, { error: "找不到這個版本" });
+        /* 注入 <base>。這一版是從 /_jv/versions/<id>/html 吐出來的，而裡面的
+           相對路徑寫的是 ./_jv/live.js——不改基準的話那些會被解析成
+           /_jv/versions/<id>/_jv/live.js 而全部 404，看到的是一個沒有樣式、
+           沒有資料的殘骸，而使用者以為那就是那一版的樣子。 */
+        const based = body.replace(/<head(\s[^>]*)?>/i,
+          (t) => `${t}<base href="/-/i/${inst.id}/">`);
         res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
-        return res.end(body);
+        return res.end(based);
       }
     }
     if (p === "/_jv/versions/restore" && req.method === "POST") {
