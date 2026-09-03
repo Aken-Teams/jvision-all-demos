@@ -962,7 +962,7 @@
             <p class="text-xs text-muted mt-1 mb-3">把這套系統推成一個 repo，附部署說明。要跑 git 與 GitHub API，通常幾十秒到一兩分鐘。</p>
             <div id="repoState" class="text-xs mb-3 grow"></div>
             <div class="flex gap-2 acts">
-              <button type="button" class="btn btn-primary" data-act="deliver"><span class="material-symbols-outlined text-[18px]">cloud_upload</span>交付</button>
+              <button type="button" class="btn btn-primary" data-act="deliver"><span class="material-symbols-outlined text-[18px]">cloud_upload</span><span class="lbl">交付</span></button>
               <button type="button" class="btn btn-ghost" data-act="pr"><span class="material-symbols-outlined text-[18px]">merge</span>開 PR</button>
             </div>
           </div>
@@ -3181,14 +3181,28 @@
   function paintRepo(st) {
     var box = $("repoState");
     var pr = document.querySelector('[data-act="pr"]');
-    if (!box || !pr) return;
+    var dl = document.querySelector('[data-act="deliver"]');
+    if (!box || !pr || !dl) return;
     var has = Boolean(st && st.repoUrl);
+
     pr.disabled = !has;
-    pr.title = has ? "" : "還沒交付過，GitHub 上還沒有這個 repo";
+    pr.title = has ? "推到新分支並開 PR，先看 diff 再決定要不要合" : "還沒交付過，GitHub 上還沒有這個 repo";
+
+    /* 第一次跟之後不是同一件事，按鈕就不該叫同一個名字。
+       第一次是「建立 repo 並把東西放上去」；之後是「把最新版推上去」——
+       交付現在會接在遠端既有的歷史上多一個 commit，所以再按一次是有意義的，
+       不是重複動作。叫它「更新」才說得出它會做什麼。 */
+    dl.querySelector(".lbl").textContent = has ? "更新" : "交付";
+    dl.title = has ? "把最新版直接推到 main（會多一個 commit，不會蓋掉歷史）" : "在 GitHub 上建立 repo 並推上第一版";
+
     box.innerHTML = has
-      ? '<span class="text-muted">已交付到</span> <a href="' + esc(st.repoUrl) + '" target="_blank" '
+      ? '<div><span class="text-muted">已交付到</span> <a href="' + esc(st.repoUrl) + '" target="_blank" '
         + 'rel="noreferrer" class="text-brand font-bold hover:underline" style="word-break:break-all">'
-        + esc(st.repoUrl) + "</a>"
+        + esc(st.repoUrl) + "</a></div>"
+        /* 兩顆按鈕都會把最新版送上去，差別只在「直接進 main」還是「先看過再合」。
+           不講的話它們看起來像同一件事的兩種說法。 */
+        + '<div class="text-muted mt-1">再按<b class="text-ink">更新</b>會把最新版接在歷史上直接推進 main；'
+        + '想先看這次改了哪些檔再決定，就按<b class="text-ink">開 PR</b>。</div>'
       : '<span class="text-muted">還沒交付過。第一次按「交付」會建立 repo，之後才能用「開 PR」把改動提上去。</span>';
   }
 
@@ -3377,6 +3391,7 @@
         : act === "vercel" ? "部署中，要複製資料庫再上傳，請稍等幾分鐘…"
         : act === "publish" ? "佈署中…"
         : act === "unpublish" ? "取消佈署中…"
+        : act === "deliver" ? "推上 GitHub 中，這要跑 git，請稍等…"
         : "處理中，這要跑 git，請稍等…";
       fetch("/api/me/instances/" + encodeURIComponent(cur.id) + "/" + act,
         { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
