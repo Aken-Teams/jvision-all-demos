@@ -216,6 +216,12 @@ const hostCache = new Map();
    後台加一筆。主站只有一個網址，註冊一次就結束。 */
 const MAIN_HOST = process.env.JV_MAIN_HOST || "jvdemo.jvision-ai.com";
 
+/* 開 PR 會推到這一條固定的審核分支（見 tools/instance-deliver.mjs 的
+   REVIEW_BRANCH，兩邊要一致）。畫面上要講出分支名字——使用者問過
+   「發了 PR 之後再按更新，到底是進 main 還是進 PR 那條分支」，
+   而那個問題不該靠猜。 */
+const REVIEW_BRANCH = "jvision-update";
+
 /**
  * 登入完要送他去哪。
  *
@@ -768,6 +774,7 @@ function startGateway() {
             /* 有沒有上過 GitHub。開 PR 是「把改動提給既有的 repo」，repo 還不
                存在的時候那顆按鈕沒有意義——沒交付過就先不給按。 */
             repoUrl: inst.repo_url || null,
+            reviewBranch: REVIEW_BRANCH,
             members: members.length, path: `/-/i/${inst.id}/` });
         } catch (error) {
           /* Cloudflare 連不上時回「不知道」而不是「沒佈署」——後者會讓畫面
@@ -851,11 +858,15 @@ function startGateway() {
              「PR 沒開成」當成「PR 開好了」，然後把 repo 網址標成 PR 連結給使用者。
              那是騙人的。把這幾種情形從輸出裡認出來，如實往上回。 */
           const prFailed = what === "pr" && !/\/pull\//.test(url || "");
+          /* PR 開不成時給 compare 頁的網址——那一頁按下去就是開 PR 的表單，
+             base 與 head 都填好了。只說「失敗」等於把人丟在死路上：分支明明
+             推上去了，內容一個都沒少，差的只是最後那一下。 */
+          const compareUrl = (out.match(/https:\/\/github\.com\/\S+\/compare\/\S+/) || [null])[0];
           const unchanged = /沒有東西要更新/.test(out);
           const ciSkipped = /workflow 權限/.test(out);
           actions.record({ actor: id.email, action: what === "pr" ? "為自己的系統開 PR" : "把自己的系統交付到 GitHub",
             target: inst.repo_name, status: 200, visitor: who });
-          return json(res, 200, { ok: true, url, prFailed, unchanged, ciSkipped });
+          return json(res, 200, { ok: true, url, prFailed, unchanged, ciSkipped, compareUrl });
         } catch (error) {
           /* 三個都串起來，不要用 || 挑一個。execFileSync 失敗時 stdout 常常是
              空字串（子行程還沒印任何東西就死了），用 || 會選到那個空的，於是

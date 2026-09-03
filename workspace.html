@@ -204,6 +204,10 @@
     .btn-ghost { border-color:#e2e8f0; background:#fff; color:#0f1e46; }
     .btn-ghost:hover { border-color:#1e40af; color:#1e40af; }
     .btn:disabled { opacity:.5; cursor:default; }
+    /* 「哪顆按鈕推到哪條分支」那兩行。分支名字用等寬字，跟說明文字分開。 */
+    .lane { display:inline-flex; align-items:baseline; gap:.3rem; margin-right:1rem; }
+    .lane code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.72rem;
+                 background:#f1f5f9; border:1px solid #e2e8f0; border-radius:.3rem; padding:0 .3rem; color:#334155; }
     /* 會拿掉東西的動作用紅色，跟「往前一步」的藍色分開。取消佈署與移除成員
        都是別人會馬上察覺的事（網址消失、進不去了），不該跟其他按鈕長一樣。 */
     .btn-danger { border-color:#fecaca; background:#fff; color:#b91c1c; }
@@ -3210,8 +3214,15 @@
       /* 這裡以前會顯示「PR 已開：<repo 網址>」——PR 根本沒開成，連結還指去
          repo 首頁。寧可說失敗，也不要給一個假的成功。 */
       box.style.color = "#b45309";
-      parts.push("<b>分支推上去了，但 PR 沒開成。</b>交付用的 token 沒有 pull requests 權限，"
-        + "要在 GitHub 上補這個權限才行。你也可以先自己到 repo 上開這個 PR。");
+      /* 「推不成功」跟「PR 沒開成」是兩件事，講清楚哪一件成功了——改動確實
+         已經在 GitHub 上，只差最後那個 PR 物件沒建起來。 */
+      parts.push("<b>改動已經推上 GitHub 了</b>，只差最後開 PR 那一步沒做成——"
+        + "交付用的 token 沒有 pull requests 權限。"
+        + (r.compareUrl
+          ? '<div class="mt-1"><a href="' + esc(r.compareUrl) + '" target="_blank" rel="noreferrer" '
+            + 'class="text-brand font-bold hover:underline">到 GitHub 上開這個 PR ↗</a>'
+            + '<span style="color:#94a3b8">（表單已經填好，按 Create pull request 就好）</span></div>'
+          : ""));
     } else if (act === "pr") {
       box.style.color = "#15803d";
       parts.push('PR 已開：<a href="' + esc(r.url) + '" target="_blank" rel="noreferrer" '
@@ -3244,14 +3255,20 @@
     dl.querySelector(".lbl").textContent = has ? "更新" : "交付";
     dl.title = has ? "把最新版直接推到 main（會多一個 commit，不會蓋掉歷史）" : "在 GitHub 上建立 repo 並推上第一版";
 
+    var br = (st && st.reviewBranch) || "jvision-update";
+    /* 兩顆按鈕都會把最新版送上去，差別在推到哪一條分支。使用者問過
+       「發了 PR 之後再按更新，到底是進 main 還是進 PR 那條分支」——
+       那不該靠猜，所以分支名字直接寫在畫面上。 */
     box.innerHTML = has
       ? '<div><span class="text-muted">已交付到</span> <a href="' + esc(st.repoUrl) + '" target="_blank" '
         + 'rel="noreferrer" class="text-brand font-bold hover:underline" style="word-break:break-all">'
         + esc(st.repoUrl) + "</a></div>"
-        /* 兩顆按鈕都會把最新版送上去，差別只在「直接進 main」還是「先看過再合」。
-           不講的話它們看起來像同一件事的兩種說法。 */
-        + '<div class="text-muted mt-1">再按<b class="text-ink">更新</b>會把最新版接在歷史上直接推進 main；'
-        + '想先看這次改了哪些檔再決定，就按<b class="text-ink">開 PR</b>。</div>'
+        + '<div class="mt-1"><span class="lane"><b class="text-ink">更新</b> → '
+        + '<code>main</code> <span class="text-muted">正式版，直接進</span></span>'
+        + '<span class="lane"><b class="text-ink">開 PR</b> → <code>' + esc(br) + "</code> "
+        + '<span class="text-muted">先看 diff 再決定要不要合</span></span></div>'
+        + '<div class="text-muted mt-1">兩條是分開的：開了 PR 之後再按「更新」，還是進 '
+        + "<code>main</code>，不會跑到 PR 那條分支去。同一條審核分支重複按會追加到原本那個 PR，不會開出一堆。</div>"
       : '<span class="text-muted">還沒交付過。第一次按「交付」會建立 repo，之後才能用「開 PR」把改動提上去。</span>';
   }
 

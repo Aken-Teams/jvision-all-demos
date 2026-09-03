@@ -221,7 +221,13 @@ async function main() {
         GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
         GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basic}` } });
     const remote = `https://github.com/${OWNER}/${repo}.git`;
-    const branch = AS_PR ? `update-${new Date().toISOString().slice(0, 10)}-${Date.now().toString(36).slice(-4)}` : "main";
+    /* 兩條固定的線：更新走 main，開 PR 走這一條審核分支。
+       以前開 PR 是每按一次就 update-<日期>-<亂碼> 開一條新的，後果是按三次
+       就三條分支、三個內容重疊的 PR，而且沒有人知道哪一條是最新的。
+       固定成同一條之後，再按一次就是往同一個 PR 上追加 commit——那正是
+       PR 本來的用法。 */
+    const REVIEW_BRANCH = "jvision-update";
+    const branch = AS_PR ? REVIEW_BRANCH : "main";
 
     g("init", "-q");
     g("config", "user.email", "deliver@jvision.local");
@@ -244,7 +250,10 @@ async function main() {
     try {
       g("remote", "add", "origin", remote);
       /* 只抓一層。歷史再長也不需要——要的只是「接得上」這件事。 */
-      g("fetch", "-q", "--depth", "1", "origin", "HEAD");
+      /* 開 PR 時優先接在審核分支上——那條已經有前幾次的修改，接 main 的話
+         會把它們蓋掉。分支還不存在（第一次開 PR）才退回接 HEAD。 */
+      try { g("fetch", "-q", "--depth", "1", "origin", AS_PR ? branch : "HEAD"); }
+      catch { g("fetch", "-q", "--depth", "1", "origin", "HEAD"); }
       /* 不能用 git checkout：交付內容在 git init 之前就 build 到這個目錄裡了，
          checkout 會說「未追蹤的檔案將被覆蓋」而拒絕動作（實測踩過，失敗被
          catch 接住之後就悄悄退回 force push，等於整段修正沒有生效）。
@@ -350,8 +359,24 @@ async function main() {
           head: branch, base,
           body: "這是你在 JVision 上對這套系統所做的修改。\n\n合併前可以先看 diff；不合併也不影響你正在跑的版本。",
         }) });
+        const already = pr.status === 422
+          && /already exists/i.test(JSON.stringify(pr.data?.errors || pr.data?.message || ""));
         if (pr.status === 201) { prUrl = pr.data.html_url; log.info(`  已開 PR：${prUrl}`); }
-        else log.warn(`  PR 開不成（${pr.status}）：${pr.data?.message || ""}——分支已經推上去了，可以自己開`);
+        else if (already) {
+          /* 這條分支上本來就有一個還開著的 PR。新的 commit 已經推上去了，
+             GitHub 會自動把它算進那個 PR——這是成功，不是失敗。 */
+          log.info("  這次的修改已經追加到原本那個 PR 上");
+          prUrl = `https://github.com/${OWNER}/${repo}/pulls`;
+        }
+        else {
+          /* 開不成最常見的原因是 token 沒有 pull requests 權限。分支本身已經
+             推上去了，內容一個都沒少——差的只是最後那個 PR 物件。
+             所以要給他一條走得下去的路，而不是只說「失敗」：GitHub 的 compare
+             頁面按下去就是開 PR 的表單，標題與 base/head 都填好了。 */
+          const compare = `https://github.com/${OWNER}/${repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(branch)}?expand=1`;
+          log.warn(`  PR 開不成（${pr.status}）：${pr.data?.message || ""}`);
+          log.info(`  分支已經推上去了，這裡可以自己開：${compare}`);
+        }
       }
     }
 
