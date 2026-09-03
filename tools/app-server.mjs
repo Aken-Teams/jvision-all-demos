@@ -180,6 +180,26 @@ const server = http.createServer(async (req, res) => {
       return json(res, 201, { ok: true, shot: Boolean(shot) });
     }
 
+    /* 對話裡貼過的截圖。檔案一直都存著（uploads/），檔名也一直記在
+       chat_messages.shot 裡——只是以前沒有地方讀得回來，於是重新整理之後
+       那張圖就從對話裡消失了，看起來像沒存到。
+
+       檔名是外部輸入，所以交給 shots.shotPath() 驗：格式白名單之外，
+       還要確認組出來的路徑真的落在 uploads/ 底下。 */
+    {
+      const m = /^\/_jv\/shots\/([^/]+)$/.exec(p);
+      if (m && req.method === "GET") {
+        const file = shots.shotPath(path.join(inst.dir, "uploads"), decodeURIComponent(m[1]));
+        if (!file) return json(res, 404, { error: "找不到這張圖" });
+        /* 檔名帶亂數且永不重複，所以可以放心長快取。private：這是客戶的畫面。 */
+        res.writeHead(200, {
+          "content-type": shots.MIME[path.extname(file).slice(1)] || "application/octet-stream",
+          "cache-control": "private, max-age=86400",
+        });
+        return fs.createReadStream(file).pipe(res);
+      }
+    }
+
     /* 客戶自己丟進來的參考資料（規劃文件、資料樣本）。修改助理會拿它當依據，
        所以欄位名稱、用語、流程都會照著他公司實際的樣子走，而不是我們模板的假資料。 */
     if (p === "/_jv/refs") {

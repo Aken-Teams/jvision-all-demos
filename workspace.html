@@ -359,6 +359,11 @@
     .job-risk { margin:.3rem 0 0 1.5rem; color:#b45309; font-size:.72rem; }
     .job-time { margin-top:.35rem; color:#94a3b8; font-size:.72rem; }
     .m img { max-width:100%; border-radius:.45rem; display:block; }
+    /* 對話裡的截圖預設限高。一張 390×844 的手機截圖不限的話，
+       會把它前後的對話全推出視線外。點一下放大。 */
+    .m.shotmsg { padding:.25rem; }
+    .m.shotmsg img { max-height:180px; width:auto; cursor:zoom-in; }
+    .m.shotmsg.big img { max-height:none; width:100%; cursor:zoom-out; }
     /* 助理回覆裡的 Markdown。泡泡本身窄，所以表格要能自己橫捲，
        不可以把整欄撐開。 */
     .m p { margin:0 0 .5rem; }
@@ -956,6 +961,9 @@
               : GREEN[m.action] ? "done"
                 : (m.version_id ? "done" : "bot");
           say(m.role === "user" ? "user" : "bot", m.text || "", cls);
+          /* 他當初貼的那張圖。檔案跟檔名一直都在，只是以前沒畫回來——
+             於是重新整理之後圖就不見了，看起來像沒存到。 */
+          if (m.shot) sayShot(api("/_jv/shots/" + encodeURIComponent(m.shot)));
           hist.push({ role: m.role, text: m.text || "" });
         });
         hist = hist.slice(-6);
@@ -1045,6 +1053,24 @@
     box.appendChild(d);
     box.scrollTop = box.scrollHeight;
     return d;
+  }
+
+  /* 把一張截圖放進對話。當下貼的（data URL）與重播回來的（/_jv/shots/…）
+     走同一支，兩邊才不會長得不一樣。
+     限高是因為一張手機長截圖會把整段對話推到看不見——點一下可以放大。 */
+  function sayShot(src) {
+    var box = $("chatBox");
+    var w = document.createElement("div");
+    w.className = "m me shotmsg";
+    var im = document.createElement("img");
+    im.src = src;
+    im.alt = "我貼的截圖";
+    im.title = "點一下放大";
+    im.addEventListener("click", function () { w.classList.toggle("big"); });
+    w.appendChild(im);
+    box.appendChild(w);
+    box.scrollTop = box.scrollHeight;
+    return w;
   }
 
   /* 建議句那一列的橫向捲動。 */
@@ -1387,17 +1413,7 @@
     say("user", msg);
     /* 自己貼的圖也要顯示在對話裡——不然送出後圖就消失了，
        他會不確定到底有沒有帶上去。 */
-    if (shot) {
-      var box = $("chatBox");
-      var w = document.createElement("div");
-      w.className = "m me";
-      var im = document.createElement("img");
-      im.src = shot;
-      im.alt = "我貼的截圖";
-      w.appendChild(im);
-      box.appendChild(w);
-      box.scrollTop = box.scrollHeight;
-    }
+    if (shot) sayShot(shot);
     hist.push({ role: "user", text: msg });
     /* 跟底下的進度卡用同一套語彙——同一件事的第一秒與第十秒不該長得像
        兩個不同的系統。這一段通常十幾秒（模型在判斷要做哪一個動作）。 */
