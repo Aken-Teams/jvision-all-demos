@@ -205,6 +205,12 @@
     .btn-ghost:hover { border-color:#1e40af; color:#1e40af; }
     .btn:disabled { opacity:.5; cursor:default; }
     /* 「哪顆按鈕推到哪條分支」那兩行。分支名字用等寬字，跟說明文字分開。 */
+    .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+    /* 分支選單裡的分支名用等寬字——它是識別碼不是句子，等寬才看得出
+       feature/ui-test 和 feature/ui_test 的差別。 */
+    #brPickMenu .n { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+    #brPickMenu .new { color:#1e40af; font-weight:800; }
+    #brPickMenu .sep { height:1px; margin:.2rem .25rem; background:#eef2f7; }
     .lane { display:inline-flex; align-items:baseline; gap:.3rem; margin-right:1rem; }
     .lane code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.72rem;
                  background:#f1f5f9; border:1px solid #e2e8f0; border-radius:.3rem; padding:0 .3rem; color:#334155; }
@@ -974,12 +980,23 @@
                    「把這一版推到一條分支」，開不開 PR 是 GitHub 那邊的事，
                    而且要 token 有 pull requests 權限——沒有的時候那顆按鈕
                    就變成謊話。選分支之後，要不要開 PR 由他在 GitHub 上決定。 -->
-              <label id="brWrap" class="text-xs text-muted flex items-center gap-1.5" hidden>推到
-                <select id="brPick" class="border border-line rounded-lg px-2 py-1 text-xs"
-                        style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;max-width:16rem"></select>
-              </label>
-              <input id="brNew" class="border border-line rounded-lg px-2 py-1 text-xs" hidden
-                     placeholder="新分支名稱，例如 feature/報表" style="font-family:ui-monospace,monospace;width:15rem" />
+              <div id="brWrap" class="text-xs text-muted flex items-center gap-1.5" hidden>推到
+                <!-- 沿用工作台既有的自製下拉（.dtpick + .pickmenu），跟資料表那顆
+                     同一套。原生 <select> 在這裡有兩個問題：外觀跟旁邊的東西
+                     對不上，而且選項排不了版——「正式版」這種註記只能跟分支名
+                     擠成一串字，分支名本身又該用等寬字才讀得出來。 -->
+                <div id="brPick" class="dtpick">
+                  <button id="brPickBtn" type="button" aria-haspopup="listbox" aria-expanded="false">
+                    <span id="brPickName" class="mono">—</span>
+                    <span id="brPickTag" class="dt-n" hidden></span>
+                    <span class="material-symbols-outlined">expand_more</span>
+                  </button>
+                  <div id="brPickMenu" class="pickmenu" role="listbox" hidden></div>
+                </div>
+              </div>
+              <input id="brNew" class="border border-line rounded-lg px-2 py-1.5 text-xs" hidden
+                     placeholder="新分支名稱，例如 feature/報表"
+                     style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;width:15rem" />
               <button type="button" class="btn btn-primary" data-act="deliver"><span class="material-symbols-outlined text-[18px]">cloud_upload</span><span class="lbl">交付</span></button>
             </div>
           </div>
@@ -3279,40 +3296,91 @@
       .catch(function () { paintBranches({}); });
   }
 
+  var branchList = [];
+  var branchPicked = null;      // 值為 NEW_BRANCH 時代表「＋ 建一條新分支」
+
   function paintBranches(d) {
-    var sel = $("brPick");
-    if (!sel) return;
+    var menu = $("brPickMenu");
+    if (!menu) return;
     repoBase = d.base || "main";
-    var list = (d.branches && d.branches.length) ? d.branches : [repoBase];
-    var prev = sel.value;
-    var h = "";
-    list.forEach(function (b) {
-      h += '<option value="' + esc(b) + '">' + esc(b) + (b === repoBase ? "（正式版）" : "") + "</option>";
-    });
-    h += '<option value="' + NEW_BRANCH + '">＋ 新分支…</option>';
-    sel.innerHTML = h;
+    branchList = (d.branches && d.branches.length) ? d.branches : [repoBase];
     /* 停在剛推上去的那一條——他多半還會再推一次。沒有的話沿用上一次的選擇；
-       兩個都不在清單裡（例如分支合併後被刪）才退回預設分支。
-       選單重畫時 prev 可能是「＋ 新分支…」那個哨兵值，那不能拿來當選擇。 */
-    var want = lastPushed || prev;
-    sel.value = list.indexOf(want) >= 0 ? want : repoBase;
-    $("brNew").hidden = sel.value !== NEW_BRANCH;
+       兩個都不在清單裡（例如分支合併後被刪）才退回預設分支。 */
+    var want = lastPushed || branchPicked;
+    branchPicked = branchList.indexOf(want) >= 0 ? want : repoBase;
+
+    var h = "";
+    branchList.forEach(function (b) {
+      h += '<button type="button" role="option" data-br="' + esc(b) + '"'
+        + (b === branchPicked ? ' aria-selected="true"' : "") + ">"
+        + '<span class="n">' + esc(b) + "</span>"
+        + (b === repoBase ? '<span class="dt-n">正式版</span>' : "") + "</button>";
+    });
+    /* 新分支跟現有分支之間畫一條線：一個是「選一個」、一個是「做一個」，
+       混在同一串清單裡會被當成又一條分支。 */
+    h += '<div class="sep"></div>'
+      + '<button type="button" role="option" data-br="' + NEW_BRANCH + '">'
+      + '<span class="n new">＋ 建一條新分支</span></button>';
+    menu.innerHTML = h;
+    menu.querySelectorAll("[data-br]").forEach(function (b) {
+      b.addEventListener("click", function () { pickBranch(b.dataset.br); closeBranchMenu(); });
+    });
+    showBranch();
   }
 
-  /* 選到「新分支」才顯示輸入框。一直放著一個空輸入框，會讓人以為每次都要填。 */
-  document.addEventListener("change", function (e) {
-    if (e.target && e.target.id === "brPick") {
-      var isNew = e.target.value === NEW_BRANCH;
-      $("brNew").hidden = !isNew;
-      if (isNew) $("brNew").focus();
+  function showBranch() {
+    var name = $("brPickName");
+    var tag = $("brPickTag");
+    if (!name || !tag) return;
+    var isNew = branchPicked === NEW_BRANCH;
+    name.textContent = isNew ? "新分支" : (branchPicked || repoBase || "—");
+    name.classList.toggle("mono", !isNew);
+    tag.hidden = isNew || branchPicked !== repoBase;
+    tag.textContent = "正式版";
+    /* 選單裡的勾選狀態也要跟著換。只改按鈕上的字而不改選單，下次展開時
+       高亮的還是上一條，看起來像沒選成功。 */
+    var menu = $("brPickMenu");
+    if (menu) {
+      menu.querySelectorAll("[data-br]").forEach(function (b) {
+        if (b.dataset.br === branchPicked) b.setAttribute("aria-selected", "true");
+        else b.removeAttribute("aria-selected");
+      });
     }
+    /* 選到「新分支」才顯示輸入框。一直放著一個空輸入框，會讓人以為每次都要填。 */
+    $("brNew").hidden = !isNew;
+  }
+
+  function pickBranch(v) {
+    branchPicked = v;
+    showBranch();
+    if (v === NEW_BRANCH) $("brNew").focus();
+  }
+
+  function closeBranchMenu() {
+    var m = $("brPickMenu");
+    if (m) m.hidden = true;
+    var b = $("brPickBtn");
+    if (b) b.setAttribute("aria-expanded", "false");
+  }
+
+  document.addEventListener("click", function (e) {
+    var menu = $("brPickMenu");
+    if (!menu || !e.target.closest) return;
+    if (e.target.closest("#brPickBtn")) {
+      menu.hidden = !menu.hidden;
+      $("brPickBtn").setAttribute("aria-expanded", menu.hidden ? "false" : "true");
+      return;
+    }
+    if (!menu.hidden && !e.target.closest("#brPick")) closeBranchMenu();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeBranchMenu();
   });
 
   /* 這次要推到哪一條。回 null 表示使用者選了新分支卻沒填名字。 */
   function chosenBranch() {
-    var sel = $("brPick");
-    if (!sel || $("brWrap").hidden) return "";        // 還沒交付過，用預設
-    if (sel.value !== NEW_BRANCH) return sel.value;
+    if (!$("brWrap") || $("brWrap").hidden) return "";      // 還沒交付過，用預設
+    if (branchPicked !== NEW_BRANCH) return branchPicked || "";
     var v = $("brNew").value.trim();
     return v || null;
   }
