@@ -745,7 +745,30 @@ function startGateway() {
     }
 
     {
-      const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/(share|deliver|pr|vercel)$/.exec(p);
+      const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/publish$/.exec(p);
+      if (m && req.method === "GET") {
+        const id = visitor.read(req);
+        if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
+        try {
+          const inst = await control.getInstance(m[1]);
+          if (!inst) return json(res, 404, { error: "找不到這個系統" });
+          const role = await control.memberRole({ customerId: inst.customer_id, email: id.email });
+          if (!role) return json(res, 403, { error: "你不在這個系統的使用名單內" });
+          const dns = await import("./lib/instance-dns.mjs");
+          const rec = await dns.find(inst.host);
+          return json(res, 200, { host: inst.host, published: Boolean(rec),
+            url: rec ? `https://${inst.host}/` : null, canPublish: role === "owner" });
+        } catch (error) {
+          /* Cloudflare 連不上時回「不知道」而不是「沒佈署」——後者會讓畫面
+             顯示成未佈署，使用者以為要再按一次，結果按出一個已經存在的記錄。 */
+          console.error("[publish state]", String(error.message).slice(0, 200));
+          return json(res, 200, { unknown: true, error: "查不到佈署狀態" });
+        }
+      }
+    }
+
+    {
+      const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/(share|deliver|pr|vercel|publish|unpublish)$/.exec(p);
       if (m && req.method === "POST") {
         const [, instanceId, what] = m;
         const id = visitor.read(req);
@@ -764,6 +787,33 @@ function startGateway() {
             await control.recordEvent({ kind: "instance.shared", customerId: inst.customer_id,
               instanceId: inst.id, actor: id.email, detail: { to: String(email || "").slice(0, 190) } });
             return json(res, 200, { members, link: `/-/i/${inst.id}/` });
+          }
+
+          /* 佈署＝讓 c-xxx.jvision-ai.com 這個網址開始存在。
+             在這之前它只是資料庫裡的一個欄位，公開 DNS 上查不到——使用者
+             沒按下去，就不該有任何對外的網址。這一顆就是那個「按下去」。
+
+             注意這不等於「公開」：進去仍然要 Google 登入、仍然要在這個客戶的
+             使用名單裡。給的是一個好記、可以貼給同事的網址，不是一道沒有門的牆。
+             要對外免登入是 Vercel 那條路，兩件事不一樣。 */
+          if (what === "publish" || what === "unpublish") {
+            const dns = await import("./lib/instance-dns.mjs");
+            if (what === "unpublish") {
+              await dns.unpublish(inst.host);
+              await control.recordEvent({ kind: "instance.unpublished", customerId: inst.customer_id,
+                instanceId: inst.id, actor: id.email, detail: { host: inst.host } });
+              actions.record({ actor: id.email, action: "把自己的系統取消佈署",
+                target: inst.repo_name, status: 200, visitor: who });
+              return json(res, 200, { ok: true, published: false });
+            }
+            const r = await dns.publish(inst.host);
+            await control.recordEvent({ kind: "instance.published", customerId: inst.customer_id,
+              instanceId: inst.id, actor: id.email, detail: { host: inst.host } });
+            actions.record({ actor: id.email, action: "佈署自己的系統",
+              target: inst.repo_name, status: 200, visitor: who });
+            /* DNS 剛建好時各地的解析器不見得馬上看得到，前端要據此提醒他
+               「可能要等一下」，而不是讓他按進去撞 404 以為壞了。 */
+            return json(res, 200, { ok: true, published: true, url: `https://${r.host}/`, justCreated: r.created });
           }
 
           /* 部署到 Vercel：一個公開網址就能給人看，不必客戶自己架東西。

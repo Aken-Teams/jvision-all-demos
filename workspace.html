@@ -269,8 +269,16 @@
     /* auto-fit 而不是 auto-fill：只剩兩張卡的時候，auto-fill 會在 1920 上排出
        三條軌道、第三條空著，於是右邊多一整欄的空白。auto-fit 會把空軌道收掉，
        兩張卡直接把寬度分完。 */
-    .depgrid { display:grid; gap:1rem; align-items:start; max-width:72rem;
+    /* align-items 用 stretch（預設）而不是 start：三張卡的說明文字長度天差
+       地遠，靠上對齊的話下緣會忽高忽低，看起來像沒排好。等高之後再把每張卡
+       內部做成直排，按鈕列 margin-top:auto 壓到底——這樣不只外框齊，
+       連「可以按的東西」都落在同一條水平線上，眼睛不用重新找。 */
+    .depgrid { display:grid; gap:1rem; max-width:72rem;
                grid-template-columns:repeat(auto-fit, minmax(21rem, 1fr)); }
+    .depgrid > div { display:flex; flex-direction:column; }
+    /* 說明文字吃掉多出來的高度，按鈕列因此自然被推到底。 */
+    .depgrid .grow { flex:1 1 auto; }
+    .depgrid .acts { margin-top:auto; }
 
     /* 系統動作那一行。 */
     .m.note { align-self:stretch; max-width:100%; display:flex; align-items:center; gap:.35rem;
@@ -861,11 +869,30 @@
         <div class="depgrid">
           <div class="border border-line rounded-xl p-4">
             <h3 class="text-sm font-black text-ink">分享給同事</h3>
-            <p class="text-xs text-muted mt-1 mb-3">把他的信箱加進使用名單，他用 Google 登入就進得去。名單是公司層級的，他會看到你們公司底下所有的系統。</p>
-            <div class="flex gap-2">
+            <p class="text-xs text-muted mt-1 mb-3 grow">把他的信箱加進使用名單，他用 Google 登入就進得去。名單是公司層級的，他會看到你們公司底下所有的系統。</p>
+            <div class="flex gap-2 acts">
               <input id="shareEmail" type="email" placeholder="同事的信箱" class="flex-1 border border-line rounded-lg px-3 py-2 text-sm" />
               <button type="button" class="btn btn-primary" data-act="share">加入</button>
             </div>
+          </div>
+          <!-- 佈署：讓 c-xxx.jvision-ai.com 這個網址開始存在。
+               刻意做成一顆要按的按鈕，而不是開通時就給——網址在使用者沒同意
+               的情況下就對外存在，是會嚇到人的（「我沒有要佈署，你已經幫我
+               佈署了」）。上線與否是他按下去的那一刻決定的。 -->
+          <div class="border border-line rounded-xl p-4">
+            <h3 class="text-sm font-black text-ink">佈署</h3>
+            <p class="text-xs text-muted mt-1 mb-3">
+              給這套系統一個好記的網址，可以直接貼給同事。
+              <b class="text-ink">進去仍然要 Google 登入、仍然要在上面的使用名單裡</b>——
+              佈署是給它一個門牌，不是把門拆掉。
+            </p>
+            <div id="pubState" class="text-xs text-muted mb-3 grow">讀取中…</div>
+            <div class="flex gap-2 flex-wrap acts">
+              <button type="button" class="btn btn-ghost" id="btnCheck"><span class="material-symbols-outlined text-[18px]">fact_check</span>檢查完整度</button>
+              <button type="button" class="btn btn-primary" data-act="publish"><span class="material-symbols-outlined text-[18px]">public</span>佈署</button>
+              <button type="button" class="btn btn-ghost" data-act="unpublish" hidden><span class="material-symbols-outlined text-[18px]">public_off</span>取消佈署</button>
+            </div>
+            <div id="readyBox" hidden class="mt-3 border border-line rounded-lg overflow-hidden text-xs"></div>
           </div>
           <!-- Vercel 先藏起來，不刪除。
                Cloudflare 與 Vercel 在定位上可能是兩件不同的事（一個是我們自己
@@ -880,15 +907,13 @@
               你這邊改了東西，要再按一次才會同步過去。要跑幾分鐘。
             </p>
             <div class="flex gap-2">
-              <button type="button" class="btn btn-ghost" id="btnCheck"><span class="material-symbols-outlined text-[18px]">fact_check</span>檢查完整度</button>
               <button type="button" class="btn btn-ghost" data-act="vercel"><span class="material-symbols-outlined text-[18px]">rocket_launch</span>部署到 Vercel</button>
             </div>
-            <div id="readyBox" hidden class="mt-3 border border-line rounded-lg overflow-hidden text-xs"></div>
           </div>
           <div class="border border-line rounded-xl p-4">
             <h3 class="text-sm font-black text-ink">交付到 GitHub</h3>
-            <p class="text-xs text-muted mt-1 mb-3">把這套系統推成一個你自己的 repo，附部署說明。要跑 git 與 GitHub API，通常幾十秒到一兩分鐘。</p>
-            <div class="flex gap-2">
+            <p class="text-xs text-muted mt-1 mb-3 grow">把這套系統推成一個你自己的 repo，附部署說明。要跑 git 與 GitHub API，通常幾十秒到一兩分鐘。</p>
+            <div class="flex gap-2 acts">
               <button type="button" class="btn btn-ghost" data-act="deliver"><span class="material-symbols-outlined text-[18px]">cloud_upload</span>交付</button>
               <button type="button" class="btn btn-ghost" data-act="pr"><span class="material-symbols-outlined text-[18px]">merge</span>開 PR</button>
             </div>
@@ -1844,6 +1869,8 @@
     loaded.code = false;
     loaded.log = false;
     loaded.spec = false;
+    checked = null;                 // 那是另一套系統，上一套按過「還是要部署」不算數
+    if ($("pubState")) $("pubState").textContent = "讀取中…";
     if (curTab !== "preview") showTab(curTab);
   }
 
@@ -2102,6 +2129,9 @@
     if (name === "code" && !loaded.code) loadCode();
     if (name === "log" && !loaded.log) loadLog();
     if (name === "spec" && !loaded.spec) loadSpec();
+    /* 佈署狀態每次進來都重讀，不做 loaded 快取——它可能在別的分頁、別台
+       機器上被改掉，記住舊答案只會讓人看到已經不對的狀態。而且這一支很輕。 */
+    if (name === "deploy") loadPub();
   }
   document.querySelectorAll("[data-tab]").forEach(function (b) {
     b.addEventListener("click", function () { if (cur) showTab(b.dataset.tab); });
@@ -2810,6 +2840,10 @@
     "instance.shared": ["分享給人", "#7c3aed"],
     "instance.delivered": ["交付到 GitHub", "#7c3aed"],
     "instance.reverted": ["還原版本", "#a16207"],
+    "instance.published": ["佈署", "#0369a1"],
+    "instance.unpublished": ["取消佈署", "#a16207"],
+    /* Vercel 那條路目前畫面上藏起來了，但歷史上有人按過，紀錄要看得懂。 */
+    "instance.vercel_deployed": ["部署到 Vercel", "#7c3aed"],
   };
 
   var VER_ACTION = { baseline: "原始", edit: "修改", restore: "還原" };
@@ -3033,8 +3067,49 @@
     if (anyway) anyway.addEventListener("click", function () {
       checked = cur.id;
       box.hidden = true;
-      document.querySelector('[data-act="vercel"]').click();
+      document.querySelector('[data-act="publish"]').click();
     });
+  }
+
+  /* 佈署狀態。真相在 Cloudflare 的 DNS 上，不是資料庫的欄位——欄位只記著
+     「將來會叫什麼名字」，DNS 上有沒有那一筆才是「現在對外存不存在」。
+     兩者分開，才不會出現資料庫說已佈署、實際上連不上的狀況。 */
+  function paintPub(st) {
+    var box = $("pubState");
+    /* $ 是 getElementById，餵它一個屬性選擇器只會拿到 null，然後在下面設
+       .disabled 時丟例外——例外被 fetch 的 .catch 接住，畫面就顯示成
+       「Cloudflare 連不上」。實際上 API 回的是 200。錯的是這兩行，不是網路。 */
+    var on = document.querySelector('[data-act="publish"]');
+    var off = document.querySelector('[data-act="unpublish"]');
+    if (!on || !off) return;
+    if (!box) return;
+    if (!st || st.unknown) {
+      box.innerHTML = '<span style="color:#d97706">查不到目前的佈署狀態（Cloudflare 連不上），先不要按，稍後再看一次。</span>';
+      on.disabled = true; off.hidden = true;
+      return;
+    }
+    on.disabled = !st.canPublish;
+    on.hidden = st.published;
+    off.hidden = !st.published || !st.canPublish;
+    if (st.published) {
+      box.innerHTML = '已佈署：<a href="' + esc(st.url) + '" target="_blank" rel="noreferrer" '
+        + 'class="text-brand font-bold hover:underline">' + esc(st.url) + "</a>";
+    } else {
+      box.innerHTML = '<b class="text-ink">尚未佈署。</b>這套系統目前只走 '
+        + '<span style="font-family:ui-monospace,monospace">/-/i/' + esc(cur ? cur.id : "") + '/</span>'
+        + '，公開的 DNS 上查不到任何屬於它的網址。'
+        + (st.canPublish ? "" : "（只有擁有者可以佈署）");
+    }
+  }
+
+  function loadPub() {
+    if (!cur) return;
+    var box = $("pubState");
+    if (box) box.textContent = "讀取中…";
+    fetch("/api/me/instances/" + encodeURIComponent(cur.id) + "/publish")
+      .then(function (r) { return r.json(); })
+      .then(paintPub)
+      .catch(function () { paintPub({ unknown: true }); });
   }
 
   function runCheck(opts) {
@@ -3064,7 +3139,7 @@
       var act = b.dataset.act;
       var note = $("depMsg");
       /* 部署前先檢查一次。已經看過報告按了「還是要部署」的就不再攔。 */
-      if (act === "vercel" && checked !== cur.id) {
+      if ((act === "vercel" || act === "publish") && checked !== cur.id) {
         note.textContent = "";
         runCheck({ offerAnyway: true }).then(function (r) {
           if (r && r.verdict !== "fix-first") { checked = cur.id; b.click(); }
@@ -3077,6 +3152,8 @@
       note.style.color = "#64748b";
       note.textContent = act === "share" ? "加入中…"
         : act === "vercel" ? "部署中，要複製資料庫再上傳，請稍等幾分鐘…"
+        : act === "publish" ? "佈署中…"
+        : act === "unpublish" ? "取消佈署中…"
         : "處理中，這要跑 git，請稍等…";
       fetch("/api/me/instances/" + encodeURIComponent(cur.id) + "/" + act,
         { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
@@ -3086,6 +3163,14 @@
           if (!x.ok) { note.style.color = "#b91c1c"; note.textContent = x.d.error || "沒有成功"; return; }
           note.style.color = "#15803d";
           if (act === "share") { note.textContent = "已加入，他用 Google 登入後就進得去。"; $("shareEmail").value = ""; }
+          else if (act === "publish" || act === "unpublish") {
+            /* 剛建好的 DNS 各地解析器不見得馬上看得到。講清楚「可能要等一下」，
+               比讓他立刻點進去撞 404、以為佈署失敗好。 */
+            note.textContent = act === "unpublish" ? "已取消佈署，這個網址不再存在。"
+              : x.d.justCreated ? "佈署好了。網址剛建立，最多等一兩分鐘才會全世界都連得到。"
+              : "已經是佈署狀態了。";
+            paintPub(x.d.published ? { published: true, url: x.d.url, canPublish: true } : { published: false, canPublish: true });
+          }
           else if (x.d.url) note.innerHTML = (act === "pr" ? "PR 已開：" : act === "vercel" ? "已上線：" : "已交付：") +
             '<a href="' + esc(x.d.url) + '" target="_blank" rel="noreferrer" class="text-brand font-bold hover:underline">' + esc(x.d.url) + "</a>";
           else note.textContent = "完成了。";
