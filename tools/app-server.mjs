@@ -21,6 +21,7 @@ import * as chat from "./lib/instance-chat.mjs";
 import * as edit from "./lib/instance-edit.mjs";
 import * as head from "./lib/instance-head.mjs";
 import * as outline from "./lib/page-outline.mjs";
+import * as refs from "./lib/instance-refs.mjs";
 import * as shots from "./lib/shots.mjs";
 import * as versions from "./lib/instance-versions.mjs";
 import * as grow from "./lib/instance-grow.mjs";
@@ -179,6 +180,26 @@ const server = http.createServer(async (req, res) => {
       return json(res, 201, { ok: true, shot: Boolean(shot) });
     }
 
+    /* 客戶自己丟進來的參考資料（規劃文件、資料樣本）。修改助理會拿它當依據，
+       所以欄位名稱、用語、流程都會照著他公司實際的樣子走，而不是我們模板的假資料。 */
+    if (p === "/_jv/refs") {
+      if (req.method === "GET") return json(res, 200, { refs: refs.list(inst.dir), maxBytes: refs.MAX_BYTES });
+      if (req.method === "POST") {
+        /* 上限抓單檔的兩倍：JSON 字串化之後會膨脹，卡在這裡的話錯誤訊息會變成
+           「請求太大」而不是「檔案太大」，使用者不知道該怎麼辦。 */
+        const b = await readBody(req, refs.MAX_BYTES * 2 + 4096);
+        const r = refs.save(inst.dir, b.name, b.text);
+        if (!r.ok) return json(res, 400, { error: r.why });
+        await control.recordEvent({ kind: "instance.ref_added", customerId: inst.customer_id,
+          instanceId: inst.id, actor, detail: { name: r.name, bytes: r.bytes } }).catch(() => {});
+        return json(res, 201, { ref: r, refs: refs.list(inst.dir) });
+      }
+      if (req.method === "DELETE") {
+        const name = new URL(req.url, "http://x").searchParams.get("name") || "";
+        return json(res, refs.remove(inst.dir, name) ? 200 : 404, { refs: refs.list(inst.dir) });
+      }
+    }
+
     /* 用講的改系統。LLM 只負責「把一句話翻成一個動作」，動作本身仍然走
        上面那幾支既有的 API——讓它直接碰資料庫的話，想錯一次就是客戶的資料出事。 */
     /* 改程式碼是背景工作（要好幾分鐘），前端靠這一路問「做完了沒」。 */
@@ -303,8 +324,10 @@ const server = http.createServer(async (req, res) => {
       try {
         pageText = outline.describe(fs.readFileSync(path.join(inst.dir, "public", "index.html"), "utf8"));
       } catch { /* 讀不到就不給 */ }
+      /* 只給檔名。內容有時好幾十 KB，而這一步只需要知道「有這些東西可以參考」
+         ——真正要讀內容的是下一步的 codex，那邊本來就會拿到全文。 */
       const d = await chat.decide(schema, message, Array.isArray(b.history) ? b.history : [],
-        Boolean(shotPath), pageText);
+        Boolean(shotPath), pageText, refs.list(inst.dir).map((x) => x.name));
 
       try {
         if (d.action === "add_column") {

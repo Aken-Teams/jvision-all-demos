@@ -19,6 +19,7 @@ import path from "node:path";
 import { ROOT } from "./forge-common.mjs";
 import { runCodex, runCodexWithRetry } from "./codex-run.mjs";
 import * as outline from "./page-outline.mjs";
+import * as refs from "./instance-refs.mjs";
 import { applyEdits } from "./instance-patch.mjs";
 import * as versions from "./instance-versions.mjs";
 
@@ -72,12 +73,12 @@ function extractHtml(text) {
   return a >= 0 && b > a ? body.slice(a, b + 7) : null;
 }
 
-function rewritePrompt(instruction, html, hasImage, plan) {
+function rewritePrompt(instruction, html, hasImage, plan, refsBlock) {
   return `你要依使用者的要求，改這一套系統的程式與畫面。
 
 ## 使用者要的
 ${instruction}
-${hasImage ? "\n使用者另外附了一張截圖，那是他指的位置或想要的樣子。以截圖為準——\n文字描述位置常常會失真，圖上圈的地方才是他真正要改的。\n" : ""}${planBlock(plan)}
+${hasImage ? "\n使用者另外附了一張截圖，那是他指的位置或想要的樣子。以截圖為準——\n文字描述位置常常會失真，圖上圈的地方才是他真正要改的。\n" : ""}${planBlock(plan)}${refsBlock || ""}
 
 ## 不可以動的東西（動了這次修改就會被退回）
 1. **既有**表格的 <th> 文字一個字都不能改，也不能增減那張表的 <th> 數量或順序，
@@ -112,12 +113,12 @@ ${html}`;
 
 /* 取代區塊用的說明。跟整份重寫共用同一套「不可以動的東西」，
    差別在輸出：只要那幾段要換的原文與新內容。 */
-function patchPrompt(instruction, html, hasImage, plan) {
+function patchPrompt(instruction, html, hasImage, plan, refsBlock) {
   return `你要依使用者的要求，改這一套系統的程式與畫面。
 
 ## 使用者要的
 ${instruction}
-${hasImage ? "\n使用者另外附了一張截圖，那是他指的位置或想要的樣子。以截圖為準——\n文字描述位置常常會失真，圖上圈的地方才是他真正要改的。\n" : ""}${planBlock(plan)}
+${hasImage ? "\n使用者另外附了一張截圖，那是他指的位置或想要的樣子。以截圖為準——\n文字描述位置常常會失真，圖上圈的地方才是他真正要改的。\n" : ""}${planBlock(plan)}${refsBlock || ""}
 
 ## 怎麼回答
 不要重寫整份檔案。只要告訴我「把哪一段換成什麼」，我會自己套進去。
@@ -229,7 +230,7 @@ ${instruction}
 ${imagePath ? "\n他附了一張截圖，那是他指的位置或想要的樣子。以截圖為準。\n" : ""}
 ## 這套系統的畫面現在長這樣
 ${outline.describe(before)}
-
+${refs.promptBlock(dir)}
 ## 你要做的
 盤點「要把這件事做對，實際上得動哪幾個地方」，然後列成步驟。
 
@@ -367,7 +368,7 @@ function makeOnEvent(onProgress) {
  */
 async function tryPatch(before, instruction, { dir, timeoutMs, model, imagePath, plan, onProgress }) {
   const r = await runCodexWithRetry({
-    prompt: patchPrompt(instruction, before, Boolean(imagePath), plan),
+    prompt: patchPrompt(instruction, before, Boolean(imagePath), plan, refs.promptBlock(dir)),
     cwd: dir,
     sandbox: "read-only",
     schemaPath: EDIT_SCHEMA,
@@ -390,7 +391,7 @@ async function tryPatch(before, instruction, { dir, timeoutMs, model, imagePath,
 /** 整份重寫。取代區塊套不進去時的退路。 */
 async function tryRewrite(before, instruction, { dir, timeoutMs, model, imagePath, plan, onProgress }) {
   const r = await runCodexWithRetry({
-    prompt: rewritePrompt(instruction, before, Boolean(imagePath), plan),
+    prompt: rewritePrompt(instruction, before, Boolean(imagePath), plan, refs.promptBlock(dir)),
     cwd: dir,
     sandbox: "read-only",
     timeoutMs,

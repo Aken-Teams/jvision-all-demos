@@ -16,7 +16,7 @@ const ACTIONS = new Set(["add_column", "rename_column", "rename_system", "edit_p
 const TYPES = new Set(["text", "int", "number", "percent", "date", "enum"]);
 const KEY_RE = /^[a-z][a-z0-9_]{0,62}$/;
 
-function prompt(schema, message, history, hasImage, page) {
+function prompt(schema, message, history, hasImage, page, refsNames) {
   const tables = schema.tables.map((t) =>
     `- ${t.name}：${t.columns.map((c) => `${c.label}(${c.key}/${c.type})`).join("、")}`).join("\n");
   const past = (history || []).slice(-6)
@@ -26,6 +26,11 @@ function prompt(schema, message, history, hasImage, page) {
 
 ${page ? `## 這套系統的畫面現在長這樣
 ${page}
+
+` : ""}${refsNames && refsNames.length ? `## 客戶已經丟了參考資料進來
+${refsNames.join("、")}
+真正動手改的那一步看得到這些檔案的內容。所以只要他的要求跟「照我給的資料」、
+「照我寫的規劃」有關，一律 edit_page，不要因為你這裡看不到內容就回 none。
 
 ` : ""}## 這套系統現有的資料表
 ${tables}
@@ -131,8 +136,8 @@ function runClaude(text) {
  * 閉著眼睛在判斷「這件事該做多大」——它只看得到資料表清單，
  * 於是所有跟版面、RWD、其他畫面有關的考量都不可能發生。
  */
-export async function decide(schema, message, history, hasImage, page) {
-  const raw = await runClaude(prompt(schema, message, history, hasImage, page));
+export async function decide(schema, message, history, hasImage, page, refsNames) {
+  const raw = await runClaude(prompt(schema, message, history, hasImage, page, refsNames));
   const fallback = { action: "none", reply: "我先把這個需求記下來，交給我們的人處理。" };
   if (!raw || !ACTIONS.has(raw.action)) return fallback;
 

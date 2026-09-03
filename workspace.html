@@ -287,6 +287,21 @@
               color:#15803d; background:#f0fdf4; border-radius:.3rem; padding:.1rem .35rem; }
     .ps-chk.bad { color:#b91c1c; background:#fef2f2; }
     .ps-chk .material-symbols-outlined { font-size:13px; }
+
+    /* 客戶自己丟進來的參考資料。放在輸入框正上方而不是收在某個分頁裡：
+       它會影響「接下來每一次修改」的結果，所以要一直看得見自己給了什麼。 */
+    .ref { display:inline-flex; align-items:center; gap:.2rem; max-width:100%;
+           font-size:.68rem; color:#1e40af; background:#eff6ff; border:1px solid #dbeafe;
+           border-radius:.35rem; padding:.1rem .3rem; }
+    .ref .material-symbols-outlined { font-size:13px; flex:none; }
+    .ref .n { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ref .x { flex:none; border:0; background:none; cursor:pointer; color:#93a7c9;
+              font-size:.8rem; line-height:1; padding:0 .1rem; }
+    .ref .x:hover { color:#b91c1c; }
+    /* 拖檔案進來時整欄亮起來。沒有這個回饋的話，人不知道可以放開手。 */
+    #chatPane.dropping { outline:2px dashed #93c5fd; outline-offset:-6px; background:#f5faff; }
+    /* 沒有參考資料時整列收掉，不要留一條看不出用途的空白。 */
+    #refsBar:empty { display:none; }
     .job-st { display:flex; gap:.45rem; padding:.25rem 0; line-height:1.5; }
     .job-ic { flex:none; display:inline-flex; align-items:center; justify-content:center;
               width:1.05rem; height:1.2rem; }
@@ -482,9 +497,16 @@
       </div>
       <div id="chatBox" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2"></div>
       <div id="chips" class="flex gap-1 px-3 pb-2"></div>
+      <div id="refsBar" class="px-3 pb-1 flex flex-wrap gap-1"></div>
       <div id="shotBox" class="px-3 pb-2 relative"></div>
       <div class="pane-ft bg-white">
-        <textarea id="ask" rows="1" placeholder="想改什麼？直接說，也可以貼截圖。"
+        <input id="pick" type="file" class="hidden"
+          accept="image/*,.md,.txt,.csv,.tsv,.json" multiple />
+        <button id="attach" type="button" class="btn btn-ghost w-[38px] px-0"
+          title="附加截圖、規劃文件或資料樣本">
+          <span class="material-symbols-outlined text-[18px]">attach_file</span>
+        </button>
+        <textarea id="ask" rows="1" placeholder="想改什麼？直接說，可以貼圖或拖檔案進來。"
           class="flex-1 min-h-[38px] max-h-[120px] resize-none border border-line rounded-lg px-3 py-2 text-sm text-ink"></textarea>
         <button id="send" type="button" class="btn btn-primary w-[38px] px-0" title="送出">↑</button>
       </div>
@@ -838,6 +860,7 @@
     /* 換系統＝換一段對話。留著上一套的內容會讓人以為助理記得那些事。 */
     setShot(null);
     loadChips();
+    loadRefs();
     loadSessions();
 
     loaded = { data: false, code: false, log: false };
@@ -1228,6 +1251,105 @@
       }
     }
   });
+
+  /* ── 客戶自己的參考資料 ─────────────────────────────
+     規劃文件、命名慣例、真實資料長什麼樣。沒有這些，助理只能照著我們模板的
+     假資料往下長，欄位名、用語、流程都是猜的。丟一份進來，它就有依據了。
+
+     圖片跟文件走不同的路：圖片是「這一次改哪裡」的指示，講完就沒用了；
+     文件是「這套系統該長什麼樣」的依據，之後每一次修改都要拿來對。 */
+  var REF_OK = /\.(md|txt|csv|tsv|json)$/i;
+
+  function paintRefs(list) {
+    var box = $("refsBar");
+    box.innerHTML = "";
+    (list || []).forEach(function (r) {
+      var el = document.createElement("span");
+      el.className = "ref";
+      el.title = r.name + "　" + r.kind + "　" + Math.max(1, Math.round(r.bytes / 1024)) + "KB";
+      el.innerHTML = '<span class="material-symbols-outlined">description</span>'
+        + '<span class="n">' + esc(r.name) + "</span>";
+      var x = document.createElement("button");
+      x.type = "button";
+      x.className = "x";
+      x.textContent = "×";
+      x.setAttribute("aria-label", "移除 " + r.name);
+      x.addEventListener("click", function () {
+        fetch(api("/_jv/refs?name=" + encodeURIComponent(r.name)), { method: "DELETE" })
+          .then(function (rr) { return rr.json(); })
+          .then(function (d) { paintRefs(d.refs); })
+          .catch(function () { /* 刪不掉就下次再說，不要卡住他 */ });
+      });
+      el.appendChild(x);
+      box.appendChild(el);
+    });
+  }
+
+  function loadRefs() {
+    fetch(api("/_jv/refs"), { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { paintRefs(d.refs); })
+      .catch(function () { paintRefs([]); });
+  }
+
+  function uploadRef(file) {
+    var rd = new FileReader();
+    rd.onload = function () {
+      fetch(api("/_jv/refs"), { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: file.name, text: String(rd.result || "") }) })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (x) {
+          if (!x.ok) { say("bot", "「" + file.name + "」收不下來：" + (x.d.error || "未知原因"), "err"); return; }
+          paintRefs(x.d.refs);
+          say("bot", "收到「" + file.name + "」了。接下來的修改會照這份做——"
+            + "欄位名稱、用語、流程都會以你這份為準。", "done");
+        })
+        .catch(function () { say("bot", "「" + file.name + "」上傳失敗，再試一次。", "err"); });
+    };
+    rd.readAsText(file);
+  }
+
+  /* 一個入口收兩種東西，依型別分流。要使用者自己分「這是截圖那個按鈕、
+     那是文件那個按鈕」是我們該替他做的判斷。 */
+  function takeFiles(files) {
+    if (!cur || !files) return;
+    for (var i = 0; i < files.length; i += 1) {
+      var f = files[i];
+      if (f.type && f.type.indexOf("image/") === 0) shrinkImage(f, setShot);
+      else if (REF_OK.test(f.name)) uploadRef(f);
+      else say("bot", "「" + f.name + "」這種檔案我讀不了。"
+        + "截圖、.md、.txt、.csv、.json 可以。", "err");
+    }
+  }
+
+  $("attach").addEventListener("click", function () { $("pick").click(); });
+  $("pick").addEventListener("change", function () { takeFiles(this.files); this.value = ""; });
+
+  /* 拖放。整個對話欄都是放置區——要求人準確放到某一個小方框上是多餘的。 */
+  (function () {
+    var pane = $("chatPane"), depth = 0;
+    var has = function (e) {
+      return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], "Files") >= 0;
+    };
+    pane.addEventListener("dragenter", function (e) {
+      if (!has(e) || !cur) return;
+      e.preventDefault(); depth += 1; pane.classList.add("dropping");
+    });
+    /* dragover 一定要 preventDefault，否則瀏覽器會直接開那個檔案，
+       整個工作台被檔案內容取代——而且沒有任何錯誤訊息。 */
+    pane.addEventListener("dragover", function (e) { if (has(e) && cur) e.preventDefault(); });
+    pane.addEventListener("dragleave", function () {
+      /* 用計數而不是直接關掉：滑過子元素會連續觸發 enter/leave，
+         看到的會是邊框一直閃。 */
+      depth = Math.max(0, depth - 1);
+      if (!depth) pane.classList.remove("dropping");
+    });
+    pane.addEventListener("drop", function (e) {
+      if (!has(e) || !cur) return;
+      e.preventDefault(); depth = 0; pane.classList.remove("dropping");
+      takeFiles(e.dataTransfer.files);
+    });
+  }());
 
   function submit(text) {
     if (!cur) return;
