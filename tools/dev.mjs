@@ -756,8 +756,12 @@ function startGateway() {
           if (!role) return json(res, 403, { error: "你不在這個系統的使用名單內" });
           const dns = await import("./lib/instance-dns.mjs");
           const rec = await dns.find(inst.host);
+          /* 順便回名單人數。把網址傳出去才發現對方被擋，是很容易發生又很難自己
+             看出原因的事——佈署卡上直接講「現在幾個人進得去」比較省事。 */
+          const members = await control.listMembers(inst.customer_id);
           return json(res, 200, { host: inst.host, published: Boolean(rec),
-            url: rec ? `https://${inst.host}/` : null, canPublish: role === "owner" });
+            url: rec ? `https://${inst.host}/` : null, canPublish: role === "owner",
+            members: members.length, path: `/-/i/${inst.id}/` });
         } catch (error) {
           /* Cloudflare 連不上時回「不知道」而不是「沒佈署」——後者會讓畫面
              顯示成未佈署，使用者以為要再按一次，結果按出一個已經存在的記錄。 */

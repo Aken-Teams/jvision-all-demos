@@ -867,14 +867,6 @@
       <div id="tab-deploy" hidden class="col flex-1 overflow-y-auto">
         <div class="p-5">
         <div class="depgrid">
-          <div class="border border-line rounded-xl p-4">
-            <h3 class="text-sm font-black text-ink">分享給同事</h3>
-            <p class="text-xs text-muted mt-1 mb-3 grow">把他的信箱加進使用名單，他用 Google 登入就進得去。名單是公司層級的，他會看到你們公司底下所有的系統。</p>
-            <div class="flex gap-2 acts">
-              <input id="shareEmail" type="email" placeholder="同事的信箱" class="flex-1 border border-line rounded-lg px-3 py-2 text-sm" />
-              <button type="button" class="btn btn-primary" data-act="share">加入</button>
-            </div>
-          </div>
           <!-- 佈署：讓 c-xxx.jvision-ai.com 這個網址開始存在。
                刻意做成一顆要按的按鈕，而不是開通時就給——網址在使用者沒同意
                的情況下就對外存在，是會嚇到人的（「我沒有要佈署，你已經幫我
@@ -893,6 +885,21 @@
               <button type="button" class="btn btn-ghost" data-act="unpublish" hidden><span class="material-symbols-outlined text-[18px]">public_off</span>取消佈署</button>
             </div>
             <div id="readyBox" hidden class="mt-3 border border-line rounded-lg overflow-hidden text-xs"></div>
+          </div>
+          <!-- 分享排在佈署後面：先有網址，再談誰進得去。反過來的話，加完人
+               卻不知道要把什麼傳給對方——後端其實一直有回那個連結，只是畫面
+               沒有顯示，於是這一步看起來像空轉。 -->
+          <div class="border border-line rounded-xl p-4">
+            <h3 class="text-sm font-black text-ink">分享給同事</h3>
+            <p class="text-xs text-muted mt-1 mb-3">把他的信箱加進使用名單，他用 Google 登入就進得去。名單是公司層級的，他會看到你們公司底下所有的系統。</p>
+            <div class="flex gap-2">
+              <input id="shareEmail" type="email" placeholder="同事的信箱" class="flex-1 border border-line rounded-lg px-3 py-2 text-sm" />
+              <button type="button" class="btn btn-primary" data-act="share">加入</button>
+            </div>
+            <!-- 加完人之後真正要做的動作是「把網址傳過去」，所以連結就放在這裡，
+                 不用他自己回上面那張卡找。沒佈署時給的是路徑式入口——那條現在
+                 就能用，不是等佈署才有。 -->
+            <div id="shareLink" class="mt-3 grow text-xs"></div>
           </div>
           <!-- Vercel 先藏起來，不刪除。
                Cloudflare 與 Vercel 在定位上可能是兩件不同的事（一個是我們自己
@@ -3086,20 +3093,63 @@
     if (!st || st.unknown) {
       box.innerHTML = '<span style="color:#d97706">查不到目前的佈署狀態（Cloudflare 連不上），先不要按，稍後再看一次。</span>';
       on.disabled = true; off.hidden = true;
+      /* 查不到的是「子網域存不存在」，路徑式入口不受影響——它在我們自己的
+         主站上。所以網址照給，不要因為問不到 Cloudflare 就讓分享卡整個空掉。 */
+      paintShare(location.origin + "/-/i/" + (cur ? cur.id : "") + "/", false);
       return;
     }
     on.disabled = !st.canPublish;
     on.hidden = st.published;
     off.hidden = !st.published || !st.canPublish;
+
+    /* 不論有沒有佈署，都有一個「現在就能傳給人」的網址：佈署了是 c-xxx，
+       沒佈署是路徑式入口。後者不是次級品——它一樣要登入、一樣認使用名單，
+       只是網址不好記。所以分享那張卡永遠給得出東西。 */
+    var path = st.path || ("/-/i/" + (cur ? cur.id : "") + "/");
+    var link = st.published ? st.url : (location.origin + path);
+
     if (st.published) {
+      /* 把名單人數講在這裡：網址傳出去才發現對方被擋，是很容易發生、又很難
+         自己看出原因的事。 */
+      var n = st.members || 1;
       box.innerHTML = '已佈署：<a href="' + esc(st.url) + '" target="_blank" rel="noreferrer" '
-        + 'class="text-brand font-bold hover:underline">' + esc(st.url) + "</a>";
+        + 'class="text-brand font-bold hover:underline" style="word-break:break-all">' + esc(st.url) + "</a>"
+        + '<div class="mt-1">目前 <b class="text-ink">' + n + " 人</b>進得去"
+        + (n <= 1 ? "（只有你）——要給同事看，先用「分享給同事」把他加進名單。" : "。名單在「分享給同事」那張卡。") + "</div>";
     } else {
-      box.innerHTML = '<b class="text-ink">尚未佈署。</b>這套系統目前只走 '
-        + '<span style="font-family:ui-monospace,monospace">/-/i/' + esc(cur ? cur.id : "") + '/</span>'
-        + '，公開的 DNS 上查不到任何屬於它的網址。'
+      box.innerHTML = '<b class="text-ink">尚未佈署。</b>公開的 DNS 上查不到任何屬於它的網址；'
+        + '現在只走「分享給同事」給的那條路徑式入口，它照樣要登入、照樣認使用名單。'
         + (st.canPublish ? "" : "（只有擁有者可以佈署）");
     }
+    paintShare(link, st.published);
+  }
+
+  /* 要傳給同事的網址。加完人之後真正要做的動作就是這個，所以放在分享卡裡，
+     不用他自己回上面那張卡找。 */
+  function paintShare(link, published) {
+    var box = document.getElementById("shareLink");
+    if (!box) return;
+    box.innerHTML = '<div class="text-muted mb-1">' + (published ? "要傳給他的網址" : "要傳給他的網址（尚未佈署，先用這條）") + "</div>"
+      + '<div class="flex gap-2 items-center">'
+      + '<a href="' + esc(link) + '" target="_blank" rel="noreferrer" class="flex-1 text-brand font-bold hover:underline" '
+      + 'style="word-break:break-all">' + esc(link) + "</a>"
+      + '<button type="button" id="shareCopy" class="btn btn-ghost" style="padding:4px 10px;flex:none">複製</button>'
+      + "</div>";
+    document.getElementById("shareCopy").addEventListener("click", function () {
+      var b = this;
+      /* clipboard API 在非 https 的環境（區網用 http://192.168.x.x 進來）不存在，
+         那時候不要靜靜地沒反應——選起來讓他自己按 Ctrl+C。 */
+      var done = function () { b.textContent = "已複製"; setTimeout(function () { b.textContent = "複製"; }, 1500); };
+      if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(link).then(done, select);
+      else select();
+      function select() {
+        var r = document.createRange();
+        r.selectNodeContents(box.querySelector("a"));
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        b.textContent = "按 Ctrl+C";
+        setTimeout(function () { b.textContent = "複製"; }, 2500);
+      }
+    });
   }
 
   function loadPub() {
@@ -3162,14 +3212,20 @@
           document.querySelectorAll("[data-act]").forEach(function (o) { o.disabled = false; });
           if (!x.ok) { note.style.color = "#b91c1c"; note.textContent = x.d.error || "沒有成功"; return; }
           note.style.color = "#15803d";
-          if (act === "share") { note.textContent = "已加入，他用 Google 登入後就進得去。"; $("shareEmail").value = ""; }
+          if (act === "share") {
+            note.textContent = "已加入。把下面那個網址傳給他，他用 Google 登入後就進得去。";
+            $("shareEmail").value = "";
+            loadPub();                 // 人數變了，佈署卡上那句要跟著更新
+          }
           else if (act === "publish" || act === "unpublish") {
             /* 剛建好的 DNS 各地解析器不見得馬上看得到。講清楚「可能要等一下」，
                比讓他立刻點進去撞 404、以為佈署失敗好。 */
             note.textContent = act === "unpublish" ? "已取消佈署，這個網址不再存在。"
               : x.d.justCreated ? "佈署好了。網址剛建立，最多等一兩分鐘才會全世界都連得到。"
               : "已經是佈署狀態了。";
-            paintPub(x.d.published ? { published: true, url: x.d.url, canPublish: true } : { published: false, canPublish: true });
+            /* 重讀而不是自己拼一個物件：人數、路徑這些欄位拼不出來，
+               拼一半的狀態會讓畫面短暫顯示成「1 人進得去」之類的假資訊。 */
+            loadPub();
           }
           else if (x.d.url) note.innerHTML = (act === "pr" ? "PR 已開：" : act === "vercel" ? "已上線：" : "已交付：") +
             '<a href="' + esc(x.d.url) + '" target="_blank" rel="noreferrer" class="text-brand font-bold hover:underline">' + esc(x.d.url) + "</a>";
