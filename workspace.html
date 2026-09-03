@@ -49,6 +49,16 @@
     .ov-acts { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; }
     .ov-acts .btn { flex: 1; justify-content: center; }
     @media (max-width: 640px) { .ov-in { padding: 20px 14px 40px; } .ov-grid { grid-template-columns: 1fr; } }
+    /* 頁碼列。樣式照目錄頁（app.js 的 #pagination），一頁同樣是 12 筆——
+       同一個站上兩種分頁長相不同，使用者會以為是兩個系統。 */
+    .ov-pager { display: flex; justify-content: center; align-items: center; gap: .4rem; margin-top: 26px; flex-wrap: wrap; }
+    .ov-pager button { min-width: 2.4rem; height: 2.4rem; padding: 0 .65rem; border: 1px solid var(--line);
+      border-radius: 9999px; background: #fff; font: 700 .875rem/1 inherit; color: var(--ink); cursor: pointer;
+      transition: border-color .15s, color .15s; }
+    .ov-pager button:hover:not(:disabled):not([aria-current]) { border-color: var(--brand); color: var(--brand); }
+    .ov-pager button[aria-current="page"] { background: var(--brand); border-color: var(--brand); color: #fff; cursor: default; }
+    .ov-pager button:disabled { opacity: .35; cursor: default; }
+    .ov-pager .gap { padding: 0 .3rem; color: #94a3b8; align-self: center; }
     .col { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
     /* 中間地帶先把欄位縮窄，不要一次塌成單欄。原本斷點直接設在 1180px，
        筆電 1280 寬、或 Windows 125% 縮放下的 1440p（實際 1152 邏輯像素）
@@ -208,6 +218,7 @@
         <a href="./catalog.html" class="btn btn-primary"><span class="material-symbols-outlined text-[18px]">add</span>採用新模板</a>
       </div>
       <div id="ovGrid" class="ov-grid"></div>
+      <div id="ovPager" class="ov-pager"></div>
     </div>
   </section>
 
@@ -476,17 +487,30 @@
     history.replaceState(null, "", location.pathname + "?i=" + encodeURIComponent(id));
   }
 
+  /* 一頁 12 筆，與目錄頁的 PAGE_SIZE 相同。頁碼放在記憶體不放網址：
+     總覽的網址要保持乾淨的 workspace.html（?i= 是「進編輯器」的意思），
+     多一個 ?page= 會跟那個切換打架。 */
+  var OV_PAGE = 12, ovPage = 1;
+
   function renderOverview() {
     var grid = $("ovGrid"), sub = $("ovSub");
     if (!systems.length) {
       sub.textContent = "還沒有任何系統。";
+      $("ovPager").innerHTML = "";
       grid.innerHTML = '<article class="ov-card"><h2>先從目錄挑一套</h2>' +
         '<p class="ov-meta">在專案目錄按「模板複製」，就會複製出一份你自己的、能存資料的系統。</p>' +
         '<div class="ov-acts"><a class="btn btn-primary" href="./catalog.html">瀏覽專案目錄</a></div></article>';
       return;
     }
-    sub.textContent = systems.length + " 套系統 · 挑一套開始修改，或再從目錄複製一套。";
-    grid.innerHTML = systems.map(function (s) {
+    var pages = Math.max(1, Math.ceil(systems.length / OV_PAGE));
+    if (ovPage > pages) ovPage = pages;
+    var from = (ovPage - 1) * OV_PAGE;
+    var slice = systems.slice(from, from + OV_PAGE);
+    sub.textContent = systems.length + " 套系統"
+      + (pages > 1 ? "（第 " + ovPage + " / " + pages + " 頁）" : "")
+      + " · 挑一套開始修改，或再從目錄複製一套。";
+    renderOvPager(pages);
+    grid.innerHTML = slice.map(function (s) {
       var live = s.state === "live";
       var when = String(s.created_at || "").slice(0, 10);
       return '<article class="ov-card">' +
@@ -502,6 +526,45 @@
             : '<span class="ov-meta">' + esc(STATE_TEXT[s.state] || s.state) + "，好了會出現在這裡</span>") +
         "</div></article>";
     }).join("");
+  }
+
+  /* 頁碼列：首尾各兩頁＋目前頁前後各一頁，中間以 … 略過。與目錄頁同一套規則。 */
+  function renderOvPager(pages) {
+    var box = $("ovPager");
+    box.innerHTML = "";
+    if (pages <= 1) return;
+    function btn(label, target, opt) {
+      opt = opt || {};
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = label;
+      if (opt.aria) b.setAttribute("aria-label", opt.aria);
+      if (opt.current) b.setAttribute("aria-current", "page");
+      b.disabled = !!opt.disabled;
+      b.addEventListener("click", function () {
+        ovPage = Math.min(pages, Math.max(1, target));
+        renderOverview();
+        /* 換頁後把視角拉回頂端，不然人還停在上一頁的頁尾。 */
+        $("overview").scrollTop = 0;
+      });
+      return b;
+    }
+    box.appendChild(btn("‹", ovPage - 1, { disabled: ovPage === 1, aria: "上一頁" }));
+    var want = {}, i;
+    [1, 2, pages - 1, pages, ovPage - 2, ovPage - 1, ovPage, ovPage + 1, ovPage + 2]
+      .forEach(function (n) { if (n >= 1 && n <= pages) want[n] = 1; });
+    var prev = 0;
+    for (i = 1; i <= pages; i += 1) {
+      if (!want[i]) continue;
+      if (i - prev > 1) {
+        var g = document.createElement("span");
+        g.className = "gap"; g.textContent = "…";
+        box.appendChild(g);
+      }
+      box.appendChild(btn(String(i), i, { current: i === ovPage }));
+      prev = i;
+    }
+    box.appendChild(btn("›", ovPage + 1, { disabled: ovPage === pages, aria: "下一頁" }));
   }
 
   function select(id) {
