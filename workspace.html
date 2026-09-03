@@ -31,6 +31,39 @@
        否則三欄的底部會被推出畫面外——這個溢出在改導覽列高度之前就存在。 */
     @media (max-width: 860px) { .shell { height: calc(100dvh - 114px); } }
 
+    /* 三欄的頁首要切齊。原本是 66／59／49 三種高度，橫線對不上，
+       視覺上會像三塊拼起來的東西而不是一個工作台。固定 52px，
+       內容一律垂直置中——高度寫死而不是靠 padding 湊，才不會有人改了字級
+       又悄悄跑掉。 */
+    .pane-hd { height: 52px; box-sizing: border-box; display: flex; align-items: center; }
+    /* 兩欄的頁尾也要對齊。左邊是 34px 的按鈕、右邊是可長高的輸入框，
+       各自加 padding 之後差 4px——單看不明顯，兩條頂線並排就看得出來。
+       用 min-height 而不是 height，輸入框才還能往上長。 */
+    .pane-ft { min-height: 62px; box-sizing: border-box; display: flex; align-items: center;
+               gap: .5rem; padding: .75rem; border-top: 1px solid #e2e8f0; }
+
+    /* 桌機／手機切換要看得到「收窄」這件事本身，不然只是瞬間換一張畫面，
+       人會分不清是切換生效了還是重新載入了。所以兩種模式共用同一種排版
+       （grid 置中、縮放從上緣中線出發），差別只有寬度與縮放比，
+       中間那段就交給 transition 演出來。 */
+    /* grid-template-columns 一定要寫死成容器寬。不寫的話隱含軌道是 auto，
+       桌機模式下 1440 的 iframe 會把軌道撐成 1440，place-items 的置中就失效，
+       畫面整個偏右、右半被裁掉（手機模式因為 390 比容器窄，軌道會被拉伸填滿，
+       所以只有桌機模式壞掉，很容易漏看）。 */
+    #frameWrap { display: grid; grid-template-columns: 100%; place-items: start center;
+                 padding: 0; transition: padding .42s cubic-bezier(.4,0,.2,1); }
+    #frameWrap.phone { padding: 14px 0; }
+    #frame { transform-origin: top center; border-radius: 0;
+             transition: width .42s cubic-bezier(.4,0,.2,1),
+                         height .42s cubic-bezier(.4,0,.2,1),
+                         transform .42s cubic-bezier(.4,0,.2,1),
+                         border-radius .42s ease, box-shadow .42s ease; }
+    /* 不加裝置外框，只用一層淺影子讓它跟底色分開——影子不是邊界，
+       不會讓人以為預覽被框住少了一截。 */
+    #frameWrap.phone #frame { border-radius: 12px; box-shadow: 0 6px 24px rgba(15, 23, 42, .16); }
+    /* 拖動視窗邊緣時不該一路補間，那是連續尺寸變化不是一次切換。 */
+    #frameWrap.resizing, #frameWrap.resizing #frame { transition: none; }
+
     /* ── 編輯中：整條頁首收起來 ────────────────────────
        編輯區要的是專注，站台導覽在這裡沒有用途——回頭的路是左欄那個
        「我的專案」，而總覽本身有完整導覽。收起來也把 64px 還給三欄。
@@ -132,12 +165,16 @@
     .tab:hover { color:#1e40af; background:#eff6ff; }
     .tab[aria-selected="true"] { color:#1e40af; background:#e0ecff; }
 
-    /* 系統清單 */
+    /* 系統清單。一個系統＝一組（自己那張卡＋它底下的幾次對話），
+       所以間距下在「組」與「組」之間，卡片跟自己的對話要黏在一起。 */
+    .grp + .grp { margin-top:.25rem; }
     .sys { display:block; width:100%; text-align:left; padding:.5rem .6rem; border-radius:.55rem; border:1px solid transparent; cursor:pointer; background:none; font:inherit; }
     .sys:hover { background:#eef2f7; }
     .sys[aria-current="true"] { background:#e0ecff; border-color:#bfdbfe; }
     .sys b { display:block; font-size:.82rem; font-weight:800; color:#0f1e46; line-height:1.35; }
     .sys i { display:block; font-style:normal; font-size:.68rem; color:#64748b; margin-top:.15rem; }
+    /* 展開時卡片與底下的對話是同一塊，所以把卡片下緣的圓角收掉。 */
+    .grp:has([data-kids] .ses) .sys[aria-current="true"] { border-bottom-left-radius:0; border-bottom-right-radius:0; }
 
     /* 對話泡泡 */
     .m { max-width:88%; padding:.5rem .7rem; border-radius:.75rem; font-size:.82rem; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
@@ -164,14 +201,21 @@
     .m.bot:has(.mdt), .m.done:has(.mdt) { max-width:100%; }
 
     /* 系統底下的那幾次對話。縮排＋左邊一條線，看得出是隸屬關係而不是同一層。 */
-    /* width:100% 再加 margin-left 會比容器寬出那個 margin，側欄因此橫向溢出、
-       底下冒出一條卷軸。改用 calc 把 margin 扣掉。 */
-    .ses { display:block; width:calc(100% - .85rem); text-align:left; padding:.32rem .5rem; margin-left:.85rem;
-           border-left:2px solid #e2e8f0; cursor:pointer; background:none; font:inherit;
-           font-size:.74rem; color:#64748b; line-height:1.4; overflow:hidden;
-           text-overflow:ellipsis; white-space:nowrap; }
-    .ses:hover { color:#1e40af; border-left-color:#bfdbfe; }
-    .ses[aria-current="true"] { color:#1e40af; font-weight:800; border-left-color:#1e40af; background:#f0f6ff; }
+    /* 線畫在容器上，不是畫在每一列。畫在列上的話，列與列之間的縫會把線切斷，
+       看起來像好幾條斷掉的短線而不是一條「這些都屬於上面那套」的軸。 */
+    [data-kids] { margin:0 0 0 1rem; padding:.15rem 0 .15rem .4rem;
+                  border-left:2px solid #e2e8f0; }
+    /* 沒有對話就不要留一條孤零零的線。 */
+    [data-kids]:not(:has(.ses)) { display:none; }
+    .sys[aria-current="true"] + [data-kids] { border-left-color:#bfdbfe; }
+    .ses { display:flex; align-items:center; gap:.3rem; width:100%; text-align:left;
+           padding:.3rem .45rem; border-radius:.4rem; cursor:pointer; background:none; font:inherit;
+           font-size:.74rem; color:#64748b; line-height:1.4; }
+    .ses .material-symbols-outlined { font-size:14px; flex:none; opacity:.75; }
+    /* 標題自己截斷。截斷放在 flex 子元素上，圖示才不會跟著被壓扁。 */
+    .ses .t { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ses:hover { color:#1e40af; background:#f1f5f9; }
+    .ses[aria-current="true"] { color:#1e40af; font-weight:800; background:#e0ecff; }
     .ses.new { color:#1e40af; font-weight:800; }
 
     .ver { display:flex; align-items:flex-start; gap:.6rem; padding:.6rem .75rem; border:1px solid #e2e8f0; border-radius:.6rem; }
@@ -235,29 +279,28 @@
   <main id="shell" hidden class="shell">
     <!-- ① 我的系統 -->
     <aside id="sysPane" class="col on bg-white border-r border-line">
-      <div class="px-4 pt-4 pb-2 flex items-start gap-2">
+      <div class="pane-hd px-4 gap-2 border-b border-line">
         <div class="flex-1 min-w-0">
           <button id="toOverview" type="button" class="text-sm font-black text-ink hover:text-brand inline-flex items-center gap-1">
             <span class="material-symbols-outlined text-[16px]">grid_view</span>我的專案
           </button>
-          <p class="text-xs text-muted mt-0.5">選一套，右邊就是它。</p>
         </div>
         <button id="fold" type="button" class="btn btn-ghost h-7 w-7 px-0 shrink-0" title="收起清單（之後從左上角打開）" aria-label="收起我的系統">
           <span class="material-symbols-outlined text-[18px]">left_panel_close</span>
         </button>
       </div>
-      <div id="sysList" class="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
+      <div id="sysList" class="flex-1 overflow-y-auto p-2">
         <p class="px-2 py-3 text-xs text-muted">載入中…</p>
       </div>
-      <div class="p-3 border-t border-line">
-        <a href="./catalog.html" class="btn btn-ghost w-full"><span class="material-symbols-outlined text-[18px]">add</span>採用新模板</a>
+      <div class="pane-ft">
+        <a href="./catalog.html" class="btn btn-ghost w-full h-[38px]"><span class="material-symbols-outlined text-[18px]">add</span>採用新模板</a>
       </div>
     </aside>
 
     <!-- ② 對話 -->
     <section id="chatPane" class="col bg-soft border-r border-line">
-      <div class="px-4 py-3 border-b border-line bg-white">
-        <div class="flex items-center gap-2">
+      <div class="pane-hd px-4 border-b border-line bg-white">
+        <div class="flex items-center gap-2 w-full">
           <button id="unfold" type="button" class="btn btn-ghost h-7 w-7 px-0 shrink-0" title="打開我的系統" aria-label="打開我的系統">
             <span class="material-symbols-outlined text-[18px]">left_panel_open</span>
           </button>
@@ -273,7 +316,7 @@
       <div id="chatBox" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2"></div>
       <div id="chips" class="flex flex-wrap gap-1 px-3 pb-2"></div>
       <div id="shotBox" class="px-3 pb-2 relative"></div>
-      <div class="flex gap-2 p-3 border-t border-line bg-white">
+      <div class="pane-ft bg-white">
         <textarea id="ask" rows="1" placeholder="想改什麼？直接說，也可以貼截圖。"
           class="flex-1 min-h-[38px] max-h-[120px] resize-none border border-line rounded-lg px-3 py-2 text-sm text-ink"></textarea>
         <button id="send" type="button" class="btn btn-primary w-[38px] px-0" title="送出">↑</button>
@@ -282,7 +325,7 @@
 
     <!-- ③ 工作區 -->
     <section id="wsPane" class="col bg-white">
-      <div class="flex items-center gap-1 px-3 py-2 border-b border-line overflow-x-auto">
+      <div class="pane-hd gap-1 px-3 border-b border-line overflow-x-auto">
         <button type="button" class="tab" data-tab="preview" aria-selected="true"><span class="material-symbols-outlined text-[16px]">visibility</span>預覽</button>
         <button type="button" class="tab" data-tab="data" aria-selected="false"><span class="material-symbols-outlined text-[16px]">table</span>資料</button>
         <button type="button" class="tab" data-tab="code" aria-selected="false"><span class="material-symbols-outlined text-[16px]">code</span>程式碼</button>
@@ -293,8 +336,8 @@
              這些控制項只對「預覽」有意義，所以切到別的分頁就整組收起來。 -->
         <div id="previewTools" class="flex items-center gap-1 ml-auto shrink-0">
           <button id="reload" type="button" class="btn btn-ghost h-7 px-2" title="重新載入"><span class="material-symbols-outlined text-[16px]">refresh</span></button>
-          <button type="button" class="tab" data-w="full" aria-selected="true">桌機</button>
-          <button type="button" class="tab" data-w="390" aria-selected="false">手機</button>
+          <button type="button" class="tab" data-w="full" aria-selected="true"><span class="material-symbols-outlined text-[16px]">desktop_windows</span>桌機</button>
+          <button type="button" class="tab" data-w="390" aria-selected="false"><span class="material-symbols-outlined text-[16px]">smartphone</span>手機</button>
           <a id="openNew" href="#" target="_blank" rel="noreferrer" class="btn btn-ghost h-7 px-2" title="另開分頁"><span class="material-symbols-outlined text-[16px]">open_in_new</span></a>
         </div>
       </div>
@@ -455,13 +498,15 @@
           b.innerHTML = "<b>" + esc(s.title || s.repo_name) + "</b><i>" +
             esc(STATE_TEXT[s.state] || s.state) + (s.role === "owner" ? " · 擁有者" : " · 成員") + "</i>";
           b.addEventListener("click", function () { select(s.id); });
-          box.appendChild(b);
+          var grp = document.createElement("div");
+          grp.className = "grp";
+          grp.appendChild(b);
+          box.appendChild(grp);
           /* 每個系統底下留一個位置放它的幾次對話。只有選中的那一套會填東西——
              一次把 11 套的對話全撈回來，側欄會長到看不完，而且多打十次資料庫。 */
           var kids = document.createElement("div");
-          kids.className = "space-y-0.5 mb-1";
           kids.dataset.kids = s.id;
-          box.appendChild(kids);
+          grp.appendChild(kids);
         });
         /* 帶了 ?i= 就直接進編輯器——「模板複製」成功後就是這樣跳過來的，
            不該多一次點擊。沒帶就先看總覽。
@@ -636,8 +681,13 @@
           b.type = "button";
           b.className = "ses";
           b.dataset.ses = x.id;
-          b.title = x.title || "（還沒說話）";
-          b.textContent = x.title || "（還沒說話）";
+          var t = x.title || "（還沒說話）";
+          b.title = t;
+          /* 前面一顆對話圖示。左欄同時列著「系統」與「對話」兩種東西，
+             光靠縮排要多看一眼才分得出來，圖示一眼就懂。 */
+          b.innerHTML = '<span class="material-symbols-outlined">chat_bubble</span>' +
+            '<span class="t"></span>';
+          b.lastChild.textContent = t;
           b.addEventListener("click", function () { openSession(x.id); });
           box.appendChild(b);
         });
@@ -1040,23 +1090,42 @@
      內容永遠是桌機佈局，只是顯示得小一點。放大不做（scale 上限 1），
      免得在 2560 的螢幕上把畫面糊掉。 */
   var DESKTOP_W = 1440, frameW = DESKTOP_W;
+  var fitted = false;
 
   function fitFrame() {
     var wrap = $("frameWrap"), f = $("frame");
     if (!wrap || !f) return;
+    var phone = frameW !== DESKTOP_W;
+    wrap.classList.toggle("phone", phone);
     var availW = wrap.clientWidth, availH = wrap.clientHeight;
     if (!availW || !availH) return;
-    var scale = Math.min(1, availW / frameW);
+
+    /* 兩種模式都走同一組樣式，只是數字不同——這樣 width/height/transform
+       之間才有得補間。分岔成兩種排版的話，切換是跳的，不是動的。
+       clientWidth/clientHeight 不受 padding 動畫影響：外層是 flex-1，
+       邊框盒高度固定，內距只是在裡面挪位置。 */
+    var scale = phone ? 1 : Math.min(1, availW / frameW);
     f.style.width = frameW + "px";
     /* 高度也要除以縮放比，否則縮完之後底部會空一塊。 */
-    f.style.height = Math.round(availH / scale) + "px";
-    f.style.transform = scale < 1 ? "scale(" + scale + ")" : "";
-    f.style.transformOrigin = "top left";
-    /* 手機模式要置中；桌機模式縮放後靠左，右邊不會留白。 */
-    f.style.marginLeft = (frameW * scale < availW) ? Math.round((availW - frameW * scale) / 2) + "px" : "0";
+    f.style.height = Math.round((phone ? availH - 28 : availH) / scale) + "px";
+    f.style.transform = "scale(" + scale + ")";
+    /* 第一次擺位不要動畫。那不是「切換」，是把畫面放上去——
+       補間的話一進來會看到預覽從 0 長出來，像沒載好。 */
+    if (!fitted) { fitted = true; wrap.classList.add("resizing"); void wrap.offsetWidth;
+                   wrap.classList.remove("resizing"); }
   }
 
-  addEventListener("resize", function () { if (curTab === "preview") fitFrame(); });
+  /* 改視窗大小時把補間關掉，等停下來再開回去。不關的話每一格 resize 都
+     各自起一段 420ms 的動畫，預覽會黏在後面追。 */
+  var rzT = null;
+  addEventListener("resize", function () {
+    if (curTab !== "preview") return;
+    var wrap = $("frameWrap");
+    if (wrap) wrap.classList.add("resizing");
+    clearTimeout(rzT);
+    rzT = setTimeout(function () { if (wrap) wrap.classList.remove("resizing"); }, 160);
+    fitFrame();
+  });
 
   /* 資料。這裡帶 ?limit=&offset=&q=，所以 gateway 的 /-/i/ 那條必須把 query
      轉給上游——否則會安靜地永遠回前 50 筆並忽略搜尋。 */
