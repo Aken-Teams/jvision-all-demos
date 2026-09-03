@@ -103,6 +103,23 @@ export function outline(html) {
     .map((m) => `${m[1]}px`));
   const tw = uniq([...src.matchAll(/\b(sm|md|lg|xl|2xl):/g)].map((m) => m[1]));
 
+  /* 這份頁面是用哪些積木拼的。
+     用途是讓模型在「加一個新東西」之前先看見「已經有哪些東西」——實際發生過
+     使用者說「加上點頭像看到個人資訊的小選單」，畫面左下角本來就有一顆
+     <div class="rail-foot">YL</div>，結果右上角又長出第二顆。
+     class 名稱抓不到那一顆（它沒有 avatar 字樣），但把積木清單攤出來，
+     模型至少知道這頁有 rail / nav / card 這些既成的結構可以擴充。
+     只留出現一次以上、且不是工具類前綴的——Tailwind 那種 px-2 沒有資訊。 */
+  const classCount = {};
+  for (const m of src.matchAll(/class="([^"]{1,200})"/gi)) {
+    for (const c of m[1].split(/\s+/)) {
+      if (!/^[a-z][a-z0-9-]{2,28}$/.test(c)) continue;
+      if (/^(px|py|pt|pb|pl|pr|mx|my|mt|mb|ml|mr|w|h|gap|text|bg|border|flex|grid|items|justify|rounded|shadow|overflow|min|max|top|left|right|bottom|z|opacity|font|leading|tracking|space|col|row)-/.test(c)) continue;
+      classCount[c] = (classCount[c] || 0) + 1;
+    }
+  }
+  const blocks = Object.entries(classCount).sort((a, b) => b[1] - a[1]).slice(0, 40).map(([c]) => c);
+
   const cdns = uniq([...src.matchAll(/src="(https:\/\/[^"]+)"/gi)]
     .map((m) => { try { return new URL(m[1]).hostname; } catch { return null; } }));
 
@@ -114,6 +131,7 @@ export function outline(html) {
     fields,
     buttons,
     charts,
+    blocks,
     breakpoints,
     tailwindBreakpoints: tw,
     cdns,
@@ -161,6 +179,8 @@ export function toText(o) {
   }
 
   if (o.buttons.length) L.push(`按鈕：${o.buttons.join("、")}`);
+  /* 「已經有哪些積木」要在「要加什麼」之前被看到。 */
+  if (o.blocks && o.blocks.length) L.push(`既有的區塊樣式：${o.blocks.join("、")}`);
   if (o.charts.length) L.push(`圖表：${o.charts.join("、")}`);
 
   /* RWD 是使用者抱怨最多的一項——他要的是「改了之後手機上也還是對的」。

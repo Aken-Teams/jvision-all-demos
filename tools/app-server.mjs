@@ -187,7 +187,12 @@ const server = http.createServer(async (req, res) => {
       if (!j) return json(res, 200, { state: "idle" });
       return json(res, 200, {
         state: j.state, reply: j.reply || null,
-        seconds: Math.round((Date.now() - (j.startedAt || j.at)) / 1000),
+        /* 做完之後秒數要定格。不定格的話它會一直往上加，而使用者回頭點開
+           那張收合的卡時看到的就不是「這次花了多久」，是「從那時候到現在」。
+           舊版還更糟：完成時換掉整個 job 物件、把 startedAt 丟了，
+           於是算出來是「從完成到現在」＝永遠 0～1 秒。 */
+        seconds: j.totalSec != null ? j.totalSec
+          : Math.round((Date.now() - (j.startedAt || j.at)) / 1000),
         /* 正在跑的那一關要回即時秒數，做完的回定格的。前端不該自己算——
            它只知道自己第一次看到那一關是什麼時候，那不是真正的起點。 */
         stages: j.stages.map((x) => ({
@@ -335,7 +340,10 @@ const server = http.createServer(async (req, res) => {
             return done({ reply: "上一個修改還在進行中，等它做完再說下一個。", action: "none", changed: false });
           }
           startEdit(inst, message, shotPath, sessionId);
-          return done({ reply: d.reply, action: "edit_page", job: true, changed: false });
+          /* 這一則只是「我要開始改了」，還沒有任何東西被改。標成 edit_page 的話，
+             重新整理之後它會被當成「已完成」而畫成綠色——同一句話當下是白的、
+             回頭看變綠的，看起來像事後被改過。 */
+          return done({ reply: d.reply, action: "edit_started", job: true, changed: false });
         }
         if (d.action === "rename_system") {
           const r = renameSystem(inst, d.label);
@@ -412,6 +420,43 @@ async function renameColumnSynced(inst, dbName, table, key, label, actor) {
 /* 正在進行的頁面修改。放記憶體：這是「現在做到哪」的狀態，服務重啟時那件事
    本來就沒做完，記在檔案裡反而會留下一個永遠 running 的假象。 */
 const editJobs = new Map();
+
+/**
+ * 把這次修改的過程寫成一則留得住的訊息。
+ *
+ * 以前對話裡只剩頭尾兩句：「我來改」與「改好了」。中間那份計畫、做了哪幾步、
+ * 檢查過什麼，重新整理就沒了——而那正是「這套系統為什麼變成現在這樣」
+ * 最有價值的一段。
+ *
+ * 存成 Markdown 而不是結構化資料：對話的渲染本來就吃 Markdown，
+ * 多一種格式就要多一條渲染路徑，而這段內容不需要互動。
+ */
+function processNote(job) {
+  const L = [];
+  const secOf = (id) => {
+    const x = job.stages.find((y) => y.id === id);
+    return x && x.sec != null ? `${x.sec} 秒` : null;
+  };
+  const t1 = secOf("plan"), t2 = secOf("edit");
+  L.push(`**這次的做法**${t1 || t2 ? `（想 ${t1 || "—"}、改 ${t2 || "—"}）` : ""}`);
+  if (job.plan) {
+    if (job.plan.understanding) L.push("", job.plan.understanding);
+    L.push("");
+    for (const st of job.plan.steps || []) {
+      /* 用字不用符號。這幾個字會出現在對話裡，跟旁邊的中文排在一起，
+         勾勾叉叉那些字元的大小與基線會隨字型跑掉。 */
+      const mark = st.s === "ok" ? "**已完成**" : st.s === "skip" ? "**沒做**" : "**—**";
+      L.push(`- ${mark} ${st.title}${st.why ? `　${st.why}` : ""}${st.note ? `　（${st.note}）` : ""}`);
+    }
+  }
+  const ok = (job.checks || []).filter((c) => c.s === "ok");
+  const bad = (job.checks || []).filter((c) => c.s !== "ok");
+  if (ok.length || bad.length) {
+    L.push("", `**檢查**：${ok.map((c) => c.t).join("、")}${ok.length ? "，" : ""}`
+      + (bad.length ? `但「${bad.map((c) => c.t).join("、")}」沒過。` : `${ok.length} 項都過。`));
+  }
+  return L.join("\n");
+}
 
 /* 一次修改的四個階段。固定寫在這裡而不是讓 editPage 自己長出來：
    使用者一按下去就要看到「總共會經過哪幾關」，而不是一關一關冒出來——
@@ -491,6 +536,7 @@ function startEdit(inst, instruction, imagePath, sessionId) {
          使用者做完之後還會回頭看「它到底做了哪幾件事」。 */
       job.state = r.ok ? "done" : "failed";
       job.at = Date.now();
+      job.totalSec = Math.round((Date.now() - startedAt) / 1000);
       /* 改完之後畫面上多了哪些字。前端拿它去預覽裡把那幾處圈出來——
          不然使用者只會看到「畫面突然多了東西」，而且不知道要找什麼。 */
       if (r.ok && r.highlights && r.highlights.length) job.highlights = r.highlights;
@@ -499,6 +545,12 @@ function startEdit(inst, instruction, imagePath, sessionId) {
       /* 結果也要進對話。這件事要跑好幾分鐘，回覆是在請求早就結束之後才出現的
          ——不在這裡補記的話，對話裡就只剩「我來改」而永遠沒有下文。 */
       if (sessionId) {
+        /* 過程先寫，結果後寫——順序就是它們發生的順序，重新整理之後
+           讀起來才跟當下看到的一樣。 */
+        if (job.plan || (job.checks || []).length) {
+          control.addMessage({ sessionId, role: "assistant", text: processNote(job),
+            action: "edit_process" }).catch(() => {});
+        }
         control.addMessage({ sessionId, role: "assistant",
           text: r.ok ? okMsg : r.why,
           action: r.ok ? "edit_page" : "edit_failed", versionId: r.versionId || null }).catch(() => {});
@@ -514,6 +566,7 @@ function startEdit(inst, instruction, imagePath, sessionId) {
     .catch((e) => {
       job.state = "failed";
       job.at = Date.now();
+      job.totalSec = Math.round((Date.now() - startedAt) / 1000);
       job.reply = `改的時候出錯了：${String(e.message).slice(0, 80)}`;
       job.stages.forEach((x) => { if (x.s === "todo" || x.s === "doing") x.s = "skip"; });
     });

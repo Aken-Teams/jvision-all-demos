@@ -863,9 +863,15 @@
       .then(function (d) {
         var msgs = (d && d.messages) || [];
         if (!msgs.length) { say("bot", "這次對話還沒有內容。"); return; }
+        /* 重播時的氣泡顏色要跟當下一致。綠色的意思是「這一則代表某件事做完了」
+           ——不是「這一則跟修改有關」。以前只要 action 不是 none 就畫綠的，
+           於是「我來改」那一句當下是白的、重新整理之後變綠的，
+           看起來像它事後被改過。 */
+        var GREEN = { add_column: 1, rename_column: 1, rename_system: 1, undo: 1, edit_page: 1 };
         msgs.forEach(function (m) {
           var cls = m.role === "user" ? "me"
-            : (m.action === "edit_failed" ? "err" : (m.action && m.action !== "none" ? "done" : "bot"));
+            : m.action === "edit_failed" ? "err"
+              : GREEN[m.action] ? "done" : "bot";
           say(m.role === "user" ? "user" : "bot", m.text || "", cls);
           hist.push({ role: m.role, text: m.text || "" });
         });
@@ -1103,7 +1109,16 @@
       box.scrollTop = box.scrollHeight;
     }
     hist.push({ role: "user", text: msg });
-    var wait = say("bot", "想一下…", "thinking");
+    /* 跟底下的進度卡用同一套語彙——同一件事的第一秒與第十秒不該長得像
+       兩個不同的系統。這一段通常十幾秒（模型在判斷要做哪一個動作）。 */
+    var wait = document.createElement("div");
+    wait.className = "m job";
+    wait.innerHTML = '<div class="job-st doing"><span class="job-ic">'
+      + '<span class="material-symbols-outlined">progress_activity</span></span>'
+      + "<span>看你說的是哪一件事…</span></div>"
+      + '<div class="job-bar"><i></i></div>';
+    $("chatBox").appendChild(wait);
+    $("chatBox").scrollTop = $("chatBox").scrollHeight;
 
     fetch(api("/_jv/chat"), { method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ message: msg, history: hist.slice(-6), shot: shot, sessionId: curSession }) })
@@ -1226,8 +1241,10 @@
        照畫的話會得到一張只寫著「0 秒」的空卡——比舊的那一行還糟。
        退回舊的講法，等 app-server 重啟就會自己變成完整的卡。 */
     if (!j.stages || !j.stages.length) {
-      box.innerHTML = '<div class="job-st doing"><span class="job-ic">●</span><span>改寫中…已經 '
-        + (j.seconds || 0) + " 秒（通常一到三分鐘）</span></div>";
+      box.innerHTML = '<div class="job-st doing"><span class="job-ic">'
+        + '<span class="material-symbols-outlined">progress_activity</span></span>'
+        + "<span>改寫中…已經 " + (j.seconds || 0) + ' 秒（通常一到三分鐘）</span></div>'
+        + '<div class="job-bar"><i></i></div>';
       return;
     }
     var h = "";
@@ -1295,7 +1312,9 @@
 
     var card = document.createElement("div");
     card.className = "m job";
-    card.innerHTML = '<div class="job-st doing"><span class="job-ic">●</span><span>準備中…</span></div>';
+    card.innerHTML = '<div class="job-st doing"><span class="job-ic">'
+      + '<span class="material-symbols-outlined">progress_activity</span></span>'
+      + "<span>準備中…</span></div><div class=\"job-bar\"><i></i></div>";
     chat.appendChild(card);
     chat.scrollTop = chat.scrollHeight;
 
