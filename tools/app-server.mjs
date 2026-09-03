@@ -453,22 +453,23 @@ function processNote(job) {
     t1 != null || t2 != null ? `想 ${t1 ?? "—"} 秒、改 ${t2 ?? "—"} 秒` : null,
   ].filter(Boolean).join(" · ") || "這次的做法");
 
+  /* 底下這個排法是給前端拆的，同時要保證直接讀原文也看得懂——這段內容會
+     被後台看到，也可能被匯出。所以用「編號 標題 — 狀態」＋縮排一行理由，
+     而不是自創符號。前端認不出格式時會退回一般的 Markdown 渲染。 */
   if (job.plan) {
     if (job.plan.understanding) L.push("", job.plan.understanding);
-    L.push("");
-    for (const st of job.plan.steps || []) {
-      /* 用字不用符號。這幾個字會出現在對話裡，跟旁邊的中文排在一起，
-         勾勾叉叉那些字元的大小與基線會隨字型跑掉。 */
-      const mark = st.s === "ok" ? "**已完成**" : st.s === "skip" ? "**沒做**" : "**—**";
-      L.push(`- ${mark} ${st.title}${st.why ? `　${st.why}` : ""}${st.note ? `　（${st.note}）` : ""}`);
-    }
+    if ((job.plan.steps || []).length) L.push("");
+    (job.plan.steps || []).forEach((st, i) => {
+      const mark = st.s === "ok" ? "已完成" : st.s === "skip" ? "沒做" : "不確定";
+      L.push(`${i + 1}. ${st.title} — ${mark}${st.note ? `（${st.note}）` : ""}`);
+      if (st.why) L.push(`   ${st.why}`);
+    });
+    for (const r of job.plan.risks || []) L.push(`注意：${r}`);
   }
   const ok = (job.checks || []).filter((c) => c.s === "ok");
   const bad = (job.checks || []).filter((c) => c.s !== "ok");
-  if (ok.length || bad.length) {
-    L.push("", `**檢查**：${ok.map((c) => c.t).join("、")}${ok.length ? "，" : ""}`
-      + (bad.length ? `但「${bad.map((c) => c.t).join("、")}」沒過。` : `${ok.length} 項都過。`));
-  }
+  if (ok.length) L.push("", `檢查：${ok.map((c) => c.t).join("、")}`);
+  if (bad.length) L.push(`沒過：${bad.map((c) => c.t).join("、")}`);
   return L.join("\n");
 }
 

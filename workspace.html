@@ -242,18 +242,46 @@
     .job summary { cursor:pointer; color:#64748b; list-style:none; }
     .job summary::-webkit-details-marker { display:none; }
     /* 做法紀錄。刻意不長得像對話氣泡——它是系統留的存根，不是助理對你說的話。
-       底色比對話再淡一階、加一條左邊框，一眼就分得出兩者。 */
-    .job.proc { background:#f8fafc; border-color:#e2e8f0; border-left:3px solid #bfdbfe; }
+       分別靠三件事：底色淡一階、整列不縮排（對話氣泡是 88% 寬）、前面一顆時鐘。
+       不用左邊那條色條——那是「引言」的語彙，而這不是引言。 */
+    .job.proc { background:#f8fafc; border-color:#e8eef5; }
     .job.proc > summary { display:flex; align-items:center; gap:.35rem;
                           font-weight:800; color:#475569; }
     .job.proc > summary .material-symbols-outlined { font-size:16px; flex:none; color:#94a3b8; }
-    .job.proc .proc-more { margin-left:auto; font-weight:400; color:#94a3b8; font-size:.72rem; }
-    .job.proc[open] > summary { margin-bottom:.4rem; padding-bottom:.4rem;
+    .job.proc .proc-t { flex:1; min-width:0; }
+    /* 「（點開看細節）」那六個字換成箭頭：一樣講得清楚，但少六個字的雜訊，
+       而且展開時箭頭會轉過來，狀態自己說得出來。 */
+    .job.proc .proc-more { margin-left:auto; flex:none; color:#94a3b8;
+                           transition:transform .18s ease; }
+    .job.proc[open] > summary .proc-more { transform:rotate(180deg); }
+    .job.proc[open] > summary { margin-bottom:.5rem; padding-bottom:.45rem;
                                 border-bottom:1px solid #eef2f7; }
-    .proc-body { color:#475569; font-size:.76rem; line-height:1.65; }
+    .proc-body { color:#475569; font-size:.76rem; line-height:1.6; }
     .proc-body p { margin:0 0 .4rem; }
     .proc-body ul, .proc-body .mdul { margin:.2rem 0 .4rem; padding-left:1.1rem; list-style:disc; }
     .proc-body li { margin:.15rem 0; }
+
+    /* 一個步驟一塊。標題與理由分行、理由淡一階小一號——擠在同一段的時候
+       三個步驟會連成一片字牆，內容沒問題，是排版讓人不想讀。 */
+    .ps { padding:.4rem 0; border-top:1px solid #eef2f7; }
+    .ps:first-child { border-top:0; padding-top:0; }
+    .ps-hd { display:flex; align-items:baseline; gap:.4rem; }
+    .ps-hd b { flex:1; min-width:0; color:#0f1e46; font-weight:800; }
+    .ps-tag { flex:none; font-size:.66rem; font-weight:800; padding:.05rem .3rem;
+              border-radius:.25rem; background:#eef2f7; color:#64748b; }
+    .ps-tag.ok { background:#ecfdf5; color:#15803d; }
+    .ps-tag.skip { background:#f1f5f9; color:#94a3b8; }
+    .ps-why { margin-top:.15rem; color:#94a3b8; font-size:.72rem; line-height:1.55; }
+    .ps-note { margin-top:.15rem; color:#64748b; font-size:.72rem; }
+    .ps-lead { color:#475569; }
+    .ps-risk { margin-top:.3rem; color:#b45309; font-size:.72rem; }
+    /* 檢查排成小標籤。原本是一句用頓號串起來的長句，掃過去只看得到一片字。 */
+    .ps-checks { display:flex; flex-wrap:wrap; gap:.25rem; margin-top:.5rem;
+                 padding-top:.45rem; border-top:1px solid #eef2f7; }
+    .ps-chk { display:inline-flex; align-items:center; gap:.1rem; font-size:.68rem;
+              color:#15803d; background:#f0fdf4; border-radius:.3rem; padding:.1rem .35rem; }
+    .ps-chk.bad { color:#b91c1c; background:#fef2f2; }
+    .ps-chk .material-symbols-outlined { font-size:13px; }
     .job-st { display:flex; gap:.45rem; padding:.25rem 0; line-height:1.5; }
     .job-ic { flex:none; display:inline-flex; align-items:center; justify-content:center;
               width:1.05rem; height:1.2rem; }
@@ -1049,6 +1077,56 @@
      存的時候第一行就是摘要（app-server 的 processNote），這裡照那個切：
      收合時只看得到那一行，點開才是全文。不必解析內容，也就不會因為
      以後改了文案就對不上。 */
+  var PROC_MARK = { 已完成: "ok", 沒做: "skip", 不確定: "unknown" };
+
+  /* 把做法紀錄排版成有結構的樣子。
+     以前是直接丟給 mdToHtml，於是「做了什麼」與「為什麼」黏在同一段，
+     三個步驟連成一片字牆——內容沒問題，是排版讓人不想讀。
+     這裡把每一步拆成「標題＋狀態標籤」一行、「理由」一行（小一號、淡一階），
+     檢查項目排成一列小標籤而不是一句長頓號句。
+     認不出格式就退回 mdToHtml：以前存的那些是舊格式，不該因此變成亂碼。 */
+  function procBody(body) {
+    var lines = body.split("\n");
+    var known = 0, html = "", checks = [];
+    for (var i = 0; i < lines.length; i += 1) {
+      var ln = lines[i];
+      if (!ln.trim()) continue;
+      var m = /^(\d+)\.\s+(.*?)\s+—\s+(已完成|沒做|不確定)(（(.*)）)?\s*$/.exec(ln);
+      if (m) {
+        known += 1;
+        /* 理由是下一行的縮排行。抓到就一起吃掉。 */
+        var why = "";
+        if (/^\s{2,}\S/.test(lines[i + 1] || "")) { why = lines[i + 1].trim(); i += 1; }
+        html += '<div class="ps"><div class="ps-hd"><b>' + esc(m[2]) + "</b>"
+          + '<span class="ps-tag ' + PROC_MARK[m[3]] + '">' + esc(m[3]) + "</span></div>"
+          + (m[5] ? '<div class="ps-note">' + esc(m[5]) + "</div>" : "")
+          + (why ? '<div class="ps-why">' + esc(why) + "</div>" : "")
+          + "</div>";
+        continue;
+      }
+      var c = /^(檢查|沒過)：(.*)$/.exec(ln);
+      if (c) {
+        known += 1;
+        c[2].split("、").forEach(function (t) {
+          if (t.trim()) checks.push({ t: t.trim(), bad: c[1] === "沒過" });
+        });
+        continue;
+      }
+      var r = /^注意：(.*)$/.exec(ln);
+      if (r) { known += 1; html += '<div class="ps-risk">' + esc(r[1]) + "</div>"; continue; }
+      html += '<p class="ps-lead">' + esc(ln.trim()) + "</p>";
+    }
+    if (!known) return mdToHtml(body);
+    if (checks.length) {
+      html += '<div class="ps-checks">' + checks.map(function (c) {
+        return '<span class="ps-chk' + (c.bad ? " bad" : "") + '">'
+          + '<span class="material-symbols-outlined">' + (c.bad ? "close" : "check") + "</span>"
+          + esc(c.t) + "</span>";
+      }).join("") + "</div>";
+    }
+    return html;
+  }
+
   function sayProcess(text) {
     var nl = text.indexOf("\n");
     var head = (nl < 0 ? text : text.slice(0, nl)).replace(/\*\*/g, "").trim();
@@ -1056,11 +1134,12 @@
     var d = document.createElement("details");
     d.className = "m job proc";
     d.innerHTML = '<summary><span class="material-symbols-outlined">history</span>'
-      + esc(head || "這次的做法") + '<span class="proc-more">（點開看細節）</span></summary>';
+      + '<span class="proc-t">' + esc(head || "這次的做法") + "</span>"
+      + '<span class="material-symbols-outlined proc-more">expand_more</span></summary>';
     if (body) {
       var inner = document.createElement("div");
       inner.className = "proc-body";
-      inner.innerHTML = mdToHtml(body);
+      inner.innerHTML = procBody(body);
       d.appendChild(inner);
     }
     $("chatBox").appendChild(d);
