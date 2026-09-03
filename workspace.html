@@ -200,6 +200,41 @@
     .m.done { align-self:flex-start; background:#ecfdf5; color:#15803d; font-weight:700; border:1px solid #bbf7d0; }
     .m.err { align-self:flex-start; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; }
     .m.thinking { align-self:flex-start; color:#94a3b8; font-size:.78rem; }
+
+    /* ── 修改進度卡 ───────────────────────────────────
+       以前這裡只有一行「改寫中…已經 N 秒」。那不是前端偷懶，是後端真的
+       只知道這麼多——editPage 是一次呼叫，job 裡只存了 startedAt。
+       現在後端會回報階段、計畫、逐項檢查與 codex 的即時輸出。 */
+    .job { align-self:stretch; max-width:100%; background:#fff; border:1px solid #e2e8f0;
+           border-radius:.75rem; padding:.6rem .7rem; font-size:.78rem; }
+    .job summary { cursor:pointer; color:#64748b; list-style:none; }
+    .job summary::-webkit-details-marker { display:none; }
+    .job-st { display:flex; gap:.45rem; padding:.25rem 0; line-height:1.5; }
+    .job-ic { flex:none; width:1.05rem; text-align:center; font-weight:900; }
+    .job-st.todo   { color:#94a3b8; }
+    .job-st.doing  { color:#1e40af; font-weight:800; }
+    .job-st.ok     { color:#0f1e46; }
+    .job-st.ok .job-ic   { color:#16a34a; }
+    .job-st.fail   { color:#b91c1c; font-weight:800; }
+    .job-st.skip   { color:#94a3b8; }
+    /* 正在跑的那一關要會動。靜止的圓點跟「已完成」長得太像，
+       而使用者最想知道的就是「它還活著嗎」。 */
+    .job-st.doing .job-ic { animation:jobpulse 1.1s ease-in-out infinite; }
+    @keyframes jobpulse { 0%,100% { opacity:1 } 50% { opacity:.25 } }
+    .job-sub { margin:.1rem 0 .35rem 1.5rem; color:#475569; }
+    .job-sub li { margin:.12rem 0; list-style:decimal; margin-left:.9rem; }
+    .job-why { color:#94a3b8; }
+    .job-mk { font-weight:900; margin-right:.25rem; }
+    .job-mk.ok { color:#16a34a; }
+    .job-mk.skip { color:#94a3b8; }
+    .job-note { color:#64748b; font-size:.72rem; }
+    /* codex 當下印出來的東西。等寬、單行、會被截斷——它是「還在動」的證據，
+       不是要人逐字讀的內容。 */
+    .job-log { margin:.15rem 0 .35rem 1.5rem; color:#94a3b8; font-size:.7rem;
+               font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+               overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .job-risk { margin:.3rem 0 0 1.5rem; color:#b45309; font-size:.72rem; }
+    .job-time { margin-top:.35rem; color:#94a3b8; font-size:.72rem; }
     .m img { max-width:100%; border-radius:.45rem; display:block; }
     /* 助理回覆裡的 Markdown。泡泡本身窄，所以表格要能自己橫捲，
        不可以把整欄撐開。 */
@@ -997,25 +1032,98 @@
     if (curTab !== "preview") showTab(curTab);
   }
 
-  /* 等背景的程式修改做完。每三秒問一次並顯示已經等了多久——
-     沉默的等待會讓人以為當掉了。 */
+  var JOB_ICON = { todo: "○", doing: "●", ok: "✓", fail: "✕", skip: "–" };
+
+  /* 把 job 畫成一張卡。整張重畫而不是逐項更新：狀態是後端算的，
+     前端只是把它畫出來——比對差異再局部更新，只會多一種對不上的可能。 */
+  function renderJob(box, j) {
+    var h = "";
+    (j.stages || []).forEach(function (st) {
+      h += '<div class="job-st ' + esc(st.s) + '"><span class="job-ic">' +
+        (JOB_ICON[st.s] || "○") + "</span><span>" + esc(st.t) +
+        (st.note ? ' <span class="job-note">· ' + esc(st.note) + "</span>" : "") + "</span></div>";
+
+      /* 計畫接在「想做法」那一關底下——它是那一關的產出。 */
+      if (st.id === "plan" && j.plan) {
+        if (j.plan.understanding) h += '<div class="job-sub">' + esc(j.plan.understanding) + "</div>";
+        if (j.plan.steps && j.plan.steps.length) {
+          h += '<ul class="job-sub">';
+          j.plan.steps.forEach(function (x) {
+            /* 改完之後模型會回報哪幾步真的做了。標記只在有回報時出現——
+               沒回報就維持原樣，不要拿一個灰勾勾冒充「做完了」。 */
+            var mark = x.s === "ok" ? '<span class="job-mk ok">✓</span>'
+              : x.s === "skip" ? '<span class="job-mk skip">–</span>' : "";
+            h += "<li>" + mark + esc(x.title) +
+              (x.why ? ' <span class="job-why">（' + esc(x.why) + "）</span>" : "") +
+              (x.note ? ' <span class="job-note">· 沒做：' + esc(x.note) + "</span>" : "") + "</li>";
+          });
+          h += "</ul>";
+        }
+        (j.plan.risks || []).forEach(function (r) { h += '<div class="job-risk">⚠ ' + esc(r) + "</div>"; });
+      }
+
+      /* 檢查逐項列在「檢查」那一關底下。這些是真的跑過的護欄，
+         不是為了畫面好看列出來的項目。 */
+      if (st.id === "check" && (j.checks || []).length) {
+        h += '<div class="job-sub">';
+        j.checks.forEach(function (c) {
+          h += "<div>" + (c.s === "ok" ? "✓ " : "✕ ") + esc(c.t) + "</div>";
+        });
+        h += "</div>";
+      }
+
+      /* codex 當下在做什麼，只掛在正在跑的那一關底下。 */
+      if (st.s === "doing" && (j.log || []).length) {
+        j.log.slice(-2).forEach(function (l) { h += '<div class="job-log">' + esc(l) + "</div>"; });
+      }
+    });
+    if (j.state === "running") h += '<div class="job-time">已經 ' + (j.seconds || 0) + " 秒</div>";
+    box.innerHTML = h;
+  }
+
+  /* 等背景的程式修改做完。每三秒問一次——沉默的等待會讓人以為當掉了。 */
   function pollJob() {
-    var send = $("send"), ta = $("ask");
+    var send = $("send"), ta = $("ask"), chat = $("chatBox");
     send.disabled = true;
     ta.disabled = true;
-    var line = say("bot", "改寫中…（通常一到三分鐘）", "thinking");
+
+    var card = document.createElement("div");
+    card.className = "m job";
+    card.innerHTML = '<div class="job-st doing"><span class="job-ic">●</span><span>準備中…</span></div>';
+    chat.appendChild(card);
+    chat.scrollTop = chat.scrollHeight;
+
     var timer = setInterval(function () {
       fetch(api("/_jv/job"), { cache: "no-store" })
         .then(function (r) { return r.json(); })
         .then(function (j) {
-          if (j.state === "running") {
-            line.textContent = "改寫中…已經 " + (j.seconds || 0) + " 秒（通常一到三分鐘）";
-            return;
-          }
+          renderJob(card, j);
+          if (j.state === "running") { chat.scrollTop = chat.scrollHeight; return; }
           clearInterval(timer);
-          line.remove();
           send.disabled = false;
           ta.disabled = false;
+
+          /* 做完之後把卡片收成一行。留著是因為「它幫我做了哪幾件事、
+             檢查了什麼」是這次修改唯一的紀錄；收起來是因為攤在對話裡
+             會把後面的話全推下去。 */
+          var all = (j.plan && j.plan.steps) || [];
+          var reported = all.filter(function (x) { return x.s === "ok" || x.s === "skip"; }).length;
+          var okSteps = all.filter(function (x) { return x.s === "ok"; }).length;
+          /* 有回報就說「做了 N 件」，沒回報只說「N 件事」——那是計畫的長度，
+             不是完成數，兩者不能混為一談。 */
+          var stepWord = reported ? "做了 " + okSteps + " 件事" : all.length + " 件事";
+          var okChecks = (j.checks || []).filter(function (c) { return c.s === "ok"; }).length;
+          var d = document.createElement("details");
+          d.className = "m job";
+          d.innerHTML = "<summary>" +
+            (all.length ? stepWord + " · " : "") +
+            (okChecks ? okChecks + " 項檢查通過 · " : "") +
+            (j.seconds || 0) + " 秒　（點開看細節）</summary>";
+          var body = document.createElement("div");
+          renderJob(body, j);
+          d.appendChild(body);
+          chat.replaceChild(d, card);
+
           if (j.state === "done") { say("bot", j.reply || "改好了。", "done"); afterChange(); }
           else if (j.state === "failed") {
             /* 失敗要說出原因並提醒他原本的畫面沒被動到——他才敢再試下一個講法。 */

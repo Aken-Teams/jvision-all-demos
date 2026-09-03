@@ -64,7 +64,9 @@ function cleanStderr(stderr, prompt) {
  * @param {string} [options.schemaPath]    --output-schema 的 JSON Schema 檔
  * @param {number} [options.timeoutMs]
  * @param {string} [options.model]
- * @param {(line:string)=>void} [options.onLog] 進度回呼
+ * @param {(line:string)=>void} [options.onLog] 進度回呼（stdout 原文）
+ * @param {boolean} [options.jsonEvents] 加上 --json，把事件以 JSONL 印到 stdout
+ * @param {(event:object)=>void} [options.onEvent] 逐一收到解析好的事件（需要 jsonEvents）
  * @returns {Promise<{ok:boolean, text:string, json:object|null, code:number|null, error?:string}>}
  */
 export function runCodex({
@@ -76,10 +78,17 @@ export function runCodex({
   model,
   images,
   onLog,
+  jsonEvents = false,
+  onEvent,
 } = {}) {
   return new Promise((resolve) => {
     const outFile = path.join(os.tmpdir(), `codex-out-${process.pid}-${Date.now()}.txt`);
     const args = ["exec", "--cd", cwd, "--sandbox", sandbox, "--skip-git-repo-check", "-o", outFile];
+    /* --json 把每一步印成一行 JSON（thread.started／item.completed／turn.completed…），
+       其中 item 的 agent_message 就是模型在敘述自己正在做什麼——那是唯一
+       拿得到「它現在在想什麼」的管道。刻意做成選項而不是預設：產線上那七支
+       工具的 onLog 只是拿來印點點，換成 JSONL 對它們沒有意義。 */
+    if (jsonEvents) args.push("--json");
     if (schemaPath) args.push("--output-schema", schemaPath);
     if (model) args.push("--model", model);
     /* 附圖。使用者貼的截圖是「他指的是這裡」最直接的說法，
@@ -116,7 +125,24 @@ export function runCodex({
       finish({ ok: false, code: null, error: `codex 逾時（${Math.round(timeoutMs / 1000)} 秒；prompt ${promptKb} KB${hint}）` });
     }, timeoutMs);
 
-    child.stdout.on("data", (chunk) => { if (onLog) onLog(String(chunk)); });
+    /* JSONL 會被 chunk 切在半路，所以要自己留一段殘句。少了這一步，
+       事件會零星地解析失敗，而且失敗的多半是最長、最有內容的那幾行。 */
+    let pending = "";
+    child.stdout.on("data", (chunk) => {
+      const text = String(chunk);
+      if (onLog) onLog(text);
+      if (!jsonEvents || !onEvent) return;
+      pending += text;
+      const lines = pending.split("\n");
+      pending = lines.pop() || "";
+      for (const line of lines) {
+        const t = line.trim();
+        if (!t.startsWith("{")) continue;
+        let ev = null;
+        try { ev = JSON.parse(t); } catch { continue; }   // 解不開就跳過，不值得為它中斷
+        try { onEvent(ev); } catch { /* 回呼失敗不該影響這次執行 */ }
+      }
+    });
     child.stderr.on("data", (chunk) => { stderr += String(chunk); });
     child.on("error", (error) => finish({ ok: false, code: null, error: `無法啟動 codex：${error.message}` }));
     child.on("close", (code) => {

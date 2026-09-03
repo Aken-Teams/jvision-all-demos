@@ -185,8 +185,14 @@ const server = http.createServer(async (req, res) => {
     if (p === "/_jv/job") {
       const j = editJobs.get(inst.id);
       if (!j) return json(res, 200, { state: "idle" });
-      return json(res, 200, { state: j.state, reply: j.reply || null,
-        seconds: Math.round((Date.now() - (j.startedAt || j.at)) / 1000) });
+      return json(res, 200, {
+        state: j.state, reply: j.reply || null,
+        seconds: Math.round((Date.now() - (j.startedAt || j.at)) / 1000),
+        stages: j.stages, plan: j.plan, checks: j.checks,
+        /* 只回最後幾行。整段歷程對「現在在做什麼」沒有幫助，
+           而且這一路每三秒被打一次。 */
+        log: j.log.slice(-4),
+      });
     }
 
     /* 這套系統的幾次對話。v0 側欄那個「專案 → 這個專案的幾次 Chat」的形狀。 */
@@ -400,10 +406,43 @@ async function renameColumnSynced(inst, dbName, table, key, label, actor) {
    本來就沒做完，記在檔案裡反而會留下一個永遠 running 的假象。 */
 const editJobs = new Map();
 
+/* 一次修改的四個階段。固定寫在這裡而不是讓 editPage 自己長出來：
+   使用者一按下去就要看到「總共會經過哪幾關」，而不是一關一關冒出來——
+   看得到全貌才知道現在走到哪、還剩多少。 */
+const STAGES = [
+  { id: "plan", t: "看懂現在的畫面，想一份做法" },
+  { id: "edit", t: "動手改" },
+  { id: "check", t: "檢查沒有改壞" },
+  { id: "grow", t: "把新表格的資料層補上" },
+];
+
 function startEdit(inst, instruction, imagePath, sessionId) {
   const startedAt = Date.now();
-  editJobs.set(inst.id, { state: "running", startedAt, instruction });
-  edit.editPage(inst.dir, instruction, { imagePath, displayName: inst.display_name || null })
+  const job = {
+    state: "running", startedAt, instruction,
+    stages: STAGES.map((x) => ({ ...x, s: "todo" })),
+    plan: null, checks: [], log: [],
+  };
+  editJobs.set(inst.id, job);
+
+  const setStage = (id, st, note) => {
+    const x = job.stages.find((y) => y.id === id);
+    if (x) { x.s = st; if (note) x.note = note; }
+  };
+  const onProgress = (e) => {
+    if (e.k === "stage") setStage(e.id, e.s, e.note);
+    else if (e.k === "plan") job.plan = { understanding: e.understanding, steps: e.steps, risks: e.risks };
+    else if (e.k === "check") job.checks.push({ id: e.id, t: e.t, s: e.s });
+    /* 模型回報「計畫的哪幾步真的做完了」。蓋回計畫上而不是另外列一份：
+       使用者要看的是同一份清單前後的狀態，不是兩份看起來很像的清單。 */
+    else if (e.k === "steps" && job.plan) job.plan.steps = e.steps;
+    /* log 只留最後 40 行。這是「現在在想什麼」，不是稽核紀錄；
+       一次修改可能吐上千行，留著只是把記憶體吃掉。 */
+    else if (e.k === "log") { job.log.push(e.line); if (job.log.length > 40) job.log.shift(); }
+  };
+
+  edit.editPage(inst.dir, instruction,
+    { imagePath, displayName: inst.display_name || null, onProgress })
     .then(async (r) => {
       /* 畫面加了新表格的話，資料層要跟上。沒有這一步的話，新表格在 schema 裡
          不存在，jv-live 不會綁它——畫面上看起來多了一張表、輸入的東西卻存不住，
@@ -413,22 +452,28 @@ function startEdit(inst, instruction, imagePath, sessionId) {
          這一項沒做成就照實說。 */
       let grown = "";
       if (r.ok) {
+        setStage("grow", "doing");
         try {
           const g = await grow.growTables(inst.db_name, r.before, r.after);
           if (g.added.length) {
             grown = `　另外替新的${g.added.map((t) => `「${t.columns.slice(0, 3).join("、")}…」`).join("")}建好了資料表，那張表存得住東西。`;
           }
+          setStage("grow", "ok", g.added.length ? `建好 ${g.added.length} 張新表` : "沒有新表格要建");
         } catch (e) {
           grown = "　不過新加的那張表目前還存不住資料，我們會處理。";
+          setStage("grow", "fail", "新表格還存不住資料");
           control.recordEvent({ kind: "instance.grow_failed", customerId: inst.customer_id,
             instanceId: inst.id, actor: null,
             detail: { why: String(e.message).slice(0, 200) } }).catch(() => {});
         }
       }
       const okMsg = `改好了，畫面重新整理就會看到。${grown}`;
-      editJobs.set(inst.id, r.ok
-        ? { state: "done", at: Date.now(), reply: okMsg }
-        : { state: "failed", at: Date.now(), reply: r.why });
+      /* 就地改狀態，不要換掉整個物件——計畫、檢查清單、階段都要留著，
+         使用者做完之後還會回頭看「它到底做了哪幾件事」。 */
+      job.state = r.ok ? "done" : "failed";
+      job.at = Date.now();
+      job.reply = r.ok ? okMsg : r.why;
+      if (!r.ok) job.stages.forEach((x) => { if (x.s === "todo" || x.s === "doing") x.s = "skip"; });
       /* 結果也要進對話。這件事要跑好幾分鐘，回覆是在請求早就結束之後才出現的
          ——不在這裡補記的話，對話裡就只剩「我來改」而永遠沒有下文。 */
       if (sessionId) {
@@ -445,7 +490,10 @@ function startEdit(inst, instruction, imagePath, sessionId) {
           seconds: Math.round((Date.now() - startedAt) / 1000) } }).catch(() => {});
     })
     .catch((e) => {
-      editJobs.set(inst.id, { state: "failed", at: Date.now(), reply: `改的時候出錯了：${String(e.message).slice(0, 80)}` });
+      job.state = "failed";
+      job.at = Date.now();
+      job.reply = `改的時候出錯了：${String(e.message).slice(0, 80)}`;
+      job.stages.forEach((x) => { if (x.s === "todo" || x.s === "doing") x.s = "skip"; });
     });
 }
 
