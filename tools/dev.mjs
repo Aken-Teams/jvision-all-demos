@@ -211,6 +211,36 @@ const INSTANCE_HOST = /^(c-[a-z0-9-]+\.jvision-ai\.com|[a-z0-9-]+\.c\.jvdemo\.jv
 /* host → 實例。每個請求查一次資料庫會把共用主機的往返延遲加在客戶身上；
    30 秒夠短，停用某個實例時不會拖太久才生效。 */
 const hostCache = new Map();
+/* 登入一律在主站辦。子網域自己辦不到——Google OAuth 的 redirect_uri 不接受
+   萬用字元，25 個子網域就要註冊 25 個回呼網址，開一套新系統就要再進 Google
+   後台加一筆。主站只有一個網址，註冊一次就結束。 */
+const MAIN_HOST = process.env.JV_MAIN_HOST || "jvdemo.jvision-ai.com";
+
+/**
+ * 登入完要送他去哪。
+ *
+ * next 來自網址，也就是攻擊者寫得出來的東西。原本是直接 302 過去，等於
+ * 「用我們的網域把人導去任意網站」——釣魚連結掛著自家網域，看起來完全正常。
+ *
+ * 所以只認兩種：站內的相對路徑，以及**資料庫裡真的存在的**實例子網域。
+ * 是實例子網域的話回傳它的主機名與路徑，呼叫端會簽一張交接票送過去。
+ * 其餘一律回首頁——寧可送錯地方，也不要變成別人的跳板。
+ */
+async function safeNext(next) {
+  const raw = String(next || "/");
+  /* // 開頭是通往別的網域的相對寫法（//evil.com），必須跟一般路徑分開看。 */
+  if (raw.startsWith("/") && !raw.startsWith("//")) return { path: raw };
+  let u;
+  try { u = new URL(raw); } catch { return { path: "/" }; }
+  if (u.protocol !== "https:") return { path: "/" };
+  const host = u.hostname.toLowerCase();
+  if (host === MAIN_HOST) return { path: u.pathname + u.search };
+  /* 查資料庫而不是比對字串樣式：c-任何東西.jvision-ai.com 都符合樣式，
+     但只有真的開通過的才算數。 */
+  const inst = await instanceForHost(host);
+  return inst ? { host, path: u.pathname + u.search || "/" } : { path: "/" };
+}
+
 async function instanceForHost(host) {
   const key = String(host || "").toLowerCase().split(":")[0];
   if (!INSTANCE_HOST.test(key)) return null;
@@ -229,7 +259,18 @@ async function instanceForHost(host) {
 async function serveInstance(req, res, instanceId, target, { who, ip }) {
   const id = visitor.read(req);
   if (!visitor.isNamed(id)) {
-    res.writeHead(302, { location: `/api/visitor/google/start?next=${encodeURIComponent(req.url)}` });
+    /* 導去**主站**登入，不是導去這個子網域自己的登入端點。
+       導自己會無限重導：這個子網域上的每一條路徑都會先撞到上面那段
+       instanceForHost，包含 /api/visitor/google/start 本身，於是「沒登入 →
+       去登入 → 又被判定沒登入」原地打轉。實測跳 6 次還在原地。
+
+       登入完主站會簽一張交接票送回來（見 visitor-auth 的 handoff），
+       這裡再用票換成自己的 cookie。 */
+    const host = String(req.headers.host || "").toLowerCase().split(":")[0];
+    const back = `https://${host}${req.url}`;
+    res.writeHead(302, {
+      location: `https://${MAIN_HOST}/api/visitor/google/start?next=${encodeURIComponent(back)}`,
+    });
     return res.end();
   }
   try {
@@ -275,6 +316,24 @@ function startGateway() {
       if (inst) {
         if (inst.state === "archived") return json(res, 410, { error: "這個系統已封存" });
         if (inst.state === "suspended") return json(res, 403, { error: "這個系統已暫停服務" });
+        /* 驗票要擺在轉給實例之前。這個子網域上的所有路徑都會走到這裡，
+           不先攔下來的話它也會被當成實例的路徑、然後因為還沒登入被送回主站。 */
+        if (p === "/api/visitor/adopt") {
+          const host = String(req.headers.host || "").toLowerCase().split(":")[0];
+          const q = new URL(req.url, "http://x").searchParams;
+          const who2 = visitor.readHandoff(q.get("t") || "", host);
+          if (!who2) {
+            /* 票過期最常見的原因是使用者按了舊分頁上的連結。重來一次就好，
+               不要停在錯誤頁——他要的是進去，不是知道票過期了。 */
+            res.writeHead(302, { location: `https://${MAIN_HOST}/api/visitor/google/start?next=${encodeURIComponent(`https://${host}/`)}` });
+            return res.end();
+          }
+          visitor.issue(req, res, who2);
+          /* 只收路徑，不收整個網址：票驗過了不代表 to 是安全的，它同樣來自網址。 */
+          const to = q.get("to") || "/";
+          res.writeHead(302, { location: to.startsWith("/") && !to.startsWith("//") ? to : "/" });
+          return res.end();
+        }
         return serveInstance(req, res, inst.id, req.url || "/", { who, ip });
       }
     }
@@ -883,7 +942,15 @@ function startGateway() {
           visitor.issue(req, res, { kind: "google", email: user.email, name: user.name });
           if (google.allowed(auth.conf(), user.email)) auth.setCookie(req, res, user.email);
           actions.record({ actor: "訪客", action: "Google 具名進站", status: 200, visitor: who, note: user.email });
-          res.writeHead(302, { location: rec.next || "/" });
+          const dest = await safeNext(rec.next);
+          if (dest.host) {
+            /* 要去的是客戶子網域。cookie 是 host-only，主站這一張過不去，
+               所以簽一張 90 秒的交接票讓那邊換成自己的 cookie。 */
+            const t = visitor.handoff({ email: user.email, name: user.name }, dest.host);
+            res.writeHead(302, { location: `https://${dest.host}/api/visitor/adopt?t=${encodeURIComponent(t)}&to=${encodeURIComponent(dest.path)}` });
+            return res.end();
+          }
+          res.writeHead(302, { location: dest.path });
           return res.end();
         }
 
@@ -893,7 +960,9 @@ function startGateway() {
         }
         auth.setCookie(req, res, user.email);
         actions.record({ actor: "後台", action: "Google 登入成功", status: 200, visitor: who, note: user.email });
-        res.writeHead(302, { location: rec.next });
+        /* 後台身分不跨子網域（客戶系統不該碰後台），所以只收站內路徑。 */
+        const back = await safeNext(rec.next);
+        res.writeHead(302, { location: back.host ? "/" : back.path });
         return res.end();
       } catch (error) {
         return fail(String(error.message).slice(0, 120));

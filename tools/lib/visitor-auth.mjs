@@ -64,6 +64,55 @@ export function issue(req, res, identity) {
   appendCookie(res, `${COOKIE}=${payload}.${sign(payload)}; Path=/; HttpOnly${secureFlag(req)}; SameSite=Lax; Max-Age=${TTL_MS / 1000}`);
 }
 
+/**
+ * 跨子網域的登入交接票。
+ *
+ * ── 為什麼需要 ────────────────────────────────────────
+ * 客戶系統住在 c-xxx.jvision-ai.com，登入 cookie 卻是 host-only（只認發出它的
+ * 那個主機名）。所以在主站登入完，走到子網域時等於沒登入，又被送去登入——
+ * 無限重導。而且 Google OAuth 的 redirect_uri 不接受萬用字元，子網域根本
+ * 沒辦法自己跑一次登入。
+ *
+ * ── 為什麼不直接把 cookie 放寬成 Domain=.jvision-ai.com ────
+ * 那樣主站的登入 cookie 會**跟著送到每一個客戶子網域**。客戶系統的 HTML 是
+ * 可以被助理改的，等於把主站身分擺在客戶內容旁邊——一個網域出事，全部一起
+ * 出事。省下的只是這幾十行，換掉的是整條信任邊界，不划算。
+ *
+ * ── 這張票的形狀 ──────────────────────────────────────
+ * 登入在主站完成（OAuth 設定完全不用動），主站簽一張只活 90 秒的票送回子網域，
+ * 子網域驗完發**自己的** host-only cookie。之後兩邊各管各的 cookie，誰也拿不到誰的。
+ *
+ * 票綁死目標主機名：對 A 系統簽的票拿去 B 系統會驗不過，撿到網址也換不到
+ * 別套系統的身分。90 秒是「跳一次轉址」綽綽有餘、但來不及被轉貼利用的長度。
+ * 真正的權限仍然每次都查（memberRole），票只證明「你是誰」。
+ */
+const HANDOFF_MS = 90 * 1000;
+
+export function handoff(identity, host) {
+  if (!secret || !identity || !host) return null;
+  const body = Buffer.from(JSON.stringify({
+    kind: "google", email: identity.email, name: identity.name,
+    host: String(host).toLowerCase(), exp: Date.now() + HANDOFF_MS,
+  })).toString("base64url");
+  return `${body}.${sign(body)}`;
+}
+
+/** 驗票。給的主機名要跟票上的一致，否則不算數。 */
+export function readHandoff(token, host) {
+  if (!secret) return null;
+  const [body, sig] = String(token || "").split(".");
+  if (!body || !sig) return null;
+  const expected = sign(body);
+  if (sig.length !== expected.length) return null;
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  try {
+    const c = JSON.parse(Buffer.from(body, "base64url").toString());
+    if (c.exp <= Date.now()) return null;
+    if (c.host !== String(host || "").toLowerCase()) return null;
+    return { kind: "google", email: c.email, name: c.name };
+  } catch { return null; }
+}
+
 export function clear(req, res) {
   appendCookie(res, `${COOKIE}=; Path=/; HttpOnly${secureFlag(req)}; SameSite=Lax; Max-Age=0`);
 }

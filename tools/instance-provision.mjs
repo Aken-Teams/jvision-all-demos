@@ -10,9 +10,7 @@
  *   node tools/instance-provision.mjs --order=<需求單編號>            （整張單一次開通）
  */
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 import { ROOT, EXIT, parseArgs, makeLogger } from "./lib/forge-common.mjs";
 import * as control from "./lib/control-db.mjs";
 import * as data from "./lib/instance-db.mjs";
@@ -23,6 +21,7 @@ const args = parseArgs();
 const log = makeLogger({ quiet: Boolean(args.quiet) });
 const DRY = Boolean(args["dry-run"]);
 const INSTANCES = path.join(ROOT, "var", "instances");
+const SITE = process.env.JV_SITE_ORIGIN || "https://jvdemo.jvision-ai.com";
 /* tunnel 編號。與 ~/.cloudflared/jvdemo.yml 裡的同一條，改那個檔時要一起改。 */
 const TUNNEL_ID = "1909ee29-c8dd-499b-bad0-d1cdf5b8151e";
 
@@ -43,29 +42,12 @@ async function pickHost(customerSlug, repo) {
   return host;
 }
 
-/**
- * 幫這個主機名建一筆指向 tunnel 的 DNS 記錄。
- *
- * 刻意不用萬用 DNS：*.jvision-ai.com 會把整個公司網域的任何子網域都指到這條
- * tunnel，www 與 app 那些真正的服務只要哪天記錄出問題就會被接管。逐一建立
- * 的成本只是開通時多跑一個指令。
- *
- * 失敗不中斷開通——實例本身已經好了，路徑式入口照樣進得去，DNS 之後補得上。
- */
-function routeDns(host) {
-  try {
-    execFileSync("cloudflared", ["tunnel", "--config", path.join(os.homedir(), ".cloudflared", "jvdemo.yml"),
-      "route", "dns", TUNNEL_ID, host],
-      { encoding: "utf8", timeout: 60000, stdio: "pipe" });
-    return true;
-  } catch (error) {
-    const msg = [error.stdout, error.stderr, error.message].map((x) => String(x || "")).join("\n");
-    /* 已經存在不算失敗——重跑開通時會遇到。 */
-    if (/already exists|record with that host/i.test(msg)) return true;
-    log.warn(`  DNS 沒建成（${msg.split("\n").filter(Boolean).pop()?.slice(0, 80)}）——路徑式入口仍可用`);
-    return false;
-  }
-}
+/* 這裡以前會順手建 DNS，讓 c-xxx.jvision-ai.com 在開通當下就上線。拿掉了。
+   使用者根本還沒決定要不要對外，網址已經在公開的 DNS 上查得到——他會覺得
+   「我沒有要佈署，你已經幫我佈署了」。上線與否該是他按下去的那一刻決定的。
+   現在子網域改由「佈署」按鈕呼叫 lib/instance-dns.mjs 建立。開通只保留 host
+   欄位（先把名字佔下來、保證不撞名），DNS 上沒有這一筆。
+   路徑式入口 /-/i/<id>/ 不受影響，開通完就進得去——那條路要登入、要在白名單裡。 */
 
 async function provisionOne({ repo, customer, orderId }) {
   const schemaPath = path.join(ROOT, "content", "schema", `${repo}.json`);
@@ -91,7 +73,6 @@ async function provisionOne({ repo, customer, orderId }) {
     bind({ repo, outDir: realDir });
     await data.createFromSchema(inst.db_name, schema);
     await control.setInstanceState(inst.id, "live", { dir: realDir });
-    routeDns(host);
     await control.recordEvent({ kind: "instance.live", customerId: customer.id, instanceId: inst.id,
       actor: customer.owner_email, detail: { repo, host } });
     log.info(`  ✅ ${repo} → ${host}`);
@@ -149,7 +130,9 @@ async function main() {
     log.info(ok ? "  需求單標記為已交付" : `  需求單標記為失敗（成功 ${done.length}/${repos.length}）`);
   }
   if (!DRY) log.step(`完成 ${done.length}/${repos.length} 套`);
-  for (const d of done) log.info(`  https://${d.host}`);
+  /* 印路徑式入口而不是 https://<host>——子網域要按下佈署才會存在，
+     在這裡印出來等於給一條現在連不上的網址。 */
+  for (const d of done) log.info(`  ${SITE}/-/i/${d.id}/`);
 }
 
 main()
