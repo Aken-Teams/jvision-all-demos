@@ -220,17 +220,75 @@ async function main() {
       env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_CONFIG_COUNT: "1",
         GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
         GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basic}` } });
+    const remote = `https://github.com/${OWNER}/${repo}.git`;
     const branch = AS_PR ? `update-${new Date().toISOString().slice(0, 10)}-${Date.now().toString(36).slice(-4)}` : "main";
-    g("init", "-q", "-b", branch);
+
+    g("init", "-q");
     g("config", "user.email", "deliver@jvision.local");
     g("config", "user.name", "JVision Deliver");
+
+    /* ── 接上遠端已經有的歷史 ────────────────────────────
+       這裡以前是 `git init -b <分支>` 直接 commit，也就是**每次交付都造出一個
+       全新的孤兒 commit**。後果有兩個：
+
+       一、`main` 被 force push 蓋掉之後，前一版在 GitHub 上就沒了——客戶自己
+           在 repo 上加的東西一起消失，而且不會有任何提示。
+       二、開 PR 根本開不出有意義的東西。實測 main 與 update 分支各自都是
+           「父 commit 數 = 0」的根 commit，compare 回 404、沒有共同祖先，
+           GitHub 給不出 diff。「先看 diff 再決定要不要合」這件事從來沒成立過。
+
+       改成先把遠端抓下來接在上面：交付就是在既有歷史上多一個 commit，
+       開 PR 也才比得出「這次改了哪些檔」。repo 是空的（第一次交付）就照舊
+       開新歷史。 */
+    let based = false;
+    try {
+      g("remote", "add", "origin", remote);
+      /* 只抓一層。歷史再長也不需要——要的只是「接得上」這件事。 */
+      g("fetch", "-q", "--depth", "1", "origin", "HEAD");
+      /* 不能用 git checkout：交付內容在 git init 之前就 build 到這個目錄裡了，
+         checkout 會說「未追蹤的檔案將被覆蓋」而拒絕動作（實測踩過，失敗被
+         catch 接住之後就悄悄退回 force push，等於整段修正沒有生效）。
+
+         改成只搬指標、不碰工作目錄：
+           update-ref    把分支指到遠端那一版
+           symbolic-ref  HEAD 指到這條分支
+           reset（mixed）索引載入成遠端那一版，工作目錄維持我們 build 出來的
+         接著 add -A 算出來的就是「相對於遠端的差異」，而且遠端有、這次沒有
+         產生的檔會被標成刪除，不會殘留。 */
+      g("update-ref", `refs/heads/${branch}`, "FETCH_HEAD");
+      g("symbolic-ref", "HEAD", `refs/heads/${branch}`);
+      g("reset", "-q");
+      based = true;
+      log.info("  接上遠端既有的歷史");
+    } catch {
+      /* repo 剛建立、還沒有任何 commit 時 fetch 會失敗，那是正常的。 */
+      g("checkout", "-q", "-b", branch);
+      log.info("  這個 repo 還是空的，建立第一版");
+    }
+
     g("add", "-A");
-    g("commit", "-q", "-m", `交付 ${schema.title || inst.repo_name}`);
+    /* 內容跟上一版一模一樣時 commit 會失敗（沒有東西可提交）。那不是錯誤，
+       是「這次沒有任何改動」——照樣往下走，push 是 no-op，PR 會是空的。 */
+    let changed = true;
+    try {
+      g("commit", "-q", "-m", `交付 ${schema.title || inst.repo_name}`);
+    } catch (error) {
+      const m = [error.stdout, error.stderr].map((x) => String(x || "")).join("\n");
+      if (!/nothing to commit|working tree clean/.test(m)) throw error;
+      changed = false;
+      log.info("  跟上一版一模一樣，沒有東西要交付");
+    }
+    if (based && !changed && AS_PR) {
+      log.step("這次沒有任何改動，不開 PR");
+      return;
+    }
     /* PR 模式也用 force：這個分支是這次交付專用的，不會有別人的東西在上面。
        main 則只有非 PR 模式才會被覆蓋。 */
     let ciSkipped = false;
     try {
-      g("push", "-q", "--force", `https://github.com/${OWNER}/${repo}.git`, branch);
+      /* 接得上遠端歷史就不用 force——force 的存在本來就是為了掩蓋
+         「新歷史跟舊歷史無關」這件事。接不上（第一次交付）才需要。 */
+      g("push", "-q", ...(based ? [] : ["--force"]), remote, branch);
     } catch (error) {
       /* GitHub 不讓沒有 workflow 權限的 token 推 .github/workflows/。
          少一個 CI 檔不該讓整份交付失敗——其餘的東西客戶照樣跑得起來，
@@ -252,7 +310,7 @@ async function main() {
         "要補上自動測試的話，向我們索取 ci.yml 放到 .github/workflows/ 即可。\n");
       g("add", "-A");
       g("commit", "-q", "--amend", "--no-edit");
-      g("push", "-q", "--force", `https://github.com/${OWNER}/${repo}.git`, branch);
+      g("push", "-q", ...(based ? [] : ["--force"]), remote, branch);
       ciSkipped = true;
     }
 
@@ -275,10 +333,14 @@ async function main() {
       }
     }
 
-    const url = prUrl || `https://github.com/${OWNER}/${repo}`;
-    await control.setInstanceState(inst.id, inst.state, { repo_url: url });
+    /* repo_url 一律存 repo 本身。以前 PR 模式會把它覆蓋成 PR 網址，於是
+       「這套系統交付到哪」永遠指向某一次的 PR，PR 合併關掉之後那個連結就
+       變成一個歷史頁面。PR 網址只在這一次的回應裡給。 */
+    const repoUrl = `https://github.com/${OWNER}/${repo}`;
+    const url = prUrl || repoUrl;
+    await control.setInstanceState(inst.id, inst.state, { repo_url: repoUrl });
     await control.recordEvent({ kind: "instance.delivered", customerId: inst.customer_id,
-      instanceId: inst.id, actor: null, detail: { repo: `${OWNER}/${repo}`, url } });
+      instanceId: inst.id, actor: null, detail: { repo: `${OWNER}/${repo}`, url, repoUrl } });
     log.step(`已交付：${url}`);
     if (ciSkipped) log.info("  （不含 CI 設定檔，原因見 repo 裡的 CI-說明.md）");
   } finally {

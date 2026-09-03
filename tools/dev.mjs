@@ -765,6 +765,9 @@ function startGateway() {
           return json(res, 200, { host: inst.host, published: Boolean(rec),
             url: rec ? `https://${inst.host}/` : null, canPublish: role === "owner",
             you: id.email, role,
+            /* 有沒有上過 GitHub。開 PR 是「把改動提給既有的 repo」，repo 還不
+               存在的時候那顆按鈕沒有意義——沒交付過就先不給按。 */
+            repoUrl: inst.repo_url || null,
             members: members.length, path: `/-/i/${inst.id}/` });
         } catch (error) {
           /* Cloudflare 連不上時回「不知道」而不是「沒佈署」——後者會讓畫面
