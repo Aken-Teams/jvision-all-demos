@@ -261,32 +261,6 @@
     .proc-body ul, .proc-body .mdul { margin:.2rem 0 .4rem; padding-left:1.1rem; list-style:disc; }
     .proc-body li { margin:.15rem 0; }
 
-    /* 一個步驟一行。這是一份清單，使用者是用掃的不是用讀的——
-       所以標題單行截斷、理由也單行截斷，兩者都掛 title 屬性，滑上去看得到全文。
-       不截的話，模型偶爾寫長一點就會把整張卡撐成一片字牆（實測過）。 */
-    .ps { padding:.3rem 0; border-top:1px solid #eef2f7; }
-    .ps:first-child { border-top:0; padding-top:0; }
-    .ps-hd { display:flex; align-items:center; gap:.4rem; }
-    .ps-hd b { flex:1; min-width:0; color:#0f1e46; font-weight:800;
-               overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .ps-tag { flex:none; font-size:.64rem; font-weight:800; padding:.05rem .3rem;
-              border-radius:.25rem; background:#eef2f7; color:#64748b; }
-    .ps-tag.ok { background:#ecfdf5; color:#15803d; }
-    .ps-tag.skip { background:#f1f5f9; color:#94a3b8; }
-    .ps-why, .ps-note { margin-top:.05rem; font-size:.7rem; line-height:1.5;
-                        overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .ps-why { color:#94a3b8; }
-    .ps-note { color:#64748b; }
-    .ps-lead { color:#475569; }
-    .ps-risk { margin-top:.3rem; color:#b45309; font-size:.7rem;
-               overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    /* 檢查排成小標籤。原本是一句用頓號串起來的長句，掃過去只看得到一片字。 */
-    .ps-checks { display:flex; flex-wrap:wrap; gap:.25rem; margin-top:.5rem;
-                 padding-top:.45rem; border-top:1px solid #eef2f7; }
-    .ps-chk { display:inline-flex; align-items:center; gap:.1rem; font-size:.68rem;
-              color:#15803d; background:#f0fdf4; border-radius:.3rem; padding:.1rem .35rem; }
-    .ps-chk.bad { color:#b91c1c; background:#fef2f2; }
-    .ps-chk .material-symbols-outlined { font-size:13px; }
 
     /* 客戶自己丟進來的參考資料。放在輸入框正上方而不是收在某個分頁裡：
        它會影響「接下來每一次修改」的結果，所以要一直看得見自己給了什麼。 */
@@ -1124,58 +1098,74 @@
      收合時只看得到那一行，點開才是全文。不必解析內容，也就不會因為
      以後改了文案就對不上。 */
   var PROC_MARK = { 已完成: "ok", 沒做: "skip", 不確定: "unknown" };
+  /* 存下來的階段標題 → 進行中那張卡用的 id。用標題對照而不是靠順序：
+     階段有可能被跳過（例如沒有新表格要建），靠順序會整排錯位。 */
+  var PROC_STAGE = {
+    "看懂現在的畫面，想一份做法": "plan",
+    "動手改": "edit",
+    "檢查沒有改壞": "check",
+    "把新表格的資料層補上": "grow",
+  };
 
-  /* 把做法紀錄排版成有結構的樣子。
-     以前是直接丟給 mdToHtml，於是「做了什麼」與「為什麼」黏在同一段，
-     三個步驟連成一片字牆——內容沒問題，是排版讓人不想讀。
-     這裡把每一步拆成「標題＋狀態標籤」一行、「理由」一行（小一號、淡一階），
-     檢查項目排成一列小標籤而不是一句長頓號句。
-     認不出格式就退回 mdToHtml：以前存的那些是舊格式，不該因此變成亂碼。 */
-  function procBody(body) {
+  /* 把存下來的做法紀錄**還原成 job 物件**，好交給 renderJob——也就是進行中
+     那張卡用的同一支渲染器。
+
+     以前這裡自己畫一套，於是「當下看到的」與「重新整理之後看到的」長得像兩個
+     不同的系統：一邊有階段、各段秒數、編號與圖示，另一邊只剩一串條列。
+     一份資料一個渲染器，兩邊就不可能再走鐘。
+
+     認不出格式時回 null，呼叫端退回 Markdown——以前存的那些是舊格式。 */
+  function parseProcess(body) {
     var lines = body.split("\n");
-    var known = 0, html = "", checks = [];
+    var stages = [], plan = null, checks = [], cur = null, hit = 0;
     for (var i = 0; i < lines.length; i += 1) {
       var ln = lines[i];
       if (!ln.trim()) continue;
-      var m = /^(\d+)\.\s+(.*?)\s+—\s+(已完成|沒做|不確定)(（(.*)）)?\s*$/.exec(ln);
-      if (m) {
-        known += 1;
-        /* 理由是下一行的縮排行。抓到就一起吃掉。 */
-        var why = "";
-        if (/^\s{2,}\S/.test(lines[i + 1] || "")) { why = lines[i + 1].trim(); i += 1; }
-        /* 截斷是視覺上的，資訊沒有掉——title 屬性帶著全文，滑上去就看得到。 */
-        html += '<div class="ps"><div class="ps-hd"><b title="' + esc(m[2]) + '">' + esc(m[2]) + "</b>"
-          + '<span class="ps-tag ' + PROC_MARK[m[3]] + '">' + esc(m[3]) + "</span></div>"
-          + (m[5] ? '<div class="ps-note" title="' + esc(m[5]) + '">' + esc(m[5]) + "</div>" : "")
-          + (why ? '<div class="ps-why" title="' + esc(why) + '">' + esc(why) + "</div>" : "")
-          + "</div>";
+
+      var h = /^##\s+(.*?)(?:\s+—\s+(.*))?$/.exec(ln);
+      if (h) {
+        hit += 1;
+        var tail = h[2] || "";
+        var sec = /(\d+)\s*秒/.exec(tail);
+        cur = { id: PROC_STAGE[h[1]] || ("s" + stages.length), t: h[1], s: "ok",
+          sec: sec ? Number(sec[1]) : null,
+          note: tail.replace(/\d+\s*秒/, "").trim() || null };
+        stages.push(cur);
         continue;
       }
+
+      var st = /^(\d+)\.\s+(.*?)\s+—\s+(已完成|沒做|不確定)(（(.*)）)?\s*$/.exec(ln);
+      if (st) {
+        hit += 1;
+        plan = plan || { understanding: "", steps: [], risks: [] };
+        var why = "";
+        if (/^\s{2,}\S/.test(lines[i + 1] || "")) { why = lines[i + 1].trim(); i += 1; }
+        plan.steps.push({ title: st[2], why: why, s: PROC_MARK[st[3]], note: st[5] || null });
+        continue;
+      }
+
       var c = /^(檢查|沒過)：(.*)$/.exec(ln);
       if (c) {
-        known += 1;
+        hit += 1;
         c[2].split("、").forEach(function (t) {
-          if (t.trim()) checks.push({ t: t.trim(), bad: c[1] === "沒過" });
+          if (t.trim()) checks.push({ t: t.trim(), s: c[1] === "沒過" ? "fail" : "ok" });
         });
         continue;
       }
+
       var r = /^注意：(.*)$/.exec(ln);
-      if (r) {
-        known += 1;
-        html += '<div class="ps-risk" title="' + esc(r[1]) + '">' + esc(r[1]) + "</div>";
-        continue;
+      if (r) { hit += 1; plan = plan || { understanding: "", steps: [], risks: [] };
+        plan.risks.push(r[1]); continue; }
+
+      /* 剩下的那一行是「我理解你要的是什麼」。它只會出現在計畫那一段底下。 */
+      if (cur && cur.id === "plan" && plan == null) {
+        plan = { understanding: ln.trim(), steps: [], risks: [] };
+      } else if (cur && cur.id === "plan" && !plan.understanding) {
+        plan.understanding = ln.trim();
       }
-      html += '<p class="ps-lead">' + esc(ln.trim()) + "</p>";
     }
-    if (!known) return mdToHtml(body);
-    if (checks.length) {
-      html += '<div class="ps-checks">' + checks.map(function (c) {
-        return '<span class="ps-chk' + (c.bad ? " bad" : "") + '">'
-          + '<span class="material-symbols-outlined">' + (c.bad ? "close" : "check") + "</span>"
-          + esc(c.t) + "</span>";
-      }).join("") + "</div>";
-    }
-    return html;
+    if (!hit || !stages.length) return null;
+    return { state: "done", stages: stages, plan: plan, checks: checks, log: [] };
   }
 
   function sayProcess(text) {
@@ -1190,7 +1180,11 @@
     if (body) {
       var inner = document.createElement("div");
       inner.className = "proc-body";
-      inner.innerHTML = procBody(body);
+      var job = parseProcess(body);
+      /* 認得的話就用進行中那張卡的渲染器，兩邊完全一致；
+         認不得（舊格式）就退回 Markdown，不要變成亂碼。 */
+      if (job) renderJob(inner, job);
+      else inner.innerHTML = mdToHtml(body);
       d.appendChild(inner);
     }
     $("chatBox").appendChild(d);

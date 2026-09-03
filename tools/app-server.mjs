@@ -464,24 +464,35 @@ function processNote(job) {
     const x = job.stages.find((y) => y.id === id);
     return x && x.sec != null ? x.sec : null;
   };
-  const t1 = secOf("plan"), t2 = secOf("edit");
   const steps = (job.plan && job.plan.steps) || [];
   const okSteps = steps.filter((x) => x.s === "ok").length;
   const okChecks = (job.checks || []).filter((c) => c.s === "ok").length;
+  const total = job.totalSec != null ? job.totalSec : null;
 
   /* 第一行＝收合時看到的那一行。 */
   L.push([
     steps.length ? `做了 ${okSteps} 件事` : null,
     okChecks ? `${okChecks} 項檢查通過` : null,
-    t1 != null || t2 != null ? `想 ${t1 ?? "—"} 秒、改 ${t2 ?? "—"} 秒` : null,
+    total != null ? `${total} 秒` : null,
   ].filter(Boolean).join(" · ") || "這次的做法");
 
-  /* 底下這個排法是給前端拆的，同時要保證直接讀原文也看得懂——這段內容會
-     被後台看到，也可能被匯出。所以用「編號 標題 — 狀態」＋縮排一行理由，
+  /* 底下這一段要能被前端**還原成跟進行中那張卡一模一樣的東西**：階段、各段
+     秒數、編號步驟、風險、檢查。以前只存「已完成 ＋ 條列」，於是重新整理之後
+     看到的跟當下看到的長得像兩個不同的系統。
+
+     同時要保證直接讀原文也看得懂——這段內容後台看得到、也可能被匯出。
+     所以階段用 Markdown 的二級標題、步驟用「編號 標題 — 狀態」，
      而不是自創符號。前端認不出格式時會退回一般的 Markdown 渲染。 */
+  const stageLine = (id) => {
+    const x = job.stages.find((y) => y.id === id);
+    if (!x) return;
+    const tail = [x.sec != null ? `${x.sec} 秒` : null, x.note || null].filter(Boolean).join("　");
+    L.push("", `## ${x.t}${tail ? ` — ${tail}` : ""}`);
+  };
+
+  stageLine("plan");
   if (job.plan) {
-    if (job.plan.understanding) L.push("", job.plan.understanding);
-    if ((job.plan.steps || []).length) L.push("");
+    if (job.plan.understanding) L.push(job.plan.understanding);
     (job.plan.steps || []).forEach((st, i) => {
       const mark = st.s === "ok" ? "已完成" : st.s === "skip" ? "沒做" : "不確定";
       L.push(`${i + 1}. ${st.title} — ${mark}${st.note ? `（${st.note}）` : ""}`);
@@ -489,10 +500,15 @@ function processNote(job) {
     });
     for (const r of job.plan.risks || []) L.push(`注意：${r}`);
   }
+
+  stageLine("edit");
+  stageLine("check");
   const ok = (job.checks || []).filter((c) => c.s === "ok");
   const bad = (job.checks || []).filter((c) => c.s !== "ok");
-  if (ok.length) L.push("", `檢查：${ok.map((c) => c.t).join("、")}`);
+  if (ok.length) L.push(`檢查：${ok.map((c) => c.t).join("、")}`);
   if (bad.length) L.push(`沒過：${bad.map((c) => c.t).join("、")}`);
+  stageLine("grow");
+
   return L.join("\n");
 }
 
