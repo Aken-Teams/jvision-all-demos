@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="集中管理大型機具進退場申請、場地檢核、調度、點交與異常結算。">
+<title>大型機具進退場排程台 · construction-pm｜Jvision 系統 Demo</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&amp;family=JetBrains+Mono:wght@400;600&amp;family=Playfair+Display:ital@1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+:root{
+  --color-primary:#64748B;
+  --color-on-primary:#FFFFFF;
+  --color-secondary:#94A3B8;
+  --color-on-secondary:#0F172A;
+  --color-accent:#EA580C;
+  --color-on-accent:#000000;
+  --color-background:#F8FAFC;
+  --color-foreground:#334155;
+  --color-card:#FFFFFF;
+  --color-card-foreground:#334155;
+  --color-muted:#EBF0F5;
+  --color-muted-foreground:#475569;
+  --color-border:#E2E8F0;
+  --color-destructive:#DC2626;
+  --color-on-destructive:#FFFFFF;
+  --color-ring:#64748B;
+  --blue:#64748B;
+  --ink:#0F172A;
+  --muted:#475569;
+  --line:#E2E8F0;
+  --body:#334155;
+  --bg:#F8FAFC;
+  --green:#157347;
+  --amber:#9A4A08;
+  --red:#DC2626;
+  --white:#FFFFFF;
+  --soft-blue:#EBF0F5;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+  --shadow-sm:0 1px 2px rgba(15,23,42,.05);
+  --shadow:0 10px 30px rgba(15,23,42,.07);
+  --shadow-strong:0 24px 60px rgba(15,23,42,.12);
+  --radius:14px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;background:var(--color-background)}
+body{
+  margin:0;
+  color:var(--color-foreground);
+  background:
+    linear-gradient(rgba(100,116,139,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(100,116,139,.045) 1px,transparent 1px),
+    var(--color-background);
+  background-size:32px 32px;
+  font-family:Inter,"PingFang TC","Microsoft JhengHei",sans-serif;
+  font-size:14px;
+  line-height:1.55;
+  overflow-x:hidden;
+  font-variant-numeric:tabular-nums;
+}
+button,input,select,textarea{font:inherit}
+button{color:inherit}
+button,.choice,.nav-btn,.icon-btn{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.choice:focus-visible{
+  outline:3px solid rgba(234,88,12,.32);
+  outline-offset:3px;
+}
+::selection{background:#FED7AA;color:#7C2D12}
+.material-symbols-outlined{font-size:20px;line-height:1;font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24}
+.app{min-height:100vh;display:grid;grid-template-columns:92px minmax(0,1fr)}
+.rail{
+  position:fixed;inset:0 auto 0 0;width:92px;z-index:20;
+  display:flex;flex-direction:column;align-items:center;
+  color:#E2E8F0;background:#0F172A;
+  border-right:1px solid #263244;
+  box-shadow:8px 0 30px rgba(15,23,42,.12);
+}
+.rail::before{content:"";position:absolute;inset:0 0 auto;height:4px;background:var(--color-accent)}
+.brand{
+  width:48px;height:48px;margin:22px 0 28px;border:1px solid #475569;border-radius:10px;
+  display:grid;place-items:center;background:#1E293B;color:#FFF;
+  font-family:var(--mono);font-size:15px;font-weight:600;letter-spacing:.05em;
+  box-shadow:inset 0 -3px 0 var(--color-accent);
+}
+.rail-nav{display:flex;flex-direction:column;gap:8px;width:100%;padding:0 14px}
+.nav-btn{
+  position:relative;width:64px;height:54px;border:1px solid transparent;border-radius:10px;
+  background:transparent;color:#94A3B8;display:grid;place-items:center;
+  transition:background-color .2s ease,color .2s ease,border-color .2s ease,transform .2s ease;
+}
+.nav-btn:hover{background:#1E293B;color:#FFF;border-color:#334155;transform:translateX(2px)}
+.nav-btn.active{background:#FFF7ED;color:#C2410C;border-color:#FDBA74;box-shadow:inset 4px 0 0 var(--color-accent)}
+.nav-btn::after{
+  content:attr(aria-label);position:absolute;left:76px;white-space:nowrap;
+  padding:7px 10px;border:1px solid #334155;border-radius:7px;
+  background:#0F172A;color:#FFF;font-size:12px;font-weight:600;
+  opacity:0;pointer-events:none;transform:translateX(-5px);transition:.18s ease;box-shadow:var(--shadow);
+}
+.nav-btn:hover::after{opacity:1;transform:none}
+.rail-foot{margin-top:auto;padding-bottom:22px;color:#64748B}
+.main{grid-column:2;min-width:0}
+.header{
+  min-height:74px;padding:0 34px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  position:sticky;top:0;z-index:10;background:rgba(248,250,252,.94);
+  backdrop-filter:blur(14px);box-shadow:0 1px 0 rgba(255,255,255,.8);
+}
+.header-title{min-width:0;position:relative;padding-left:15px}
+.header-title::before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:3px;background:var(--color-accent)}
+.header-title strong{display:block;color:var(--ink);font-size:16px;font-weight:800;letter-spacing:-.015em}
+.header-title span{display:block;color:var(--muted);font-size:11px;letter-spacing:.04em}
+.header-actions{display:flex;align-items:center;gap:10px}
+.today{color:var(--muted);font-family:var(--mono);font-size:11px}
+.icon-btn{
+  width:40px;height:40px;border:1px solid var(--line);border-radius:9px;
+  background:#FFF;display:grid;place-items:center;box-shadow:var(--shadow-sm);
+  transition:border-color .2s ease,color .2s ease,background-color .2s ease,transform .2s ease;
+}
+.icon-btn:hover{color:var(--color-accent);border-color:#FDBA74;background:#FFF7ED;transform:translateY(-1px)}
+.avatar{
+  width:40px;height:40px;border-radius:9px;display:grid;place-items:center;
+  color:#FFF;background:#334155;border:1px solid #1E293B;font-weight:800;
+  box-shadow:inset 0 -3px 0 var(--color-accent);
+}
+.content{padding:30px 34px 52px;max-width:1680px;margin:auto}
+.screen{display:none}
+.screen.active{display:block;animation:screen-in .38s cubic-bezier(.2,.8,.2,1)}
+@keyframes screen-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.page-head{
+  position:relative;display:flex;justify-content:space-between;align-items:flex-end;gap:28px;
+  min-height:188px;margin:-30px -34px 24px;padding:40px 34px 30px;overflow:hidden;
+  background:#FFF;border-bottom:1px solid var(--line);
+}
+.page-head::before{
+  content:"";position:absolute;inset:0 0 0 auto;width:43%;pointer-events:none;
+  background:
+    linear-gradient(135deg,transparent 49.5%,rgba(100,116,139,.13) 50%,transparent 50.5%) 0 0/46px 46px,
+    linear-gradient(90deg,transparent 0 72%,rgba(234,88,12,.08) 72% 73%,transparent 73%);
+  mask-image:linear-gradient(90deg,transparent,#000);
+}
+.page-head::after{content:"";position:absolute;right:34px;top:25px;width:92px;height:6px;background:var(--color-accent);box-shadow:0 13px 0 #CBD5E1}
+.page-head>div{position:relative;z-index:1}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:7px;color:#9A3412;
+  text-transform:uppercase;letter-spacing:.11em;font-family:var(--mono);font-weight:600;font-size:10px;
+}
+h1,h2,h3,p{margin-top:0}
+h1{max-width:900px;margin:10px 0 10px;color:var(--ink);font-size:clamp(30px,3vw,46px);line-height:1.08;font-weight:800;letter-spacing:-.045em}
+h1::after{content:" /";font-family:"Playfair Display",serif;font-style:italic;font-weight:400;color:var(--color-accent)}
+h2{margin-bottom:4px;color:var(--ink);font-size:18px;line-height:1.35;font-weight:800;letter-spacing:-.02em}
+h3{margin-bottom:3px;color:var(--ink);font-size:14px;font-weight:750}
+.page-head p{margin:0;max-width:760px;color:var(--muted);font-size:13px}
+.actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+.btn{
+  min-height:44px;padding:9px 15px;border:1px solid #CBD5E1;border-radius:9px;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  background:#FFF;color:#334155;font-weight:700;box-shadow:var(--shadow-sm);
+  transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease,background-color .2s ease;
+}
+.btn:hover{transform:translateY(-2px);border-color:#94A3B8;box-shadow:0 7px 18px rgba(15,23,42,.09)}
+.btn.primary{background:var(--color-accent);border-color:#C2410C;color:#FFF;box-shadow:0 7px 18px rgba(194,65,12,.2)}
+.btn.primary:hover{background:#C2410C;border-color:#9A3412}
+.grid{display:grid;gap:16px}
+.grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.card,.invoice{
+  min-width:0;padding:19px;background:var(--color-card);color:var(--color-card-foreground);
+  border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm);
+  transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease;
+}
+.card:hover{border-color:#CBD5E1;box-shadow:0 10px 28px rgba(15,23,42,.065)}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;padding-bottom:13px;border-bottom:1px solid var(--line)}
+.card-head p{margin:0;color:var(--muted);font-size:11px}
+.kpi{position:relative;overflow:hidden;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border-top:3px solid #CBD5E1}
+.kpi::after{content:"";position:absolute;right:-24px;bottom:-28px;width:88px;height:88px;border:1px solid #E2E8F0;transform:rotate(45deg)}
+.kpi-icon{width:42px;height:42px;border:1px solid #CBD5E1;border-radius:9px;background:#F8FAFC;color:#475569;display:grid;place-items:center;flex:0 0 auto;position:relative;z-index:1}
+.kpi-label{margin-bottom:6px;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.025em}
+.kpi-value{color:var(--ink);font-family:var(--mono);font-size:25px;font-weight:600;line-height:1.1;letter-spacing:-.04em}
+.delta{margin-top:7px;color:var(--green);font-size:11px;font-weight:700}
+.badge{
+  display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border:1px solid #CBD5E1;border-radius:6px;
+  background:#F1F5F9;color:#334155;font-size:10px;font-weight:800;letter-spacing:.02em;white-space:nowrap;
+}
+.badge.green{background:#ECFDF5;border-color:#A7F3D0;color:#11633E}
+.badge.amber{background:#FFF7ED;border-color:#FDBA74;color:#8A3F08}
+.badge.red{background:#FEF2F2;border-color:#FECACA;color:#B91C1C}
+.badge.blue{background:#F1F5F9;border-color:#CBD5E1;color:#334155}
+.dot{width:7px;height:7px;border-radius:2px;background:currentColor}
+.toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:15px;padding:10px;border:1px solid var(--line);border-radius:11px;background:#F1F5F9}
+.field,.select,.form-control{
+  min-height:42px;border:1px solid #CBD5E1;border-radius:8px;background:#FFF;color:var(--ink);
+  padding:9px 11px;box-shadow:inset 0 1px 2px rgba(15,23,42,.025);transition:border-color .2s ease,box-shadow .2s ease;
+}
+.field:hover,.select:hover,.form-control:hover{border-color:#94A3B8}
+.field:focus,.select:focus,.form-control:focus{border-color:var(--color-accent);box-shadow:0 0 0 3px rgba(234,88,12,.12)}
+.field{min-width:230px}
+.spacer{flex:1}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;background:#FFF}
+table{width:100%;min-width:820px;border-collapse:separate;border-spacing:0;background:#FFF;font-variant-numeric:tabular-nums}
+th{position:sticky;top:0;z-index:1;padding:11px 13px;text-align:left;background:#1E293B;color:#F8FAFC;font-size:10px;font-weight:700;letter-spacing:.06em;white-space:nowrap;border-bottom:1px solid #0F172A}
+td{padding:13px;border-bottom:1px solid #E9EEF4;vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr{transition:background-color .18s ease}
+tbody tr:hover{background:#FFF7ED}
+td:first-child,.sub,.today,.feed-item strong,.summary-line strong,.cost-row strong,.amount-table td:nth-child(2),.amount-table td:nth-child(3),.amount-table td:last-child{font-variant-numeric:tabular-nums}
+td:first-child,.feed-item strong{font-family:var(--mono);font-size:.94em}
+td:last-child{text-align:right}
+.machine{display:flex;align-items:center;gap:10px}
+.machine-icon{width:36px;height:36px;border:1px solid #CBD5E1;border-radius:8px;background:#F1F5F9;display:grid;place-items:center;color:#475569}
+.strong{font-weight:750;color:var(--ink)}
+.sub{margin-top:2px;color:var(--muted);font-size:10px}
+.schedule-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(290px,.7fr);gap:16px}
+.timeline{overflow:auto}
+.timeline-grid{min-width:760px;display:grid;grid-template-columns:155px repeat(6,minmax(92px,1fr))}
+.t-cell{min-height:51px;padding:8px;border-right:1px solid #E2E8F0;border-bottom:1px solid #E2E8F0}
+.t-head{min-height:38px;background:#F1F5F9;color:var(--muted);font-family:var(--mono);font-size:10px;text-align:center;font-weight:600}
+.t-resource{display:flex;align-items:center;gap:8px;color:var(--ink);font-size:11px;font-weight:700}
+.bar{padding:6px 8px;border-radius:5px;color:#FFF;font-family:var(--mono);font-size:9px;font-weight:600;white-space:nowrap;overflow:hidden;box-shadow:inset 0 -2px 0 rgba(0,0,0,.14)}
+.bar.blue{background:#475569}.bar.green{background:#157347}.bar.amber{background:#B45309}.bar.red{background:#DC2626}
+.notice{display:flex;gap:10px;padding:12px;border:1px solid #FDBA74;border-left:4px solid var(--color-accent);border-radius:8px;background:#FFF7ED;color:#7C2D12;margin-bottom:10px}
+.notice p{margin:2px 0 0;color:#7C2D12;font-size:11px}
+.list{display:grid;gap:9px}
+.list-row{display:flex;align-items:center;gap:11px;padding:11px;border:1px solid var(--line);border-radius:9px;background:#FFF;transition:border-color .2s ease,transform .2s ease}
+.list-row:hover{border-color:#CBD5E1;transform:translateX(2px)}
+.list-row .material-symbols-outlined{color:#64748B}
+.list-row>div{min-width:0;flex:1}
+.list-row p{margin:2px 0 0;color:var(--muted);font-size:10px}
+.form-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(300px,.65fr);gap:16px}
+.form-section{padding-bottom:19px;margin-bottom:19px;border-bottom:1px solid var(--line)}
+.form-section:last-child{border:0;margin:0;padding:0}
+.form-section-title{display:flex;align-items:center;gap:9px;margin-bottom:14px}
+.form-section-title>span{width:32px;height:32px;border-radius:7px;display:grid;place-items:center;background:#F1F5F9;color:#475569}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.form-group{min-width:0}.form-group.full{grid-column:1/-1}
+label{display:block;margin-bottom:6px;color:#334155;font-size:11px;font-weight:750}
+.form-control{width:100%}
+textarea.form-control{min-height:84px;resize:vertical}
+.choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.choice{border:1px solid #CBD5E1;border-radius:9px;padding:13px;text-align:left;background:#FFF;transition:border-color .2s ease,background-color .2s ease,transform .2s ease}
+.choice:hover{transform:translateY(-2px);border-color:#94A3B8}
+.choice.active{border-color:var(--color-accent);box-shadow:inset 4px 0 0 var(--color-accent),0 0 0 2px rgba(234,88,12,.08);background:#FFF7ED;color:#9A3412}
+.choice span{display:block;margin:0 0 8px;color:#64748B}
+.summary-box{padding:14px;margin-bottom:13px;border:1px solid var(--line);border-radius:9px;background:#F8FAFC}
+.summary-line{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #E2E8F0}
+.summary-line:last-child{border:0}
+.summary-line span{color:var(--muted);font-size:11px}
+.summary-line strong{color:var(--ink);text-align:right;font-size:12px}
+.stepper{display:flex;align-items:center;margin-bottom:20px;padding:12px 16px;border:1px solid var(--line);border-radius:10px;background:#FFF}
+.step-node{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:11px;white-space:nowrap}
+.step-node i{width:28px;height:28px;border:1px solid #CBD5E1;border-radius:7px;display:grid;place-items:center;font-family:var(--mono);font-style:normal;background:#F1F5F9;color:#475569;font-weight:600}
+.step-node.done{color:var(--green)}.step-node.done i{background:#ECFDF5;border-color:#A7F3D0;color:var(--green)}
+.step-node.current{color:#9A3412;font-weight:700}.step-node.current i{background:var(--color-accent);border-color:#C2410C;color:#FFF}
+.step-line{height:2px;background:#CBD5E1;flex:1;margin:0 9px;min-width:22px}
+.check-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px}
+.checklist{display:grid;gap:9px}
+.check-item{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:11px;align-items:center;border:1px solid var(--line);border-radius:9px;padding:12px;background:#FFF}
+.check-icon{width:40px;height:40px;border:1px solid #A7F3D0;border-radius:8px;display:grid;place-items:center;background:#ECFDF5;color:var(--green)}
+.check-icon.warn{background:#FFF7ED;border-color:#FDBA74;color:#9A4A08}
+.check-item p{margin:2px 0 0;color:var(--muted);font-size:11px}
+.metric{margin-bottom:14px}.metric-head{display:flex;justify-content:space-between;margin-bottom:7px;font-size:11px}
+.progress{height:8px;background:#E2E8F0;border-radius:3px;overflow:hidden}
+.progress b{height:100%;display:block;background:#64748B;border-radius:3px}
+.site-map{position:relative;min-height:280px;border:1px solid #CBD5E1;border-radius:10px;overflow:hidden;background:linear-gradient(90deg,transparent 49%,rgba(255,255,255,.86) 49%,rgba(255,255,255,.86) 53%,transparent 53%),linear-gradient(35deg,#DDE5D5 25%,#C7D2BA 25%,#C7D2BA 50%,#DDE5D5 50%,#DDE5D5 75%,#C7D2BA 75%);background-size:auto,42px 42px;box-shadow:inset 0 0 40px rgba(15,23,42,.1)}
+.road{position:absolute;background:#737E89;border:3px solid #FFF;box-shadow:0 4px 8px rgba(15,23,42,.18)}
+.road.a{height:58px;left:-20px;right:-20px;top:105px;transform:rotate(-5deg)}
+.road.b{width:55px;top:-20px;bottom:-20px;left:68%;transform:rotate(7deg)}
+.pin{position:absolute;width:34px;height:34px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:#475569;display:grid;place-items:center;box-shadow:0 8px 14px rgba(15,23,42,.28)}
+.pin span{transform:rotate(45deg);color:#FFF;font-size:18px}.pin.p1{left:24%;top:33%}.pin.p2{left:63%;top:57%;background:var(--color-accent)}
+.dispatch-layout{display:grid;grid-template-columns:330px minmax(0,1fr);gap:16px}
+.queue{display:grid;gap:9px}
+.queue-card{border:1px solid var(--line);border-left:4px solid #64748B;padding:12px;border-radius:8px;background:#FFF;transition:transform .2s ease,box-shadow .2s ease}
+.queue-card:hover{transform:translateX(3px);box-shadow:var(--shadow-sm)}
+.queue-card.conflict{border-left-color:var(--red)}
+.queue-card .row{display:flex;justify-content:space-between;gap:8px}.queue-card p{margin:7px 0 0;color:var(--muted);font-family:var(--mono);font-size:10px}
+.dispatch-board{overflow:auto}.board{min-width:750px;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.board-head,.board-row{display:grid;grid-template-columns:125px repeat(5,minmax(105px,1fr))}
+.board-head div{padding:10px;text-align:center;background:#1E293B;color:#F8FAFC;font-family:var(--mono);font-size:9px;font-weight:600}
+.board-row>div{min-height:78px;border-right:1px solid #E2E8F0;border-bottom:1px solid #E2E8F0;padding:7px;background:#FFF}
+.board-row .zone{background:#F1F5F9;color:var(--ink);display:flex;align-items:center;font-size:11px;font-weight:750}
+.booking{height:100%;padding:7px;border-radius:6px;color:#FFF;background:#475569;font-size:10px;font-weight:700;box-shadow:inset 0 -3px 0 rgba(0,0,0,.12)}
+.booking small{display:block;margin-top:4px;opacity:.88;font-size:9px}.booking.green{background:#157347}.booking.amber{background:#B45309}.booking.red{background:#DC2626}
+.handover-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.65fr);gap:16px}
+.asset-hero{position:relative;isolation:isolate;overflow:hidden;min-height:148px;margin-bottom:17px;padding:24px;border:1px solid #334155;border-radius:14px;display:flex;align-items:center;gap:18px;background:linear-gradient(115deg,#0F172A 0%,#1E293B 58%,#334155 100%);color:#FFF;box-shadow:var(--shadow-strong);perspective:800px}
+.asset-hero::before{content:"";position:absolute;z-index:-1;right:7%;top:14%;width:210px;height:110px;border:1px solid rgba(255,255,255,.17);background:linear-gradient(135deg,rgba(255,255,255,.08),transparent);transform:rotateY(-24deg) rotateX(12deg) skewX(-8deg);box-shadow:20px 18px 0 rgba(234,88,12,.18),40px 36px 0 rgba(255,255,255,.04)}
+.asset-hero::after{content:"3D ASSET / CR-250-07";position:absolute;right:24px;bottom:15px;color:#CBD5E1;font-family:var(--mono);font-size:9px;letter-spacing:.12em}
+.asset-hero .big-icon{width:68px;height:68px;border:1px solid #64748B;border-radius:10px;background:rgba(255,255,255,.08);display:grid;place-items:center;flex:0 0 auto;box-shadow:inset 0 -4px 0 var(--color-accent);transform:rotateY(8deg)}
+.asset-hero .big-icon span{font-size:36px}.asset-hero h2{margin:0 0 3px;color:#FFF;font-size:22px}.asset-hero p{margin:0;color:#CBD5E1}
+.inspect-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.inspect{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:9px;padding:11px;background:#FFF}
+.inspect .tick{width:28px;height:28px;border:1px solid #A7F3D0;border-radius:7px;display:grid;place-items:center;background:#ECFDF5;color:var(--green);flex:0 0 auto}
+.signature{height:100px;border:1px dashed #94A3B8;border-radius:9px;display:grid;place-items:center;color:var(--muted);background:repeating-linear-gradient(-45deg,#FFF,#FFF 8px,#F8FAFC 8px,#F8FAFC 16px);font-family:"Playfair Display",serif;font-style:italic}
+.photo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;perspective:900px}
+.photo{aspect-ratio:1.55;border:1px solid #94A3B8;border-radius:9px;overflow:hidden;position:relative;background:linear-gradient(145deg,#CBD5E1,#64748B);box-shadow:0 10px 18px rgba(15,23,42,.13);transform:rotateX(2deg);transition:transform .25s ease,box-shadow .25s ease}
+.photo:hover{transform:rotateX(0) translateY(-3px);box-shadow:0 16px 26px rgba(15,23,42,.16)}
+.photo::before{content:"";position:absolute;left:13%;right:13%;bottom:13%;height:42%;background:#EA580C;clip-path:polygon(5% 70%,28% 70%,39% 8%,57% 8%,64% 70%,95% 70%,100% 100%,0 100%);filter:drop-shadow(8px 8px 4px rgba(15,23,42,.2))}
+.photo span{position:absolute;left:8px;bottom:8px;padding:3px 6px;border-radius:4px;background:rgba(15,23,42,.82);color:#FFF;font-family:var(--mono);font-size:9px}
+.incident-layout{display:grid;grid-template-columns:minmax(0,1.25fr) 350px;gap:16px}
+.incident-top{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:15px}
+.incident-stat{padding:14px;border:1px solid var(--line);border-radius:9px;background:#F8FAFC}
+.incident-stat strong{display:block;color:var(--ink);font-family:var(--mono);font-size:20px;font-weight:600}
+.feed{position:relative;padding-left:24px}
+.feed::before{content:"";position:absolute;left:7px;top:8px;bottom:10px;width:2px;background:repeating-linear-gradient(to bottom,#94A3B8 0 5px,transparent 5px 9px)}
+.feed-item{position:relative;padding:0 0 19px 15px}
+.feed-item::before{content:"";position:absolute;left:-22px;top:4px;width:11px;height:11px;border:2px solid #FFF;border-radius:3px;background:#64748B;box-shadow:0 0 0 3px #CBD5E1}
+.feed-item.red::before{background:var(--red);box-shadow:0 0 0 3px #FECACA}
+.feed-item p{margin:4px 0;color:var(--muted);font-size:11px}
+.cost-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}.cost-row:last-child{border:0}
+.chart{height:280px;width:100%}.chart.short{height:215px}
+.close-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:16px}
+.invoice{padding:24px;box-shadow:var(--shadow)}
+.invoice-head{display:flex;justify-content:space-between;gap:15px;padding-bottom:18px;border-bottom:3px solid #1E293B}
+.invoice-head h2{font-size:24px}.amount-table{width:100%;min-width:0;margin-top:12px}.amount-table td,.amount-table th{padding:12px 8px}
+.amount-table th:last-child{text-align:right}
+.total-box{margin-left:auto;width:min(100%,320px);margin-top:16px;padding-top:5px}.total-line{display:flex;justify-content:space-between;padding:7px 0;font-variant-numeric:tabular-nums}
+.total-line.grand{margin-top:7px;padding-top:12px;border-top:3px solid var(--color-accent);color:var(--ink);font-family:var(--mono);font-size:18px;font-weight:600}
+.score{width:138px;height:138px;border-radius:50%;display:grid;place-items:center;margin:8px auto 18px;background:conic-gradient(var(--green) 0 93%,#E2E8F0 93% 100%);position:relative;box-shadow:0 12px 28px rgba(15,23,42,.1)}
+.score::before{content:"";position:absolute;inset:12px;border-radius:50%;background:#FFF}.score div{position:relative;text-align:center}.score strong{display:block;color:var(--ink);font-family:var(--mono);font-size:29px;font-weight:600}
+.footer-note{text-align:center;color:var(--muted);font-family:var(--mono);font-size:9px;letter-spacing:.04em;margin-top:24px}
+.toast{position:fixed;right:22px;bottom:22px;z-index:50;padding:12px 16px;border:1px solid #475569;border-left:4px solid var(--color-accent);border-radius:8px;background:#0F172A;color:#FFF;box-shadow:var(--shadow-strong);opacity:0;transform:translateY(12px);pointer-events:none;transition:opacity .25s ease,transform .25s ease}
+.toast.visible{opacity:1;transform:none}
+.screen.active .grid>.card,.screen.active .check-item,.screen.active .queue-card,.screen.active .list-row{animation:item-in .4s cubic-bezier(.34,1.56,.64,1) both}
+.screen.active .grid>.card:nth-child(2),.screen.active .check-item:nth-child(2),.screen.active .queue-card:nth-child(2),.screen.active .list-row:nth-child(2){animation-delay:.06s}
+.screen.active .grid>.card:nth-child(3),.screen.active .check-item:nth-child(3),.screen.active .queue-card:nth-child(3),.screen.active .list-row:nth-child(3){animation-delay:.12s}
+.screen.active .grid>.card:nth-child(4),.screen.active .check-item:nth-child(4),.screen.active .queue-card:nth-child(4),.screen.active .list-row:nth-child(4){animation-delay:.18s}
+.screen.active .check-item:nth-child(5),.screen.active .list-row:nth-child(5){animation-delay:.24s}
+@keyframes item-in{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+@media(max-width:1100px){
+  .grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .schedule-layout,.form-layout,.check-layout,.dispatch-layout,.handover-layout,.incident-layout,.close-layout{grid-template-columns:1fr}
+  .dispatch-layout>.card:first-child{order:2}
+  .page-head{align-items:flex-start;flex-direction:column}
+  .actions{justify-content:flex-start}
+}
+@media(max-width:720px){
+  .app{display:block;padding-bottom:76px}
+  .rail{top:auto;right:0;width:auto;height:70px;flex-direction:row;border-top:1px solid #334155;box-shadow:0 -8px 24px rgba(15,23,42,.16)}
+  .rail::before{inset:0 0 auto;height:3px}.brand,.rail-foot{display:none}
+  .rail-nav{height:100%;padding:7px;flex-direction:row;justify-content:space-around;gap:2px}
+  .nav-btn{width:calc((100vw - 18px)/6);height:54px;border-radius:8px}.nav-btn:hover{transform:none}.nav-btn::after{display:none}
+  .nav-btn.active{box-shadow:inset 0 3px 0 var(--color-accent)}
+  .main{display:block}.header{min-height:64px;padding:0 16px}.today,.header-actions .icon-btn{display:none}
+  .content{padding:20px 15px 35px}
+  .page-head{min-height:0;margin:-20px -15px 18px;padding:28px 15px 22px;gap:18px}.page-head::after{right:15px;top:18px;width:55px}.page-head::before{width:65%}
+  h1{font-size:29px}.page-head p{font-size:12px}.page-head .actions{width:100%}.actions .btn{flex:1}
+  .grid-4,.grid-3,.grid-2,.form-grid,.choice-grid,.inspect-grid,.incident-top{grid-template-columns:1fr}
+  .card,.invoice{padding:15px;border-radius:11px}.field{min-width:0;width:100%}.toolbar .select{flex:1;min-width:120px}
+  .stepper{overflow:auto;padding:10px}.step-node span{display:none}.step-line{min-width:32px}
+  .asset-hero{align-items:flex-start;padding:18px}.asset-hero::before{opacity:.45}.asset-hero::after{display:none}
+  .photo-grid{grid-template-columns:1fr 1fr}.invoice-head{display:block}.invoice-head>div:last-child{text-align:left!important;margin-top:10px}
+  table{font-size:12px}
+}
+@media(max-width:420px){
+  .header-title strong{font-size:14px}.header-title span{font-size:9px}.avatar{width:36px;height:36px}
+  .grid-4{grid-template-columns:1fr}.kpi-value{font-size:22px}.photo-grid{grid-template-columns:1fr}
+  .asset-hero{display:grid;grid-template-columns:auto 1fr}.asset-hero>div:last-child{grid-column:1/-1}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+  .screen.active,.screen.active .grid>.card,.screen.active .check-item,.screen.active .queue-card,.screen.active .list-row{animation:none!important;opacity:1;transform:none}
+  .btn:hover,.icon-btn:hover,.choice:hover,.photo:hover,.queue-card:hover,.list-row:hover,.nav-btn:hover{transform:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" aria-label="流程導覽">
+    <div class="brand" aria-label="Jvision">JV</div>
+    <nav class="rail-nav">
+      <button class="nav-btn" data-i="0" aria-label="提出機具需求"><span class="material-symbols-outlined">add_task</span></button>
+      <button class="nav-btn" data-i="1" aria-label="檢查場地條件"><span class="material-symbols-outlined">foundation</span></button>
+      <button class="nav-btn" data-i="2" aria-label="協調調度時段"><span class="material-symbols-outlined">calendar_view_week</span></button>
+      <button class="nav-btn" data-i="3" aria-label="辦理進場點交"><span class="material-symbols-outlined">fact_check</span></button>
+      <button class="nav-btn" data-i="4" aria-label="回報使用異常"><span class="material-symbols-outlined">report</span></button>
+      <button class="nav-btn" data-i="5" aria-label="完成退場結算"><span class="material-symbols-outlined">payments</span></button>
+    </nav>
+    <div class="rail-foot"><span class="material-symbols-outlined">construction</span></div>
+  </aside>
+
+  <main class="main">
+    <header class="header">
+      <div class="header-title">
+        <strong>大型機具進退場排程台</strong>
+        <span>JV 北區營建工程管理中心</span>
+      </div>
+      <div class="header-actions">
+        <span class="today">2026 年 9 月 3 日・週四</span>
+        <button class="icon-btn" aria-label="通知"><span class="material-symbols-outlined">notifications</span></button>
+        <div class="avatar" aria-label="使用者陳調度">陳</div>
+      </div>
+    </header>
+
+    <div class="content">
+      <section class="screen" data-screen="0">
+        <div class="page-head">
+          <div>
+            <span class="eyebrow"><span class="material-symbols-outlined">add_task</span>流程 01／提出機具需求</span>
+            <h1>新增大型機具調度申請</h1>
+            <p>由工區工程師說明機型、用途、作業地點與需求期間，送出前先建立完整的運送及作業條件。</p>
+          </div>
+          <div class="actions">
+            <button class="btn" data-toast="草稿已儲存"><span class="material-symbols-outlined">save</span>儲存草稿</button>
+            <button class="btn primary" data-toast="申請 HEA-026 已送交工地主任檢核"><span class="material-symbols-outlined">send</span>送出檢核</button>
+          </div>
+        </div>
+
+        <div class="grid grid-4" style="margin-bottom:18px">
+          <div class="card kpi"><div><div class="kpi-label">今日進場</div><div class="kpi-value">8 台</div><div class="delta">準時 7 台</div></div><div class="kpi-icon"><span class="material-symbols-outlined">local_shipping</span></div></div>
+          <div class="card kpi"><div><div class="kpi-label">待審需求</div><div class="kpi-value">5 件</div><div class="delta" style="color:var(--amber)">2 件為高風險吊裝</div></div><div class="kpi-icon"><span class="material-symbols-outlined">pending_actions</span></div></div>
+          <div class="card kpi"><div><div class="kpi-label">本週準時進場率</div><div class="kpi-value">91.7%</div><div class="delta">較上週 +4.2%</div></div><div class="kpi-icon"><span class="material-symbols-outlined">speed</span></div></div>
+          <div class="card kpi"><div><div class="kpi-label">二次進場</div><div class="kpi-value">2 次</div><div class="delta" style="color:var(--red)">本月目標 ≤ 3 次</div></div><div class="kpi-icon"><span class="material-symbols-outlined">replay</span></div></div>
+        </div>
+
+        <div class="form-layout">
+          <div class="card">
+            <div class="form-section">
+              <div class="form-section-title"><span class="material-symbols-outlined">precision_manufacturing</span><h2>機具與作業需求</h2></div>
+              <div class="choice-grid">
+                <div class="choice active"><span class="material-symbols-outlined">crane</span><strong>履帶式吊車</strong><div class="sub">重型吊裝</div></div>
+                <div class="choice"><span class="material-symbols-outlined">construction</span><strong>挖土機</strong><div class="sub">開挖整地</div></div>
+                <div class="choice"><span class="material-symbols-outlined">forklift</span><strong>高空作業車</strong><div class="sub">立面施工</div></div>
+              </div>
+              <div class="form-grid" style="margin-top:15px">
+                <div class="form-group"><label for="machineType">機型／噸位</label><select id="machineType" class="form-control"><option>250T 履帶式吊車</option><option>160T 全地面吊車</option><option>35T 汽車吊</option></select></div>
+                <div class="form-group"><label for="jobPurpose">作業用途</label><input id="jobPurpose" class="form-control" value="B2 鋼構主梁吊裝"></div>
+                <div class="form-group"><label for="workZone">需求工區</label><select id="workZone" class="form-control"><option>B 棟地下層西側</option><option>A 棟塔樓區</option><option>南側管廊</option></select></div>
+                <div class="form-group"><label for="liftRadius">最大作業半徑</label><input id="liftRadius" class="form-control" value="32 公尺"></div>
+                <div class="form-group"><label for="startDate">預定進場</label><input id="startDate" class="form-control" type="datetime-local" value="2026-09-05T06:30"></div>
+                <div class="form-group"><label for="endDate">預定退場</label><input id="endDate" class="form-control" type="datetime-local" value="2026-09-07T18:00"></div>
+                <div class="form-group full"><label for="workMemo">吊裝說明</label><textarea id="workMemo" class="form-control">主梁單件 18.5 噸，吊點標高 EL.+12.8m；需配置 20T 配重運輸車 4 車次，作業區半徑 36m 內淨空。</textarea></div>
+              </div>
+            </div>
+            <div class="form-section">
+              <div class="form-section-title"><span class="material-symbols-outlined">route</span><h2>運送與現場條件</h2></div>
+              <div class="form-grid">
+                <div class="form-group"><label for="gateEntry">指定入口</label><select id="gateEntry" class="form-control"><option>南側 2 號重車門</option><option>東側臨時門</option></select></div>
+                <div class="form-group"><label for="escort">交管需求</label><select id="escort" class="form-control"><option>需交管 4 人＋引導車</option><option>一般引導 2 人</option></select></div>
+                <div class="form-group"><label for="groundLoad">地坪設計承載</label><input id="groundLoad" class="form-control" value="20 tf/m²"></div>
+                <div class="form-group"><label for="parkingArea">夜間停放區</label><input id="parkingArea" class="form-control" value="B 區重機停放坪 P-03"></div>
+              </div>
+            </div>
+          </div>
+
+          <aside class="card">
+            <div class="card-head"><div><h2>送審摘要</h2><p>申請編碼 HEA-026</p></div><span class="badge blue">草稿</span></div>
+            <div class="summary-box">
+              <div class="summary-line"><span>申請人</span><strong>王建宏・B區工程師</strong></div>
+              <div class="summary-line"><span>機具</span><strong>250T 履帶式吊車</strong></div>
+              <div class="summary-line"><span>使用期間</span><strong>9/5 06:30－9/7 18:00</strong></div>
+              <div class="summary-line"><span>預估租金</span><strong>NT$ 286,000</strong></div>
+            </div>
+            <div class="notice">
+              <span class="material-symbols-outlined">warning</span>
+              <div><strong>系統預檢提醒</strong><p>9/5 上午南側重車門另有混凝土泵車進場，需由調度員確認錯峰時段。</p></div>
+            </div>
+            <h3 style="margin-top:18px">送審必備資料</h3>
+            <div class="list" style="margin-top:10px">
+              <div class="list-row"><span class="material-symbols-outlined">check_circle</span><div><strong>吊裝計畫書</strong><p>lifting-plan-B2-r3.pdf・4.8 MB</p></div><span class="badge green">已附</span></div>
+              <div class="list-row"><span class="material-symbols-outlined">check_circle</span><div><strong>機具合格證</strong><p>有效至 2027/03/18</p></div><span class="badge green">有效</span></div>
+              <div class="list-row"><span class="material-symbols-outlined">add_circle</span><div><strong>運送車組資料</strong><p>待調度確認車牌</p></div><span class="badge amber">後補</span></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="1">
+        <div class="page-head">
+          <div>
+            <span class="eyebrow"><span class="material-symbols-outlined">foundation</span>流程 02／檢查場地條件</span>
+            <h1>HEA-026 進場條件檢核</h1>
+            <p>工地主任確認道路寬度、轉彎淨空、地坪承載、支腿配置與停放空間；未通過時退回補件並留下原因。</p>
+          </div>
+          <div class="actions">
+            <button class="btn" data-toast="已退回申請人補充轉彎模擬圖"><span class="material-symbols-outlined">undo</span>退回補件</button>
+            <button class="btn primary" data-toast="場地條件已核准，案件送往調度排程"><span class="material-symbols-outlined">verified</span>核准條件</button>
+          </div>
+        </div>
+
+        <div class="stepper" aria-label="檢核進度">
+          <div class="step-node done"><i>1</i><span>需求內容</span></div><div class="step-line"></div>
+          <div class="step-node done"><i>2</i><span>進場路線</span></div><div class="step-line"></div>
+          <div class="step-node current"><i>3</i><span>承載與淨空</span></div><div class="step-line"></div>
+          <div class="step-node"><i>4</i><span>主任核准</span></div>
+        </div>
+
+        <div class="check-layout">
+          <div class="card">
+            <div class="card-head"><div><h2>路線與作業面查核</h2><p>南側 2 號重車門 → S2 臨時道路 → B 棟西側吊裝坪</p></div><span class="badge amber"><span class="dot"></span>1 項待改善</span></div>
+            <div class="checklist">
+              <div class="check-item"><div class="check-icon"><span class="material-symbols-outlined">check</span></div><div><h3>入口有效寬度 8.2 m</h3><p>250T 履帶吊運輸車需求 6.5 m，餘裕 1.7 m。</p></div><span class="badge green">通過</span></div>
+              <div class="check-item"><div class="check-icon"><span class="material-symbols-outlined">check</span></div><div><h3>沿線最低淨高 5.4 m</h3><p>運輸車組最高 4.65 m；架空線已完成抬升。</p></div><span class="badge green">通過</span></div>
+              <div class="check-item"><div class="check-icon warn"><span class="material-symbols-outlined">priority_high</span></div><div><h3>S2 轉彎區材料暫置</h3><p>鋼筋籠侵入掃掠範圍 1.2 m，須於 9/4 17:00 前淨空。</p></div><span class="badge amber">限期改善</span></div>
+              <div class="check-item"><div class="check-icon"><span class="material-symbols-outlined">check</span></div><div><h3>吊裝坪承載 22 tf/m²</h3><p>鋼板與級配補強完成，第三方試驗值高於需求 20 tf/m²。</p></div><span class="badge green">通過</span></div>
+              <div class="check-item"><div class="check-icon"><span class="material-symbols-outlined">check</span></div><div><h3>支腿與作業半徑淨空</h3><p>36 m 管制圈已劃設，與 A 區塔吊迴轉範圍保持 8 m。</p></div><span class="badge green">通過</span></div>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="card">
+              <div class="card-head"><div><h2>路線示意</h2><p>現勘版本 R3・9/3 10:20</p></div><button class="icon-btn" aria-label="放大路線"><span class="material-symbols-outlined">open_in_full</span></button></div>
+              <div class="site-map" aria-label="工地進場路線示意">
+                <div class="road a"></div><div class="road b"></div>
+                <div class="pin p1"><span class="material-symbols-outlined">login</span></div>
+                <div class="pin p2"><span class="material-symbols-outlined">crane</span></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:11px;color:var(--muted)"><span>● 南側 2 號門</span><span style="color:var(--amber)">● B 棟吊裝坪</span></div>
+            </div>
+            <div class="card">
+              <h2>場地就緒度</h2>
+              <div class="metric" style="margin-top:14px"><div class="metric-head"><span>道路與轉彎</span><strong>82%</strong></div><div class="progress"><b style="width:82%;background:var(--amber)"></b></div></div>
+              <div class="metric"><div class="metric-head"><span>地坪與支腿</span><strong>100%</strong></div><div class="progress"><b style="width:100%;background:var(--green)"></b></div></div>
+              <div class="metric"><div class="metric-head"><span>停放與管制</span><strong>100%</strong></div><div class="progress"><b style="width:100%;background:var(--green)"></b></div></div>
+              <div class="summary-line"><span>檢核人</span><strong>林志偉・工地主任</strong></div>
+              <div class="summary-line"><span>最晚覆核</span><strong>9/4 17:30</strong></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="2">
+        <div class="page-head">
+          <div>
+            <span class="eyebrow"><span class="material-symbols-outlined">calendar_view_week</span>流程 03／協調調度時段</span>
+            <h1>跨工區機具排程總覽</h1>
+            <p>機具調度員排定運送、操作與退場計畫，處理撞期、換機、改期及跨區調度。</p>
+          </div>
+          <div class="actions">
+            <button class="btn"><span class="material-symbols-outlined">tune</span>資源篩選</button>
+            <button class="btn primary" data-toast="HEA-026 已鎖定 9/5 06:30 進場"><span class="material-symbols-outlined">lock</span>確認排程</button>
+          </div>
+        </div>
+
+        <div class="grid grid-4" style="margin-bottom:18px">
+          <div class="card kpi"><div><div class="kpi-label">本週調度</div><div class="kpi-value">31 台次</div><div class="delta">跨區支援 6 台次</div></div><div class="kpi-icon"><span class="material-symbols-outlined">swap_horiz</span></div></div>
+          <div class="card kpi"><div><div class="kpi-label">排程衝突</div><div class="kpi-value">3 件</div><div class="delta" style="color:var(--red)">1 件須今日處理</div></div><div class="kpi-icon"><span class="material-symbols-outlined">event_busy</span></div></div>
+          <div class="card kpi"><div><div class="kpi-label">平均利用率</div><div class="kpi-value">78%</div><div class="delta">較上週 +6%</div></div><div class="kpi-icon"><span class="material-symbols-outlined">insights</span></div></div>
+          <div class="card kpi"><div><div class="kpi-label">改期／二次進場</div><div class="kpi-value">4／2</div><div class="delta" style="color:var(--amber)">主要原因：場地未清</div></div><div class="kpi-icon"><span class="material-symbols-outlined">replay</span></div></div>
+        </div>
+
+        <div class="toolbar">
+          <select class="select" aria-label="日期範圍"><option>9/1－9/7 本週</option><option>9/8－9/14 下週</option></select>
+          <select class="select" aria-label="工區"><option>全部工區</option><option>A 棟塔樓區</option><option>B 棟地下層</option><option>南側管廊</option></select>
+          <div class="spacer"></div>
+          <span class="badge blue"><span class="dot"></span>已確認</span>
+          <span class="badge amber"><span class="dot"></span>待協調</span>
+          <span class="badge red"><span class="dot"></span>衝突</span>
+        </div>
+
+        <div class="dispatch-layout">
+          <div class="card">
+            <div class="card-head"><div><h2>待調度佇列</h2><p>依進場時限與風險排序</p></div><span class="badge blue">5 件</span></div>
+            <div class="queue">
+              <div class="queue-card conflict"><div class="row"><strong>HEA-026・250T 履帶吊</strong><span class="badge red">門區撞期</span></div><p>B 棟西側・9/5 06:30・王建宏</p></div>
+              <div class="queue-card"><div class="row"><strong>HEA-028・22m 高空車</strong><span class="badge amber">待排</span></div><p>A 棟東立面・9/5 08:00・蔡佳穎</p></div>
+              <div class="queue-card"><div class="row"><strong>HEA-030・0.7m³ 挖土機</strong><span class="badge blue">可排</span></div><p>南側管廊・9/6 07:00・許國豪</p></div>
+              <div class="queue-card"><div class="row"><strong>HEA-031・35T 汽車吊</strong><span class="badge blue">可排</span></div><p>機電平台・9/6 13:00・鄭明哲</p></div>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="card">
+              <div class="card-head"><div><h2>工區時段配置</h2><p>拖曳式排程檢視・每格 2 小時</p></div><button class="icon-btn" aria-label="重新整理"><span class="material-symbols-outlined">refresh</span></button></div>
+              <div class="dispatch-board">
+                <div class="board">
+                  <div class="board-head"><div>工區</div><div>06–08</div><div>08–10</div><div>10–12</div><div>13–15</div><div>15–18</div></div>
+                  <div class="board-row"><div class="zone">A 棟塔樓</div><div></div><div><div class="booking green">22m 高空車<small>東立面帷幕</small></div></div><div><div class="booking green">22m 高空車<small>續作</small></div></div><div></div><div><div class="booking">35T 汽車吊<small>機電設備</small></div></div></div>
+                  <div class="board-row"><div class="zone">B 棟地下層</div><div><div class="booking red">250T 履帶吊<small>與泵車門區衝突</small></div></div><div><div class="booking">250T 履帶吊<small>組裝配重</small></div></div><div><div class="booking">250T 履帶吊<small>主梁吊裝</small></div></div><div><div class="booking">250T 履帶吊<small>主梁吊裝</small></div></div><div><div class="booking">250T 履帶吊<small>停放 P-03</small></div></div></div>
+                  <div class="board-row"><div class="zone">南側管廊</div><div><div class="booking amber">0.7m³ 挖土機<small>待路權確認</small></div></div><div><div class="booking amber">0.7m³ 挖土機<small>開挖 GL-2</small></div></div><div></div><div></div><div><div class="booking green">小型壓路機<small>回填夯實</small></div></div></div>
+                  <div class="board-row"><div class="zone">材料堆置區</div><div></div><div><div class="booking green">16T 叉裝車<small>鋼構卸料</small></div></div><div><div class="booking green">16T 叉裝車<small>鋼構轉運</small></div></div><div></div><div></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-2">
+              <div class="card"><div class="card-head"><div><h2>六週預警改善</h2><p>進度落後預警率由 40% 提升至 90%</p></div></div><div id="trendChart" class="chart short"></div></div>
+              <div class="card">
+                <div class="card-head"><div><h2>衝突協調建議</h2><p>依運送路線與作業半徑排列</p></div></div>
+                <div class="notice"><span class="material-symbols-outlined">alt_route</span><div><strong>建議泵車提前 45 分鐘</strong><p>混凝土泵車 05:40 進門、06:15 完成定位，可釋放 HEA-026 車組通道。</p></div></div>
+                <div class="list">
+                  <div class="list-row"><span class="material-symbols-outlined">schedule</span><div><strong>履帶吊進場 06:30</strong><p>預估通行 28 分鐘</p></div><span class="badge green">建議</span></div>
+                  <div class="list-row"><span class="material-symbols-outlined">night_shelter</span><div><strong>停放坪 P-03</strong><p>可容納主機與 4 車配重</p></div><span class="badge blue">保留</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="3">
+        <div class="page-head">
+          <div>
+            <span class="eyebrow"><span class="material-symbols-outlined">fact_check</span>流程 04／辦理進場點交</span>
+            <h1>250T 履帶吊進場點交</h1>
+            <p>機管人員核對機況、里程、油量、附件、既有損傷及實際到場時間，形成雙方可追溯紀錄。</p>
+          </div>
+          <div class="actions">
+            <button class="btn"><span class="material-symbols-outlined">print</span>列印點交單</button>
+            <button class="btn primary" data-toast="點交紀錄已完成，機具轉為使用中"><span class="material-symbols-outlined">task_alt</span>完成點交</button>
+          </div>
+        </div>
+
+        <div class="asset-hero">
+          <div class="big-icon"><span class="material-symbols-outlined">crane</span></div>
+          <div style="flex:1"><h2>KOBELCO CKE2500G-2</h2><p>250T 履帶式吊車・機號 CR-250-07・供應商 永峻重機</p></div>
+          <div><span class="badge green">已到場 06:27</span><div style="margin-top:7px;font-size:11px;text-align:right;color:#dbe4ff">較預定早 3 分鐘</div></div>
+        </div>
+
+        <div class="handover-layout">
+          <div class="card">
+            <div class="card-head"><div><h2>機況與附件核對</h2><p>點交單 HEA-HO-260905-01</p></div><span class="badge green">7／7 已確認</span></div>
+            <div class="inspect-grid">
+              <div class="inspect"><div class="tick"><span class="material-symbols-outlined">check</span></div><div><strong>主機外觀</strong><div class="sub">左配重既有刮痕已註記</div></div></div>
+              <div class="inspect"><div class="tick"><span class="material-symbols-outlined">check</span></div><div><strong>鋼索與吊鉤</strong><div class="sub">磨耗值正常、安全扣完整</div></div></div>
+              <div class="inspect"><div class="tick"><span class="material-symbols-outlined">check</span></div><div><strong>主臂組件</strong><div class="sub">12m × 2、6m × 1</div></div></div>
+              <div class="inspect"><div class="tick"><span class="material-symbols-outlined">check</span></div><div><strong>配重總成</strong><div class="sub">主配重 97.5T、車體配重 20T</div></div></div>
+              <div class="inspect"><div class="tick"><span class="material-symbols-outlined">check</span></div><div><strong>安全裝置</strong><div class="sub">力矩限制器測試正常</div></div></div>
+              <div class="inspect"><div class="tick"><span class="material-symbols-outlined">check</span></div><div><strong>滅火與防漏</strong><div class="sub">滅火器 2 具、吸油棉 1 組</div></div></div>
+            </div>
+            <div class="grid grid-3" style="margin-top:17px">
+              <div class="summary-box"><div class="kpi-label">引擎時數</div><div class="kpi-value" style="font-size:20px">4,286.7 hr</div></div>
+              <div class="summary-box"><div class="kpi-label">柴油油量</div><div class="kpi-value" style="font-size:20px">78%</div></div>
+              <div class="summary-box"><div class="kpi-label">履帶板寬</div><div class="kpi-value" style="font-size:20px">1,220 mm</div></div>
+            </div>
+            <h3 style="margin-top:18px">既有外觀紀錄</h3>
+            <div class="photo-grid" style="margin-top:10px">
+              <div class="photo"><span>左側配重・06:34</span></div>
+              <div class="photo" style="filter:hue-rotate(12deg)"><span>吊鉤總成・06:36</span></div>
+              <div class="photo" style="filter:saturate(.7)"><span>右履帶板・06:38</span></div>
+              <div class="photo" style="filter:brightness(.9)"><span>主機銘牌・06:40</span></div>
+            </div>
+          </div>
+
+          <aside class="grid">
+            <div class="card">
+              <div class="card-head"><div><h2>進場資訊</h2><p>車組共 5 車</p></div><span class="badge blue">HEA-026</span></div>
+              <div class="summary-line"><span>實際到場</span><strong>2026/09/05 06:27</strong></div>
+              <div class="summary-line"><span>進場門區</span><strong>南側 2 號重車門</strong></div>
+              <div class="summary-line"><span>主機板車</span><strong>KLE-7328</strong></div>
+              <div class="summary-line"><span>操作手</span><strong>周信宏・證號 O-1842</strong></div>
+              <div class="summary-line"><span>點交人</span><strong>許志成・機管人員</strong></div>
+            </div>
+            <div class="card">
+              <h2>雙方簽認</h2>
+              <p class="sub">簽名表示機況、附件與既有損傷紀錄無誤。</p>
+              <label style="margin-top:14px">供應商駕駛／操作手</label>
+              <div class="signature"><span>周 信 宏　06:48</span></div>
+              <label style="margin-top:14px">工地機管人員</label>
+              <div class="signature"><span>許 志 成　06:49</span></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="4">
+        <div class="page-head">
+          <div>
+            <span class="eyebrow"><span class="material-symbols-outlined">report</span>流程 05／回報使用異常</span>
+            <h1>使用異常與待機費管控</h1>
+            <p>工區工程師登錄待機、故障、換機或延長需求，保留發生時間、責任原因及處置歷程。</p>
+          </div>
+          <div class="actions">
+            <button class="btn"><span class="material-symbols-outlined">download</span>匯出紀錄</button>
+            <button class="btn primary" data-toast="異常單 INC-0921 已建立並通知調度員"><span class="material-symbols-outlined">add</span>新增異常</button>
+          </div>
+        </div>
+
+        <div class="incident-layout">
+          <div class="grid">
+            <div class="card">
+              <div class="incident-top">
+                <div class="incident-stat"><span class="kpi-label">本月異常</span><strong>12 件</strong><span class="delta">已結案 9 件</span></div>
+                <div class="incident-stat"><span class="kpi-label">累計待機</span><strong>18.5 hr</strong><span class="delta" style="color:var(--amber)">場地因素占 57%</span></div>
+                <div class="incident-stat"><span class="kpi-label">待機費用</span><strong>NT$ 148,600</strong><span class="delta" style="color:var(--red)">較上月 +12%</span></div>
+              </div>
+              <div class="card-head"><div><h2>異常案件資料列表</h2><p>包含待機、故障、換機、延長與二次進場</p></div></div>
+              <div class="toolbar">
+                <input class="field" aria-label="搜尋異常案件" placeholder="搜尋機號、工區或異常原因">
+                <select class="select" aria-label="異常類型"><option>全部類型</option><option>待機</option><option>故障</option><option>換機</option></select>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>異常單號</th><th>機具／機號</th><th>作業工區</th><th>異常類型</th><th>發生時段</th><th>待機費</th><th>處置狀態</th></tr></thead>
+                  <tbody>
+                    <tr><td class="strong">INC-0921</td><td><div class="strong">250T 履帶吊</div><div class="sub">CR-250-07</div></td><td>B 棟西側</td><td><span class="badge amber">待機</span></td><td>9/5 10:20–11:35</td><td class="strong">NT$ 18,750</td><td><span class="badge blue">責任釐清</span></td></tr>
+                    <tr><td class="strong">INC-0918</td><td><div class="strong">0.7m³ 挖土機</div><div class="sub">EX-071-12</div></td><td>南側管廊</td><td><span class="badge red">油管滲漏</span></td><td>9/4 14:10–16:40</td><td class="strong">NT$ 9,800</td><td><span class="badge green">已修復</span></td></tr>
+                    <tr><td class="strong">INC-0914</td><td><div class="strong">22m 高空車</div><div class="sub">AW-220-03</div></td><td>A 棟東立面</td><td><span class="badge blue">延長</span></td><td>9/3 17:00–19:00</td><td class="strong">NT$ 6,400</td><td><span class="badge green">已核准</span></td></tr>
+                    <tr><td class="strong">INC-0909</td><td><div class="strong">35T 汽車吊</div><div class="sub">MC-035-18</div></td><td>機電平台</td><td><span class="badge amber">二次進場</span></td><td>9/2 07:00–08:25</td><td class="strong">NT$ 24,000</td><td><span class="badge green">已結案</span></td></tr>
+                    <tr><td class="strong">INC-0905</td><td><div class="strong">16T 叉裝車</div><div class="sub">TL-016-09</div></td><td>材料堆置區</td><td><span class="badge red">換機</span></td><td>9/1 13:20–15:50</td><td class="strong">NT$ 12,600</td><td><span class="badge green">替代機到場</span></td></tr>
+                    <tr><td class="strong">INC-0902</td><td><div class="strong">小型壓路機</div><div class="sub">RR-045-06</div></td><td>南側管廊</td><td><span class="badge amber">待機</span></td><td>9/1 09:10–10:00</td><td class="strong">NT$ 3,200</td><td><span class="badge green">已結案</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <aside class="grid">
+            <div class="card">
+              <div class="card-head"><div><h2>INC-0921 處置時間軸</h2><p>250T 履帶吊・B 棟西側</p></div><span class="badge red">75 分鐘</span></div>
+              <div class="feed">
+                <div class="feed-item"><strong>10:20　操作手回報停止吊裝</strong><p>吊裝半徑內有鋼構材料車臨停，無法安全迴轉。</p><span class="badge blue">王建宏登錄</span></div>
+                <div class="feed-item red"><strong>10:28　判定為工區場地因素</strong><p>影像確認管制區遭占用，開始計算計費待機。</p><span class="badge red">待機計費</span></div>
+                <div class="feed-item"><strong>11:18　材料車完成移置</strong><p>安全員重新確認 36 m 作業半徑。</p><span class="badge green">障礙排除</span></div>
+                <div class="feed-item"><strong>11:35　恢復主梁吊裝</strong><p>調度員與供應商確認待機 1.25 小時。</p><span class="badge amber">待簽認費用</span></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><h2>異常原因分布</h2><p>本月 12 件案件</p></div></div>
+              <div id="incidentChart" class="chart short"></div>
+            </div>
+            <div class="card">
+              <h2>預估費用</h2>
+              <div class="cost-row"><span>履帶吊待機 1.25 hr</span><strong>NT$ 18,750</strong></div>
+              <div class="cost-row"><span>操作手加班</span><strong>NT$ 2,100</strong></div>
+              <div class="cost-row"><span>責任歸屬</span><span class="badge red">工區因素</span></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="5">
+        <div class="page-head">
+          <div>
+            <span class="eyebrow"><span class="material-symbols-outlined">payments</span>流程 06／完成退場結算</span>
+            <h1>HEA-026 退場與費用結算</h1>
+            <p>機具調度員核實退場時間、租用時數、待機、加班與衍生費用，完成可追溯的進退場操作紀錄。</p>
+          </div>
+          <div class="actions">
+            <button class="btn"><span class="material-symbols-outlined">picture_as_pdf</span>下載結算單</button>
+            <button class="btn primary" data-toast="HEA-026 已完成退場結算並封存"><span class="material-symbols-outlined">verified</span>核定結算</button>
+          </div>
+        </div>
+
+        <div class="close-layout">
+          <div class="invoice">
+            <div class="invoice-head">
+              <div><span class="eyebrow">EQUIPMENT SETTLEMENT</span><h2>大型機具退場結算單</h2><p>結算單 JV-HEA-20260907-026</p></div>
+              <div style="text-align:right"><span class="badge green">資料已核對</span><div class="sub" style="margin-top:8px">供應商：永峻重機工程有限公司</div></div>
+            </div>
+            <div class="grid grid-3" style="margin:18px 0">
+              <div class="summary-box"><div class="kpi-label">實際進場</div><strong>9/5 06:27</strong></div>
+              <div class="summary-box"><div class="kpi-label">實際退場</div><strong>9/7 17:42</strong></div>
+              <div class="summary-box"><div class="kpi-label">租用期間</div><strong>2 日 11 小時</strong></div>
+            </div>
+            <div style="overflow:auto">
+              <table class="amount-table">
+                <thead><tr><th>計費內容</th><th>核定數量</th><th>單價</th><th>責任／依據</th><th style="text-align:right">金額</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>250T 履帶吊基本租用</strong><div class="sub">含操作手及例行保養</div></td><td>3 日</td><td>NT$ 88,000</td><td>PO-260831-17</td><td style="text-align:right"><strong>NT$ 264,000</strong></td></tr>
+                  <tr><td><strong>主機與配重運輸</strong><div class="sub">低板車 5 車次進退場</div></td><td>10 車次</td><td>NT$ 7,800</td><td>車次點交紀錄</td><td style="text-align:right"><strong>NT$ 78,000</strong></td></tr>
+                  <tr><td><strong>夜間延長作業</strong><div class="sub">9/6 鋼構吊裝延長</div></td><td>2 小時</td><td>NT$ 6,200</td><td>EXT-0914</td><td style="text-align:right"><strong>NT$ 12,400</strong></td></tr>
+                  <tr><td><strong>場地因素待機</strong><div class="sub">管制區遭材料車占用</div></td><td>1.25 小時</td><td>NT$ 15,000</td><td>INC-0921</td><td style="text-align:right"><strong>NT$ 18,750</strong></td></tr>
+                  <tr><td><strong>退場清潔扣款</strong><div class="sub">履帶泥土未完全清除</div></td><td>1 式</td><td>− NT$ 3,000</td><td>退場照片 07</td><td style="text-align:right"><strong>− NT$ 3,000</strong></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="total-box">
+              <div class="total-line"><span>費用小計</span><strong>NT$ 370,150</strong></div>
+              <div class="total-line"><span>營業稅 5%</span><strong>NT$ 18,508</strong></div>
+              <div class="total-line grand"><span>核定總額</span><span>NT$ 388,658</span></div>
+            </div>
+          </div>
+
+          <aside class="grid">
+            <div class="card">
+              <div class="card-head"><div><h2>案件履約評分</h2><p>由進退場及異常紀錄自動彙整</p></div></div>
+              <div class="score"><div><strong>93</strong><span class="sub">履約分數</span></div></div>
+              <div class="summary-line"><span>準時進場</span><strong style="color:var(--green)">提前 3 分鐘</strong></div>
+              <div class="summary-line"><span>二次進場</span><strong>0 次</strong></div>
+              <div class="summary-line"><span>機具故障</span><strong>0 小時</strong></div>
+              <div class="summary-line"><span>待機責任</span><strong style="color:var(--red)">工區 1.25 hr</strong></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><h2>效益指標</h2><p>導入排程台前後比較</p></div></div>
+              <div id="benefitChart" class="chart"></div>
+            </div>
+            <div class="card">
+              <h2>結案文件</h2>
+              <div class="list" style="margin-top:12px">
+                <div class="list-row"><span class="material-symbols-outlined">description</span><div><strong>進退場點交單</strong><p>雙方簽認・8 張照片</p></div><span class="badge green">完整</span></div>
+                <div class="list-row"><span class="material-symbols-outlined">receipt_long</span><div><strong>異常與待機紀錄</strong><p>INC-0921・責任已確認</p></div><span class="badge green">完整</span></div>
+                <div class="list-row"><span class="material-symbols-outlined">approval</span><div><strong>費用核定</strong><p>調度員陳志豪・9/8 10:15</p></div><span class="badge blue">待主任簽核</span></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+        <div class="footer-note">大型機具進退場排程台處理結果與可追溯的操作紀錄・Jvision Construction PM Demo</div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const navButtons = Array.from(document.querySelectorAll("[data-i]"));
+const screens = Array.from(document.querySelectorAll("[data-screen]"));
+const chartInstances = {};
+let toastFrame = 0;
+
+function readScreenIndex() {
+  const matched = window.location.hash.match(/(?:go=|v)([0-9]+)/);
+  if (!matched) return 0;
+  return Math.max(0, Math.min(5, Number(matched[1])));
+}
+
+function makeTrendChart() {
+  const chartElement = document.getElementById("trendChart");
+  if (!chartElement || chartElement.clientWidth === 0) return;
+  if (!chartInstances.trend) chartInstances.trend = echarts.init(chartElement);
+  chartInstances.trend.setOption({
+    grid:{left:38,right:16,top:22,bottom:28},
+    tooltip:{trigger:"axis"},
+    xAxis:{type:"category",data:["W1","W2","W3","W4","W5","W6"],axisLine:{lineStyle:{color:"#dfe4ec"}},axisLabel:{color:"#667085"}},
+    yAxis:{type:"value",min:30,max:100,axisLabel:{formatter:"{value}%",color:"#667085"},splitLine:{lineStyle:{color:"#edf0f5"}}},
+    series:[{type:"line",data:[40,50,60,70,80,90],smooth:true,symbolSize:8,lineStyle:{width:3,color:"#1e40af"},itemStyle:{color:"#1e40af"},areaStyle:{color:{type:"linear",x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:"rgba(30,64,175,.28)"},{offset:1,color:"rgba(30,64,175,.02)"}]}}}]
+  });
+}
+
+function makeIncidentChart() {
+  const chartElement = document.getElementById("incidentChart");
+  if (!chartElement || chartElement.clientWidth === 0) return;
+  if (!chartInstances.incident) chartInstances.incident = echarts.init(chartElement);
+  chartInstances.incident.setOption({
+    tooltip:{trigger:"item",formatter:"{b}：{c} 件 ({d}%)"},
+    legend:{bottom:0,itemWidth:10,itemHeight:10,textStyle:{color:"#667085",fontSize:11}},
+    series:[{type:"pie",radius:["48%","72%"],center:["50%","43%"],label:{show:false},data:[
+      {value:5,name:"場地未清",itemStyle:{color:"#1e40af"}},
+      {value:3,name:"機具故障",itemStyle:{color:"#b42318"}},
+      {value:2,name:"天候影響",itemStyle:{color:"#d58a22"}},
+      {value:2,name:"設計變更",itemStyle:{color:"#7a8bb8"}}
+    ]}]
+  });
+}
+
+function makeBenefitChart() {
+  const chartElement = document.getElementById("benefitChart");
+  if (!chartElement || chartElement.clientWidth === 0) return;
+  if (!chartInstances.benefit) chartInstances.benefit = echarts.init(chartElement);
+  chartInstances.benefit.setOption({
+    grid:{left:92,right:18,top:28,bottom:30},
+    tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},
+    legend:{top:0,right:0,itemWidth:10,itemHeight:10,textStyle:{fontSize:11}},
+    xAxis:{type:"value",axisLabel:{color:"#667085"},splitLine:{lineStyle:{color:"#edf0f5"}}},
+    yAxis:{type:"category",data:["日報工時","預警率","計價天數","改善天數"],axisLabel:{color:"#344054"}},
+    series:[
+      {name:"導入前",type:"bar",data:[3,40,10,7],barWidth:9,itemStyle:{color:"#b7c0d4",borderRadius:[0,5,5,0]}},
+      {name:"導入後",type:"bar",data:[0.5,90,4,2],barWidth:9,itemStyle:{color:"#1e40af",borderRadius:[0,5,5,0]}}
+    ]
+  });
+}
+
+function initializeCharts(screenIndex) {
+  requestAnimationFrame(function() {
+    if (screenIndex === 2) makeTrendChart();
+    if (screenIndex === 4) makeIncidentChart();
+    if (screenIndex === 5) makeBenefitChart();
+  });
+}
+
+function show(screenIndex, updateHash) {
+  const safeIndex = Math.max(0, Math.min(5, Number(screenIndex) || 0));
+  screens.forEach(function(screenElement, itemIndex) {
+    screenElement.classList.toggle("active", itemIndex === safeIndex);
+  });
+  navButtons.forEach(function(buttonElement, itemIndex) {
+    const selected = itemIndex === safeIndex;
+    buttonElement.classList.toggle("active", selected);
+    buttonElement.setAttribute("aria-current", selected ? "page" : "false");
+  });
+  if (updateHash && window.location.hash !== "#go=" + safeIndex) {
+    window.location.hash = "go=" + safeIndex;
+  }
+  initializeCharts(safeIndex);
+  window.scrollTo({left:0,top:0,behavior:"smooth"});
+}
+
+navButtons.forEach(function(buttonElement) {
+  buttonElement.addEventListener("click", function() {
+    show(Number(buttonElement.dataset.i), true);
+  });
+});
+
+window.addEventListener("hashchange", function() {
+  show(readScreenIndex(), false);
+});
+
+window.addEventListener("resize", function() {
+  Object.keys(chartInstances).forEach(function(chartKey) {
+    chartInstances[chartKey].resize();
+  });
+});
+
+document.querySelectorAll(".choice").forEach(function(choiceElement) {
+  choiceElement.addEventListener("click", function() {
+    document.querySelectorAll(".choice").forEach(function(peerElement) {
+      peerElement.classList.remove("active");
+    });
+    choiceElement.classList.add("active");
+  });
+});
+
+document.querySelectorAll("[data-toast]").forEach(function(actionElement) {
+  actionElement.addEventListener("click", function() {
+    const toastElement = document.getElementById("toast");
+    toastElement.textContent = actionElement.dataset.toast;
+    toastElement.classList.add("visible");
+    cancelAnimationFrame(toastFrame);
+    let frameCount = 0;
+    function hideAfterFrames() {
+      frameCount += 1;
+      if (frameCount > 150) {
+        toastElement.classList.remove("visible");
+        return;
+      }
+      toastFrame = requestAnimationFrame(hideAfterFrames);
+    }
+    toastFrame = requestAnimationFrame(hideAfterFrames);
+  });
+});
+
+show(readScreenIndex(), false);
+</script>
+</body>
+</html>
