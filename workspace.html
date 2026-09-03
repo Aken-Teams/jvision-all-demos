@@ -289,20 +289,20 @@
         <button type="button" class="tab" data-tab="log" aria-selected="false"><span class="material-symbols-outlined text-[16px]">history</span>紀錄</button>
         <button type="button" class="tab" data-tab="spec" aria-selected="false"><span class="material-symbols-outlined text-[16px]">menu_book</span>文件</button>
         <button type="button" class="tab" data-tab="deploy" aria-selected="false"><span class="material-symbols-outlined text-[16px]">rocket_launch</span>交付</button>
+        <!-- 預覽的工具併進同一列。原本自成一行，右欄光是頁首就吃掉兩條橫線；
+             這些控制項只對「預覽」有意義，所以切到別的分頁就整組收起來。 -->
+        <div id="previewTools" class="flex items-center gap-1 ml-auto shrink-0">
+          <button id="reload" type="button" class="btn btn-ghost h-7 px-2" title="重新載入"><span class="material-symbols-outlined text-[16px]">refresh</span></button>
+          <button type="button" class="tab" data-w="full" aria-selected="true">桌機</button>
+          <button type="button" class="tab" data-w="390" aria-selected="false">手機</button>
+          <a id="openNew" href="#" target="_blank" rel="noreferrer" class="btn btn-ghost h-7 px-2" title="另開分頁"><span class="material-symbols-outlined text-[16px]">open_in_new</span></a>
+        </div>
       </div>
 
       <!-- 預覽 -->
       <div id="tab-preview" class="col flex-1">
-        <div class="flex items-center gap-2 px-3 py-1.5 border-b border-line bg-soft">
-          <button id="reload" type="button" class="btn btn-ghost h-7 px-2" title="重新載入"><span class="material-symbols-outlined text-[16px]">refresh</span></button>
-          <div class="flex gap-1">
-            <button type="button" class="tab" data-w="full" aria-selected="true">桌機</button>
-            <button type="button" class="tab" data-w="390" aria-selected="false">手機</button>
-          </div>
-          <a id="openNew" href="#" target="_blank" rel="noreferrer" class="btn btn-ghost h-7 px-2 ml-auto"><span class="material-symbols-outlined text-[16px]">open_in_new</span>另開分頁</a>
-        </div>
-        <div id="frameWrap" class="flex-1 bg-slate-100 overflow-auto grid place-items-stretch p-0">
-          <iframe id="frame" title="你的系統預覽" class="w-full h-full border-0 bg-white"></iframe>
+        <div id="frameWrap" class="flex-1 bg-slate-100 overflow-hidden relative p-0">
+          <iframe id="frame" title="你的系統預覽" class="border-0 bg-white block"></iframe>
         </div>
       </div>
 
@@ -628,12 +628,9 @@
       .then(function (r) { return r.json(); })
       .then(function (d) {
         var list = (d && d.sessions) || [];
-        var nb = document.createElement("button");
-        nb.type = "button";
-        nb.className = "ses new";
-        nb.textContent = "＋ 新對話";
-        nb.addEventListener("click", function () { openSession(null); });
-        box.appendChild(nb);
+        /* 這裡不再放「＋ 新對話」。聊天欄的標題列已經有一顆，同一個動作出現在
+           兩個地方，會讓人以為它們做的是不同的事；左欄只列「有哪些對話」，
+           要開新的就在對話那一欄開。 */
         list.forEach(function (x) {
           var b = document.createElement("button");
           b.type = "button";
@@ -949,6 +946,10 @@
     document.querySelectorAll("[data-tab]").forEach(function (b) {
       b.setAttribute("aria-selected", b.dataset.tab === name ? "true" : "false");
     });
+    /* 預覽的工具只對預覽有意義，切走就收起來——留著會讓人以為「桌機／手機」
+       也能切資料或程式碼的檢視。 */
+    $("previewTools").hidden = name !== "preview";
+    if (name === "preview") fitFrame();
     if (name === "data" && !loaded.data) loadData();
     if (name === "code" && !loaded.code) loadCode();
     if (name === "log" && !loaded.log) loadLog();
@@ -1019,16 +1020,43 @@
     if (!cur) return;
     $("frame").src = frameUrl();          // 重設 src，不用 contentWindow.location.reload()
     $("openNew").href = "/-/i/" + encodeURIComponent(cur.id) + "/";
+    fitFrame();
   }
   $("reload").addEventListener("click", refreshFrame);
   document.querySelectorAll("[data-w]").forEach(function (b) {
     b.addEventListener("click", function () {
       document.querySelectorAll("[data-w]").forEach(function (o) { o.setAttribute("aria-selected", o === b ? "true" : "false"); });
-      var f = $("frame");
-      if (b.dataset.w === "full") { f.style.maxWidth = ""; f.style.margin = ""; }
-      else { f.style.maxWidth = b.dataset.w + "px"; f.style.margin = "0 auto"; }
+      frameW = b.dataset.w === "full" ? DESKTOP_W : Number(b.dataset.w);
+      fitFrame();
     });
   });
+
+  /* ── 預覽的縮放 ──────────────────────────────────────
+     以前是讓 iframe 直接吃剩餘寬度（w-full）。問題是右欄在 1440 的螢幕上只有
+     約 816px，demo 自己的 RWD 就切到平板版了——使用者想看的是「我的系統在桌機
+     長怎樣」，卻看到平板版面，而且會以為是系統做壞了。
+
+     改成固定用 1440 寬渲染，再等比縮小到容器塞得下。這是設計工具的作法：
+     內容永遠是桌機佈局，只是顯示得小一點。放大不做（scale 上限 1），
+     免得在 2560 的螢幕上把畫面糊掉。 */
+  var DESKTOP_W = 1440, frameW = DESKTOP_W;
+
+  function fitFrame() {
+    var wrap = $("frameWrap"), f = $("frame");
+    if (!wrap || !f) return;
+    var availW = wrap.clientWidth, availH = wrap.clientHeight;
+    if (!availW || !availH) return;
+    var scale = Math.min(1, availW / frameW);
+    f.style.width = frameW + "px";
+    /* 高度也要除以縮放比，否則縮完之後底部會空一塊。 */
+    f.style.height = Math.round(availH / scale) + "px";
+    f.style.transform = scale < 1 ? "scale(" + scale + ")" : "";
+    f.style.transformOrigin = "top left";
+    /* 手機模式要置中；桌機模式縮放後靠左，右邊不會留白。 */
+    f.style.marginLeft = (frameW * scale < availW) ? Math.round((availW - frameW * scale) / 2) + "px" : "0";
+  }
+
+  addEventListener("resize", function () { if (curTab === "preview") fitFrame(); });
 
   /* 資料。這裡帶 ?limit=&offset=&q=，所以 gateway 的 /-/i/ 那條必須把 query
      轉給上游——否則會安靜地永遠回前 50 筆並忽略搜尋。 */
@@ -1362,6 +1390,8 @@
     try { localStorage.setItem(FOLD_KEY, on ? "1" : "0"); } catch (e) { /* 這次有效就好 */ }
     /* 預覽 iframe 的寬度變了，圖表要重算——不然收合之後圖表還是舊寬度，
        右半邊會空一塊。 */
+    /* 容器寬度變了，縮放比要重算——不然收合之後畫面會對不上容器。 */
+    fitFrame();
     var f = $("frame");
     if (f && f.contentWindow) { try { f.contentWindow.dispatchEvent(new Event("resize")); } catch (e) { /* 跨源就算了，這裡是同源 */ } }
   }
