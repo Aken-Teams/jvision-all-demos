@@ -280,19 +280,12 @@
        max-width 收到 60rem 是用來卡住欄數：每欄至少 21rem 加 1rem 間距，
        60rem 只塞得下兩欄（三欄要 64rem）。這樣不必寫 @media——工作台的欄寬
        會隨對話框開合改變，用視窗寬度判斷本來就會判錯。 */
-    /* 欄數用容器查詢決定，不用 @media 也不用 max-width。
-       ── 為什麼不能用 @media：工作台的這一欄寬度會隨對話框開合而變，
-          同一個視窗寬度可能對應很不一樣的可用寬度，用視窗判斷本來就會判錯。
-       ── 為什麼不用 max-width 卡欄數：那確實能卡住「最多兩欄」，但代價是
-          寬螢幕上右邊空一大塊。容器查詢兩件事都做得到——填滿寬度，而且
-          只在真的放得下的時候才給兩欄。 */
-    .depwrap { container-type:inline-size; }
+    /* 一欄，由上而下。
+       試過兩欄（佈署＋分享並排、交付橫跨），排得整齊，但三張卡講的是三件
+       先後發生的事：先有網址、再決定誰進得去、最後才把整套程式帶走。並排會
+       讓前兩件看起來像可以同時做的選項，而由上而下讀就是順序本身。
+       卡片也因此拿得到整個寬度——名單與網址都不必再擠在半欄裡折行。 */
     .depgrid { display:grid; gap:1rem; grid-template-columns:1fr; }
-    @container (min-width: 44rem) {
-      .depgrid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
-    }
-    /* 橫跨整排。只剩一欄時 1/-1 就是那一欄，窄畫面不用另外處理。 */
-    .depgrid .wide { grid-column:1 / -1; }
     .depgrid > div { display:flex; flex-direction:column; }
     /* 說明文字吃掉多出來的高度，按鈕列因此自然被推到底。 */
     .depgrid .grow { flex:1 1 auto; }
@@ -887,7 +880,7 @@
       </div>
 
       <div id="tab-deploy" hidden class="col flex-1 overflow-y-auto">
-        <div class="p-5 depwrap">
+        <div class="p-5">
         <div class="depgrid">
           <!-- 佈署：讓 c-xxx.jvision-ai.com 這個網址開始存在。
                刻意做成一顆要按的按鈕，而不是開通時就給——網址在使用者沒同意
@@ -914,7 +907,9 @@
           <div class="border border-line rounded-xl p-4">
             <h3 class="text-sm font-black text-ink">分享給同事</h3>
             <p class="text-xs text-muted mt-1 mb-3">把他的信箱加進使用名單，他用 Google 登入就進得去。名單是公司層級的，他會看到你們公司底下所有的系統。</p>
-            <div class="flex gap-2">
+            <!-- 只有擁有者看得到這一組。給成員看一個按了會失敗的輸入框，
+                 比不給更糟——他會以為是自己填錯。 -->
+            <div id="shareForm" class="flex gap-2">
               <input id="shareEmail" type="email" placeholder="同事的信箱" class="flex-1 border border-line rounded-lg px-3 py-2 text-sm" />
               <button type="button" class="btn btn-primary" data-act="share">加入</button>
             </div>
@@ -942,7 +937,7 @@
               <button type="button" class="btn btn-ghost" data-act="vercel"><span class="material-symbols-outlined text-[18px]">rocket_launch</span>部署到 Vercel</button>
             </div>
           </div>
-          <div class="wide border border-line rounded-xl p-4">
+          <div class="border border-line rounded-xl p-4">
             <h3 class="text-sm font-black text-ink">交付到 GitHub</h3>
             <p class="text-xs text-muted mt-1 mb-3 grow">把這套系統推成一個你自己的 repo，附部署說明。要跑 git 與 GitHub API，通常幾十秒到一兩分鐘。</p>
             <div class="flex gap-2 acts">
@@ -2163,7 +2158,7 @@
     if (name === "spec" && !loaded.spec) loadSpec();
     /* 佈署狀態每次進來都重讀，不做 loaded 快取——它可能在別的分頁、別台
        機器上被改掉，記住舊答案只會讓人看到已經不對的狀態。而且這一支很輕。 */
-    if (name === "deploy") { loadPub(); loadMembers(); }
+    if (name === "deploy") loadPub();   // 名單由 paintShareGate 依身分決定要不要載
   }
   document.querySelectorAll("[data-tab]").forEach(function (b) {
     b.addEventListener("click", function () { if (cur) showTab(b.dataset.tab); });
@@ -3151,13 +3146,36 @@
       box.innerHTML = '已佈署：<a href="' + esc(st.url) + '" target="_blank" rel="noreferrer" '
         + 'class="text-brand font-bold hover:underline" style="word-break:break-all">' + esc(st.url) + "</a>"
         + '<div class="mt-1">目前 <b class="text-ink">' + n + " 人</b>進得去"
-        + (n <= 1 ? "（只有你）——要給同事看，先用「分享給同事」把他加進名單。" : "。名單在「分享給同事」那張卡。") + "</div>";
+        + (n <= 1 ? "（只有你）——要給同事看，先用「分享給同事」把他加進名單。" : "。名單在「分享給同事」那張卡。") + "</div>"
+        /* 不是擁有者的話，取消佈署那顆按鈕不會出現。不解釋的話畫面看起來就是
+           少了東西。 */
+        + (st.canPublish ? ""
+          : '<div class="mt-1 text-muted">只有擁有者可以改佈署狀態'
+            + (st.you ? "，你目前登入的是 " + esc(st.you) : "") + "。</div>");
     } else {
       box.innerHTML = '<b class="text-ink">尚未佈署。</b>公開的 DNS 上查不到任何屬於它的網址；'
         + '現在只走「分享給同事」給的那條路徑式入口，它照樣要登入、照樣認使用名單。'
-        + (st.canPublish ? "" : "（只有擁有者可以佈署）");
+        + (st.canPublish ? ""
+          : '<div class="mt-1">只有擁有者可以佈署'
+            + (st.you ? "，你目前登入的是 <b class=\"text-ink\">" + esc(st.you) + "</b>" : "") + "。</div>");
     }
     paintShare(link, st.published);
+    paintShareGate(st);
+  }
+
+  /* 名單是公司層級的，只有擁有者能看與改——成員看得到同事的信箱就是一種外洩。
+     但「不能看」不等於畫面該給一句「名單讀不到」：那看起來像壞掉。
+     使用者真正需要知道的是「我現在登入的是哪個帳號」——實際發生過的情況就是
+     他用同事的帳號登入，於是佈署鈕與名單同時消失，而畫面一句都沒解釋。 */
+  function paintShareGate(st) {
+    var form = document.getElementById("shareForm");
+    var box = document.getElementById("memberList");
+    if (!form || !box) return;
+    form.hidden = !st.canPublish;
+    if (st.canPublish) { loadMembers(); return; }
+    box.innerHTML = '<div class="text-muted">名單只有這套系統的擁有者看得到、改得動。</div>'
+      + (st.you ? '<div class="mt-1">你目前登入的是 <b class="text-ink" style="word-break:break-all">'
+        + esc(st.you) + "</b>。</div>" : "");
   }
 
   /* 使用名單。

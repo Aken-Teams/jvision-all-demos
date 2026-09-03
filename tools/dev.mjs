@@ -759,8 +759,12 @@ function startGateway() {
           /* 順便回名單人數。把網址傳出去才發現對方被擋，是很容易發生又很難自己
              看出原因的事——佈署卡上直接講「現在幾個人進得去」比較省事。 */
           const members = await control.listMembers(inst.customer_id);
+          /* 一併回「你是誰」。畫面上很多東西是照 owner／member 分的（佈署鈕、
+             名單），使用者如果登入的是另一個帳號，看到的是一堆東西不見了卻
+             不知道為什麼——把身分講出來，他一眼就知道自己在哪個帳號上。 */
           return json(res, 200, { host: inst.host, published: Boolean(rec),
             url: rec ? `https://${inst.host}/` : null, canPublish: role === "owner",
+            you: id.email, role,
             members: members.length, path: `/-/i/${inst.id}/` });
         } catch (error) {
           /* Cloudflare 連不上時回「不知道」而不是「沒佈署」——後者會讓畫面
