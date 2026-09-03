@@ -19,7 +19,8 @@
  *   jv=embed  工作台的預覽框
  *   jv=view   從工作台按「開啟」另開的分頁
  * 兩種都代表「這個人已經在編輯區了」。只有直接打開這套系統的人才需要它。
- * 另外，關掉之後就記著（localStorage），不再打擾。
+ * 另外可以「這次先不用」把它收起來——只收這一次（sessionStorage），
+ * 下次進來還會在。永久關掉的話，畫面上沒有任何地方能把它叫回來。
  */
 (function () {
   "use strict";
@@ -29,16 +30,19 @@
   if (/[?&]jv=(embed|view)\b/.test(location.search)) return;
   window.__jvAssist = true;
 
-  /* 關掉的紀錄用路徑當鍵，不用實例編號——編號要跟後端要，而「要不要顯示」
-     這件事不該等一個網路往返才知道。 */
-  var OFF_KEY = "jv-assist-off:" + location.pathname;
-  try { if (localStorage.getItem(OFF_KEY) === "1") return; } catch (e) { /* 讀不到就照常顯示 */ }
+  /* 關掉只關這一次（sessionStorage），不是永遠。
+     第一版寫成 localStorage，結果按下去之後就再也回不來了——使用者要的是
+     「現在別擋我」，不是「這輩子都不要」，而且畫面上沒有任何地方能把它叫回來。
+     一個關得掉、但下次還會在的路標，比一個關掉就消失的安全。
 
-  var esc = function (s) {
-    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-    });
-  };
+     鍵用路徑而不是實例編號：編號要跟後端要，而「要不要顯示」不該等一個網路
+     往返才知道。 */
+  var OFF_KEY = "jv-assist-off:" + location.pathname;
+  try {
+    /* 第一版存在 localStorage 的那些要清掉，否則按過的人永遠看不到它。 */
+    localStorage.removeItem(OFF_KEY);
+    if (sessionStorage.getItem(OFF_KEY) === "1") return;
+  } catch (e) { /* 讀不到就照常顯示 */ }
 
   function css() {
     if (document.getElementById("jv-assist-css")) return;
@@ -94,7 +98,7 @@
       + "<p>欄位、名稱、畫面、流程都能改——到工作台說一句話就好，"
       + "那裡改完馬上看得到，也留得住每一版。</p>"
       + '<a id="jvGoLink" href="#" target="_blank" rel="noreferrer">開啟工作台 ↗</a>'
-      + '<button id="jvGoOff" type="button">不用了，別再顯示</button>'
+      + '<button id="jvGoOff" type="button">這次先不用</button>'
       + "</div>"
       + '<button id="jvGoBtn" type="button" aria-haspopup="dialog" aria-expanded="false">'
       + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"'
@@ -122,7 +126,7 @@
     });
 
     document.getElementById("jvGoOff").addEventListener("click", function () {
-      try { localStorage.setItem(OFF_KEY, "1"); } catch (e) { /* 存不了就這次先關掉 */ }
+      try { sessionStorage.setItem(OFF_KEY, "1"); } catch (e) { /* 存不了就這次先關掉 */ }
       wrap.remove();
     });
 
