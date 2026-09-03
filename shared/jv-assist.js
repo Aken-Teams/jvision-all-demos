@@ -15,7 +15,11 @@
   /* 嵌在工作台的預覽框裡時不要長出來——那一頁中間整欄就是對話，
      再冒一顆右下角的機器人等於同一件事有兩個入口，而且兩邊的對話對不起來。
      判斷放在瀏覽器端：這個查詢字串是工作台加在 iframe 網址上的。 */
-  if (/[?&]jv=embed\b/.test(location.search)) return;
+  /* jv=embed＝嵌在工作台的預覽框裡；jv=view＝從工作台按「開啟」另開的分頁。
+     兩種都是「這個人已經在編輯區了」，不需要再多一個入口——他要改東西，
+     左邊那一整欄就是。只有直接打開這套系統的人（例如客戶的同事在日常使用中
+     想改個欄位）才需要右下角這顆。 */
+  if (/[?&]jv=(embed|view)\b/.test(location.search)) return;
   window.__jvAssist = true;
 
   var schema = null;
