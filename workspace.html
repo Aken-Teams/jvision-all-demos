@@ -960,7 +960,10 @@
           <div class="border border-line rounded-xl p-4">
             <h3 class="text-sm font-black text-ink">交付到 GitHub</h3>
             <p class="text-xs text-muted mt-1 mb-3">把這套系統推成一個 repo，附部署說明。要跑 git 與 GitHub API，通常幾十秒到一兩分鐘。</p>
-            <div id="repoState" class="text-xs mb-3 grow"></div>
+            <div id="repoState" class="text-xs mb-2 grow"></div>
+            <!-- 這張卡自己的訊息。原本所有動作共用頁尾一行，於是「交付失敗」
+                 會顯示在離按鈕好幾百像素遠、而且跟分享卡的訊息搶同一個位置。 -->
+            <div id="repoMsg" class="text-xs mb-3" hidden></div>
             <div class="flex gap-2 acts">
               <button type="button" class="btn btn-primary" data-act="deliver"><span class="material-symbols-outlined text-[18px]">cloud_upload</span><span class="lbl">交付</span></button>
               <button type="button" class="btn btn-ghost" data-act="pr"><span class="material-symbols-outlined text-[18px]">merge</span>開 PR</button>
@@ -1918,6 +1921,7 @@
     loaded.log = false;
     loaded.spec = false;
     checked = null;                 // 那是另一套系統，上一套按過「還是要部署」不算數
+    if ($("repoMsg")) { $("repoMsg").hidden = true; $("repoMsg").textContent = ""; }
     if ($("pubState")) $("pubState").textContent = "讀取中…";
     if (curTab !== "preview") showTab(curTab);
   }
@@ -3178,6 +3182,51 @@
 
   /* 交付狀態。開 PR 是「把改動提給既有的 repo」，repo 還不存在的時候那顆按鈕
      沒有意義——所以沒交付過就不給按，並且說出為什麼，不要只是變灰。 */
+  /* 交付卡自己的訊息列。動作的結果要出現在按下去的那顆按鈕旁邊，而不是
+     頁尾——尤其是失敗訊息，隔著整張卡的距離會讓人以為那是別的東西壞了。 */
+  function sayRepo(r, act) {
+    var box = $("repoMsg");
+    if (!box) return;
+    box.hidden = false;
+    if (r.busy) {
+      box.style.color = "#64748b";
+      box.textContent = act === "pr" ? "推上新分支並開 PR 中，這要跑 git，請稍等…" : "推上 GitHub 中，這要跑 git，請稍等…";
+      return;
+    }
+    if (r.error) {
+      box.style.color = "#b91c1c";
+      /* 錯誤原文照給。這類失敗幾乎都是權限或設定問題，「請稍後再試」再試一次
+         還是一樣——講出真正的原因，他才知道要去改什麼。 */
+      box.innerHTML = "<b>沒有成功。</b>"
+        + '<div class="mt-1" style="font-family:ui-monospace,monospace;white-space:pre-wrap;word-break:break-all;color:#7f1d1d">'
+        + esc(String(r.error).slice(-300)) + "</div>";
+      return;
+    }
+    var parts = [];
+    if (r.unchanged) {
+      box.style.color = "#64748b";
+      parts.push("跟 GitHub 上那一版一模一樣，這次沒有東西要送上去。");
+    } else if (act === "pr" && r.prFailed) {
+      /* 這裡以前會顯示「PR 已開：<repo 網址>」——PR 根本沒開成，連結還指去
+         repo 首頁。寧可說失敗，也不要給一個假的成功。 */
+      box.style.color = "#b45309";
+      parts.push("<b>分支推上去了，但 PR 沒開成。</b>交付用的 token 沒有 pull requests 權限，"
+        + "要在 GitHub 上補這個權限才行。你也可以先自己到 repo 上開這個 PR。");
+    } else if (act === "pr") {
+      box.style.color = "#15803d";
+      parts.push('PR 已開：<a href="' + esc(r.url) + '" target="_blank" rel="noreferrer" '
+        + 'class="text-brand font-bold hover:underline" style="word-break:break-all">' + esc(r.url) + "</a>");
+    } else {
+      box.style.color = "#15803d";
+      parts.push("已推上 GitHub。");
+    }
+    if (r.ciSkipped) {
+      parts.push('<span style="color:#94a3b8">（不含 CI 設定檔——token 沒有 workflow 權限，'
+        + "原因寫在 repo 裡的 CI-說明.md）</span>");
+    }
+    box.innerHTML = parts.join('<div class="mt-1"></div>');
+  }
+
   function paintRepo(st) {
     var box = $("repoState");
     var pr = document.querySelector('[data-act="pr"]');
@@ -3386,8 +3435,12 @@
       var body = act === "share" ? { email: $("shareEmail").value.trim() } : {};
       if (act === "share" && !body.email) { note.style.color = "#b91c1c"; note.textContent = "請先填同事的信箱"; return; }
       document.querySelectorAll("[data-act]").forEach(function (o) { o.disabled = true; });
+      if (act === "deliver" || act === "pr") {
+        note.textContent = "";
+        sayRepo({ busy: true }, act);
+      }
       note.style.color = "#64748b";
-      note.textContent = act === "share" ? "加入中…"
+      note.textContent = act === "deliver" || act === "pr" ? "" : act === "share" ? "加入中…"
         : act === "vercel" ? "部署中，要複製資料庫再上傳，請稍等幾分鐘…"
         : act === "publish" ? "佈署中…"
         : act === "unpublish" ? "取消佈署中…"
@@ -3398,7 +3451,10 @@
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
         .then(function (x) {
           document.querySelectorAll("[data-act]").forEach(function (o) { o.disabled = false; });
-          if (!x.ok) { note.style.color = "#b91c1c"; note.textContent = x.d.error || "沒有成功"; return; }
+          if (!x.ok) {
+            if (act === "deliver" || act === "pr") { sayRepo({ error: x.d.detail || x.d.error }, act); return; }
+            note.style.color = "#b91c1c"; note.textContent = x.d.error || "沒有成功"; return;
+          }
           note.style.color = "#15803d";
           if (act === "share") {
             /* 名單上會立刻多一列，「已加入」不必再講。要講的是他還得做什麼。 */
@@ -3417,23 +3473,16 @@
                拼一半的狀態會讓畫面短暫顯示成「1 人進得去」之類的假資訊。 */
             loadPub();
           }
+          else if (act === "deliver" || act === "pr") {
+            note.textContent = "";
+            sayRepo(x.d, act);
+            loadPub();
+            return;
+          }
+          /* 剩下的只有 Vercel（目前畫面上藏著）。 */
           else if (x.d.url) {
-            if (act === "deliver" || act === "pr") {
-              /* repo 網址顯示在交付卡裡，不要在頁尾再獨立寫一行——那條訊息會
-                 跟卡片裡的說明打架（卡片說「還沒交付過」、頁尾說「已交付」），
-                 而且重新整理之後就不見了，看起來像交付沒有留下痕跡。 */
-              loadPub();
-              note.textContent = act === "pr" ? "" : "";
-              /* PR 網址只有這一次有意義（合併之後那頁就是歷史），所以它留在
-                 訊息列，不進卡片。 */
-              if (act === "pr") {
-                note.innerHTML = 'PR 已開：<a href="' + esc(x.d.url) + '" target="_blank" rel="noreferrer" '
-                  + 'class="text-brand font-bold hover:underline">' + esc(x.d.url) + "</a>";
-              }
-              return;
-            }
-            note.innerHTML = (act === "vercel" ? "已上線：" : "已交付：") +
-              '<a href="' + esc(x.d.url) + '" target="_blank" rel="noreferrer" class="text-brand font-bold hover:underline">' + esc(x.d.url) + "</a>";
+            note.innerHTML = '已上線：<a href="' + esc(x.d.url) + '" target="_blank" rel="noreferrer" '
+              + 'class="text-brand font-bold hover:underline">' + esc(x.d.url) + "</a>";
           }
           else note.textContent = "完成了。";
           loaded.log = false;

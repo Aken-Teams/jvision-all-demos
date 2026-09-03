@@ -309,7 +309,29 @@ async function main() {
         "系統本身完全不受影響，`docker compose up -d` 照常可用。\n\n" +
         "要補上自動測試的話，向我們索取 ci.yml 放到 .github/workflows/ 即可。\n");
       g("add", "-A");
-      g("commit", "-q", "--amend", "--no-edit");
+      /* 拿掉 .github 之後可能跟遠端完全一樣——第二次以後的交付一定會這樣：
+         上一次已經把 .github 拿掉、CI-說明.md 也推上去了，所以這次唯一的
+         「改動」就是又被塞回來的 .github，刪掉它就什麼都不剩。
+         那時 --amend 會變成空提交，git 直接拒絕，整個交付以「沒有成功」收場，
+         而使用者其實什麼問題都沒有——他只是沒改東西。 */
+      let empty = false;
+      try {
+        g("commit", "-q", "--amend", "--no-edit");
+      } catch (e2) {
+        const m2 = [e2.stdout, e2.stderr].map((x) => String(x || "")).join("\n");
+        if (!/空提交|empty commit|nothing to commit/.test(m2)) throw e2;
+        empty = true;
+      }
+      if (empty && based) {
+        /* 這次沒有任何要送出去的東西。把剛才那個 commit 丟掉，遠端維持原樣。 */
+        g("reset", "-q", "--hard", "FETCH_HEAD");
+        const same = `https://github.com/${OWNER}/${repo}`;
+        await control.setInstanceState(inst.id, inst.state, { repo_url: same });
+        /* 網址要印出來：呼叫端是從標準輸出撈 github 連結的，沒有印的話
+           畫面會拿不到 repo 網址，看起來像交付失敗。 */
+        log.step(`沒有東西要更新，GitHub 上已經是最新的：${same}`);
+        return;
+      }
       g("push", "-q", ...(based ? [] : ["--force"]), remote, branch);
       ciSkipped = true;
     }

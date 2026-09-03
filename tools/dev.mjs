@@ -844,15 +844,30 @@ function startGateway() {
              而這件事一年做不到幾次。 */
           const argv = [path.join(root, "tools", "instance-deliver.mjs"), `--instance=${inst.id}`];
           if (what === "pr") argv.push("--pr");
-          const out = execFileSync(process.execPath, argv, { cwd: root, encoding: "utf8", timeout: 300000 });
-          const url = (String(out).match(/https:\/\/github\.com\/[^\s]+/g) || []).pop() || null;
+          const out = String(execFileSync(process.execPath, argv, { cwd: root, encoding: "utf8", timeout: 300000 }));
+          const url = (out.match(/https:\/\/github\.com\/[^\s]+/g) || []).pop() || null;
+          /* 交付腳本對「做不到」的處理是印一行警告然後照常結束——這樣 CLI 用起來
+             合理（其他東西都成功了），但呼叫端如果只看有沒有丟例外，就會把
+             「PR 沒開成」當成「PR 開好了」，然後把 repo 網址標成 PR 連結給使用者。
+             那是騙人的。把這幾種情形從輸出裡認出來，如實往上回。 */
+          const prFailed = what === "pr" && !/\/pull\//.test(url || "");
+          const unchanged = /沒有東西要更新/.test(out);
+          const ciSkipped = /workflow 權限/.test(out);
           actions.record({ actor: id.email, action: what === "pr" ? "為自己的系統開 PR" : "把自己的系統交付到 GitHub",
             target: inst.repo_name, status: 200, visitor: who });
-          return json(res, 200, { ok: true, url });
+          return json(res, 200, { ok: true, url, prFailed, unchanged, ciSkipped });
         } catch (error) {
-          const msg = String(error.stdout || error.stderr || error.message).slice(-400);
-          console.error("[me/instance]", msg.slice(0, 200));
-          return json(res, 500, { error: "沒有成功，請稍後再試", detail: msg.slice(-200) });
+          /* 三個都串起來，不要用 || 挑一個。execFileSync 失敗時 stdout 常常是
+             空字串（子行程還沒印任何東西就死了），用 || 會選到那個空的，於是
+             真正的原因在 stderr 卻永遠讀不到——實測就是這樣，日誌只印出
+             「[me/instance]」後面什麼都沒有，查不到任何線索。
+             instance-deliver.mjs 裡有同一段註解，這裡卻還是踩了一次。 */
+          const msg = [error.stdout, error.stderr, error.message]
+            .map((x) => String(x || "").trim()).filter(Boolean).join("\n").slice(-800);
+          console.error("[me/instance]", what, msg.slice(0, 500));
+          /* detail 要回得夠具體。「沒有成功，請稍後再試」對使用者毫無用處——
+             再試一次還是會失敗，因為原因是權限或設定，不是暫時性的。 */
+          return json(res, 500, { error: "沒有成功", detail: msg.slice(-300) });
         }
       }
     }
