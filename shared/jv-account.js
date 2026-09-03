@@ -76,10 +76,18 @@
       "#jvAcctPanel .sys{padding:.55rem .5rem .6rem}" +
       "#jvAcctPanel .sys .lbl{padding:0 .5rem}" +
       /* 整列可點：高度約 40px，遠大於原本那個只有「開啟」兩字的觸控目標 */
-      "#jvAcctPanel .sysrow{display:flex;align-items:center;gap:.5rem;padding:.5rem;border-radius:.5rem;text-decoration:none;color:#0f172a;font-size:.84rem;font-weight:700}" +
+      "#jvAcctPanel .sys .lbl{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:0 .5rem}" +
+      "#jvAcctPanel .sys .all{color:#1e40af;font-size:.68rem;font-weight:800;text-decoration:none;flex:none}" +
+      "#jvAcctPanel .sys .all:hover{text-decoration:underline}" +
+      /* 一列兩個動作：名稱那段進工作台（主要），右邊 ↗ 開啟系統（次要）。 */
+      "#jvAcctPanel .sysrow{display:flex;align-items:center;gap:.25rem;border-radius:.5rem}" +
+      "#jvAcctPanel .sysrow .edit{flex:1;min-width:0;display:block;padding:.5rem .25rem .5rem .5rem;text-decoration:none;color:#0f172a;font-size:.84rem;font-weight:700}" +
+      "#jvAcctPanel .sysrow .open{flex:none;display:grid;place-content:center;width:30px;height:30px;margin-right:.25rem;border-radius:.4rem;color:#94a3b8;text-decoration:none}" +
+      "#jvAcctPanel .sysrow .open:hover{background:#e2e8f0;color:#1e40af}" +
+      "#jvAcctPanel .sysrow .open .material-symbols-outlined{font-size:17px}" +
+      "#jvAcctPanel .sysrow.off{padding:.5rem;color:#94a3b8;font-weight:600;display:flex;align-items:center;gap:.5rem;font-size:.84rem}" +
       "#jvAcctPanel .sysrow:hover{background:#f1f5f9}" +
-      "#jvAcctPanel .sysrow .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
-      "#jvAcctPanel .sysrow .go{color:#94a3b8;font-size:1.05rem;flex:none}" +
+      "#jvAcctPanel .sysrow .t{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
       "#jvAcctPanel .sysrow.off{color:#94a3b8;font-weight:600}" +
       "#jvAcctPanel .sysrow .st{font-size:.72rem;color:#94a3b8;flex:none}" +
       "#jvAcctPanel .sum{display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;padding:.55rem 1rem .65rem;border-bottom:1px solid #f1f5f9;font-size:.74rem;color:#475569;text-decoration:none;font-weight:700}" +
@@ -194,11 +202,14 @@
          每段同樣的細線與同樣的小灰標籤，眼睛沒有入口；而「我的系統」是客戶真正
          買到的東西，卻和「這個月 token 0」長得一樣重。
          需求單與用量壓成下面一行摘要，細節一鍵到個人設定；零值不顯示。 */
-      '<div class="sec sys"><div class="lbl">我的系統</div><div data-systems><div class="muted">讀取中…</div></div></div>' +
-      '<a class="sum" href="./account" data-summary><span class="muted">讀取中…</span></a>' +
+      '<div class="sec sys"><div class="lbl">我的系統<a class="all" href="./account" hidden>全部 ›</a></div>' +
+        '<div data-systems><div class="muted">讀取中…</div></div></div>' +
+      '<div class="sum" data-summary><span class="muted">讀取中…</span></div>' +
       '<div class="acts">' +
+        /* 拿掉「瀏覽專案目錄」：導覽列本來就有一個「專案目錄」，同一個去向在同一個
+           畫面出現兩次只是讓選單變長。摘要那行也不再是連結——它右邊原本的
+           「詳細 ›」跟下面的「個人設定」是同一頁。 */
         '<a href="./account"><span class="material-symbols-outlined ico">settings</span>個人設定</a>' +
-        '<a href="./catalog"><span class="material-symbols-outlined ico">apps</span>瀏覽專案目錄</a>' +
         (me.admin ? '<a href="./admin-actions"><span class="material-symbols-outlined ico">lock</span>後臺管理</a>' : "") +
         '<button type="button" data-logout class="danger"><span class="material-symbols-outlined ico" style="color:inherit">logout</span>登出</button>' +
       "</div>";
@@ -226,8 +237,13 @@
           box.innerHTML = '<div class="muted">還沒有開通的系統。挑幾套送出需求後，這裡會列出可以直接進去用的網址。</div>';
           return;
         }
-        /* 整列可點，不是只有「開啟」兩個字——那個觸控目標在手機上只有約 30px 寬。 */
-        box.innerHTML = list.slice(0, 5).map(function (s) {
+        /* 一列兩個動作，跟 account.html 一致：要改東西跟要用它是兩件事。
+           名稱那一段進工作台——那是客戶最常做的事，也是開發區唯一好走的入口；
+           右邊那顆 ↗ 才是開啟執行中的系統。
+           先前這裡整列都指向 /-/i/<id>/，等於把「修改」這個主要動作從選單裡整個
+           弄丟了，結果 workspace.html 全站只剩 account.html 一個入口。 */
+        var SHOW = 4;
+        box.innerHTML = list.slice(0, SHOW).map(function (s) {
           var live = s.state === "live";
           /* 有中文名稱就用中文；沒有才退回代號。 */
           var name = esc(s.title || s.repo_name.replace(/^jvision-/, ""));
@@ -235,9 +251,15 @@
             return '<div class="sysrow off"><span class="t">' + name + '</span><span class="st">' +
               (s.state === "building" ? "建置中" : esc(s.state)) + "</span></div>";
           }
-          return '<a class="sysrow" href="/-/i/' + esc(s.id) + '/"><span class="t">' + name +
-            '</span><span class="material-symbols-outlined go">chevron_right</span></a>';
-        }).join("") + (list.length > 5 ? '<div class="muted">另有 ' + (list.length - 5) + " 套</div>" : "");
+          return '<div class="sysrow">' +
+            '<a class="edit" href="./workspace.html?i=' + esc(s.id) + '" title="進工作台修改"><span class="t">' + name + '</span></a>' +
+            '<a class="open" href="/-/i/' + esc(s.id) + '/" title="開啟系統">' +
+              '<span class="material-symbols-outlined">open_in_new</span></a>' +
+          '</div>';
+        }).join("");
+        /* 系統多的時候不把選單撐長，超出的交給 account.html 那份完整清單。 */
+        var all = panel.querySelector(".sys .all");
+        if (all && list.length > SHOW) { all.textContent = "全部 " + list.length + " 套 ›"; all.hidden = false; }
         sum(panel, "sys", list.length ? list.length + " 套系統" : "");
       })
       .catch(function () {
@@ -273,8 +295,7 @@
     el.dataset[key] = text || "";
     var parts = ["sys", "ord", "use"].map(function (k) { return el.dataset[k]; }).filter(Boolean);
     el.innerHTML = parts.length
-      ? parts.map(function (t) { return "<span>" + esc(t) + "</span>"; }).join('<i class="dot"></i>') +
-        '<span class="more">詳細 ›</span>'   /* 不寫「個人設定」：下面動作區已經有同名同去向的項目 */
+      ? parts.map(function (t) { return "<span>" + esc(t) + "</span>"; }).join('<i class="dot"></i>')
       : '<span class="muted">還沒有資料</span>';
   }
 
