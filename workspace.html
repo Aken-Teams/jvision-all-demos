@@ -272,6 +272,25 @@
     .ref .x { flex:none; border:0; background:none; cursor:pointer; color:#93a7c9;
               font-size:.8rem; line-height:1; padding:0 .1rem; }
     .ref .x:hover { color:#b91c1c; }
+
+    /* 檔案樹。目錄只是標示，不能點——實例的結構是固定的，讓它可以收合
+       只會多一種狀態要記，而總共也才十來項。 */
+    .tree-d { display:flex; align-items:center; gap:.25rem; padding-top:.35rem; padding-bottom:.15rem;
+              font-size:.72rem; font-weight:800; color:#64748b; }
+    .tree-d .material-symbols-outlined { font-size:14px; color:#94a3b8; }
+    .tree-f { display:flex; align-items:center; gap:.25rem; width:100%; text-align:left;
+              padding-top:.2rem; padding-bottom:.2rem; padding-right:.3rem;
+              border:0; border-radius:.35rem; background:none; cursor:pointer;
+              font:inherit; font-size:.74rem; color:#0f1e46; }
+    .tree-f:hover { background:#f1f5f9; }
+    .tree-f[aria-current="true"] { background:#e0ecff; color:#1e40af; font-weight:800; }
+    .tree-f .material-symbols-outlined { font-size:14px; flex:none; color:#94a3b8; }
+    .tree-f[aria-current="true"] .material-symbols-outlined { color:#1e40af; }
+    .tree-f .n { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .tree-f .kb { flex:none; font-size:.64rem; color:#94a3b8; }
+    /* 檔案底下那一行「它是做什麼的」。列一堆檔名而不說用途，
+       等於沒說——live.js 三個字看不出它把畫面接到了資料庫。 */
+    .tree-t { font-size:.66rem; color:#94a3b8; padding-bottom:.15rem; line-height:1.35; }
     /* 拖檔案進來時整欄亮起來。沒有這個回饋的話，人不知道可以放開手。 */
     #chatPane.dropping { outline:2px dashed #93c5fd; outline-offset:-6px; background:#f5faff; }
     /* 沒有參考資料時整列收掉，不要留一條看不出用途的空白。 */
@@ -545,6 +564,9 @@
         <div class="flex items-center gap-2 px-3 py-1.5 border-b border-line bg-soft">
           <select id="dtTable" class="border border-line rounded-lg text-xs py-1 pl-2 pr-7 font-bold text-ink"></select>
           <input id="dtQ" placeholder="搜尋…" class="border border-line rounded-lg text-xs py-1 px-2 w-36" />
+          <button id="dtStruct" type="button" class="btn btn-ghost h-7 px-2" title="看這張表有哪些欄位、什麼型別">
+            <span class="material-symbols-outlined text-[16px]">view_column</span>結構
+          </button>
           <span id="dtCount" class="text-xs text-muted ml-auto"></span>
           <button id="dtPrev" type="button" class="btn btn-ghost h-7 px-2">‹</button>
           <button id="dtNext" type="button" class="btn btn-ghost h-7 px-2">›</button>
@@ -555,10 +577,21 @@
       <!-- 程式碼 -->
       <div id="tab-code" hidden class="col flex-1">
         <div class="flex items-center gap-2 px-3 py-1.5 border-b border-line bg-soft">
-          <span class="text-xs text-muted">index.html<span id="codeSize"></span>　·　唯讀，要改請在左邊用講的</span>
+          <span id="codePath" class="text-xs font-bold text-ink"></span>
+          <span id="codeSize" class="text-xs text-muted"></span>
+          <span class="text-xs text-muted">·　唯讀，要改請在左邊用講的</span>
           <button id="dlCode" type="button" class="btn btn-ghost h-7 px-2 ml-auto"><span class="material-symbols-outlined text-[16px]">download</span>下載</button>
         </div>
-        <div class="flex-1 overflow-auto bg-slate-50"><pre id="codeBox" class="p-3 text-ink"></pre></div>
+        <div class="flex-1 flex min-h-0">
+          <!-- 這套系統實際由哪些檔案組成。以前這一頁只有 index.html，
+               看起來像「就是一個 HTML」——旁邊的執行時、助理、資料表定義
+               全都看不到，也就不知道能改什麼、不能改什麼。 -->
+          <div id="codeTree" class="w-56 shrink-0 border-r border-line overflow-y-auto p-2 bg-white"></div>
+          <div class="flex-1 min-w-0 overflow-auto bg-slate-50">
+            <p id="codeNote" class="text-xs text-muted px-3 pt-3" hidden></p>
+            <pre id="codeBox" class="p-3 text-ink"></pre>
+          </div>
+        </div>
       </div>
 
       <!-- 紀錄 -->
@@ -1863,7 +1896,42 @@
 
   /* 資料。這裡帶 ?limit=&offset=&q=，所以 gateway 的 /-/i/ 那條必須把 query
      轉給上游——否則會安靜地永遠回前 50 筆並忽略搜尋。 */
-  var dt = { table: null, offset: 0, limit: 50, total: 0, labels: {} };
+  var dt = { table: null, offset: 0, limit: 50, total: 0, labels: {}, schema: {}, struct: false };
+
+  /* 這張表在資料庫裡實際的樣子：欄位、程式用的 key、型別。
+     使用者問過「資料頁是不是 SQL 的 table」——是，但光看資料列看不出來，
+     因為畫面上顯示的是中文標籤而不是欄位名。這一頁把兩者對起來。 */
+  var TYPE_TEXT = { text: "文字", int: "整數", number: "數字", percent: "百分比",
+    date: "日期", enum: "選項" };
+
+  function paintStruct() {
+    var t = dt.schema[dt.table];
+    var body = $("dtBody");
+    if (!t) { body.innerHTML = '<p class="p-4 text-xs text-muted">讀不到這張表的定義。</p>'; return; }
+    var h = '<div class="p-4">'
+      + '<p class="text-xs text-muted mb-3">資料庫裡的表名 <code class="mdc">' + esc(t.name) + "</code>"
+      + "　共 " + t.columns.length + " 個欄位、" + t.count + " 筆資料。"
+      + "助理加欄位或改名時，動的就是這裡。</p>"
+      + '<table class="w-full text-xs"><thead><tr>'
+      + '<th class="text-left py-1.5 px-2 border-b border-line">畫面上顯示的名稱</th>'
+      + '<th class="text-left py-1.5 px-2 border-b border-line">欄位（程式用）</th>'
+      + '<th class="text-left py-1.5 px-2 border-b border-line">型別</th>'
+      + "</tr></thead><tbody>";
+    t.columns.forEach(function (c) {
+      h += '<tr><td class="py-1.5 px-2 border-b border-line font-bold text-ink">' + esc(c.label) + "</td>"
+        + '<td class="py-1.5 px-2 border-b border-line"><code class="mdc">' + esc(c.key) + "</code></td>"
+        + '<td class="py-1.5 px-2 border-b border-line text-muted">' + esc(TYPE_TEXT[c.type] || c.type) + "</td></tr>";
+    });
+    body.innerHTML = h + "</tbody></table></div>";
+    $("dtCount").textContent = t.columns.length + " 個欄位";
+    $("dtPrev").disabled = true;
+    $("dtNext").disabled = true;
+  }
+
+  function paintData() {
+    if (dt.struct) paintStruct();
+    else loadRows();
+  }
 
   function loadData() {
     loaded.data = true;
@@ -1878,17 +1946,21 @@
         /* key → 顯示名稱。表頭直接印資料庫的 key 會變成 customer_subscription
            這種東西，而客戶認得的是「客戶 / 訂閱」——他當初就是照那個名字挑的。 */
         dt.labels = {};
+        dt.schema = {};
         tables.forEach(function (t) {
+          dt.schema[t.name] = t;
           dt.labels[t.name] = {};
           t.columns.forEach(function (c) { dt.labels[t.name][c.key] = c.label; });
           var o = document.createElement("option");
           o.value = t.name;
-          o.textContent = t.columns.map(function (c) { return c.label; }).slice(0, 3).join("·") + "（" + t.count + "）";
+          /* 用後端算出來的表名。以前是把前三個欄位名串起來當標題，於是選單長成
+             「承辦人·文件與正本序號·印章組合（6）」——看起來像一句話，不像名字。 */
+          o.textContent = (t.title || t.name) + "（" + t.count + " 筆）";
           sel.appendChild(o);
         });
         dt.table = tables[0].name;
         dt.offset = 0;
-        loadRows();
+        paintData();
       })
       .catch(function () { $("dtBody").innerHTML = '<p class="p-4 text-xs text-red-600">讀不到資料表定義。</p>'; });
   }
@@ -1922,7 +1994,17 @@
       .catch(function () { $("dtBody").innerHTML = '<p class="p-4 text-xs text-red-600">讀不到資料。</p>'; });
   }
 
-  $("dtTable").addEventListener("change", function () { dt.table = this.value; dt.offset = 0; loadRows(); });
+  $("dtTable").addEventListener("change", function () { dt.table = this.value; dt.offset = 0; paintData(); });
+  $("dtStruct").addEventListener("click", function () {
+    dt.struct = !dt.struct;
+    this.setAttribute("aria-selected", dt.struct ? "true" : "false");
+    this.classList.toggle("btn-primary", dt.struct);
+    this.classList.toggle("btn-ghost", !dt.struct);
+    /* 看結構的時候搜尋沒有意義——那是在搜資料列。 */
+    $("dtQ").disabled = dt.struct;
+    dt.offset = 0;
+    paintData();
+  });
   $("dtPrev").addEventListener("click", function () { dt.offset = Math.max(0, dt.offset - dt.limit); loadRows(); });
   $("dtNext").addEventListener("click", function () { dt.offset += dt.limit; loadRows(); });
   var qTimer = null;
@@ -1933,23 +2015,90 @@
 
   /* 程式碼。唯讀——直接讓人存檔等於開一個繞過 instance-edit 五道護欄的後門。 */
   var codeText = "";
+  var codePath = "public/index.html";
+
   function loadCode() {
     loaded.code = true;
     $("codeBox").textContent = "載入中…";
-    fetch(api("/index.html"), { cache: "no-store" })
-      .then(function (r) { return r.text(); })
-      .then(function (t) {
-        codeText = t;
-        $("codeBox").textContent = t;
-        $("codeSize").textContent = "（" + Math.round(t.length / 1024) + " KB）";
+    fetch(api("/_jv/files"), { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        paintTree(d.files || []);
+        openFile(codePath);
       })
-      .catch(function () { $("codeBox").textContent = "讀不到程式碼。"; });
+      .catch(function () {
+        loaded.code = false;
+        $("codeBox").textContent = "讀不到檔案清單，再點一次「程式碼」試試。";
+      });
+  }
+
+  function paintTree(list) {
+    var box = $("codeTree");
+    box.innerHTML = "";
+    list.forEach(function (f) {
+      var depth = f.path.split("/").length - 1;
+      var name = f.path.split("/").pop();
+      if (f.dir) {
+        var d = document.createElement("div");
+        d.className = "tree-d";
+        d.style.paddingLeft = (depth * 12 + 4) + "px";
+        d.title = f.note || "";
+        d.innerHTML = '<span class="material-symbols-outlined">folder</span>' + esc(name);
+        box.appendChild(d);
+        return;
+      }
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "tree-f";
+      b.dataset.p = f.path;
+      b.style.paddingLeft = (depth * 12 + 4) + "px";
+      b.title = f.note || f.path;
+      b.innerHTML = '<span class="material-symbols-outlined">description</span>'
+        + '<span class="n">' + esc(name) + "</span>"
+        + '<span class="kb">' + Math.max(1, Math.round(f.bytes / 1024)) + "K</span>";
+      b.addEventListener("click", function () { openFile(f.path); });
+      box.appendChild(b);
+      if (f.title) {
+        var t = document.createElement("div");
+        t.className = "tree-t";
+        t.style.paddingLeft = (depth * 12 + 22) + "px";
+        t.textContent = f.title;
+        box.appendChild(t);
+      }
+    });
+    if (!list.length) box.innerHTML = '<p class="text-xs text-muted p-2">沒有檔案。</p>';
+  }
+
+  function openFile(rel) {
+    codePath = rel;
+    document.querySelectorAll("#codeTree .tree-f").forEach(function (b) {
+      b.setAttribute("aria-current", b.dataset.p === rel ? "true" : "false");
+    });
+    $("codePath").textContent = rel;
+    $("codeSize").textContent = "";
+    $("codeBox").textContent = "載入中…";
+    $("codeNote").hidden = true;
+    fetch(api("/_jv/file?path=" + encodeURIComponent(rel)), { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.error) throw new Error(d.error);
+        codeText = d.text;
+        $("codeBox").textContent = d.text;
+        $("codeSize").textContent = "（" + Math.round(d.bytes / 1024) + " KB）";
+        if (d.truncated) {
+          $("codeNote").textContent = "這個檔太長，只顯示前面一段。要完整的請按右上角下載。";
+          $("codeNote").hidden = false;
+        }
+      })
+      .catch(function () { $("codeBox").textContent = "讀不到這個檔案。"; });
   }
   $("dlCode").addEventListener("click", function () {
     if (!codeText) return;
     var a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([codeText], { type: "text/html" }));
-    a.download = (cur.repo_name || "system") + ".html";
+    a.href = URL.createObjectURL(new Blob([codeText], { type: "text/plain;charset=utf-8" }));
+    /* 下載現在這個檔，不是永遠下載 index.html——檔案樹上可以選別的了。
+       檔名帶上系統代號，一次下載好幾個檔時才分得出來是哪一套的。 */
+    a.download = (cur.repo_name || "system") + "-" + codePath.split("/").pop();
     a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   });

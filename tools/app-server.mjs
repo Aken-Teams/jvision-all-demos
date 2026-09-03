@@ -22,6 +22,7 @@ import * as edit from "./lib/instance-edit.mjs";
 import * as head from "./lib/instance-head.mjs";
 import * as outline from "./lib/page-outline.mjs";
 import * as refs from "./lib/instance-refs.mjs";
+import * as files from "./lib/instance-files.mjs";
 import * as shots from "./lib/shots.mjs";
 import * as versions from "./lib/instance-versions.mjs";
 import * as grow from "./lib/instance-grow.mjs";
@@ -110,7 +111,8 @@ const server = http.createServer(async (req, res) => {
     if (p === "/_jv/schema") {
       /* 順便帶上實例編號與型錄站網址。客戶在自己的子網域上時，右下角的助理
          要能把他送到工作台，而子網域的網址裡沒有實例編號可以推。 */
-      return json(res, 200, { ...await data.describe(dbName), instanceId: inst.id, site: SITE });
+      const sc = await data.describe(dbName);
+      return json(res, 200, { ...sc, tables: nameTables(inst, sc.tables), instanceId: inst.id, site: SITE });
     }
 
     const m = /^\/api\/t\/([a-z][a-z0-9_]*)(?:\/(\d+))?$/.exec(p);
@@ -178,6 +180,19 @@ const server = http.createServer(async (req, res) => {
         detail: { text, repo: inst.repo_name, screen: String(b.screen || "").slice(0, 120) || null,
           shot: shot ? shot.name : null } });
       return json(res, 201, { ok: true, shot: Boolean(shot) });
+    }
+
+    /* 這個實例由哪些檔案組成。「程式碼」那一頁以前只抓 index.html 一個檔，
+       看起來像「這套系統就是一個 HTML」——旁邊的執行時、助理、資料表定義
+       全都看不到，使用者也就不知道能改什麼、不能改什麼。 */
+    if (p === "/_jv/files" && req.method === "GET") {
+      return json(res, 200, { files: files.list(inst.dir) });
+    }
+    if (p === "/_jv/file" && req.method === "GET") {
+      const rel = new URL(req.url, "http://x").searchParams.get("path") || "";
+      const f = files.read(inst.dir, rel);
+      if (!f) return json(res, 404, { error: "讀不到這個檔案" });
+      return json(res, 200, f);
     }
 
     /* 對話裡貼過的截圖。檔案一直都存著（uploads/），檔名也一直記在
@@ -421,6 +436,44 @@ const server = http.createServer(async (req, res) => {
     json(res, code, { error: code >= 500 ? "伺服器錯誤" : error.message });
   }
 });
+
+/**
+ * 給資料表一個看得懂的名字。
+ *
+ * 資料表在資料庫裡叫 table_1、table_2——那是產線生成的，沒有人看得懂。
+ * 前端以前的做法是「把前三個欄位名串起來」當標題，於是下拉選單長成
+ * 「承辦人·文件與正本序號·印章組合（6）」，看起來像一句話而不是一個名字。
+ *
+ * 實例裡的 public/_jv/schema.json 記著每張表是**從哪一個畫面掃出來的**
+ * （screen: 5），而那個畫面在頁面上有 aria-label（「事後稽核」）。
+ * 兩邊兜起來，table_1 就叫得出「事後稽核」。
+ *
+ * 兜不起來就退回「資料表 N」——那至少是一個名字，而不是一串欄位。
+ */
+function nameTables(inst, tables) {
+  let screens = [];
+  let byName = {};
+  try {
+    const sc = JSON.parse(fs.readFileSync(path.join(inst.dir, "public", "_jv", "schema.json"), "utf8"));
+    for (const t of sc.tables || []) byName[t.name] = t;
+  } catch { /* 沒有這份檔就只給編號 */ }
+  try {
+    screens = outline.outline(fs.readFileSync(path.join(inst.dir, "public", "index.html"), "utf8")).screens;
+  } catch { /* 讀不到畫面名稱就只給編號 */ }
+
+  const used = {};
+  return (tables || []).map((t, i) => {
+    const meta = byName[t.name];
+    let title = null;
+    if (meta && typeof meta.screen === "number" && screens[meta.screen]) title = screens[meta.screen];
+    if (!title) title = `資料表 ${i + 1}`;
+    /* 同一個畫面上有兩張表的話，名字會撞。加序號而不是讓兩項長得一樣——
+       下拉選單裡兩個一模一樣的選項，選了也不知道自己選到哪一個。 */
+    used[title] = (used[title] || 0) + 1;
+    if (used[title] > 1) title = `${title} ${used[title]}`;
+    return { ...t, title };
+  });
+}
 
 /* ── 欄位動作要連畫面一起改 ──────────────────────────
    jv-live 認表格的方式是「拿資料庫的 label 去比對畫面上 <th> 的文字」，
