@@ -545,25 +545,43 @@
   /* ── 總覽與編輯器：同一頁的兩個狀態 ──────────────────
      不另開一頁的理由是心智模型只要一個：工作台就是「我的專案的家」，
      沒選就看全部、選了就進去改。網址也只有 workspace.html 與 ?i=<id> 兩種。 */
-  function showOverview() {
+  /* 網址：總覽↔編輯器這一步要留一筆歷史，「上一頁」才會退回總覽。
+     以前兩邊都用 replaceState，等於這一步從沒進過瀏覽器歷史——在工作台裡
+     點進點出多久都一樣，一按上一頁就直接跳出整個工作台回到來時的那一頁。
+     在左欄換系統則仍然用 replaceState：那是同一個狀態裡挑不同的東西，
+     堆進歷史的話「上一頁」會變成把十套系統倒著走一遍才出得去。 */
+  function setUrl(url, push) {
+    if (url === location.pathname + location.search) return;
+    history[push ? "pushState" : "replaceState"](null, "", url);
+  }
+
+  function showOverview(push) {
     document.body.classList.remove("editing");
     renderOverview();
     $("overview").hidden = false;
     $("shell").hidden = true;
     $("mobileTabs").hidden = true;
-    /* 網址要跟著狀態走，否則重新整理會跳回編輯器。用 replaceState 不留歷史，
-       免得返回鍵在同一頁的兩個狀態之間彈來彈去。 */
-    if (location.search) history.replaceState(null, "", location.pathname);
+    setUrl(location.pathname, push);
   }
 
-  function enterEditor(id) {
+  function enterEditor(id, push) {
     $("overview").hidden = true;
     $("shell").hidden = false;
     $("mobileTabs").hidden = false;
     document.body.classList.add("editing");
+    /* 先寫網址再 select。select 自己也會寫（換系統要用），先寫好的話
+       那一次就會因為網址沒變而跳過，push 才不會被 replace 蓋掉。 */
+    setUrl(location.pathname + "?i=" + encodeURIComponent(id), push);
     select(id);
-    history.replaceState(null, "", location.pathname + "?i=" + encodeURIComponent(id));
   }
+
+  /* 上一頁／下一頁：兩個狀態都在同一頁，所以要自己接 popstate 換畫面。
+     不接的話網址退回去了、畫面卻還停在編輯器。 */
+  addEventListener("popstate", function () {
+    var want = new URLSearchParams(location.search).get("i");
+    if (want && systems.some(function (s) { return s.id === want; })) enterEditor(want);
+    else showOverview();
+  });
 
   /* 一頁 12 筆，與目錄頁的 PAGE_SIZE 相同。頁碼放在記憶體不放網址：
      總覽的網址要保持乾淨的 workspace.html（?i= 是「進編輯器」的意思），
@@ -654,8 +672,7 @@
       /* 框畫在群組上，所以選取狀態要往上掛一層。 */
       b.parentNode.classList.toggle("on", on);
     });
-    /* 用 replaceState：切換系統不該在瀏覽器的上一頁堆一堆紀錄。 */
-    history.replaceState(null, "", "?i=" + encodeURIComponent(id));
+    setUrl(location.pathname + "?i=" + encodeURIComponent(id), false);
 
     $("wsEmpty").hidden = true;
     $("chatSub").textContent = cur.title || cur.repo_name;
@@ -758,9 +775,9 @@
   /* 卡片上的動作綁在 grid 上綁一次——卡片會整批重繪，逐張綁的話重繪後全失效。 */
   $("ovGrid").addEventListener("click", function (e) {
     var b = e.target.closest("[data-edit]");
-    if (b) enterEditor(b.dataset.edit);
+    if (b) enterEditor(b.dataset.edit, true);
   });
-  $("toOverview").addEventListener("click", function () { showOverview(); });
+  $("toOverview").addEventListener("click", function () { showOverview(true); });
 
   $("newChat").addEventListener("click", function () { if (cur) openSession(null); });
 
@@ -1092,7 +1109,14 @@
   function frameUrl() { return "/-/i/" + encodeURIComponent(cur.id) + "/?jv=embed&r=" + (bust += 1); }
   function refreshFrame() {
     if (!cur) return;
-    $("frame").src = frameUrl();          // 重設 src，不用 contentWindow.location.reload()
+    /* 用 location.replace，不要設 .src。對一個已經載入的 iframe 設 src 等於
+       在裡面做一次導覽，而 iframe 的導覽會記進瀏覽器的 joint session history——
+       換一次系統、按一次重新載入、每改完一次刷新預覽，各推一筆。使用者按
+       「上一頁」時退的其實是這些看不見的 iframe 導覽，所以會覺得按了沒反應、
+       按很多次才終於一口氣跳出整個工作台。replace 不留紀錄。
+       （location.replace 就算 iframe 是跨來源也呼叫得到，這裡則是同源。） */
+    var f = $("frame"), url = frameUrl();
+    try { f.contentWindow.location.replace(url); } catch (e) { f.src = url; }
     $("openNew").href = "/-/i/" + encodeURIComponent(cur.id) + "/";
     fitFrame();
   }
