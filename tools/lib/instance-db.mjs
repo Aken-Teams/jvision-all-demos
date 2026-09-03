@@ -245,7 +245,12 @@ export async function addColumn(dbName, table, { key, label, type = "text" }, ac
  *
  * 那是刻意的：實體欄名一改，客戶自己接出去的匯出、報表、外部串接會全部斷掉，
  * 而他想要的其實只是「畫面上不要叫『負責人』，要叫『業務窗口』」。
- * runtime 也是靠 label 去比對畫面上的表頭，所以改 label 就是改他看到的東西。
+ *
+ * ⚠️ 只改 label **不會**改到他看到的東西，而且會把那張表弄壞。
+ * jv-live 是拿這裡的 label 去比對畫面上 <th> 的文字，兩邊一不一致，
+ * 整張表就從原生接管掉回退路面板。所以呼叫端必須同時走
+ * lib/instance-head.mjs 的 renameHeader() 把畫面一起改
+ * ——app-server 的 renameColumnSynced() 就是在做這件事。
  */
 export async function renameColumn(dbName, table, key, label, actor) {
   await assertTable(dbName, table);

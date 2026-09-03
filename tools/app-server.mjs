@@ -19,6 +19,7 @@ import * as control from "./lib/control-db.mjs";
 import * as data from "./lib/instance-db.mjs";
 import * as chat from "./lib/instance-chat.mjs";
 import * as edit from "./lib/instance-edit.mjs";
+import * as head from "./lib/instance-head.mjs";
 import * as shots from "./lib/shots.mjs";
 import * as versions from "./lib/instance-versions.mjs";
 import * as grow from "./lib/instance-grow.mjs";
@@ -146,16 +147,18 @@ const server = http.createServer(async (req, res) => {
 
     if (p === "/_jv/columns" && req.method === "POST") {
       const b = await readBody(req);
-      const c = await data.addColumn(dbName, String(b.table || ""), { key: b.key, label: b.label, type: b.type }, actor);
-      return json(res, 201, { column: c });
+      const c = await addColumnSynced(inst, dbName, String(b.table || ""),
+        { key: b.key, label: b.label, type: b.type }, actor);
+      return json(res, 201, { column: c.column, headerSynced: c.headerSynced });
     }
 
     /* 改欄位顯示名稱。右下角的助理用得到——客戶最常提的修改就是
        「這個欄位在我們公司不叫這個名字」。 */
     if (p === "/_jv/columns" && req.method === "PATCH") {
       const b = await readBody(req);
-      const c = await data.renameColumn(dbName, String(b.table || ""), String(b.key || ""), b.label, actor);
-      return json(res, 200, { column: c });
+      const c = await renameColumnSynced(inst, dbName, String(b.table || ""),
+        String(b.key || ""), b.label, actor);
+      return json(res, 200, { column: c.column, headerSynced: c.headerSynced });
     }
 
     /* 助理處理不了的修改，收下來排進待辦。寫進控制面的 events——
@@ -277,12 +280,13 @@ const server = http.createServer(async (req, res) => {
 
       try {
         if (d.action === "add_column") {
-          await data.addColumn(dbName, d.table, { key: d.key, label: d.label, type: d.type }, actor);
-          return done({ reply: d.reply, action: "add_column", changed: true });
+          const r = await addColumnSynced(inst, dbName, d.table,
+            { key: d.key, label: d.label, type: d.type }, actor);
+          return done({ reply: d.reply + headerNote(r), action: "add_column", changed: true });
         }
         if (d.action === "rename_column") {
-          await data.renameColumn(dbName, d.table, d.key, d.label, actor);
-          return done({ reply: d.reply, action: "rename_column", changed: true });
+          const r = await renameColumnSynced(inst, dbName, d.table, d.key, d.label, actor);
+          return done({ reply: d.reply + headerNote(r), action: "rename_column", changed: true });
         }
         if (d.action === "undo") {
           const ok = edit.undo(inst.dir);
@@ -343,6 +347,44 @@ const server = http.createServer(async (req, res) => {
     json(res, code, { error: code >= 500 ? "伺服器錯誤" : error.message });
   }
 });
+
+/* ── 欄位動作要連畫面一起改 ──────────────────────────
+   jv-live 認表格的方式是「拿資料庫的 label 去比對畫面上 <th> 的文字」，
+   所以只改資料庫會讓兩邊對不上，整張表從原生接管掉回退路面板，
+   而助理還回一句「好的，已改好」——那是最糟的失敗：他要用一陣子才發現。
+
+   labelsBefore 必須在動資料庫**之前**取。那份順序就是畫面上現在的樣子，
+   也是 findTable 比對的依據；動完再取就對不回去了。 */
+async function labelsOf(dbName, table) {
+  const s = await data.describe(dbName);
+  const t = (s.tables || []).find((x) => x.name === table);
+  return t ? t.columns.map((c) => c.label) : [];
+}
+
+/* 畫面沒同步到不算失敗——有些表本來就不是用 <table> 呈現的（表單、卡片），
+   那種情況沒有表頭要改。但要照實說，不能讓他以為畫面也跟著變了。 */
+function headerNote(r) {
+  if (r.headerSynced !== false) return "";
+  return "\n\n（這張表在畫面上不是用表格呈現的，所以只有資料層加好了；"
+    + "要畫面上也看得到，跟我說「把它顯示在畫面上」。）";
+}
+
+async function addColumnSynced(inst, dbName, table, spec, actor) {
+  const before = await labelsOf(dbName, table);
+  const column = await data.addColumn(dbName, table, spec, actor);
+  const sync = head.addHeader(inst.dir, before, column.label);
+  return { column, headerSynced: sync.ok };
+}
+
+async function renameColumnSynced(inst, dbName, table, key, label, actor) {
+  const before = await labelsOf(dbName, table);
+  const old = (await data.describe(dbName)).tables
+    .find((x) => x.name === table)?.columns.find((c) => c.key === key);
+  const column = await data.renameColumn(dbName, table, key, label, actor);
+  const sync = old ? head.renameHeader(inst.dir, before, old.label, column.label)
+    : { ok: false };
+  return { column, headerSynced: sync.ok };
+}
 
 /* 正在進行的頁面修改。放記憶體：這是「現在做到哪」的狀態，服務重啟時那件事
    本來就沒做完，記在檔案裡反而會留下一個永遠 running 的假象。 */
