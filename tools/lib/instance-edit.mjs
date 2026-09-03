@@ -256,6 +256,15 @@ ${outline.describe(before)}
 「這件事被做對了」，不是「他那句話的字面被執行了」。
 但也不要順手重構或改動跟這件事無關的地方。
 
+### 怎麼寫這幾句話
+這份清單是要給**使用者**看的，不是寫給你自己的備忘。所以：
+- title 是**短句**，動詞開頭、20 字以內。「在申請表單加備註輸入框」是好的；
+  「移除既有左下角的使用者頭像入口，並保留右上角那一份作為唯一入口」不是。
+- why **只在他沒說、但你非做不可的時候才寫**，20 字以內。
+  「只改表格的話沒地方填」是好的；把整段推理寫進去不是。
+  理由顯而易見（他自己講的那件事）就留空。
+- 寧可四個短句，不要兩個長句。他是用掃的，不是用讀的。
+
 如果你發現畫面上已經有現成的東西可以擴充，第一個步驟就要寫「擴充既有的○○」，
 並在 why 裡說明它在哪裡——這樣執行的時候才不會又長出第二個。
 
@@ -279,12 +288,12 @@ ${markupFor(before)}
   const j = r.json;
   if (!j || !Array.isArray(j.steps) || !j.steps.length) return null;
   return {
-    understanding: String(j.understanding || "").slice(0, 200),
+    understanding: String(j.understanding || "").slice(0, 60),
     steps: j.steps.slice(0, 8).map((x) => ({
-      title: String(x.title || "").slice(0, 50),
-      why: String(x.why || "").slice(0, 100),
+      title: String(x.title || "").slice(0, 28),
+      why: String(x.why || "").slice(0, 40),
     })).filter((x) => x.title),
-    risks: (Array.isArray(j.risks) ? j.risks : []).slice(0, 3).map((x) => String(x).slice(0, 100)),
+    risks: (Array.isArray(j.risks) ? j.risks : []).slice(0, 2).map((x) => String(x).slice(0, 50)),
   };
 }
 
