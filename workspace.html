@@ -299,6 +299,18 @@
     /* 分隔線。以前 mdToHtml 不認得 ---，那三個字元會原樣印出來。 */
     .md .mdhr, .m .mdhr { border:0; border-top:1px solid #e2e8f0; margin:1.1rem 0; }
 
+    /* 語法上色。色相刻意跟站台本身的藍拉開，才不會跟介面糊在一起；
+       飽和度壓低，因為整片程式碼都是顏色的話等於沒有顏色。 */
+    #codeBox i { font-style:normal; }
+    #codeBox .t-c { color:#94a3b8; font-style:italic; }   /* 註解 */
+    #codeBox .t-s { color:#15803d; }                       /* 字串 */
+    #codeBox .t-k { color:#7c3aed; }                       /* 關鍵字 */
+    #codeBox .t-l { color:#b45309; }                       /* true/false/null */
+    #codeBox .t-n { color:#b45309; }                       /* 數字 */
+    #codeBox .t-t { color:#1e40af; }                       /* 標籤名 */
+    #codeBox .t-a { color:#0369a1; }                       /* 屬性名 */
+    #codeBox .t-p { color:#7c3aed; }                       /* CSS 屬性／JSON 鍵 */
+
     /* 資料表的下拉。自己畫而不用原生 <select>：原生的選項沒辦法排版，
        筆數只能跟名字擠成一串字（以前就是那樣）。 */
     .dtpick { position:relative; flex:none; }
@@ -357,12 +369,7 @@
                                                   transition:transform .18s ease; }
     .dtree[open] > summary .material-symbols-outlined { transform:rotate(180deg); }
     .dtree-n { font-size:.66rem; color:#94a3b8; line-height:1.5; padding:.3rem .25rem .45rem; }
-    .dtree-r { display:flex; align-items:center; gap:.25rem; padding:.12rem .25rem;
-               font-size:.7rem; color:#94a3b8; }
-    .dtree-r .material-symbols-outlined { font-size:13px; flex:none; }
-    .dtree-r .n { flex:none; }
-    .dtree-r .d { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-                  font-size:.62rem; opacity:.8; }
+    .dtree-n b { color:#64748b; }
     /* 拖檔案進來時整欄亮起來。沒有這個回饋的話，人不知道可以放開手。 */
     #chatPane.dropping { outline:2px dashed #93c5fd; outline-offset:-6px; background:#f5faff; }
     /* 沒有參考資料時整列收掉，不要留一條看不出用途的空白。 */
@@ -2173,6 +2180,106 @@
       });
   }
 
+  /* ── 語法上色 ─────────────────────────────────────
+     自己寫而不是拉一個 highlight.js 進來：這一頁只會看到五種副檔名，
+     而多一個 CDN 相依就是多一個「哪天載不到就整頁沒顏色」的可能。
+     上色是裝飾——判斷錯了頂多顏色不對，所以規則寧可簡單也不要複雜到會壞。
+
+     做法是「先把會吃掉別人的東西整段挖走」（註解、字串），剩下的再套關鍵字。
+     反過來做的話，字串裡的 for、註解裡的 function 都會被染色。 */
+  function hlEsc(t) {
+    return String(t).replace(/[&<>]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c];
+    });
+  }
+
+  /* 用一條大的交替規則掃過去，命中哪一組就包哪一種顏色。
+     沒命中的原樣跳脫——這樣才不會漏字。 */
+  function hlRun(src, rules) {
+    var re = new RegExp(rules.map(function (r) { return "(" + r[0] + ")"; }).join("|"), "g");
+    var out = "", last = 0, m;
+    while ((m = re.exec(src))) {
+      if (m.index > last) out += hlEsc(src.slice(last, m.index));
+      var cls = null;
+      for (var i = 1; i < m.length; i += 1) if (m[i] !== undefined) { cls = rules[i - 1][1]; break; }
+      out += '<i class="t-' + cls + '">' + hlEsc(m[0]) + "</i>";
+      last = re.lastIndex;
+      /* 空字串命中會原地打轉。理論上規則都吃得到字元，但寫錯一條就是無窮迴圈，
+         而那會把整個分頁凍住。 */
+      if (m[0] === "") re.lastIndex += 1;
+    }
+    return out + hlEsc(src.slice(last));
+  }
+
+  var HL_JS = [
+    ["/\\*[\\s\\S]*?\\*/|//[^\\n]*", "c"],
+    ["`(?:[^`\\\\]|\\\\.)*`|\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\\\n]|\\\\.)*'", "s"],
+    ["\\b(?:var|let|const|function|return|if|else|for|while|do|break|continue|new|typeof|instanceof|try|catch|finally|throw|class|extends|super|this|async|await|yield|import|export|from|default|switch|case|delete|in|of|void)\\b", "k"],
+    ["\\b(?:true|false|null|undefined|NaN)\\b", "l"],
+    ["\\b\\d[\\d_]*(?:\\.\\d+)?(?:e[+-]?\\d+)?\\b|\\b0x[0-9a-fA-F]+\\b", "n"],
+  ];
+  var HL_CSS = [
+    ["/\\*[\\s\\S]*?\\*/", "c"],
+    ["\"(?:[^\"\\\\\\n]|\\\\.)*\"|'(?:[^'\\\\\\n]|\\\\.)*'", "s"],
+    ["@[a-zA-Z-]+", "k"],
+    ["--[a-zA-Z][\\w-]*", "a"],
+    ["[a-zA-Z-]+(?=\\s*:)", "p"],
+    ["#[0-9a-fA-F]{3,8}\\b|\\b\\d+(?:\\.\\d+)?(?:px|rem|em|%|vh|vw|s|ms|fr|deg)?\\b", "n"],
+  ];
+  var HL_JSON = [
+    ["\"(?:[^\"\\\\]|\\\\.)*\"(?=\\s*:)", "p"],
+    ["\"(?:[^\"\\\\]|\\\\.)*\"", "s"],
+    ["\\b(?:true|false|null)\\b", "l"],
+    ["-?\\b\\d+(?:\\.\\d+)?(?:e[+-]?\\d+)?\\b", "n"],
+  ];
+
+  /* HTML 要分段處理：<style> 與 <script> 裡面根本不是 HTML，
+     照 HTML 的規則染，整段 CSS 會被當成純文字。 */
+  function hlHtml(src) {
+    var out = "";
+    var re = /<(style|script)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+    var last = 0, m;
+    while ((m = re.exec(src))) {
+      out += hlTags(src.slice(last, m.index));
+      out += hlTags("<" + m[1] + m[2] + ">");
+      out += hlRun(m[3], m[1].toLowerCase() === "style" ? HL_CSS : HL_JS);
+      out += hlTags("</" + m[1] + ">");
+      last = re.lastIndex;
+    }
+    return out + hlTags(src.slice(last));
+  }
+
+  /* 標籤本身：註解、標籤名、屬性名、屬性值各一種顏色。 */
+  function hlTags(src) {
+    var out = "", last = 0, m;
+    var re = /<!--[\s\S]*?-->|<!doctype[^>]*>|<\/?[a-zA-Z][^>]*>/gi;
+    while ((m = re.exec(src))) {
+      if (m.index > last) out += hlEsc(src.slice(last, m.index));
+      var t = m[0];
+      if (/^<!--/.test(t)) out += '<i class="t-c">' + hlEsc(t) + "</i>";
+      else {
+        out += hlRun(t, [
+          ["^<\\/?[a-zA-Z][\\w:-]*", "t"],
+          ["\"(?:[^\"]*)\"|'(?:[^']*)'", "s"],
+          ["[a-zA-Z_:][\\w:.-]*(?=\\s*=)", "a"],
+        ]);
+      }
+      last = re.lastIndex;
+    }
+    return out + hlEsc(src.slice(last));
+  }
+
+  var HL_BY_EXT = { js: HL_JS, mjs: HL_JS, css: HL_CSS, json: HL_JSON };
+
+  function highlight(text, file) {
+    var ext = (file.split(".").pop() || "").toLowerCase();
+    try {
+      if (ext === "html" || ext === "svg") return hlHtml(text);
+      if (HL_BY_EXT[ext]) return hlRun(text, HL_BY_EXT[ext]);
+    } catch (e) { /* 上色壞掉不該讓人看不到程式碼 */ }
+    return hlEsc(text);
+  }
+
   /* 只有 .md 有兩種看法。其他型別切換沒有意義，所以那顆鈕直接藏起來，
      而不是留一顆按了沒反應的按鈕。 */
   function paintCode() {
@@ -2181,8 +2288,11 @@
     var show = isMd && !codeRaw;
     $("codeMd").hidden = !show;
     $("codeBox").hidden = show;
-    if (show) $("codeMd").innerHTML = mdToHtml(codeText);
-    else $("codeBox").textContent = codeText;
+    if (show) { $("codeMd").innerHTML = mdToHtml(codeText); return; }
+    /* 太長的檔不上色。90KB 掃得動，但幾百 KB 的話那幾條交替規則會讓分頁凍住，
+       而使用者要的只是「看一下」——沒有顏色也看得下去。 */
+    $("codeBox").innerHTML = codeText.length > 400000
+      ? hlEsc(codeText) : highlight(codeText, codePath);
   }
 
   function paintTree(list) {
@@ -2227,46 +2337,19 @@
   }
 
   /* 交付出去之後的結構。
-     使用者問過「不太可能永遠都是一個 html 的開法」——對，而且交付版本來就
-     不是：instance-deliver 會現場組出一個完整的 Next.js 專案，含資料 API、
-     Docker 與 CI。但那是按下「交付」才生成的，平台上跑的是輕量版。
-
-     所以這裡照實把兩種都列出來，而不是假裝現在就有那些檔（列一堆點不開的
-     檔案比不列更糟）。結構是固定的，直接寫死；真的要拿到就去按交付。 */
-  var DELIVER = [
-    ["app", 1, "畫面與後端 API（Next.js App Router）"],
-    ["app/page.jsx", 2, "你的畫面，從 index.html 轉出來的"],
-    ["app/layout.jsx", 2, ""],
-    ["app/globals.css", 2, ""],
-    ["app/api/t/[table]/route.js", 2, "資料 API：查詢與新增"],
-    ["app/api/t/[table]/[id]/route.js", 2, "資料 API：修改與刪除"],
-    ["app/api/schema/route.js", 2, "資料表定義"],
-    ["lib", 1, "資料層"],
-    ["lib/instance-db.mjs", 2, ""],
-    ["lib/mysql.mjs", 2, "連線從環境變數讀，程式碼裡沒有密碼"],
-    ["public", 1, "靜態檔與執行時"],
-    ["Dockerfile", 0, ""],
-    ["docker-compose.yml", 0, "clone 下來 docker compose up -d 就能跑"],
-    [".env.example", 0, "把兩組密碼換成你自己的"],
-    [".github/workflows/ci.yml", 0, "每次推上去自動檢查"],
-  ];
-
+     使用者問過「不太可能永遠都是一個 html 的開法」——對，而且交付版本來就不是。
+     但把那份檔案清單整個列出來只會讓人無感：那些檔現在都不存在，點不開，
+     也記不住。真正要回答的只有兩件事：那顆按鈕在哪、按了會多出什麼。 */
   function paintDeliverTree(box) {
     var wrap = document.createElement("details");
     wrap.className = "dtree";
-    wrap.innerHTML = "<summary>交付出去之後的結構"
+    wrap.innerHTML = "<summary>這套系統交付出去會長什麼樣"
       + '<span class="material-symbols-outlined">expand_more</span></summary>'
-      + '<p class="dtree-n">按「交付」那一頁的按鈕，會把這套系統組成一個完整的專案：'
-      + "畫面、資料 API、Docker、CI 都在裡面，clone 下來就能自己跑。"
-      + "平台上跑的是輕量版，所以下面這些檔現在還不存在。</p>"
-      + DELIVER.map(function (d) {
-        var name = d[0].split("/").pop();
-        var isDir = d[0].indexOf(".") < 0;
-        return '<div class="dtree-r" style="padding-left:' + (d[1] * 12 + 4) + 'px">'
-          + '<span class="material-symbols-outlined">' + (isDir ? "folder" : "description") + "</span>"
-          + '<span class="n">' + esc(name) + "</span>"
-          + (d[2] ? '<span class="d">' + esc(d[2]) + "</span>" : "") + "</div>";
-      }).join("");
+      + '<p class="dtree-n">現在你看到的是平台上跑的輕量版：一份畫面，加上把它接到'
+      + "資料庫的執行時。<br><br>"
+      + '按「交付」那一頁的<b>交付到 GitHub</b>，會把它組成一個完整的專案——'
+      + "多了<b>資料 API（後端）</b>、Docker 與 CI，clone 下來就能自己跑，"
+      + "不需要連回我們。那些檔是按下去才生成的，所以現在還看不到。</p>";
     box.appendChild(wrap);
   }
 
