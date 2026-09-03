@@ -16,7 +16,7 @@ const ACTIONS = new Set(["add_column", "rename_column", "rename_system", "edit_p
 const TYPES = new Set(["text", "int", "number", "percent", "date", "enum"]);
 const KEY_RE = /^[a-z][a-z0-9_]{0,62}$/;
 
-function prompt(schema, message, history, hasImage) {
+function prompt(schema, message, history, hasImage, page) {
   const tables = schema.tables.map((t) =>
     `- ${t.name}：${t.columns.map((c) => `${c.label}(${c.key}/${c.type})`).join("、")}`).join("\n");
   const past = (history || []).slice(-6)
@@ -24,7 +24,10 @@ function prompt(schema, message, history, hasImage) {
 
   return `你是這套系統的修改助理。使用者會用中文說他想改什麼，你要判斷該做哪一個動作。
 
-## 這套系統現有的資料表
+${page ? `## 這套系統的畫面現在長這樣
+${page}
+
+` : ""}## 這套系統現有的資料表
 ${tables}
 
 ${past ? `## 剛才的對話\n${past}\n` : ""}
@@ -44,6 +47,26 @@ ${hasImage ? `
    加圖表、改文案。凡是「要動到程式或畫面」的都走這個。要在 reply 說會花幾分鐘。
 5. undo —— 他說「還原」「改回去」「取消剛才的修改」。
 6. none —— 你真的做不到的（串接外部系統、寄信、接金流…），或是他只是在問問題。
+
+## 怎麼選（這一段最重要）
+上面那份畫面摘要就是使用者現在看著的東西。**先看它，再決定動作。**
+
+1. **只是多／改一個資料欄位** → add_column／rename_column。
+   這兩個動作會同時改資料庫與畫面上的表頭，是安全又快的路。
+   但它們**只動那一張表的表頭**，不會動版面、不會處理窄螢幕、
+   也不會在表單那一側多一個輸入框。
+
+2. **只要不只是那張表的表頭，就走 edit_page。** 判斷方式是照著摘要問自己：
+   - 這件事在別的畫面上也要跟著改嗎？（摘要有列出幾個畫面）
+   - 表單那一側要不要跟著多一個輸入框？（摘要有列出輸入控制項）
+   - 這一改會不會把某個斷點下的版面擠壞？（摘要有列出 CSS 斷點）
+   - 有沒有相關的統計卡、圖表、篩選器要一起動？
+
+   只要有一個是「要」，那就是 edit_page，不要用 add_column 草草了事。
+   使用者抱怨最多的就是「他只加了一欄，其他都沒顧到」。
+
+3. 使用者的話裡帶著「順便」「一起」「整體」「好看一點」「手機上」這類詞的，
+   一律 edit_page。
 
 ## 規則
 - key 只能用小寫英文與底線，開頭必須是英文字母。加欄位時自己取一個貼切的。
@@ -103,9 +126,13 @@ function runClaude(text) {
 /**
  * 想一次。回 { action, table, key, label, type, reply }，
  * 想不出來或格式不對時一律降級成 none——寧可交給人，不要做錯的事。
+ *
+ * page 是 lib/page-outline.mjs 產出的畫面摘要。沒有它的話，這個模型是
+ * 閉著眼睛在判斷「這件事該做多大」——它只看得到資料表清單，
+ * 於是所有跟版面、RWD、其他畫面有關的考量都不可能發生。
  */
-export async function decide(schema, message, history, hasImage) {
-  const raw = await runClaude(prompt(schema, message, history, hasImage));
+export async function decide(schema, message, history, hasImage, page) {
+  const raw = await runClaude(prompt(schema, message, history, hasImage, page));
   const fallback = { action: "none", reply: "我先把這個需求記下來，交給我們的人處理。" };
   if (!raw || !ACTIONS.has(raw.action)) return fallback;
 

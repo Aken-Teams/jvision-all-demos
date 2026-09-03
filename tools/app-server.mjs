@@ -20,6 +20,7 @@ import * as data from "./lib/instance-db.mjs";
 import * as chat from "./lib/instance-chat.mjs";
 import * as edit from "./lib/instance-edit.mjs";
 import * as head from "./lib/instance-head.mjs";
+import * as outline from "./lib/page-outline.mjs";
 import * as shots from "./lib/shots.mjs";
 import * as versions from "./lib/instance-versions.mjs";
 import * as grow from "./lib/instance-grow.mjs";
@@ -276,7 +277,16 @@ const server = http.createServer(async (req, res) => {
       /* 有沒有附圖要傳給分類器。它看不到圖，但知道「有圖」就足以把
          「照這樣改」這種含糊的話路由到 edit_page——真正看圖做事的是
          下一步的 codex，那一段本來就收得到圖。 */
-      const d = await chat.decide(schema, message, Array.isArray(b.history) ? b.history : [], Boolean(shotPath));
+      /* 把「畫面現在長什麼樣」一起給它。沒有這一份的話它只看得到資料表清單，
+         於是任何跟版面、其他畫面、窄螢幕有關的判斷都不可能發生——
+         那正是「只加了一欄，其他都沒顧到」的來源。
+         讀不到就照舊只給資料表：少一份資訊比整句話回不出來好。 */
+      let pageText = null;
+      try {
+        pageText = outline.describe(fs.readFileSync(path.join(inst.dir, "public", "index.html"), "utf8"));
+      } catch { /* 讀不到就不給 */ }
+      const d = await chat.decide(schema, message, Array.isArray(b.history) ? b.history : [],
+        Boolean(shotPath), pageText);
 
       try {
         if (d.action === "add_column") {
