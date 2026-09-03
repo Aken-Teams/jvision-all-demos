@@ -64,6 +64,28 @@
     /* 拖動視窗邊緣時不該一路補間，那是連續尺寸變化不是一次切換。 */
     #frameWrap.resizing, #frameWrap.resizing #frame { transition: none; }
 
+    /* ── AI 正在改這個畫面 ─────────────────────────────
+       以前這段時間右邊完全沒有反應，改完才突然多出東西。人會覺得那是兩件
+       不相干的事——左邊在忙、右邊靜止，然後畫面自己變了。
+       蓋一層讓它「看起來正在被動工」，改完再掀開。 */
+    #frameWrap.working #frame { filter: blur(1.5px) saturate(.75); opacity:.6; }
+    #frameWrap.working::after {
+      content:""; position:absolute; inset:0; pointer-events:none;
+      background:linear-gradient(105deg, transparent 35%, rgba(255,255,255,.55) 50%, transparent 65%);
+      background-size:220% 100%; animation:wsweep 1.9s linear infinite;
+    }
+    @keyframes wsweep { from { background-position:120% 0 } to { background-position:-120% 0 } }
+    #workPill {
+      position:absolute; left:50%; top:14px; transform:translateX(-50%); z-index:4;
+      display:none; align-items:center; gap:.45rem; max-width:88%;
+      padding:.4rem .75rem; border-radius:999px; background:rgba(15,30,70,.92); color:#fff;
+      font-size:.75rem; font-weight:700; box-shadow:0 6px 20px rgba(15,23,42,.25);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    #frameWrap.working #workPill { display:flex; }
+    #workPill .dot { width:6px; height:6px; border-radius:50%; background:#7dd3fc; flex:none;
+                     animation:jobpulse 1.1s ease-in-out infinite; }
+
     /* ── 編輯中：整條頁首收起來 ────────────────────────
        編輯區要的是專注，站台導覽在這裡沒有用途——回頭的路是左欄那個
        「我的專案」，而總覽本身有完整導覽。收起來也把 64px 還給三欄。
@@ -210,7 +232,14 @@
     .job summary { cursor:pointer; color:#64748b; list-style:none; }
     .job summary::-webkit-details-marker { display:none; }
     .job-st { display:flex; gap:.45rem; padding:.25rem 0; line-height:1.5; }
-    .job-ic { flex:none; width:1.05rem; text-align:center; font-weight:900; }
+    .job-ic { flex:none; display:inline-flex; align-items:center; justify-content:center;
+              width:1.05rem; height:1.2rem; }
+    .job .material-symbols-outlined { font-size:15px; line-height:1;
+      font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 20; }
+    .job-ck { display:flex; align-items:center; gap:.2rem; }
+    .job-ck.fail { color:#b91c1c; font-weight:800; }
+    .job-risk .material-symbols-outlined { font-size:14px; vertical-align:-2px; margin-right:.15rem; }
+    .job-mk .material-symbols-outlined { font-size:14px; vertical-align:-2px; }
     .job-st.todo   { color:#94a3b8; }
     .job-st.doing  { color:#1e40af; font-weight:800; }
     .job-st.ok     { color:#0f1e46; }
@@ -219,20 +248,51 @@
     .job-st.skip   { color:#94a3b8; }
     /* 正在跑的那一關要會動。靜止的圓點跟「已完成」長得太像，
        而使用者最想知道的就是「它還活著嗎」。 */
-    .job-st.doing .job-ic { animation:jobpulse 1.1s ease-in-out infinite; }
+    /* progress_activity 是個環形圖示，轉起來就是等待指示器。 */
+    .job-st.doing .job-ic { animation:jobspin 1.1s linear infinite; }
+    @keyframes jobspin { to { transform:rotate(360deg) } }
     @keyframes jobpulse { 0%,100% { opacity:1 } 50% { opacity:.25 } }
+    /* 每一關自己的秒數，靠右。看得出是在想很久還是改很久。 */
+    .job-sec { margin-left:auto; padding-left:.5rem; color:#94a3b8; font-size:.7rem;
+               font-variant-numeric:tabular-nums; flex:none; }
+    /* 不定長度的進度條。這件事沒有百分比可言——codex 不會回報進度，
+       假造一條會爬到 90% 再卡住的長條只是在騙人。來回掃的條子誠實得多：
+       它只說「還在動」，不承諾還剩多少。 */
+    .job-bar { height:3px; margin:.15rem 0 .3rem 1.5rem; border-radius:2px;
+               background:#e0ecff; overflow:hidden; }
+    .job-bar i { display:block; width:38%; height:100%; border-radius:2px; background:#1e40af;
+                 animation:jobslide 1.6s ease-in-out infinite; }
+    @keyframes jobslide { 0% { transform:translateX(-100%) } 100% { transform:translateX(300%) } }
+    /* 思考的那一行換一句就淡入一次，才看得出「它又想到別的了」。 */
+    @keyframes jobfade { from { opacity:0; transform:translateY(2px) } to { opacity:1; transform:none } }
     .job-sub { margin:.1rem 0 .35rem 1.5rem; color:#475569; }
     .job-sub li { margin:.12rem 0; list-style:decimal; margin-left:.9rem; }
     .job-why { color:#94a3b8; }
+    /* 建議句排成一列橫著捲，不要折成兩行。三句話折行之後會把對話區
+       壓掉一整列的高度，而它只是提示，不該比對話本身佔更多位置。
+       捲軸藏起來（它只是提示列，不該掛一條灰槓），改用右緣的漸層告訴人
+       「右邊還有」，並在腳本裡把直向滾輪映射成橫向捲動——桌機的滑鼠滾輪
+       預設不會捲橫向容器，藏了捲軸又不接滾輪，就變成看得到卻搆不到。 */
+    #chips { overflow-x:auto; overflow-y:hidden; scrollbar-width:none;
+             -webkit-overflow-scrolling:touch; scroll-behavior:smooth;
+             cursor:grab; }
+    #chips.dragging { cursor:grabbing; scroll-behavior:auto; }
+    #chips::-webkit-scrollbar { display:none; }
+    #chips > * { flex:none; }
+    /* 右邊還有東西時才淡出。捲到底就把遮罩收掉，否則最後一顆會一直看起來
+       像被切了一半。 */
+    #chips.more { -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);
+                  mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent); }
+
     .job-mk { font-weight:900; margin-right:.25rem; }
     .job-mk.ok { color:#16a34a; }
     .job-mk.skip { color:#94a3b8; }
     .job-note { color:#64748b; font-size:.72rem; }
     /* codex 當下印出來的東西。等寬、單行、會被截斷——它是「還在動」的證據，
        不是要人逐字讀的內容。 */
-    .job-log { margin:.15rem 0 .35rem 1.5rem; color:#94a3b8; font-size:.7rem;
-               font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-               overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .job-log { margin:.15rem 0 .35rem 1.5rem; color:#64748b; font-size:.72rem;
+               overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+               animation:jobfade .35s ease both; }
     .job-risk { margin:.3rem 0 0 1.5rem; color:#b45309; font-size:.72rem; }
     .job-time { margin-top:.35rem; color:#94a3b8; font-size:.72rem; }
     .m img { max-width:100%; border-radius:.45rem; display:block; }
@@ -365,7 +425,7 @@
         </div>
       </div>
       <div id="chatBox" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2"></div>
-      <div id="chips" class="flex flex-wrap gap-1 px-3 pb-2"></div>
+      <div id="chips" class="flex gap-1 px-3 pb-2"></div>
       <div id="shotBox" class="px-3 pb-2 relative"></div>
       <div class="pane-ft bg-white">
         <textarea id="ask" rows="1" placeholder="想改什麼？直接說，也可以貼截圖。"
@@ -396,6 +456,7 @@
       <!-- 預覽 -->
       <div id="tab-preview" class="col flex-1">
         <div id="frameWrap" class="flex-1 bg-slate-100 overflow-hidden relative p-0">
+          <div id="workPill"><span class="dot"></span><span id="workPillText">AI 正在改這個畫面…</span></div>
           <iframe id="frame" title="你的系統預覽" class="border-0 bg-white block"></iframe>
         </div>
       </div>
@@ -897,6 +958,52 @@
     return d;
   }
 
+  /* 建議句那一列的橫向捲動。 */
+  (function () {
+    var box = $("chips");
+    if (!box) return;
+    var fade = function () {
+      box.classList.toggle("more", box.scrollWidth - box.clientWidth - box.scrollLeft > 4);
+    };
+    box.addEventListener("scroll", fade, { passive: true });
+    addEventListener("resize", fade);
+    /* 內容是後來才填的，用 observer 才抓得到；只看一次會永遠是「沒有更多」。 */
+    new MutationObserver(fade).observe(box, { childList: true });
+    /* 手機版是分頁切換，chips 有可能在那一欄還藏著的時候就填好了——
+       那時候 clientWidth 是 0，算出來永遠是「沒有更多」。等它真的顯示出來
+       （尺寸變了）再算一次。 */
+    if (window.ResizeObserver) new ResizeObserver(fade).observe(box);
+
+    /* 直向滾輪 → 橫向捲。只在真的能捲的時候攔截，否則會把外層的捲動吃掉。 */
+    box.addEventListener("wheel", function (e) {
+      if (box.scrollWidth <= box.clientWidth) return;
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;   // 觸控板橫向手勢，交給瀏覽器
+      e.preventDefault();
+      box.scrollLeft += e.deltaY;
+    }, { passive: false });
+
+    /* 用滑鼠直接拖也能捲。沒有捲軸可抓的時候，這是最直覺的操作。 */
+    var down = false, x0 = 0, l0 = 0, moved = 0;
+    box.addEventListener("pointerdown", function (e) {
+      if (e.button !== 0 || box.scrollWidth <= box.clientWidth) return;
+      down = true; moved = 0; x0 = e.clientX; l0 = box.scrollLeft;
+      box.classList.add("dragging");
+    });
+    box.addEventListener("pointermove", function (e) {
+      if (!down) return;
+      var d = e.clientX - x0;
+      moved = Math.max(moved, Math.abs(d));
+      box.scrollLeft = l0 - d;
+    });
+    var up = function () { down = false; box.classList.remove("dragging"); };
+    box.addEventListener("pointerup", up);
+    box.addEventListener("pointerleave", up);
+    /* 拖完之後那一下放開不該被當成點擊——不然滑一下就送出一句話。 */
+    box.addEventListener("click", function (e) {
+      if (moved > 6) { e.stopPropagation(); e.preventDefault(); moved = 0; }
+    }, true);
+  }());
+
   /* 建議句。從這套系統自己的欄位長出來——寫死「把負責人改叫業務窗口」的話，
      碰到沒有「負責人」這個欄位的系統就變成一句錯的示範。 */
   function loadChips() {
@@ -1032,16 +1139,105 @@
     if (curTab !== "preview") showTab(curTab);
   }
 
-  var JOB_ICON = { todo: "○", doing: "●", ok: "✓", fail: "✕", skip: "–" };
+  /* ── 在預覽裡指出「改的就是這裡」────────────────────
+     後端算出「改完之後畫面上多了哪些字」，這裡拿去 iframe 裡找出含那些字的
+     元素，捲過去並圈起來。預覽是同源的（/-/i/<id>/ 跟工作台同一個網域），
+     所以可以直接讀它的 DOM，不必靠 postMessage 兩邊約定協定。 */
+  var HL_CSS = "@keyframes jvhl{0%,100%{box-shadow:0 0 0 3px rgba(30,64,175,.55)}"
+    + "50%{box-shadow:0 0 0 7px rgba(30,64,175,.12)}}"
+    + ".jv-hl{animation:jvhl 1.1s ease-in-out 4;border-radius:8px;"
+    + "scroll-margin:80px;position:relative;z-index:2}";
+
+  /* 找出「含這段文字、而且沒有子元素也含它」的那個元素——也就是最貼近那段
+     文字的容器。不往上找的話，圈到的會是 <body>。 */
+  function deepestWith(root, text) {
+    var hit = null;
+    var walk = function (el) {
+      if (!el || !el.textContent || el.textContent.indexOf(text) < 0) return;
+      hit = el;
+      for (var i = 0; i < el.children.length; i += 1) walk(el.children[i]);
+    };
+    walk(root);
+    return hit;
+  }
+
+  function markChanges(texts) {
+    if (!texts || !texts.length) return;
+    var doc;
+    try { doc = $("frame").contentDocument; } catch (e) { return; }
+    if (!doc || !doc.body) return;
+
+    if (!doc.getElementById("jv-hl-style")) {
+      var st = doc.createElement("style");
+      st.id = "jv-hl-style";
+      st.textContent = HL_CSS;
+      doc.head.appendChild(st);
+    }
+
+    var hits = [];
+    texts.forEach(function (t) {
+      var el = deepestWith(doc.body, t);
+      /* 圈到整個 <body> 或 <main> 沒有意義——那等於什麼都沒指。 */
+      if (!el || el === doc.body || el === doc.documentElement) return;
+      if (hits.indexOf(el) < 0) hits.push(el);
+    });
+    if (!hits.length) return;
+
+    hits.forEach(function (el) { el.classList.add("jv-hl"); });
+    try { hits[0].scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) { /* 舊瀏覽器 */ }
+    /* 圈一下就好。留著的話它會變成畫面的一部分，下次再改就分不出哪個是新的。 */
+    setTimeout(function () {
+      hits.forEach(function (el) { el.classList.remove("jv-hl"); });
+    }, 6000);
+    return hits.length;
+  }
+
+  /* 改完之後重新載入預覽，等它載好再圈。iframe 的 load 不見得會準時來，
+     所以同時押一個上限——圈不到比卡在那裡等好。 */
+  function afterChangeAndMark(texts, then) {
+    var f = $("frame"), done = false;
+    var go = function () {
+      if (done) return;
+      done = true;
+      markChanges(texts);
+      /* 遮罩在這一刻掀開，不是固定幾秒之後。押固定秒數的話，載得快就會先看到
+         模糊的高亮、載得慢就會先看到還沒圈好的清晰畫面——兩種都突兀。 */
+      if (then) then();
+    };
+    f.addEventListener("load", function once() { f.removeEventListener("load", once); setTimeout(go, 400); });
+    afterChange();
+    /* iframe 的 load 不見得會來（快取、同址重載都可能不觸發），押一個上限。 */
+    setTimeout(go, 4000);
+  }
+
+  /* 用 material symbols，不用 ○●✓✕ 這些字元。字元的樣子會隨字型跑掉——
+     同一顆勾在 macOS 與 Windows 上大小、粗細、基線都不一樣，排在一起會參差；
+     而且它們在字型不全的機器上會變成豆腐。 */
+  var JOB_ICON = { todo: "radio_button_unchecked", doing: "progress_activity",
+    ok: "check_circle", fail: "cancel", skip: "remove" };
+  var ico = function (name, cls) {
+    return '<span class="material-symbols-outlined ' + (cls || "") + '">' + name + "</span>";
+  };
 
   /* 把 job 畫成一張卡。整張重畫而不是逐項更新：狀態是後端算的，
      前端只是把它畫出來——比對差異再局部更新，只會多一種對不上的可能。 */
   function renderJob(box, j) {
+    /* 後端還沒重啟時 /_jv/job 只回 {state, reply, seconds}，沒有 stages。
+       照畫的話會得到一張只寫著「0 秒」的空卡——比舊的那一行還糟。
+       退回舊的講法，等 app-server 重啟就會自己變成完整的卡。 */
+    if (!j.stages || !j.stages.length) {
+      box.innerHTML = '<div class="job-st doing"><span class="job-ic">●</span><span>改寫中…已經 '
+        + (j.seconds || 0) + " 秒（通常一到三分鐘）</span></div>";
+      return;
+    }
     var h = "";
     (j.stages || []).forEach(function (st) {
       h += '<div class="job-st ' + esc(st.s) + '"><span class="job-ic">' +
-        (JOB_ICON[st.s] || "○") + "</span><span>" + esc(st.t) +
-        (st.note ? ' <span class="job-note">· ' + esc(st.note) + "</span>" : "") + "</span></div>";
+        ico(JOB_ICON[st.s] || JOB_ICON.todo) + "</span><span>" + esc(st.t) +
+        (st.note ? ' <span class="job-note">· ' + esc(st.note) + "</span>" : "") + "</span>" +
+        (st.sec != null ? '<span class="job-sec">' + st.sec + " 秒</span>" : "") + "</div>";
+      /* 進度條只掛在正在跑的那一關底下。 */
+      if (st.s === "doing") h += '<div class="job-bar"><i></i></div>';
 
       /* 計畫接在「想做法」那一關底下——它是那一關的產出。 */
       if (st.id === "plan" && j.plan) {
@@ -1051,15 +1247,17 @@
           j.plan.steps.forEach(function (x) {
             /* 改完之後模型會回報哪幾步真的做了。標記只在有回報時出現——
                沒回報就維持原樣，不要拿一個灰勾勾冒充「做完了」。 */
-            var mark = x.s === "ok" ? '<span class="job-mk ok">✓</span>'
-              : x.s === "skip" ? '<span class="job-mk skip">–</span>' : "";
+            var mark = x.s === "ok" ? '<span class="job-mk ok">' + ico("check") + "</span>"
+              : x.s === "skip" ? '<span class="job-mk skip">' + ico("remove") + "</span>" : "";
             h += "<li>" + mark + esc(x.title) +
               (x.why ? ' <span class="job-why">（' + esc(x.why) + "）</span>" : "") +
               (x.note ? ' <span class="job-note">· 沒做：' + esc(x.note) + "</span>" : "") + "</li>";
           });
           h += "</ul>";
         }
-        (j.plan.risks || []).forEach(function (r) { h += '<div class="job-risk">⚠ ' + esc(r) + "</div>"; });
+        (j.plan.risks || []).forEach(function (r) {
+          h += '<div class="job-risk">' + ico("warning") + esc(r) + "</div>";
+        });
       }
 
       /* 檢查逐項列在「檢查」那一關底下。這些是真的跑過的護欄，
@@ -1067,17 +1265,25 @@
       if (st.id === "check" && (j.checks || []).length) {
         h += '<div class="job-sub">';
         j.checks.forEach(function (c) {
-          h += "<div>" + (c.s === "ok" ? "✓ " : "✕ ") + esc(c.t) + "</div>";
+          h += '<div class="job-ck ' + esc(c.s) + '">'
+            + ico(c.s === "ok" ? "check" : "close") + esc(c.t) + "</div>";
         });
         h += "</div>";
       }
 
-      /* codex 當下在做什麼，只掛在正在跑的那一關底下。 */
-      if (st.s === "doing" && (j.log || []).length) {
-        j.log.slice(-2).forEach(function (l) { h += '<div class="job-log">' + esc(l) + "</div>"; });
+      /* codex 當下在想什麼，只掛在正在跑的那一關底下。
+         只顯示最後一行：這是狀態列不是紀錄，多列幾行會讓卡片一直長高，
+         而使用者要的只是「它現在在幹嘛」。 */
+      if (st.s === "doing") {
+        /* 後端只回 45 秒內的訊息，超過就沒有了——那時候說「還在改」，
+           不要掛著一句三分鐘前的話假裝它剛剛才想到。 */
+        var last = (j.log || [])[(j.log || []).length - 1];
+        h += '<div class="job-log">' + esc(last || "還在做，這一步比較久…") + "</div>";
       }
     });
-    if (j.state === "running") h += '<div class="job-time">已經 ' + (j.seconds || 0) + " 秒</div>";
+    if (j.state === "running") {
+      h += '<div class="job-time">總共已經 ' + (j.seconds || 0) + " 秒　·　通常一到三分鐘</div>";
+    }
     box.innerHTML = h;
   }
 
@@ -1093,12 +1299,27 @@
     chat.appendChild(card);
     chat.scrollTop = chat.scrollHeight;
 
+    /* 右邊同步進入「正在被動工」的狀態。左邊在忙、右邊完全靜止，
+       人會覺得那是兩件不相干的事。 */
+    var wrap = $("frameWrap");
+    wrap.classList.add("working");
+    $("workPillText").textContent = "AI 正在改這個畫面…";
+
     var timer = setInterval(function () {
       fetch(api("/_jv/job"), { cache: "no-store" })
         .then(function (r) { return r.json(); })
         .then(function (j) {
           renderJob(card, j);
-          if (j.state === "running") { chat.scrollTop = chat.scrollHeight; return; }
+          if (j.state === "running") {
+            chat.scrollTop = chat.scrollHeight;
+            /* 遮罩上的那句話跟著階段走，右邊才看得出「現在做到哪」。 */
+            var cur2 = (j.stages || []).filter(function (x) { return x.s === "doing"; })[0];
+            var think = (j.log || [])[(j.log || []).length - 1];
+            $("workPillText").textContent = cur2
+              ? cur2.t + (think ? "　·　" + think : "…")
+              : "AI 正在改這個畫面…";
+            return;
+          }
           clearInterval(timer);
           send.disabled = false;
           ta.disabled = false;
@@ -1124,14 +1345,22 @@
           d.appendChild(body);
           chat.replaceChild(d, card);
 
-          if (j.state === "done") { say("bot", j.reply || "改好了。", "done"); afterChange(); }
-          else if (j.state === "failed") {
+          if (j.state === "done") {
+            say("bot", j.reply || "改好了。", "done");
+            /* 遮罩留到預覽重載＋圈選做完才掀，掀太早會閃一下舊畫面。 */
+            afterChangeAndMark(j.highlights, function () {
+              wrap.classList.remove("working");
+            });
+          } else if (j.state === "failed") {
+            wrap.classList.remove("working");
             /* 失敗要說出原因並提醒他原本的畫面沒被動到——他才敢再試下一個講法。 */
             say("bot", (j.reply || "這次沒改成。") + "（原本的畫面沒有被動到）", "err");
           }
         })
         .catch(function () { /* 一次問不到不要緊，下一輪再問 */ });
-    }, 3000);
+      /* 1.5 秒問一次。3 秒的話「它現在在想什麼」那一行會慢半拍，
+         而那一行的價值就在於它是即時的。這一路很輕：回的是記憶體裡的物件。 */
+    }, 1500);
   }
 
   $("send").addEventListener("click", function () { submit($("ask").value); });

@@ -188,10 +188,17 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         state: j.state, reply: j.reply || null,
         seconds: Math.round((Date.now() - (j.startedAt || j.at)) / 1000),
-        stages: j.stages, plan: j.plan, checks: j.checks,
-        /* 只回最後幾行。整段歷程對「現在在做什麼」沒有幫助，
-           而且這一路每三秒被打一次。 */
-        log: j.log.slice(-4),
+        /* 正在跑的那一關要回即時秒數，做完的回定格的。前端不該自己算——
+           它只知道自己第一次看到那一關是什麼時候，那不是真正的起點。 */
+        stages: j.stages.map((x) => ({
+          ...x,
+          sec: x.s === "doing" && x.at ? Math.round((Date.now() - x.at) / 1000) : (x.sec ?? null),
+        })),
+        plan: j.plan, checks: j.checks, highlights: j.highlights || null,
+        /* 只回最後幾行。整段歷程對「現在在做什麼」沒有幫助，而且這一路
+           每 1.5 秒被打一次。超過 45 秒沒有新訊息的就不回了——寧可讓前端說
+           「還在改」，也不要掛著一句三分鐘前的話假裝是現在。 */
+        log: j.log.filter((x) => Date.now() - x.at < 45000).slice(-4).map((x) => x.t),
       });
     }
 
@@ -425,9 +432,15 @@ function startEdit(inst, instruction, imagePath, sessionId) {
   };
   editJobs.set(inst.id, job);
 
+  /* 每一關各自計時。只有一個總秒數的話，使用者看不出「是在想很久還是改很久」
+     ——而那正是他判斷「要不要把要求說小一點」的依據。 */
   const setStage = (id, st, note) => {
     const x = job.stages.find((y) => y.id === id);
-    if (x) { x.s = st; if (note) x.note = note; }
+    if (!x) return;
+    if (st === "doing") x.at = Date.now();
+    else if (x.at) x.sec = Math.round((Date.now() - x.at) / 1000);
+    x.s = st;
+    if (note) x.note = note;
   };
   const onProgress = (e) => {
     if (e.k === "stage") setStage(e.id, e.s, e.note);
@@ -438,7 +451,13 @@ function startEdit(inst, instruction, imagePath, sessionId) {
     else if (e.k === "steps" && job.plan) job.plan.steps = e.steps;
     /* log 只留最後 40 行。這是「現在在想什麼」，不是稽核紀錄；
        一次修改可能吐上千行，留著只是把記憶體吃掉。 */
-    else if (e.k === "log") { job.log.push(e.line); if (job.log.length > 40) job.log.shift(); }
+    /* 帶上時間。推理事件很稀疏——實測一次大改動在第 73 秒之後直到第 284 秒
+       都沒有再送過任何一則。不記時間的話，那三分半鐘畫面上會一直掛著同一句
+       話，看起來像卡住了。 */
+    else if (e.k === "log") {
+      job.log.push({ t: e.line, at: Date.now() });
+      if (job.log.length > 40) job.log.shift();
+    }
   };
 
   edit.editPage(inst.dir, instruction,
@@ -472,6 +491,9 @@ function startEdit(inst, instruction, imagePath, sessionId) {
          使用者做完之後還會回頭看「它到底做了哪幾件事」。 */
       job.state = r.ok ? "done" : "failed";
       job.at = Date.now();
+      /* 改完之後畫面上多了哪些字。前端拿它去預覽裡把那幾處圈出來——
+         不然使用者只會看到「畫面突然多了東西」，而且不知道要找什麼。 */
+      if (r.ok && r.highlights && r.highlights.length) job.highlights = r.highlights;
       job.reply = r.ok ? okMsg : r.why;
       if (!r.ok) job.stages.forEach((x) => { if (x.s === "todo" || x.s === "doing") x.s = "skip"; });
       /* 結果也要進對話。這件事要跑好幾分鐘，回覆是在請求早就結束之後才出現的

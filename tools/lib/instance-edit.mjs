@@ -155,6 +155,34 @@ ${html}`;
 }
 
 /**
+ * 改完之後，畫面上多了哪些字。
+ *
+ * 用途是在右邊的預覽裡指出「改的就是這裡」。以前改完只是畫面突然多了東西，
+ * 使用者得自己去找——而他根本不知道要找什麼。
+ *
+ * 為什麼是「文字」而不是選擇器或行號：文字是唯一在 HTML 原始碼與渲染後的
+ * DOM 兩邊都成立的座標。行號渲染完就沒了；選擇器要模型自己編，編錯了就是
+ * 指到不相干的地方，而指錯比不指更糟。
+ *
+ * 刻意不挖掉 <script>：不少 demo 的畫面是 JS 用字串建出來的，挖了就找不到
+ * 它們新增的東西。標籤之間的文字這個形狀夠窄，JS 的識別字不會長這樣；
+ * 排除含大括號的片段則是為了濾掉還沒代入的樣板佔位符。
+ */
+function newTexts(before, after) {
+  const visible = (html) => {
+    const out = new Set();
+    for (const m of String(html).matchAll(/>([^<>{}]{2,40})</g)) {
+      const t = m[1].replace(/\s+/g, " ").trim();
+      /* 純數字、純標點的片段當不了錨點——畫面上到處都是。 */
+      if (t && !/^[\d\s.,:%+\-/／、。]+$/.test(t)) out.add(t);
+    }
+    return out;
+  };
+  const had = visible(before);
+  return [...visible(after)].filter((t) => !had.has(t)).slice(0, 8);
+}
+
+/**
  * 先想一份計畫，再動手。
  *
  * 為什麼多這一步：
@@ -239,12 +267,31 @@ function planBlock(plan) {
  */
 function eventLine(ev) {
   if (!ev || typeof ev !== "object") return null;
-  if (ev.type === "turn.started" || ev.type === "thread.started") return null;
-  if (ev.type === "turn.completed") return null;
   const item = ev.item;
   if (!item) return null;
+
+  /* 推理摘要。內容長這樣：
+       **Assessing file access limitations**
+       （有時後面還跟著一兩段說明，偶爾一次送兩三個標題）
+     只取第一行的粗體標題——那一行就是完整的一句「它現在在做什麼」，
+     後面的說明放進一個 200px 寬的狀態列只會被截斷。 */
+  if (item.type === "reasoning") {
+    const first = String(item.text || "").split("\n").map((x) => x.trim()).filter(Boolean)[0];
+    if (!first) return null;
+    return first.replace(/\*\*/g, "").replace(/^#+\s*/, "").trim() || null;
+  }
+
+  if (item.type === "command_execution" && item.command) {
+    return `執行 ${String(item.command).replace(/\s+/g, " ").trim()}`;
+  }
+  if (item.type === "file_change") return "改寫檔案";
+
+  /* agent_message 在有 output-schema 的時候就是最後那包 JSON，
+     不是「在想什麼」——底下 makeOnEvent 的長度上限會把它擋掉，
+     但這裡先明確排除，免得短的 JSON 漏進去。 */
+  if (item.type === "agent_message") return null;
+
   if (typeof item.text === "string" && item.text.trim()) return item.text.trim();
-  if (typeof item.command === "string" && item.command.trim()) return `執行 ${item.command.trim()}`;
   return null;
 }
 
@@ -437,7 +484,8 @@ export async function editPage(dir, instruction,
      這一支刻意只碰檔案不碰資料庫——建表要連資料庫，混進來的話這裡就再也
      不能單獨測試了。 */
   return { ok: true, bytes: Buffer.byteLength(after), versionId, how,
-    applied: result.applied || null, before, after, plan, checks };
+    applied: result.applied || null, before, after, plan, checks,
+    highlights: newTexts(before, after) };
 }
 
 /**

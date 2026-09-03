@@ -88,7 +88,15 @@ export function runCodex({
        其中 item 的 agent_message 就是模型在敘述自己正在做什麼——那是唯一
        拿得到「它現在在想什麼」的管道。刻意做成選項而不是預設：產線上那七支
        工具的 onLog 只是拿來印點點，換成 JSONL 對它們沒有意義。 */
-    if (jsonEvents) args.push("--json");
+    if (jsonEvents) {
+      args.push("--json");
+      /* 沒有這一行的話，--json 只會吐生命週期事件與最後那一包結果，中間一片
+         空白——我一度以為是 --output-schema 把過程吃掉了，其實是推理摘要
+         預設不進事件流。開了之後每完成一段推理就會送一個 item.type=reasoning，
+         內容是一行粗體標題（"**Assessing file access limitations**"），
+         正好可以當「它現在在想什麼」的狀態列。 */
+      args.push("-c", "model_reasoning_summary=detailed");
+    }
     if (schemaPath) args.push("--output-schema", schemaPath);
     if (model) args.push("--model", model);
     /* 附圖。使用者貼的截圖是「他指的是這裡」最直接的說法，
