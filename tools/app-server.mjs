@@ -430,15 +430,29 @@ const editJobs = new Map();
  *
  * 存成 Markdown 而不是結構化資料：對話的渲染本來就吃 Markdown，
  * 多一種格式就要多一條渲染路徑，而這段內容不需要互動。
+ *
+ * **第一行是摘要，後面才是內容。** 前端靠這個切成可收合的卡片：
+ * 收起來只剩那一行，點開才是全文。這一段攤在對話裡會把後面的話全推下去，
+ * 而它是「回頭查」用的，不是每次都要讀的。
  */
 function processNote(job) {
   const L = [];
   const secOf = (id) => {
     const x = job.stages.find((y) => y.id === id);
-    return x && x.sec != null ? `${x.sec} 秒` : null;
+    return x && x.sec != null ? x.sec : null;
   };
   const t1 = secOf("plan"), t2 = secOf("edit");
-  L.push(`**這次的做法**${t1 || t2 ? `（想 ${t1 || "—"}、改 ${t2 || "—"}）` : ""}`);
+  const steps = (job.plan && job.plan.steps) || [];
+  const okSteps = steps.filter((x) => x.s === "ok").length;
+  const okChecks = (job.checks || []).filter((c) => c.s === "ok").length;
+
+  /* 第一行＝收合時看到的那一行。 */
+  L.push([
+    steps.length ? `做了 ${okSteps} 件事` : null,
+    okChecks ? `${okChecks} 項檢查通過` : null,
+    t1 != null || t2 != null ? `想 ${t1 ?? "—"} 秒、改 ${t2 ?? "—"} 秒` : null,
+  ].filter(Boolean).join(" · ") || "這次的做法");
+
   if (job.plan) {
     if (job.plan.understanding) L.push("", job.plan.understanding);
     L.push("");

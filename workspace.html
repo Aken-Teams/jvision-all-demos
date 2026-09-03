@@ -75,13 +75,18 @@
       background-size:220% 100%; animation:wsweep 1.9s linear infinite;
     }
     @keyframes wsweep { from { background-position:120% 0 } to { background-position:-120% 0 } }
+    /* 放下緣不放上緣：上緣是這些 demo 放自己標題列的地方，蓋在那裡等於把
+       「現在是哪一頁」擋掉，而那正是使用者判斷「它在改哪裡」的依據。 */
     #workPill {
-      position:absolute; left:50%; top:14px; transform:translateX(-50%); z-index:4;
+      position:absolute; left:50%; bottom:14px; transform:translateX(-50%); z-index:4;
       display:none; align-items:center; gap:.45rem; max-width:88%;
       padding:.4rem .75rem; border-radius:999px; background:rgba(15,30,70,.92); color:#fff;
       font-size:.75rem; font-weight:700; box-shadow:0 6px 20px rgba(15,23,42,.25);
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      white-space:nowrap; overflow:hidden;
     }
+    /* 省略號要下在文字那個元素上。下在 flex 容器上不會生效——實測窄螢幕
+       直接被切在半個字，看起來像壞掉而不是「還有後續」。 */
+    #workPillText { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
     #frameWrap.working #workPill { display:flex; }
     #workPill .dot { width:6px; height:6px; border-radius:50%; background:#7dd3fc; flex:none;
                      animation:jobpulse 1.1s ease-in-out infinite; }
@@ -170,8 +175,13 @@
          版面單純由分頁切換決定。 */
       #fold, #unfold { display: none !important; }
       .shell { grid-template-columns: 1fr; }
-      .col { display: none; }
-      .col.on { display: flex; }
+      /* 只關三大欄，不要關到分頁面板。
+         #tab-preview 那六塊也掛著 class="col"（它們同樣要 flex 直排），
+         但它們是用 hidden 切換的、永遠不會有 .on——寫成 .col 的話，
+         手機版會把六個分頁全部關掉，切到「預覽」看到的是一片空白，
+         而且怎麼等都不會好。實測就是這樣壞的。 */
+      #sysPane, #chatPane, #wsPane { display: none; }
+      #sysPane.on, #chatPane.on, #wsPane.on { display: flex; }
       #mobileTabs { display: flex; }
     }
 
@@ -231,6 +241,19 @@
            border-radius:.75rem; padding:.6rem .7rem; font-size:.78rem; }
     .job summary { cursor:pointer; color:#64748b; list-style:none; }
     .job summary::-webkit-details-marker { display:none; }
+    /* 做法紀錄。刻意不長得像對話氣泡——它是系統留的存根，不是助理對你說的話。
+       底色比對話再淡一階、加一條左邊框，一眼就分得出兩者。 */
+    .job.proc { background:#f8fafc; border-color:#e2e8f0; border-left:3px solid #bfdbfe; }
+    .job.proc > summary { display:flex; align-items:center; gap:.35rem;
+                          font-weight:800; color:#475569; }
+    .job.proc > summary .material-symbols-outlined { font-size:16px; flex:none; color:#94a3b8; }
+    .job.proc .proc-more { margin-left:auto; font-weight:400; color:#94a3b8; font-size:.72rem; }
+    .job.proc[open] > summary { margin-bottom:.4rem; padding-bottom:.4rem;
+                                border-bottom:1px solid #eef2f7; }
+    .proc-body { color:#475569; font-size:.76rem; line-height:1.65; }
+    .proc-body p { margin:0 0 .4rem; }
+    .proc-body ul, .proc-body .mdul { margin:.2rem 0 .4rem; padding-left:1.1rem; list-style:disc; }
+    .proc-body li { margin:.15rem 0; }
     .job-st { display:flex; gap:.45rem; padding:.25rem 0; line-height:1.5; }
     .job-ic { flex:none; display:inline-flex; align-items:center; justify-content:center;
               width:1.05rem; height:1.2rem; }
@@ -875,6 +898,11 @@
            實測資料庫裡的每一對都符合這個形狀。 */
         var GREEN = { add_column: 1, rename_column: 1, rename_system: 1, undo: 1 };
         msgs.forEach(function (m) {
+          /* 「這次的做法」那一則不是對話，是一份紀錄。畫成對話氣泡的話，
+             一來它會把後面的話全推下去（實測佔掉整個可視高度），
+             二來使用者分不出哪些是助理跟他說的話、哪些是系統留的存根。
+             用跟進行中那張卡同一套外觀，收起來只剩摘要那一行。 */
+          if (m.action === "edit_process") { sayProcess(m.text || ""); return; }
           var cls = m.role === "user" ? "me"
             : m.action === "edit_failed" ? "err"
               : GREEN[m.action] ? "done"
@@ -1016,6 +1044,27 @@
       if (moved > 6) { e.stopPropagation(); e.preventDefault(); moved = 0; }
     }, true);
   }());
+
+  /* 把存下來的那份「做法紀錄」畫成一張可收合的卡。
+     存的時候第一行就是摘要（app-server 的 processNote），這裡照那個切：
+     收合時只看得到那一行，點開才是全文。不必解析內容，也就不會因為
+     以後改了文案就對不上。 */
+  function sayProcess(text) {
+    var nl = text.indexOf("\n");
+    var head = (nl < 0 ? text : text.slice(0, nl)).replace(/\*\*/g, "").trim();
+    var body = nl < 0 ? "" : text.slice(nl + 1).trim();
+    var d = document.createElement("details");
+    d.className = "m job proc";
+    d.innerHTML = '<summary><span class="material-symbols-outlined">history</span>'
+      + esc(head || "這次的做法") + '<span class="proc-more">（點開看細節）</span></summary>';
+    if (body) {
+      var inner = document.createElement("div");
+      inner.className = "proc-body";
+      inner.innerHTML = mdToHtml(body);
+      d.appendChild(inner);
+    }
+    $("chatBox").appendChild(d);
+  }
 
   /* 建議句。從這套系統自己的欄位長出來——寫死「把負責人改叫業務窗口」的話，
      碰到沒有「負責人」這個欄位的系統就變成一句錯的示範。 */
@@ -1532,6 +1581,20 @@
                    wrap.classList.remove("resizing"); }
   }
 
+  /* 容器從「沒有尺寸」變成「有尺寸」時要重新擺位。手機版的三欄是切換顯示的，
+     藏著的時候 clientWidth 是 0，fitFrame 會直接放棄；沒有這個觀察器的話，
+     切到預覽那一欄就是一片空白，而且怎麼等都不會好。 */
+  (function () {
+    var wrap = $("frameWrap");
+    if (!wrap || !window.ResizeObserver) return;
+    var had = 0;
+    new ResizeObserver(function () {
+      var w = wrap.clientWidth;
+      if (w > 0 && had === 0 && curTab === "preview") fitFrame();
+      had = w;
+    }).observe(wrap);
+  }());
+
   /* 改視窗大小時把補間關掉，等停下來再開回去。不關的話每一格 resize 都
      各自起一段 420ms 的動畫，預覽會黏在後面追。 */
   var rzT = null;
@@ -1890,6 +1953,9 @@
     b.addEventListener("click", function () {
       document.querySelectorAll("[data-col]").forEach(function (o) { o.setAttribute("aria-selected", o === b ? "true" : "false"); });
       ["sysPane", "chatPane", "wsPane"].forEach(function (idn) { $(idn).classList.toggle("on", idn === b.dataset.col); });
+      /* 切到預覽要重新量一次。fitFrame 在容器還藏著的時候量到 0 就直接放棄，
+         而那正是手機版載入時的狀態——不補這一下，切過去會看到一片空白。 */
+      if (b.dataset.col === "wsPane" && curTab === "preview") fitFrame();
     });
   });
 
