@@ -206,6 +206,40 @@
     .btn:disabled { opacity:.5; cursor:default; }
     /* 「哪顆按鈕推到哪條分支」那兩行。分支名字用等寬字，跟說明文字分開。 */
     .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+
+    /* 網址區塊。
+       這一頁真正的產物就是網址——要傳給同事的那條、交付出去的那個 repo。
+       但它原本跟說明文字一樣是一行藍字，混在三、四行灰字中間，反而是最不
+       顯眼的東西。做成一個有底色、有圖示、右邊帶複製鈕的區塊，掃過去就知道
+       「這個框裡的是重點」。 */
+    .urlbox { display:flex; align-items:center; gap:.5rem; padding:.45rem .5rem .45rem .6rem;
+              background:#f5f9ff; border:1px solid #dbe7fb; border-radius:.55rem; }
+    .urlbox > .material-symbols-outlined { font-size:17px; color:#2563eb; flex:none; }
+    .urlbox a { flex:1; min-width:0; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+                font-size:.75rem; font-weight:700; color:#1d4ed8; text-decoration:none;
+                word-break:break-all; line-height:1.45; }
+    .urlbox a:hover { text-decoration:underline; }
+    .urlbox .cp { flex:none; width:28px; height:28px; padding:0; border-radius:.4rem;
+                  border:1px solid #cddcf5; background:#fff; color:#2563eb; cursor:pointer; }
+    .urlbox .cp:hover { background:#2563eb; border-color:#2563eb; color:#fff; }
+    .urlbox .cp .material-symbols-outlined { font-size:16px; }
+    /* 還沒佈署時那條路徑式入口是可用的、但不是「正式的」，用灰底跟正式網址分開。 */
+    .urlbox.draft { background:#f8fafc; border-color:#e6ecf4; }
+    .urlbox.draft > .material-symbols-outlined,
+    .urlbox.draft a { color:#475569; }
+    .urlbox.draft .cp { border-color:#e2e8f0; color:#64748b; }
+    .urlbox.draft .cp:hover { background:#475569; border-color:#475569; color:#fff; }
+    .urllabel { font-size:.7rem; color:#64748b; margin-bottom:.25rem; }
+    /* 結果那一行：一個勾＋兩三個字，需要的時候右邊接一顆「下一步」按鈕。 */
+    #repoMsg { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+    #repoMsg .ok { display:inline-flex; align-items:center; gap:.25rem; font-weight:700; }
+    #repoMsg .ok .material-symbols-outlined { font-size:16px; }
+    #repoMsg .nextstep { height:26px; padding:0 .5rem; font-size:.72rem; text-decoration:none; }
+    #repoMsg .nextstep .material-symbols-outlined { font-size:15px; }
+    #repoMsg .raw { flex-basis:100%; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+                    white-space:pre-wrap; word-break:break-all; color:#7f1d1d; font-size:.7rem; }
+    .spin { animation:jvspin 1s linear infinite; }
+    @keyframes jvspin { to { transform:rotate(360deg); } }
     /* 分支選單裡的分支名用等寬字——它是識別碼不是句子，等寬才看得出
        feature/ui-test 和 feature/ui_test 的差別。 */
     #brPickMenu .n { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
@@ -459,6 +493,9 @@
     .pickmenu button { display:flex; align-items:center; gap:.4rem; width:100%; text-align:left;
                        padding:.3rem .45rem; border:0; border-radius:.35rem; background:none;
                        cursor:pointer; font:inherit; font-size:.75rem; color:#0f1e46; white-space:nowrap; }
+    /* 往上開。交付卡是這一頁的最後一張，選單往下展會把面板撐出捲軸，
+       而且展開之後多半還要再捲一次才看得到最底下那個選項。 */
+    .pickmenu.up { top:auto; bottom:calc(100% + 4px); }
     .pickmenu button:hover { background:#f1f5f9; }
     .pickmenu button[aria-selected="true"] { background:#e0ecff; color:#1e40af; font-weight:800; }
     .pickmenu .n { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -3222,39 +3259,43 @@
     box.hidden = false;
     if (r.busy) {
       box.style.color = "#64748b";
-      box.textContent = "推上 " + (r.branch || "GitHub") + " 中，這要跑 git，請稍等…";
+      box.innerHTML = '<span class="ok"><span class="material-symbols-outlined spin">progress_activity</span>推上去中…</span>'
+        + '<span style="color:#94a3b8">要跑 git，通常幾十秒</span>';
       return;
     }
     if (r.error) {
       box.style.color = "#b91c1c";
       /* 錯誤原文照給。這類失敗幾乎都是權限或設定問題，「請稍後再試」再試一次
          還是一樣——講出真正的原因，他才知道要去改什麼。 */
-      box.innerHTML = "<b>沒有成功。</b>"
-        + '<div class="mt-1" style="font-family:ui-monospace,monospace;white-space:pre-wrap;word-break:break-all;color:#7f1d1d">'
-        + esc(String(r.error).slice(-300)) + "</div>";
+      box.innerHTML = '<span class="ok"><span class="material-symbols-outlined">error</span>沒有成功</span>'
+        /* 錯誤原文佔滿一整列（flex 容器裡要自己撐開）。這類失敗幾乎都是權限或
+           設定問題，「請稍後再試」再試一次還是一樣——講出真正的原因，
+           他才知道要去改什麼。 */
+        + '<div class="raw">' + esc(String(r.error).slice(-300)) + "</div>";
       return;
     }
+    /* 這一行刻意做短。分支名就在旁邊的選單上，結果訊息再複述一次是重複；
+       而「表單已經填好、按 Create pull request 就好」這種操作說明放在卡片上
+       只是把畫面填滿——真的要開 PR 的人點進去就看到那顆按鈕了。 */
     var parts = [];
-    var to = r.branch ? "<code>" + esc(r.branch) + "</code>" : "GitHub";
     if (r.unchanged) {
       box.style.color = "#64748b";
-      parts.push("跟 " + to + " 上那一版一模一樣，這次沒有東西要送上去。");
+      parts.push('<span class="ok"><span class="material-symbols-outlined">check</span>沒有東西要更新</span>');
     } else {
       box.style.color = "#15803d";
-      parts.push("已推上 " + to + "。");
-      /* 推到非預設分支時給 compare 連結：那一頁按下去就是開 PR 的表單，
-         base 與 head 都填好了。要不要開 PR 由他決定，我們不代他按。 */
+      parts.push('<span class="ok"><span class="material-symbols-outlined">check_circle</span>已推上去</span>');
+      /* 推到非預設分支時給 compare 連結。做成一顆低調的按鈕而不是一條藍字
+         連結——它是「可以做的下一件事」，不是說明文字的一部分。 */
       if (r.compareUrl) {
-        parts.push('<a href="' + esc(r.compareUrl) + '" target="_blank" rel="noreferrer" '
-          + 'class="text-brand font-bold hover:underline">在 GitHub 上開 PR ↗</a>'
-          + '<span style="color:#94a3b8">（表單已經填好，按 Create pull request 就好）</span>');
+        parts.push('<a href="' + esc(r.compareUrl) + '" target="_blank" rel="noreferrer" class="btn btn-ghost nextstep">'
+          + '<span class="material-symbols-outlined">call_merge</span>開 PR</a>');
       }
     }
     if (r.ciSkipped) {
       parts.push('<span style="color:#94a3b8">（不含 CI 設定檔——token 沒有 workflow 權限，'
         + "原因寫在 repo 裡的 CI-說明.md）</span>");
     }
-    box.innerHTML = parts.join('<div class="mt-1"></div>');
+    box.innerHTML = parts.join("");
   }
 
   var NEW_BRANCH = "__new__";
@@ -3273,15 +3314,22 @@
     wrap.hidden = !has;
     if (!has) { $("brNew").hidden = true; }
 
-    box.innerHTML = has
-      ? '<div><span class="text-muted">已交付到</span> <a href="' + esc(st.repoUrl) + '" target="_blank" '
-        + 'rel="noreferrer" class="text-brand font-bold hover:underline" style="word-break:break-all">'
-        + esc(st.repoUrl) + "</a></div>"
-        /* 推到預設分支＝直接改正式版；推到別的分支＝留一份給人看過再合。
-           這件事講一次就好，不要在每顆按鈕上重複。 */
-        + '<div class="text-muted mt-1">推到預設分支就是直接更新正式版；'
-        + "推到別的分支的話，改動會留在那條分支上，要不要合併由你在 GitHub 上決定。</div>"
-      : '<span class="text-muted">還沒交付過。第一次按「交付」會在 GitHub 上建立 repo 並推上第一版。</span>';
+    if (has) {
+      /* 連結文字只顯示 擁有者/repo。整條 https://github.com/... 有 50 幾個字元，
+         那是雜訊不是資訊；點下去、複製到的都還是完整網址。 */
+      urlBlock(box, {
+        label: "已交付到",
+        icon: "folder_code",
+        url: st.repoUrl,
+        text: String(st.repoUrl).replace(/^https:\/\/github\.com\//, ""),
+      });
+      var tip = document.createElement("div");
+      tip.className = "text-muted mt-1";
+      tip.textContent = "推到正式版＝直接更新；推到別的分支＝改動先留著，之後再合。";
+      box.appendChild(tip);
+    } else {
+      box.innerHTML = '<span class="text-muted">還沒交付過。第一次按「交付」會在 GitHub 上建立 repo 並推上第一版。</span>';
+    }
 
     if (has) loadBranches(st.repoUrl);
   }
@@ -3356,6 +3404,38 @@
     if (v === NEW_BRANCH) $("brNew").focus();
   }
 
+  /* 下面放不下就往上開。
+     量的是**會捲動的那個容器**而不是視窗：選單是 absolute，超出視窗只是被
+     切掉，但超出捲動容器會讓那個容器長出捲軸——交付卡是這一頁的最後一張，
+     往下展就正好戳破面板底部。使用者看到的就是那條多出來的 y 軸。
+
+     量過再決定，不寫死成「永遠往上」：這張卡不一定永遠是最後一張，而且
+     空間夠的時候往下開比較自然，選單在按鈕下方是大家的預期。 */
+  function scrollParent(el) {
+    for (var n = el.parentElement; n; n = n.parentElement) {
+      var oy = getComputedStyle(n).overflowY;
+      if (oy === "auto" || oy === "scroll") return n;
+    }
+    return null;
+  }
+
+  function flipBranchMenu() {
+    var menu = $("brPickMenu");
+    var btn = $("brPickBtn");
+    if (!menu || !btn) return;
+    menu.classList.remove("up");
+    var r = btn.getBoundingClientRect();
+    var box = scrollParent(btn);
+    /* 沒有捲動容器就退回用視窗——那時候「放不放得下」本來就是視窗的事。 */
+    var top = box ? box.getBoundingClientRect().top : 0;
+    var bottom = box ? box.getBoundingClientRect().bottom : window.innerHeight;
+    var need = menu.offsetHeight + 8;
+    var below = bottom - r.bottom;
+    var above = r.top - top;
+    /* 上面也放不下的話就維持往下——往上開反而會被容器頂端切掉。 */
+    if (below < need && above > below) menu.classList.add("up");
+  }
+
   function closeBranchMenu() {
     var m = $("brPickMenu");
     if (m) m.hidden = true;
@@ -3369,6 +3449,7 @@
     if (e.target.closest("#brPickBtn")) {
       menu.hidden = !menu.hidden;
       $("brPickBtn").setAttribute("aria-expanded", menu.hidden ? "false" : "true");
+      if (!menu.hidden) flipBranchMenu();
       return;
     }
     if (!menu.hidden && !e.target.closest("#brPick")) closeBranchMenu();
@@ -3385,34 +3466,51 @@
     return v || null;
   }
 
-  /* 網址加複製鈕。只在佈署卡出現一次——兩張卡各印一次同一條網址，
-     使用者要多花一次判斷「這兩個是同一個嗎」。 */
-  function paintUrl(link, published) {
-    var box = $("pubUrl");
-    if (!box) return;
-    box.innerHTML = '<div class="text-muted mb-1">' + (published ? "網址" : "現在可以用的網址（尚未佈署）") + "</div>"
-      + '<div class="flex gap-2 items-center">'
-      + '<a href="' + esc(link) + '" target="_blank" rel="noreferrer" class="flex-1 text-brand font-bold hover:underline" '
-      + 'style="word-break:break-all">' + esc(link) + "</a>"
-      + '<button type="button" id="urlCopy" class="btn btn-ghost btn-icon" title="複製網址" aria-label="複製網址">'
+  /**
+   * 網址區塊。標籤一行、下面一個有底色的框：圖示 + 網址 + 複製鈕。
+   *
+   * 兩張卡都用同一個產生器。網址是這一頁真正的產物（要傳給同事的那條、
+   * 交付出去的那個 repo），原本它跟說明文字一樣是一行藍字，混在三四行灰字
+   * 中間反而最不顯眼。
+   *
+   * `text` 讓呼叫端決定顯示成什麼——repo 那條顯示 擁有者/名稱 就夠了，
+   * 整條 https://github.com/... 有 50 幾個字元，那是雜訊不是資訊。
+   */
+  function urlBlock(el, opt) {
+    if (!el) return;
+    el.innerHTML = (opt.label ? '<div class="urllabel">' + esc(opt.label) + "</div>" : "")
+      + '<div class="urlbox' + (opt.draft ? " draft" : "") + '">'
+      + '<span class="material-symbols-outlined" aria-hidden="true">' + (opt.icon || "link") + "</span>"
+      + '<a href="' + esc(opt.url) + '" target="_blank" rel="noreferrer">' + esc(opt.text || opt.url) + "</a>"
+      + '<button type="button" class="cp" title="複製網址" aria-label="複製網址">'
       + '<span class="material-symbols-outlined">content_copy</span></button>'
       + "</div>";
-    $("urlCopy").addEventListener("click", function () {
+    el.querySelector(".cp").addEventListener("click", function () {
       var b = this;
       var icon = b.querySelector(".material-symbols-outlined");
-      var done = function () { icon.textContent = "check"; setTimeout(function () { icon.textContent = "content_copy"; }, 1500); };
+      var back = function (t) { setTimeout(function () { icon.textContent = "content_copy"; b.title = "複製網址"; }, t); };
       /* clipboard API 在非 https 的環境（區網用 http://192.168.x.x 進來）不存在，
          那時候不要靜靜地沒反應——選起來讓他自己按 Ctrl+C。 */
-      if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(link).then(done, select);
-      else select();
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(opt.url).then(function () { icon.textContent = "check"; back(1500); }, select);
+      } else select();
       function select() {
         var r = document.createRange();
-        r.selectNodeContents(box.querySelector("a"));
+        r.selectNodeContents(el.querySelector("a"));
         var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
         b.title = "已選起來，按 Ctrl+C";
         icon.textContent = "keyboard";
-        setTimeout(function () { icon.textContent = "content_copy"; b.title = "複製網址"; }, 2500);
+        back(2500);
       }
+    });
+  }
+
+  function paintUrl(link, published) {
+    urlBlock($("pubUrl"), {
+      label: published ? "這套系統的網址" : "現在可以用的網址（尚未佈署）",
+      icon: published ? "public" : "link",
+      url: link,
+      draft: !published,
     });
   }
 
