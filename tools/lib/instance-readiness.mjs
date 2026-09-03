@@ -22,18 +22,61 @@ import { describe, list } from "./instance-db.mjs";
 import * as versions from "./instance-versions.mjs";
 
 /* 樣板殘留字。這些是 detail-template 與 demo-forge 的預設值，
-   出現在正式畫面上等於告訴客戶「這是還沒做的半成品」。 */
+   出現在正式畫面上等於告訴客戶「這是還沒做的半成品」。
+
+   ── 這份清單被砍過一次，理由值得留著 ──────────────────
+   原本還收「待補」「待填」「未填」「D+3」「測試資料」。實際去數整個型錄
+   （2197 套）才發現這些根本不是佔位符，是**正常的業務用語**：
+
+     待補      921 套（41%）  多半是狀態徽章 <span class="badge amber">待補</span>
+     D+數字    435 套（19%）  工程排程的「第 N 天」
+     未填       36 套         「尚未填報」「未填完成數量」
+     測試資料   33 套         「測試資料已去識別」「測試資料集」
+
+   曾經試過「整格只有那個詞才算」來救「待補」，沒有用——狀態徽章本來就長成
+   那樣（旁邊就是 <span class="state-pill ok">完成</span>）。分不出來就不要報：
+   一個會誤判四成系統的規則，只會讓人把整份報告一起忽略，連真的問題也看不到。
+
+   留下來的都是**具體的假東西**，不是通用詞彙——它們在客戶真正的系統裡不該
+   出現，而且實測整個型錄只有個位數到十幾套會命中：
+
+     ENT-001 這種樣板編號 13 套、TODO/FIXME 34 套（多半在 script 裡，掃不到）、
+     王小明 8 套、Lorem ipsum／範例文字／請輸入內容／範例公司 0 套。
+
+   「狀態叫待補」跟「客戶名字叫王小明」的差別在這裡：前者換到客戶的系統裡
+   還是對的，後者一定是還沒換掉的假資料。 */
 const GENERIC_HEADERS = ["編號", "項目", "負責人", "期限", "階段"];
 const PLACEHOLDER_RE = [
   { re: /\bENT-\d{3}\b/, why: "ENT-001 這種樣板編號" },
-  { re: /(^|[^0-9A-Za-z])D\+\d+([^0-9A-Za-z]|$)/, why: "D+1 這種樣板日期" },
   { re: /lorem ipsum/i, why: "Lorem ipsum 填充文字" },
-  { re: /(待補|待填|範例文字|請輸入內容|TODO|FIXME|XXX)/, why: "待補/TODO 字樣" },
-  { re: /\b(範例公司|測試公司|某某公司|王小明|測試用)\b/, why: "測試用的假名字" },
+  { re: /(範例文字|請輸入內容|TODO|FIXME)/, why: "TODO／請輸入內容 這種待補字樣" },
+  { re: /(範例公司|測試公司|某某公司|王小明)/, why: "測試用的假名字" },
+  /* 以下要「整個文字節點就只有這個詞」才算：單獨出現時是佔位符，
+     跟別的字寫在一起（「測試用電」）就是正常內容。 */
+  { re: /(XXX|測試用)/, why: "整格只寫著 XXX／測試用", strict: true },
 ];
 
-const text = (html) => html.replace(/<script[\s\S]*?<\/script>/gi, " ")
-  .replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
+/* 去掉 script 與 style——那裡面的字不會出現在畫面上，掃它只會製造誤判。 */
+const strip = (html) => html.replace(/<script[\s\S]*?<\/script>/gi, " ")
+  .replace(/<style[\s\S]*?<\/style>/gi, " ");
+
+const text = (html) => strip(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
+
+/* 一個一個文字節點。strict 規則要靠它才判得出「整格只有這個詞」——
+   扁平化之後相鄰兩格的字會黏在一起，那時候什麼都分不出來了。 */
+const segments = (html) => strip(html).split(/<[^>]*>/)
+  .map((x) => x.replace(/\s+/g, " ").trim()).filter(Boolean);
+
+/* 命中的那一句。只講「看到 待補 字樣」使用者沒辦法判斷報得對不對——
+   把上下文放進報告，誤判一眼就看得出來。 */
+function contextOf(hay, re, span = 26) {
+  const m = hay.match(re);
+  if (!m) return null;
+  const i = m.index;
+  const from = Math.max(0, i - span);
+  const to = Math.min(hay.length, i + m[0].length + span);
+  return (from > 0 ? "…" : "") + hay.slice(from, to).trim() + (to < hay.length ? "…" : "");
+}
 
 function tablesIn(html) {
   return (html.match(/<table[\s\S]*?<\/table>/gi) || []).map((t) => ({
@@ -55,6 +98,29 @@ function nameOf(t) {
 }
 
 /**
+ * 掃樣板文字。loose 的規則看整頁文字；strict 的只認「整個文字節點就是這個詞」
+ * （後面可以帶冒號或刪節號）。
+ *
+ * 抽成純函式是為了測得到——這一項的判斷準不準關係到整份報告可不可信，
+ * 而它只吃字串，不需要資料庫也不需要真的實例。
+ */
+export function scanPlaceholders(plain, segs) {
+  const found = [];
+  for (const rule of PLACEHOLDER_RE) {
+    if (rule.strict) {
+      const hit = segs.find((x) => new RegExp(`^(?:${rule.re.source})\\s*[：:…．.、,]*$`).test(x));
+      if (hit) found.push({ why: rule.why, sample: hit });
+    } else if (rule.re.test(plain)) {
+      found.push({ why: rule.why, sample: contextOf(plain, rule.re) });
+    }
+  }
+  return found;
+}
+
+/** 直接吃 HTML 的版本，測試與呼叫端都用得到。 */
+export const scanHtml = (html) => scanPlaceholders(text(html), segments(html));
+
+/**
  * 跑一遍。回 { verdict, score, blocks, warns, checks:[{id,level,title,detail,fix}] }。
  *
  * dir 是實例目錄（var/instances/<id>），dbName 是它的資料庫，
@@ -64,7 +130,8 @@ function nameOf(t) {
  */
 export async function check({ dir, dbName, inst }) {
   const checks = [];
-  const add = (id, level, title, detail, fix) => checks.push({ id, level, title, detail, fix });
+  const add = (id, level, title, detail, fix, samples) =>
+    checks.push({ id, level, title, detail, fix, samples: samples && samples.length ? samples : undefined });
 
   const file = path.join(dir, "public", "index.html");
   let html = "";
@@ -73,6 +140,7 @@ export async function check({ dir, dbName, inst }) {
     return summarise(checks);
   }
   const plain = text(html);
+  const segs = segments(html);
   const htmlTables = tablesIn(html);
 
   /* ── 1. 樣板表頭還在嗎 ───────────────────────────────── */
@@ -80,15 +148,17 @@ export async function check({ dir, dbName, inst }) {
   if (genericTables.length) {
     add("generic-headers", "block", `有 ${genericTables.length} 張表還是樣板欄位`,
       `欄位名稱還是「編號／項目／負責人／期限／階段」，不是這套系統真正在管的東西。`,
-      "在對話框說「把第 N 張表的欄位改成…」，或直接說這張表要管什麼，我來改。");
+      "在對話框說「把第 N 張表的欄位改成…」，或直接說這張表要管什麼，我來改。",
+      genericTables.map((t) => t.headers.join("／")));
   }
 
   /* ── 2. 樣板文字還在嗎 ───────────────────────────────── */
-  const found = PLACEHOLDER_RE.filter((p) => p.re.test(plain));
+  const found = scanPlaceholders(plain, segs);
   if (found.length) {
     add("placeholder", "block", "畫面上還留著樣板文字",
       `看到 ${found.map((f) => f.why).join("、")}。公開出去客戶會直接讀到這些字。`,
-      "在對話框說「把假資料換成我們公司真的會用到的內容」。");
+      "在對話框說「把假資料換成我們公司真的會用到的內容」。",
+      found.map((f) => f.sample).filter(Boolean));
   }
 
   /* ── 3. 畫面數 ──────────────────────────────────────── */
@@ -121,7 +191,8 @@ export async function check({ dir, dbName, inst }) {
       add("unbound", "block", `有 ${unbound.length} 張表存不住資料`,
         `「${unbound[0].headers.slice(0, 3).join("／")}…」這張表在畫面上看得到，但背後沒有對應的資料表，`
         + "訪客輸入的東西按下去就沒了，而且不會跳錯誤。",
-        "在對話框說「這張表要能存資料」，我會補上對應的資料表。");
+        "在對話框說「這張表要能存資料」，我會補上對應的資料表。",
+        unbound.map((t) => t.headers.join("／")));
     }
 
     const counts = [];
