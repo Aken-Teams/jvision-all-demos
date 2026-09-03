@@ -112,7 +112,13 @@ const server = http.createServer(async (req, res) => {
       /* 順便帶上實例編號與型錄站網址。客戶在自己的子網域上時，右下角的助理
          要能把他送到工作台，而子網域的網址裡沒有實例編號可以推。 */
       const sc = await data.describe(dbName);
-      return json(res, 200, { ...sc, tables: nameTables(inst, sc.tables), instanceId: inst.id, site: SITE });
+      /* 帶上資料庫名。使用者要自己連進去看、或接自己的工具時，第一個問題就是
+         「我的資料庫叫什麼」——那個名字是從實例編號推出來的（去掉底線再加
+         jv_ 前綴），猜不出來，而以前畫面上任何地方都沒寫。 */
+      return json(res, 200, {
+        ...sc, tables: nameTables(inst, sc.tables),
+        instanceId: inst.id, dbName, site: SITE,
+      });
     }
 
     const m = /^\/api\/t\/([a-z][a-z0-9_]*)(?:\/(\d+))?$/.exec(p);

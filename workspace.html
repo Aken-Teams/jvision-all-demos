@@ -272,6 +272,35 @@
     .ref .x { flex:none; border:0; background:none; cursor:pointer; color:#93a7c9;
               font-size:.8rem; line-height:1; padding:0 .1rem; }
     .ref .x:hover { color:#b91c1c; }
+    /* ── Markdown 排版 ────────────────────────────────
+       .md 這個容器一直沒有樣式，所以「文件」那一頁的標題跟內文一樣大、
+       清單沒有項目符號——內容有排好，只是看起來沒有。mdToHtml 產出的
+       class（mdh／mdul／mdc／mdt）以前只在對話氣泡 .m 底下有定義。 */
+    .md { color:#334155; line-height:1.75; }
+    .md .mdh { color:#0f1e46; font-weight:800; line-height:1.4; margin:1.2rem 0 .5rem; }
+    .md .mdh:first-child { margin-top:0; }
+    .md h1.mdh { font-size:1.35rem; padding-bottom:.4rem; border-bottom:1px solid #e2e8f0; }
+    .md h2.mdh { font-size:1.05rem; }
+    .md h3.mdh { font-size:.92rem; }
+    .md h4.mdh { font-size:.85rem; color:#475569; }
+    .md p { margin:0 0 .7rem; }
+    .md .mdul { margin:.3rem 0 .8rem; padding-left:1.3rem; list-style:disc; }
+    .md .mdul li { margin:.25rem 0; }
+    .md .mdc { background:#f1f5f9; color:#1e40af; padding:.08rem .3rem; border-radius:.25rem;
+               font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.9em; }
+    .md .mdscroll { overflow-x:auto; margin:.6rem 0 .9rem; }
+    .md .mdt { border-collapse:collapse; font-size:.82rem; }
+    .md .mdt th { background:#f8fafc; color:#475569; font-weight:800; text-align:left;
+                  padding:.4rem .6rem; border:1px solid #e2e8f0; white-space:nowrap; }
+    .md .mdt td { padding:.4rem .6rem; border:1px solid #e2e8f0; vertical-align:top; }
+    /* 引言。以前 mdToHtml 不認得 >，所以那個角括號會原樣印在畫面上。 */
+    .md .mdq, .m .mdq { margin:.4rem 0 .8rem; padding:.3rem 0 .3rem .8rem;
+                        border-left:3px solid #dbeafe; color:#64748b; }
+
+    /* 資料表標籤上的筆數。 */
+    .dt-n { margin-left:.3rem; font-size:.66rem; font-weight:700; color:#94a3b8;
+            background:#f1f5f9; border-radius:.25rem; padding:.02rem .25rem; }
+    .tab[aria-selected="true"] .dt-n { color:#1e40af; background:#dbeafe; }
 
     /* 檔案樹。目錄只是標示，不能點——實例的結構是固定的，讓它可以收合
        只會多一種狀態要記，而總共也才十來項。 */
@@ -288,9 +317,7 @@
     .tree-f[aria-current="true"] .material-symbols-outlined { color:#1e40af; }
     .tree-f .n { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .tree-f .kb { flex:none; font-size:.64rem; color:#94a3b8; }
-    /* 檔案底下那一行「它是做什麼的」。列一堆檔名而不說用途，
-       等於沒說——live.js 三個字看不出它把畫面接到了資料庫。 */
-    .tree-t { font-size:.66rem; color:#94a3b8; padding-bottom:.15rem; line-height:1.35; }
+    /* 檔案的用途改成 hover 才看——見 paintTree 裡的說明。 */
     /* 拖檔案進來時整欄亮起來。沒有這個回饋的話，人不知道可以放開手。 */
     #chatPane.dropping { outline:2px dashed #93c5fd; outline-offset:-6px; background:#f5faff; }
     /* 沒有參考資料時整列收掉，不要留一條看不出用途的空白。 */
@@ -562,7 +589,7 @@
       <!-- 資料 -->
       <div id="tab-data" hidden class="col flex-1">
         <div class="flex items-center gap-2 px-3 py-1.5 border-b border-line bg-soft">
-          <select id="dtTable" class="border border-line rounded-lg text-xs py-1 pl-2 pr-7 font-bold text-ink"></select>
+          <div id="dtTabs" class="flex gap-1 min-w-0 overflow-x-auto"></div>
           <input id="dtQ" placeholder="搜尋…" class="border border-line rounded-lg text-xs py-1 px-2 w-36" />
           <button id="dtStruct" type="button" class="btn btn-ghost h-7 px-2" title="看這張表有哪些欄位、什麼型別">
             <span class="material-symbols-outlined text-[16px]">view_column</span>結構
@@ -580,6 +607,10 @@
           <span id="codePath" class="text-xs font-bold text-ink"></span>
           <span id="codeSize" class="text-xs text-muted"></span>
           <span class="text-xs text-muted">·　唯讀，要改請在左邊用講的</span>
+          <button id="codeRaw" type="button" hidden class="btn btn-ghost h-7 px-2"
+            title="切換：排版後的樣子／原始文字">
+            <span class="material-symbols-outlined text-[16px]">code</span>原始碼
+          </button>
           <button id="dlCode" type="button" class="btn btn-ghost h-7 px-2 ml-auto"><span class="material-symbols-outlined text-[16px]">download</span>下載</button>
         </div>
         <div class="flex-1 flex min-h-0">
@@ -590,6 +621,7 @@
           <div class="flex-1 min-w-0 overflow-auto bg-slate-50">
             <p id="codeNote" class="text-xs text-muted px-3 pt-3" hidden></p>
             <pre id="codeBox" class="p-3 text-ink"></pre>
+            <div id="codeMd" hidden class="md p-5 text-sm"></div>
           </div>
         </div>
       </div>
@@ -1065,6 +1097,17 @@
          少了這一段會渲染成「# 系統概述」這種帶井字號的純文字。 */
       var h = ln.match(/^\s*(#{1,4})\s+(.*)$/);
       if (h) { out.push("<h" + h[1].length + ' class="mdh">' + inline(h[2]) + "</h" + h[1].length + ">"); continue; }
+      /* 引言。不認得的話那個 > 會原樣印在畫面上，看起來像沒排版。 */
+      var q = ln.match(/^\s*>\s?(.*)$/);
+      if (q) {
+        var qb = [q[1]];
+        while (i + 1 < lines.length && /^\s*>\s?/.test(lines[i + 1])) {
+          qb.push(lines[i + 1].replace(/^\s*>\s?/, "")); i += 1;
+        }
+        out.push('<div class="mdq">' + qb.filter(function (x) { return x.trim(); })
+          .map(function (x) { return inline(x); }).join("<br>") + "</div>");
+        continue;
+      }
       if (/^\s*[-*]\s+/.test(ln)) {
         var buf = [];
         while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
@@ -1904,12 +1947,22 @@
   var TYPE_TEXT = { text: "文字", int: "整數", number: "數字", percent: "百分比",
     date: "日期", enum: "選項" };
 
+  function markTable() {
+    document.querySelectorAll("#dtTabs [data-t]").forEach(function (b) {
+      b.setAttribute("aria-selected", b.dataset.t === dt.table ? "true" : "false");
+    });
+  }
+
   function paintStruct() {
     var t = dt.schema[dt.table];
     var body = $("dtBody");
     if (!t) { body.innerHTML = '<p class="p-4 text-xs text-muted">讀不到這張表的定義。</p>'; return; }
     var h = '<div class="p-4">'
-      + '<p class="text-xs text-muted mb-3">資料庫裡的表名 <code class="mdc">' + esc(t.name) + "</code>"
+      + '<p class="text-xs text-muted mb-3">'
+      /* 資料庫名是從實例編號推出來的（去掉底線再加 jv_ 前綴），猜不出來。
+         使用者要自己連進去看或接自己的工具時，第一個問題就是這個。 */
+      + (dt.dbName ? "資料庫 <code class=\"mdc\">" + esc(dt.dbName) + "</code>　" : "")
+      + '表名 <code class="mdc">' + esc(t.name) + "</code>"
       + "　共 " + t.columns.length + " 個欄位、" + t.count + " 筆資料。"
       + "助理加欄位或改名時，動的就是這裡。</p>"
       + '<table class="w-full text-xs"><thead><tr>'
@@ -1940,7 +1993,8 @@
       .then(function (r) { return r.json(); })
       .then(function (s) {
         var tables = (s && s.tables) || [];
-        var sel = $("dtTable");
+        dt.dbName = s && s.dbName || null;
+        var sel = $("dtTabs");
         sel.innerHTML = "";
         if (!tables.length) { $("dtBody").innerHTML = '<p class="p-4 text-xs text-muted">這套系統還沒有資料表。</p>'; return; }
         /* key → 顯示名稱。表頭直接印資料庫的 key 會變成 customer_subscription
@@ -1951,15 +2005,25 @@
           dt.schema[t.name] = t;
           dt.labels[t.name] = {};
           t.columns.forEach(function (c) { dt.labels[t.name][c.key] = c.label; });
-          var o = document.createElement("option");
-          o.value = t.name;
-          /* 用後端算出來的表名。以前是把前三個欄位名串起來當標題，於是選單長成
-             「承辦人·文件與正本序號·印章組合（6）」——看起來像一句話，不像名字。 */
-          o.textContent = (t.title || t.name) + "（" + t.count + " 筆）";
+          /* 用一排標籤而不是下拉選單。資料表通常只有一到四張，全部攤開來
+             比藏在選單裡好：看得到總共有幾張、每張幾筆，切換也只要一下。
+             名字用後端算出來的——以前是把前三個欄位名串起來，選單於是長成
+             「承辦人·文件與正本序號·印章組合（6）」，像一句話而不像名字。 */
+          var o = document.createElement("button");
+          o.type = "button";
+          o.className = "tab";
+          o.dataset.t = t.name;
+          o.setAttribute("aria-selected", "false");
+          o.innerHTML = esc(t.title || t.name)
+            + '<span class="dt-n">' + t.count + "</span>";
+          o.addEventListener("click", function () {
+            dt.table = t.name; dt.offset = 0; markTable(); paintData();
+          });
           sel.appendChild(o);
         });
         dt.table = tables[0].name;
         dt.offset = 0;
+        markTable();
         paintData();
       })
       .catch(function () { $("dtBody").innerHTML = '<p class="p-4 text-xs text-red-600">讀不到資料表定義。</p>'; });
@@ -1994,7 +2058,7 @@
       .catch(function () { $("dtBody").innerHTML = '<p class="p-4 text-xs text-red-600">讀不到資料。</p>'; });
   }
 
-  $("dtTable").addEventListener("change", function () { dt.table = this.value; dt.offset = 0; paintData(); });
+
   $("dtStruct").addEventListener("click", function () {
     dt.struct = !dt.struct;
     this.setAttribute("aria-selected", dt.struct ? "true" : "false");
@@ -2016,6 +2080,9 @@
   /* 程式碼。唯讀——直接讓人存檔等於開一個繞過 instance-edit 五道護欄的後門。 */
   var codeText = "";
   var codePath = "public/index.html";
+  /* .md 預設看排版後的樣子，其他一律當程式碼。說明文件本來就是寫給人讀的，
+     用等寬字把 ## 和 - 攤在那裡，等於要求讀的人自己在腦中排版一次。 */
+  var codeRaw = false;
 
   function loadCode() {
     loaded.code = true;
@@ -2030,6 +2097,18 @@
         loaded.code = false;
         $("codeBox").textContent = "讀不到檔案清單，再點一次「程式碼」試試。";
       });
+  }
+
+  /* 只有 .md 有兩種看法。其他型別切換沒有意義，所以那顆鈕直接藏起來，
+     而不是留一顆按了沒反應的按鈕。 */
+  function paintCode() {
+    var isMd = /\.md$/i.test(codePath);
+    $("codeRaw").hidden = !isMd;
+    var show = isMd && !codeRaw;
+    $("codeMd").hidden = !show;
+    $("codeBox").hidden = show;
+    if (show) $("codeMd").innerHTML = mdToHtml(codeText);
+    else $("codeBox").textContent = codeText;
   }
 
   function paintTree(list) {
@@ -2056,15 +2135,12 @@
       b.innerHTML = '<span class="material-symbols-outlined">description</span>'
         + '<span class="n">' + esc(name) + "</span>"
         + '<span class="kb">' + Math.max(1, Math.round(f.bytes / 1024)) + "K</span>";
+      /* 用途寫在 title 裡，滑上去才看到。每個檔都固定掛一行說明的話，
+         檔案一多（未來加了後端就會多）整棵樹會變成兩倍高的字牆——
+         而使用者多數時候只是要找一個檔，不是要讀完所有說明。 */
+      if (f.title) b.title = f.title + (f.note ? "　" + f.note : "");
       b.addEventListener("click", function () { openFile(f.path); });
       box.appendChild(b);
-      if (f.title) {
-        var t = document.createElement("div");
-        t.className = "tree-t";
-        t.style.paddingLeft = (depth * 12 + 22) + "px";
-        t.textContent = f.title;
-        box.appendChild(t);
-      }
     });
     if (!list.length) box.innerHTML = '<p class="text-xs text-muted p-2">沒有檔案。</p>';
   }
@@ -2083,8 +2159,8 @@
       .then(function (d) {
         if (d.error) throw new Error(d.error);
         codeText = d.text;
-        $("codeBox").textContent = d.text;
         $("codeSize").textContent = "（" + Math.round(d.bytes / 1024) + " KB）";
+        paintCode();
         if (d.truncated) {
           $("codeNote").textContent = "這個檔太長，只顯示前面一段。要完整的請按右上角下載。";
           $("codeNote").hidden = false;
@@ -2092,6 +2168,13 @@
       })
       .catch(function () { $("codeBox").textContent = "讀不到這個檔案。"; });
   }
+  $("codeRaw").addEventListener("click", function () {
+    codeRaw = !codeRaw;
+    this.classList.toggle("btn-primary", codeRaw);
+    this.classList.toggle("btn-ghost", !codeRaw);
+    paintCode();
+  });
+
   $("dlCode").addEventListener("click", function () {
     if (!codeText) return;
     var a = document.createElement("a");
