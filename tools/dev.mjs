@@ -217,6 +217,48 @@ const hostCache = new Map();
 const MAIN_HOST = process.env.JV_MAIN_HOST || "jvdemo.jvision-ai.com";
 
 /**
+ * 「這套系統現在打不開」的頁面。
+ *
+ * 封存與暫停原本是直接回一段 JSON。那對程式來說夠了，但這兩個網址是**人**會
+ * 打開的——書籤、貼給同事的連結、工作台的「開啟」。看到 {"error":"這個系統已封存"}
+ * 的人不會知道那是正常狀態還是壞了，也不知道下一步該做什麼。
+ *
+ * 想要 JSON 的（fetch、API 呼叫）照樣拿 JSON——用 Accept 分流，不是每個呼叫端
+ * 都準備好處理一整頁 HTML。
+ */
+function stopPage(req, res, code, { icon, title, body, action }) {
+  if (!String(req.headers.accept || "").includes("text/html")) {
+    return json(res, code, { error: title });
+  }
+  const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  res.writeHead(code, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+  res.end(`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)}｜JVision</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
+<style>
+  :root{color-scheme:light}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;
+       background:#f6f8fc;color:#0f1e46;
+       font:15px/1.7 system-ui,-apple-system,"Noto Sans TC",sans-serif}
+  .box{max-width:26rem;width:100%;background:#fff;border:1px solid #e6ecf4;
+       border-radius:16px;padding:32px 28px;text-align:center;
+       box-shadow:0 12px 32px rgba(15,23,42,.06)}
+  .ico{font-family:"Material Symbols Outlined";font-size:40px;color:#b45309;line-height:1}
+  h1{font-size:1.05rem;font-weight:900;margin:14px 0 8px}
+  p{margin:0;color:#64748b;font-size:.86rem}
+  a{display:inline-flex;align-items:center;gap:6px;margin-top:20px;height:38px;padding:0 18px;
+    border-radius:9px;background:#1e40af;color:#fff;text-decoration:none;font-weight:800;font-size:.85rem}
+  a:hover{background:#3b82f6}
+</style></head><body><div class="box">
+<div class="ico">${esc(icon)}</div>
+<h1>${esc(title)}</h1>
+<p>${esc(body)}</p>
+${action ? `<a href="${esc(action.href)}">${esc(action.text)}</a>` : ""}
+</div></body></html>`);
+}
+
+/**
  * 登入完要送他去哪。
  *
  * next 來自網址，也就是攻擊者寫得出來的東西。原本是直接 302 過去，等於
@@ -276,6 +318,18 @@ async function serveInstance(req, res, instanceId, target, { who, ip }) {
   try {
     const inst = await control.getInstance(instanceId);
     if (!inst) return json(res, 404, { error: "找不到這個系統" });
+    /* 狀態在這裡就擋掉，不要轉給 app-server。轉過去的話回來的是一段 JSON，
+       而這條路徑（/-/i/<編號>/）是人會直接打開的——書籤、貼給同事的連結、
+       工作台的「開啟」。 */
+    if (inst.state === "archived") {
+      return stopPage(req, res, 410, { icon: "inventory_2", title: "這套系統已封存",
+        body: "它的擁有者把它收起來了，暫時不能開。資料都還在——取消封存之後就跟原本一樣。",
+        action: { href: "/workspace.html", text: "回到我的專案" } });
+    }
+    if (inst.state === "suspended") {
+      return stopPage(req, res, 403, { icon: "pause_circle", title: "這套系統已暫停服務",
+        body: "請聯絡這套系統的擁有者。" });
+    }
     /* 只有這個客戶白名單裡的信箱進得去。權限每次查而不放進 cookie——
        站主或客戶把某個信箱移除時要能馬上生效。 */
     const role = await control.memberRole({ customerId: inst.customer_id, email: id.email });
@@ -314,8 +368,15 @@ function startGateway() {
     {
       const inst = await instanceForHost(req.headers.host);
       if (inst) {
-        if (inst.state === "archived") return json(res, 410, { error: "這個系統已封存" });
-        if (inst.state === "suspended") return json(res, 403, { error: "這個系統已暫停服務" });
+        if (inst.state === "archived") {
+          return stopPage(req, res, 410, { icon: "inventory_2", title: "這套系統已封存",
+            body: "它的擁有者把它收起來了，網址暫時不開放。資料都還在——取消封存之後就跟原本一樣。",
+            action: { href: `https://${MAIN_HOST}/workspace.html`, text: "回到我的專案" } });
+        }
+        if (inst.state === "suspended") {
+          return stopPage(req, res, 403, { icon: "pause_circle", title: "這套系統已暫停服務",
+            body: "請聯絡這套系統的擁有者。" });
+        }
         /* 驗票要擺在轉給實例之前。這個子網域上的所有路徑都會走到這裡，
            不先攔下來的話它也會被當成實例的路徑、然後因為還沒登入被送回主站。 */
         if (p === "/api/visitor/adopt") {

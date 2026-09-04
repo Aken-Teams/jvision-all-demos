@@ -259,6 +259,19 @@
        「刪除」看起來就跟「交付」一樣安全。 */
     /* 已封存那一組的小標與樣式。淡下去是為了讓人一眼看出「這些不在跑」，
        但仍然點得進去——要取消封存就得先進得去。 */
+    /* 封存之後：能做的事只剩「放回來」或「刪掉」。
+       其餘分頁與卡片一律鎖住並且看得出來被鎖住——留著能點但點了會壞的東西，
+       使用者要自己試才知道，而試的結果是一頁 JSON 錯誤訊息。 */
+    .tab[aria-disabled="true"] { opacity:.4; cursor:not-allowed; }
+    .locked { position:relative; opacity:.5; }
+    .locked::after { content:""; position:absolute; inset:0; border-radius:.75rem;
+                     background:transparent; cursor:not-allowed; }
+    .archbar { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+               margin-bottom:1rem; padding:.7rem .9rem; border:1px solid #fde68a;
+               background:#fffbeb; border-radius:.75rem; font-size:.8rem; color:#78350f; }
+    .archbar .material-symbols-outlined { font-size:19px; color:#b45309; flex:none; }
+    .archbar b { color:#78350f; }
+    .archbar .sp { flex:1; min-width:0; }
     .archhd { padding:.6rem .5rem .25rem; font-size:.68rem; font-weight:800; color:#94a3b8; }
     .archhd + .grp .sys, .archhd ~ .grp .sys { opacity:.62; }
     /* 寬度跟上面那幾張卡一致。這裡本來有 max-width:60rem，那是上面還有寬度
@@ -980,6 +993,14 @@
 
       <div id="tab-deploy" hidden class="col flex-1 overflow-y-auto">
         <div class="p-5">
+        <!-- 封存中的橫幅。放在最上面而不是危險區裡：使用者一進來就要知道
+             「這一頁大部分東西按不動」是為什麼，而不是自己一顆一顆試出來。 -->
+        <div id="archBar" class="archbar" hidden>
+          <span class="material-symbols-outlined" aria-hidden="true">inventory_2</span>
+          <span class="sp"><b>這套系統已封存。</b>網址已下線，畫面、資料、程式碼都暫時不能開。
+            資料全部留著——放回來就跟封存前一樣。</span>
+          <button type="button" class="btn btn-ghost" id="btnUnarchTop">取消封存</button>
+        </div>
         <div class="depgrid">
           <!-- 佈署：讓 c-xxx.jvision-ai.com 這個網址開始存在。
                刻意做成一顆要按的按鈕，而不是開通時就給——網址在使用者沒同意
@@ -1501,8 +1522,16 @@
     loadSessions();
 
     loaded = { data: false, code: false, log: false };
-    showTab("preview");
-    refreshFrame();
+    /* 封存的系統開預覽只會拿到一頁 JSON 錯誤訊息（app-server 對它一律回 410），
+       所以直接落在唯一還能用的那一頁，也不要去載入 iframe。 */
+    if (cur.state === "archived") {
+      showTab("deploy");
+      applyArchived();
+    } else {
+      applyArchived();
+      showTab("preview");
+      refreshFrame();
+    }
 
     /* 填進去但不自動送出——那是要花幾分鐘、會改動他系統的事，
        該由他自己按下去。只用一次，換系統時不該又冒出來。 */
@@ -2411,6 +2440,39 @@
   var loaded = { data: false, code: false, log: false };
   var TABS = ["preview", "data", "code", "log", "spec", "deploy"];
 
+  /**
+   * 封存之後編輯區能做什麼。
+   *
+   * 封存的系統在 app-server 那邊一律回 410，所以預覽、資料、程式碼、文件、
+   * 版本這幾頁**全部**是壞的——留著能點只是讓使用者自己去撞，撞到的還是一頁
+   * 原始的 JSON 錯誤訊息。所以整排分頁只留「交付」：那裡才有「取消封存」與
+   * 「刪除」，也就是這個狀態下唯一還做得到的兩件事。
+   *
+   * 交付那一頁裡面的三張卡也一起鎖住——佈署、分享、推上 GitHub 對一個已經
+   * 下線的系統都不成立。鎖住的方式是變淡＋蓋一層擋點擊，而不是把它們藏起來：
+   * 藏起來的話使用者會以為那些功能不見了，看得到但按不動才說得出「先放回來」。
+   */
+  var ARCHIVED_OK = ["deploy"];
+  function applyArchived() {
+    var on = Boolean(cur && cur.state === "archived");
+    document.querySelectorAll("[data-tab]").forEach(function (b) {
+      var allow = !on || ARCHIVED_OK.indexOf(b.dataset.tab) >= 0;
+      b.setAttribute("aria-disabled", allow ? "false" : "true");
+      b.title = allow ? "" : "這套系統已封存，先取消封存才能用";
+    });
+    /* 交付頁裡除了危險區以外都鎖住。 */
+    document.querySelectorAll("#tab-deploy .depgrid > div").forEach(function (n) {
+      n.classList.toggle("locked", on);
+      n.querySelectorAll("button, input, select, a.btn").forEach(function (x) {
+        if (on) { x.dataset.wasDisabled = x.disabled ? "1" : "0"; x.disabled = true; }
+        else if (x.dataset.wasDisabled === "0") x.disabled = false;
+      });
+    });
+    var bar = $("archBar");
+    if (bar) bar.hidden = !on;
+    if (on && ARCHIVED_OK.indexOf(curTab) < 0) showTab("deploy");
+  }
+
   function showTab(name) {
     curTab = name;
     TABS.forEach(function (t) { $("tab-" + t).hidden = t !== name; });
@@ -2430,7 +2492,14 @@
     if (name === "deploy") loadPub();   // 名單由 paintShareGate 依身分決定要不要載
   }
   document.querySelectorAll("[data-tab]").forEach(function (b) {
-    b.addEventListener("click", function () { if (cur) showTab(b.dataset.tab); });
+    b.addEventListener("click", function () {
+      if (!cur) return;
+      /* aria-disabled 不像 disabled 會自動擋掉點擊，要自己擋。用 aria-disabled
+         而不是 disabled 是為了讓 title 提示還讀得到——disabled 的按鈕在多數
+         瀏覽器上不會觸發 hover。 */
+      if (b.getAttribute("aria-disabled") === "true") return;
+      showTab(b.dataset.tab);
+    });
   });
 
   /* ── 規格文件 ────────────────────────────────────────
@@ -3424,6 +3493,7 @@
     paintShareGate(st);
     paintRepo(st);
     paintDanger(st);
+    applyArchived();
   }
 
   /* 交付狀態。開 PR 是「把改動提給既有的 repo」，repo 還不存在的時候那顆按鈕
@@ -3498,6 +3568,7 @@
         /* cur 是選系統時抓下來的那個物件，重讀清單不會更新它——不改這一行的話
            按鈕會停在「封存」、說明也還是舊的，看起來像沒生效。 */
         if (cur) cur.state = act === "archive" ? "archived" : "live";
+        applyArchived();
         /* 狀態變了，清單與佈署卡都要跟著重讀——但不要動使用者目前在看的頁。 */
         loadSystems({ keepView: true });
         loadPub();
@@ -3681,6 +3752,10 @@
       b.addEventListener("click", function () { pickBranch(b.dataset.br); closeBranchMenu(); });
     });
     showBranch();
+    /* 分支選單是後來才重畫的，重畫出來的按鈕是全新的、沒有被停用過。
+       封存中的話要再鎖一次——雖然卡片上蓋著一層擋點擊，但讓 DOM 的狀態
+       跟畫面講的一致，之後才不會有人依賴 :disabled 卻拿到錯的答案。 */
+    applyArchived();
   }
 
   function showBranch() {
@@ -3964,6 +4039,7 @@
     }).then(function (yes) { if (yes) doArchive("archive"); });
   });
   $("btnDestroy").addEventListener("click", function () { if (cur) doDestroy(); });
+  $("btnUnarchTop").addEventListener("click", function () { if (cur) doArchive("unarchive"); });
 
   /* 目前這套系統在畫面上叫什麼。清單那邊已經算過一次（title），
      這裡沿用同一個，才不會視窗上寫的跟左邊列的不一樣。 */
