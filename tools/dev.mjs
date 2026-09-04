@@ -1079,6 +1079,9 @@ function startGateway() {
             googleName: id.name || null,
             displayName: (prof && prof.display_name) || null,
             company: cust ? cust.name : null,
+            /* 網址用的是 slug 不是 name，而 slug 只在開通當下推導一次。
+               回給前端，讓那一頁講得出「你的網址固定用哪一段」。 */
+            slug: cust ? cust.slug : null,
             isOwner: Boolean(cust),
             admin: Boolean(google.allowed(auth.conf(), id.email)),
           });

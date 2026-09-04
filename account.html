@@ -29,6 +29,9 @@
     .btn-primary:hover { background:#3b82f6; }
     .btn-ghost { border-color:#e2e8f0; background:#fff; color:#0f1e46; }
     .btn-ghost:hover { border-color:#1e40af; color:#1e40af; }
+    /* 不能改的值。刻意不長得像輸入框——沒有邊框、底色更淡。 */
+    .ro { padding:.55rem .75rem; border-radius:.6rem; background:#f8fafc;
+          color:#475569; font-size:.9rem; word-break:break-all; }
     .bar { height:8px; border-radius:9999px; background:#eef2f7; overflow:hidden; }
     .bar > i { display:block; height:100%; border-radius:9999px; background:linear-gradient(90deg,#1e40af,#7c3aed); }
   </style>
@@ -67,14 +70,21 @@
             <p id="nameHint" class="text-xs text-muted mt-1.5"></p>
           </div>
           <div>
-            <label class="lbl" for="email">信箱</label>
-            <input id="email" class="inp mt-1.5" readonly />
+            <!-- 信箱不是輸入框。它原本是 readonly 的 <input>，長得跟旁邊可以改的
+                 那些一模一樣，使用者會先點進去、打字、發現沒反應，才推論出它不能改。
+                 直接畫成一個值，就不會有那一步。 -->
+            <span class="lbl">信箱</span>
+            <p id="email" class="ro mt-1.5">—</p>
             <p class="text-xs text-muted mt-1.5">登入身分就是信箱，不能修改。</p>
           </div>
           <div id="companyWrap" hidden class="sm:col-span-2">
             <label class="lbl" for="company">公司名稱</label>
             <input id="company" class="inp mt-1.5" maxlength="120" />
-            <p class="text-xs text-muted mt-1.5">會出現在你系統的網址上。</p>
+            <!-- 這裡原本寫「會出現在你系統的網址上」，那是錯的：網址用的是
+                 slug，而 slug 只在開通公司帳戶的當下從名稱推導一次，之後改名
+                 不會動到任何一個既有或未來的網址。照實說，並把真正在用的那一段
+                 顯示出來——使用者才對得起來自己看到的網址。 -->
+            <p id="companyHint" class="text-xs text-muted mt-1.5"></p>
           </div>
         </div>
         <div class="flex items-center gap-3 mt-5">
@@ -93,7 +103,9 @@
               <span class="lbl">這個月的 token</span>
               <span id="tokMonth" class="text-lg font-black text-ink">—</span>
             </div>
-            <div class="bar"><i id="tokBar" style="width:0%"></i></div>
+            <!-- 沒用過的時候不要放一條永遠是空的量表。空的進度條會讓人以為
+                 「快滿了／還沒開始」是同一件事的兩端，但這裡根本沒有上限。 -->
+            <div id="tokBarWrap" class="bar" hidden><i id="tokBar" style="width:0%"></i></div>
             <p id="tokNote" class="text-xs text-muted mt-2"></p>
           </div>
           <div>
@@ -109,8 +121,12 @@
 
       <!-- 使用名單 -->
       <section id="membersCard" hidden class="card p-6">
-        <h2 class="text-base font-black text-ink mb-1">誰能進我的系統</h2>
-        <p class="text-xs text-muted mb-5">名單上的 Google 帳號才進得去你買的系統。同事離職就把他移除。</p>
+        <!-- 標題帶上公司名稱。這份名單本來就是公司層級的（一次加人，他看得到
+             你名下所有系統），寫出公司名字才說得清楚範圍有多大。
+             順帶讓「公司名稱」那個欄位有實際用途——在這之前它全站只有個人設定
+             自己讀得到，改了什麼都不會發生。 -->
+        <h2 id="membersTitle" class="text-base font-black text-ink mb-1">誰能進我的系統</h2>
+        <p class="text-xs text-muted mb-5">名單上的 Google 帳號，進得去你名下<b class="text-ink">所有</b>的系統，不只某一套。同事離職就把他移除。</p>
         <div id="memberList" class="divide-y divide-line border border-line rounded-xl overflow-hidden mb-4"></div>
         <div class="flex gap-2">
           <input id="newMember" class="inp" type="email" placeholder="同事的 Google 信箱" />
@@ -162,12 +178,19 @@
         if (!d) return;
         profile = d;
         $("panes").hidden = false;
-        $("email").value = d.email;
+        $("email").textContent = d.email;
         $("displayName").value = d.displayName || "";
         $("nameHint").textContent = d.googleName ? "Google 帳號上的名字是「" + d.googleName + "」。" : "";
         if (d.isOwner) {
           $("companyWrap").hidden = false;
           $("company").value = d.company || "";
+          /* 網址那一段是開通當下定下來的，改名不會動到它。把它印出來，
+             使用者才對得起來自己在網址上看到的那個字。 */
+          if (d.company) $("membersTitle").textContent = "誰能進「" + d.company + "」的系統";
+          $("companyHint").innerHTML = d.slug
+            ? '這是顯示用的名稱。你的系統網址固定用 <b class="text-ink" style="font-family:ui-monospace,monospace">'
+              + esc(d.slug) + '</b> 這一段（開通時就定下來了，改名稱不會變）。'
+            : "這是顯示用的名稱。";
           $("membersCard").hidden = false;
           loadMembers();
         }
@@ -189,6 +212,12 @@
         .then(function (x) {
           if (!x.ok) return msg($("profileMsg"), x.d.error || "存不起來", false);
           msg($("profileMsg"), "已儲存", true);
+          /* 標題用的是公司名稱，改完要當場跟上——不然使用者會以為沒存到。 */
+          var co = $("company").value.trim();
+          if (profile && profile.isOwner) {
+            profile.company = co;
+            $("membersTitle").textContent = co ? "誰能進「" + co + "」的系統" : "誰能進我的系統";
+          }
           /* 顯示名稱改了，右上角那顆也要跟著改——不然使用者會以為沒存到。 */
           if (window.JVAccount && window.JVAccount.refresh) window.JVAccount.refresh();
         })
@@ -204,14 +233,19 @@
           var t = d.tokens || {}, s = d.storage || {};
           $("tokMonth").textContent = num(t.month);
           /* 沒有配額制度，所以這條不是「用掉幾成」而是相對刻度：
-             以 100 萬 token 當滿格，讓人對數量級有感覺。標示寫清楚，
-             免得被當成快要用完。 */
-          $("tokBar").style.width = Math.min(100, (t.month / 1000000) * 100) + "%";
+             以 100 萬 token 當滿格，讓人對數量級有感覺。
+             真的用過才顯示——0 的時候一條空的量表只會讓人猜它代表什麼。 */
+          var used = Number(t.month) > 0;
+          $("tokBarWrap").hidden = !used;
+          if (used) $("tokBar").style.width = Math.max(2, Math.min(100, (t.month / 1000000) * 100)) + "%";
           $("tokNote").textContent = t.ledger
-            ? "累計 " + num(t.total) + " token，共 " + num(t.calls) + " 次分析，成本 US$" + (t.cost || 0).toFixed(4) + "。刻度以 100 萬為滿格，目前沒有上限。"
+            ? "累計 " + num(t.total) + " token，共 " + num(t.calls) + " 次分析，成本 US$" + (t.cost || 0).toFixed(4) + "。沒有上限，這裡只是讓你知道用了多少。"
             : "還沒有用過 AI 分析。";
           $("spTotal").textContent = bytes((s.files || 0) + (s.db || 0));
-          $("spBar").style.width = Math.min(100, ((s.files + s.db) / (1024 * 1024 * 1024)) * 100) + "%";
+          /* 650KB 對 1GB 是 0.06%，畫出來是看不見的一條線——「有一點」跟
+             「完全沒有」長得一樣。有用到就至少給 2%，讓那兩件事分得開。 */
+          var pct = ((s.files + s.db) / (1024 * 1024 * 1024)) * 100;
+          $("spBar").style.width = (pct > 0 ? Math.max(2, Math.min(100, pct)) : 0) + "%";
           $("spNote").textContent = s.systems
             ? s.systems + " 套系統：畫面檔 " + bytes(s.files) + "、資料 " + bytes(s.db) +
               (s.partial ? "（資料庫用量暫時查不到）" : "") + "。刻度以 1 GB 為滿格。"
