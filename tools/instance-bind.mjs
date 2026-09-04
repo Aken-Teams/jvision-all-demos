@@ -14,6 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ROOT, EXIT, parseArgs, makeLogger } from "./lib/forge-common.mjs";
+import { extractTables } from "./lib/schema-extract.mjs";
 
 const args = parseArgs();
 const log = makeLogger({ quiet: Boolean(args.quiet) });
@@ -63,6 +64,24 @@ export function bind({ repo, outDir }) {
   if (schema.readyState !== "ready") log.warn(`  ${repo} 的 schema 狀態是 ${schema.readyState}`);
 
   const html = fixAssets(injectRuntime(fs.readFileSync(srcHtml, "utf8")));
+
+  /* 抄過來的那份 schema 是產線預先產好的，裡面的表名是「<系統名> 資料表 1」
+     這種佔位名——每張表只差最後一個數字，在下拉選單裡等於沒有名字。
+     真正的名字就寫在畫面上（表格上方那個 <h3>），這裡順手換掉。
+
+     為什麼不改產線那 2000 多份檔：那是一次性的大批次，而這裡是每次開通都會
+     跑到的一行，改在這裡對新舊兩邊都有效，也不必等那個批次跑完。
+     對不上的就留著原本的名字——寧可難看，也不要把 A 表的名字寫到 B 表上。 */
+  {
+    const byCols = new Map();
+    for (const t of extractTables(html)) if (t.caption) byCols.set(t.labels.join("|"), t.caption);
+    let fixed = 0;
+    for (const t of schema.tables || []) {
+      const hit = byCols.get((t.columns || []).map((c) => c.label).join("|"));
+      if (hit && hit !== t.title) { t.title = hit; fixed += 1; }
+    }
+    if (fixed) log.info(`  表名以畫面為準修正了 ${fixed} 個`);
+  }
   const pub = path.join(outDir, "public");
   const jv = path.join(pub, "_jv");
 
