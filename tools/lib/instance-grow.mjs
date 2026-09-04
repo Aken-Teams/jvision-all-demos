@@ -55,7 +55,7 @@ function signatures(html) {
  * 呼叫端必須把失敗當成「這一項沒做成」而不是「整次修改失敗」——
  * 畫面已經改好也記了版本，建表補不成只要照實說就好。
  */
-export async function growTables(dbName, beforeHtml, afterHtml) {
+export async function growTables(dbName, beforeHtml, afterHtml, dir = null) {
   const had = signatures(beforeHtml);
   let fresh = extractTables(afterHtml).filter((t) => !had.has(sigOf(t.labels)));
   if (!fresh.length) return { added: [] };
@@ -98,6 +98,8 @@ export async function growTables(dbName, beforeHtml, afterHtml) {
       name: `table_${next}`,
       title: t.caption || `資料表 ${next}`,
       screen: t.screen,
+      selector: t.selector,
+      renderedByJs: t.rendered,
       columns,
       /* 畫面上原本就有的那幾列當種子資料。沒有的話（JS 畫的表）就空著，
          客戶自己新增第一筆。 */
@@ -107,5 +109,41 @@ export async function growTables(dbName, beforeHtml, afterHtml) {
 
   if (!tables.length) return { added: [] };
   await createFromSchema(dbName, { repoName: cur.repoName, tables }, { seed: true });
+  if (dir) registerInSchemaFile(dir, tables);
   return { added: tables.map((t) => ({ name: t.name, title: t.title, columns: t.columns.map((c) => c.label) })) };
+}
+
+/**
+ * 把新建的表寫回 public/_jv/schema.json。
+ *
+ * 沒有這一步的話，那張表只存在於資料庫裡，而 schema.json 是兩個地方的依據：
+ *
+ * 一、「資料」那一頁的表名。app-server 的 nameTables() 讀這個檔，讀不到就
+ *     只能叫「資料表 3」——實測就是這樣，AI 建的表在下拉選單裡永遠沒有名字。
+ * 二、交付出去的專案。nextjs-bundle 產生的啟動腳本是照 schema.json 建表的，
+ *     漏掉的話客戶把 repo 跑起來會少一張表，而畫面上還畫著它。
+ *
+ * 寫入用「先寫暫存再改名」：寫到一半斷掉的話留下的是舊的那一份，
+ * 而不是一個半截的 JSON——那個檔壞掉會讓整個資料頁與交付一起壞。
+ */
+function registerInSchemaFile(dir, tables) {
+  const file = path.join(dir, "public", "_jv", "schema.json");
+  let sc;
+  try { sc = JSON.parse(fs.readFileSync(file, "utf8")); } catch { return; }
+  if (!Array.isArray(sc.tables)) return;
+  const have = new Set(sc.tables.map((t) => t.name));
+  let changed = false;
+  for (const t of tables) {
+    if (have.has(t.name)) continue;
+    sc.tables.push({
+      name: t.name, title: t.title, selector: t.selector || null,
+      screen: t.screen, renderedByJs: Boolean(t.renderedByJs), columns: t.columns,
+    });
+    changed = true;
+  }
+  if (!changed) return;
+  try {
+    fs.writeFileSync(`${file}.tmp`, `${JSON.stringify(sc, null, 2)}\n`);
+    fs.renameSync(`${file}.tmp`, file);
+  } catch { /* 寫不進去不該讓整次修改失敗——表已經建好了，名字之後補得回來 */ }
 }

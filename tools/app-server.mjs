@@ -507,7 +507,17 @@ function nameTables(inst, tables) {
   return (tables || []).map((t, i) => {
     const meta = byName[t.name];
     let title = null;
-    if (meta && typeof meta.screen === "number" && screens[meta.screen]) title = screens[meta.screen];
+    /* 先用 schema.json 記下來的標題——那是從表格上方那個 <h3> 抽出來的
+       （「競品價格比較」），是這張表真正的名字。
+       screen 只當備援：它是「表格前面最後一個 data-i」，而不少畫面是 JS 拼出來的，
+       導覽的 data-i 全擠在最前面，於是每一張表都算到同一個畫面——實測飯店那套
+       三張表都被判成 screen 6，table_1 因此被叫成「追蹤策略成效」，
+       但它其實是「房型庫存配置」。 */
+    /* 佔位名不只「資料表 3」一種——產線也會給「<系統名> 資料表 1」，那個更糟：
+       它長、而且每張表只差最後一個數字，在下拉選單裡等於沒有名字。
+       兩種都當作沒有名字。 */
+    if (meta && meta.title && !/資料表\s*\d+\s*$/.test(meta.title)) title = meta.title;
+    if (!title && meta && typeof meta.screen === "number" && screens[meta.screen]) title = screens[meta.screen];
     if (!title) title = `資料表 ${i + 1}`;
     /* 同一個畫面上有兩張表的話，名字會撞。加序號而不是讓兩項長得一樣——
        下拉選單裡兩個一模一樣的選項，選了也不知道自己選到哪一個。 */
@@ -687,7 +697,7 @@ function startEdit(inst, instruction, imagePath, sessionId) {
       if (r.ok) {
         setStage("grow", "doing");
         try {
-          const g = await grow.growTables(inst.db_name, r.before, r.after);
+          const g = await grow.growTables(inst.db_name, r.before, r.after, inst.dir);
           if (g.added.length) {
             grown = `　另外替新的${g.added.map((t) => `「${t.columns.slice(0, 3).join("、")}…」`).join("")}建好了資料表，那張表存得住東西。`;
           }

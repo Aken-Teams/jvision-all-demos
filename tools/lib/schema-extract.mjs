@@ -19,6 +19,38 @@ function attr(tag, name) {
  * 產生穩定的 CSS selector。優先序：#id → 唯一的 table.class → 所在畫面內的第 n 張表。
  * 之所以要 selector，是因為 runtime 之後要靠它在客戶的實例裡找到同一張表接手。
  */
+/**
+ * 表格上方最近的那個標題。
+ *
+ * 這些畫面幾乎都不寫 <caption>——表格的名字是寫在它上面的一個 <h3>
+ * （「競品價格比較」）。只認 <caption> 的話，每一張新表都只能叫「資料表 N」，
+ * 而那個名字在下拉選單裡等於沒有名字：使用者要一張一張點開才知道哪張是哪張。
+ *
+ * 只往回找一小段（1500 字元）：再遠就會抓到上一個區塊、甚至整頁的大標，
+ * 那比沒有名字更糟——它會把兩張不相干的表叫成同一個名字。
+ * 抓到樣板變數或明顯過長的就當作沒有，寧可退回編號。
+ */
+function headingAbove(before) {
+  const seg = before.slice(-1500);
+  const hits = [...seg.matchAll(/<(h[1-6])\b[^>]*>([\s\S]*?)<\/\1>/gi)];
+  for (let i = hits.length - 1; i >= 0; i -= 1) {
+    /* 圖示字型的字要先整段拿掉再 strip。Material Symbols 是把字面
+       （list_alt、pie_chart）寫在元素裡，靠字型畫成圖示——只去標籤的話那個字
+       會留在文字裡，標題就變成「list_alt 發包比價一覽」。 */
+    const t = strip(String(hits[i][2]).replace(
+      /<span[^>]*class="[^"]*material-symbols[^"]*"[^>]*>[\s\S]*?<\/span>/gi, " "));
+    if (!t || t.length > 20) continue;
+    /* 有句讀的是句子，不是名字。整頁的標語常常就掛在表格上方不遠處
+       （「每一次用印，都有完整授權依據。」），長度擋不住它——真正的表名
+       也可能有十幾個字。有沒有逗號句號才是分得開的那條線。 */
+    if (/[。，、；！？,;!?]/.test(t)) continue;
+    /* 樣板字串拼出來的標題不是人話（實測抽到過 `'+esc(m.t)+'`）。 */
+    if (/[`'"$}]|\w\(/.test(t)) continue;
+    return t;
+  }
+  return null;
+}
+
 function selectorFor(html, tableTag, indexInDoc, screenIndex) {
   const id = attr(tableTag, "id");
   if (id) return `#${id}`;
@@ -88,7 +120,7 @@ export function extractTables(html) {
     out.push({
       selector: selectorFor(html, tag, { inDoc, inScreen }, screenIndex),
       screen: screenIndex,
-      caption: capM ? strip(capM[1]) : null,
+      caption: capM ? strip(capM[1]) : headingAbove(before),
       labels,
       sample,
       types: labels.map((_, i) => inferType(sample.map((row) => row[i]))),
