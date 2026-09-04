@@ -367,6 +367,18 @@ function startGateway() {
        Host 不是這個形狀的話這一段幾乎零成本（只做一次正則）。 */
     {
       const inst = await instanceForHost(req.headers.host);
+      /* 長得像客戶子網域、但查不到對應的系統——多半是那套系統被刪了，而某個
+         解析器（或瀏覽器自己）還快取著舊的 DNS 記錄。
+
+         這裡本來會直接往下走，於是主站的靜態路由把型錄首頁端出來。那個畫面
+         在錯的 host 下渲染，資產與 API 都對不上，看起來像壞掉的首頁——而使用者
+         打的明明是「他那套系統」的網址。與其給一個錯的畫面，不如講清楚
+         那套系統已經不在了。 */
+      if (!inst && INSTANCE_HOST.test(String(req.headers.host || "").toLowerCase().split(":")[0])) {
+        return stopPage(req, res, 404, { icon: "link_off", title: "這個網址已經沒有系統了",
+          body: "它可能被刪除或取消佈署了。如果你剛剛才做這件事，網址還要一段時間才會從各地的 DNS 上消失。",
+          action: { href: `https://${MAIN_HOST}/workspace.html`, text: "回到我的專案" } });
+      }
       if (inst) {
         if (inst.state === "archived") {
           return stopPage(req, res, 410, { icon: "inventory_2", title: "這套系統已封存",
