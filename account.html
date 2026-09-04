@@ -32,17 +32,205 @@
     /* 不能改的值。刻意不長得像輸入框——沒有邊框、底色更淡。 */
     .ro { padding:.55rem .75rem; border-radius:.6rem; background:#f8fafc;
           color:#475569; font-size:.9rem; word-break:break-all; }
-    /* 用量兩欄。用 grid 讓「標題／量表／說明」三列各自對齊，
-       而不是兩欄各自堆疊——那樣左邊少一塊右邊就會歪。 */
-    .usage { display:grid; grid-template-columns:1fr; gap:.4rem 1.5rem; }
-    .usage .u-hd { display:flex; align-items:baseline; justify-content:space-between; }
-    .usage > p { margin:0; }
-    @media (min-width:640px) {
-      .usage { grid-template-columns:1fr 1fr; grid-auto-flow:row; }
-      /* 三列各兩欄，順序就是 DOM 的順序 */
-    }
-    .bar { height:8px; border-radius:9999px; background:#eef2f7; overflow:hidden; }
-    .bar > i { display:block; height:100%; border-radius:9999px; background:linear-gradient(90deg,#1e40af,#7c3aed); }
+    /* 左導覽 ＋ 右內容。窄畫面時導覽變成上方一排。 */
+    .acct { display:grid; gap:1.25rem; grid-template-columns:1fr; align-items:start; }
+    @media (min-width:820px) { .acct { grid-template-columns:13rem 1fr; } }
+    /* 導覽自己是一塊面板，跟右邊的內容卡同一種底色與邊框，
+       這樣「左邊是導覽、右邊是內容」一眼就分得出來。 */
+    .acct-nav { display:flex; gap:.25rem; overflow-x:auto; padding:.4rem;
+                background:#fff; border:1px solid #e2e8f0; border-radius:.75rem; }
+    @media (min-width:820px) { .acct-nav { flex-direction:column; position:sticky; top:5rem; overflow:visible; } }
+    .acct-nav button { display:flex; align-items:center; gap:.5rem; flex:none;
+                       padding:.55rem .75rem; border:0; border-radius:.6rem; background:none;
+                       color:#475569; font:inherit; font-size:.85rem; font-weight:700;
+                       cursor:pointer; text-align:left; white-space:nowrap; }
+    @media (min-width:820px) { .acct-nav button { width:100%; } }
+    .acct-nav button:hover { background:#f1f5f9; color:#0f1e46; }
+    /* 選中的那一項整塊填實。用實心色塊而不是一條側邊線＋淡底：側邊線在
+       只有三個項目的清單裡是多餘的裝飾，實心塊自己就分得開。 */
+    .acct-nav button[aria-current="true"] { background:#1e40af; color:#fff; }
+    .acct-nav button[aria-current="true"]:hover { background:#1e40af; color:#fff; }
+    .acct-nav .material-symbols-outlined { font-size:18px; }
+
+    /* ── 圖表 ────────────────────────────────────────────
+       單一數列的量值圖，所以只有一個色相（不需要圖例，標題已經說了畫的是什麼）。
+       #2563eb 是跟頁面品牌藍同族、但通過亮度帶與對比檢查的那一階。 */
+    .viz { --series:#2563eb; --grid:#eef2f7; }
+    .viz-title { font-size:.78rem; font-weight:800; color:#0f1e46; }
+    .viz-sub { font-size:.72rem; color:#94a3b8; margin-top:.1rem; }
+
+    /* 每天用量：直條。條寬上限 24px，資料端 4px 圓角、基線那端維持方角，
+       相鄰之間留 2px 底色間隙——用間隙分開，而不是描邊。 */
+    /* 條寬有上限，所以整排的寬度也有上限（31 天 ×24 ＋ 30 個間隙 ×2）。
+       日期軸跟著同一個上限，兩者的右端才會對齊——不然最後一天的標籤會
+       飄到最後一根的右邊一大截。 */
+    /* 條寬有上限，但整排要撐滿整行——用 space-between 把多出來的寬度平均
+       分到每一根之間，而不是全部堆在右邊變成一大片空白。
+       這樣刻度軸（本來就是滿版）的兩端也剛好對到頭尾兩根。 */
+    .days { display:flex; align-items:flex-end; justify-content:space-between;
+            gap:2px; height:130px; margin-top:.9rem; --bw:28px; }
+    .days .d { flex:1 1 0; max-width:var(--bw); min-width:3px; display:flex; align-items:flex-end;
+               height:100%; position:relative; }
+    .days .d i { display:block; width:100%; background:var(--series);
+                 border-radius:4px 4px 0 0; min-height:2px; }
+    .days .d.zero i { background:var(--grid); }
+    /* 只在有資料的那幾根上做 hover，空的那幾天沒有東西可講。 */
+    .days .d[data-v]:hover i { filter:brightness(1.12); }
+    .days .d[data-v]::after {
+      content:attr(data-label); position:absolute; bottom:calc(100% + 6px); left:50%;
+      transform:translateX(-50%); background:#0f1e46; color:#fff; font-size:.68rem;
+      font-weight:700; padding:.25rem .45rem; border-radius:.35rem; white-space:nowrap;
+      opacity:0; pointer-events:none; transition:opacity .12s; z-index:5; }
+    .days .d[data-v]:hover::after { opacity:1; }
+    .days-x { display:flex; justify-content:space-between; margin-top:.4rem;
+              font-size:.66rem; color:#94a3b8; }
+
+    /* 依系統。原本是一條光禿禿的滿版橫條配一個名字，一套系統的時候看起來
+       就是一塊藍色色板，看不出那是「佔全部的多少」。改成一列一格：名稱、
+       佔比、細長條，加上這一套花了多少錢與跑了幾次。 */
+    .bysys { margin-top:.8rem; border:1px solid #e2e8f0; border-radius:.75rem; overflow:hidden; }
+    .bysys .row { display:grid; grid-template-columns:1fr auto; gap:.15rem .75rem;
+                  align-items:baseline; padding:.7rem .9rem; }
+    .bysys .row + .row { border-top:1px solid #eef2f7; }
+    .bysys .row b { grid-column:1; font-size:.82rem; font-weight:800; color:#0f1e46;
+                    min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .bysys .row .n { grid-column:2; font-size:.82rem; font-weight:800; color:#0f1e46;
+                     font-variant-numeric:tabular-nums; }
+    .bysys .row .bar { grid-column:1 / -1; height:6px; margin-top:.3rem;
+                       border-radius:9999px; background:var(--grid); overflow:hidden; }
+    .bysys .row .bar i { display:block; height:100%; background:var(--series);
+                         border-radius:9999px; min-width:2px; }
+    .bysys .row .m { grid-column:1 / -1; margin-top:.35rem; font-size:.7rem; color:#94a3b8; }
+    .viz-empty { margin-top:.8rem; font-size:.75rem; color:#94a3b8; }
+
+    /* 明細表。原本是一排「日期 ⋯ 數字」的方框，沒有欄位標題、沒有合計，
+       也看不出每一天佔多少——那不是表，是把圖上的數字抄了一遍。 */
+    .sheet > summary { display:inline-flex; align-items:center; gap:.35rem; padding:.35rem .6rem;
+                       border:1px solid #e2e8f0; border-radius:.5rem; background:#fff;
+                       font-size:.75rem; font-weight:700; color:#64748b;
+                       cursor:pointer; list-style:none; }
+    .sheet > summary::-webkit-details-marker { display:none; }
+    .sheet > summary:hover { border-color:#1e40af; color:#1e40af; }
+    .sheet > summary .material-symbols-outlined { font-size:16px; }
+    .sheet[open] > summary { margin-bottom:.7rem; }
+    .nums { width:100%; border-collapse:collapse; font-size:.78rem;
+            border:1px solid #e2e8f0; border-radius:.6rem; overflow:hidden; }
+    .nums th, .nums td { padding:.4rem .75rem; text-align:right; white-space:nowrap; }
+    .nums th:first-child, .nums td:first-child { text-align:left; }
+    .nums thead th { background:#f8fafc; font-size:.7rem; font-weight:800; color:#64748b;
+                     border-bottom:1px solid #e2e8f0; }
+    .nums tbody td { color:#334155; font-variant-numeric:tabular-nums; }
+    .nums tbody td:nth-child(2) { font-weight:700; color:#0f1e46; }
+    .nums tbody tr + tr td { border-top:1px solid #f1f5f9; }
+    .nums tbody tr:hover td { background:#f8fafc; }
+    /* 佔比不另外畫一欄長條圖，直接把那一格的底染成長度——多一欄會把表格
+       撐寬，而這裡要看的只是「哪幾天特別多」。 */
+    /* 佔比那一欄給固定寬度，標題也短——「佔這段時間」五個字撐得比欄位還寬，
+       表頭就會擠到跟數字疊在一起。 */
+    .nums th:last-child, .nums td:last-child { width:8.5rem; }
+    /* 一根獨立的小長條，不是把整格的底染色。染底的做法在只有一列的時候
+       會變成數字旁邊一塊沒頭沒尾的藍色方塊，看起來像排版壞掉；
+       畫成有底軌的小長條，它才讀得出來是一個刻度。 */
+    .nums .sh { white-space:nowrap; }
+    .nums .sh .mini { display:inline-block; width:56px; height:5px; margin-right:.5rem;
+                      border-radius:9999px; background:#eef2f7; overflow:hidden;
+                      vertical-align:middle; }
+    .nums .sh .mini i { display:block; height:100%; border-radius:9999px; background:#93c5fd; }
+    .nums .sh b { font-weight:700; color:#64748b; }
+    .nums tfoot td { background:#f8fafc; font-weight:800; color:#0f1e46;
+                     border-top:1px solid #e2e8f0; font-variant-numeric:tabular-nums; }
+
+    /* 三個重點數字。原本這裡是兩條量表配兩段說明文字——量表沒有上限可比，
+       說明文字又長到要換行，結果三行字裡真正的資訊只有兩個數字。
+       改成純數字磚：一行標籤、一個大數字、一行極短的註腳。 */
+    .tiles { display:grid; gap:.75rem; grid-template-columns:1fr; }
+    @media (min-width:560px) { .tiles { grid-template-columns:repeat(3,1fr); } }
+    .tile { display:flex; flex-direction:column; gap:.15rem;
+            padding:.85rem 1rem; border:1px solid #e2e8f0; border-radius:.75rem; background:#fbfdff; }
+    .tile-k { font-size:.72rem; font-weight:800; color:#64748b; }
+    .tile-v { font-size:1.55rem; font-weight:900; color:#0f1e46; line-height:1.15;
+              font-variant-numeric:tabular-nums; }
+    .tile-s { font-size:.7rem; color:#94a3b8; }
+
+    /* 額度。這一條有真正的上限，所以量表是有意義的。快用完的時候換成
+       警示色——不是為了好看，是因為那件事會擋住他工作。 */
+    .quota { padding:.85rem 1rem; border:1px solid #e2e8f0; border-radius:.75rem; background:#fff; }
+    .quota .q-hd { display:flex; align-items:baseline; justify-content:space-between; gap:1rem; }
+    .quota .q-k { font-size:.72rem; font-weight:800; color:#64748b; }
+    .quota .q-v { font-size:.82rem; color:#64748b; font-variant-numeric:tabular-nums; }
+    .quota .q-v b { font-size:1.05rem; font-weight:900; color:#0f1e46; }
+    .quota .q-bar { height:8px; margin-top:.5rem; border-radius:9999px;
+                    background:#eef2f7; overflow:hidden; }
+    .quota .q-bar i { display:block; height:100%; border-radius:9999px;
+                      background:#2563eb; min-width:2px; transition:width .2s; }
+    .quota.warn .q-bar i { background:#d97706; }
+    .quota.over .q-bar i { background:#b91c1c; }
+    .quota .q-ft { display:flex; align-items:center; justify-content:space-between;
+                   gap:1rem; margin-top:.55rem; }
+    .quota .q-note { font-size:.7rem; color:#94a3b8; }
+    .quota.warn .q-note { color:#b45309; font-weight:700; }
+    .quota.over .q-note { color:#b91c1c; font-weight:700; }
+    .quota .q-form { display:flex; flex-wrap:wrap; align-items:end; gap:.6rem;
+                     margin-top:.75rem; padding-top:.75rem; border-top:1px solid #eef2f7; }
+    .quota .q-f { display:flex; flex-direction:column; gap:.25rem; }
+    .quota .q-f > span { font-size:.68rem; font-weight:800; color:#64748b; }
+    .quota .q-f-wide { flex:1 1 16rem; }
+    .quota .q-f input { height:36px; width:100%; border:1px solid #e2e8f0; border-radius:.5rem;
+                        padding:0 .6rem; font:inherit; font-size:.82rem; color:#0f1e46; }
+    .quota .q-f input:focus { outline:none; border-color:#cbd5e1; }
+    .quota .q-msg { margin-top:.5rem; font-size:.75rem; font-weight:700; }
+
+    /* 篩選器。一列、每個都有自己的標籤——沒有標籤的下拉選單，要點開才知道
+       它在篩什麼。 */
+    .filters { display:flex; flex-wrap:wrap; align-items:end; gap:.6rem;
+               padding:.75rem; background:#f8fafc; border:1px solid #e2e8f0;
+               border-radius:.75rem; margin-bottom:1.25rem; }
+    .filters .f { display:flex; flex-direction:column; gap:.25rem; min-width:0; }
+    .filters .f > span { font-size:.68rem; font-weight:800; color:#64748b; }
+    /* 系統名稱可能很長，所以給它比較寬的欄位——但不讓它撐滿整列，
+       撐滿的話那顆下拉看起來像一個輸入框。 */
+    .filters .f-wide { flex:0 1 20rem; min-width:11rem; }
+    .filters .f-wide select { width:100%; }
+    .f-reset { height:32px; padding:0 .7rem; border:1px solid #e2e8f0; background:#fff;
+               border-radius:.5rem; font:inherit; font-size:.75rem; font-weight:700;
+               color:#64748b; cursor:pointer; }
+    .f-reset:hover { border-color:#1e40af; color:#1e40af; }
+    /* 加人的那一行：輸入框與按鈕在同一個框裡，焦點框住整組。 */
+    .addbox { display:flex; align-items:center; gap:.5rem; background:#fff;
+              border:1px solid #e2e8f0; border-radius:.7rem; padding:.28rem .28rem .28rem .75rem; }
+    /* 有焦點時只把邊框變深一階，灰的。原本是藍框加一圈 3px 藍光，那在一個
+       單純的輸入框上太搶眼，看起來像出錯了；但也不能完全不變——只用鍵盤的人
+       要看得出游標現在在哪裡。 */
+    .addbox:focus-within { border-color:#cbd5e1; }
+    .addbox input:focus { outline:none; box-shadow:none; }
+    .addbox input { flex:1; min-width:0; border:0; outline:0; background:transparent;
+                    font:inherit; font-size:.88rem; color:#0f1e46; padding:.35rem 0; }
+
+    /* 自己做的下拉，不用原生 select。原生的展開清單長什麼樣子是作業系統決定的
+       ——那一片藍色反白跟這個頁面沒有任何關係，而且沒辦法改。自己做的話，
+       收合與展開兩個狀態才會是同一套設計。 */
+    .dd { position:relative; }
+    .dd-btn { display:flex; align-items:center; justify-content:space-between; gap:.4rem;
+              width:100%; height:34px; padding:0 .5rem 0 .7rem; background:#fff;
+              border:1px solid #e2e8f0; border-radius:.5rem; cursor:pointer;
+              font:inherit; font-size:.8rem; font-weight:700; color:#0f1e46; }
+    .dd-btn:hover { border-color:#c7d2fe; }
+    .dd-btn[aria-expanded="true"] { border-color:#1e40af; }
+    .dd-btn > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .dd-btn .material-symbols-outlined { font-size:18px; color:#94a3b8; flex:none; }
+    .dd-btn[disabled] { color:#94a3b8; background:#f8fafc; cursor:default; }
+    .dd-pop { position:absolute; z-index:20; top:calc(100% + 4px); left:0; min-width:100%;
+              max-height:15rem; overflow:auto; padding:.25rem; background:#fff;
+              border:1px solid #e2e8f0; border-radius:.6rem;
+              box-shadow:0 12px 28px rgba(15,30,70,.14); }
+    .dd-pop button { display:flex; align-items:center; gap:.5rem; width:100%;
+                     padding:.4rem .5rem; border:0; border-radius:.4rem; background:none;
+                     font:inherit; font-size:.8rem; font-weight:600; color:#334155;
+                     text-align:left; white-space:nowrap; cursor:pointer; }
+    .dd-pop button:hover, .dd-pop button:focus-visible { background:#f1f5f9; outline:none; }
+    .dd-pop button[aria-selected="true"] { color:#1e40af; font-weight:800; }
+    .dd-pop button .tick { width:16px; flex:none; font-size:16px; color:#1e40af; visibility:hidden; }
+    .dd-pop button[aria-selected="true"] .tick { visibility:visible; }
   </style>
 </head>
 <body class="text-body">
@@ -61,7 +249,7 @@
     </nav>
   </header>
 
-  <main class="max-w-3xl mx-auto px-6 py-10">
+  <main class="max-w-shell mx-auto px-6 py-10">
     <h1 class="text-2xl font-black text-ink mb-1.5">個人設定</h1>
     <p class="text-sm text-muted mb-8">你的名字、公司、誰能進你的系統，以及目前用掉多少資源。</p>
 
@@ -73,9 +261,18 @@
       <a id="loginLink" href="#" class="btn btn-primary">用 Google 登入</a>
     </section>
 
-    <div id="panes" hidden class="space-y-6">
+    <!-- 左導覽＋右內容。三塊東西堆在一欄裡，寬螢幕上左右都是空白，而且要看
+         最下面的名單得一路捲過用量。分成導覽與內容之後，每一塊各自佔滿它需要
+         的寬度，切換也不用捲動。 -->
+    <div id="panes" hidden class="acct">
+      <nav class="acct-nav" aria-label="設定分頁">
+        <button type="button" data-pane="profile" aria-current="true"><span class="material-symbols-outlined">person</span>個人資料</button>
+        <button type="button" data-pane="usage"><span class="material-symbols-outlined">bar_chart</span>目前用量</button>
+        <button type="button" data-pane="members" hidden><span class="material-symbols-outlined">group</span>使用名單</button>
+      </nav>
+      <div class="acct-body">
       <!-- 個人資料 -->
-      <section class="card p-6">
+      <section id="pane-profile" class="card p-6 pane">
         <h2 class="text-base font-black text-ink mb-4">個人資料</h2>
         <div class="grid sm:grid-cols-2 gap-4">
           <div>
@@ -111,31 +308,89 @@
       </section>
 
       <!-- 用量 -->
-      <section class="card p-6">
-        <h2 class="text-base font-black text-ink mb-1">目前用量</h2>
-        <p class="text-xs text-muted mb-5">AI 分析用掉的 token，以及你的系統佔用的空間。</p>
-        <!-- 兩欄用 grid 的列對齊：標題一列、量表一列、說明一列。
-             各自堆疊的話，左邊沒有量表時說明就會往上跑，兩欄的文字對不齊。 -->
-        <div class="usage">
-          <div class="u-hd">
-            <span class="lbl">這個月的 token</span>
-            <span id="tokMonth" class="text-lg font-black text-ink">—</span>
-          </div>
-          <div class="u-hd">
-            <span class="lbl">佔用空間</span>
-            <span id="spTotal" class="text-lg font-black text-ink">—</span>
-          </div>
-          <!-- 沒用過的時候量表是空的，但格子留著——不然右邊那欄的說明會比
-               左邊低一截。 -->
-          <div><div id="tokBarWrap" class="bar" hidden><i id="tokBar" style="width:0%"></i></div></div>
-          <div><div class="bar"><i id="spBar" style="width:0%"></i></div></div>
-          <p id="tokNote" class="text-xs text-muted"></p>
-          <p id="spNote" class="text-xs text-muted"></p>
+      <section id="pane-usage" hidden class="card p-6 pane">
+        <!-- 標題跟區間選擇並排。區間放在最上面，是因為底下每一個數字都是
+             「這一段時間的」——先說是哪一段，下面的數字才讀得懂。 -->
+        <h2 class="text-base font-black text-ink mb-3">用量報表</h2>
+
+        <!-- 篩選器排成一列放在最上面。底下每一個數字、每一張圖都是「這一段
+             時間、這一套系統的」——先說是哪一段，下面的東西才讀得懂。
+             年與月分成兩個選單而不是一個「月／年」開關：要看整年就把月份選
+             「全年」，要比上個月就只改月份，兩件事都不用先切模式。 -->
+        <div class="filters">
+          <div class="f"><span id="lblYear">年份</span><div class="dd" id="fYear"></div></div>
+          <div class="f"><span id="lblMonth">月份</span><div class="dd" id="fMonth"></div></div>
+          <div class="f f-wide"><span id="lblSystem">系統</span><div class="dd" id="fSystem"></div></div>
+          <button id="fReset" type="button" class="f-reset" hidden>回到這個月</button>
         </div>
+
+        <!-- 三個重點數字。用量報表被打開的時候，要回答的就是這三件事。 -->
+        <div class="tiles">
+          <div class="tile">
+            <span id="tPeriodLbl" class="tile-k">這個月用掉</span>
+            <span id="tPeriod" class="tile-v">—</span>
+            <span id="tPeriodSub" class="tile-s"></span>
+          </div>
+          <div class="tile">
+            <span class="tile-k">累計用掉</span>
+            <span id="tTotal" class="tile-v">—</span>
+            <span id="tTotalSub" class="tile-s">開站到現在</span>
+          </div>
+          <div class="tile">
+            <span class="tile-k">佔用空間</span>
+            <span id="tSpace" class="tile-v">—</span>
+            <span id="tSpaceSub" class="tile-s"></span>
+          </div>
+        </div>
+
+        <!-- 額度。這一條跟上面的 token 數不一樣：它有真正的上限，
+             所以量表是有意義的（不像「用了多少 token」沒有滿格可言）。 -->
+        <div id="quotaBox" hidden class="quota mt-4">
+          <div class="q-hd">
+            <span class="q-k">帳號額度</span>
+            <span class="q-v"><b id="qSpent">—</b> / <span id="qLimit">—</span></span>
+          </div>
+          <div class="q-bar"><i id="qBar" style="width:0%"></i></div>
+          <div class="q-ft">
+            <span id="qNote" class="q-note"></span>
+            <button id="qAsk" type="button" class="btn btn-ghost !h-8 !text-xs">申請調高</button>
+          </div>
+          <!-- 申請表單。預設收起來——沒有要申請的人不需要看到兩個輸入框。 -->
+          <div id="qForm" hidden class="q-form">
+            <label class="q-f"><span>想要調到（美金）</span>
+              <input id="qWant" type="number" min="1" step="1" placeholder="30" /></label>
+            <label class="q-f q-f-wide"><span>原因（管理者會看到）</span>
+              <input id="qReason" type="text" maxlength="200" placeholder="例如：這個月要交付三套系統" /></label>
+            <button id="qSend" type="button" class="btn btn-primary !h-9">送出申請</button>
+          </div>
+          <p id="qMsg" class="q-msg"></p>
+        </div>
+
+        <!-- 走勢。月看每一天，年看每一個月；單一數列所以沒有圖例。 -->
+        <div class="viz mt-6 pt-5 border-t border-line">
+          <div class="flex items-baseline justify-between gap-3">
+            <div id="trendTitle" class="viz-title">每天用掉的 token</div>
+            <div id="trendPeak" class="viz-sub"></div>
+          </div>
+          <div id="days" class="days"></div>
+          <div id="daysX" class="days-x"></div>
+        </div>
+
+        <!-- 用在哪一套。名稱用中文——代號是給機器看的。 -->
+        <div class="viz mt-6 pt-5 border-t border-line">
+          <div class="viz-title">用在哪一套系統</div>
+          <div id="bySys" class="bysys"></div>
+        </div>
+
+        <!-- 數字本身也要讀得到，不是只有滑上去才看得見。 -->
+        <details class="sheet mt-5">
+          <summary><span class="material-symbols-outlined">table_rows</span>看每一筆的數字</summary>
+          <div id="daysTable"></div>
+        </details>
       </section>
 
       <!-- 使用名單 -->
-      <section id="membersCard" hidden class="card p-6">
+      <section id="pane-members" hidden class="card p-6 pane">
         <!-- 標題帶上公司名稱。這份名單本來就是公司層級的（一次加人，他看得到
              你名下所有系統），寫出公司名字才說得清楚範圍有多大。
              順帶讓「公司名稱」那個欄位有實際用途——在這之前它全站只有個人設定
@@ -143,8 +398,11 @@
         <h2 id="membersTitle" class="text-base font-black text-ink mb-1">誰能進我的系統</h2>
         <p class="text-xs text-muted mb-5">名單上的 Google 帳號，進得去你名下<b class="text-ink">所有</b>的系統，不只某一套。同事離職就把他移除。</p>
         <div id="memberList" class="divide-y divide-line border border-line rounded-xl overflow-hidden mb-4"></div>
-        <div class="flex gap-2">
-          <input id="newMember" class="inp" type="email" placeholder="同事的 Google 信箱" />
+        <!-- 輸入框與按鈕併成同一個框。原本是兩個並排的方塊，中間有一道縫，
+             看起來像兩件不相干的東西；併起來之後「填這裡、按這裡」是一件事。 -->
+        <div class="addbox">
+          <span class="material-symbols-outlined text-muted text-[18px]">alternate_email</span>
+          <input id="newMember" type="email" placeholder="同事的 Google 信箱" autocomplete="off" />
           <button id="addMember" type="button" class="btn btn-primary shrink-0"><span class="material-symbols-outlined text-[18px]">person_add</span>加入</button>
         </div>
         <p id="memberMsg" class="text-sm font-bold mt-3 text-right"></p>
@@ -157,6 +415,7 @@
            「開一個 PR」就是活生生的例子：工作台早就把那顆換成「選分支推上去」，
            這裡還留著一顆按下去不會開成 PR 的按鈕。
            個人設定只留「我是誰」與「誰進得去」。 -->
+      </div>
     </div>
   </main>
 
@@ -183,6 +442,25 @@
       if (ok) setTimeout(function () { if (el.textContent === text) el.textContent = ""; }, 3000);
     }
 
+    /* ── 左導覽：一次只顯示一塊 ── */
+    var PANES = ["profile", "usage", "members"];
+    function showPane(name) {
+      PANES.forEach(function (n) {
+        var el = $("pane-" + n);
+        /* 名單那塊只有擁有者有，沒有的話它本來就是 hidden，不要在這裡打開。 */
+        if (el && (n !== "members" || profile && profile.isOwner)) el.hidden = n !== name;
+      });
+      document.querySelectorAll(".acct-nav [data-pane]").forEach(function (b) {
+        b.setAttribute("aria-current", b.dataset.pane === name ? "true" : "false");
+      });
+      /* 圖表要在那一塊顯示出來之後才畫——藏著的元素寬度是 0，
+         算出來的每一根都會是 0。 */
+      if (name === "usage") drawUsage();
+    }
+    document.querySelectorAll(".acct-nav [data-pane]").forEach(function (b) {
+      b.addEventListener("click", function () { showPane(b.dataset.pane); });
+    });
+
     /* ── 個人資料 ── */
     var profile = null;
     function loadProfile() {
@@ -206,7 +484,7 @@
             ? '這是顯示用的名稱。你的系統網址固定用 <b class="text-ink" style="font-family:ui-monospace,monospace">'
               + esc(d.slug) + '</b> 這一段（開通時就定下來了，改名稱不會變）。'
             : "這是顯示用的名稱。";
-          $("membersCard").hidden = false;
+          document.querySelector('.acct-nav [data-pane="members"]').hidden = false;
           loadMembers();
         }
       });
@@ -239,57 +517,359 @@
         .catch(function () { msg($("profileMsg"), "連不上伺服器", false); });
     });
 
-    /* ── 用量 ── */
+    /* ── 下拉選單 ─────────────────────────────────────────
+       原生 <select> 展開後的那一片清單是作業系統畫的，改不動——那片藍色反白
+       跟這個頁面沒有任何關係。所以自己做一個：收合是一顆按鈕，展開是一張
+       清單，兩個狀態同一套設計。
+       鍵盤照 listbox 的規矩走：Esc 收、上下鍵移動、Enter 選——不然這顆按鈕
+       對只用鍵盤的人來說是死的。 */
+    var openDD = null;
+    function closeDD() {
+      if (!openDD) return;
+      openDD.querySelector(".dd-btn").setAttribute("aria-expanded", "false");
+      openDD.querySelector(".dd-pop").hidden = true;
+      openDD = null;
+    }
+    document.addEventListener("click", function (e) {
+      if (openDD && !openDD.contains(e.target)) closeDD();
+    });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeDD(); });
+
+    /**
+     * 把一個 <div class="dd"> 變成下拉。
+     * items: [{ v, label }]，value 是目前選中的 v，pick 是選完要做的事。
+     */
+    function makeDD(host, items, value, labelledBy, pick) {
+      var cur = items.filter(function (i) { return i.v === value; })[0] || items[0] || { label: "—" };
+      host.innerHTML =
+        '<button type="button" class="dd-btn" aria-haspopup="listbox" aria-expanded="false"'
+          + (labelledBy ? ' aria-labelledby="' + labelledBy + '"' : "")
+          + (items.length ? "" : " disabled") + ">"
+          + "<span>" + esc(cur.label) + '</span><span class="material-symbols-outlined">expand_more</span></button>'
+        + '<div class="dd-pop" role="listbox" hidden>'
+          + items.map(function (i) {
+            return '<button type="button" role="option" data-v="' + esc(i.v) + '" aria-selected="'
+              + (i.v === value ? "true" : "false") + '">'
+              + '<span class="material-symbols-outlined tick">check</span>' + esc(i.label) + "</button>";
+          }).join("")
+        + "</div>";
+
+      var btn = host.querySelector(".dd-btn");
+      var pop = host.querySelector(".dd-pop");
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (btn.disabled) return;
+        var wasOpen = openDD === host;
+        closeDD();
+        if (wasOpen) return;
+        pop.hidden = false;
+        btn.setAttribute("aria-expanded", "true");
+        openDD = host;
+        var sel = pop.querySelector('[aria-selected="true"]') || pop.firstElementChild;
+        if (sel) sel.focus();
+      });
+      pop.addEventListener("keydown", function (e) {
+        var all = Array.prototype.slice.call(pop.children);
+        var at = all.indexOf(document.activeElement);
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          var next = all[at + (e.key === "ArrowDown" ? 1 : -1)];
+          if (next) next.focus();
+        } else if (e.key === "Escape") { closeDD(); btn.focus(); }
+      });
+      pop.querySelectorAll("[role=option]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          closeDD(); btn.focus();
+          if (b.dataset.v !== value) pick(b.dataset.v);
+        });
+      });
+    }
+
+    /* ── 用量報表 ────────────────────────────────────────
+       一份只看得到「這個月」的報表，回答不了「上個月是不是也這麼多」——
+       而那是看到一個大數字之後第一個會問的問題。所以區間可以切換，
+       可以選的月份與年份由帳本本身決定（沒有資料的月份不列出來，
+       列了只是讓人白點一次）。 */
+    var usage = null;
+    var periodKey = "";
+    var systemKey = "";
+    var pickYear = "", pickMonth = "", pickSystem = "";
+
+    /* 系統名稱。使用者自己改的名字常常帶著句號——那是一句話的習慣，
+       但這裡是一個名字，掛在數字旁邊會多出一個沒有意義的點。 */
+    function sysName(r) {
+      return String((r && (r.name || r.repo || r.key)) || "未知的系統").replace(/[。．.、,，:：]+$/, "");
+    }
+
+    /* 選單的內容由帳本決定：沒有資料的月份不列出來，列了只是讓人白點一次。
+       但「現在選中的那一個」一定要在清單裡——這個月剛好沒用過的話，
+       它不在帳本的月份清單中，少了它選單就會顯示成別的月份。 */
+    function fillFilters(t) {
+      var per = t.periods || {}, at = t.at || {};
+      var now = new Date();
+      /* at 讀不到就退回今天。少了這道，key 是空字串時月份會顯示成「0 月」。 */
+      var key = String(at.key || (now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0")));
+      var y = key.slice(0, 4);
+      var years = (per.years || []).slice();
+      if (years.indexOf(y) < 0) years.unshift(y);
+      makeDD($("fYear"), years.map(function (k) { return { v: k, label: k + " 年" }; }), y, "lblYear",
+        function (v) { pickYear = v; applyFilters(); });
+
+      var cur = at.mode === "year" ? "all" : key.slice(5, 7);
+      var months = (per.months || []).filter(function (k) { return k.slice(0, 4) === y; })
+        .map(function (k) { return k.slice(5, 7); });
+      if (cur !== "all" && months.indexOf(cur) < 0) months.push(cur);
+      months.sort();
+      makeDD($("fMonth"),
+        [{ v: "all", label: "全年" }].concat(months.map(function (m) { return { v: m, label: Number(m) + " 月" }; })),
+        cur, "lblMonth", function (v) { pickMonth = v; applyFilters(); });
+
+      var sys = t.systems || [];
+      makeDD($("fSystem"),
+        [{ v: "", label: "全部系統" }].concat(sys.map(function (r) { return { v: r.key, label: sysName(r) }; })),
+        at.system || "", "lblSystem", function (v) { pickSystem = v; applyFilters(); });
+
+      pickYear = y; pickMonth = cur; pickSystem = at.system || "";
+
+      /* 只有真的篩過才給清除鍵。永遠都在的那顆，會讓人以為現在有篩選。 */
+      var thisMonth = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+      $("fReset").hidden = at.key === thisMonth && !at.system;
+    }
+
+    function drawUsage() {
+      if (!usage) return;
+      var t = usage.tokens || {}, sp = usage.storage || {};
+      var at = t.at || { label: "這個月", mode: "month" };
+
+      /* 標籤要把篩選條件說完整：篩了系統卻只寫「9 月用掉」，那個數字看起來
+         像全部，實際上只是其中一套。 */
+      var only = at.system ? (t.bySystem[0] ? sysName(t.bySystem[0]) : "這套系統") : "";
+      $("tPeriodLbl").textContent = at.label + (only ? "・" + only : "") + "用掉";
+      $("tPeriod").textContent = num(t.period);
+      /* 成本只算得出「有價格資訊」的那幾筆：AI 修改（codex）的事件不含模型
+         與單價，硬套一個價目表只會產生一個看起來精確、實際上是猜的金額。
+         所以寫「至少」，不要讓人以為那就是全部。 */
+      $("tPeriodSub").textContent = t.calls
+        ? t.calls + " 次呼叫 · US$" + (t.cost || 0).toFixed(2)
+        : "沒有使用紀錄";
+      $("tTotal").textContent = num(t.total);
+      /* 累計也要看得到金額——只有一個 token 大數字，換算不出「所以我花了多少」。 */
+      $("tTotalSub").textContent = "開站到現在 · US$" + (t.totalCost || 0).toFixed(2);
+      $("tSpace").textContent = bytes((sp.files || 0) + (sp.db || 0));
+      $("tSpaceSub").textContent = sp.systems
+        ? sp.systems + " 套系統" + (sp.partial ? "（資料庫暫時查不到）" : "")
+        : "還沒有開通的系統";
+
+      /* 走勢圖。刻度由後端給——沒有用量的那一格也要留著，
+         只畫有資料的那幾格，格與格之間的距離會被讀成「連續的」。 */
+      var series = t.series || [];
+      var max = series.reduce(function (m, r) { return Math.max(m, r.n); }, 0) || 1;
+      var peak = series.reduce(function (m, r) { return r.n > (m ? m.n : -1) ? r : m; }, null);
+      $("trendTitle").textContent = at.mode === "year" ? "每個月用掉的 token" : "每天用掉的 token";
+      $("trendPeak").textContent = t.period && peak && peak.n
+        ? "最高：" + peak.label + (at.mode === "year" ? "" : " 日") + " " + num(peak.n)
+        : "";
+
+      /* 格子少的時候允許粗一點：12 根 28px 的細條散在一整行裡，看起來像
+         沒畫完；格子多的時候壓細，不然會變成一整排厚板。 */
+      $("days").style.setProperty("--bw", series.length > 20 ? "28px" : "52px");
+
+      $("days").innerHTML = series.map(function (r) {
+        /* 高度至少 4px，讓「有一點」跟「完全沒有」分得開；沒有的那幾格畫成
+           淡灰的底樁，而不是不畫——不畫的話刻度就對不上。 */
+        var h = r.n ? Math.max(4, Math.round((r.n / max) * 100)) : 2;
+        return '<span class="d' + (r.n ? "" : " zero") + '"'
+          + (r.n ? ' data-v="1" data-label="' + esc(r.label + (at.mode === "year" ? "" : " 日") + "　" + num(r.n)) + '"' : "")
+          + '><i style="height:' + h + '%"></i></span>';
+      }).join("");
+      /* 刻度只標頭尾。月要標成日期（9/1、9/30）而不是光禿禿的「1」「30」
+         ——單獨一個數字讀不出那是幾月的第幾天。 */
+      var tick = function (r) {
+        if (!r) return "";
+        return at.mode === "year" ? r.label : Number(r.k.slice(5, 7)) + "/" + Number(r.k.slice(8, 10));
+      };
+      $("daysX").innerHTML = series.length
+        ? "<span>" + esc(tick(series[0])) + "</span><span>" + esc(tick(series[series.length - 1])) + "</span>"
+        : "";
+
+      /* 用在哪一套。名稱是中文的——代號是給機器看的，使用者認不得
+         jvision-hotel-revenue-rate-control 是哪一套系統。 */
+      var rows = t.bySystem || [];
+      /* 條長比的是「佔這段時間的多少」而不是「跟最大的那套比」——後者在只有
+         一套的時候永遠是滿的，看不出那是全部還是剛好最多。 */
+      var whole = rows.reduce(function (a, r) { return a + r.n; }, 0) || 1;
+      $("bySys").innerHTML = rows.length
+        ? rows.map(function (r) {
+          var pct = Math.round((r.n / whole) * 100);
+          var meta = [];
+          if (r.calls) meta.push(r.calls + " 次呼叫");
+          if (r.cost) meta.push("US$" + r.cost.toFixed(2));
+          if (r.gone) meta.push("這套系統已經移除了");
+          return '<div class="row"><b>' + esc(sysName(r)) + "</b>"
+            + '<span class="n">' + num(r.n) + ' <span class="text-muted font-bold text-[.72rem]">'
+            + pct + "%</span></span>"
+            + '<div class="bar"><i style="width:' + Math.max(2, pct) + '%"></i></div>'
+            + (meta.length ? '<div class="m">' + esc(meta.join(" · ")) + "</div>" : "")
+            + "</div>";
+        }).join("")
+        : '<p class="viz-empty">' + esc(at.label) + "沒有使用紀錄。</p>";
+
+      /* 數字本身也要讀得到，不是只有滑上去才看得見。有欄位標題、有佔比、
+         有合計——沒有這三樣，它只是把圖上的數字抄了一遍。 */
+      var used = series.filter(function (r) { return r.n; });
+      var sum = used.reduce(function (a, r) { return a + r.n; }, 0) || 1;
+      var WD = ["日", "一", "二", "三", "四", "五", "六"];
+      /* 底色的長度比的是「跟最多的那一天比」，不是佔比本身：整個月有 30 天的
+         時候，最高的一天也才 12%，每一格都畫成 12% 的話全部一樣短，那條底色
+         就不再指出任何東西。數字仍然是佔比。 */
+      var topPct = used.reduce(function (m, r) { return Math.max(m, r.n); }, 0) || 1;
+      $("daysTable").innerHTML = used.length
+        ? '<table class="nums"><thead><tr><th>' + (at.mode === "year" ? "月份" : "日期")
+          + "</th><th>token</th><th>佔比</th></tr></thead><tbody>"
+          + used.map(function (r) {
+            var pct = Math.round((r.n / sum) * 100);
+            var w = Math.max(12, Math.round((r.n / topPct) * 100));
+            var when = at.mode === "year"
+              ? r.k.slice(0, 4) + " 年 " + Number(r.k.slice(5, 7)) + " 月"
+              : Number(r.k.slice(5, 7)) + "/" + Number(r.k.slice(8, 10))
+                + "（" + WD[new Date(r.k + "T00:00:00").getDay()] + "）";
+            return "<tr><td>" + esc(when) + "</td><td>" + num(r.n)
+              + '</td><td class="sh"><span class="mini"><i style="width:' + w + '%"></i></span><b>'
+              + pct + "%</b></td></tr>";
+          }).join("")
+          + '</tbody><tfoot><tr><td>合計</td><td>' + num(t.period) + "</td><td></td></tr></tfoot></table>"
+        : '<p class="viz-empty">' + esc(at.label) + "沒有使用紀錄。</p>";
+    }
+
+    /* ── 額度 ─────────────────────────────────────────────
+       這個數字有真正的後果：用完了就不能再叫 AI 改東西。所以它不能只是
+       一行小字——快用完要換色，而且當場給得出「怎麼申請」。 */
+    function drawQuota(qta) {
+      var box = $("quotaBox");
+      if (!qta) { box.hidden = true; return; }
+      box.hidden = false;
+      var pct = qta.limit > 0 ? Math.min(100, (qta.spent / qta.limit) * 100) : 100;
+      box.classList.toggle("over", qta.left <= 0);
+      box.classList.toggle("warn", qta.left > 0 && pct >= 80);
+      $("qSpent").textContent = "US$" + qta.spent.toFixed(2);
+      $("qLimit").textContent = "US$" + qta.limit.toFixed(2);
+      $("qBar").style.width = Math.max(qta.spent > 0 ? 2 : 0, pct) + "%";
+
+      /* 這裡刻意不寫倍率與單價。那是內部的計價方式，寫在客戶的頁面上等於
+         把加成攤開給他看；後端也已經不送這兩個欄位過來了。
+         要查怎麼算的，後台「額度與計價」那一頁有完整的公式與歷史。 */
+      var how = "依 token 用量計費";
+      if (qta.left <= 0) {
+        $("qNote").textContent = "額度用完了，AI 修改會被擋下來。可以在這裡提出申請。";
+      } else if (qta.pending) {
+        $("qNote").textContent = "還剩 US$" + qta.left.toFixed(2)
+          + "・已送出申請 US$" + Number(qta.pending.want_usd).toFixed(2) + "，等管理者審核。";
+      } else if (qta.last && qta.last.state === "approved") {
+        $("qNote").textContent = "還剩 US$" + qta.left.toFixed(2)
+          + "・上次申請已核准為 US$" + Number(qta.last.granted_usd).toFixed(2) + "。" + how;
+      } else if (qta.last && qta.last.state === "rejected") {
+        $("qNote").textContent = "還剩 US$" + qta.left.toFixed(2)
+          + "・上次申請沒有通過" + (qta.last.decided_note ? "（" + qta.last.decided_note + "）" : "") + "。";
+      } else {
+        $("qNote").textContent = "還剩 US$" + qta.left.toFixed(2) + "・" + how;
+      }
+      /* 已經有一筆在等審核就不給再送——重複送只是讓管理者看到三份一樣的。 */
+      $("qAsk").hidden = !!qta.pending;
+      if (qta.pending) $("qForm").hidden = true;
+      if (!$("qWant").value) $("qWant").value = Math.ceil(qta.limit * 1.5);
+    }
+
+    $("qAsk").addEventListener("click", function () {
+      $("qForm").hidden = !$("qForm").hidden;
+      if (!$("qForm").hidden) $("qWant").focus();
+    });
+    $("qSend").addEventListener("click", function () {
+      var want = Number($("qWant").value);
+      if (!(want > 0)) return msg($("qMsg"), "先填想要調到多少", false);
+      $("qSend").disabled = true;
+      fetch("/api/me/quota-request", { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ want: want, reason: $("qReason").value }) })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (x) {
+          $("qSend").disabled = false;
+          if (!x.ok) return msg($("qMsg"), x.d.error || "送不出去", false);
+          $("qForm").hidden = true;
+          $("qReason").value = "";
+          drawQuota(x.d.quota);
+          msg($("qMsg"), "已送出，等管理者審核", true);
+        })
+        .catch(function () { $("qSend").disabled = false; msg($("qMsg"), "連不上伺服器", false); });
+    });
+
     function loadUsage() {
-      fetch("/api/me/usage", { cache: "no-store" })
+      var qs = [];
+      if (periodKey) qs.push("period=" + encodeURIComponent(periodKey));
+      if (systemKey) qs.push("system=" + encodeURIComponent(systemKey));
+      return fetch("/api/me/usage" + (qs.length ? "?" + qs.join("&") : ""), { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
           if (!d) return;
-          var t = d.tokens || {}, s = d.storage || {};
-          $("tokMonth").textContent = num(t.month);
-          /* 沒有配額制度，所以這條不是「用掉幾成」而是相對刻度：
-             以 100 萬 token 當滿格，讓人對數量級有感覺。
-             真的用過才顯示——0 的時候一條空的量表只會讓人猜它代表什麼。 */
-          var used = Number(t.month) > 0;
-          $("tokBarWrap").hidden = !used;
-          if (used) $("tokBar").style.width = Math.max(2, Math.min(100, (t.month / 1000000) * 100)) + "%";
-          /* 成本只算得出「有價格資訊」的那幾筆。AI 修改（codex）的事件不含
-             模型與單價，硬套一個價目表只會產生一個看起來精確、實際上是猜的
-             金額。所以照實說「至少」，不要讓人以為那就是全部。 */
-          $("tokNote").textContent = t.ledger
-            ? "累計 " + num(t.total) + " token，共 " + num(t.calls) + " 次呼叫，成本"
-              + (t.costPartial ? "至少 US$" : " US$") + (t.cost || 0).toFixed(4)
-              + (t.costPartial ? "（AI 修改那部分只記得到用量，沒有單價）" : "")
-              + "。沒有上限，這裡只是讓你知道用了多少。"
-            : "還沒有用過 AI。";
-          $("spTotal").textContent = bytes((s.files || 0) + (s.db || 0));
-          /* 650KB 對 1GB 是 0.06%，畫出來是看不見的一條線——「有一點」跟
-             「完全沒有」長得一樣。有用到就至少給 2%，讓那兩件事分得開。 */
-          var pct = ((s.files + s.db) / (1024 * 1024 * 1024)) * 100;
-          $("spBar").style.width = (pct > 0 ? Math.max(2, Math.min(100, pct)) : 0) + "%";
-          $("spNote").textContent = s.systems
-            ? s.systems + " 套系統：畫面檔 " + bytes(s.files) + "、資料 " + bytes(s.db) +
-              (s.partial ? "（資料庫用量暫時查不到）" : "") + "。刻度以 1 GB 為滿格。"
-            : "還沒有開通的系統。";
+          usage = d;
+          drawQuota(d.quota);
+          var t = d.tokens || {};
+          periodKey = (t.at && t.at.key) || periodKey;
+          systemKey = (t.at && t.at.system) || "";
+          fillFilters(t);
+          drawUsage();
         })
         .catch(function () {});
     }
+
+    function applyFilters() {
+      periodKey = pickMonth === "all" ? pickYear : pickYear + "-" + pickMonth;
+      systemKey = pickSystem;
+      loadUsage();
+    }
+    $("fReset").addEventListener("click", function () {
+      periodKey = ""; systemKey = "";
+      loadUsage();
+    });
+
 
     /* ── 使用名單 ── */
     function drawMembers(list) {
       var box = $("memberList");
       if (!list || !list.length) { box.innerHTML = '<div class="p-3 text-sm text-muted">名單是空的</div>'; return; }
+      /* 每一列都標角色與範圍。範圍要寫出來是因為這份名單是公司層級的：
+         在這裡按移除，等於把人從你名下所有系統踢掉，不是只有某一套。
+         沒有「只限某一套」這種名單——所以標「全部系統」而不是留白。 */
       box.innerHTML = list.map(function (m) {
         var owner = m.role === "owner";
-        return '<div class="flex items-center justify-between gap-3 px-3 py-2.5 bg-white">' +
-          '<span class="text-sm text-ink">' + esc(m.email) +
-            (owner ? ' <span class="text-[11px] font-black text-brand ml-1">擁有者</span>' : "") + "</span>" +
-          (owner ? '<span class="text-xs text-muted">不可移除</span>'
-                 : '<button type="button" data-rm="' + esc(m.email) + '" class="text-xs font-bold text-red-700 hover:underline">移除</button>') +
+        var u = m.usage && m.usage.n ? m.usage : null;
+        /* 每一列固定同一個高度。擁有者那列沒有按鈕，不釘高度的話會比其他列矮
+           一截，一份名單看起來就像高高低低的階梯。 */
+        return '<div class="flex items-center justify-between gap-3 px-3 py-2 bg-white min-h-[56px]">' +
+          '<span class="min-w-0">' +
+            '<span class="flex items-center gap-2">' +
+              '<span class="text-sm text-ink truncate">' + esc(m.email) + "</span>" +
+              '<span class="text-[11px] font-black shrink-0 px-1.5 py-0.5 rounded '
+                + (owner ? "text-brand bg-[#eef2ff]" : "text-muted bg-soft") + '">'
+                + (owner ? "擁有者" : "成員") + "</span>" +
+              '<span class="text-[11px] text-muted shrink-0">全部系統</span>' +
+            "</span>" +
+            /* 有沒有在用，比在不在名單上更值得知道：一個從來沒動過的信箱，
+               跟一個每天在跑修改的人，光看信箱長得一模一樣。 */
+            '<span class="block text-[11px] mt-0.5 ' + (u ? "text-muted" : "text-slate-400") + '">'
+              + (u
+                ? num(u.n) + " token · " + u.systems + " 套系統"
+                  + (u.last ? " · 最後 " + esc(String(u.last).slice(0, 10)) : "")
+                : "還沒有使用紀錄") + "</span>" +
+          "</span>" +
+          (owner ? '<span class="text-xs text-muted shrink-0">不可移除</span>'
+                 : '<button type="button" data-rm="' + esc(m.email) + '" class="btn btn-ghost shrink-0 !h-8 !px-2 !text-red-700" '
+                   + 'title="把 ' + esc(m.email) + ' 移出名單" aria-label="移除 ' + esc(m.email) + '">'
+                   + '<span class="material-symbols-outlined text-[18px]">person_remove</span></button>') +
           "</div>";
       }).join("");
       box.querySelectorAll("[data-rm]").forEach(function (b) {
         b.addEventListener("click", function () {
+          /* 先問一次。這一按是全站生效的，而且畫面上沒有復原鍵。 */
+          if (!window.confirm("把 " + b.dataset.rm + " 從名單移除？\n\n他之後就進不去你名下的系統——所有系統都一樣，不是只有某一套。要再加回來的話重新輸入信箱就好。")) return;
           fetch("/api/me/members?email=" + encodeURIComponent(b.dataset.rm), { method: "DELETE" })
             .then(function (r) { return r.json(); })
             .then(function (d) { if (d.members) { drawMembers(d.members); msg($("memberMsg"), "已移除", true); }
@@ -320,11 +900,13 @@
 
 
     loadProfile().then(function () {
-      if (!$("panes").hidden) loadUsage();
+      if ($("panes").hidden) return;
+      showPane("profile");
+      loadUsage();
     });
   })();
   </script>
   <script src="./shared/hub-nav.js"></script>
-  <script src="./shared/jv-account.js?v=11" defer></script>
+  <script src="./shared/jv-account.js?v=12" defer></script>
 </body>
 </html>

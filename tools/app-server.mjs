@@ -24,6 +24,7 @@ import * as outline from "./lib/page-outline.mjs";
 import * as extract from "./lib/schema-extract.mjs";
 import * as chips from "./lib/instance-chips.mjs";
 import * as usage from "./lib/me-usage.mjs";
+import * as billing from "./lib/billing.mjs";
 import * as refs from "./lib/instance-refs.mjs";
 import * as files from "./lib/instance-files.mjs";
 import * as shots from "./lib/shots.mjs";
@@ -463,6 +464,11 @@ const server = http.createServer(async (req, res) => {
           if (running && running.state === "running") {
             return done({ reply: "上一個修改還在進行中，等它做完再說下一個。", action: "none", changed: false });
           }
+          /* 額度擋在這裡，因為這是唯一真的會燒 token 的路徑。
+             擋的時候要說得出「上限多少、已經用掉多少、去哪裡申請」——
+             只說「額度不足」的話，人會卡在那裡不知道下一步。 */
+          const gate = await billing.checkQuota(actor);
+          if (!gate.ok) return done({ reply: gate.error, action: "none", changed: false, quota: gate.quota });
           startEdit(inst, message, shotPath, sessionId, actor);
           /* 這一則只是「我要開始改了」，還沒有任何東西被改。標成 edit_page 的話，
              重新整理之後它會被當成「已完成」而畫成綠色——同一句話當下是白的、

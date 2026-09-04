@@ -85,6 +85,21 @@
       "#jvAcctPanel .sum:hover{background:#f8fafc}" +
       "#jvAcctPanel .sum .dot{width:3px;height:3px;border-radius:9999px;background:#cbd5e1;display:inline-block}" +
       "#jvAcctPanel .sum .more{margin-left:auto;color:#1e40af}" +
+      /* 額度。放在摘要那行上面、給一條量表——這個數字有真正的後果
+         （用完就不能再叫 AI 改東西），跟「887 KB」那種純資訊不同重量。 */
+      "#jvAcctPanel .quota{display:block;padding:.6rem 1rem .7rem;border-bottom:1px solid #f1f5f9;text-decoration:none}" +
+      "#jvAcctPanel .quota:hover{background:#f8fafc}" +
+      "#jvAcctPanel .quota .qt{display:flex;align-items:baseline;justify-content:space-between;gap:.6rem}" +
+      "#jvAcctPanel .quota .qk{font-size:.72rem;font-weight:800;color:#64748b}" +
+      "#jvAcctPanel .quota .qv{font-size:.78rem;color:#94a3b8;font-variant-numeric:tabular-nums}" +
+      "#jvAcctPanel .quota .qv b{font-size:.9rem;font-weight:900;color:#0f172a}" +
+      "#jvAcctPanel .quota .qb{display:block;height:5px;margin-top:.4rem;border-radius:9999px;background:#eef2f7;overflow:hidden}" +
+      "#jvAcctPanel .quota .qb i{display:block;height:100%;border-radius:9999px;background:#2563eb;min-width:2px}" +
+      "#jvAcctPanel .quota.warn .qb i{background:#d97706}" +
+      "#jvAcctPanel .quota.over .qb i{background:#b91c1c}" +
+      "#jvAcctPanel .quota .qn{display:block;margin-top:.35rem;font-size:.68rem;color:#94a3b8}" +
+      "#jvAcctPanel .quota.warn .qn{color:#b45309;font-weight:700}" +
+      "#jvAcctPanel .quota.over .qn{color:#b91c1c;font-weight:700}" +
       "#jvAcctPanel .lbl{font-size:.68rem;font-weight:800;color:#94a3b8;letter-spacing:.06em;margin-bottom:.4rem}" +
       "#jvAcctPanel .row{display:flex;align-items:center;justify-content:space-between;gap:.6rem;font-size:.8rem;padding:.22rem 0}" +
       "#jvAcctPanel .row a{color:#1e40af;font-weight:700;text-decoration:none}" +
@@ -226,6 +241,9 @@
         '<span class="material-symbols-outlined ico">dashboard_customize</span>' +
         '<span class="t">我的專案<b data-syscount></b></span>' +
         '<span class="material-symbols-outlined go">chevron_right</span></a>' +
+      /* 額度。整塊是連到個人設定的連結——看到「快用完了」的下一個動作
+         就是去那裡申請，不該還要自己找路。讀不到就整塊不出現。 */
+      '<a class="quota" data-quota href="./account" hidden></a>' +
       '<div class="sum" data-summary><span class="muted">讀取中…</span></div>' +
       '<div class="acts">' +
         /* 拿掉「瀏覽專案目錄」：導覽列本來就有一個「專案目錄」，同一個去向在同一個
@@ -268,6 +286,7 @@
         var sg = d.storage || {};
         var used = (sg.files || 0) + (sg.db || 0);
         sum(panel, "use", used ? fmtBytes(used) : "");
+        quota(panel, d.quota);
       })
       .catch(function () { /* 用量讀不到就不顯示那顆數字，不必佔一整段講「暫時讀不到」 */ });
 
@@ -278,6 +297,26 @@
         sum(panel, "ord", list.length ? list.length + " 張需求單" : "");
       })
       .catch(function () { /* 同上：讀不到就不顯示 */ });
+  }
+
+  /* 額度。金額與上限一起給——只給「已用 US$1.71」的話，那個數字沒有參照，
+     看不出是快用完還是才剛開始。 */
+  function quota(panel, q) {
+    var el = panel.querySelector("[data-quota]");
+    if (!el || !q) return;
+    var pct = q.limit > 0 ? Math.min(100, (q.spent / q.limit) * 100) : 100;
+    el.hidden = false;
+    el.className = "quota" + (q.left <= 0 ? " over" : pct >= 80 ? " warn" : "");
+    var note = q.left <= 0
+      ? "額度用完了，AI 修改會被擋下來 · 去申請 ›"
+      : q.pending
+        ? "還剩 US$" + q.left.toFixed(2) + " · 申請中，等管理者審核"
+        : "還剩 US$" + q.left.toFixed(2);
+    el.innerHTML =
+      '<span class="qt"><span class="qk">帳號額度</span>' +
+        '<span class="qv"><b>US$' + q.spent.toFixed(2) + "</b> / US$" + q.limit.toFixed(2) + "</span></span>" +
+      '<span class="qb"><i style="width:' + Math.max(q.spent > 0 ? 2 : 0, pct) + '%"></i></span>' +
+      '<span class="qn">' + esc(note) + "</span>";
   }
 
   /* 摘要那一行由三支 API 各自填一顆數字。沿用原本「各自去拿、各自失敗」的作法：

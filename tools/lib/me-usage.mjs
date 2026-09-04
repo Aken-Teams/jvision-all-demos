@@ -13,8 +13,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT } from "./forge-common.mjs";
 
-/* 舊的檔案帳目。只在匯入時讀，不再寫。 */
-const LEDGER = path.join(ROOT, "var", "token-usage.jsonl");
 /* 資料庫寫不進去時的落腳處。補進去之後就可以刪。 */
 const SPILL = path.join(ROOT, "var", "token-usage-spill.jsonl");
 
@@ -82,12 +80,25 @@ export async function record({ actor, kind = "llm", model = null, instance = nul
   if (!row.in && !row.out && !row.cacheWrite && !row.cacheRead) return false;
   try {
     const { q } = await import("./mysql.mjs");
+    /* 金額在**寫進去的當下**就算好、釘在這一筆上。倍率之後改成 ×2 的話，
+       改的是之後寫進來的，不會回頭改寫已經算過的帳——那就是切點。
+       算不出來（設定表暫時讀不到）就先留空，billing 那邊的補算會撿回來。 */
+    let bill = { multiplier: null, rate: null, usd: null };
+    try {
+      const billing = await import("./billing.mjs");
+      const r = await billing.currentRate();
+      bill = { multiplier: r.multiplier, rate: r.usdPerMtok,
+        usd: billing.amountFor(row.in + row.out + row.cacheWrite, r) };
+    } catch { /* 補算會處理 */ }
+
     await q(`INSERT INTO token_usage
         (at, actor, kind, model, instance_id, repo_name,
-         tok_in, tok_out, tok_cache_write, tok_cache_read, tok_reasoning, turns, cost)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         tok_in, tok_out, tok_cache_write, tok_cache_read, tok_reasoning, turns, cost,
+         bill_multiplier, bill_rate, bill_usd)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [row.at, row.actor, row.kind, row.model, row.instance, row.repo,
-      row.in, row.out, row.cacheWrite, row.cacheRead, row.reasoning, row.turns, row.cost]);
+      row.in, row.out, row.cacheWrite, row.cacheRead, row.reasoning, row.turns, row.cost,
+      bill.multiplier, bill.rate, bill.usd]);
     return true;
   } catch (e) {
     console.error("[usage] 寫不進資料庫，先落檔", String(e.message).slice(0, 120));
@@ -98,80 +109,223 @@ export async function record({ actor, kind = "llm", model = null, instance = nul
   }
 }
 
-/** 這個月的起點。用當地時間，因為使用者看到的「這個月」是他的月份。 */
-function monthStart() {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
+/**
+ * 把 "2026-09" / "2026" 解析成一段時間，外加畫圖要用的刻度。
+ * 認不得就退回這個月——報表打不開比報表算錯還糟，而錯的來源多半是
+ * 網址被人手動改過。
+ */
+export function parsePeriod(key) {
+  const now = new Date();
+  const m = /^(\d{4})-(\d{2})$/.exec(String(key || ""));
+  const y = /^(\d{4})$/.exec(String(key || ""));
+  if (y) {
+    const yr = Number(y[1]);
+    return { mode: "year", key: y[1], label: `${yr} 年`,
+      from: new Date(yr, 0, 1), to: new Date(yr + 1, 0, 1) };
+  }
+  const yr = m ? Number(m[1]) : now.getFullYear();
+  const mo = m ? Number(m[2]) - 1 : now.getMonth();
+  const k = `${yr}-${String(mo + 1).padStart(2, "0")}`;
+  return { mode: "month", key: k, label: `${yr} 年 ${mo + 1} 月`,
+    from: new Date(yr, mo, 1), to: new Date(yr, mo + 1, 1) };
+}
+
+/** 一段區間的刻度：月看每一天，年看每一個月。空的刻度也要留著——
+ *  只畫有資料的那幾格，兩格之間的距離會被讀成「連續的」。 */
+function ticksOf(per) {
+  const out = [];
+  if (per.mode === "year") {
+    const yr = per.from.getFullYear();
+    for (let i = 0; i < 12; i += 1) {
+      out.push({ k: `${yr}-${String(i + 1).padStart(2, "0")}`, label: `${i + 1}月` });
+    }
+    return out;
+  }
+  const yr = per.from.getFullYear(); const mo = per.from.getMonth();
+  const last = new Date(yr, mo + 1, 0).getDate();
+  for (let i = 1; i <= last; i += 1) {
+    out.push({ k: `${yr}-${String(mo + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`, label: String(i) });
+  }
+  return out;
 }
 
 /**
- * 讀帳本並彙總。整份讀進來——每筆約 160 bytes，一年一萬筆也才 1.6MB，
- * 為了它做輪替或索引是還沒發生的問題。真的長大了再說。
- */
-/**
  * 一個人的 token 用量。
  *
- * daily 與 byInstance 是給圖表與額度用的：光有一個總數，看不出「什麼時候用的」
- * 與「用在哪一套上」，而那正是要設額度時第一個會被問的兩件事。
+ * 為什麼要能選區間：一份只看得到「這個月」的報表，回答不了「上個月是不是
+ * 也這麼多」，而那是看到一個大數字之後第一個會問的問題。所以月與年都要查
+ * 得到，而且可以選的區間由帳本本身決定——列出沒有資料的月份只是讓人白點。
+ *
+ * bySystem 帶 instance 與 repo 兩個鍵，名稱留給上層去解：這一層看不到目錄
+ * 索引，硬要在這裡取名只會取出一串英文代號。
  *
  * 計費的是新輸入、輸出與快取寫入；快取讀取另計且便宜一個量級，混在一起會讓
  * 使用者看到一個和帳單對不起來的數字，所以只在明細裡留著、不進總數。
  */
-export async function tokensFor(email) {
-  const zero = { total: 0, month: 0, calls: 0, cost: 0, ledger: false,
-    costPartial: false, daily: {}, byInstance: {} };
+/**
+ * 畫面上的 token 要不要換成「計價 token」。
+ *
+ * 為什麼會有這件事：金額是「原始 token × 單價 × 倍率」算出來的。如果畫面
+ * 同時給原始 token 與金額，任何人把金額除以 token 就會得到「單價 × 倍率」
+ * ——拿去跟市面行情一比，倍率等於自己招了。兩邊乘上同一個倍率之後，相除
+ * 得到的就是單價本身，對得起來。
+ *
+ * 用每一筆自己釘著的倍率，不是現在這一份：跨過切點的區間裡，早期那幾筆
+ * 的金額是用舊倍率算的，token 也要跟著用舊的乘，兩邊才會一致。
+ *
+ * 資料庫存的永遠是原始值。這只是顯示層——後台看到的仍然是原始 token。
+ */
+function shownTokens(billable, scaled, fallbackMultiplier) {
+  if (!scaled) return billable;
+  const m = Number(fallbackMultiplier) > 0 ? Number(fallbackMultiplier) : 1;
+  return `(${billable}) * COALESCE(bill_multiplier, ${m})`;
+}
+
+export async function tokensFor(email, periodKey, systemKey, opts = {}) {
+  const per = parsePeriod(periodKey);
+  const sys1 = String(systemKey || "").trim();
+  const zero = {
+    total: 0, totalCost: 0, period: 0, calls: 0, cost: 0, ledger: false,
+    series: ticksOf(per).map((t) => ({ ...t, n: 0 })),
+    bySystem: [], systems: [], periods: { months: [], years: [] },
+    at: { key: per.key, mode: per.mode, label: per.label, system: sys1 || null },
+  };
   if (!email) return zero;
   let q;
   try { ({ q } = await import("./mysql.mjs")); } catch { return zero; }
 
-  const BILLABLE = "tok_in + tok_out + tok_cache_write";
+  const RAW = "tok_in + tok_out + tok_cache_write";
+  /* 給畫面看的 token。opts.scaled 打開時就是計價 token。 */
+  let mult = 1;
+  if (opts.scaled) {
+    try { mult = (await (await import("./billing.mjs")).currentRate()).multiplier; }
+    catch { mult = 1; }
+  }
+  const BILLABLE = shownTokens(RAW, !!opts.scaled, mult);
+  /* 系統篩選：帳本裡的鍵是 repo_name，舊資料可能只有 instance_id，
+     所以比對的是同一個 COALESCE——跟分組用的鍵一致，篩完才加得回原本的總數。 */
+  const SYS = sys1 ? " AND COALESCE(repo_name, instance_id) = ?" : "";
+  const range = sys1 ? [email, per.from, per.to, sys1] : [email, per.from, per.to];
   try {
     const [all] = await q(
       `SELECT COUNT(*) calls, COALESCE(SUM(${BILLABLE}),0) total,
-              COALESCE(SUM(cost),0) cost, SUM(cost IS NULL) noCost
+              COALESCE(SUM(bill_usd),0) usd
          FROM token_usage WHERE actor = ?`, [email]);
+    /* token 乘過倍率之後不會是整數（倍率可以填 2.5），四捨五入再給前端
+       ——畫面上出現「569,535.5 個 token」只會讓人覺得系統壞了。 */
+    const round = (v) => Math.round(Number(v) || 0);
     if (!all || !Number(all.calls)) return zero;
 
-    /* 「這個月」用當地時間的月初——使用者看到的月份是他的月份。 */
-    const d = new Date();
-    const since = new Date(d.getFullYear(), d.getMonth(), 1);
+    const [sum] = await q(
+      `SELECT COUNT(*) calls, COALESCE(SUM(${BILLABLE}),0) n,
+              COALESCE(SUM(bill_usd),0) usd
+         FROM token_usage WHERE actor = ? AND at >= ? AND at < ?${SYS}`, range);
 
-    const [mon] = await q(
-      `SELECT COALESCE(SUM(${BILLABLE}),0) month FROM token_usage
-        WHERE actor = ? AND at >= ?`, [email, since]);
-    const days = await q(
-      `SELECT DATE(at) d, SUM(${BILLABLE}) n FROM token_usage
-        WHERE actor = ? AND at >= ? GROUP BY DATE(at) ORDER BY d`, [email, since]);
-    const byRepo = await q(
-      `SELECT COALESCE(repo_name, instance_id) k, SUM(${BILLABLE}) n FROM token_usage
-        WHERE actor = ? AND at >= ? AND COALESCE(repo_name, instance_id) IS NOT NULL
-        GROUP BY k ORDER BY n DESC`, [email, since]);
+    const bucket = per.mode === "year" ? "DATE_FORMAT(at,'%Y-%m')" : "DATE_FORMAT(at,'%Y-%m-%d')";
+    const rows = await q(
+      `SELECT ${bucket} k, SUM(${BILLABLE}) n FROM token_usage
+        WHERE actor = ? AND at >= ? AND at < ?${SYS} GROUP BY k`, range);
+    const byKey = new Map(rows.map((r) => [String(r.k), Number(r.n) || 0]));
+    const series = ticksOf(per).map((t) => ({ ...t, n: round(byKey.get(t.k)) }));
 
-    const daily = {};
-    for (const r of days) {
-      /* DATE() 回的是 Date 物件，轉成 YYYY-MM-DD 給前端當鍵。 */
-      const key = r.d instanceof Date
-        ? `${r.d.getFullYear()}-${String(r.d.getMonth() + 1).padStart(2, "0")}-${String(r.d.getDate()).padStart(2, "0")}`
-        : String(r.d).slice(0, 10);
-      daily[key] = Number(r.n) || 0;
-    }
-    const byInstance = {};
-    for (const r of byRepo) byInstance[r.k] = Number(r.n) || 0;
+    const sys = await q(
+      `SELECT instance_id, repo_name, SUM(${BILLABLE}) n, COUNT(*) calls,
+              COALESCE(SUM(bill_usd),0) usd
+         FROM token_usage
+        WHERE actor = ? AND at >= ? AND at < ?${SYS}
+          AND COALESCE(repo_name, instance_id) IS NOT NULL
+        GROUP BY instance_id, repo_name ORDER BY n DESC`, range);
+
+    /* 可以選的區間就是帳本裡真的有東西的那幾個。 */
+    const months = await q(
+      `SELECT DISTINCT DATE_FORMAT(at,'%Y-%m') k FROM token_usage
+        WHERE actor = ? ORDER BY k DESC LIMIT 24`, [email]);
+    const years = await q(
+      `SELECT DISTINCT DATE_FORMAT(at,'%Y') k FROM token_usage
+        WHERE actor = ? ORDER BY k DESC LIMIT 6`, [email]);
+
+    /* 可以篩的系統看的是整本帳，不是這一段區間——用區間內的清單當選項，
+       選了一個月之後選單會少掉幾個系統，等於篩選器自己會跳來跳去。 */
+    const allSys = await q(
+      `SELECT COALESCE(repo_name, instance_id) k, MAX(instance_id) instance_id,
+              MAX(repo_name) repo_name, SUM(${BILLABLE}) n
+         FROM token_usage
+        WHERE actor = ? AND COALESCE(repo_name, instance_id) IS NOT NULL
+        GROUP BY k ORDER BY n DESC LIMIT 50`, [email]);
 
     return {
-      total: Number(all.total) || 0,
-      month: Number(mon && mon.month) || 0,
-      calls: Number(all.calls) || 0,
-      cost: Math.round((Number(all.cost) || 0) * 10000) / 10000,
-      /* 有任何一筆沒有價格，總額就只是「至少這麼多」。 */
-      costPartial: Number(all.noCost) > 0,
-      ledger: true, daily, byInstance,
+      total: round(all.total),
+      /* 累計也要有金額。只給 token 數的話，那個大數字沒有辦法換算成
+         「所以我花了多少」——而那才是看累計時想知道的事。 */
+      totalCost: Math.round((Number(all.usd) || 0) * 100) / 100,
+      period: round(sum && sum.n),
+      calls: Number(sum && sum.calls) || 0,
+      /* 金額是「要跟人收多少」，不是各家 API 回報的成本：一律用
+         token × 單價 × 倍率算，所以每一筆都有值，畫面上不必再寫「至少」。 */
+      cost: Math.round((Number(sum && sum.usd) || 0) * 100) / 100,
+      ledger: true,
+      series,
+      bySystem: sys.map((r) => ({
+        instance: r.instance_id || null, repo: r.repo_name || null,
+        n: round(r.n), calls: Number(r.calls) || 0,
+        cost: Math.round((Number(r.usd) || 0) * 100) / 100,
+      })),
+      systems: allSys.map((r) => ({
+        key: String(r.k), instance: r.instance_id || null, repo: r.repo_name || null,
+        n: round(r.n),
+      })),
+      periods: { months: months.map((r) => String(r.k)), years: years.map((r) => String(r.k)) },
+      at: { key: per.key, mode: per.mode, label: per.label, system: sys1 || null },
     };
   } catch (e) {
     /* 資料庫暫時不通就回「還沒有資料」而不是丟例外——用量只是資訊，
        不該讓整個個人設定頁打不開。 */
     console.error("[usage] 讀不到用量", String(e.message).slice(0, 120));
     return zero;
+  }
+}
+
+/**
+ * 名單上每個人各自用了多少。
+ *
+ * 為什麼要有：使用名單本來只回答「誰進得去」，可是擁有者真正想知道的是
+ * 「他到底有沒有在用、用在哪一套上」——名單上一個從來沒動過的信箱，跟一個
+ * 每天在跑修改的人，長得一模一樣。所以每一列要帶得出用量、幾套系統、
+ * 最後一次是什麼時候。
+ *
+ * 回的是一個以信箱為鍵的物件；查不到的人就是沒有紀錄，不補零列。
+ */
+export async function usageByActor(emails, opts = {}) {
+  const list = (emails || []).map((e) => String(e || "").toLowerCase()).filter(Boolean);
+  if (!list.length) return {};
+  let q;
+  try { ({ q } = await import("./mysql.mjs")); } catch { return {}; }
+  let mult = 1;
+  if (opts.scaled) {
+    try { mult = (await (await import("./billing.mjs")).currentRate()).multiplier; }
+    catch { mult = 1; }
+  }
+  const BILLABLE = shownTokens("tok_in + tok_out + tok_cache_write", !!opts.scaled, mult);
+  const holes = list.map(() => "?").join(",");
+  try {
+    const rows = await q(
+      `SELECT actor, SUM(${BILLABLE}) n, COUNT(*) calls, MAX(at) last,
+              COALESCE(SUM(bill_usd),0) usd,
+              COUNT(DISTINCT COALESCE(repo_name, instance_id)) systems
+         FROM token_usage WHERE actor IN (${holes}) GROUP BY actor`, list);
+    const out = {};
+    for (const r of rows) {
+      out[String(r.actor).toLowerCase()] = {
+        n: Math.round(Number(r.n) || 0), calls: Number(r.calls) || 0,
+        usd: Math.round((Number(r.usd) || 0) * 100) / 100,
+        systems: Number(r.systems) || 0,
+        last: r.last instanceof Date ? r.last.toISOString() : r.last || null,
+      };
+    }
+    return out;
+  } catch (e) {
+    console.error("[usage] 讀不到成員用量", String(e.message).slice(0, 120));
+    return {};
   }
 }
 

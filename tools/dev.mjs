@@ -15,6 +15,7 @@ import * as guard from "./lib/rate-guard.mjs";
 import * as wishes from "./lib/wish-requests.mjs";
 import * as control from "./lib/control-db.mjs";
 import * as meUsage from "./lib/me-usage.mjs";
+import * as billing from "./lib/billing.mjs";
 import * as mysql from "./lib/mysql.mjs";
 import * as shots from "./lib/shots.mjs";
 import * as payment from "./lib/payment/index.mjs";
@@ -1055,13 +1056,61 @@ function startGateway() {
     if (p === "/api/me/usage" && req.method === "GET") {
       const id = visitor.read(req);
       if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
-      const tokens = await meUsage.tokensFor(id.email);
+      const qs = new URL(req.url, "http://x").searchParams;
+      /* scaled：畫面上的 token 是計價 token（原始 × 倍率）。金額本來就是用
+         倍率算的，如果這裡給原始 token，任何人拿金額除以 token 就會反推出
+         倍率。兩邊乘同一個倍率，相除得到的是單價本身。資料庫存的沒有變。 */
+      const tokens = await meUsage.tokensFor(
+        id.email, qs.get("period") || "", qs.get("system") || "", { scaled: true });
+
+      /* 系統名稱在這裡才解得出來——帳本只存代號。優先用使用者自己改過的
+         名稱，其次是目錄上的中文名；兩個都沒有才退回代號。
+         使用者看不懂 jvision-hotel-revenue-rate-control 是哪一套。 */
+      try {
+        const mine = await control.listInstancesFor(id.email);
+        const byId = new Map(mine.map((r) => [r.id, r]));
+        const name = (r) => {
+          const inst = r.instance ? byId.get(r.instance) : null;
+          return {
+            name: (inst && inst.display_name) || titleFor(r.repo) || (inst && inst.repo_name) || r.repo || "已移除的系統",
+            gone: !inst,
+          };
+        };
+        tokens.bySystem = (tokens.bySystem || []).map((r) => ({ ...r, ...name(r) }));
+        tokens.systems = (tokens.systems || []).map((r) => ({ ...r, ...name(r) }));
+      } catch { /* 名稱查不到就讓前端顯示代號，報表不該因此開不起來 */ }
+
       let storage = { files: 0, db: 0, systems: 0, partial: true };
       try {
         const rows = await control.listInstancePathsFor(id.email);
         storage = await meUsage.storageFor(rows, mysql.q);
       } catch { /* 空間算不出來就回 partial，token 照樣給 */ }
-      return json(res, 200, { tokens, storage });
+
+      /* 額度跟用量一起回。分兩支的話畫面上會先出現一個沒有上限的數字，
+         下一秒才長出「剩下多少」——那一秒足以讓人以為自己沒有限制。 */
+      /* 倍率與單價不送給前台。那是內部的加成，客戶看到「你們收我五倍」不是
+         好事；而且只把畫面上的字拿掉沒有用——開一下開發者工具就看得到，
+         所以要在這裡就不送出去。額度與金額照送，那些本來就是他要付的數字。 */
+      let quota = null;
+      try {
+        const full = await billing.quotaFor(id.email);
+        const { multiplier, usdPerMtok, ...safe } = full;
+        quota = safe;
+      } catch { /* 查不到就不顯示 */ }
+      return json(res, 200, { tokens, storage, quota });
+    }
+
+    /* 申請調高額度。使用者只能說「我想要多少」，給多少是管理者決定的。 */
+    if (p === "/api/me/quota-request" && req.method === "POST") {
+      const id = visitor.read(req);
+      if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
+      try {
+        const body = await readBody(req);
+        const quota = await billing.requestQuota(id.email, body.want, body.reason);
+        actions.record({ actor: id.email, action: "申請調高額度",
+          target: `US$${Number(body.want).toFixed(2)}`, status: 200, visitor: who });
+        return json(res, 200, { quota });
+      } catch (error) { return json(res, error.status || 503, { error: error.message || "暫時無法處理" }); }
     }
 
     /* 個人資料。顯示名稱人人可改；公司名稱只有擁有者改得動，
@@ -1107,7 +1156,18 @@ function startGateway() {
       try {
         const cust = await control.customerOwnedBy(id.email);
         if (!cust) return json(res, 403, { error: "你還沒有自己的公司帳戶" });
-        if (req.method === "GET") return json(res, 200, { members: await control.listMembers(cust.id) });
+        if (req.method === "GET") {
+          /* 名單本來只回答「誰進得去」。可是擁有者想知道的是「他到底有沒有
+             在用」——一個從來沒動過的信箱跟一個每天在跑修改的人，在名單上
+             長得一模一樣。所以把用量掛上去。
+             查不到就整份省略，名單本身照樣要出得來。 */
+          const members = await control.listMembers(cust.id);
+          try {
+            const use = await meUsage.usageByActor(members.map((m) => m.email), { scaled: true });
+            for (const m of members) m.usage = use[String(m.email).toLowerCase()] || null;
+          } catch { /* 用量是附加資訊，讀不到就不掛 */ }
+          return json(res, 200, { members });
+        }
         if (req.method === "POST") {
           const body = await readBody(req);
           return json(res, 200, { members: await control.addMember(cust.id, body.email) });
@@ -1251,6 +1311,59 @@ function startGateway() {
         return res.end();
       }
       return json(res, 401, { error: "請先登入管理後台" });
+    }
+
+    // ── 額度與計價（管理端）───────────────────────────────
+    /* 這一段全部在 /api/admin/ 底下，上面那道守門已經擋過未登入的了。 */
+    if (p === "/api/admin/billing") {
+      try {
+        if (req.method === "GET") {
+          const [rate, history, people, requests] = await Promise.all([
+            billing.currentRate(), billing.rateHistory(20),
+            billing.listPeople(200), billing.listRequests("all", 100),
+          ]);
+          return json(res, 200, { rate, history, people, requests });
+        }
+        if (req.method === "POST") {
+          const b = await readBody(req);
+          const r = await billing.setRate({ ...b, actor: "後台" });
+          actions.record({ actor: "後台", action: "改計價設定",
+            target: `×${r.after.multiplier}／US$${r.after.usdPerMtok}／預設 US$${r.after.defaultQuotaUsd}`,
+            status: 200, visitor: who });
+          return json(res, 200, { rate: r.after, history: await billing.rateHistory(20) });
+        }
+      } catch (error) { return json(res, error.status || 503, { error: error.message || "暫時無法處理" }); }
+    }
+
+    if (p === "/api/admin/billing/quota" && req.method === "POST") {
+      try {
+        const b = await readBody(req);
+        const q2 = b.reset
+          ? await billing.clearQuota(b.email)
+          : await billing.setQuota(b.email, b.limit, { note: b.note, actor: "後台" });
+        actions.record({ actor: "後台", action: b.reset ? "把額度改回預設" : "設定個人額度",
+          target: `${b.email}${b.reset ? "" : " → US$" + Number(b.limit).toFixed(2)}`,
+          status: 200, visitor: who });
+        return json(res, 200, { quota: q2, people: await billing.listPeople(200) });
+      } catch (error) { return json(res, error.status || 503, { error: error.message || "暫時無法處理" }); }
+    }
+
+    if (p === "/api/admin/billing/decide" && req.method === "POST") {
+      try {
+        const b = await readBody(req);
+        const r = await billing.decideRequest(b.id, {
+          approve: !!b.approve, grantedUsd: b.granted, note: b.note, actor: "後台",
+        });
+        actions.record({ actor: "後台",
+          action: r.state === "approved" ? "核准額度申請" : "婉拒額度申請",
+          target: `${r.actor}${r.granted != null ? " → US$" + r.granted.toFixed(2) : ""}`,
+          status: 200, visitor: who });
+        return json(res, 200, {
+          result: r,
+          people: await billing.listPeople(200),
+          requests: await billing.listRequests("all", 100),
+        });
+      } catch (error) { return json(res, error.status || 503, { error: error.message || "暫時無法處理" }); }
     }
 
     // ── 許願申請 API（管理端）─────────────────────────────
