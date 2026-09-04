@@ -23,6 +23,7 @@ import * as head from "./lib/instance-head.mjs";
 import * as outline from "./lib/page-outline.mjs";
 import * as extract from "./lib/schema-extract.mjs";
 import * as chips from "./lib/instance-chips.mjs";
+import * as usage from "./lib/me-usage.mjs";
 import * as refs from "./lib/instance-refs.mjs";
 import * as files from "./lib/instance-files.mjs";
 import * as shots from "./lib/shots.mjs";
@@ -417,6 +418,18 @@ const server = http.createServer(async (req, res) => {
       const d = await chat.decide(schema, message, Array.isArray(b.history) ? b.history : [],
         Boolean(shotPath), pageText, refs.list(inst.dir).map((x) => x.name));
 
+      /* 每送一則訊息就跑一次分類模型，那也是成本。這一條的價格是 CLI 自己
+         算好的（total_cost_usd），所以連金額一起記——跟 codex 那條只有 token
+         沒有價格不一樣。 */
+      try {
+        if (d && d._usage) {
+          usage.record({ actor, kind: "chat", model: d._model, instance: inst.id,
+            repo: inst.repo_name, usage: d._usage, cost: d._cost ?? null });
+        }
+      } catch (e) {
+        console.error("[usage] 記帳失敗（不影響這次對話）", String(e.message).slice(0, 120));
+      }
+
       try {
         if (d.action === "add_column") {
           const r = await addColumnSynced(inst, dbName, d.table,
@@ -450,7 +463,7 @@ const server = http.createServer(async (req, res) => {
           if (running && running.state === "running") {
             return done({ reply: "上一個修改還在進行中，等它做完再說下一個。", action: "none", changed: false });
           }
-          startEdit(inst, message, shotPath, sessionId);
+          startEdit(inst, message, shotPath, sessionId, actor);
           /* 這一則只是「我要開始改了」，還沒有任何東西被改。標成 edit_page 的話，
              重新整理之後它會被當成「已完成」而畫成綠色——同一句話當下是白的、
              回頭看變綠的，看起來像事後被改過。 */
@@ -678,7 +691,9 @@ const STAGES = [
   { id: "grow", t: "把新表格的資料層補上" },
 ];
 
-function startEdit(inst, instruction, imagePath, sessionId) {
+/* actor 要一路傳進來：這支是背景工作，跑起來之後請求那一層的區域變數
+   （包含 actor）都已經不在範圍內了。記帳沒有 actor 就記不成帳。 */
+function startEdit(inst, instruction, imagePath, sessionId, actor) {
   const startedAt = Date.now();
   const job = {
     state: "running", startedAt, instruction,
@@ -724,6 +739,20 @@ function startEdit(inst, instruction, imagePath, sessionId) {
 
          建表失敗不可以讓整次修改失敗：畫面已經改好也記了版本，
          這一項沒做成就照實說。 */
+      /* 記帳。成功或失敗都要記——失敗的那幾趟一樣花了 token，而接下來的
+         額度制度是照這份帳扣的。記在這裡而不是 instance-edit 裡，是因為
+         「這是誰做的、動的是哪一套」只有這一層知道。 */
+      /* 記帳包在 try 裡。這一行第一次寫出來時漏了把 actor 傳進背景工作，
+         結果是 plan／edit／check 三個階段都做完了、頁面也改好了，卻因為
+         「actor is not defined」整次修改被標成失敗——記帳把它記壞的東西
+         比它記下來的還多。帳可以少一筆，使用者的修改不能白做。 */
+      try {
+        if (r.usage) {
+          usage.record({ actor, kind: "edit", instance: inst.id, repo: inst.repo_name, usage: r.usage });
+        }
+      } catch (e) {
+        console.error("[usage] 記帳失敗（不影響這次修改）", String(e.message).slice(0, 120));
+      }
       let grown = "";
       if (r.ok) {
         setStage("grow", "doing");

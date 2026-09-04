@@ -17,7 +17,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ROOT } from "./forge-common.mjs";
-import { runCodex, runCodexWithRetry } from "./codex-run.mjs";
+import { runCodex, runCodexWithRetry, sumUsage } from "./codex-run.mjs";
 import * as outline from "./page-outline.mjs";
 import * as refs from "./instance-refs.mjs";
 import { applyEdits } from "./instance-patch.mjs";
@@ -287,14 +287,20 @@ ${markupFor(before)}
     onEvent: makeOnEvent(onProgress),
   });
   const j = r.json;
-  if (!j || !Array.isArray(j.steps) || !j.steps.length) return null;
+  /* 用量要獨立帶回來：計畫這一步就算沒產出可用的計畫也花了 token，
+     只在成功時記帳的話，失敗的那幾次會變成沒有人付的成本。 */
+  const usage = r.usage;
+  if (!j || !Array.isArray(j.steps) || !j.steps.length) return { plan: null, usage };
   return {
+    plan: {
     understanding: String(j.understanding || "").slice(0, 60),
     steps: j.steps.slice(0, 8).map((x) => ({
       title: String(x.title || "").slice(0, 28),
       why: String(x.why || "").slice(0, 40),
     })).filter((x) => x.title),
     risks: (Array.isArray(j.risks) ? j.risks : []).slice(0, 2).map((x) => String(x).slice(0, 50)),
+    },
+    usage,
   };
 }
 
@@ -378,12 +384,13 @@ async function tryPatch(before, instruction, { dir, timeoutMs, model, imagePath,
     jsonEvents: true,
     onEvent: makeOnEvent(onProgress),
   }, { retries: 0 });
-  if (!r.ok) return { ok: false, why: String(r.error || "").slice(0, 80) || "沒有回應" };
-  if (!r.json || !Array.isArray(r.json.edits)) return { ok: false, why: "回的格式不對" };
+  const usage = r.usage;
+  if (!r.ok) return { ok: false, usage, why: String(r.error || "").slice(0, 80) || "沒有回應" };
+  if (!r.json || !Array.isArray(r.json.edits)) return { ok: false, usage, why: "回的格式不對" };
 
   const applied = applyEdits(before, r.json.edits);
-  if (!applied.ok) return { ok: false, why: applied.why };
-  return { ok: true, text: applied.text, applied: applied.applied, note: r.json.note || "",
+  if (!applied.ok) return { ok: false, usage, why: applied.why };
+  return { ok: true, usage, text: applied.text, applied: applied.applied, note: r.json.note || "",
     stepsDone: Array.isArray(r.json.steps_done) ? r.json.steps_done : null,
     stepsSkipped: Array.isArray(r.json.steps_skipped) ? r.json.steps_skipped : [] };
 }
@@ -404,11 +411,11 @@ async function tryRewrite(before, instruction, { dir, timeoutMs, model, imagePat
     /* 原本一律回「逾時」，但實際上失敗六秒就結束了——那句話把我自己也騙了一輪。
        把真正的原因帶出來，才查得到是什麼壞了。 */
     const detail = String(r.error || "").slice(0, 80);
-    return { ok: false, why: detail ? `改不成：${detail}` : "改的時候逾時了，請再說一次或把要求拆小一點" };
+    return { ok: false, usage: r.usage, why: detail ? `改不成：${detail}` : "改的時候逾時了，請再說一次或把要求拆小一點" };
   }
   const after = extractHtml(r.text);
-  if (!after) return { ok: false, why: "沒有產出完整的頁面" };
-  return { ok: true, text: after };
+  if (!after) return { ok: false, usage: r.usage, why: "沒有產出完整的頁面" };
+  return { ok: true, usage: r.usage, text: after };
 }
 
 /**
@@ -435,8 +442,15 @@ export async function editPage(dir, instruction,
      少了這一步，客戶改一次就再也回不到最初——而那是他最想回去的地方。 */
   versions.ensureBaseline(dir, displayName ?? null);
 
+  /* 這一次修改總共花掉多少 token。一次修改可能跑三趟 codex（盤點、取代、
+     整份重寫），每一趟都要算進去——包括失敗的那幾趟，它們一樣花了錢。
+     這是額度制度唯一的資料來源，漏記就再也補不回來。 */
+  let usage = null;
+
   stage("plan", "doing");
-  const plan = await makePlan(before, instruction, { dir, model, imagePath, onProgress });
+  const planned = await makePlan(before, instruction, { dir, model, imagePath, onProgress });
+  usage = sumUsage(usage, planned && planned.usage);
+  const plan = planned && planned.plan;
   if (plan) { emit({ k: "plan", ...plan }); stage("plan", "ok"); }
   /* 想不出計畫就照舊直接改。以前本來就沒有這一步，少了它只是少一份說明。 */
   else stage("plan", "skip", "這次沒能先盤點，直接改");
@@ -449,6 +463,7 @@ export async function editPage(dir, instruction,
   let result = how === "rewrite"
     ? await tryRewrite(before, instruction, opts)
     : await tryPatch(before, instruction, opts);
+  usage = sumUsage(usage, result.usage);
 
   if (!result.ok && how === "patch" && use !== "patch") {
     /* 套不進去就整份重寫。取代區塊失敗的原因多半是它把原文記錯了一兩個字，
@@ -456,14 +471,16 @@ export async function editPage(dir, instruction,
        而收到一句「這次不能改」。 */
     how = "rewrite";
     result = await tryRewrite(before, instruction, opts);
+    usage = sumUsage(usage, result.usage);
   }
-  if (!result.ok) { stage("edit", "fail", result.why); return { ok: false, why: result.why, how, plan }; }
+  /* 失敗也要把用量回上去——那幾趟一樣扣得到額度。 */
+  if (!result.ok) { stage("edit", "fail", result.why); return { ok: false, why: result.why, how, plan, usage }; }
   note = result.note || "";
 
   const after = result.text;
   if (after === before) {
     stage("edit", "fail", "看起來沒有需要改的地方");
-    return { ok: false, why: "看起來沒有需要改的地方", how, plan };
+    return { ok: false, why: "看起來沒有需要改的地方", how, plan, usage };
   }
   /* 逐步回報。取代區塊那條路會回「做完哪幾步」，整份重寫那條沒有 schema，
      所以拿不到——那時候誠實標成「不確定」，不要一律當成做完了。
@@ -495,7 +512,7 @@ export async function editPage(dir, instruction,
   const revert = (why) => {
     fs.writeFileSync(file, before);
     stage("check", "fail", why);
-    return { ok: false, why, how, plan, checks };
+    return { ok: false, why, how, plan, checks, usage };
   };
   const check = (id, t, pass, why) => {
     checks.push({ id, t, s: pass ? "ok" : "fail" });
@@ -539,7 +556,7 @@ export async function editPage(dir, instruction,
   /* before／after 交出去給呼叫端比對新增了哪些表格，好把資料層補上。
      這一支刻意只碰檔案不碰資料庫——建表要連資料庫，混進來的話這裡就再也
      不能單獨測試了。 */
-  return { ok: true, bytes: Buffer.byteLength(after), versionId, how,
+  return { ok: true, usage, bytes: Buffer.byteLength(after), versionId, how,
     applied: result.applied || null, before, after, plan, checks,
     highlights: newTexts(before, after) };
 }

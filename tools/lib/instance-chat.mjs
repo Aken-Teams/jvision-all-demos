@@ -101,6 +101,32 @@ ${hasImage ? `
 {"action":"add_column|rename_column|rename_system|edit_page|undo|none","table":"","key":"","label":"","type":"","reply":""}`;
 }
 
+/**
+ * 把 claude CLI 的回應包裝拆成 { data, usage, cost, model }。
+ *
+ * `-p --output-format json` 的外層本來就帶著 usage 與 total_cost_usd——
+ * 這一段以前整個被丟掉，只取 result。結果是「每送一則訊息就跑一次模型」
+ * 這件事在帳上完全看不到，而接下來要做的額度制度是照帳扣的。
+ *
+ * 這一條的成本是真的（CLI 自己算好的），跟 codex 那條只有 token 沒有價格
+ * 不一樣，所以照實帶上去。
+ */
+function unwrap(wrap) {
+  const u = (wrap && wrap.usage) || {};
+  const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  return {
+    usage: {
+      in: n(u.input_tokens),
+      out: n(u.output_tokens),
+      cacheWrite: n(u.cache_creation_input_tokens),
+      cacheRead: n(u.cache_read_input_tokens),
+      turns: n(wrap && wrap.num_turns) || 1,
+    },
+    cost: Number.isFinite(Number(wrap && wrap.total_cost_usd)) ? Number(wrap.total_cost_usd) : null,
+    model: (wrap && wrap.modelUsage && Object.keys(wrap.modelUsage)[0]) || null,
+  };
+}
+
 function runClaude(text) {
   return new Promise((resolve) => {
     const args = ["-p", "--output-format", "json", "--permission-mode", "dontAsk",
@@ -109,19 +135,22 @@ function runClaude(text) {
     let out = "";
     let settled = false;
     const done = (v) => { if (!settled) { settled = true; resolve(v); } };
-    const timer = setTimeout(() => { child.kill("SIGKILL"); done(null); }, TIMEOUT_MS);
+    const timer = setTimeout(() => { child.kill("SIGKILL"); done({ data: null, usage: null, cost: null, model: null }); }, TIMEOUT_MS);
 
     child.stdout.on("data", (d) => { out += d; });
-    child.on("error", () => { clearTimeout(timer); done(null); });
+    child.on("error", () => { clearTimeout(timer); done({ data: null, usage: null, cost: null, model: null }); });
     child.on("close", () => {
       clearTimeout(timer);
       try {
         const wrap = JSON.parse(out);
+        const meta = unwrap(wrap);
         const body = String(wrap.result || "");
         /* 模型有時會把 JSON 包在說明或圍籬裡，只取第一個大括號到最後一個。 */
         const a = body.indexOf("{"), b = body.lastIndexOf("}");
-        done(a >= 0 && b > a ? JSON.parse(body.slice(a, b + 1)) : null);
-      } catch { done(null); }
+        const data = a >= 0 && b > a ? JSON.parse(body.slice(a, b + 1)) : null;
+        /* 就算解不出 JSON，用量也要帶回去——那一次呼叫一樣花了錢。 */
+        done({ data, ...meta });
+      } catch { done({ data: null, usage: null, cost: null, model: null }); }
     });
     child.stdin.write(text);
     child.stdin.end();
@@ -137,43 +166,50 @@ function runClaude(text) {
  * 於是所有跟版面、RWD、其他畫面有關的考量都不可能發生。
  */
 export async function decide(schema, message, history, hasImage, page, refsNames) {
-  const raw = await runClaude(prompt(schema, message, history, hasImage, page, refsNames));
+  const r = await runClaude(prompt(schema, message, history, hasImage, page, refsNames));
+  const raw = r && r.data;
+  /* 用量掛在回傳值上帶給呼叫端記帳。放在 _usage 這個名字底下，是為了不跟
+     模型自己吐的欄位（action／table／reply…）撞名。 */
+  const meta = { _usage: (r && r.usage) || null, _cost: (r && r.cost) ?? null, _model: (r && r.model) || null };
   const fallback = { action: "none", reply: "我先把這個需求記下來，交給我們的人處理。" };
-  if (!raw || !ACTIONS.has(raw.action)) return fallback;
+  /* 每一條出口都要帶上用量。這個函式有十幾個 return，靠人記得逐一補是遲早
+     會漏的——漏掉的那一條就是某個人白用的額度。統一包一層。 */
+  const out = (o) => ({ ...o, ...meta });
+  if (!raw || !ACTIONS.has(raw.action)) return out(fallback);
 
   /* 上限 300 是給「一到兩句」的年代訂的。現在回覆會用 Markdown 排版，
      一張三欄的表就超過了——實測列九張資料表時被切在半路，最後一列只剩一個
      直槓，畫面上會渲染成一個殘缺的表格。 */
   const reply = String(raw.reply || "").slice(0, 1600) || fallback.reply;
-  if (raw.action === "none") return { action: "none", reply };
+  if (raw.action === "none") return out({ action: "none", reply });
 
-  if (raw.action === "edit_page") return { action: "edit_page", reply };
-  if (raw.action === "undo") return { action: "undo", reply };
+  if (raw.action === "edit_page") return out({ action: "edit_page", reply });
+  if (raw.action === "undo") return out({ action: "undo", reply });
 
   if (raw.action === "rename_system") {
     const label = String(raw.label || "").trim().slice(0, 60);
-    if (!label) return { action: "none", reply: "新的名稱要叫什麼？" };
-    return { action: "rename_system", label, reply };
+    if (!label) return out({ action: "none", reply: "新的名稱要叫什麼？" });
+    return out({ action: "rename_system", label, reply });
   }
 
   const table = schema.tables.find((t) => t.name === raw.table) || schema.tables[0];
-  if (!table) return fallback;
+  if (!table) return out(fallback);
 
   if (raw.action === "rename_column") {
     /* key 必須真的存在。模型偶爾會自己編一個看起來合理的 key，
        照做的話會改到不存在的欄位而回一句「已改好」，是最糟的失敗。 */
     const hit = table.columns.find((c) => c.key === raw.key);
     const label = String(raw.label || "").trim().slice(0, 60);
-    if (!hit || !label) return { action: "none", reply: "我不確定你指的是哪一個欄位，可以說得再具體一點嗎？" };
-    return { action: "rename_column", table: table.name, key: hit.key, label, reply };
+    if (!hit || !label) return out({ action: "none", reply: "我不確定你指的是哪一個欄位，可以說得再具體一點嗎？" });
+    return out({ action: "rename_column", table: table.name, key: hit.key, label, reply });
   }
 
   const key = String(raw.key || "").trim().toLowerCase();
   const label = String(raw.label || "").trim().slice(0, 60);
-  if (!KEY_RE.test(key) || !label) return fallback;
+  if (!KEY_RE.test(key) || !label) return out(fallback);
   if (table.columns.some((c) => c.key === key)) {
-    return { action: "none", reply: `「${label}」看起來已經有了，要改它的名字還是加別的欄位？` };
+    return out({ action: "none", reply: `「${label}」看起來已經有了，要改它的名字還是加別的欄位？` });
   }
-  return { action: "add_column", table: table.name, key, label,
-    type: TYPES.has(raw.type) ? raw.type : "text", reply };
+  return out({ action: "add_column", table: table.name, key, label,
+    type: TYPES.has(raw.type) ? raw.type : "text", reply });
 }

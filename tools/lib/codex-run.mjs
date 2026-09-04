@@ -113,6 +113,8 @@ export function runCodex({
     const child = spawn("codex", args, { stdio: ["ignore", "pipe", "pipe"] });
     let stderr = "";
     let settled = false;
+    /* 這次呼叫用掉多少 token。一次 exec 可能有多個 turn，逐一累加。 */
+    const used = { in: 0, out: 0, cacheWrite: 0, cacheRead: 0, reasoning: 0, turns: 0 };
 
     const finish = (result) => {
       if (settled) return;
@@ -121,7 +123,7 @@ export function runCodex({
       let text = "";
       try { text = fs.readFileSync(outFile, "utf8"); } catch { /* 沒產出就留空 */ }
       try { fs.unlinkSync(outFile); } catch { /* 清不掉不影響結果 */ }
-      resolve({ ...result, text, json: safeJson(text) });
+      resolve({ ...result, text, json: safeJson(text), usage: { ...used } });
     };
 
     const timer = setTimeout(() => {
@@ -139,7 +141,9 @@ export function runCodex({
     child.stdout.on("data", (chunk) => {
       const text = String(chunk);
       if (onLog) onLog(text);
-      if (!jsonEvents || !onEvent) return;
+      /* 不再綁 onEvent：就算呼叫端不想逐一收事件，我們自己也要把 usage 撈出來。
+         那是計費與額度的唯一來源，漏掉就再也補不回來。 */
+      if (!jsonEvents) return;
       pending += text;
       const lines = pending.split("\n");
       pending = lines.pop() || "";
@@ -148,7 +152,8 @@ export function runCodex({
         if (!t.startsWith("{")) continue;
         let ev = null;
         try { ev = JSON.parse(t); } catch { continue; }   // 解不開就跳過，不值得為它中斷
-        try { onEvent(ev); } catch { /* 回呼失敗不該影響這次執行 */ }
+        addUsage(used, ev);
+        if (onEvent) { try { onEvent(ev); } catch { /* 回呼失敗不該影響這次執行 */ } }
       }
     });
     child.stderr.on("data", (chunk) => { stderr += String(chunk); });
@@ -161,15 +166,53 @@ export function runCodex({
 }
 
 /** 跑一次，失敗再試一次（第二次前短暫等待）。 */
+/**
+ * 把 turn.completed 事件裡的 token 數累加起來。
+ *
+ * codex 0.150 的事件長這樣：
+ *   {"type":"turn.completed","usage":{"input_tokens":14488,"cached_input_tokens":11264,
+ *     "cache_write_input_tokens":0,"output_tokens":5,"reasoning_output_tokens":0}}
+ *
+ * 欄位名字對齊我們既有的帳目（var/token-usage.jsonl 用 in/out/cacheWrite/cacheRead），
+ * 才不會有兩套語彙。cached_input_tokens 是「這次讀到的快取」，跟新輸入分開記——
+ * 它便宜一個量級，混進去算會讓數字跟帳單對不起來。
+ *
+ * 事件形狀萬一改了就當作沒有：少記一次總比記成錯的數字好，而錯的數字會直接
+ * 變成別人的額度。
+ */
+function addUsage(acc, ev) {
+  if (!ev || ev.type !== "turn.completed" || !ev.usage) return;
+  const u = ev.usage;
+  const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  acc.in += n(u.input_tokens);
+  acc.out += n(u.output_tokens);
+  acc.cacheWrite += n(u.cache_write_input_tokens);
+  acc.cacheRead += n(u.cached_input_tokens);
+  acc.reasoning += n(u.reasoning_output_tokens);
+  acc.turns += 1;
+}
+
+/** 兩次呼叫的用量相加。重試時每一次都花了錢，不能只算最後那一次。 */
+export function sumUsage(a, b) {
+  const x = a || {}; const y = b || {};
+  const k = ["in", "out", "cacheWrite", "cacheRead", "reasoning", "turns"];
+  const out = {};
+  for (const key of k) out[key] = (Number(x[key]) || 0) + (Number(y[key]) || 0);
+  return out;
+}
+
 export async function runCodexWithRetry(options, { retries = 1, retryDelayMs = 3000 } = {}) {
   let last = null;
+  /* 重試的每一次都真的花了 token，只回最後一次的用量會漏記。 */
+  let total = null;
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     last = await runCodex(options);
-    if (last.ok) return { ...last, attempts: attempt + 1 };
+    total = sumUsage(total, last.usage);
+    if (last.ok) return { ...last, usage: total, attempts: attempt + 1 };
     if (attempt < retries) {
       if (options.onLog) options.onLog(`\n  重試中（第 ${attempt + 2} 次）…\n`);
       await new Promise((r) => setTimeout(r, retryDelayMs));
     }
   }
-  return { ...last, attempts: retries + 1 };
+  return { ...last, usage: total, attempts: retries + 1 };
 }
