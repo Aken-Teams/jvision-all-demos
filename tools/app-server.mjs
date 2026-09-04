@@ -102,6 +102,16 @@ const server = http.createServer(async (req, res) => {
     if (p === "/_health") return json(res, 200, { ok: true, instances: cache.size });
     if (!instanceId) return json(res, 400, { error: "缺少實例識別" });
 
+    /* 讓閘道通知「這個實例的狀態變了，別再用快取」。
+       必須擺在下面那幾個狀態檢查**之前**：取消封存時快取裡還是 archived，
+       晚一步就會被 410 擋掉，於是永遠清不掉——實測封存再取消封存之後，
+       入口會固執地回 410 長達 30 秒，看起來像取消封存沒有生效。
+       只綁 127.0.0.1，跟這支服務其他端點同一條防線。 */
+    if (p === "/_jv/forget") {
+      cache.delete(instanceId);
+      return json(res, 200, { ok: true });
+    }
+
     const inst = await resolveInstance(instanceId);
     if (!inst) return json(res, 404, { error: "找不到這個系統" });
     if (inst.state === "archived") return json(res, 410, { error: "這個系統已封存" });

@@ -531,6 +531,9 @@ export async function createInstance({ customerId, orderId, repoName, host, dir 
  * 某個人進得去的系統。兩種來源：他自己買的（customers.owner_email），
  * 以及客戶把他加進使用名單的（members）。封存的不列——那已經沒得用了。
  */
+/* 封存的也要回。以前這裡排除 state='archived'，於是封存等於系統從畫面上
+   消失——而畫面上沒有任何地方能把它叫回來，等於封存是不可逆的。那就失去了
+   「封存是刪除之前的緩衝」這個意義。改成一起回、排在最後，讓前端另外分組。 */
 export async function listInstancesFor(email) {
   await ensureSchema();
   return q(`SELECT i.id, i.repo_name, i.host, i.state, i.created_at, i.display_name,
@@ -538,8 +541,8 @@ export async function listInstancesFor(email) {
      FROM instances i
      LEFT JOIN customers c ON c.id = i.customer_id
      LEFT JOIN members  m ON m.customer_id = i.customer_id AND m.email = ?
-     WHERE i.state <> 'archived' AND (c.owner_email = ? OR m.email IS NOT NULL)
-     ORDER BY i.created_at DESC LIMIT 50`, [email, email, email]);
+     WHERE (c.owner_email = ? OR m.email IS NOT NULL)
+     ORDER BY i.state = 'archived', i.created_at DESC LIMIT 50`, [email, email, email]);
 }
 
 /**

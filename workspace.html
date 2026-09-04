@@ -15,6 +15,9 @@
   <dialog id="askBox" class="askbox">
     <h3 id="askTitle"></h3>
     <p id="askBody"></p>
+    <!-- 不可逆的動作要他把名字打一次。純粹按「確定」太容易在別的視窗上按錯，
+         而這裡按錯的代價是刪掉另一套系統。 -->
+    <input id="askInput" hidden class="border border-line rounded-lg px-3 py-2 text-sm w-full" autocomplete="off" />
     <div class="askacts">
       <button id="askNo" type="button" class="btn btn-ghost">取消</button>
       <button id="askYes" type="button" class="btn btn-primary">確定</button>
@@ -249,6 +252,24 @@
     #brPickMenu .n { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
     #brPickMenu .new { color:#1e40af; font-weight:800; }
     #brPickMenu .sep { height:1px; margin:.2rem .25rem; background:#eef2f7; }
+    /* 危險區。跟上面那幾張卡刻意長得不一樣——同樣的白卡片配同樣的按鈕，
+       「刪除」看起來就跟「交付」一樣安全。 */
+    /* 已封存那一組的小標與樣式。淡下去是為了讓人一眼看出「這些不在跑」，
+       但仍然點得進去——要取消封存就得先進得去。 */
+    .archhd { padding:.6rem .5rem .25rem; font-size:.68rem; font-weight:800; color:#94a3b8; }
+    .archhd + .grp .sys, .archhd ~ .grp .sys { opacity:.62; }
+    .danger { margin-top:1.5rem; border:1px solid #fecaca; background:#fffbfb;
+              border-radius:.75rem; padding:1rem; max-width:60rem; }
+    .danger .acts { justify-content:flex-end; }
+    #dangerMsg .raw { font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+                      white-space:pre-wrap; word-break:break-all; font-size:.7rem; }
+    /* 刪除清單。每一項一行，外部的那幾項標紅——那些是「別人也會察覺」的東西。 */
+    .dellist { margin:.5rem 0; border:1px solid #e2e8f0; border-radius:.5rem; overflow:hidden; }
+    .dellist .grp { padding:.3rem .6rem; background:#f8fafc; font-size:.7rem; font-weight:800; color:#64748b; }
+    .dellist .it { display:flex; gap:.5rem; padding:.35rem .6rem; border-top:1px solid #f1f5f9; font-size:.75rem; }
+    .dellist .it b { flex:none; color:#0f1e46; }
+    .dellist .it span { min-width:0; color:#64748b; word-break:break-all; }
+    .dellist .it.warn b { color:#b91c1c; }
     .lane { display:inline-flex; align-items:baseline; gap:.3rem; margin-right:1rem; }
     .lane code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.72rem;
                  background:#f1f5f9; border:1px solid #e2e8f0; border-radius:.3rem; padding:0 .3rem; color:#334155; }
@@ -1044,6 +1065,21 @@
             </div>
           </div>
         </div>
+        </div>
+
+        <!-- 危險區。跟上面三張卡分開、放最後、外框用紅色：這裡兩顆按鈕的
+             後果跟上面完全不同層級，長得一樣就會有人順手按下去。 -->
+        <div class="danger">
+          <h3 class="text-sm font-black" style="color:#b91c1c">收起來或刪掉</h3>
+          <div id="dangerState" class="text-xs text-muted mt-1 mb-3">封存＝從清單收起來、網址下線，但資料還在，隨時可以放回來。刪除是永久的。</div>
+          <div class="flex gap-2 acts">
+            <!-- 刻意不用 data-act：那組是通用的交付動作處理器，訊息會寫到頁尾
+                 那一行去，而封存的結果該出現在這一區裡。 -->
+            <button type="button" class="btn btn-ghost" id="btnArchive" data-mode="archive"><span class="material-symbols-outlined text-[18px]">inventory_2</span><span class="lbl">封存</span></button>
+            <button type="button" class="btn btn-danger" id="btnDestroy"><span class="material-symbols-outlined text-[18px]">delete_forever</span>刪除</button>
+          </div>
+          <div id="dangerMsg" class="text-xs mt-2" hidden></div>
+        </div>
           <p id="depMsg" class="text-sm font-bold mt-4"></p>
 
         </div>
@@ -1101,29 +1137,59 @@
   /* 問一句話，回一個 Promise<boolean>。
      取代原生的 confirm——那個會在標題列印上網域名稱、按鈕跟著作業系統走，
      看起來像網頁出了問題而不是系統在問話。 */
+  /**
+   * 確認視窗。
+   *
+   * opt.body 是純文字、opt.bodyHtml 是已經組好的 HTML（刪除清單要用它，
+   * 那份清單有結構）。**bodyHtml 的每一段都必須自己 esc 過**——這裡不會再幫它
+   * 轉義，而清單裡有系統名稱、資料庫名、repo 名這些從後端來的字串。
+   *
+   * opt.input 有值的話會多一個輸入框，而且要打對才給按確定，回傳打進去的字；
+   * 沒有的話行為跟以前一樣回 true／false。
+   */
   function askConfirm(opt) {
     var d = $("askBox");
+    var box = $("askBody");
+    var inp = $("askInput");
     $("askTitle").textContent = opt.title || "";
-    $("askBody").textContent = opt.body || "";
+    if (opt.bodyHtml) box.innerHTML = opt.bodyHtml;
+    else box.textContent = opt.body || "";
     $("askYes").textContent = opt.ok || "確定";
     $("askNo").textContent = opt.cancel || "取消";
     $("askNo").hidden = opt.onlyOk === true;
     d.classList.toggle("warn", Boolean(opt.warn));
+
+    var need = opt.input || null;
+    inp.hidden = !need;
+    inp.value = "";
+    inp.placeholder = need || "";
+    /* 沒打對就按不下去。比「按了才說你打錯」少一次來回，也讓「還要打字」
+       這件事在按鈕上就看得出來。 */
+    var sync = function () { $("askYes").disabled = need ? inp.value.trim() !== need : false; };
+    sync();
+
     return new Promise(function (done) {
       var end = function (v) {
         $("askYes").onclick = null;
         $("askNo").onclick = null;
+        inp.oninput = null;
+        inp.onkeydown = null;
         d.onclose = null;
+        $("askYes").disabled = false;
         /* 已經關掉的話再 close 一次會丟例外。 */
         if (d.open) d.close();
         done(v);
       };
-      $("askYes").onclick = function () { end(true); };
+      inp.oninput = sync;
+      inp.onkeydown = function (e) {
+        if (e.key === "Enter" && !$("askYes").disabled) { e.preventDefault(); end(inp.value.trim()); }
+      };
+      $("askYes").onclick = function () { end(need ? inp.value.trim() : true); };
       $("askNo").onclick = function () { end(false); };
       /* Esc 會觸發 close，當成取消。 */
       d.onclose = function () { end(false); };
       d.showModal();
-      (opt.onlyOk ? $("askYes") : $("askNo")).focus();
+      (need ? inp : (opt.onlyOk ? $("askYes") : $("askNo"))).focus();
     });
   }
   /* 點外框關掉。<dialog> 的點擊目標在 backdrop 上時就是 dialog 自己，
@@ -1162,12 +1228,20 @@
   }
 
   /* ── ① 我的系統 ───────────────────────────────────── */
-  var STATE_TEXT = { live: "運作中", building: "建置中", suspended: "已暫停", failed: "建置失敗" };
+  var STATE_TEXT = { live: "運作中", building: "建置中", suspended: "已暫停", failed: "建置失敗", archived: "已封存" };
   /* 側欄那顆點的顏色。狀態名還在（滑上去有 title、總覽卡片上也照樣是文字），
      這裡只是不用一整行字去講一件每列都一樣的事。 */
-  var DOT = { live: "", building: "building", suspended: "off", failed: "bad" };
+  var DOT = { live: "", building: "building", suspended: "off", failed: "bad", archived: "off" };
 
-  function loadSystems() {
+  /**
+   * 左欄那份清單。
+   *
+   * keepView：只重畫清單，不碰目前在看的東西。封存／取消封存之後要用它——
+   * 那時候使用者正站在「交付」那一頁上，重跑一次進入流程會把他彈回預覽分頁，
+   * 剛按完的那顆按鈕就從畫面上消失了，看起來像當掉。
+   */
+  function loadSystems(opt) {
+    var keepView = Boolean(opt && opt.keepView);
     fetch("/api/me/systems", { cache: "no-store" })
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -1180,7 +1254,11 @@
           showOverview();
           return;
         }
-        systems.forEach(function (s) {
+        /* 封存的另外分一組放最後。混在一起的話，使用者會以為那套還在跑；
+           完全不列的話，就沒有地方能取消封存——封存就變成不可逆的了。 */
+        var live = systems.filter(function (s) { return s.state !== "archived"; });
+        var arch = systems.filter(function (s) { return s.state === "archived"; });
+        var render = function (s) {
           var b = document.createElement("button");
           b.type = "button";
           b.className = "sys";
@@ -1199,11 +1277,20 @@
           var kids = document.createElement("div");
           kids.dataset.kids = s.id;
           grp.appendChild(kids);
-        });
+        };
+        live.forEach(render);
+        if (arch.length) {
+          var hd = document.createElement("div");
+          hd.className = "archhd";
+          hd.textContent = "已封存（" + arch.length + "）";
+          box.appendChild(hd);
+          arch.forEach(render);
+        }
         /* 帶了 ?i= 就直接進編輯器——「模板複製」成功後就是這樣跳過來的，
            不該多一次點擊。沒帶就先看總覽。
            以前沒帶參數會自動開第一套，理由是「進來就看到東西，比看到空畫面好」；
            但那等於跳過了「我做了哪些」這一步，而總覽本來就看得到東西。 */
+        if (keepView) return;
         var want = new URLSearchParams(location.search).get("i");
         if (systems.some(function (s) { return s.id === want; })) {
           /* 直接帶著 ?i= 進來的路徑（帳號頁的「修改」、模板複製完的跳轉、書籤）
@@ -3264,6 +3351,7 @@
       paintUrl(fallback, false);
       paintShareGate({ canPublish: false });
       paintRepo(st);
+      paintDanger({ canPublish: false });
       return;
     }
 
@@ -3284,10 +3372,139 @@
 
     paintShareGate(st);
     paintRepo(st);
+    paintDanger(st);
   }
 
   /* 交付狀態。開 PR 是「把改動提給既有的 repo」，repo 還不存在的時候那顆按鈕
      沒有意義——所以沒交付過就不給按，並且說出為什麼，不要只是變灰。 */
+  /* ── 封存與刪除 ─────────────────────────────────────
+     刪除是這一頁唯一不可逆的動作，所以流程刻意比別的長：先問後端「現在實際
+     占用了什麼」，把那份清單原樣攤在確認視窗上，再要他打一次系統名稱。
+     清單不是寫死的文案而是查出來的——沒佈署過的系統就不該看到「會刪掉網址」，
+     那種假警告會讓人以後也不看。 */
+  function sayDanger(t, kind) {
+    var box = $("dangerMsg");
+    if (!box) return;
+    if (!t) { box.hidden = true; box.innerHTML = ""; return; }
+    box.hidden = false;
+    box.style.color = kind === "bad" ? "#b91c1c" : kind === "ok" ? "#15803d" : "#64748b";
+    box.innerHTML = t;
+  }
+
+  function delListHtml(plan) {
+    var h = '<div class="dellist">';
+    if (plan.local.length) {
+      h += '<div class="grp">我們這邊會刪掉</div>';
+      plan.local.forEach(function (x) {
+        h += '<div class="it"><b>' + esc(x.label) + "</b><span>" + esc(x.detail) + "</span></div>";
+      });
+    }
+    if (plan.external.length) {
+      /* 外部的分開列，而且標紅——它們是別人也會察覺的：網址不見了、
+         GitHub 上的 repo 消失了。使用者要在按下去之前看到這一段。 */
+      h += '<div class="grp" style="color:#b91c1c">外部服務上會刪掉</div>';
+      plan.external.forEach(function (x) {
+        h += '<div class="it warn"><b>' + esc(x.label) + "</b><span>" + esc(x.detail) + "</span></div>";
+      });
+    }
+    if (plan.unknown.length) {
+      h += '<div class="grp" style="color:#b45309">現在問不到狀態</div>';
+      plan.unknown.forEach(function (x) {
+        h += '<div class="it"><b>' + esc(x.label) + "</b><span>" + esc(x.detail) + "</span></div>";
+      });
+    }
+    return h + "</div>";
+  }
+
+  function paintDanger(st) {
+    var arc = $("btnArchive");
+    var del = $("btnDestroy");
+    var note = $("dangerState");
+    if (!arc || !del || !note) return;
+    var owner = Boolean(st && st.canPublish);
+    arc.disabled = !owner; del.disabled = !owner;
+    var archived = cur && cur.state === "archived";
+    arc.querySelector(".lbl").textContent = archived ? "取消封存" : "封存";
+    arc.dataset.mode = archived ? "unarchive" : "archive";
+    note.innerHTML = archived
+      ? "這套系統目前是<b>封存</b>狀態：不在清單上、網址也已下線，但資料都還在。"
+      : "封存＝從清單收起來、網址下線，但資料還在，隨時可以放回來。刪除是永久的。"
+        + (owner ? "" : '<div class="mt-1">只有擁有者可以做這兩件事。</div>');
+  }
+
+  function doArchive(act) {
+    var arc = $("btnArchive");
+    arc.disabled = true;
+    sayDanger(act === "archive" ? "封存中…" : "取消封存中…");
+    fetch("/api/me/instances/" + encodeURIComponent(cur.id) + "/" + act, { method: "POST" })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (x) {
+        arc.disabled = false;
+        if (!x.ok) { sayDanger(esc(x.d.error || "沒有成功"), "bad"); return; }
+        sayDanger(act === "archive" ? "已封存。網址已經下線，資料都留著。" : "已取消封存。", "ok");
+        /* cur 是選系統時抓下來的那個物件，重讀清單不會更新它——不改這一行的話
+           按鈕會停在「封存」、說明也還是舊的，看起來像沒生效。 */
+        if (cur) cur.state = act === "archive" ? "archived" : "live";
+        /* 狀態變了，清單與佈署卡都要跟著重讀——但不要動使用者目前在看的頁。 */
+        loadSystems({ keepView: true });
+        loadPub();
+      })
+      .catch(function () { arc.disabled = false; sayDanger("連不上伺服器", "bad"); });
+  }
+
+  function doDestroy() {
+    sayDanger("正在確認這套系統占用了什麼…");
+    fetch("/api/me/instances/" + encodeURIComponent(cur.id) + "/delete-plan")
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (x) {
+        if (!x.ok) { sayDanger(esc(x.d.error || "查不到"), "bad"); return; }
+        sayDanger("");
+        var plan = x.d;
+        return askConfirm({
+          title: "刪除「" + plan.name + "」？",
+          bodyHtml: "<p>這會永久刪掉下面這些東西，<b>沒有辦法還原</b>。</p>"
+            + delListHtml(plan)
+            + '<p class="mt-2">確定的話，請輸入系統名稱 <b>' + esc(plan.name) + "</b>：</p>",
+          input: plan.name,
+          ok: "永久刪除", warn: true,
+        }).then(function (typed) {
+          if (typed === false || typed === null) return;
+          run(typed);
+        });
+      })
+      .catch(function () { sayDanger("連不上伺服器", "bad"); });
+
+    function run(confirm) {
+      $("btnDestroy").disabled = true;
+      sayDanger("刪除中…外部服務要一項一項拆，請稍等。");
+      fetch("/api/me/instances/" + encodeURIComponent(cur.id) + "/destroy", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ confirm: confirm }),
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (x) {
+          $("btnDestroy").disabled = false;
+          if (!x.ok) { sayDanger(esc(x.d.error || "沒有成功") + (x.d.detail ? '<div class="raw mt-1">' + esc(x.d.detail) + "</div>" : ""), "bad"); return; }
+          var steps = x.d.steps || [];
+          if (x.d.done) {
+            /* 刪掉之後不要停在一個已經不存在的系統上。 */
+            sayDanger("已經刪乾淨了。", "ok");
+            setTimeout(function () { location.href = "./workspace.html"; }, 900);
+            return;
+          }
+          /* 部分失敗要講清楚哪一項——那些是還留在外面的東西。 */
+          var bad = steps.filter(function (s) { return !s.ok; });
+          sayDanger("<b>沒有全部刪掉。</b>下面這幾項還留著，這套系統先保留在清單上，"
+            + "你可以再按一次刪除重試："
+            + '<div class="dellist mt-1">' + bad.map(function (s) {
+              return '<div class="it warn"><b>' + esc(s.label) + "</b><span>" + esc(s.why || "") + "</span></div>";
+            }).join("") + "</div>", "bad");
+          loadSystems();
+        })
+        .catch(function () { $("btnDestroy").disabled = false; sayDanger("連不上伺服器", "bad"); });
+    }
+  }
+
   /* 交付卡自己的訊息列。動作的結果要出現在按下去的那顆按鈕旁邊，而不是
      頁尾——尤其是失敗訊息，隔著整張卡的距離會讓人以為那是別的東西壞了。 */
   function sayRepo(r, act) {
@@ -3681,6 +3898,26 @@
   }
 
   $("btnCheck").addEventListener("click", function () { if (cur) runCheck({ offerAnyway: false }); });
+
+  $("btnArchive").addEventListener("click", function () {
+    if (!cur) return;
+    var mode = this.dataset.mode;
+    if (mode === "unarchive") return doArchive("unarchive");
+    askConfirm({
+      title: "把「" + (curTitle() || "這套系統") + "」封存？",
+      body: "它會從清單上收起來，佈署的網址也會下線。資料庫、檔案、對話都留著，"
+        + "隨時可以取消封存放回來。",
+      ok: "封存",
+    }).then(function (yes) { if (yes) doArchive("archive"); });
+  });
+  $("btnDestroy").addEventListener("click", function () { if (cur) doDestroy(); });
+
+  /* 目前這套系統在畫面上叫什麼。清單那邊已經算過一次（title），
+     這裡沿用同一個，才不會視窗上寫的跟左邊列的不一樣。 */
+  function curTitle() {
+    var hit = (systems || []).find(function (s) { return s.id === (cur && cur.id); });
+    return hit ? hit.title : (cur && cur.repo_name) || "";
+  }
 
   /* 交付。三顆都是既有的端點，只有擁有者做得到。 */
   document.querySelectorAll("[data-act]").forEach(function (b) {

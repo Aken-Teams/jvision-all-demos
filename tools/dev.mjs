@@ -745,6 +745,79 @@ function startGateway() {
     }
 
     {
+      /* 刪除／封存。三支共用同一組把關：只有擁有者，而且都以「現在實際占用了
+         什麼」為準去做，不照資料庫欄位猜。 */
+      const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/(delete-plan|archive|unarchive|destroy)$/.exec(p);
+      if (m) {
+        const [, instanceId, what] = m;
+        const id = visitor.read(req);
+        if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
+        const wantGet = what === "delete-plan";
+        if (wantGet ? req.method !== "GET" : req.method !== "POST") return json(res, 405, { error: "方法不對" });
+        try {
+          const inst = await control.getInstance(instanceId);
+          if (!inst) return json(res, 404, { error: "找不到這個系統" });
+          const role = await control.memberRole({ customerId: inst.customer_id, email: id.email });
+          if (role !== "owner") return json(res, 403, { error: "只有這套系統的擁有者可以做這件事" });
+          const del = await import("./lib/instance-destroy.mjs");
+          /* 狀態一改就通知 app-server 丟掉快取。它為了省往返會把實例記 30 秒，
+             不通知的話「取消封存」之後入口還會回 410 半分鐘。 */
+          const forget = () => new Promise((ok) => {
+            const r = http.request({ host: "127.0.0.1", port: APP_PORT, path: "/_jv/forget",
+              method: "GET", headers: { "x-jv-instance": instanceId } }, (x) => { x.resume(); x.on("end", ok); });
+            r.on("error", ok);          // 通知不到不該讓動作失敗，最多晚 30 秒生效
+            r.end();
+          });
+
+          /* 確認要打的名字，用他畫面上看到的那個（跟「我的專案」清單同一個
+             來源）。用 repo_name 的話他要照抄一串
+             jvision-construction-insurance-reconciliation——那不是他認得的東西，
+             也就失去了「再想一次」的作用。 */
+          const shownName = inst.display_name || titleFor(inst.repo_name) || inst.repo_name;
+          if (what === "delete-plan") return json(res, 200, { name: shownName, ...(await del.plan(inst)) });
+
+          if (what === "archive") {
+            const r = await del.archive(inst);
+            await forget();
+            await control.recordEvent({ kind: "instance.archived", customerId: inst.customer_id,
+              instanceId: inst.id, actor: id.email, detail: {} });
+            actions.record({ actor: id.email, action: "封存自己的系統", target: inst.repo_name, status: 200, visitor: who });
+            return json(res, 200, { ok: true, steps: r.steps });
+          }
+
+          if (what === "unarchive") {
+            await del.unarchive(inst);
+            await forget();
+            await control.recordEvent({ kind: "instance.unarchived", customerId: inst.customer_id,
+              instanceId: inst.id, actor: id.email, detail: {} });
+            return json(res, 200, { ok: true });
+          }
+
+          /* 刪除要再確認一次名字。這是不可逆的，而畫面上可能同時開著好幾套——
+             按錯卡片的代價是刪掉另一套系統。 */
+          const body = await readBody(req).catch(() => ({}));
+          const expect = shownName;
+          if (String(body.confirm || "").trim() !== expect) {
+            return json(res, 400, { error: `請輸入系統名稱「${expect}」以確認` });
+          }
+          /* 事件在刪除之前記——它自己也會被刪掉，但客戶層級的那一筆留得住
+             （events 是照 instance_id 刪的，這一筆刻意不帶）。 */
+          await control.recordEvent({ kind: "instance.destroyed", customerId: inst.customer_id,
+            instanceId: null, actor: id.email,
+            detail: { instance: inst.id, repo: inst.repo_name, name: expect } });
+          const r = await del.destroy(inst);
+          await forget();
+          actions.record({ actor: id.email, action: r.done ? "刪除自己的系統" : "刪除自己的系統（有殘留）",
+            target: inst.repo_name, status: r.done ? 200 : 500, visitor: who });
+          return json(res, 200, r);
+        } catch (error) {
+          console.error("[destroy]", what, String(error.message).slice(0, 200));
+          return json(res, 500, { error: "沒有成功", detail: String(error.message).slice(0, 200) });
+        }
+      }
+    }
+
+    {
       /* 這個 repo 上有哪些分支。交付要讓使用者自己選推到哪一條，那就得先
          知道有哪些可選——不然只能盲打分支名字。 */
       const m = /^\/api\/me\/instances\/([a-z0-9_]+)\/branches$/.exec(p);
