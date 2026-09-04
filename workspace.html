@@ -134,6 +134,9 @@
     .ov-meta { font-size: 12px; color: var(--muted); }
     .ov-acts { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; }
     .ov-acts .btn { flex: 1; justify-content: center; }
+    /* 封存那顆只有圖示，不該跟「開始修改」等寬——它不是這張卡的主要動作。 */
+    .ov-acts .ov-icon { flex: none; width: 34px; padding: 0; }
+    .ov-acts .ov-icon .material-symbols-outlined { font-size: 17px; }
     @media (max-width: 640px) { .ov-in { padding: 20px 14px 40px; } .ov-grid { grid-template-columns: 1fr; } }
     /* 頁碼列。樣式照目錄頁（app.js 的 #pagination），一頁同樣是 12 筆——
        同一個站上兩種分頁長相不同，使用者會以為是兩個系統。 */
@@ -258,8 +261,10 @@
        但仍然點得進去——要取消封存就得先進得去。 */
     .archhd { padding:.6rem .5rem .25rem; font-size:.68rem; font-weight:800; color:#94a3b8; }
     .archhd + .grp .sys, .archhd ~ .grp .sys { opacity:.62; }
+    /* 寬度跟上面那幾張卡一致。這裡本來有 max-width:60rem，那是上面還有寬度
+       上限時抄過來的——上面改成填滿之後，這一塊就變成短一截，看起來像沒對齊。 */
     .danger { margin-top:1.5rem; border:1px solid #fecaca; background:#fffbfb;
-              border-radius:.75rem; padding:1rem; max-width:60rem; }
+              border-radius:.75rem; padding:1rem; }
     .danger .acts { justify-content:flex-end; }
     #dangerMsg .raw { font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
                       white-space:pre-wrap; word-break:break-all; font-size:.7rem; }
@@ -1065,7 +1070,6 @@
             </div>
           </div>
         </div>
-        </div>
 
         <!-- 危險區。跟上面三張卡分開、放最後、外框用紅色：這裡兩顆按鈕的
              後果跟上面完全不同層級，長得一樣就會有人順手按下去。 -->
@@ -1382,11 +1386,56 @@
         '<div class="ov-acts">' +
           (live
             ? '<button type="button" class="btn btn-primary" data-edit="' + esc(s.id) + '">開始修改</button>' +
-              '<a class="btn btn-ghost" href="/-/i/' + esc(s.id) + '/?jv=view" target="_blank" rel="noreferrer">開啟 ↗</a>'
-            : '<span class="ov-meta">' + esc(STATE_TEXT[s.state] || s.state) + "，好了會出現在這裡</span>") +
+              '<a class="btn btn-ghost" href="/-/i/' + esc(s.id) + '/?jv=view" target="_blank" rel="noreferrer">開啟 ↗</a>' +
+              /* 封存放在卡片上，刪除不放。
+                 封存是可逆的，而且它的意圖是「清單太長，把這幾套收起來」——
+                 那是在看清單的時候發生的事，逼他先進編輯區是繞路。
+                 刪除相反：它不可逆，而卡片並排、標題又長得像，在這裡按錯的
+                 代價是毀掉另一套系統。要刪就先打開它——看到它的畫面、它的
+                 資料，才知道自己刪的是不是這一套。 */
+              (s.role === "owner"
+                ? '<button type="button" class="btn btn-ghost ov-icon" data-arch="' + esc(s.id) + '"'
+                  + ' title="封存（收起來，之後可以放回來）" aria-label="封存">'
+                  + '<span class="material-symbols-outlined">inventory_2</span></button>'
+                : "")
+            : s.state === "archived"
+              ? '<span class="ov-meta" style="flex:1">已封存，資料都留著</span>' +
+                (s.role === "owner"
+                  ? '<button type="button" class="btn btn-ghost" style="flex:none" data-unarch="' + esc(s.id) + '">取消封存</button>'
+                  : "")
+              : '<span class="ov-meta">' + esc(STATE_TEXT[s.state] || s.state) + "，好了會出現在這裡</span>") +
         "</div></article>";
     }).join("");
   }
+
+  /* 卡片上的封存／取消封存。用委派：卡片會整批重畫，逐張綁監聽必然失效。 */
+  $("ovGrid").addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest("[data-arch]");
+    var u = e.target.closest && e.target.closest("[data-unarch]");
+    if (!a && !u) return;
+    var id = (a || u).dataset.arch || (a || u).dataset.unarch;
+    var hit = (systems || []).find(function (s) { return s.id === id; });
+    var name = hit ? (hit.title || hit.repo_name) : "這套系統";
+    var go = function () {
+      (a || u).disabled = true;
+      fetch("/api/me/instances/" + encodeURIComponent(id) + "/" + (a ? "archive" : "unarchive"), { method: "POST" })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (x) {
+          if (!x.ok) { (a || u).disabled = false; alertBox(x.d.error || "沒有成功"); return; }
+          loadSystems();          // 總覽本來就是清單，整份重畫是對的
+        })
+        .catch(function () { (a || u).disabled = false; alertBox("連不上伺服器"); });
+    };
+    if (u) return go();
+    askConfirm({
+      title: "把「" + name + "」封存？",
+      body: "它會從清單上收起來，佈署的網址也會下線。資料庫、檔案、對話都留著，隨時可以取消封存放回來。",
+      ok: "封存",
+    }).then(function (yes) { if (yes) go(); });
+  });
+
+  /* 只有一顆確定鈕的提示。這裡的失敗都是「知道就好」，不需要他決定什麼。 */
+  function alertBox(t) { askConfirm({ title: "沒有成功", body: String(t), ok: "知道了", onlyOk: true }); }
 
   /* 頁碼列：首尾各兩頁＋目前頁前後各一頁，中間以 … 略過。與目錄頁同一套規則。 */
   function renderOvPager(pages) {
