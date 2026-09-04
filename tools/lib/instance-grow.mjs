@@ -55,7 +55,11 @@ function signatures(html) {
  * 呼叫端必須把失敗當成「這一項沒做成」而不是「整次修改失敗」——
  * 畫面已經改好也記了版本，建表補不成只要照實說就好。
  */
-export async function growTables(dbName, beforeHtml, afterHtml, dir = null) {
+export async function growTables(dbName, beforeHtml, afterHtml, dir) {
+  /* dir 是必要的，不給就丟例外。做成可選的話，哪天有第二個呼叫端忘了帶，
+     新表就又不會寫回 schema.json——而那個失敗是安靜的：表建好了、畫面也對，
+     只有交付出去的專案會少一張表，要等客戶回報才會發現。 */
+  if (!dir) throw new Error("growTables 需要實例目錄（要把新表寫回 schema.json）");
   const had = signatures(beforeHtml);
   let fresh = extractTables(afterHtml).filter((t) => !had.has(sigOf(t.labels)));
   if (!fresh.length) return { added: [] };
@@ -109,7 +113,7 @@ export async function growTables(dbName, beforeHtml, afterHtml, dir = null) {
 
   if (!tables.length) return { added: [] };
   await createFromSchema(dbName, { repoName: cur.repoName, tables }, { seed: true });
-  if (dir) registerInSchemaFile(dir, tables);
+  registerInSchemaFile(dir, tables);
   return { added: tables.map((t) => ({ name: t.name, title: t.title, columns: t.columns.map((c) => c.label) })) };
 }
 

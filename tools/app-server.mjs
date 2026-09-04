@@ -21,6 +21,7 @@ import * as chat from "./lib/instance-chat.mjs";
 import * as edit from "./lib/instance-edit.mjs";
 import * as head from "./lib/instance-head.mjs";
 import * as outline from "./lib/page-outline.mjs";
+import * as extract from "./lib/schema-extract.mjs";
 import * as chips from "./lib/instance-chips.mjs";
 import * as refs from "./lib/instance-refs.mjs";
 import * as files from "./lib/instance-files.mjs";
@@ -483,40 +484,52 @@ const server = http.createServer(async (req, res) => {
  * 給資料表一個看得懂的名字。
  *
  * 資料表在資料庫裡叫 table_1、table_2——那是產線生成的，沒有人看得懂。
- * 前端以前的做法是「把前三個欄位名串起來」當標題，於是下拉選單長成
- * 「承辦人·文件與正本序號·印章組合（6）」，看起來像一句話而不是一個名字。
  *
- * 實例裡的 public/_jv/schema.json 記著每張表是**從哪一個畫面掃出來的**
- * （screen: 5），而那個畫面在頁面上有 aria-label（「事後稽核」）。
- * 兩邊兜起來，table_1 就叫得出「事後稽核」。
+ * ── 名字從哪裡來（順序就是可靠度）──────────────────
+ * 一、**畫面上表格自己的標題**。用欄位標籤串起來當身分去比對現在的 index.html，
+ *     取那張表上方最近的 <h3>（「競品價格比較」）。這是唯一「永遠跟畫面一致」
+ *     的來源——使用者看到的名字就是他畫面上寫的字。
+ * 二、schema.json 記的 title。它是開通當下抄過來的，畫面後來改過就會過時。
+ * 三、schema.json 記的 screen（第幾個畫面）對到畫面名稱。
+ * 四、都沒有就「資料表 N」。
  *
- * 兜不起來就退回「資料表 N」——那至少是一個名字，而不是一串欄位。
+ * ── 為什麼順序是這樣（三個都踩過）───────────────────
+ * 原本只用 screen。但 screen 是「表格前面最後一個 data-i」，而很多畫面是 JS
+ * 拼出來的、導覽的 data-i 全擠在最前面，於是每張表都算到同一個畫面——實測飯店
+ * 那套三張表都判成 screen 6，table_1 因此叫「追蹤策略成效」，它其實是
+ * 「房型庫存配置」。**名字錯得很有自信**，比沒有名字糟。
+ *
+ * 然後是 schema.json 本身會漏、會舊：AI 新建的表沒寫回去就整張缺席（只能叫
+ * 「資料表 3」）；而開通時抄過來的那份，產線給的 title 是「<系統名> 資料表 1」
+ * 這種佔位名——每張表只差最後一個數字，等於沒有名字。
+ *
+ * 所以改成**以畫面為準**：不管 schema.json 漏了、舊了、還是寫著佔位名，
+ * 只要那張表還在畫面上，名字就對。這一段不需要任何人記得去同步。
  */
 function nameTables(inst, tables) {
   let screens = [];
   let byName = {};
+  let byCols = new Map();
   try {
     const sc = JSON.parse(fs.readFileSync(path.join(inst.dir, "public", "_jv", "schema.json"), "utf8"));
     for (const t of sc.tables || []) byName[t.name] = t;
-  } catch { /* 沒有這份檔就只給編號 */ }
+  } catch { /* 沒有這份檔就靠畫面 */ }
   try {
-    screens = outline.outline(fs.readFileSync(path.join(inst.dir, "public", "index.html"), "utf8")).screens;
-  } catch { /* 讀不到畫面名稱就只給編號 */ }
+    const html = fs.readFileSync(path.join(inst.dir, "public", "index.html"), "utf8");
+    screens = outline.outline(html).screens;
+    /* 同一份 HTML 解兩次不划算，但 outline 與 extractTables 要的東西不一樣，
+       而這一支不是熱路徑（開資料頁時打一次）。 */
+    for (const t of extract.extractTables(html)) {
+      if (t.caption) byCols.set(t.labels.join("|"), t.caption);
+    }
+  } catch { /* 讀不到畫面就退回 schema.json */ }
 
+  const isPlaceholder = (t) => !t || /資料表\s*\d+\s*$/.test(String(t).trim());
   const used = {};
   return (tables || []).map((t, i) => {
     const meta = byName[t.name];
-    let title = null;
-    /* 先用 schema.json 記下來的標題——那是從表格上方那個 <h3> 抽出來的
-       （「競品價格比較」），是這張表真正的名字。
-       screen 只當備援：它是「表格前面最後一個 data-i」，而不少畫面是 JS 拼出來的，
-       導覽的 data-i 全擠在最前面，於是每一張表都算到同一個畫面——實測飯店那套
-       三張表都被判成 screen 6，table_1 因此被叫成「追蹤策略成效」，
-       但它其實是「房型庫存配置」。 */
-    /* 佔位名不只「資料表 3」一種——產線也會給「<系統名> 資料表 1」，那個更糟：
-       它長、而且每張表只差最後一個數字，在下拉選單裡等於沒有名字。
-       兩種都當作沒有名字。 */
-    if (meta && meta.title && !/資料表\s*\d+\s*$/.test(meta.title)) title = meta.title;
+    let title = byCols.get((t.columns || []).map((c) => c.label).join("|")) || null;
+    if (!title && meta && !isPlaceholder(meta.title)) title = meta.title;
     if (!title && meta && typeof meta.screen === "number" && screens[meta.screen]) title = screens[meta.screen];
     if (!title) title = `資料表 ${i + 1}`;
     /* 同一個畫面上有兩張表的話，名字會撞。加序號而不是讓兩項長得一樣——
