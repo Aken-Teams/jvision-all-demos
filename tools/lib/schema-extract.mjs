@@ -37,8 +37,15 @@ function headingAbove(before) {
     /* 圖示字型的字要先整段拿掉再 strip。Material Symbols 是把字面
        （list_alt、pie_chart）寫在元素裡，靠字型畫成圖示——只去標籤的話那個字
        會留在文字裡，標題就變成「list_alt 發包比價一覽」。 */
-    const t = strip(String(hits[i][2]).replace(
-      /<span[^>]*class="[^"]*material-symbols[^"]*"[^>]*>[\s\S]*?<\/span>/gi, " "));
+    const t = strip(String(hits[i][2])
+      /* 圖示元素整段拿掉。Material Symbols 是把字面（list_alt、pie_chart）寫在
+         元素裡靠字型畫成圖示——只去標籤的話那個字會留在文字裡，標題就變成
+         「list_alt 發包比價一覽」。 */
+      .replace(/<span[^>]*class="[^"]*material-symbols[^"]*"[^>]*>[\s\S]*?<\/span>/gi, " ")
+      /* 樣板運算式也拿掉。這些畫面是 JS 拼出來的，標題常常長成
+         <h3>${icon("list_alt")}異常案件</h3>——名字是「異常案件」，
+         前面那一段是插圖示用的，不是標題的一部分。 */
+      .replace(/\$\{[^{}]*\}/g, " "));
     if (!t || t.length > 20) continue;
     /* 有句讀的是句子，不是名字。整頁的標語常常就掛在表格上方不遠處
        （「每一次用印，都有完整授權依據。」），長度擋不住它——真正的表名
@@ -47,6 +54,25 @@ function headingAbove(before) {
     /* 樣板字串拼出來的標題不是人話（實測抽到過 `'+esc(m.t)+'`）。 */
     if (/[`'"$}]|\w\(/.test(t)) continue;
     return t;
+  }
+  /* 這些畫面有一半是 JS 樣板拼出來的，表格上方根本沒有 <h*>——名字寫在
+     一個輔助函式的參數裡：${head("truck","波次揀貨出貨")}。
+
+     只收語意明確的那幾個函式名。同樣的形狀也會是 kpi("trending_up","毛利率")
+     或 tag("warn","低毛利")——那些是指標卡與狀態徽章，抓來當表名會是錯的，
+     而錯的名字比沒有名字糟。分不出來的就不要。 */
+  /* 有些畫面把標題寫成 <div class="card-title">待迴轉明細</div>——class 名字裡
+     就寫著 title，那是明確的訊號，不是猜的。 */
+  const cls = [...seg.matchAll(/<(?:div|span|p)[^>]*class="[^"]*(?:card-title|section-title|panel-title|sec-title|block-title)[^"]*"[^>]*>([^<]{2,20})</gi)].pop();
+  if (cls) {
+    const t = strip(cls[1]);
+    if (t && !/[。，、；！？,;!?]/.test(t) && !/[`'$}]|\w\(/.test(t)) return t;
+  }
+
+  const call = [...seg.matchAll(/\b(head|heading|cardTitle|sectionTitle|panelTitle|title)\s*\(\s*"[^"]*"\s*,\s*"([^"]{2,20})"/g)].pop();
+  if (call) {
+    const t = call[2].trim();
+    if (t && !/[。，、；！？,;!?]/.test(t) && !/[`'$}]|\w\(/.test(t)) return t;
   }
   return null;
 }

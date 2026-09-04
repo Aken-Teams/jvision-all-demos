@@ -531,7 +531,15 @@ function nameTables(inst, tables) {
     let title = byCols.get((t.columns || []).map((c) => c.label).join("|")) || null;
     if (!title && meta && !isPlaceholder(meta.title)) title = meta.title;
     if (!title && meta && typeof meta.screen === "number" && screens[meta.screen]) title = screens[meta.screen];
-    if (!title) title = `資料表 ${i + 1}`;
+    /* 最後的退路用欄位，不用編號。
+       有一部分表格在畫面上真的沒有標題（沒有 <h3>、沒有 <caption>、也沒有
+       class 寫著 title 的元素），那時候沒有名字可以抄。但「資料表 3」對使用者
+       等於沒有資訊——他得一張一張點開才知道哪張是哪張。頭兩個欄位至少是
+       這張表真正裝的東西，而且永遠不會是錯的。 */
+    if (!title) {
+      const cols = (t.columns || []).map((c) => c.label).filter(Boolean);
+      title = cols.length ? `${cols.slice(0, 2).join("、")}…` : `資料表 ${i + 1}`;
+    }
     /* 同一個畫面上有兩張表的話，名字會撞。加序號而不是讓兩項長得一樣——
        下拉選單裡兩個一模一樣的選項，選了也不知道自己選到哪一個。 */
     used[title] = (used[title] || 0) + 1;
