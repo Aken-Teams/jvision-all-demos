@@ -272,6 +272,16 @@
     .archbar .material-symbols-outlined { font-size:19px; color:#b45309; flex:none; }
     .archbar b { color:#78350f; }
     .archbar .sp { flex:1; min-width:0; }
+    /* 狀態篩選那一排。 */
+    .ovfilter { display:flex; gap:.4rem; flex-wrap:wrap; margin:0 0 1rem; }
+    .ovfilter button { display:inline-flex; align-items:center; gap:.35rem; height:30px;
+                       padding:0 .7rem; border:1px solid #e2e8f0; background:#fff; color:#475569;
+                       border-radius:999px; cursor:pointer; font:inherit; font-size:.78rem; font-weight:700; }
+    .ovfilter button:hover { border-color:#1e40af; color:#1e40af; }
+    .ovfilter button[aria-pressed="true"] { background:#1e40af; border-color:#1e40af; color:#fff; }
+    /* 筆數用比較淡的顏色：它是附註，不是這顆按鈕在說的事。 */
+    .ovfilter .n { font-weight:800; opacity:.6; }
+    .ovfilter button[aria-pressed="true"] .n { opacity:.75; }
     .archhd { padding:.6rem .5rem .25rem; font-size:.68rem; font-weight:800; color:#94a3b8; }
     .archhd + .grp .sys, .archhd ~ .grp .sys { opacity:.62; }
     /* 寬度跟上面那幾張卡一致。這裡本來有 max-width:60rem，那是上面還有寬度
@@ -805,6 +815,9 @@
         </div>
         <a href="./catalog.html" class="btn btn-primary"><span class="material-symbols-outlined text-[18px]">add</span>採用新模板</a>
       </div>
+      <!-- 狀態篩選。封存之後系統還留在清單上（不然沒地方取消封存），
+           所以清單會愈長愈雜——要能只看「還在跑的」或只看「收起來的」。 -->
+      <div id="ovFilter" class="ovfilter" hidden></div>
       <div id="ovGrid" class="ov-grid"></div>
       <div id="ovPager" class="ov-pager"></div>
     </div>
@@ -1379,23 +1392,71 @@
      多一個 ?page= 會跟那個切換打架。 */
   var OV_PAGE = 12, ovPage = 1;
 
+  /* 目前的狀態篩選。"all" 代表不篩。
+     不記進網址也不記進 localStorage：它是「現在想看什麼」，不是設定——
+     下次打開該從全部開始，不然會有人以為系統不見了。 */
+  var ovState = "all";
+
+  /* 篩選列。只列真的有東西的狀態——沒有封存過的人不該看到一顆永遠是 0 的
+     「已封存」，那只是多一個要理解的東西。同理只有一種狀態時整排都不出現。 */
+  function renderOvFilter() {
+    var box = $("ovFilter");
+    if (!box) return;
+    var count = {};
+    systems.forEach(function (s) { count[s.state] = (count[s.state] || 0) + 1; });
+    var kinds = Object.keys(count);
+    if (kinds.length < 2) { box.hidden = true; box.innerHTML = ""; ovState = "all"; return; }
+    /* 順序固定：運作中在前、已封存在後，其餘照 STATE_TEXT 的順序補。
+       依 count 排序的話，封存一套就會讓按鈕跳位置。 */
+    var order = ["live", "building", "failed", "suspended", "archived"];
+    kinds.sort(function (a, b) { return order.indexOf(a) - order.indexOf(b); });
+    box.hidden = false;
+    box.innerHTML = ['<button type="button" data-st="all" aria-pressed="' + (ovState === "all") + '">全部'
+      + '<span class="n">' + systems.length + "</span></button>"]
+      .concat(kinds.map(function (k) {
+        return '<button type="button" data-st="' + esc(k) + '" aria-pressed="' + (ovState === k) + '">'
+          + esc(STATE_TEXT[k] || k) + '<span class="n">' + count[k] + "</span></button>";
+      })).join("");
+    box.querySelectorAll("[data-st]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        ovState = b.dataset.st;
+        ovPage = 1;            // 換了篩選還停在第 3 頁的話，多半是空的
+        renderOverview();
+      });
+    });
+  }
+
   function renderOverview() {
     var grid = $("ovGrid"), sub = $("ovSub");
     if (!systems.length) {
       sub.textContent = "還沒有任何系統。";
       $("ovPager").innerHTML = "";
+      $("ovFilter").hidden = true;
       grid.innerHTML = '<article class="ov-card"><h2>先從目錄挑一套</h2>' +
         '<p class="ov-meta">在專案目錄按「模板複製」，就會複製出一份你自己的、能存資料的系統。</p>' +
         '<div class="ov-acts"><a class="btn btn-primary" href="./catalog.html">瀏覽專案目錄</a></div></article>';
       return;
     }
-    var pages = Math.max(1, Math.ceil(systems.length / OV_PAGE));
+    renderOvFilter();
+    /* 篩掉的那幾套之後就不再參與分頁與筆數——不然頁碼會對不上。 */
+    var shown = ovState === "all" ? systems : systems.filter(function (s) { return s.state === ovState; });
+    if (!shown.length) {
+      sub.textContent = systems.length + " 套系統 · 目前這個狀態沒有東西。";
+      $("ovPager").innerHTML = "";
+      grid.innerHTML = '<article class="ov-card"><h2>這個狀態下沒有系統</h2>'
+        + '<p class="ov-meta">換一個狀態看看，或按「全部」。</p></article>';
+      return;
+    }
+    var pages = Math.max(1, Math.ceil(shown.length / OV_PAGE));
     if (ovPage > pages) ovPage = pages;
     var from = (ovPage - 1) * OV_PAGE;
-    var slice = systems.slice(from, from + OV_PAGE);
-    sub.textContent = systems.length + " 套系統"
+    var slice = shown.slice(from, from + OV_PAGE);
+    sub.textContent = (ovState === "all" ? systems.length + " 套系統"
+        : shown.length + " 套" + (STATE_TEXT[ovState] || ovState) + "（共 " + systems.length + " 套）")
       + (pages > 1 ? "（第 " + ovPage + " / " + pages + " 頁）" : "")
-      + " · 挑一套開始修改，或再從目錄複製一套。";
+      /* 篩到「已封存」時不要再說「挑一套開始修改」——那些正是改不動的那幾套。 */
+      + (ovState === "archived" ? " · 這些已經收起來了，取消封存就能繼續用。"
+        : " · 挑一套開始修改，或再從目錄複製一套。");
     renderOvPager(pages);
     grid.innerHTML = slice.map(function (s) {
       var live = s.state === "live";
