@@ -1055,7 +1055,7 @@ function startGateway() {
     if (p === "/api/me/usage" && req.method === "GET") {
       const id = visitor.read(req);
       if (!visitor.isNamed(id)) return json(res, 401, { error: "請先登入" });
-      const tokens = meUsage.tokensFor(id.email);
+      const tokens = await meUsage.tokensFor(id.email);
       let storage = { files: 0, db: 0, systems: 0, partial: true };
       try {
         const rows = await control.listInstancePathsFor(id.email);

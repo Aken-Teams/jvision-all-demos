@@ -83,6 +83,39 @@ const DDL = [
      INDEX idx_at (at)
    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
+  /* 每一次 LLM 呼叫用掉多少。
+     ── 為什麼在資料庫不在檔案 ──────────────────────────
+     原本寫在 var/token-usage.jsonl。那是給「印出來看一眼」用的格式，撐不住
+     接下來要做的事：後台要能設定並檢查每個人的額度，也就是要能問
+     「這個人這個月用了多少」——檔案要整份重讀，而且它會一直長。
+     再者現在有兩個行程在寫同一個檔（app-server 與 Python 那邊的分析），
+     附加寫入大多數時候沒事，但沒有任何保證。
+
+     actor 是信箱而不是 customer_id：分析那條路只知道誰在用，不一定對得到
+     公司。要按公司彙總的話 JOIN members 就有了。
+
+     cost 允許 NULL——codex 的事件不含模型與單價，硬填一個數字會讓總額看起來
+     像「就是這麼多」。at 與 actor 都建索引：那兩個是「這個人這個月用了多少」
+     唯一會用到的條件。 */
+  `CREATE TABLE IF NOT EXISTS token_usage (
+     id BIGINT AUTO_INCREMENT PRIMARY KEY,
+     at DATETIME NOT NULL,
+     actor VARCHAR(190) NOT NULL,
+     kind VARCHAR(20) NOT NULL,
+     model VARCHAR(80),
+     instance_id VARCHAR(40),
+     repo_name VARCHAR(120),
+     tok_in INT NOT NULL DEFAULT 0,
+     tok_out INT NOT NULL DEFAULT 0,
+     tok_cache_write INT NOT NULL DEFAULT 0,
+     tok_cache_read INT NOT NULL DEFAULT 0,
+     tok_reasoning INT NOT NULL DEFAULT 0,
+     turns INT NOT NULL DEFAULT 0,
+     cost DECIMAL(12,6) NULL,
+     INDEX idx_actor_at (actor, at),
+     INDEX idx_at (at)
+   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
   /* 全自動自助沒有人工審核，配額就是那道自動閘門。 */
   `CREATE TABLE IF NOT EXISTS quotas (
      customer_id VARCHAR(40) PRIMARY KEY,
